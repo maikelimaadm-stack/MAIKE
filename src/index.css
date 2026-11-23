@@ -19,6 +19,7 @@
 @import "./styles/base1-paleta-tailwind.css";
 @import "./styles/base1-design-ajustes.css";
 @import "./styles/base1-tipografia.css";
+@import "./styles/base1-vidro-azul.css";
 
 @tailwind base;
 @tailwind components;

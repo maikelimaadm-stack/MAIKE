@@ -1,0 +1,147 @@
+/* Referência visual do proprietário: vidro claro, azul/violeta, controles em
+   pílula. Só telas Base1 e seus portais; o Mapa Geral conserva sua aparência. */
+body.b1-tela {
+  --b1-glass-ink: #18213b;
+  --b1-glass-muted: #606d85;
+  --b1-glass-blue: #0965db;
+  --b1-glass-gradient: linear-gradient(110deg, #21b8f6 0%, #306bfa 48%, #9573ee 100%);
+  --mk-sup-fundo: #f5f7fd;
+  --mk-sup-cartao: rgba(255, 255, 255, .82);
+  --mk-sup-borda: #e4e9f5;
+  --mk-btn-bg: rgba(255, 255, 255, .78);
+  --mk-btn-hover: #eff5ff;
+  --mk-btn-sombra: 0 6px 18px rgb(55 76 131 / 8%), inset 0 1px 1px #fff;
+  --mk-cartao-sombra: 0 10px 30px rgb(55 76 131 / 7%), inset 0 1px 0 #fff;
+  --mk-action-positive-bg: #216df6;
+  --mk-action-positive-hover: #0957cc;
+  --mk-action-positive-fg: #fff;
+}
+body.b1-tela :is(.cadastro-b1, .b1ref, .mk-base1-sheet, .mk-config-sheet, .mk-column-filter-sheet) {
+  --mg-text-1: var(--b1-glass-ink);
+  --mg-text-2: var(--b1-glass-muted);
+  --mg-text-3: #68758d;
+  --mg-icon: #52719c;
+  --mg-accent: #216df6;
+  --mg-accent-hover: #0957cc;
+  --mg-accent-light: #e8f1ff;
+  --mg-divider: #e2e8f4;
+  --mg-table-line: #e2e8f4;
+  --mg-selection-bg: #eaf2ff;
+  --mg-bg-page: #f5f7fd;
+  --mg-bg-card: rgba(255, 255, 255, .82);
+  --mg-gray-fill: #eff2fa;
+  --mg-radius-control: 24px;
+  --mg-radius-card: 22px;
+  --mg-focus-border: #367bf4;
+  --mg-focus-ring: 0 0 0 3px rgb(54 123 244 / 17%);
+  --mk-font-list: 13px;
+  --mk-font-field: 14px;
+  --mk-font-title: 16px;
+  --mk-font-heading: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+body.b1-tela .cadastro-b1--full-page:not(#mk-a):not(#mk-b) {
+  background: radial-gradient(ellipse at 92% 0%, #dcecff 0, transparent 48%), radial-gradient(ellipse at 8% 85%, #eee7ff70 0, transparent 48%), #f8faff !important;
+}
+body.b1-tela .mk-topnav-header {
+  background: linear-gradient(125deg, #fff 15%, #f5f9ff 70%, #e8f1ff) !important;
+  border-color: #e7edf7;
+}
+body.b1-tela .cadastro-b1 :is(.mg-shell__body, .b1-card, .b1-secao__cartao, .b1-aba-cartao, .mg-summary):not(#mk-a):not(#mk-b) {
+  background: rgba(255, 255, 255, .78);
+  border: 1px solid #ffffff;
+  border-radius: 22px;
+  box-shadow: var(--mk-cartao-sombra);
+}
+body.b1-tela .cadastro-b1 :is(.b1-aba-cartao, .b1-secao__cartao):not(#mk-a):not(#mk-b) { padding: 20px; }
+body.b1-tela .cadastro-b1 :is(.b1-secao__titulo, .b1-aba-cartao__titulo):not(#mk-a):not(#mk-b) { color: var(--b1-glass-ink); font-size: 14px; }
+
+/* O rótulo fica acima do controle. Mantém as opções explícitas de densidade. */
+body.b1-tela .cadastro-b1 form:not([data-densidade="rotulo-a-frente"]):not([data-densidade="rotulo-acima"]) .mg-field:not(.mg-field--switch):not(#mk-a):not(#mk-b) {
+  display: flex !important; flex-direction: column; gap: 7px;
+  height: auto !important; min-height: 0 !important; padding: 0 !important;
+  border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important;
+}
+body.b1-tela .cadastro-b1 form:not([data-densidade="rotulo-a-frente"]):not([data-densidade="rotulo-acima"]) .mg-field:not(.mg-field--switch) .mg-field__label:not(#mk-a):not(#mk-b) {
+  position: static !important; align-self: auto !important; padding: 0 6px !important;
+  transform: none; max-width: 100%; font-size: 13px !important; line-height: 1.4 !important;
+  color: var(--b1-glass-ink); font-weight: 500;
+}
+body.b1-tela .cadastro-b1 form .mg-field:not(.mg-field--switch) .mg-field__control:not(#mk-a):not(#mk-b) {
+  position: relative; min-width: 0; min-height: 46px; height: 46px;
+  padding: 0; border: 2px solid rgba(255, 255, 255, .95); border-radius: 26px;
+  background: linear-gradient(115deg, #edf1faee, #eceef8bb);
+  box-shadow: 0 5px 16px rgb(69 83 139 / 5%), inset 0 1px 0 #fff;
+}
+body.b1-tela .cadastro-b1 form .mg-field__control :is(input, select, textarea, .cmd-display, .mg-input, [role="combobox"]):not(#mk-a):not(#mk-b) {
+  padding: 0 18px !important; font-size: 14px; color: var(--b1-glass-ink);
+  -webkit-text-fill-color: currentColor; background: transparent;
+}
+body.b1-tela .cadastro-b1 form .mg-field--multiline .mg-field__control:not(#mk-a):not(#mk-b) { min-height: 100px; height: auto; border-radius: 24px; }
+body.b1-tela .cadastro-b1 form .mg-field--multiline textarea:not(#mk-a):not(#mk-b) { padding: 14px 18px !important; min-height: 96px; }
+body.b1-tela .cadastro-b1 form .mg-field:not(.mg-field--disabled):focus-within .mg-field__control:not(#mk-a):not(#mk-b) { border-color: #a8cbff; box-shadow: var(--mg-focus-ring); }
+body.b1-tela .cadastro-b1 form .mg-field.is-invalid .mg-field__control:not(#mk-a):not(#mk-b) { border-color: #e98181; box-shadow: 0 0 0 3px #dc262612; }
+body.b1-tela .cadastro-b1 form .mg-field--disabled .mg-field__control:not(#mk-a):not(#mk-b) { background: #edf0f6; opacity: .8; }
+body.b1-tela .cadastro-b1 form .mg-field--switch:not(#mk-a):not(#mk-b) { border-radius: 28px; border: 1px solid #fff; background: #ffffffa8; box-shadow: var(--mk-btn-sombra); }
+
+body.b1-tela .cadastro-b1 .tb-btn:not(#mk-a):not(#mk-b) { border-radius: 999px; min-height: 34px; }
+body.b1-tela .cadastro-b1 .tb-btn.tb-btn-green:not(#mk-a):not(#mk-b),
+body.b1-tela .b1-glass-savebar__button {
+  background: var(--b1-glass-gradient) !important; color: #fff !important;
+  border: 1px solid #ffffff9c; box-shadow: inset 0 1px 1px #ffffffb3, 0 9px 24px #4772e82b !important;
+}
+body.b1-tela .cadastro-b1 .tb-btn.tb-btn-green svg:not(#mk-a):not(#mk-b) { color: inherit !important; }
+body.b1-tela .cadastro-b1 .b1-panel-tabs-strip:not(#mk-a):not(#mk-b) { background: #ffffffa8; border: 1px solid #fff; padding: 4px; border-radius: 999px; }
+body.b1-tela .cadastro-b1 .b1-panel-tab.is-active:not(#mk-a):not(#mk-b) { background: linear-gradient(110deg, #e7f6ff, #dceaff); color: #075dcc; box-shadow: inset 0 1px 1px #fff; }
+body.b1-tela .cadastro-b1 .b1-switch[aria-checked="true"] { background: #216df6; }
+body.b1-tela .cadastro-b1 :is(button, input, textarea, select):focus-visible { outline: 2px solid #367bf4; outline-offset: 3px; }
+body.b1-tela :is(.mg-b1-glass-pop.mg-mais-opcoes, .b1-janela):not(#mk-a):not(#mk-b):not(#mk-c) {
+  background: linear-gradient(145deg, #fffffff2, #edf3ffed) !important;
+  border: 1px solid #fff !important; border-radius: 25px !important;
+  box-shadow: 0 18px 45px #243b7026, inset 0 1px 1px #fff !important;
+  -webkit-backdrop-filter: blur(22px) saturate(150%) !important; backdrop-filter: blur(22px) saturate(150%) !important;
+}
+.b1-glass-savebar { display: none; }
+@media (max-width: 1023px) {
+  body.b1-tela .cadastro-b1 .tb-btn:not(#mk-a):not(#mk-b) { min-height: 42px; }
+  body.b1-tela .cadastro-b1 form .mg-field__control :is(input, textarea, select):not(#mk-a):not(#mk-b) { font-size: 16px; }
+}
+@media (max-width: 767px) {
+  body.b1-tela .cadastro-b1 { --mk-font-list: 14px; --mk-font-field: 16px; --mk-font-title: 18px; }
+  body.b1-tela .cadastro-b1 :is(.b1-secao__cartao, .b1-aba-cartao):not(#mk-a):not(#mk-b) { padding: 18px 14px; }
+  body.b1-tela .cadastro-b1 form .mg-field:not(.mg-field--switch) .mg-field__control:not(#mk-a):not(#mk-b) { min-height: 52px; height: 52px; }
+  body.b1-tela .cadastro-b1 form .mg-field--multiline .mg-field__control:not(#mk-a):not(#mk-b) { min-height: 112px; height: auto; }
+  body.b1-tela .cadastro-b1 form .mg-field__label:not(#mk-a):not(#mk-b):not(#mk-c) { font-size: 15px !important; }
+  body.b1-tela .mk-mhdr__round--salvar { display: none; }
+  body.b1-tela .b1-glass-savebar {
+    display: block; position: relative; flex: 0 0 auto; z-index: 35;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    background: #f7f9fff0; border-top: 1px solid #fff;
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  }
+  body.b1-tela .b1-glass-savebar__button {
+    width: 100%; min-height: 54px; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    font-size: 19px; font-weight: 600;
+  }
+  body.b1-tela .b1-glass-savebar__button:disabled { opacity: .55; cursor: wait; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  body.b1-tela { --mk-sup-cartao: #fff; }
+  body.b1-tela :is(.mg-b1-glass-pop.mg-mais-opcoes, .b1-janela):not(#mk-a):not(#mk-b):not(#mk-c) { background: #f7f9ff !important; backdrop-filter: none !important; }
+}
+/* Ícones decorativos são ativados só no tema Base1, sem alterar os controles. */
+.b1-glass-field-icon { display: none; }
+body.b1-tela .cadastro-b1 form .b1-glass-field-icon {
+  position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 34px; height: 34px;
+  border-radius: 50%; background: #e1efffcf; color: #0b72eb;
+  pointer-events: none;
+}
+body.b1-tela .cadastro-b1 form .mg-field--multiline .b1-glass-field-icon { top: 22px; color: #7950e8; background: #eee6ff; }
+body.b1-tela .cadastro-b1 form .mg-field__control.b1-glass-control--icon :is(input, select, textarea, .cmd-display, .mg-input, [role="combobox"]):not(#mk-a):not(#mk-b) { padding-left: 49px !important; }
+
+body.b1-tela .cadastro-b1 .mg-form-scroll[data-b1-painel]:not(#mk-a):not(#mk-b) { background: #ffffffb8 !important; border: 1px solid #fff; border-radius: 24px; box-shadow: var(--mk-cartao-sombra); }
+body.b1-tela .mk-mhdr__title { color: var(--b1-glass-ink); }
+body.b1-tela .mk-topnav .mk-topnav-item[data-active="true"] { color: #0965db; }
+body.b1-tela .mk-topnav .mk-topnav-item[data-active="true"]::after { background: #0965db; }

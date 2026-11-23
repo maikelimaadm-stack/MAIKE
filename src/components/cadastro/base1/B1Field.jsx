@@ -1,5 +1,5 @@
 import React from "react";
-import { CircleAlert } from "lucide-react";
+import { CalendarDays, CircleAlert, Coins, MapPin, Pencil, Tag, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import B1Switch from "./B1Switch";
 
@@ -73,6 +73,16 @@ export default function B1Field({
   dica = undefined,
   controlId,
 }) {
+  const campoMultilinha = multiline || (React.isValidElement(children) && children.type === "textarea");
+  // Decoração do tema de vidro; não participa do nome acessível do controle.
+  const textoRotulo = typeof label === "string" ? label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+  const IconeVidro = variant === "switch" ? null
+    : /valor|preco|custo|total.*r\$/.test(textoRotulo) ? Coins
+      : /data|emissao|vencimento|^dia$/.test(textoRotulo) ? CalendarDays
+        : /categoria|natureza|tipo/.test(textoRotulo) ? Tag
+          : /descricao|observa/.test(textoRotulo) ? Pencil
+            : /parceiro|fornecedor|cliente|nome/.test(textoRotulo) ? UserRound
+              : /setor|local|area/.test(textoRotulo) ? MapPin : null;
   const generated = React.useId();
   const id = controlId ?? generated;
   const errId = `${id}-error`;
@@ -99,7 +109,7 @@ export default function B1Field({
           disabled && "mg-field--disabled",
           locked && !disabled && "mg-field--locked",
           (hasValue || variant === "switch") && "mg-has-value",
-          multiline && "mg-field--multiline",
+          campoMultilinha && "mg-field--multiline",
           open && "is-open",
           error && "is-invalid",
           fieldClassName,
@@ -109,7 +119,10 @@ export default function B1Field({
           {label}
           {required ? <span className="req"> *</span> : null}
         </label>
-        <div className="mg-field__control">{child}</div>
+        <div className={cn("mg-field__control", IconeVidro && "b1-glass-control--icon")}>
+          {IconeVidro ? <span className="b1-glass-field-icon" aria-hidden="true"><IconeVidro size={20} strokeWidth={1.8} /></span> : null}
+          {child}
+        </div>
       </div>
       {error ? (
         <p id={errId} className="mg-b1-field-msg" role="alert">

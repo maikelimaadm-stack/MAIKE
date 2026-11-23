@@ -1,3 +1,4 @@
+import B1MobileSaveBar from "@/components/cadastro/base1/B1MobileSaveBar";
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -823,6 +824,8 @@ function LayoutShell({ children, currentPageName }) {
         </div>
       </main>
       </div>
+
+      <B1MobileSaveBar />
 
       <MobileSheet open={empresaSheetOpen} onClose={() => setEmpresaSheetOpen(false)} label="Trocar empresa" title="Trocar empresa">
         <p className="mk-co__desc">A troca recarrega os registros da empresa escolhida e limpa a seleção atual.</p>
