@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-23 (missão ativa D-PROD-278; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-23 (missão ativa D-PROD-279; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,12 +9,23 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-23) — MAIKE-MAPA-ATIVIDADE-ACOES: ações da atividade em andamento nos Detalhes da área (D-PROD-278)
+## Missão ativa (2026-11-23) — MAIKE-TIPO-IMPLEMENTO-PRODUTO: o tipo de implemento diz se usa produto, como conta e a capacidade (D-PROD-279)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-279**, pedido do proprietário: "a máquina sozinha não leva produto; quem leva é o implemento" |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `d62a4ef8` · PR (a abrir) |
+| Mudança | `TipoPatrimonial`: "Usa produto?", "Como conta" (por jato) e "Capacidade" (L/kg), só para Implemento (API: 400 em outra natureza; sem produto limpa; com produto, os três obrigatórios); bloco no "+ Novo tipo" do "Gerenciar tipos" e o resumo discreto na lista |
+| Migration | `20261124100000_tipo_implemento_produto`, **EXPAND** (4 colunas anuláveis em `TipoPatrimonial`), checksum `a1836240…ae45`. **Não aplicada.** É a 76ª, depois da reforma; pré-checagem 75/0 e 111 tabelas, pós-checagem 76/0 e 111 tabelas. Ordem: aplicar com o GO do proprietário, depois o merge |
+| Relatório | [`MAIKE-TIPO-IMPLEMENTO-PRODUTO-REPORT.md`](./MAIKE-TIPO-IMPLEMENTO-PRODUTO-REPORT.md) · runbook [`MAIKE-TIPO-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md) |
+| Próximas | "Jatos de hoje" nas telas de atividade quando o implemento escolhido usa produto |
+
+## Missão anterior (2026-11-23) — MAIKE-MAPA-ATIVIDADE-ACOES: ações da atividade em andamento nos Detalhes da área (D-PROD-278)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-278**, pedido do proprietário: tocar a atividade em andamento no Mapa e lançar sem refazer tudo pela "Nova realização" |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `6eb44285` · PR (a abrir) |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `6eb44285` · PR **#365** (mergeada, `d62a4ef8`) |
 | Mudança | Linha tocável em "Atividades em andamento" → menu "+ Lançar dia", "Só máquina / mão de obra / insumo / serviço de terceiro" (presos na área) e "Concluir", com as permissões da lista |
 | Migration | Nenhuma |
 | Relatório | [`MAIKE-MAPA-ATIVIDADE-ACOES-REPORT.md`](./MAIKE-MAPA-ATIVIDADE-ACOES-REPORT.md) |

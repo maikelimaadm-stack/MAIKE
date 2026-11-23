@@ -47,6 +47,18 @@ function useValorAtrasado(valor, ms) {
   return atrasado;
 }
 
+/**
+ * D-PROD-279 — resumo discreto do produto do implemento ("usa produto · jato 2.000 L"); null fora do implemento ou sem produto.
+ * @param {any} r @returns {string|null}
+ */
+export const resumoProduto = (r) => {
+  if (naturezaDoTipo(r) !== "IMPLEMENTO" || r?.usa_produto !== true) return null;
+  const cap = typeof r.capacidade === "string" && r.capacidade ? formatarNumero(r.capacidade, { locale: LOCALE_BEM, casasMin: 0, casasMax: 4 }) : null;
+  const unidade = r.capacidade_unidade === "KG" ? "kg" : r.capacidade_unidade === "L" ? "L" : "";
+  const forma = r.forma_produto === "JATO" ? "jato" : null;
+  return ["usa produto", forma && cap ? `${forma} ${cap} ${unidade}`.trim() : forma].filter(Boolean).join(" · ");
+};
+
 /** Tipo de bem do tipo: o do servidor (`natureza`) ou o da família dele. @param {any} r @returns {string|null} */
 const naturezaDoTipo = (r) => {
   const n = r?.natureza ?? r?.familia?.natureza;
@@ -427,6 +439,7 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
                             n ? ROTULO_NATUREZA[n] : "Tipo de bem não informado",
                             bens,
                             teto ? `Teto de salto: ${formatarNumero(teto, { locale: LOCALE_BEM, casasMin: 0, casasMax: 4 })}` : null,
+                            resumoProduto(r),
                             inativo ? "Inativo" : null,
                           ]
                             .filter(Boolean)

@@ -130,6 +130,12 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['Planejamento', 'status'],
   ['PlanejamentoArea', 'hectares'],
   ['Atividade', 'planejamento_id'],
+  // D-PROD-279 (MAIKE-TIPO-IMPLEMENTO-PRODUTO): o "Gerenciar tipos" lê e grava o produto do implemento; sem a migration
+  // `20261124100000_tipo_implemento_produto`, `/patrimonio-tipos` responde 500.
+  ['TipoPatrimonial', 'usa_produto'],
+  ['TipoPatrimonial', 'forma_produto'],
+  ['TipoPatrimonial', 'capacidade'],
+  ['TipoPatrimonial', 'capacidade_unidade'],
 ]);
 
 /**
