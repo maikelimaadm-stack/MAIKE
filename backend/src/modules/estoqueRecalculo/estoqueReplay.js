@@ -38,6 +38,7 @@ import {
   TIPO_ESTORNO_TRANSFERENCIA_ENVIADA, TIPO_ESTORNO_TRANSFERENCIA_RECEBIDA,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { ORIGENS_PROTOCOLO } from '../estoqueFisico/reconciliacaoEstoque.js';
+import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueFisico/movimentoPosterior.js';
 
 export const CLASSE = Object.freeze({
   ENTRADA: 'entrada',
@@ -57,7 +58,7 @@ const ORIGENS_ESTORNO_EM_LOTE = new Set([ORIGEM_SISTEMA, ORIGEM_APONTAMENTO]);
 const NUMERO_CANONICO = /^\d{1,18}$/;
 
 /** D-PROD-273 (fatia 4): prefixo da marca do par excluído com recálculo (em `movimentacao_grupo_id`, sem migration). */
-export const MARCA_EXCLUSAO_RECALCULO = 'exclusao_recalculo:';
+export { MARCA_EXCLUSAO_RECALCULO };
 /** Marca do par (o original e o estorno dele) excluído com recálculo. @param {string} originalId */
 export const marcaDoPar = (originalId) => `${MARCA_EXCLUSAO_RECALCULO}${originalId}`;
 /** O movimento traz a marca de recálculo (qualquer). @param {any} m */

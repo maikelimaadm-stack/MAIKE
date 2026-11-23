@@ -34,17 +34,23 @@ import { buscarMovimentoPosterior } from '../estoqueFisico/movimentoPosterior.js
 import { recomporRateio } from '../estoqueFisico/rateioObservacoes.js';
 import { recalcularCustosDosCochos } from '../suplementacaoEventos/fechamentoCustoCocho.js';
 import {
-  CAMPOS_VALOR, CLASSE, MARCA_EXCLUSAO_RECALCULO, classificar, compararCanonico, compararComGravado, fatiaComoTexto, fatiasGravadas, marcaDoPar, reproduzir, simularExclusao, texto4,
+  CAMPOS_VALOR, CLASSE, classificar, compararCanonico, compararComGravado, fatiaComoTexto, fatiasGravadas, marcaDoPar, reproduzir, simularExclusao, texto4,
 } from './estoqueReplay.js';
 import { TETO_MOVIMENTOS_AFETADOS, TETO_MOVIMENTOS_PRODUTO, lerHistoricoDoProduto, volumeExcedido } from './estoqueRecalculoLeitor.js';
-import { exigirReplayIgualAoGravado, recalculoInviavel } from './estoqueRecalculoService.js';
+import { ehRecusaContornavel, exigirReplayIgualAoGravado, recalculoInviavel } from './estoqueRecalculoService.js';
+
+export { ehRecusaContornavel };
 
 export const ACAO_AUDITORIA_RECALCULO = 'estoque.recalculo';
+/** `MovimentacaoEstoque.movimentacao_grupo_id` é VarChar(64). */
+const TAMANHO_GRUPO = 64;
 const SITUACAO_CANCELADO = 'cancelado';
 const AMOSTRA = 20;
 
 /**
- * @typedef {{ produtoId: string, excluirIds: string[], posteriores: number }} PlanoRecalculo
+ * @typedef {{ produtoId: string, excluirIds: string[], posteriores: number, dispensa: null | { code: string, reason: string|null },
+ *   estornoExatoSeInviavel?: boolean }} PlanoRecalculo
+ * `dispensa`: o recálculo não é possível e a origem contorna com o estorno exato (só a trilha é gravada).
  */
 
 /** Saldo negativo na simulação → 409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO` (a recusa da SPEC §4.4). */
@@ -78,6 +84,12 @@ export const provarExclusaoComRecalculo = async (tx, cli, a) => {
     if (m.status !== 'Ativa' || m.movimento_filho_id) throw recalculoInviavel('movimento_ja_excluido', { movimento_id: id }, 'este movimento já foi excluído; nada foi alterado');
     // Fatia 4: só SAÍDAS (manual, cocho, atividade, abastecimento, venda). Transferência e entradas são a fatia 5.
     if (classificar(m, porId) !== CLASSE.SAIDA) throw recalculoInviavel('origem_nao_suportada', { movimento_id: id, origem_sistema: m.origem_sistema });
+    // A marca do par mora em `movimentacao_grupo_id` (VarChar(64)): grupo legado já preenchido, ou marca que não cabe,
+    // não se sobrescreve.
+    if (m.movimentacao_grupo_id !== null && m.movimentacao_grupo_id !== undefined) {
+      throw recalculoInviavel('grupo_legado_preenchido', { movimento_id: id }, 'o movimento já tem um grupo de lançamento antigo gravado; a exclusão com recálculo não é segura; nada foi alterado');
+    }
+    if (marcaDoPar(id).length > TAMANHO_GRUPO) throw recalculoInviavel('grupo_legado_preenchido', { movimento_id: id, marca_excede_coluna: true });
   }
   const excluidos = historico.movimentos.filter((x) => a.excluirIds.includes(x.id)).sort(compararCanonico);
   const posteriores = historico.movimentos.filter((x) => compararCanonico(x, excluidos[0]) > 0 && !a.excluirIds.includes(x.id)).length;
@@ -90,20 +102,23 @@ export const provarExclusaoComRecalculo = async (tx, cli, a) => {
     if (reason === 'saldo_negativo') throw saldoNegativo(detalhes);
     throw recalculoInviavel(reason, detalhes);
   }
-  return { produtoId: a.produtoId, excluirIds: [...a.excluirIds], posteriores };
+  return { produtoId: a.produtoId, excluirIds: [...a.excluirIds], posteriores, dispensa: null };
 };
+
+const comoDispensa = (erro) => ({ code: /** @type {any} */ (erro).code, reason: /** @type {any} */ (erro).details?.reason ?? null });
 
 /**
  * ANTES do estorno, sob a trava dos produtos: para cada produto, se algum dos movimentos a excluir teve outro
  * movimento DEPOIS no depósito dele (`buscarMovimentoPosterior`, ignorando os próprios excluídos e `ignorarIds`),
  * prova e devolve o plano do recálculo. Produto sem nada depois fica fora (o estorno exato de hoje vale).
  * @param {any} tx @param {string} cli
- * `estornoExatoSeIrreproduzivel` (abastecimento, atividade e venda — as origens que já estornavam pelo valor exato
- * mesmo com movimento depois): quando o histórico do produto NÃO reproduz o gravado (saldo importado sem movimento,
- * lançamento fora do protocolo), o recálculo não é possível e o produto fica fora do plano — vale o estorno exato de
- * antes desta fatia, sem recalcular nada. Sem a opção (saída manual, cocho), a mesma situação é recusa 409.
+ * `estornoExatoSeInviavel` (abastecimento, atividade e venda — as origens que já estornavam pelo valor exato mesmo
+ * com movimento depois): QUALQUER recusa contornável do recálculo (`ehRecusaContornavel`: histórico que não reproduz,
+ * volume, cocho, camada…), aqui ou depois de escrever (`aplicarExclusaoComRecalculo`, desfeito por SAVEPOINT), vira o
+ * estorno exato de antes desta fatia, sem recalcular nada, com o motivo na trilha. Sem a opção (saída manual, cocho),
+ * a mesma situação é recusa 409/422. Saldo negativo é sempre recusa.
  * @param {{ empresaId: string, movimentos: Array<{ id: string, produtoId: string, localId: string }>, ignorarIds?: string[],
- *   ignorarParesNeutros?: boolean, estornoExatoSeIrreproduzivel?: boolean, teto?: number, tetoAfetados?: number }} a
+ *   ignorarParesNeutros?: boolean, estornoExatoSeInviavel?: boolean, teto?: number, tetoAfetados?: number }} a
  * @returns {Promise<PlanoRecalculo[]>}
  */
 export const planejarExclusaoComRecalculo = async (tx, cli, a) => {
@@ -116,10 +131,8 @@ export const planejarExclusaoComRecalculo = async (tx, cli, a) => {
   /** @type {PlanoRecalculo[]} */
   const planos = [];
   for (const [produtoId, movimentos] of [...grupos.entries()].sort(([x], [y]) => (x < y ? -1 : 1))) {
-    // Os pares já excluídos COM recálculo estão fora da sequência: nunca são "depois" de nada.
-    const marcados = /** @type {Array<{ id: string }>} */ (await tx.$queryRaw`SELECT id FROM "MovimentacaoEstoque"
-      WHERE cliente_id = ${cli} AND empresa_id = ${a.empresaId} AND produto_id = ${produtoId} AND starts_with(COALESCE(movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})`);
-    const ignorar = [...movimentos.map((m) => m.id), ...(a.ignorarIds ?? []), ...marcados.map((m) => m.id)];
+    // Os pares já excluídos COM recálculo são ignorados pelo próprio `buscarMovimentoPosterior`.
+    const ignorar = [...movimentos.map((m) => m.id), ...(a.ignorarIds ?? [])];
     let temDepois = false;
     for (const m of movimentos) {
       const ref = referencias.get(m.id);
@@ -134,12 +147,14 @@ export const planejarExclusaoComRecalculo = async (tx, cli, a) => {
       }
     }
     if (!temDepois) continue;
+    const excluirIds = movimentos.map((m) => m.id);
+    const contorna = a.estornoExatoSeInviavel === true;
     try {
-      planos.push(await provarExclusaoComRecalculo(tx, cli, { empresaId: a.empresaId, produtoId, excluirIds: movimentos.map((m) => m.id), teto: a.teto, tetoAfetados: a.tetoAfetados }));
+      const plano = await provarExclusaoComRecalculo(tx, cli, { empresaId: a.empresaId, produtoId, excluirIds, teto: a.teto, tetoAfetados: a.tetoAfetados });
+      planos.push({ ...plano, estornoExatoSeInviavel: contorna });
     } catch (erro) {
-      const e = /** @type {any} */ (erro);
-      const irreproduzivel = e instanceof AppError && e.code === 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL' && ['historico_nao_reproduzivel', 'replay_diverge_do_gravado'].includes(String(e.details?.reason));
-      if (!(a.estornoExatoSeIrreproduzivel === true && irreproduzivel)) throw erro;
+      if (!(contorna && ehRecusaContornavel(erro))) throw erro;
+      planos.push({ produtoId, excluirIds, posteriores: 0, dispensa: comoDispensa(erro), estornoExatoSeInviavel: true });
     }
   }
   return planos;
@@ -346,7 +361,52 @@ export const aplicarExclusaoComRecalculo = async (tx, contexto, planos, a) => {
   const auth = exigirAuthContext(contexto?.auth);
   const cli = auth.clienteId;
   const resumo = { produtos: 0, movimentos: 0, camadas: 0, dependentes: 0 };
+  /** O recálculo não foi possível: fica o estorno exato (já gravado) e o motivo na trilha. */
+  const registrarDispensa = (plano, dispensa) => registrarEventosEmLote(contexto, [{
+    acao: ACAO_AUDITORIA_RECALCULO, entidade: 'Produto', entidadeId: plano.produtoId, dadosAnteriores: undefined,
+    dadosNovos: { recalculo_dispensado: true, recusa: dispensa, estorno_exato: true, motivo: a.motivo, origem: a.origem, movimentos_excluidos: plano.excluirIds },
+  }], tx);
   for (const plano of planos) {
+    if (plano.dispensa) {
+      await registrarDispensa(plano, plano.dispensa);
+      continue;
+    }
+    if (!plano.estornoExatoSeInviavel) {
+      somarResumo(resumo, await aplicarUm(tx, contexto, cli, plano, a));
+      continue;
+    }
+    // Contornável: o recálculo roda num SAVEPOINT; recusa contornável (inclusive depois de escrever, como
+    // `recalculo_nao_confere`) desfaz SÓ o recálculo e segue com o estorno exato já gravado.
+    await tx.$executeRawUnsafe('SAVEPOINT exclusao_recalculo');
+    try {
+      const r = await aplicarUm(tx, contexto, cli, plano, a);
+      await tx.$executeRawUnsafe('RELEASE SAVEPOINT exclusao_recalculo');
+      somarResumo(resumo, r);
+    } catch (erro) {
+      if (!ehRecusaContornavel(erro)) throw erro;
+      await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT exclusao_recalculo');
+      await tx.$executeRawUnsafe('RELEASE SAVEPOINT exclusao_recalculo');
+      await registrarDispensa(plano, comoDispensa(erro));
+    }
+  }
+  return resumo;
+};
+
+const somarResumo = (resumo, r) => {
+  resumo.produtos += 1;
+  resumo.movimentos += r.movimentos;
+  resumo.camadas += r.camadas;
+  resumo.dependentes += r.dependentes;
+};
+
+/**
+ * O recálculo de UM produto (ver `aplicarExclusaoComRecalculo`).
+ * @param {any} tx @param {any} contexto @param {string} cli @param {PlanoRecalculo} plano
+ * @param {{ empresaId: string, estornos: Map<string, string>, motivo: string, origem: string }} a
+ * @returns {Promise<{ movimentos: number, camadas: number, dependentes: number }>}
+ */
+const aplicarUm = async (tx, contexto, cli, plano, a) => {
+  {
     await travarProdutosEstoque(tx, cli, a.empresaId, [plano.produtoId]);
     // 1. A marca do par: o replay deixa o original e o estorno fora da sequência.
     for (const originalId of plano.excluirIds) {
@@ -373,6 +433,11 @@ export const aplicarExclusaoComRecalculo = async (tx, contexto, planos, a) => {
         return id;
       },
     });
+    if (sim.parada?.reason === 'saldo_negativo') {
+      const detalhes = { ...sim.parada };
+      delete detalhes.reason;
+      throw saldoNegativo(detalhes);
+    }
     if (!sim.reproduzivel) {
       throw recalculoInviavel('historico_nao_reproduzivel', { problemas: [...sim.problemas, ...(sim.parada ? [sim.parada] : [])].slice(0, AMOSTRA) },
         'o recálculo não conseguiu refazer a sequência deste produto; nada foi alterado');
@@ -488,10 +553,10 @@ export const aplicarExclusaoComRecalculo = async (tx, contexto, planos, a) => {
     if (divergencias.length) {
       throw recalculoInviavel('recalculo_nao_confere', { divergencias: divergencias.length, amostra: divergencias.slice(0, AMOSTRA) }, 'o recálculo não fechou com o gravado; nada foi alterado');
     }
-    resumo.produtos += 1;
-    resumo.movimentos += auditoria.filter((x) => x.entidade === 'MovimentacaoEstoque').length;
-    resumo.camadas += auditoria.filter((x) => x.entidade === 'EstoqueLoteNota').length;
-    resumo.dependentes += dependentes.length;
+    return {
+      movimentos: auditoria.filter((x) => x.entidade === 'MovimentacaoEstoque').length,
+      camadas: auditoria.filter((x) => x.entidade === 'EstoqueLoteNota').length,
+      dependentes: dependentes.length,
+    };
   }
-  return resumo;
 };

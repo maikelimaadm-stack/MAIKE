@@ -47,7 +47,7 @@ import {
   numeroMovimentoProvisorio,
   travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
-import { aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
+import { ACAO_AUDITORIA_RECALCULO, aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
 import { CAMPOS_PATCH_PERMITIDOS as CAMPOS_FECHAMENTO_EVENTO } from './camposFechamentoEvento.js';
 import { CAMPOS_PATCH_PERMITIDOS as CAMPOS_FECHAMENTO_LOTE } from '../suplementacaoLotes/suplementacaoLoteService.js';
 import { SITUACAO_CANCELADO, documentoCancelado, diaDoLancamento, eventosAtivosDoCocho, lerParaAtualizar, textoOuNulo, travarCocho } from './suplementacaoCocho.js';
@@ -141,6 +141,25 @@ const restaurar = (dados, anteriores, campos) => {
 };
 
 /**
+ * D-PROD-273 (fatia 4) — o retrato `base` (o `dados_novos` do fechamento) com as reescritas do recálculo aplicadas em
+ * ordem. Cada trilha diz, campo a campo, o antes e o depois; o antes tem de bater com o estado até ali (senão `null`).
+ * @param {any} base @param {any[]} recalculos AuditLog `estoque.recalculo` do evento, em ordem
+ * @returns {Record<string, unknown>|null}
+ */
+const estadoDepoisDosRecalculos = (base, recalculos) => {
+  const estado = { ...(base ?? {}) };
+  for (const r of recalculos) {
+    const antes = r.dados_anteriores && typeof r.dados_anteriores === 'object' ? r.dados_anteriores : {};
+    const depois = r.dados_novos && typeof r.dados_novos === 'object' ? r.dados_novos : {};
+    for (const k of Object.keys(antes)) {
+      if (canonico(estado[k] ?? null) !== canonico(antes[k] ?? null) || !tem(depois, k)) return null;
+      estado[k] = depois[k];
+    }
+  }
+  return estado;
+};
+
+/**
  * Plano da reabertura do período anterior P (em memória; nada é escrito aqui). Casos:
  *  (a) sem P, (b) P aberto, (c) P fechado ANTES de N por outro fluxo → nada a reabrir;
  *  (d) P fechado por N (prova nova `fechado_por_*` ou legada pelo AuditLog) → reabre ao retrato
@@ -177,11 +196,21 @@ const planejarReabertura = async (tx, cli, { N, P, lotesP, criacaoN, em, operati
       && tem(A.dados_novos, 'sobra_kg') && mesmoNumero(A.dados_novos.sobra_kg, N.dados?.sobra_kg);
   }
   if (!provado) throw bloqueado('periodo_anterior_nao_comprovado', { evento_anterior_id: P.id });
-  if (!CAMPOS_FECHAMENTO_EVENTO.every((k) => mesmoCampo(dadosP, A.dados_novos, k))) {
+  // D-PROD-273 (fatia 4): o recálculo da exclusão de uma saída anterior pode ter reescrito o CUSTO deste fechamento
+  // (trilha `estoque.recalculo`, antes → depois). O estado legítimo é o do fechamento com essas reescritas aplicadas,
+  // em ordem, cada uma conferida contra o estado anterior a ela (qualquer quebra da cadeia = alterado).
+  const recalculos = await tx.auditLog.findMany({
+    where: { cliente_id: cli, entidade: ENTIDADE_EVENTO, entidade_id: P.id, acao: ACAO_AUDITORIA_RECALCULO, createdAt: { gte: A.createdAt } },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  });
+  const legitimo = estadoDepoisDosRecalculos(A.dados_novos, recalculos);
+  if (!legitimo || !CAMPOS_FECHAMENTO_EVENTO.every((k) => mesmoCampo(dadosP, legitimo, k))) {
     throw bloqueado('periodo_anterior_alterado', { evento_anterior_id: P.id });
   }
   const restaurado = {
     ...restaurar(dadosP, A.dados_anteriores, CAMPOS_FECHAMENTO_EVENTO),
+    // o custo/kg da saída do período reaberto é o vigente (o recálculo o mudou depois do fechamento)
+    ...(recalculos.length && tem(A.dados_anteriores, 'custo_unitario_kg') && tem(dadosP, 'custo_unitario_kg') ? { custo_unitario_kg: dadosP.custo_unitario_kg } : {}),
     reaberto_por_cancelamento: { evento_cancelado_id: N.id, em, operation_id: operationKey },
   };
 

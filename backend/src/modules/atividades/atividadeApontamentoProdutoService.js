@@ -58,7 +58,7 @@ import {
   concurrencyConflict,
 } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
-import { MENSAGEM_CONFLITO_IDEMPOTENTE, TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
+import { MENSAGEM_CONFLITO_IDEMPOTENTE, TRANSACAO_CURTA, TRANSACAO_LONGA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import {
   EFEITO_SAIDA,
@@ -451,7 +451,7 @@ export const estornarLinhasProduto = async (tx, contexto, { empresaId, atividade
     if (!fatias.length || !somar(fatias.map((/** @type {any} */ f) => f.quantidade)).eq(dec(linha.quantidade))) throw atividadeEstornoBloqueado('fatias_inconsistentes', base);
   }
   const planos = recalcular
-    ? await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: linhas.map((l) => ({ id: l.movimentacao_estoque_id, produtoId: l.produto_id, localId: l.local_estoque_id })), estornoExatoSeIrreproduzivel: true })
+    ? await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: linhas.map((l) => ({ id: l.movimentacao_estoque_id, produtoId: l.produto_id, localId: l.local_estoque_id })), estornoExatoSeInviavel: true })
     : [];
   let estornos;
   try {
@@ -686,14 +686,14 @@ const lerLinhaConfirmada = async (tx, clienteId, empresaId, apontamentoId, linha
 /**
  * Roda a escrita sob o recibo de idempotência; reenvio conflitante auditado à parte.
  * @param {any} contexto @param {{ operationId: string, tipoOperacao: string, fingerprint: string,
- *   executar: (tx: any) => Promise<{ httpStatus: number, body: Record<string, unknown> }> }} a
+ *   executar: (tx: any) => Promise<{ httpStatus: number, body: Record<string, unknown> }>, transacao?: any }} a
  * @returns {Promise<{ status: number, body: Record<string, unknown> }>}
  */
-const comRecibo = async (contexto, { operationId, tipoOperacao, fingerprint, executar }) => {
+const comRecibo = async (contexto, { operationId, tipoOperacao, fingerprint, executar, transacao = TRANSACAO_CURTA }) => {
   const clienteId = exigirAuthContext(contexto?.auth).clienteId;
   try {
     const r = await emTransacao(
-      TRANSACAO_CURTA,
+      transacao,
       (tx) => executarComIdempotencia(tx, { clienteId, operationKey: operationId, tipoOperacao, fingerprint, executar: () => executar(tx) }),
       unicosDaLinha(operationId),
       MENSAGEM_CONFLITO_IDEMPOTENTE
@@ -822,6 +822,8 @@ export const cancelarLinhaProduto = async (contexto, atividadeId, apontamentoId,
   const fingerprint = fingerprintDePayload({ v: 1, atividade_id: atividadeId, apontamento_id: apontamentoId, linha_id: linhaId, empresa_id: corpo.empresa_id, versao: corpo.versao, motivo });
   return comRecibo(contexto, {
     operationId,
+    // D-PROD-273 (fatia 4): o cancelamento pode recalcular o que veio depois: a transação longa (30 s), não a curta.
+    transacao: TRANSACAO_LONGA,
     tipoOperacao: TIPOS_OPERACAO_LINHA_PRODUTO.cancelar,
     fingerprint,
     executar: async (tx) => {

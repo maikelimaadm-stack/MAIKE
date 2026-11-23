@@ -1875,7 +1875,8 @@ const medioDoPoco = (poco) => (poco.quantidade.gt(0) ? arredondar(poco.valor.div
  *    desde `S.createdAt` / número de R) → `movimento_posterior` { lado: 'origem'|'destino', local_estoque_id, movimento_numero };
  *  - S e R relidos sob trava: mesmo par, mesmas fatias, ainda 'Ativa' (`original_ja_estornado`/`original_nao_ativo`);
  *  - LINHAGEM: as camadas com `movimentacao_entrada_id = R` são exatamente os `lote_destino_id`, cada uma
- *    com `quantidade_entrada` = a da fatia → senão `linhagem_divergente`;
+ *    com `quantidade_entrada` = a da fatia → senão `linhagem_divergente` (D-PROD-273: fora a camada que o recálculo
+ *    deixou 'Estornado' com disponível 0);
  *  - camadas do DESTINO intocadas: da empresa, do produto e do local de destino (`camada_divergente`),
  *    'Disponivel' com disponível = entrada e sem consumo por FK (`camada_consumida`);
  *  - camadas da ORIGEM aceitam a devolução: existentes, da empresa, do produto e do local de origem
@@ -1960,8 +1961,11 @@ export const estornarTransferenciaEstoque = async (tx, ctx, a) => {
   const kg = dec(s.quantidade);
   const valorTotal = dec(s.valor_total);
   // 5. validações (nada escrito até aqui)
-  const recebidasTravadas = [...lotes.values()].filter((l) => l.movimentacao_entrada_id === r.id).map((l) => l.id).sort();
   const destinosDasFatias = fatias.map((f) => f.lote_destino_id).sort();
+  // D-PROD-273 (fatia 4): a camada de destino que a exclusão com recálculo deixou sem uso fica 'Estornado' com
+  // disponível 0 (nunca é apagada) e não é mais linhagem da transferência.
+  const morta = (l) => l.status === 'Estornado' && dec(l.quantidade_disponivel).isZero() && !destinosDasFatias.includes(l.id);
+  const recebidasTravadas = [...lotes.values()].filter((l) => l.movimentacao_entrada_id === r.id && !morta(l)).map((l) => l.id).sort();
   if (recebidasTravadas.length !== destinosDasFatias.length || recebidasTravadas.some((id, k) => id !== destinosDasFatias[k])) {
     throw transferenciaBloqueada('linhagem_divergente', { movimentacao_saida_id: s.id });
   }

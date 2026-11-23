@@ -65,7 +65,7 @@ import { aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../es
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError, atividadeApontamentoNotFound, atividadeStatusInvalido } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
-import { TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
+import { TRANSACAO_CURTA, TRANSACAO_LONGA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { STATUS_APONTAMENTO, exigirStatusDaAtividade, travarAtividade } from '../atividades/atividadeComum.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, arredondar, dec, paraBanco, somar } from '../financeiro/decimalFinanceiro.js';
@@ -661,7 +661,7 @@ const cancelarAbastecimentoTravado = async (tx, contexto, { cli, empresaId, ante
     if (!local) throw new Error('abastecimento: local de estoque do abastecimento ausente');
     // D-PROD-273 (fatia 4): com outro movimento do produto no depósito depois do abastecimento, o cancelamento
     // recalcula o custo médio do que veio depois (prova antes do estorno; recálculo e dependentes depois dele).
-    const planos = await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: [{ id: orig.id, produtoId: antes.produto_id, localId: local.id }], estornoExatoSeIrreproduzivel: true });
+    const planos = await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: [{ id: orig.id, produtoId: antes.produto_id, localId: local.id }], estornoExatoSeInviavel: true });
     let estorno;
     try {
       estorno = await estornarSaida(tx, contexto, {
@@ -725,7 +725,9 @@ export const cancelar = async (contexto, id, corpo) => {
   const fingerprint = fingerprintDePayload(fingerprintDoCancelamento(entrada));
   try {
     const r = await emTransacao(
-      TRANSACAO_CURTA,
+      // D-PROD-273 (fatia 4): o cancelamento pode recalcular o que veio depois no depósito: a transação longa da exclusão
+      // da saída manual (30 s), não a curta (9 s).
+      TRANSACAO_LONGA,
       (tx) =>
         executarComIdempotencia(tx, {
           clienteId: cli,

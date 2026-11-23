@@ -362,6 +362,9 @@ describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
     assert.deepEqual(codigo(await previa(x, 'nao-existe')), [404, 'MOVIMENTACAO_ESTOQUE_NOT_FOUND', undefined]);
     const s2 = await sair(x, x.sal, A, '5');
     const m2 = await movDoItem(s2);
+    // D-PROD-273 (fatia 4): sem nada depois a prévia diz "estorno exato" sem ler o histórico; uma saída depois faz a
+    // prévia de m2 passar pelo recálculo (tetos e prova replay = gravado)
+    await sair(x, x.sal, A, '1');
     assert.equal((await H.req('GET', `/estoque/movimentos/${m2.id}/exclusao/previa${qs({ empresa_id: x.e2.id })}`, x.token)).statusCode, 404, 'outra empresa = inexistente');
     assert.equal((await previa(x, m2.id, x.token, { cliente_id: x.c })).statusCode, 400, 'tenant nunca vem da querystring');
     // guarda = a da exclusão da saída manual (`estoque.saida`): só visualizar não basta
@@ -370,9 +373,9 @@ describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
     const operador = await x.conta({ modulos_permitidos: ['suporte-mapa'], permissoes_telas: [{ modulo_id: 'suporte-mapa', tela_id: 'sup-estoque', visualizar: true, saida: true }] });
     assert.equal(ok(await previa(x, m2.id, operador.token)).permitido, true);
     // teto fail-closed (serviço com teto pequeno): nada é processado
-    await assert.rejects(previaExclusao(x.ctx, m2.id, { empresa_id: x.e1.id }, { teto: 3 }), (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO' && e.details.movimentos === 4);
+    await assert.rejects(previaExclusao(x.ctx, m2.id, { empresa_id: x.e1.id }, { teto: 3 }), (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO' && e.details.movimentos === 5);
     const e1m = (await prisma().movimentacaoEstoque.findFirst({ where: { cliente_id: x.c, produto_id: x.sal.id, tipo_detalhado: 'entrada_manual' } }));
-    await assert.rejects(previaExclusao(x.ctx, e1m.id, { empresa_id: x.e1.id }, { tetoAfetados: 2 }), (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO' && e.details.afetados === 3);
+    await assert.rejects(previaExclusao(x.ctx, e1m.id, { empresa_id: x.e1.id }, { tetoAfetados: 2 }), (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO' && e.details.afetados === 4);
     // histórico adulterado (custo de camada fora do motor): o replay não reproduz o gravado → a prévia recusa
     const camada = await prisma().estoqueLoteNota.findFirst({ where: { cliente_id: x.c, produto_id: x.sal.id } });
     await prisma().estoqueLoteNota.update({ where: { id: camada.id }, data: { custo_unitario: '9.9999' } });

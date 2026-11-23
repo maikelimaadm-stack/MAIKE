@@ -42,6 +42,7 @@ import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
+import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueFisico/movimentoPosterior.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { TELAS, carregarAutorizacao, exigirTela, telaPermite } from '../../shared/auth/autorizacaoTela.js';
 import { AppError } from '../../shared/errors/AppError.js';
@@ -1599,7 +1600,7 @@ export const cancelar = async (contexto, id, corpo) => {
         // A compra (entrada) continua com a regra de hoje (fatia 5).
         const comMovimento = mercadorias.filter((i) => i.movimentacao_estoque_id);
         const planos = op.direcao !== 'PAGAR' && comMovimento.length
-          ? await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: comMovimento.map((i) => ({ id: i.movimentacao_estoque_id, produtoId: i.produto_id, localId: i.local_estoque_id })), estornoExatoSeIrreproduzivel: true })
+          ? await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: comMovimento.map((i) => ({ id: i.movimentacao_estoque_id, produtoId: i.produto_id, localId: i.local_estoque_id })), estornoExatoSeInviavel: true })
           : [];
         // Sequência de movimentos SÓ no fim (§8.4 item 5): `numerarMovimentos`.
         const estornos = await estornarEfeitosDoDocumento(tx, contexto, { cli, empresaId, op, mercadorias, dia: tempo?.hoje });
@@ -2092,6 +2093,8 @@ const provaDaVenda = async (tx, cli, empresaId, op, itens) => {
           AND (m."createdAt" > v.instante::timestamp(3) OR (m."createdAt" = v.instante::timestamp(3) AND m.id <> v.original_id)
             OR (m.numero_movimentacao ~ '^[0-9]{1,18}$' AND v.numero ~ '^[0-9]{1,18}$' AND m.numero_movimentacao::numeric > v.numero::numeric))
           AND NOT (m.id = ANY(${proprios}::text[]))
+          -- D-PROD-273 (fatia 4): o par excluído com recálculo está fora da sequência (a regra de movimentoPosterior.js).
+          AND NOT starts_with(COALESCE(m.movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})
         ORDER BY v.ordem, m."createdAt", m.id`
     : []);
   for (const p of posteriores) {

@@ -472,7 +472,9 @@ describe('D-PROD-273 fatia 4 — fail-closed', () => {
     ok(await cancelarVenda(x, v.id));
     const o = await mov(mv.id);
     assert.deepEqual([o.status, o.movimentacao_grupo_id], ['Estornada', null], 'estorno exato, sem marca');
-    assert.equal(await prisma().auditLog.count({ where: { cliente_id: x.c, acao: 'estoque.recalculo' } }), 0);
+    // só a trilha da dispensa (o motivo), nenhum valor reescrito
+    const trilhas = await prisma().auditLog.findMany({ where: { cliente_id: x.c, acao: 'estoque.recalculo' } });
+    assert.deepEqual(trilhas.map((t) => [t.entidade, t.dados_novos.recalculo_dispensado, t.dados_novos.recusa.reason]), [['Produto', true, 'replay_diverge_do_gravado']]);
 
     // teto de posteriores (o serviço usa 5.000; aqui 1): 422 antes de processar qualquer coisa
     await prisma().estoqueLoteNota.update({ where: { id: c.L3 }, data: { custo_unitario: '6.0000' } });

@@ -44,6 +44,7 @@ const rotuloDoMovimento = (m) => {
  * Resumo das prévias (uma por movimento a excluir) para a janela:
  *  - `exato`: nada foi lançado depois que mude de custo — o estorno devolve o valor exato;
  *  - `recalcula`: X movimentos posteriores terão o custo recalculado (`linhas`: antes → depois, só os que mudam de valor);
+ *  - `sem_recalculo`: abastecimento, atividade ou venda com o recálculo inviável — estorno exato, sem recalcular;
  *  - `recusa`: o servidor vai recusar (mensagem clara).
  * @param {any[]} previas respostas da prévia
  * @param {{ maxLinhas?: number }} [o]
@@ -51,6 +52,14 @@ const rotuloDoMovimento = (m) => {
 export const resumoDaPrevia = (previas, o = {}) => {
   const lista = (Array.isArray(previas) ? previas : []).filter(Boolean);
   const recusada = lista.find((p) => p.permitido === false);
+  // D-PROD-273 (fatia 4): o recálculo não é possível nesta origem → a exclusão faz o estorno exato, sem recalcular (não é recusa).
+  const semRecalculo = !recusada && lista.some((p) => p.modo === 'estorno_exato_sem_recalculo');
+  if (semRecalculo) {
+    return {
+      estado: 'sem_recalculo', posteriores: 0, linhas: [], mais: 0,
+      mensagem: 'A exclusão devolve o valor exato ao depósito, sem recalcular os movimentos lançados depois (o histórico deste produto não permite o recálculo com segurança).',
+    };
+  }
   if (recusada) {
     const r = recusada.recusa ?? {};
     return { estado: 'recusa', mensagem: mensagemRecusaRecalculo({ code: r.code, details: r }) ?? `A exclusão não é possível. ${NADA}`, posteriores: 0, linhas: [], mais: 0 };

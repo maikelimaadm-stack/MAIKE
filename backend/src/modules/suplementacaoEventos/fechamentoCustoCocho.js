@@ -170,7 +170,9 @@ export const recalcularCustosDosCochos = (eventos, custos) => {
       const custoAntes = gravado ?? mov?.antes ?? null;
       const custoDepois = mov ? mov.depois : custoAntes;
       if (mov && gravado !== null && mov.antes !== null && gravado !== mov.antes) return { patches: [], recusa: { reason: 'cocho_custo_divergente_do_movimento', evento_id: e.id } };
-      const herdaMudou = anterior !== null && canonico(anterior.antes) !== canonico(anterior.depois);
+      // O anterior mudou: os dados dele (camadas, custo) ou só o custo/kg da saída dele — quando ele não gravou o
+      // `custo_unitario_kg`, a tela usou o `valor_unitario` do movimento, e é esse que muda.
+      const herdaMudou = anterior !== null && (canonico(anterior.antes) !== canonico(anterior.depois) || anterior.custoAntes !== anterior.custoDepois);
       let novo = d;
       if (fechamentoComCusto(d) && (mov || herdaMudou)) {
         const velho = refazer(d, custoAntes, anterior?.antes ?? null, anterior?.custoAntes ?? null);
