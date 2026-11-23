@@ -76,6 +76,10 @@ const COLUNAS_OK = [
   // D-PROD-249: as áreas da atividade e a área do lançamento.
   { table_name: 'AtividadeArea', column_name: 'status' },
   { table_name: 'AtividadeApontamento', column_name: 'atividade_area_id' },
+  // D-PROD-272: as 3 tabelas do ajuste de inventário.
+  { table_name: 'AjusteEstoque', column_name: 'numero' },
+  { table_name: 'AjusteEstoqueItem', column_name: 'contado_estoque' },
+  { table_name: 'AjusteEstoqueEvento', column_name: 'motivo' },
   // D-PROD-273: o plantio (tabela nova) e as 5 colunas dos campos por tipo.
   { table_name: 'AtividadePlantio', column_name: 'cultura_id' },
   { table_name: 'Atividade', column_name: 'local' },
@@ -129,6 +133,9 @@ test('PF-02 banco no estado atual de produção (sem as migrations da PR) → fa
   assert.match(r.falhas.join('\n'), /AreaPastagem\.dias_descanso/);
   assert.match(r.falhas.join('\n'), /AtividadeArea\.status/);
   assert.match(r.falhas.join('\n'), /AtividadeApontamento\.atividade_area_id/);
+  for (const k of ['AjusteEstoque.numero', 'AjusteEstoqueItem.contado_estoque', 'AjusteEstoqueEvento.motivo']) {
+    assert.ok(r.falhas.join('\n').includes(k), k);
+  }
   for (const k of ['AtividadePlantio.cultura_id', 'Atividade.local', 'AtividadeApontamento.numero_receituario', 'AtividadeApontamentoProduto.vc_percentual', 'Produto.carencia_dias', 'TipoAtividade.alvo']) {
     assert.ok(r.falhas.join('\n').includes(k), k);
   }

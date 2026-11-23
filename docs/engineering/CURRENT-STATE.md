@@ -14,13 +14,24 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-273**, a proposta aprovada pelo proprietário em 2026-11-21 (Parte 1, itens B, D, E e G de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)), a "Entrega 2" do plano de campo |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `695ddb25` · PR **#354** |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `695ddb25`, com a `main` `c1cd2be9` integrada · PR **#354** |
 | Escopo | Plantio de pastagem com o capim obrigatório (do Cadastro de Culturas; capim diferente abre outra atividade), forma, semente incrustada, cobertura, consórcio e o VC % da semente; safra automática (1º/jul a 30/jun, "2026/27"); Aplicação com o alvo da operação, o nº do receituário e o "pasto liberado em" pela carência do produto; Manutenção e Outros com a área opcional e o local; quantidade feita + unidade na Manutenção; a lista de referência de capins (Marandu 35/20 e 6 capins do Doc 397) sem tocar no que a fazenda já tem; a data no celular |
 | Migration | `20261121100000_atividade_campos_por_tipo`, **EXPAND** (tabela nova `AtividadePlantio` e 5 colunas anuláveis), checksum `9e6487ff…2a58`. **Não aplicada.** Ordem: aplicar com o GO do proprietário, depois o merge |
 | Próximas | agrupador de Reforma e "Faz parte de: Reforma"; "Conferir nascimento"; aviso do 1º pastejo |
 | Relatório | [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md) · runbook [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md) |
 
-## Missão (2026-11-21) — MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA: edição completa da Entrada e da Saída manual (D-PROD-271)
+## Missão (2026-11-20) — MAIKE-ESTOQUE-AJUSTE-INVENTARIO: ajuste de inventário no "Novo movimento" (D-PROD-272)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-272**, escolhas do proprietário: digita o saldo contado, sobra ao custo médio (sem saldo, custo informado), falta a custo médio, exclusão só sem movimento depois, permissão própria `ajuste`; sempre do dia de hoje |
+| Branch / PR | `claude/new-session-26kpxu`, a partir da `main` `46fe34f5`, com a `main` `cdfb1174` integrada · PR **#350** (mergeada, `c1cd2be9`) |
+| Migration | `20261120300000_estoque_ajustes` (renomeada de `20261120200000_…` para vir depois da data de término), **EXPAND** (3 tabelas novas). GO do proprietário dado ("Aprovo as duas"); **aplicada** em produção em 2026-11-23 pelo caminho B do runbook (registro no §7) |
+| Constituição | emenda **aprovada** pelo proprietário (2026-11-20) e aplicada em `00-CONSTITUICAO.md` §1 e `07-DO-NOT-DO.md` |
+| Próxima | edição completa de entrada e saída (PR própria), pedida pelo proprietário |
+| Relatório | [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md) · runbook [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-21) — MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA: edição completa da Entrada e da Saída manual (D-PROD-271)
 
 | Campo | Valor |
 |---|---|
@@ -60,7 +71,7 @@ rollout pausado **D-PROD-41**)
 | Migration | Nenhuma. Merge e deploy normais |
 | Relatório | [`MAIKE-ESTORNO-COCHO-DEPOSITO-REPORT.md`](./MAIKE-ESTORNO-COCHO-DEPOSITO-REPORT.md) |
 
-## Missão (2026-11-21) — MAIKE-VARIOS-DIAS: serviço de vários dias e a Situação da lista (D-PROD-267)
+## Missão anterior (2026-11-21) — MAIKE-VARIOS-DIAS: serviço de vários dias e a Situação da lista (D-PROD-267)
 
 | Campo | Valor |
 |---|---|
@@ -72,7 +83,7 @@ rollout pausado **D-PROD-41**)
 | Próximas fatias | B (plantio com capim, com migration) e C (agrupador de reforma, com migration), Parte 1 da proposta |
 | Relatório | [`MAIKE-VARIOS-DIAS-REPORT.md`](./MAIKE-VARIOS-DIAS-REPORT.md) · pesquisa: [`MAIKE-PESQUISA-OPERACOES-CAMPO.md`](./MAIKE-PESQUISA-OPERACOES-CAMPO.md) |
 
-## Missão (2026-11-20) — MAIKE-EXCLUIR-HISTORICOS-MAPA: excluir e cancelar direto nos históricos do mapa (D-PROD-266)
+## Missão anterior (2026-11-20) — MAIKE-EXCLUIR-HISTORICOS-MAPA: excluir e cancelar direto nos históricos do mapa (D-PROD-266)
 
 | Campo | Valor |
 |---|---|
@@ -83,7 +94,7 @@ rollout pausado **D-PROD-41**)
 | Etapa 2 | Estorno de lançamento de cocho e de transferência de depósito (servidor novo) |
 | Relatório | [`MAIKE-EXCLUIR-HISTORICOS-MAPA-REPORT.md`](./MAIKE-EXCLUIR-HISTORICOS-MAPA-REPORT.md) |
 
-## Missão (2026-11-20) — MAIKE-NOVA-REALIZACAO: "Nova realização" com o tipo em cartões e a data de término (D-PROD-265)
+## Missão anterior (2026-11-20) — MAIKE-NOVA-REALIZACAO: "Nova realização" com o tipo em cartões e a data de término (D-PROD-265)
 
 | Campo | Valor |
 |---|---|

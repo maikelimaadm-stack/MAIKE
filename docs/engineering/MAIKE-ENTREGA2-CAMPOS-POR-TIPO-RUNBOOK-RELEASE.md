@@ -8,8 +8,10 @@
 
 Decisão: [D-PROD-273](./DECISIONS.md) · Relatório: [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md).
 Molde e precedente executado de EXPAND: [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md)
-(D-PROD-264, caminho B). A anterior em produção: [`MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md`](./MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md)
-(D-PROD-265, aplicada em 2026-11-20 18:58:29 UTC).
+(D-PROD-264, caminho B). A anterior em produção: [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md)
+(D-PROD-272, EXPAND, caminho B, aplicada em 2026-11-23; PR #350 mergeada na `main` em `c1cd2be9`). Antes dela, a
+[`MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md`](./MAIKE-NOVA-REALIZACAO-RUNBOOK-RELEASE.md) (D-PROD-265, aplicada em
+2026-11-20 18:58:29 UTC).
 
 ## 0. O que muda no banco
 
@@ -19,9 +21,9 @@ Molde e precedente executado de EXPAND: [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-REL
 | Natureza | **expand-only** (sem `--contract`): 1 tabela NOVA, **`AtividadePlantio`** (o capim plantado `cultura_id` NOT NULL, o consórcio `consorcio_cultura_id`, `forma_plantio`, `semente_incrustada`, `cobertura`), com 2 UNIQUE e 2 índices começando por `cliente_id`, 5 FKs RESTRICT (Cliente; Empresa; Atividade por (`cliente_id`, `empresa_id`, `atividade_id`); CADCULTURAS duas vezes, por (`cliente_id`, `empresa_id`, id)), 2 CHECKs (`AtividadePlantio_forma_plantio_check`, `AtividadePlantio_consorcio_check`) e o bloco RLS/REVOKE dela; e 5 colunas **anuláveis, sem DEFAULT** em tabelas antigas: `Atividade.local` VARCHAR(120), `AtividadeApontamento.numero_receituario` VARCHAR(40), `AtividadeApontamentoProduto.vc_percentual` DECIMAL(5,2), `Produto.carencia_dias` INTEGER e `TipoAtividade.alvo` VARCHAR(60). Nenhuma linha muda de valor; nenhum DROP, RENAME, ALTER COLUMN ou DML; nada é semeado |
 | SHA-256 pinado (`MIGRATIONS_APROVADAS`) = checksum do Prisma | `9e6487ffddb92a35945c675c1924f363c3396e97dac52e56e8d3c94c20a32a58` |
 | Bloco RLS (`DO_RLS_APROVADOS`) | `e47bfde02699052ca52f4c6c750e9f28aec247d1fcaf5c2c308a05e006799765` (o corpo de sempre, lista `['AtividadePlantio']`) |
-| Classificador | `modo: EXPAND`, `violacoes: []`, `tabelas_novas ["AtividadePlantio"]`, `colunas_novas_em_tabelas_antigas` as 5 acima, `contract: []` (teste B40a) |
-| `_prisma_migrations` | esperado **72** concluídas, 0 abertas (a última `20261120200000_apontamento_data_termino`, D-PROD-265, checksum `a1f8a13c782cfc4fe3d3050749ebb0663eb943d039231db0490ce89fea90c84b`); depois **73**. Recontar no §2 |
-| Tabelas em `public` | **105** antes, **106** depois |
+| Classificador | `modo: EXPAND`, `violacoes: []`, `tabelas_novas ["AtividadePlantio"]`, `colunas_novas_em_tabelas_antigas` as 5 acima, `contract: []` (teste B41a) |
+| `_prisma_migrations` | esperado **73** concluídas, 0 abertas (a última por nome `20261120300000_estoque_ajustes`, D-PROD-272, checksum `ac836ddf1b4830c4cd73ca1894e9925a77a8ea6c2bda735ad1859c830f26ccc9`); depois **74**. Recontar no §2 |
+| Tabelas em `public` | **108** antes, **109** depois |
 
 **Por que antes do merge (D-PROD-72 item 1):** a Vercel publica a `main` sozinha. O runtime novo lê as colunas novas
 em toda leitura da atividade, do apontamento, da linha de produto, do produto e da operação, e a tabela
@@ -55,10 +57,10 @@ volume atual. Uma espera além do `lock_timeout` de 5 s aborta tudo sem aplicar 
 ```sql
 SELECT
   (SELECT system_identifier FROM pg_control_system())                                                 AS sid,         -- 7692130048193495360
-  (SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL)  AS concluidas,  -- 72
+  (SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL)  AS concluidas,  -- 73
   (SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)   AS ruins,       -- 0
-  (SELECT count(*) FROM _prisma_migrations WHERE migration_name = '20261120200000_apontamento_data_termino'
-     AND checksum = 'a1f8a13c782cfc4fe3d3050749ebb0663eb943d039231db0490ce89fea90c84b' AND finished_at IS NOT NULL) AS anterior_ok, -- 1
+  (SELECT count(*) FROM _prisma_migrations WHERE migration_name = '20261120300000_estoque_ajustes'
+     AND checksum = 'ac836ddf1b4830c4cd73ca1894e9925a77a8ea6c2bda735ad1859c830f26ccc9' AND finished_at IS NOT NULL) AS anterior_ok, -- 1
   (SELECT count(*) FROM _prisma_migrations WHERE migration_name = '20261121100000_atividade_campos_por_tipo') AS registrada, -- 0
   to_regclass('public."AtividadePlantio"') IS NULL                                                    AS tabela_ausente, -- true
   (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND (
@@ -67,11 +69,11 @@ SELECT
     OR (table_name = 'AtividadeApontamentoProduto' AND column_name = 'vc_percentual')
     OR (table_name = 'Produto' AND column_name = 'carencia_dias')
     OR (table_name = 'TipoAtividade' AND column_name = 'alvo')))                                      AS colunas_ja_existentes, -- 0
-  (SELECT count(*) FROM pg_tables WHERE schemaname = 'public')                                        AS tabelas;     -- 105
+  (SELECT count(*) FROM pg_tables WHERE schemaname = 'public')                                        AS tabelas;     -- 108
 ```
 
 E, localmente, no `<SHA_APROVADO>`: `sha256sum` do `migration.sql` igual ao pinado e `classificarMigrations` com
-`modo: EXPAND` e `violacoes: []` (teste B40a).
+`modo: EXPAND` e `violacoes: []` (teste B41a).
 
 ### 2.1 Fatos para o relatório (somente leitura; não bloqueiam)
 
@@ -131,14 +133,14 @@ BEGIN
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
          count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)
     INTO n_ok, n_ruim FROM _prisma_migrations;
-  IF n_ok <> 72 OR n_ruim <> 0 THEN
+  IF n_ok <> 73 OR n_ruim <> 0 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: histórico com % concluídas e % com falha', n_ok, n_ruim;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM _prisma_migrations
-                  WHERE migration_name = '20261120200000_apontamento_data_termino'
-                    AND checksum = 'a1f8a13c782cfc4fe3d3050749ebb0663eb943d039231db0490ce89fea90c84b'
+                  WHERE migration_name = '20261120300000_estoque_ajustes'
+                    AND checksum = 'ac836ddf1b4830c4cd73ca1894e9925a77a8ea6c2bda735ad1859c830f26ccc9'
                     AND finished_at IS NOT NULL AND rolled_back_at IS NULL) THEN
-    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (20261120200000_apontamento_data_termino) não está concluída com o checksum do repositório';
+    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (20261120300000_estoque_ajustes) não está concluída com o checksum do repositório';
   END IF;
   IF to_regclass('public."AtividadePlantio"') IS NOT NULL THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: a tabela AtividadePlantio já existe';
@@ -164,20 +166,25 @@ COMMIT;
 
 Confira o SHA-256 do trecho da migration antes de usar. Qualquer falha desfaz tudo.
 
-**Ensaio local (2026-11-21, PostgreSQL local, nunca produção):** banco novo com as 72 migrations anteriores
-(`prisma migrate deploy` sem a pasta nova; 72 / 0, 105 tabelas); o envelope acima, com o `system_identifier` do banco
-local no lugar do de produção (o resto byte a byte igual), aplicou numa transação: 73 / 0, a nova com o checksum
-`9e6487ff…2a58` e 1 passo, 106 tabelas. A 2ª execução recusou (`RELEASE_BLOCKED: migration já registrada`); o envelope
-com o identificador de produção, num banco local, recusou (`RELEASE_BLOCKED: alvo divergente`). Depois:
-`prisma migrate status` "Database schema is up to date!" (73 migrations) e `prisma migrate diff --from-url <banco>
---to-schema-datamodel backend/prisma/schema.prisma` vazio ("This is an empty migration.").
+**Ensaio local (2026-11-23, depois do merge da `main` `c1cd2be9`; PostgreSQL local, nunca produção):** banco novo
+com as 73 migrations da `main` (`prisma migrate deploy` sem a pasta nova; a última por nome
+`20261120300000_estoque_ajustes`; o preflight do §2 deu 73 / 0, `anterior_ok` 1, `registrada` 0, tabela ausente, 0
+colunas, 108 tabelas). O envelope acima com o identificador de produção recusou (`RELEASE_BLOCKED: alvo divergente`,
+nada mudou: 73). Com o `system_identifier` do banco local no lugar do de produção (o resto byte a byte igual; o trecho
+da migration com o SHA-256 `9e6487ff…2a58`), aplicou numa transação: o §4 deu 74 / 0, a nova com o checksum
+`9e6487ff…2a58` e 1 passo, as 5 colunas como na tabela abaixo, 1 `p`, 5 `f`, 2 `c`, 5 índices, RLS sem FORCE, a
+política só para `maike_vercel`, nenhum GRANT, 0 linhas e 109 tabelas. A 2ª execução recusou (`RELEASE_BLOCKED:
+migration já registrada`; continua 74). Depois: `prisma migrate status` "Database schema is up to date!" (74
+migrations) e `prisma migrate diff --from-url <banco> --to-schema-datamodel backend/prisma/schema.prisma` vazio ("No
+difference detected."). O banco do ensaio foi apagado. (O ensaio anterior, de 2026-11-21, antes da D-PROD-272: 72 → 73
+e 105 → 106 tabelas, também verde.)
 
 ## 4. Conferência — somente leitura
 
 ```sql
 SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)
-  FROM _prisma_migrations;                                                                  -- 73, 0
+  FROM _prisma_migrations;                                                                  -- 74, 0
 SELECT checksum, applied_steps_count FROM _prisma_migrations
  WHERE migration_name = '20261121100000_atividade_campos_por_tipo';                          -- 9e6487ff…2a58, 1
 SELECT table_name, column_name, data_type, character_maximum_length, numeric_precision, numeric_scale, is_nullable, column_default
@@ -201,10 +208,10 @@ SELECT count(*) FROM pg_tables WHERE schemaname = 'public';
 
 | Conferência | Esperado (igual ao ensaio local) |
 |---|---|
-| `_prisma_migrations` | 73 / 0; a `20261121100000_atividade_campos_por_tipo` com o checksum do §0 e 1 passo |
+| `_prisma_migrations` | 74 / 0; a `20261121100000_atividade_campos_por_tipo` com o checksum do §0 e 1 passo |
 | as 5 colunas | `local` varchar 120, `numero_receituario` varchar 40, `vc_percentual` numeric (5,2), `carencia_dias` integer, `alvo` varchar 60; todas `YES` (anuláveis) e sem DEFAULT |
 | `AtividadePlantio` | constraints: 1 `p`, 5 `f`, 2 `c` (`AtividadePlantio_forma_plantio_check`, `AtividadePlantio_consorcio_check`); 5 índices (pkey, 2 unique, 2 btree); RLS ligado sem FORCE; política `maike_backend_all` só para `maike_vercel`; nenhum GRANT para `anon`/`authenticated`; 0 linhas |
-| tabelas em `public` | 106 |
+| tabelas em `public` | 109 |
 | `get_advisors` (security e performance) | nenhum alerta novo |
 | `node scripts/deploy/preflight-schema.mjs` | ok (as 6 colunas exigidas presentes) |
 
@@ -229,11 +236,14 @@ gravou (capim, local, receituário, VC, carência, alvo) se perde no DROP.
 
 ## 7. Ordem com outras releases
 
-Em 2026-11-21 esta é a 73ª pasta e a única pendente da `main` + esta branch. Se outra migration entrar na `main`
-antes, recontar o §2 (o número de concluídas e a "anterior" mudam) e ajustar a guarda do §3.
+Em 2026-11-23, com a `main` `c1cd2be9` integrada (PR #350, D-PROD-272, que trouxe a `20261120300000_estoque_ajustes`,
+de nome anterior a esta e já aplicada em produção), esta é a 74ª pasta e a única pendente da `main` + esta branch. Se
+outra migration entrar na `main` antes, recontar o §2 (o número de concluídas e a "anterior" mudam) e ajustar a guarda
+do §3.
 
 ## 8. Registro
 
 | Data | Quem | O quê |
 |---|---|---|
 | 2026-11-21 | Claude (sessão D-PROD-273) | plano preparado; migration aplicada e testada só no PostgreSQL local (banco de teste e banco do ensaio do §3); **nada aplicado em produção** |
+| 2026-11-23 | Claude (merge da `main` `c1cd2be9`, PR #350 / D-PROD-272) | recontado: antes 73 concluídas (a anterior por nome passa a `20261120300000_estoque_ajustes`, checksum `ac836ddf…6ccc9`) e 108 tabelas; depois 74 e 109; guarda e preflight do §2/§3 ajustados; ensaio do caminho B refeito no PostgreSQL local; **nada aplicado em produção** |

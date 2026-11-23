@@ -13,7 +13,7 @@ WITH
 esperado AS (
   SELECT '7692130048193495360'::text AS sid, 'postgres'::text AS banco
 ),
--- 91 tabelas de tenant (com cliente_id; D-PROD-162; + TipoAtividade, D-PROD-182; + CADESTACOES, D-PROD-188; + CADCURVAGANHO, D-PROD-189; + ApontamentoAtividade, D-PROD-190; + ApontamentoAtividadeItem e ApontamentoAtividadeItemConsumoLote, D-PROD-193; − essas 3 e + Atividade e AtividadeApontamento, D-PROD-200; + AtividadeApontamentoProduto, AtividadeApontamentoProdutoConsumoLote e AtividadeApontamentoMaquina, D-PROD-202; + CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA, D-PROD-203; + LEITURACOCHO, D-PROD-205; + Funcionario, Servico, AtividadeApontamentoMaoObra e AtividadeApontamentoServico, D-PROD-207; − Funcionario, D-PROD-208, + CADCULTURAS, D-PROD-215, + MEDICAOFORRAGEM, D-PROD-219, + AtividadeArea, D-PROD-249, + 3 das Entradas do Estoque, D-PROD-257, + MotivoEntradaEstoque, D-PROD-259, + 4 da saída manual do Estoque, D-PROD-264, + AtividadePlantio, D-PROD-273) na ordem segura de exclusão (filha → mãe) + Cliente.
+-- 94 tabelas de tenant (com cliente_id; D-PROD-162; + TipoAtividade, D-PROD-182; + CADESTACOES, D-PROD-188; + CADCURVAGANHO, D-PROD-189; + ApontamentoAtividade, D-PROD-190; + ApontamentoAtividadeItem e ApontamentoAtividadeItemConsumoLote, D-PROD-193; − essas 3 e + Atividade e AtividadeApontamento, D-PROD-200; + AtividadeApontamentoProduto, AtividadeApontamentoProdutoConsumoLote e AtividadeApontamentoMaquina, D-PROD-202; + CADFORMULACAO, CADFORMULACAOINGREDIENTE e CADFORMULACAOREGRA, D-PROD-203; + LEITURACOCHO, D-PROD-205; + Funcionario, Servico, AtividadeApontamentoMaoObra e AtividadeApontamentoServico, D-PROD-207; − Funcionario, D-PROD-208, + CADCULTURAS, D-PROD-215, + MEDICAOFORRAGEM, D-PROD-219, + AtividadeArea, D-PROD-249, + 3 das Entradas do Estoque, D-PROD-257, + MotivoEntradaEstoque, D-PROD-259, + 4 da saída manual do Estoque, D-PROD-264, + 3 do ajuste de inventário, D-PROD-272, + AtividadePlantio, D-PROD-273) na ordem segura de exclusão (filha → mãe) + Cliente.
 -- D-PROD-197: TipoAtividade passou a referenciar CentroCusto, CentroResultado e UnidadeMedida (padrões, FKs RESTRICT) e
 -- sai logo depois da atividade (D-PROD-200), antes deles; a mesma ordem vale no 02, no 03 e no 04 (a impressão segue a ordem).
 -- R2E-P1/R1 (D-PROD-107): tarefas (que apontam para posições) e o ledger do rebanho entram primeiro
@@ -65,6 +65,9 @@ tenant(nome, ord) AS (
     -- de resultado, do movimento, do produto, do local e da fazenda que elas referenciam (FKs RESTRICT); o cadastro de
     -- motivos de saída (a saída o referencia) logo depois delas.
     'SaidaEstoqueEvento','SaidaEstoqueItem','SaidaEstoque','MotivoSaidaEstoque',
+    -- D-PROD-272: os ajustes de inventário (evento e item antes do cabeçalho) saem ANTES dos centros de custo e de
+    -- resultado, do lote, do movimento, do produto, do local e da fazenda que eles referenciam (FKs RESTRICT).
+    'AjusteEstoqueEvento','AjusteEstoqueItem','AjusteEstoque',
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     -- D-PROD-188: CADESTACOES (estações da fazenda) antes de Empresa, que ela referencia.
     'CADESTACOES',
@@ -182,8 +185,8 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 5, 'das 7 migrations da PR, pendentes', (SELECT novas_pendentes::text FROM mig), '7 antes / 0 depois',
          CASE WHEN ((SELECT concluidas FROM mig) = 18 AND (SELECT novas_pendentes FROM mig) = 7) OR ((SELECT concluidas FROM mig) >= 25 AND (SELECT novas_pendentes FROM mig) = 0) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 106 depois (53 + 5 do ledger R2E + 3 de Gestão P1 + 1 de Gestão P2 + 8 de Gestão P3-01 + 1 de Gestão P3-02 + 1 de Gestão P3-03 + 10 de Patrimônio P1-01 + 3 de Patrimônio P1-02 − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 3 das Formulações, D-PROD-203, + 1 LEITURACOCHO, D-PROD-205, + 4 da mão de obra e do serviço, D-PROD-207, − Funcionario, D-PROD-208, + CADCULTURAS, D-PROD-215, + MEDICAOFORRAGEM, D-PROD-219, + AtividadeArea, D-PROD-249, + 3 das Entradas do Estoque, D-PROD-257, + MotivoEntradaEstoque, D-PROD-259, + 4 da saída manual do Estoque, D-PROD-264, + AtividadePlantio, D-PROD-273)',
-         CASE WHEN (SELECT count(*) FROM tabelas) = CASE WHEN (SELECT concluidas FROM mig) >= 25 THEN 106 ELSE 40 END THEN 'OK' ELSE 'PARAR' END
+  SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 109 depois (53 + 5 do ledger R2E + 3 de Gestão P1 + 1 de Gestão P2 + 8 de Gestão P3-01 + 1 de Gestão P3-02 + 1 de Gestão P3-03 + 10 de Patrimônio P1-01 + 3 de Patrimônio P1-02 − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 3 das Formulações, D-PROD-203, + 1 LEITURACOCHO, D-PROD-205, + 4 da mão de obra e do serviço, D-PROD-207, − Funcionario, D-PROD-208, + CADCULTURAS, D-PROD-215, + MEDICAOFORRAGEM, D-PROD-219, + AtividadeArea, D-PROD-249, + 3 das Entradas do Estoque, D-PROD-257, + MotivoEntradaEstoque, D-PROD-259, + 4 da saída manual do Estoque, D-PROD-264, + 3 do ajuste de inventário, D-PROD-272, + AtividadePlantio, D-PROD-273)',
+         CASE WHEN (SELECT count(*) FROM tabelas) = CASE WHEN (SELECT concluidas FROM mig) >= 25 THEN 109 ELSE 40 END THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 7, 'views/partições/estrangeiras em public', (SELECT count(*)::text FROM tabelas WHERE tipo <> 'r'), '0',
          CASE WHEN (SELECT count(*) FROM tabelas WHERE tipo <> 'r') = 0 THEN 'OK' ELSE 'PARAR' END
@@ -241,7 +244,7 @@ base(ordem, item, valor, esperado, status) AS (
 ),
 contrato AS (
   SELECT (SELECT concluidas FROM mig) >= 25 AND (SELECT novas_pendentes FROM mig) = 0
-         AND (SELECT count(*) FROM tabelas) = 106
+         AND (SELECT count(*) FROM tabelas) = 109
          AND (SELECT count(*) FROM tabelas WHERE tipo <> 'r') = 0
          AND NOT EXISTS (SELECT 1 FROM tabelas WHERE nome NOT IN (SELECT nome FROM tenant UNION SELECT nome FROM preservada UNION SELECT '_prisma_migrations'))
          AND (SELECT count(*) FROM tabelas WHERE NOT rls) = 0

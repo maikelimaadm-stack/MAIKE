@@ -131,8 +131,9 @@ em `cadastro-base1.css`); o desktop não muda.
   - o rótulo "Plantio de pastagem": `tiposFixosAtividade` e os smokes `servicoVariosDias`,
     `registroDeCampoNovaRealizacao`, `detalhesAreaHistorico`, `tiposAtividade`;
   - a lista de referência: `culturaNativo` (17 itens, Marandu 35/20) e `areaCulturaNativa` (Marandu 35/20);
-  - a contagem de migrations e tabelas (73 pastas, 106 tabelas) e o espelho do schema sem a migration nova:
-    `premerge-migrate` (posições `NOMES.at(-N)`, B1, B39 e o bloco novo B40a/B40b/B40k), `diaDaD223.mjs`
+  - a contagem de migrations e tabelas (74 pastas e 109 tabelas desde o merge da `main` `c1cd2be9`, que trouxe a
+    D-PROD-272; ver o §9) e o espelho do schema sem a migration nova:
+    `premerge-migrate` (posições `NOMES.at(-N)`, B1, B39, B40 e o bloco novo B41a/B41b/B41k), `diaDaD223.mjs`
     (`schemaSemCamposPorTipo`), `categoriaManejoCadcategoriaMigration`, `estoqueEntradasMotivosMigration`,
     `patrimonioSimplificaMigration`, `sqlEditorBootstrap`, os ensaios `scripts/dev/ensaio-*.mjs` e os scripts do
     editor SQL (`scripts/ops/sql-editor/01..04`); `helpers.mjs` limpa a tabela nova;
@@ -219,3 +220,38 @@ LA-PORTA-3 do smoke (a query da lista com `local`).
 - o aviso `value` nulo do `codigo_barras` no Cadastro de Produtos;
 - "É um serviço novo" (a pergunta do serviço parado) também conclui a atividade antiga e continua oferecido a quem não pode
   editar: o servidor recusa com 403, como antes (só "Concluída" foi desligada).
+
+## 9. Merge da `main` `c1cd2be9` (PR #350, D-PROD-272) — 2026-11-23
+
+A PR #350 (ajuste de inventário) entrou na `main` como **D-PROD-272**, com a migration EXPAND
+`20261120300000_estoque_ajustes` (3 tabelas novas: `AjusteEstoque`, `AjusteEstoqueItem`, `AjusteEstoqueEvento`), de
+nome **anterior** ao desta e já aplicada em produção (2026-11-23, caminho B). Esta decisão continua D-PROD-273 (o
+marcador já apontava para ela) e o marcador passa a D-PROD-274. O `migration.sql` desta entrega não mudou (checksum
+`9e6487ff…2a58`).
+
+| Estado de produção esperado | Antes desta migration | Depois |
+|---|---|---|
+| `_prisma_migrations` concluídas / com falha | **73** / 0 (a última por nome `20261120300000_estoque_ajustes`, checksum `ac836ddf1b4830c4cd73ca1894e9925a77a8ea6c2bda735ad1859c830f26ccc9`) | **74** / 0 (`20261121100000_atividade_campos_por_tipo`, checksum `9e6487ffddb92a35945c675c1924f363c3396e97dac52e56e8d3c94c20a32a58`) |
+| tabelas em `public` | **108** | **109** |
+
+O que o merge combinou (as duas migrations em toda lista pinada): `MIGRATIONS_APROVADAS` e `DO_RLS_APROVADOS`
+(`premergeMigrateLib.mjs`); `COLUNAS_EXIGIDAS` do preflight de schema (as 6 desta e uma coluna de cada tabela do
+ajuste); as posições `NOMES.at(-N)` e as contagens de pastas (74) do `premerge-migrate` — a D-PROD-272 ficou com o
+bloco B40 e o desta passou a **B41a/B41b/B41k**, com a anterior em produção sendo o ajuste de inventário; as listas de
+"depois da CONTRACT" dos ensaios `ensaio-categoria-manejo-cadcategoria.mjs` e `ensaio-patrimonio-simplifica.mjs` (com
+as tabelas das duas) e os testes que as conferem (`categoriaManejoCadcategoriaMigration`,
+`patrimonioSimplificaMigration`: 109 tabelas; `estoqueEntradasMotivosMigration`: as 4 pastas posteriores);
+`sqlEditorBootstrap` e os scripts do editor SQL (`01..04`: 109 tabelas, 94 de tenant, as duas famílias de tabelas na
+ordem de exclusão e no `LOCK`). Os espelhos do schema (`diaDaD223.mjs`) já tiram as duas (`schemaSemEntradasDoEstoque`
+tira os `AjusteEstoque*`; `schemaSemCamposPorTipo` tira a `AtividadePlantio` e as 5 colunas). O runbook foi recontado
+(§0, §2, guarda do §3, §4 e §7).
+
+Resultados (PostgreSQL local, banco de teste recriado do zero para receber as 74 em ordem):
+
+- `npm run test:backend` (196 arquivos, com `FRONTEND_ORIGINS=http://localhost:5173`): **2663 testes, 2657 passaram,
+  0 falharam, 6 todo** (exit 0; `prisma validate`, `generate` e `deploy:migrate` antes; o banco ficou com 74 / 109).
+- `node --test scripts/tests/deploy/*.test.mjs`: **333 testes, 333 passaram**.
+- Ensaio do caminho B do runbook num banco descartável no estado da `main` (73 / 0, 108 tabelas): o envelope com o
+  identificador de produção recusou (`alvo divergente`); com o identificador local aplicou (74 / 0, checksum
+  `9e6487ff…2a58`, 1 passo, 109 tabelas, a conferência do §4 igual à esperada); a 2ª execução recusou (`migration já
+  registrada`); `prisma migrate diff` vazio. O banco do ensaio foi apagado.
