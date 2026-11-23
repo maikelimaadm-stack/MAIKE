@@ -9141,4 +9141,21 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** o uso nas telas de atividade ("Jatos de hoje"); a edição dos campos num tipo já criado pela tela (a API aceita no PATCH; a linha do "Gerenciar tipos" continua só com nome e teto de salto).
 - **Testes:** `backend/tests/tipoImplementoProduto.test.mjs` (Postgres real), `tests/smoke/tipoImplementoProduto.test.jsx`, B43a/B43b/B43k e as contagens de migrations nos testes que as pinam.
 
-<!-- Próxima decisão: D-PROD-280 -->
+## D-PROD-280 — Detalhes do Lote v13: telas do pasto redesenhadas no celular
+
+**Data:** 2026-11-23 · **Origem:** proprietário: pediu propostas para "detalhes de lotes e lançamentos", comparou atual × proposto tela a tela e aprovou ("pode começar a implementação"; "assim que tiver pronto pode fazer o merge") · **Relatório:** [`MAIKE-DETALHES-LOTE-V13-REPORT.md`](./MAIKE-DETALHES-LOTE-V13-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` deu D-PROD-280 (o marcador); o marcador passa a D-PROD-281.
+
+- **Contexto:** o Detalhes do Lote v12 (D-PROD-218) mostrava tudo em linhas rótulo/valor: muita rolagem no celular, rótulos cortados na faixa do Resumo e o ícone do Mover invisível (traço branco em cartão branco). Quem lança manejo muitas vezes tem pouca leitura.
+- **Decisão (só apresentação; mesmos dados e mesmas ações):**
+  - **Casca:** abas só com o nome e a linha verde embaixo; seletor Resumo · Lote · Lista pequeno, à esquerda; rodapé com botões maiores e a ação principal em verde ("Manejos"; "Lançar" na Suplementação). Botão de fechar e subícones não mudam.
+  - **Detalhes:** o capim no lugar do nome da área (nome e setor já estão no cabeçalho), status em etiqueta, régua de UA/ha com as faixas e cores do mapa (`CORES_UA_HA`) e a Lotação em grade. O bloco "Categorias" sai (a informação está em Lotes).
+  - **Lotes:** Resumo com rótulos inteiros e duas barras por lote (% cabeças, % da UA); Lote em três blocos em grade (Lotação, Pesagem com a origem em etiqueta, Identificação); Lista continua tabela, compacta, zebrada e com total.
+  - **Histórico:** a linha do tempo com os pontos nas datas continua; botão "Mostrar" e cartões curtos (quantidade em destaque, "De → Até") só no histórico do pasto e da área (`compacto`).
+  - **Suplementação:** régua do desvio da meta, barra de fornecimento (consumido × sobra), barra de nível no cocho e o gráfico esperado × real, um ponto por período fechado (com menos de dois, um texto).
+  - **Manejos:** mesmo modelo e mesma ordem; no celular dois por linha, com uma frase simples por quadro. SVG do Mover em `#3db5c9`.
+- **Fora:** cartão de Forragem dentro do Detalhes do Lote (a tela não recebe a cultura da área nem a medição; pede mudança no carregamento de dados); mudar a ordem padrão das colunas da Lista; redesenho próprio de tablet e computador (recebem o mesmo conteúdo, sem quebra); os formulários de lançamento. Nenhuma mudança no servidor; nenhuma migration.
+- **Testes:** `tests/smoke/detalhesV13HistoricoSupl.test.jsx` (novo) e os smoke do Detalhes ajustados (`detalhesLoteV12Lotes`, `detalhesLoteQuadros`, `iconesManejo`, `detalhesCompactos`, `subiconeLote`, `abaHistoricoPasto`, `abaHistoricoExcluirMovimento`).
+
+<!-- Próxima decisão: D-PROD-281 -->
