@@ -9064,4 +9064,19 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora de escopo (próxima entrega):** o agrupador de Reforma e o "Faz parte de: Reforma"; o "Conferir nascimento" (estande); o aviso do 1º pastejo; conferir as outras alturas da lista contra o Doc 397.
 - **Ajustes do teste de ponta a ponta (sem migration, mesmo fingerprint):** o capim aparece na lista, no card, na prévia e no Concluir (lido da `AtividadePlantio`; o nome gravado não muda); o serviço sem área nunca mostra "0 ha" (local + quantidade feita; `andamento.hectares_feitos` nulo sem hectares); o Resumo sem área mostra o Local; o "Pasto liberado em" vai no aviso de sucesso e no detalhe (`pasto_liberado_em`/`carencia_dias` calculados na leitura, nunca gravados); a prévia sem área resolve pelo `GET /atividades?local=…`; "Concluída" fica desligada para quem não pode editar (o 403 do servidor continua). Ver o §8 do [relatório](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md).
 
-<!-- Próxima decisão: D-PROD-275 -->
+## D-PROD-275 — Vercel no custo mínimo: só a `main` faz build, e merge só de documentação ou testes não faz build
+
+**Data:** 2026-11-23 · **Origem:** proprietário: "meus custos da vercel está ficando muito alto" e "vamos reduzir o máximo de custos" · **Branch:** `chore/vercel-custo-minimo`.
+
+> **Numeração:** nasceu D-PROD-274 nesta branch. Antes do merge, a `main` (`6cb0b176`) deu a D-PROD-274 aos campos por tipo da Nova realização (PR #354) e passou a indicar `Próxima decisão: D-PROD-275`, que é esta; o marcador passa a D-PROD-276.
+
+**Diagnóstico (cobrança da Vercel, 31/10 a 22/11):** US$ 68,73 no total; **US$ 52,68 (77%) em minutos de build**, US$ 12,94 da assinatura Pro, o resto abaixo de US$ 2. Até 17/11, cada push de branch gerava prévia (no dia 14/11, mais de 100 builds, só 12 da `main`). Depois da #314 (17/11) o build caiu para US$ 0,04–0,17 por dia. Um build da `main` dura cerca de 70 s (máquina padrão, 4 núcleos), uns US$ 0,02.
+
+**Decisão.**
+1. `vercel.json` (projeto `maike`): `ignoreCommand` passa a liberar **só a `main`**. Saem as cinco exceções de branch das D-PROD-24x/25x (`codex/previa-detalhes-mapa`, `cursor/atividades-por-area-0b6c`, `cursor/estoque-saldo-movimentos`, `cursor/estoque-custo-medio`, `cursor/estoque-entradas`), todas já mergeadas. Prévia de branch fica desligada para qualquer sessão; as PRs continuam validadas pelo GitHub Actions.
+2. Na `main`, o build é pulado quando nada mudou desde o último deploy bem-sucedido (`VERCEL_GIT_PREVIOUS_SHA`) fora de `docs/`, `tests/`, `backend/tests/`, `.github/` e arquivos `.md`. Sem o SHA, ou se ele não estiver no clone, o build roda (falha aberta para publicar, nunca para pular). O `apps/admin/vercel.json` já seguia essa regra e não muda.
+3. Sem efeito em código, banco, rotas, rewrites ou funções.
+
+**Relatório:** [`MAIKE-VERCEL-BUILDS-REPORT.md`](./MAIKE-VERCEL-BUILDS-REPORT.md) (seção de 2026-11-23).
+
+<!-- Próxima decisão: D-PROD-276 -->

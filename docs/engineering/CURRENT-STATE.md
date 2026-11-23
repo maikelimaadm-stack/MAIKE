@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-21 (missão ativa D-PROD-274; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-23 (missão ativa D-PROD-275; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,17 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-21) — MAIKE-ENTREGA2: os campos de cada tipo na "Nova realização" (D-PROD-274)
+## Missão ativa (2026-11-23) — MAIKE-VERCEL-CUSTO-MINIMO: só a `main` faz build e merge de docs/testes não faz build (D-PROD-275)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-275**, pedido do proprietário: reduzir ao máximo o custo da Vercel (77% era minuto de build de prévias) |
+| Branch / PR | `chore/vercel-custo-minimo`, a partir da `main` `58c0697b`, com a `main` `6cb0b176` integrada · PR **#361** |
+| Mudança | `vercel.json`: `ignoreCommand` sem as 5 exceções de branch e pulando merge só de docs/testes |
+| Migration | Nenhuma |
+| Relatório | [`MAIKE-VERCEL-BUILDS-REPORT.md`](./MAIKE-VERCEL-BUILDS-REPORT.md) |
+
+## Missão (2026-11-21) — MAIKE-ENTREGA2: os campos de cada tipo na "Nova realização" (D-PROD-274)
 
 | Campo | Valor |
 |---|---|
