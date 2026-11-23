@@ -1618,8 +1618,8 @@ export const estornarSaidaDocumentada = (tx, ctx, a) => {
 
 // ─── ajuste de inventário documentado (D-PROD-272) ───────────────────────────
 /** Rótulos fechados do ajuste (o texto do movimento diz "Ajuste de inventário nº N"). */
-const TIPO_SOBRA_AJUSTE = 'ajuste_sobra';
-const TIPO_FALTA_AJUSTE = 'ajuste_falta';
+export const TIPO_SOBRA_AJUSTE = 'ajuste_sobra';
+export const TIPO_FALTA_AJUSTE = 'ajuste_falta';
 const TIPO_ESTORNO_SOBRA_AJUSTE = 'estorno_ajuste_sobra';
 const TIPO_ESTORNO_FALTA_AJUSTE = 'estorno_ajuste_falta';
 
@@ -1756,7 +1756,7 @@ const fatiasLegiveis = (fatias, { comDestino = false } = {}) => {
  * @param {{auth: any}} ctx
  * @param {{ empresaId: string, movimentoId: string, produto: any, local: { id: string, nome?: string|null }, dia: string,
  *   origem: { operacaoId: string, motivoEstorno: string }, numeroMovimento?: string|number,
- *   vinculo?: { pontoSuplementacaoId?: string|null, quantidadeKg?: any } }} a
+ *   vinculo?: { pontoSuplementacaoId?: string|null, quantidadeKg?: any }, exigirUltimo?: boolean }} a
  * @returns {Promise<{ movimento: any, original: { id: string, numero_movimentacao: string }, quantidade: any, valor_total: any,
  *   fatias: Array<{ lote_id: string, quantidade: any }> }>}
  */
@@ -1785,11 +1785,15 @@ export const estornarSaidaSuplementacao = async (tx, ctx, a) => {
   if (m.status !== 'Ativa' || m.movimento_filho_id) throw cochoBloqueado('movimento_estornado', extra);
   const fatias = fatiasLegiveis(m.lotes_consumidos);
   if (!fatias) throw cochoBloqueado('saida_sem_fatias', extra);
-  const depois = await buscarMovimentoPosterior(tx, cli, {
-    empresaId: a.empresaId, produtoId: a.produto.id, locais: [a.local.id], ignorarIds: [m.id],
-    desde: { createdAt: m.createdAt, numero: m.numero_movimentacao }, ignorarParesNeutros: true,
-  });
-  if (depois) throw cochoBloqueado('movimento_posterior_no_deposito', { ...extra, movimento_numero: depois.numero_movimentacao });
+  // D-PROD-273 (fatia 4): `exigirUltimo: false` só quando quem chama já planejou a exclusão COM recálculo do que veio
+  // depois (`planejarExclusaoComRecalculo`, sob a mesma trava): o estorno exato é gravado e o recálculo vem em seguida.
+  if (a.exigirUltimo !== false) {
+    const depois = await buscarMovimentoPosterior(tx, cli, {
+      empresaId: a.empresaId, produtoId: a.produto.id, locais: [a.local.id], ignorarIds: [m.id],
+      desde: { createdAt: m.createdAt, numero: m.numero_movimentacao }, ignorarParesNeutros: true,
+    });
+    if (depois) throw cochoBloqueado('movimento_posterior_no_deposito', { ...extra, movimento_numero: depois.numero_movimentacao });
+  }
   let r;
   try {
     r = await estornarSaida(tx, ctx, {
@@ -1935,7 +1939,8 @@ const medioDoPoco = (poco) => (poco.quantidade.gt(0) ? arredondar(poco.valor.div
  *    desde `S.createdAt` / número de R) → `movimento_posterior` { lado: 'origem'|'destino', local_estoque_id, movimento_numero };
  *  - S e R relidos sob trava: mesmo par, mesmas fatias, ainda 'Ativa' (`original_ja_estornado`/`original_nao_ativo`);
  *  - LINHAGEM: as camadas com `movimentacao_entrada_id = R` são exatamente os `lote_destino_id`, cada uma
- *    com `quantidade_entrada` = a da fatia → senão `linhagem_divergente`;
+ *    com `quantidade_entrada` = a da fatia → senão `linhagem_divergente` (D-PROD-273: fora a camada que o recálculo
+ *    deixou 'Estornado' com disponível 0);
  *  - camadas do DESTINO intocadas: da empresa, do produto e do local de destino (`camada_divergente`),
  *    'Disponivel' com disponível = entrada e sem consumo por FK (`camada_consumida`);
  *  - camadas da ORIGEM aceitam a devolução: existentes, da empresa, do produto e do local de origem
@@ -2020,8 +2025,11 @@ export const estornarTransferenciaEstoque = async (tx, ctx, a) => {
   const kg = dec(s.quantidade);
   const valorTotal = dec(s.valor_total);
   // 5. validações (nada escrito até aqui)
-  const recebidasTravadas = [...lotes.values()].filter((l) => l.movimentacao_entrada_id === r.id).map((l) => l.id).sort();
   const destinosDasFatias = fatias.map((f) => f.lote_destino_id).sort();
+  // D-PROD-273 (fatia 4): a camada de destino que a exclusão com recálculo deixou sem uso fica 'Estornado' com
+  // disponível 0 (nunca é apagada) e não é mais linhagem da transferência.
+  const morta = (l) => l.status === 'Estornado' && dec(l.quantidade_disponivel).isZero() && !destinosDasFatias.includes(l.id);
+  const recebidasTravadas = [...lotes.values()].filter((l) => l.movimentacao_entrada_id === r.id && !morta(l)).map((l) => l.id).sort();
   if (recebidasTravadas.length !== destinosDasFatias.length || recebidasTravadas.some((id, k) => id !== destinosDasFatias[k])) {
     throw transferenciaBloqueada('linhagem_divergente', { movimentacao_saida_id: s.id });
   }

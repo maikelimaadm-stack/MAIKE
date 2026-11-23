@@ -920,7 +920,7 @@ describe("LL-PRODUTO — janela da linha de produto", () => {
     await abrir("a1", "ap1");
     fireEvent.click(screen.getByTestId("linha-produto-pl1-cancelar"));
     let dialogo = await screen.findByTestId("dialogo-cancelar-linha");
-    expect(dialogo).toHaveTextContent("A quantidade volta exatamente aos lotes de onde saiu");
+    expect(dialogo).toHaveTextContent("A quantidade volta aos lotes de onde saiu; se houve outros movimentos do produto no depósito depois, o custo médio deles é recalculado.");
     fireEvent.change(within(dialogo).getByTestId("dialogo-cancelar-linha-motivo"), { target: { value: "dose errada" } });
     proxima = erroServidor(409, "ATIVIDADE_ESTORNO_BLOQUEADO", { field: "linha", reason: "devolucao_excede_entrada" });
     fireEvent.click(within(dialogo).getByTestId("dialogo-cancelar-linha-enviar"));

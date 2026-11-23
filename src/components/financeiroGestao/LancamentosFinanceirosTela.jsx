@@ -14,6 +14,7 @@ import FormularioLancamento, { FORMULARIO_LANCAMENTO_ID } from "@/components/fin
 import ConsultaLancamento from "@/components/financeiroGestao/ConsultaLancamento";
 import PerfilFinanceiroPainel from "@/components/financeiroGestao/PerfilFinanceiroPainel";
 import { DialogoAcao, DialogoConfirmacao, DialogoLiquidacao, DialogoMotivos } from "@/components/financeiroGestao/DialogosLancamento";
+import PreviaRecalculoExclusao from "@/components/estoque/PreviaRecalculoExclusao";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useAcoesTelaGestao, useEmpresaRealSelecionadaId } from "@/hooks/useGestaoSessao";
 import { useAuth } from "@/lib/AuthContext";
@@ -1035,6 +1036,17 @@ export default function LancamentosFinanceirosTela() {
           descricao="Cancela os títulos e estorna os efeitos no estoque. Só é possível sem baixas ativas e com a mercadoria ainda disponível. Informe o motivo."
           rotuloBotao="Cancelar lançamento"
           contexto={contextoMoeda}
+          conteudo={
+            // D-PROD-273 (fatia 4): na venda, a prévia do recálculo do custo do que veio depois no estoque.
+            dialogo.registro?.direcao === "RECEBER" ? (
+              <div className="grid grid-cols-12">
+                <PreviaRecalculoExclusao
+                  empresaId={emp}
+                  movimentoIds={(Array.isArray(dialogo.registro?.itens) ? dialogo.registro.itens : []).map((/** @type {any} */ i) => i?.movimentacao_estoque_id)}
+                />
+              </div>
+            ) : null
+          }
           onFechar={fecharDialogo}
           onConsultar={() => consultarDepoisDeIncerto("cancelar", String(dialogo.registro.id))}
           onEnviar={async (motivo, { retentativa }) => {

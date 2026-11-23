@@ -9044,6 +9044,13 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Fora de escopo.** Recalcular pela ordem das datas; corrigir datas retroativas; mudar preço de venda ou valor de compra.
 
+**Escolha do proprietário (2026-11-23): com ajuste de inventário depois, no mesmo depósito, a exclusão é recusada; o estoque nunca fica diferente do contado.**
+
+- **Quando recusa.** Uma sobra ou falta de ajuste de inventário (D-PROD-272) foi lançada depois do movimento excluído, na ordem de lançamento. O ajuste ainda está valendo, isto é, não foi excluído. Ele está num depósito que a exclusão mudaria: o do movimento ou, pela transferência, um destino alcançado antes do ajuste.
+- **Como recusa.** 409 `ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL`, `reason: 'ajuste_de_inventario_posterior'`, com o depósito, o movimento e o número do ajuste. Nada é gravado.
+- **Sem estorno exato.** A regra vale nas cinco origens de saída. Abastecimento, atividade e venda não podem trocar essa recusa pelo estorno exato, porque ele também deixaria o saldo fora do contado.
+- **O que não recusa.** Ajuste anterior ao movimento excluído e ajuste já excluído. Nesses casos, o custo da sobra segue o médio recalculado, salvo custo informado, e a linha do ajuste acompanha o movimento.
+
 ## D-PROD-274 — Campos próprios de cada tipo na "Nova realização": Plantio de pastagem com capim, safra automática, Aplicação com alvo, receituário e carência, Manutenção e Outros sem área
 
 **Data:** 2026-11-21 · **Origem:** proposta aprovada pelo proprietário em 2026-11-21 (Parte 1, itens B, D, E e G, e o "Para o programador" de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md); pesquisa em [`MAIKE-PESQUISA-OPERACOES-CAMPO.md`](./MAIKE-PESQUISA-OPERACOES-CAMPO.md)), a "Entrega 2" do plano de campo · **Branch:** `claude/tipo-tarefa-drop-colunas-1aznvv` · **Migration:** `20261121100000_atividade_campos_por_tipo` (EXPAND) · **Relatório:** [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md) · **Runbook:** [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md)

@@ -25,6 +25,14 @@
 import { AppError } from '../../shared/errors/AppError.js';
 import { dec } from '../financeiro/decimalFinanceiro.js';
 
+/**
+ * D-PROD-273 (fatia 4) — marca do par excluído COM recálculo (`movimentacao_grupo_id` do original e do estorno). Esse
+ * par está FORA da sequência (o recálculo regravou o que veio depois sem ele): nunca é "movimento posterior" de nada,
+ * em nenhum caminho (exclusão, cancelamento do cocho e da transferência, edição D-PROD-271). A regra mora AQUI, num
+ * ponto só; o replay (`estoqueReplay.js`) usa a mesma constante.
+ */
+export const MARCA_EXCLUSAO_RECALCULO = 'exclusao_recalculo:';
+
 /** Teto de linhas lidas no modo com pares neutros; acima dele a recusa é fail-closed (primeira linha). */
 const TETO_POSTERIORES = 500;
 
@@ -77,7 +85,7 @@ const paresNeutros = (linhas, locais) => {
 
 /**
  * Primeiro movimento do produto, nos `locais` (origem OU destino), DEPOIS da referência `desde`, fora de
- * `ignorarIds`; `null` quando não há nenhum. Ordem: `createdAt` decrescente, depois id (a da D-PROD-264).
+ * `ignorarIds` e dos pares excluídos com recálculo (`MARCA_EXCLUSAO_RECALCULO`); `null` quando não há nenhum. Ordem: `createdAt` decrescente, depois id (a da D-PROD-264).
  * Com `ignorarParesNeutros: false` (padrão) é exatamente a consulta de `exigirNadaDepois` da D-PROD-264
  * (com um local e um id ignorado). Com `true`, desconta os pares neutros (ver o topo do arquivo).
  * Quem chama decide o código de erro.
@@ -100,6 +108,7 @@ export const buscarMovimentoPosterior = async (tx, clienteId, a) => {
       FROM "MovimentacaoEstoque" m
       WHERE m.cliente_id = ${clienteId} AND m.empresa_id = ${a.empresaId} AND m.produto_id = ${a.produtoId} AND m.id <> ALL(${ignorar}::text[])
         AND (m.local_estoque_origem = ANY(${locais}::text[]) OR m.local_estoque_destino = ANY(${locais}::text[]))
+        AND NOT starts_with(COALESCE(m.movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})
         AND (m."createdAt" >= ${a.desde.createdAt}
           OR m.numero_movimentacao !~ '^[0-9]{1,30}$'
           OR (${numero} ~ '^[0-9]{1,30}$' AND m.numero_movimentacao::numeric > ${numero}::numeric))

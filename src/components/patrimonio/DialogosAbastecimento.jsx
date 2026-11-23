@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { AlertTriangle, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
+import PreviaRecalculoExclusao from "@/components/estoque/PreviaRecalculoExclusao";
 import { mensagemDoBloqueioAbastecimento, mensagemErroAbastecimento } from "@/lib/patrimonioErros";
 import {
   UNIDADE_MEDIDOR,
@@ -431,8 +432,9 @@ export function DialogoCancelarAbastecimento({ aberto, registro, onFechar, onEnv
           </>
         ) : (
           <>
-            O cancelamento estorna a baixa: o estoque volta exatamente aos lotes de origem ({formatarQuantidade(registro?.quantidade, registro?.unidade)} de{" "}
-            {registro?.produto?.nome ?? "produto"}). O abastecimento continua no histórico como cancelado; nada é apagado.
+            O cancelamento estorna a baixa: o estoque volta aos lotes de origem ({formatarQuantidade(registro?.quantidade, registro?.unidade)} de{" "}
+            {registro?.produto?.nome ?? "produto"}); se houve outros movimentos do produto no depósito depois, o custo médio deles é recalculado. O
+            abastecimento continua no histórico como cancelado; nada é apagado.
           </>
         )
       }
@@ -450,6 +452,11 @@ export function DialogoCancelarAbastecimento({ aberto, registro, onFechar, onEnv
         </>
       }
     >
+      {!externo && registro?.movimentacao?.id ? (
+        <div className="grid grid-cols-12">
+          <PreviaRecalculoExclusao empresaId={registro?.empresa_id ?? null} movimentoIds={[registro.movimentacao.id]} />
+        </div>
+      ) : null}
       {efeito?.muda ? (
         <p role="status" data-testid="cancelamento-aviso-medidor" className="min-w-0 break-words rounded-md border border-amber-300 bg-amber-50 p-3 text-[13px] text-amber-900">
           A leitura operacional do medidor passará de {antes ?? "—"} {textoDepois}.

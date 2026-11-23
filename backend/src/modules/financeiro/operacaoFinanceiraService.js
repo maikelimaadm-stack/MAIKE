@@ -41,6 +41,8 @@
 import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
+import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueFisico/movimentoPosterior.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { TELAS, carregarAutorizacao, exigirTela, telaPermite } from '../../shared/auth/autorizacaoTela.js';
 import { AppError } from '../../shared/errors/AppError.js';
@@ -55,7 +57,7 @@ import { entradaManualComDocumento, travarDocumentoDeEstoque } from '../estoqueF
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { ESCOPO_TENANT, reservarNumero, reservarNumeros } from '../sequencias/entidadeCodigoService.js';
 import {
-  CAMPOS_PROCEDENCIA_LOTE, ENTIDADE_MOVIMENTO, aplicarEntradaEstoque, aplicarSaida, atualizarProcedencia, estornarEmLote, lotesFifo, travarProdutosEstoque,
+  CAMPOS_PROCEDENCIA_LOTE, ENTIDADE_MOVIMENTO, ORIGEM_SISTEMA, aplicarEntradaEstoque, aplicarSaida, atualizarProcedencia, estornarEmLote, lotesFifo, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { casasDaMoeda, metodosPermitidos, VERSAO_CONTRATO } from './financeiroCatalogo.js';
 import {
@@ -1593,8 +1595,21 @@ export const cancelar = async (contexto, id, corpo) => {
           });
         }
         const tempo = mercadorias.length ? await hojeDaEmpresa(tx, cli, empresaId) : null;
+        // D-PROD-273 (fatia 4): na VENDA, com outro movimento do produto no depósito depois, o cancelamento recalcula
+        // o custo médio do que veio depois (o preço não muda; só o custo derivado do estoque). Prova antes do estorno.
+        // A compra (entrada) continua com a regra de hoje (fatia 5).
+        const comMovimento = mercadorias.filter((i) => i.movimentacao_estoque_id);
+        const planos = op.direcao !== 'PAGAR' && comMovimento.length
+          ? await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: comMovimento.map((i) => ({ id: i.movimentacao_estoque_id, produtoId: i.produto_id, localId: i.local_estoque_id })), estornoExatoSeInviavel: true })
+          : [];
         // Sequência de movimentos SÓ no fim (§8.4 item 5): `numerarMovimentos`.
         const estornos = await estornarEfeitosDoDocumento(tx, contexto, { cli, empresaId, op, mercadorias, dia: tempo?.hoje });
+        const recalculo = planos.length
+          ? await aplicarExclusaoComRecalculo(tx, contexto, planos, {
+            empresaId, origem: ORIGEM_SISTEMA, motivo: [...`Cancelamento do lançamento ${op.numero}: ${motivo}`].slice(0, 255).join(''),
+            estornos: new Map(mercadorias.map((i, k) => [i.movimentacao_estoque_id, estornos[k]])),
+          })
+          : null;
         await tx.tituloFinanceiro.updateMany({ where: w, data: { status: 'CANCELADO' } });
         const cancelado = await tx.operacaoFinanceira.update({
           where: { cliente_id_id: { cliente_id: cli, id } },
@@ -1611,7 +1626,7 @@ export const cancelar = async (contexto, id, corpo) => {
           acao: 'operacao_financeira.cancelar',
           entidade: ENTIDADE,
           entidadeId: id,
-          dadosNovos: auditoriaDoc(cancelado, { motivo_informado: true, movimentos_estorno: estornos, titulos_n: titulos.length }),
+          dadosNovos: auditoriaDoc(cancelado, { motivo_informado: true, movimentos_estorno: estornos, titulos_n: titulos.length, recalculo }),
         }, tx);
         await numerarMovimentos(tx, cli, estornos);
         return { httpStatus: 200, body: await carregarDetalhe(tx, cli, id) };
@@ -2078,6 +2093,8 @@ const provaDaVenda = async (tx, cli, empresaId, op, itens) => {
           AND (m."createdAt" > v.instante::timestamp(3) OR (m."createdAt" = v.instante::timestamp(3) AND m.id <> v.original_id)
             OR (m.numero_movimentacao ~ '^[0-9]{1,18}$' AND v.numero ~ '^[0-9]{1,18}$' AND m.numero_movimentacao::numeric > v.numero::numeric))
           AND NOT (m.id = ANY(${proprios}::text[]))
+          -- D-PROD-273 (fatia 4): o par excluído com recálculo está fora da sequência (a regra de movimentoPosterior.js).
+          AND NOT starts_with(COALESCE(m.movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})
         ORDER BY v.ordem, m."createdAt", m.id`
     : []);
   for (const p of posteriores) {

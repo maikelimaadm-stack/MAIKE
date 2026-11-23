@@ -28,6 +28,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, dec } from '../financeiro/decimalFinanceiro.js';
 import { ORIGEM_SAIDA_ESTOQUE } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueRecalculo/estoqueReplay.js';
 import { exigirEmpresaDoTenant, invalido, textoDeBusca } from '../gestao/gestaoComum.js';
 import { ehDiaValido, paginacaoOpcoes, paginarPorNome } from '../patrimonio/patrimonioComum.js';
 import { escaparCuringasLike } from '../usuarios/usuarioRepository.js';
@@ -203,7 +204,8 @@ const efeitoNoSaldo = (tipo, quantidade) => (tipo === 'Entrada' ? dec(quantidade
  * cada movimento ativo passa a ser o gravado menos o efeito dos movimentos excluídos do MESMO produto e depósito
  * lançados antes dele (ordem canônica): um par inteiro antes soma zero (o estorno anula o original). Vale com o
  * filtro ligado ou não (o saldo de um movimento ativo não muda ao mostrar os excluídos) e no detalhe; o movimento
- * excluído, quando mostrado, fica com o saldo gravado. Nada é gravado. Uma leitura dos pares dos produtos da página
+ * excluído, quando mostrado, fica com o saldo gravado. D-PROD-273 (fatia 4): o par excluído COM recálculo (marca
+ * `exclusao_recalculo:<original>`) fica fora do ajuste — o recálculo já regravou os saldos sem ele. Nada é gravado. Uma leitura dos pares dos produtos da página
  * (índice `cliente_id, produto_id`).
  * @param {any} tx @param {string} cli @param {string} empresaId
  * @param {any[]} linhas movimentos com `excluido`, `produto_id`, `tipo_movimentacao`, locais, `numero_movimentacao`, `createdAt`, `id`
@@ -226,7 +228,9 @@ const ajustesDeSaldoSemExcluidos = async (tx, cli, empresaId, linhas) => {
         ON o.cliente_id = e.cliente_id AND o.id = e.movimento_pai_id AND o.status = 'Estornada'
        AND o.empresa_id = e.empresa_id AND o.produto_id = e.produto_id
      WHERE e.cliente_id = ${cli} AND e.empresa_id = ${empresaId} AND e.produto_id IN (${Prisma.join(produtos)})
-       AND left(COALESCE(e.tipo_detalhado, ''), 8) = 'estorno_'`));
+       AND left(COALESCE(e.tipo_detalhado, ''), 8) = 'estorno_'
+       -- D-PROD-273 (fatia 4): o par excluído COM recálculo não desconta nada — os saldos depois dele já foram regravados sem ele.
+       AND COALESCE(o.movimentacao_grupo_id, '') <> ${MARCA_EXCLUSAO_RECALCULO} || o.id`));
   if (!pares.length) return ajustes;
   // Os excluídos por produto × depósito (o original uma vez só, mesmo com dois estornos).
   const vistos = new Set();

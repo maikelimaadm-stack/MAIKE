@@ -18,7 +18,9 @@
  *      (`fechado_por_evento_id`, ou o rastro legado no AuditLog) e nada mudou depois (deriva):
  *      volta exatamente ao retrato de antes do fechamento (sobra inicial, custo, camadas…);
  *   6. a baixa do depósito é estornada pelo MOTOR (`estornarSaidaSuplementacao`: camadas por CAS,
- *      poço com o valor exato, regra do último descontando pares neutros) e numerada no fim;
+ *      poço com o valor exato) e numerada no fim. D-PROD-273 (fatia 4): com movimento depois no depósito
+ *      (descontados os pares neutros), a exclusão RECALCULA o custo de tudo que veio depois
+ *      (`estoqueExclusaoRecalculo`, inclusive o custo do fechamento dos outros cochos), em vez de recusar;
  *   7. o evento e o rateio dele ficam `situacao = 'cancelado'` (sem exclusão física); os recibos
  *      originais ficam 'committed' (reconciliação e bloqueio da exclusão da compra os leem);
  *   8. AuditLog numa ida só.
@@ -45,6 +47,7 @@ import {
   numeroMovimentoProvisorio,
   travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { ACAO_AUDITORIA_RECALCULO, aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
 import { CAMPOS_PATCH_PERMITIDOS as CAMPOS_FECHAMENTO_EVENTO } from './camposFechamentoEvento.js';
 import { CAMPOS_PATCH_PERMITIDOS as CAMPOS_FECHAMENTO_LOTE } from '../suplementacaoLotes/suplementacaoLoteService.js';
 import { SITUACAO_CANCELADO, documentoCancelado, diaDoLancamento, eventosAtivosDoCocho, lerParaAtualizar, textoOuNulo, travarCocho } from './suplementacaoCocho.js';
@@ -138,6 +141,25 @@ const restaurar = (dados, anteriores, campos) => {
 };
 
 /**
+ * D-PROD-273 (fatia 4) — o retrato `base` (o `dados_novos` do fechamento) com as reescritas do recálculo aplicadas em
+ * ordem. Cada trilha diz, campo a campo, o antes e o depois; o antes tem de bater com o estado até ali (senão `null`).
+ * @param {any} base @param {any[]} recalculos AuditLog `estoque.recalculo` do evento, em ordem
+ * @returns {Record<string, unknown>|null}
+ */
+const estadoDepoisDosRecalculos = (base, recalculos) => {
+  const estado = { ...(base ?? {}) };
+  for (const r of recalculos) {
+    const antes = r.dados_anteriores && typeof r.dados_anteriores === 'object' ? r.dados_anteriores : {};
+    const depois = r.dados_novos && typeof r.dados_novos === 'object' ? r.dados_novos : {};
+    for (const k of Object.keys(antes)) {
+      if (canonico(estado[k] ?? null) !== canonico(antes[k] ?? null) || !tem(depois, k)) return null;
+      estado[k] = depois[k];
+    }
+  }
+  return estado;
+};
+
+/**
  * Plano da reabertura do período anterior P (em memória; nada é escrito aqui). Casos:
  *  (a) sem P, (b) P aberto, (c) P fechado ANTES de N por outro fluxo → nada a reabrir;
  *  (d) P fechado por N (prova nova `fechado_por_*` ou legada pelo AuditLog) → reabre ao retrato
@@ -174,11 +196,21 @@ const planejarReabertura = async (tx, cli, { N, P, lotesP, criacaoN, em, operati
       && tem(A.dados_novos, 'sobra_kg') && mesmoNumero(A.dados_novos.sobra_kg, N.dados?.sobra_kg);
   }
   if (!provado) throw bloqueado('periodo_anterior_nao_comprovado', { evento_anterior_id: P.id });
-  if (!CAMPOS_FECHAMENTO_EVENTO.every((k) => mesmoCampo(dadosP, A.dados_novos, k))) {
+  // D-PROD-273 (fatia 4): o recálculo da exclusão de uma saída anterior pode ter reescrito o CUSTO deste fechamento
+  // (trilha `estoque.recalculo`, antes → depois). O estado legítimo é o do fechamento com essas reescritas aplicadas,
+  // em ordem, cada uma conferida contra o estado anterior a ela (qualquer quebra da cadeia = alterado).
+  const recalculos = await tx.auditLog.findMany({
+    where: { cliente_id: cli, entidade: ENTIDADE_EVENTO, entidade_id: P.id, acao: ACAO_AUDITORIA_RECALCULO, createdAt: { gte: A.createdAt } },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  });
+  const legitimo = estadoDepoisDosRecalculos(A.dados_novos, recalculos);
+  if (!legitimo || !CAMPOS_FECHAMENTO_EVENTO.every((k) => mesmoCampo(dadosP, legitimo, k))) {
     throw bloqueado('periodo_anterior_alterado', { evento_anterior_id: P.id });
   }
   const restaurado = {
     ...restaurar(dadosP, A.dados_anteriores, CAMPOS_FECHAMENTO_EVENTO),
+    // o custo/kg da saída do período reaberto é o vigente (o recálculo o mudou depois do fechamento)
+    ...(recalculos.length && tem(A.dados_anteriores, 'custo_unitario_kg') && tem(dadosP, 'custo_unitario_kg') ? { custo_unitario_kg: dadosP.custo_unitario_kg } : {}),
     reaberto_por_cancelamento: { evento_cancelado_id: N.id, em, operation_id: operationKey },
   };
 
@@ -318,6 +350,8 @@ export const cancelarLancamentoTravado = async (tx, contexto, { cli, empresaId, 
 
   // 10–11. Estorno da baixa pelo motor: locais FOR KEY SHARE → produto → (motor) camadas → original.
   let estorno = null;
+  /** @type {import('../estoqueRecalculo/estoqueExclusaoRecalculo.js').PlanoRecalculo[]} */
+  let planos = [];
   if (M) {
     const locais = await exigirLocaisEstoque(tx, cli, [{ id: M.local_estoque_origem, field: 'local_origem_id', exigirAtivo: false }]);
     await travarProdutosEstoque(tx, cli, empresaId, [M.produto_id]);
@@ -325,6 +359,11 @@ export const cancelarLancamentoTravado = async (tx, contexto, { cli, empresaId, 
     if (!produto) throw bloqueado('saida_nao_comprovada', { movimentacao_id: M.id });
     const local = /** @type {{ id: string, nome: string }} */ (locais.get(M.local_estoque_origem));
     const nomeCocho = textoOuNulo(N.dados?.ponto_nome) ?? 'cocho';
+    // D-PROD-273 (fatia 4): com movimento depois no depósito (descontados os pares neutros, como antes), a exclusão
+    // recalcula o que veio depois em vez de recusar; a prova (replay = gravado) vem antes de qualquer escrita.
+    planos = await planejarExclusaoComRecalculo(tx, cli, {
+      empresaId, movimentos: [{ id: M.id, produtoId: M.produto_id, localId: M.local_estoque_origem }], ignorarParesNeutros: true,
+    });
     const r = await estornarSaidaSuplementacao(tx, contexto, {
       empresaId,
       movimentoId: M.id,
@@ -334,6 +373,7 @@ export const cancelarLancamentoTravado = async (tx, contexto, { cli, empresaId, 
       origem: { operacaoId: N.id, motivoEstorno: [...`Cancelamento do lançamento do cocho ${nomeCocho}: ${motivo}`].slice(0, LIMITE_MOTIVO_MOVIMENTO).join('') },
       numeroMovimento: numeroMovimentoProvisorio(),
       vinculo: { pontoSuplementacaoId: ponto, quantidadeKg: N.dados?.quantidade_total_kg },
+      exigirUltimo: planos.length === 0,
     });
     estorno = { r, local, produto };
   }
@@ -369,6 +409,14 @@ export const cancelarLancamentoTravado = async (tx, contexto, { cli, empresaId, 
     }
   }
 
+  // 12b. D-PROD-273 (fatia 4): o recálculo do que veio depois (com o evento já cancelado e o período anterior reaberto).
+  const recalculo = estorno && planos.length
+    ? await aplicarExclusaoComRecalculo(tx, contexto, planos, {
+      empresaId, estornos: new Map([[estorno.r.original.id, estorno.r.movimento.id]]), origem: ORIGEM_SUPLEMENTACAO,
+      motivo: [...`Cancelamento do lançamento do cocho ${textoOuNulo(N.dados?.ponto_nome) ?? 'cocho'}: ${motivo}`].slice(0, LIMITE_MOTIVO_MOVIMENTO).join(''),
+    })
+    : null;
+
   // 13. Numeração no FIM e releitura do estorno.
   let resumoEstorno = null;
   if (estorno) {
@@ -401,6 +449,7 @@ export const cancelarLancamentoTravado = async (tx, contexto, { cli, empresaId, 
     evento: documentoComoPublico(eventoCancelado),
     lotes_cancelados: lotesN.length,
     estorno: resumoEstorno,
+    recalculo,
     periodo_reaberto: plano
       ? {
           evento_id: plano.evento.id,
@@ -463,7 +512,7 @@ export const elegibilidadeCancelamentoCocho = async (contexto, id, empresaIdInfo
     const comum = { evento_id: id, requer_permissao: CHAVE_CANCELAR_LANCAMENTOS_ESTOQUE, pode_cancelar_permissao: pode };
     const recusado = (/** @type {any} */ erro) => ({
       ...comum, elegivel: false, codigo: erro.code, reason: erro.details?.reason ?? null, mensagem: erro.message, detalhes: erro.details ?? null,
-      efeitos: { estorno: null, periodo_reaberto: null, lotes_a_cancelar: 0 },
+      efeitos: { estorno: null, periodo_reaberto: null, lotes_a_cancelar: 0, recalculo: null },
     });
     // A guarda da rota (GUARDAS.suplementacaoEvento.cancelar) já nega 403 antes daqui; esta releitura
     // na transação só pega a revogação que chega entre a guarda e o BEGIN (defesa contra corrida).
@@ -483,6 +532,8 @@ export const elegibilidadeCancelamentoCocho = async (contexto, id, empresaIdInfo
             ? { evento_id: r.periodo_reaberto.evento_id, data_lancamento: r.periodo_reaberto.data_lancamento, sobra_inicial_restaurada_kg: r.periodo_reaberto.sobra_inicial_restaurada_kg }
             : null,
           lotes_a_cancelar: r.lotes_cancelados,
+          // D-PROD-273 (fatia 4): o que a exclusão recalcularia (movimentos, camadas e dependentes reescritos), ou null.
+          recalculo: r.recalculo,
         },
       };
     } catch (erro) {
