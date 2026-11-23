@@ -148,3 +148,51 @@ describe('D-PROD-273 fatia 3 — replay puro (era legada e corte do custo médio
     assert.deepEqual(r.problemas.map((p) => [p.reason, p.movimento_id]), [['fora_do_protocolo', 'x']]);
   });
 });
+
+/**
+ * D-PROD-272 — sobra do ajuste de inventário: E1 10 a 2 (L1), E2 10 a 4 (L2) → 20 kg, R$ 60, médio 3; sobra de 5 ao
+ * médio (L3 5 a 3 = 15). A linha do ajuste diz se o custo foi informado.
+ */
+const historicoSobra = ({ custoSobra = '3.0000', informado = false, comLinha = true } = {}) => {
+  n = 0;
+  const movimentos = [
+    entrada('e1', '10', '2', '0', { createdAt: dia(1) }),
+    entrada('e2', '10', '4', '10', { createdAt: dia(2) }),
+    entrada('sobra', '5', custoSobra, '20', { createdAt: dia(3), origem_sistema: 'ajuste_estoque', tipo_detalhado: 'ajuste_sobra' }),
+  ];
+  const camadas = [
+    camada('L1', 'e1', '10', '2.0000', '10.0000', 'Disponivel', 1), camada('L2', 'e2', '10', '4.0000', '10.0000', 'Disponivel', 2),
+    camada('L3', 'sobra', '5', custoSobra, '5.0000', 'Disponivel', 3),
+  ];
+  return { movimentos, camadas, cutover: -Infinity, ajustes: comLinha ? [{ movimentacao_estoque_id: 'sobra', custo_informado: informado }] : [] };
+};
+
+describe('D-PROD-272 — replay puro da sobra do ajuste (custo = médio do depósito naquele ponto)', () => {
+  test('sobra ao médio reproduz; gravada com outro custo (não informado) diverge; com custo informado vale o gravado', () => {
+    const h = historicoSobra();
+    assert.deepEqual(compararComGravado(reproduzir(h), h), []);
+    const errada = historicoSobra({ custoSobra: '9.0000' });
+    const div = compararComGravado(reproduzir(errada), errada);
+    assert.ok(div.some((d) => d.movimento_id === 'sobra' && d.campo === 'valor_unitario' && d.gravado === '9.0000' && d.calculado === '3.0000'), JSON.stringify(div));
+    const informada = historicoSobra({ custoSobra: '9.0000', informado: true });
+    assert.deepEqual(compararComGravado(reproduzir(informada), informada), []);
+  });
+
+  test('fail-closed: sobra sem a linha do ajuste para o replay; na simulação, sobra não informada num poço vazio para (o motor exigiria o custo)', () => {
+    const sem = reproduzir(historicoSobra({ comLinha: false }));
+    assert.deepEqual([sem.reproduzivel, sem.parada?.reason], [false, 'sobra_de_ajuste_sem_linha']);
+    const h = historicoSobra();
+    const base = reproduzir(h);
+    const sim = simularExclusao(h, base, ['e1', 'e2']);
+    assert.deepEqual([sim.permitido, sim.recusa?.reason], [false, 'sobra_de_ajuste_sem_custo_medio']);
+  });
+
+  test('simulação: excluída E2, a sobra segue o médio de E1 (2) e o custo da camada dela muda (3 → 2)', () => {
+    const h = historicoSobra();
+    const sim = simularExclusao(h, reproduzir(h), ['e2']);
+    assert.equal(sim.permitido, true);
+    const s = sim.movimentos.find((m) => m.id === 'sobra');
+    assert.deepEqual([s.antes.valor_unitario, s.depois.valor_unitario, s.antes.valor_total, s.depois.valor_total], ['3.0000', '2.0000', '15.0000', '10.0000']);
+    assert.deepEqual(sim.camadas.find((c) => c.lote_id === 'L3')?.depois, { quantidade_disponivel: '5.0000', custo_unitario: '2.0000', status: 'Disponivel' });
+  });
+});
