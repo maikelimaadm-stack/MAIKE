@@ -38,7 +38,8 @@ export const listarSaldoEstoque = async (empresaId, opts = {}) => {
 /**
  * @param {string|null} empresaId
  * @param {{ limit?: number, cursor?: string|null, q?: string, produtoId?: string|null, localId?: string|null, origem?: string|null,
- *   tipo?: string|null, dataDe?: string|null, dataAte?: string|null }} [opts]
+ *   tipo?: string|null, dataDe?: string|null, dataAte?: string|null, incluirExcluidos?: boolean }} [opts]
+ *   `incluirExcluidos` (D-PROD-273): traz o par excluído (marcado `excluido`); sem ele, o servidor o esconde.
  */
 export const listarMovimentosEstoque = async (empresaId, opts = {}) => {
   const limit = opts.limit ?? POR_PAGINA_ESTOQUE;
@@ -52,6 +53,7 @@ export const listarMovimentosEstoque = async (empresaId, opts = {}) => {
     data_de: textoOuIndefinido(opts.dataDe),
     data_ate: textoOuIndefinido(opts.dataAte),
     q: textoOuIndefinido(opts.q),
+    incluir_excluidos: opts.incluirExcluidos === true ? 'true' : undefined,
     limit,
     cursor: textoOuIndefinido(opts.cursor),
   });

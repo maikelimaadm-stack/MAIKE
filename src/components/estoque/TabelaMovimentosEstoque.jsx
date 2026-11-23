@@ -11,6 +11,7 @@ import {
   formatarReais,
   quantidadeComSinal,
   rotuloDoMovimento,
+  rotuloSituacao,
 } from "@/lib/estoqueConsultaRegras";
 
 export const MOVIMENTOS_ESTOQUE_STORAGE_KEY = "colunas_estoque_movimentos_v1";
@@ -30,13 +31,28 @@ export const MOVIMENTOS_ESTOQUE_COLUNAS = [
   { id: "origem", label: "Origem", default: false, sortable: true, width: 150 },
 ];
 
-/** Além dos filtros da tela, só a Situação (ativa, estorno, estornada) fica na faixa. */
+/**
+ * Além dos filtros da tela, só a Situação fica na faixa (sobre as linhas carregadas). Por padrão o servidor já tira o
+ * par excluído (D-PROD-273), então ela mostra Ativa (e, raro, Estornada/Estorno sem par); com "Mostrar excluídos",
+ * também Excluído e Estorno da exclusão.
+ */
 const FILTROS_AUTOMATICOS = ["situacao"];
 
 export const MOVIMENTOS_ESTOQUE_CAMPOS_CARD = ["produto", "quantidade", "data", "tipo", "situacao"];
 
-/** @param {any} m */
-export const rotuloSituacao = (m) => (m?.status === "Estornada" ? "Estornada" : m?.estorno ? "Estorno" : "Ativa");
+export { rotuloSituacao };
+
+/** Etiqueta do par excluído (D-PROD-273), na grade e nos cartões. @param {{ item: any }} props */
+export function EtiquetaExcluido({ item }) {
+  return (
+    <span
+      data-testid={`movimento-excluido-${item.id}`}
+      className="inline-flex items-center whitespace-nowrap rounded-full border border-zinc-400 bg-zinc-200 px-2 py-0.5 text-[11px] font-semibold text-zinc-800"
+    >
+      {rotuloSituacao(item)}
+    </span>
+  );
+}
 
 /** @param {any} item @param {string} id */
 export const valorDoCampoMovimento = (item, id) => {
@@ -91,7 +107,10 @@ export const textoBuscaMovimento = (item) =>
 
 /** @param {any} props */
 export default function TabelaMovimentosEstoque(props) {
-  const renderCell = useCallback((/** @type {any} */ item, /** @type {string} */ colId) => valorDoCampoMovimento(item, colId) || "–", []);
+  const renderCell = useCallback((/** @type {any} */ item, /** @type {string} */ colId) => {
+    if (colId === "situacao" && item?.excluido === true) return <EtiquetaExcluido item={item} />;
+    return valorDoCampoMovimento(item, colId) || "–";
+  }, []);
   return (
     <CadastroBase1Grade
       rows={props.rows}

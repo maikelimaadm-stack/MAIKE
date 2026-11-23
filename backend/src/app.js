@@ -73,6 +73,7 @@ import { registrarEstoqueLoteNotaRoutes } from './modules/estoqueLotesNota/estoq
 import { registrarMovimentacaoEstoqueRoutes } from './modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js';
 import { registrarEstoqueFisicoRoutes } from './modules/estoqueFisico/estoqueFisicoRoutes.js';
 import { registrarEstoqueConsultaRoutes } from './modules/estoqueConsulta/estoqueConsultaRoutes.js';
+import { registrarEstoqueRecalculoRoutes } from './modules/estoqueRecalculo/estoqueRecalculoRoutes.js';
 import { registrarEntradaEstoqueRoutes } from './modules/estoqueEntradas/entradaEstoqueRoutes.js';
 import { registrarSaidaEstoqueRoutes } from './modules/estoqueSaidas/saidaEstoqueRoutes.js';
 import { registrarAjusteEstoqueRoutes } from './modules/estoqueAjustes/ajusteEstoqueRoutes.js';
@@ -286,6 +287,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarMovimentacaoEstoqueRoutes);
   await app.register(registrarEstoqueFisicoRoutes); // D-PROD-161: reconciliação somente leitura
   await app.register(registrarEstoqueConsultaRoutes); // D-PROD-255: saldo e movimentos (kardex), somente leitura
+  await app.register(registrarEstoqueRecalculoRoutes); // D-PROD-273 (fatia 3): prévia da exclusão com recálculo, somente leitura
   await app.register(registrarEntradaEstoqueRoutes); // D-PROD-257: entradas manuais documentadas e saldo de implantação
   await app.register(registrarSaidaEstoqueRoutes); // D-PROD-264: saída manual documentada (custo médio)
   await app.register(registrarAjusteEstoqueRoutes); // D-PROD-272: ajuste de inventário (contagem)

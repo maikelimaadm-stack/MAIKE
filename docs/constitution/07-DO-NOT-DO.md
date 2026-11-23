@@ -171,6 +171,8 @@ Violação exige **rollback**, não flexibilização da regra.
 
 > **Nota (D-PROD-272, emenda aprovada pelo proprietário em 2026-11-20):** o ajuste de inventário documentado (Estoque → Novo movimento → Ajuste) é exceção à proibição de inventário/ajuste, nos limites da decisão. Continua proibido: ajustar estoque fora do motor ou escrevendo saldo direto; digitar o valor da sobra quando o depósito tem custo médio, ou da falta; ajustar com data diferente de hoje; usar o ajuste para devolução, transferência entre empresas ou venda, ou criar título, conta ou receita a partir dele; excluir um ajuste depois de outro movimento do produto no mesmo depósito; mudar a contagem de um ajuste lançado; conceder a ação `ajuste` a perfis existentes por padrão. A entrada manual continua não servindo como inventário/ajuste.
 
+> **Nota (D-PROD-273, emenda aprovada pelo proprietário em 2026-11-22):** a exclusão com recálculo é exceção, nos limites da decisão, às proibições de excluir depois de outro movimento e de recalcular o custo de baixas passadas. Continua proibido: excluir quando o saldo de algum depósito ficaria negativo em algum ponto da sequência; recalcular fora do motor de estoque único ou por outra ordem que não a de lançamento; reescrever valor sem registrar o antes, o depois, o autor e o motivo; apagar fisicamente movimento ou camada; mudar preço de venda ou valor de compra; conceder ações do estoque a perfis existentes por padrão.
+
 > **Nota (D-PROD-193):** os itens do Apontamento de Atividade são a segunda exceção, depois do abastecimento, à
 > lista "fora" da D-PROD-157, só no trecho baixa de estoque, nos limites da decisão. Continua proibido: baixar o
 > item fora do motor de estoque ou por `Produto.estoque_atual -= …`; gravar o movimento com a origem do

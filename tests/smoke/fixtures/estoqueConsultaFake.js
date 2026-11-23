@@ -23,7 +23,7 @@ export const SALDO = [
 ];
 
 const mov = (id, numero, data, produto, extra) => ({
-  id, numero, data, tipo: 'Entrada', tipo_detalhado: 'compra_financeiro', origem_sistema: 'operacao_financeira', status: 'Ativa', estorno: false,
+  id, numero, data, tipo: 'Entrada', tipo_detalhado: 'compra_financeiro', origem_sistema: 'operacao_financeira', status: 'Ativa', estorno: false, excluido: false,
   produto_id: produto.id, produto_nome: produto.nome, produto_codigo: null, quantidade: '100.0000', unidade: produto.unidade, valor_unitario: '5.0000', valor_total: '500.0000',
   local_origem_id: null, local_origem: null, local_destino_id: null, local_destino: null, saldo_antes: '0.0000', saldo_depois: '100.0000', movimento_pai_id: null, movimento_filho_id: null,
   ...extra,
@@ -33,8 +33,8 @@ const [DIESEL, GLIFOSATO, SAL, UREIA] = PRODUTOS;
 export const MOVIMENTOS = [
   mov('m5', '105', '2026-11-12', DIESEL, { tipo: 'Saída', tipo_detalhado: 'abastecimento_patrimonio', origem_sistema: 'abastecimento_patrimonio', quantidade: '180.0000', saldo_antes: '5030.0000', saldo_depois: '4850.0000', valor_unitario: '5.9200', valor_total: '1065.6000', local_origem_id: 'l-tanque', local_origem: 'Tanque diesel sede' }),
   mov('m4', '104', '2026-11-10', UREIA, { tipo: 'Saída', tipo_detalhado: 'transferencia_enviada', origem_sistema: 'deposito', quantidade: '300.0000', saldo_antes: '1800.0000', saldo_depois: '1500.0000', local_origem_id: 'l-galpao', local_origem: 'Galpão insumos', local_destino_id: 'l-tanque', local_destino: 'Tanque diesel sede', movimento_filho_id: 'm4b' }),
-  mov('m3', '103', '2026-11-08', SAL, { tipo: 'Saída', tipo_detalhado: 'estorno_compra', estorno: true, quantidade: '500.0000', saldo_antes: '2900.0000', saldo_depois: '2400.0000', local_origem_id: 'l-galpao', local_origem: 'Galpão insumos', movimento_pai_id: 'm2' }),
-  mov('m2', '102', '2026-11-06', SAL, { status: 'Estornada', quantidade: '500.0000', saldo_antes: '2400.0000', saldo_depois: '2900.0000', valor_unitario: '3.1000', valor_total: '1550.0000', local_destino_id: 'l-galpao', local_destino: 'Galpão insumos', movimento_filho_id: 'm3' }),
+  mov('m3', '103', '2026-11-08', SAL, { tipo: 'Saída', tipo_detalhado: 'estorno_compra', estorno: true, excluido: true, quantidade: '500.0000', saldo_antes: '2900.0000', saldo_depois: '2400.0000', local_origem_id: 'l-galpao', local_origem: 'Galpão insumos', movimento_pai_id: 'm2' }),
+  mov('m2', '102', '2026-11-06', SAL, { status: 'Estornada', excluido: true, quantidade: '500.0000', saldo_antes: '2400.0000', saldo_depois: '2900.0000', valor_unitario: '3.1000', valor_total: '1550.0000', local_destino_id: 'l-galpao', local_destino: 'Galpão insumos', movimento_filho_id: 'm3' }),
   mov('m1', '101', '2026-11-03', DIESEL, { quantidade: '5000.0000', saldo_antes: '30.0000', saldo_depois: '5030.0000', valor_unitario: '5.9200', valor_total: '29600.0000', local_destino_id: 'l-tanque', local_destino: 'Tanque diesel sede' }),
 ];
 
@@ -76,7 +76,10 @@ export const rotearEstoque = async (req) => {
   }
   if (path === '/estoque/movimentos') {
     const q = (filtro(query, 'q') || '').toLowerCase();
-    const items = MOVIMENTOS.filter((m) => (!filtro(query, 'produto_id') || m.produto_id === query.get('produto_id'))
+    // D-PROD-273 (fatia 2): o par excluído (m2 'Estornada' + o estorno m3) só vem com incluir_excluidos=true, marcado.
+    const incluir = query.get('incluir_excluidos') === 'true';
+    const items = MOVIMENTOS.filter((m) => (incluir || !m.excluido)
+      && (!filtro(query, 'produto_id') || m.produto_id === query.get('produto_id'))
       && (!filtro(query, 'local_estoque_id') || [m.local_origem_id, m.local_destino_id].includes(query.get('local_estoque_id')))
       && (!filtro(query, 'origem_sistema') || m.origem_sistema === query.get('origem_sistema'))
       && (!filtro(query, 'tipo_movimentacao') || m.tipo === query.get('tipo_movimentacao'))
