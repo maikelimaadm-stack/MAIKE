@@ -304,6 +304,83 @@ R$ 480 (L1 50 + L2 30). Excluir S1: 250 kg a R$ 5,8; S2 = 80 × 5,8 = **R$ 464**
 
 Em todos: `auditarReplayDoProduto` sem divergência antes e depois.
 
+### Ajuste de inventário no replay (D-PROD-272 × D-PROD-273)
+
+O ajuste entrou na `main` depois do replay. A origem `ajuste_estoque` já estava em `ORIGENS_PROTOCOLO`, mas
+ninguém tinha provado que o replay reproduz o que o motor grava. Se não reproduzisse, a exclusão com recálculo de uma
+saída seria recusada para o produto inteiro depois de qualquer ajuste. Seria seguro, mas seria uma regressão.
+
+**O que o motor grava** (`estoqueFisicoMotor.js`, invólucros do ajuste):
+
+| Ponta | Primitiva | O que fica gravado |
+|---|---|---|
+| SOBRA `ajuste_sobra` | `aplicarEntradaEstoque` | Entrada com camada nova. O custo é o médio do depósito naquele momento (`pocoDoDeposito`: valor ÷ saldo, 4 casas). Sem saldo, vale o custo informado na linha (`custo_informado = true`). Valor = diferença × custo. O poço **não** é reavaliado. |
+| FALTA `ajuste_falta` | `aplicarSaida` | Saída a custo médio, com as fatias em `lotes_consumidos`; o restante do poço é reavaliado. |
+| estorno da sobra `estorno_ajuste_sobra` | `estornarEmLote`, efeito ENTRADA | A camada fica `Estornado`, sem reavaliar. O valor é copiado do original. |
+| estorno da falta `estorno_ajuste_falta` | `estornarSaida` | Devolve as fatias e o valor exato; o poço é reavaliado. |
+
+`AjusteEstoqueItem.custo_unitario` e `valor_total` copiam o valor unitário e o valor total do movimento.
+
+**O replay já reproduzia?** Sim, em todos os casos **sem exclusão**: sobra (com médio arredondado), falta,
+ajuste excluído e sobra com custo informado. Os testes (a) a (d) passaram de primeira. O replay tratava a sobra como
+uma entrada comum e criava a camada com o custo gravado. A falta e os dois estornos já seguiam as regras de sempre.
+
+**O que estava errado na exclusão com recálculo** (o caso do dono: entradas → S1 → ajuste → S2, excluir S1):
+
+- **Sobra:** a camada herdou o médio de antes de S1 e ficava com ele. Pela D-PROD-272, a sobra entra "ao custo
+  médio do depósito", um custo derivado do estoque. A emenda da D-PROD-273 manda recalcular o custo derivado e não
+  mexer no valor de compra. Por isso a sobra segue o médio recalculado, exceto quando o custo foi informado (depósito
+  sem saldo): esse custo vale como valor de compra e não muda.
+- **Linha do ajuste:** `AjusteEstoqueItem.custo_unitario` e `valor_total` não eram reescritos, nem na sobra nem na
+  falta. Na falta, o movimento já era recalculado como saída a médio.
+
+**O que mudou (testes vermelhos antes da correção):**
+
+1. O leitor (`lerHistoricoDoProduto`) lê as linhas do ajuste do produto (`custo_informado`).
+2. No replay (`estoqueReplay.js`), a sobra nasce ao médio do depósito naquele ponto da sequência, com a mesma conta
+   do motor. Com custo informado, vale o gravado. Assim o replay sem exclusão também **prova** o custo da sobra,
+   em vez de só copiá-lo. O replay para em dois casos, sem adivinhar: sobra sem a linha do ajuste
+   (`sobra_de_ajuste_sem_linha`) e sobra sem custo informado num poço vazio (`sobra_de_ajuste_sem_custo_medio`;
+   o motor teria exigido o custo).
+3. No recálculo (`estoqueExclusaoRecalculo.js`), `AjusteEstoqueItem.custo_unitario` e `valor_total` passam a ser
+   dependentes. A escrita usa CAS sobre o valor lido e registra a trilha `estoque.recalculo` com antes e depois. A
+   prévia (`lerDependentes`) lista a linha com `documento_id` = o ajuste.
+4. O motor só passou a exportar o rótulo `TIPO_SOBRA_AJUSTE`. Nenhuma regra dele mudou.
+
+**Decisão para o dono conferir: a contagem não é refeita.** O recálculo é de custo. A diferença do ajuste (a
+quantidade do movimento), o saldo anterior e o contado ficam como foram lançados. Os saldos antes e depois do
+movimento são recalculados. Se S1 nunca aconteceu fisicamente, a contagem real teria dado outra diferença. Manter a
+diferença lançada conta S1 duas vezes (no exemplo abaixo: 160 kg em vez de 110). Refazer a contagem mudaria
+quantidades, e até o tipo da linha (sobra ↔ falta). Isso fica fora desta fatia. Se o dono preferir, a alternativa
+segura é recusar a exclusão quando houver um ajuste depois no mesmo depósito.
+
+**Números à mão** (`backend/tests/estoqueRecalculoAjuste.test.mjs`). E1 100 kg a R$ 2; S1 tira 50; E2 50 kg a R$ 5
+→ 100 kg, R$ 350, médio 3,50. Sem S1: 150 kg, R$ 450, médio 3,00.
+
+| Cenário | Antes de excluir S1 | Depois de excluir S1 |
+|---|---|---|
+| (e1) sobra de 10 (contou 110) | sobra 10 × 3,50 = 35 (saldo 100→110); S2 20 × 3,50 = 70; poço 90 kg, R$ 315 | sobra 10 × 3,00 = **30** (150→160), camada a 3,00; S2 20 × 3,00 = **60** (160→140); poço 140 kg, R$ 420; linha do ajuste 3,50/35 → 3,00/30 (trilha) |
+| (e2) falta de 10 (contou 90) | falta 10 × 3,50 = 35; S2 70; poço 70 kg, R$ 245 | falta 10 × 3,00 = **30** (150→140, fatia L1 10 a 3,00); S2 **60** (140→120); poço 120 kg, R$ 360; linha 3,50/35 → 3,00/30 |
+| (e3) S1 zera o depósito; sobra 10 com custo informado R$ 7 | S2 5 × 7 = 35 | a sobra continua 7/70 (100→110); S2 5 × 2,4545 = **12,2725** (110 kg, R$ 270); linha intacta |
+| (a) 30 a 1 + 40 a 2, contou 80 | sobra 10 × 1,5714 = 15,714; saída 25 × 1,5714 = 39,285 | — |
+| (b) 50 a 2 + 50 a 4, contou 90 | falta 10 × 3 = 30; saída 20 × 3 = 60 | — |
+| (c) sobra de 20 (ureia) e falta de 25 (sal, 60 a 5 + 40 a 10), ajuste excluído | estornos 3/60 e 7/175; poços 100 kg/R$ 300 e 100 kg/R$ 700 | — |
+| (d) sobra no Barracão sem saldo, R$ 7 informado | 15 × 7 = 105; saída 5 × 7 = 35 | — |
+
+Em todos: `auditarReplayDoProduto` sem divergência (antes e depois da exclusão). No replay puro
+(`estoqueRecalculoReplayPuro`): sobra gravada a 9 sem custo informado diverge (calculado 3); com custo informado,
+reproduz; sem a linha do ajuste, ou num poço vazio na simulação, o replay para. Excluída a E2, a camada da sobra vai
+de 3 para 2.
+
+**Validação (PG 17, banco novo `maike_rx4aj`, `prisma migrate deploy`):**
+
+| Verificação | Resultado |
+|---|---|
+| `estoqueAjustes`, `estoqueRecalculo*` (inclui o novo `estoqueRecalculoAjuste` e o puro), `estoqueExclusaoRecalculoSaidas`, `estoqueConsulta*`, `estoqueSaidas*`, `estoqueEntradas*`, `estoqueP1M2MotorParametros`, `motorEstornoCochoTransferencia` | 188/188 (14 arquivos) |
+| Vermelho antes da correção | PG: (e1) e (e2) falhavam, (a) a (d) e (e3) passavam; puro: os 3 novos falhavam |
+| Gate tests (`scripts/tests/run-gate-tests.mjs`) | 1058/1058 |
+| eslint nos tocados, `typecheck:backend` | ok (0) |
+
 ### Riscos e próximos passos
 
 - Transação: o abastecimento e a linha da atividade usam a transação curta (9 s); um produto com milhares de
