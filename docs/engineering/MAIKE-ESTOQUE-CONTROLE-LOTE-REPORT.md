@@ -90,7 +90,18 @@ Branch: `claude/estoque-controle-lote` (da `main` `d62a4ef8`, sem push).
 | Replay | "replay = gravado" provado em FEFO, transferência, exclusões, ajuste e sem lote |
 
 ### Suítes e gates (Postgres 17, porta 5433, banco `maike_lote` por `migrate deploy`)
-Ver §5 (preenchido ao fim). Resumo: ver o relatório final da sessão.
+| Suíte / gate | Resultado |
+|---|---|
+| `estoqueControleLote.test.mjs` (novo) | 11/11 |
+| `estoque*`, `motorEstornoCochoTransferencia`, `suplementacao*`, `atividade*`, `gestaoP3*`, `depositoCancelar*`, `patrimonioP1Abastec*` (68 arquivos, sem os de migration) | 1059/1059 depois de ajustar o U4 de `gestaoP3UnidadeLitros` (o hash "como antes" agora tira as 2 colunas novas, vazias, da camada; a 1ª rodada deu 1058/1 só nele) |
+| testes de migration (`*Migration*`, `sqlEditorBootstrap`, `patrimonioP1Seguranca`, 26 arquivos) | todos verdes, com o espelho `schemaSemControleLote` e as listas de migrations posteriores atualizadas |
+| `scripts/tests/deploy/*` (premerge, migrations, preflight, alvo, bench) | 209 + 105 + 10 + 6 + 13, 0 falhas |
+| `node scripts/tests/run-gate-tests.mjs` | 1074/1074 |
+| `npm run -s test:smoke` | 323 arquivos, 4057 testes, 0 falhas (inclui `tests/smoke/estoqueControleLote.test.jsx`, 4) |
+| eslint nos arquivos tocados | 0 erros, 0 avisos |
+| `typecheck:backend` | 0 |
+| `typecheck` (ratchet) | 374 (base 374), sem regressão |
+| gates tenancy, indices, deploy-migrations, governance-paths, no-secrets, product-scope, import-integrity, base44 | PASSOU |
 
 ## 4. O que ficou de fora
 - **Atividade e abastecimento**: a API não aceita a lista `lotes` (sai pelo FEFO do servidor, com o custo do lote).

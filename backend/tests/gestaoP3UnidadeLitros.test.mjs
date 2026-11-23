@@ -314,7 +314,12 @@ describe('U4 — KG + SACO pela API: resposta e linhas iguais às de antes', () 
     const w = { where: { cliente_id: s.c }, orderBy: { id: /** @type {const} */ ('asc') } };
     const linhas = {
       itens: (await p.operacaoFinanceiraItem.findMany({ where: { cliente_id: s.c } })).sort((a, b) => `${a.valor_total}|${a.ordem}`.localeCompare(`${b.valor_total}|${b.ordem}`)),
-      lotes: (await p.estoqueLoteNota.findMany(w)).sort((a, b) => `${a.produto_nome}|${a.quantidade_entrada}`.localeCompare(`${b.produto_nome}|${b.quantidade_entrada}`)),
+      // D-PROD-279: as colunas novas da camada (lote do fabricante e validade) ficam vazias no produto sem lote e saem da
+      // comparação com o HEAD de antes (o resto da linha continua byte a byte o mesmo).
+      lotes: (await p.estoqueLoteNota.findMany(w)).map(({ lote_fabricante, data_validade, ...resto }) => {
+        assert.deepEqual([lote_fabricante, data_validade], [null, null], 'produto sem lote: camada sem lote e sem validade');
+        return resto;
+      }).sort((a, b) => `${a.produto_nome}|${a.quantidade_entrada}`.localeCompare(`${b.produto_nome}|${b.quantidade_entrada}`)),
       movimentos: (await p.movimentacaoEstoque.findMany(w)).sort((a, b) => `${a.produto_nome}|${a.tipo_detalhado}`.localeCompare(`${b.produto_nome}|${b.tipo_detalhado}`)),
       consumos: (await p.operacaoFinanceiraConsumoLote.findMany(w)).sort((a, b) => `${a.quantidade}`.localeCompare(`${b.quantidade}`)),
       titulos: (await p.tituloFinanceiro.findMany(w)).sort((a, b) => `${a.valor_original ?? ''}|${a.direcao ?? ''}`.localeCompare(`${b.valor_original ?? ''}|${b.direcao ?? ''}`)),
