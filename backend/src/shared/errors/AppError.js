@@ -238,6 +238,10 @@ export const atividadeNotFound = (message, options) =>
 export const atividadeApontamentoNotFound = (message, options) =>
   new AppError('ATIVIDADE_APONTAMENTO_NOT_FOUND', message || 'apontamento não encontrado nesta atividade', options);
 
+/** MAIKE-ENTREGA3 (D-PROD-276) — reforma (planejamento) de outra fazenda ou de outro tenant = inexistente (sem oráculo). */
+export const planejamentoNotFound = (message, options) =>
+  new AppError('PLANEJAMENTO_NOT_FOUND', message || 'reforma não encontrada nesta fazenda', options);
+
 /** D-PROD-249 — área de outra atividade, empresa ou tenant = inexistente (o mesmo corpo: sem oráculo). */
 export const atividadeAreaNotFound = (message, options) =>
   new AppError('ATIVIDADE_AREA_NOT_FOUND', message || 'área não encontrada nesta atividade', options);
@@ -322,6 +326,19 @@ const MENSAGENS_REFERENCIA_ATIVIDADE = Object.freeze({
   unidade_producao_sigla: Object.freeze({
     diferente_da_atividade: 'a unidade da quantidade feita é diferente da unidade deste serviço: use a mesma unidade',
   }),
+  // MAIKE-ENTREGA3 (D-PROD-276) — a reforma de que a realização faz parte ("Faz parte de") e o capim que vai ficar.
+  planejamento_id: Object.freeze({
+    inexistente: 'a reforma não foi encontrada nesta fazenda',
+    fechado: 'a reforma já foi concluída ou cancelada: a realização não entra mais nela',
+    area_fora: 'a área da realização não faz parte desta reforma',
+  }),
+  cultura_alvo_id: Object.freeze({
+    inexistente: 'o capim que vai ficar não foi encontrado no Cadastro de Culturas desta fazenda',
+    inativo: 'o capim que vai ficar está inativo no Cadastro de Culturas: escolha um ativo',
+  }),
+  trocar_capim: Object.freeze({
+    sem_capim: 'a reforma não tem o capim que vai ficar: conclua sem trocar o capim',
+  }),
 });
 
 /**
@@ -334,7 +351,9 @@ const MENSAGENS_REFERENCIA_ATIVIDADE = Object.freeze({
  * @param {string} field
  * D-PROD-274: `plantio.cultura_id`/`plantio.consorcio_cultura_id` (`inexistente`, `inativo`) e `unidade_producao_sigla`
  * (`diferente_da_atividade`).
- * @param {'inexistente'|'inativo'|'outra_empresa'|'grupo_inativo'|'natureza'|'duplicada'|'ja_na_atividade'|'varias_areas'|'com_lancamentos'|'obrigatorio'|'sem_areas'|'abastecimento'|'diferente_da_atividade'} reason
+ * D-PROD-276: `planejamento_id` (`inexistente`, `fechado`, `area_fora`), `cultura_alvo_id` (`inexistente`, `inativo`) e
+ * `trocar_capim` (`sem_capim`).
+ * @param {'inexistente'|'inativo'|'outra_empresa'|'grupo_inativo'|'natureza'|'duplicada'|'ja_na_atividade'|'varias_areas'|'com_lancamentos'|'obrigatorio'|'sem_areas'|'abastecimento'|'diferente_da_atividade'|'fechado'|'area_fora'|'sem_capim'} reason
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */
 export const atividadeReferenciaInvalida = (field, reason, options) =>
@@ -468,6 +487,9 @@ const ROTULO_DO_STATUS_ATIVIDADE = Object.freeze({
   // D-PROD-249: o ciclo da área da atividade.
   PLANEJADA: 'planejada (não iniciada)',
   EM_ANDAMENTO: 'em andamento',
+  // MAIKE-ENTREGA3 (D-PROD-276): o ciclo da reforma.
+  ABERTO: 'aberta',
+  CONCLUIDO: 'concluída',
 });
 
 /** D-PROD-202 — como cada entidade aparece nas frases de status. */
@@ -478,6 +500,8 @@ const ROTULO_DA_ENTIDADE_ATIVIDADE = Object.freeze({
   linha_maquina: 'a linha de máquina',
   // D-PROD-249 — a área de uma atividade de várias áreas.
   area: 'a área da atividade',
+  // MAIKE-ENTREGA3 (D-PROD-276) — a reforma (agrupador).
+  planejamento: 'a reforma',
 });
 
 /** D-PROD-200 — a regra de status de cada ação (§3 do contrato), como aparece nas frases. */
@@ -504,12 +528,15 @@ const REGRA_DE_STATUS_DA_ACAO = Object.freeze({
   reabrir_area: 'só área concluída, de atividade aberta, é reaberta',
   remover_area: 'só área planejada (não iniciada) e sem lançamento, de atividade aberta, sai da atividade',
   lancar_na_area: 'só área em andamento recebe lançamento (inicie a área planejada ou reabra a concluída)',
+  // MAIKE-ENTREGA3 (D-PROD-276) — a reforma.
+  concluir_planejamento: 'só reforma aberta é concluída',
+  cancelar_planejamento: 'só reforma aberta é cancelada',
 });
 
 /**
  * D-PROD-200 — a ação não é permitida no status atual da atividade (ou do
  * apontamento, ou da linha — D-PROD-202): `details.status`, `details.acao` e `details.entidade`.
- * @param {{ status: string, acao: string, entidade?: 'atividade'|'apontamento'|'linha_produto'|'linha_maquina'|'linha_mao_obra'|'linha_servico'|'area' }} situacao
+ * @param {{ status: string, acao: string, entidade?: 'atividade'|'apontamento'|'linha_produto'|'linha_maquina'|'linha_mao_obra'|'linha_servico'|'area'|'planejamento' }} situacao
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */
 export const atividadeStatusInvalido = ({ status, acao, entidade = 'atividade' }, options = undefined) =>
@@ -523,7 +550,7 @@ export const atividadeStatusInvalido = ({ status, acao, entidade = 'atividade' }
  * D-PROD-200 — conflito de versão (CAS por `versao`) da atividade ou do apontamento.
  * @param {number|null} versaoAtual
  * @param {unknown} versaoInformada
- * @param {{ entidade?: 'atividade'|'apontamento'|'area' }} [alvo]
+ * @param {{ entidade?: 'atividade'|'apontamento'|'area'|'planejamento' }} [alvo]
  * @param {{cause?: unknown, details?: Record<string, unknown>}} [options]
  */
 export const atividadeVersaoConflito = (versaoAtual, versaoInformada, { entidade = 'atividade' } = {}, options = undefined) =>
@@ -533,7 +560,9 @@ export const atividadeVersaoConflito = (versaoAtual, versaoInformada, { entidade
       ? 'o apontamento foi alterado por outra pessoa desde que você o abriu; recarregue e tente de novo; nada foi gravado'
       : entidade === 'area'
         ? 'a área da atividade foi alterada por outra pessoa desde que você a abriu; recarregue e tente de novo; nada foi gravado'
-        : 'a atividade foi alterada por outra pessoa desde que você a abriu; recarregue e tente de novo; nada foi gravado',
+        : entidade === 'planejamento'
+          ? 'a reforma foi alterada por outra pessoa desde que você a abriu; recarregue e tente de novo; nada foi gravado'
+          : 'a atividade foi alterada por outra pessoa desde que você a abriu; recarregue e tente de novo; nada foi gravado',
     { ...options, details: { ...(options?.details ?? {}), versao_atual: versaoAtual, versao_informada: versaoInformada, entidade } }
   );
 
