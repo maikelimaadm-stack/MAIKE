@@ -551,6 +551,10 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 422,
     meaning: 'a escolha de lotes da linha não serve (details.reason: lotes_formato | lote_repetido | lote_indisponivel | lote_sem_saldo | lotes_nao_somam | produto_sem_controle_de_lote); nada foi gravado',
   },
+  ESTOQUE_ESTORNO_MODO_LOTE_DIVERGENTE: {
+    http: 409,
+    meaning: 'o movimento foi gravado com o produto em outro controle de lote (o cadastro mudou depois): estorno e exclusão recusados (details.reason: movimento_sem_lote | movimento_com_lote); nada foi alterado',
+  },
   PRODUTO_LOTE_TROCA_COM_SALDO: {
     http: 409,
     meaning: 'controla lote/validade só muda com o saldo do produto zero em todos os depósitos; nada foi gravado',

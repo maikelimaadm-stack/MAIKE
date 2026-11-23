@@ -244,6 +244,8 @@ export const carregarReferencias = async (tx, clienteId, empresaId, doc) => {
       select: {
         id: true, empresa_id: true, nome_produto: true, ativo: true, unidade_principal_estoque: true, peso_por_saco_kg: true,
         estoque_atual: true, codigo_interno: true, codigo_barras: true, categoria: true,
+        // D-PROD-279 (revisão): sem estas colunas o `comLote` da prévia ficava vazio (prévia no médio, gravado no lote).
+        controla_lote: true, controla_validade: true,
       },
     })
     : [];
@@ -1387,6 +1389,8 @@ const aplicarEfeitosDoPlano = async (tx, contexto, a) => {
   const movimentos = [];
   /** @type {string[]} */
   const lotes = [];
+  /** D-PROD-279 (revisão): lote vencido consumido pelo FEFO, por item. @type {any[]} */
+  const avisos = [];
   for (const e of efeitos) {
     const itemPlano = itensPorOrdem.get(e.item_ordem);
     const itemBanco = /** @type {any} */ (itens.find((i) => i.ordem === e.item_ordem));
@@ -1428,6 +1432,7 @@ const aplicarEfeitosDoPlano = async (tx, contexto, a) => {
       });
       dadosItem.movimentacao_estoque_id = sai.movimento.id;
       movimentos.push(sai.movimento.id);
+      for (const aviso of sai.avisos ?? []) avisos.push({ ...aviso, item_ordem: e.item_ordem });
       await tx.operacaoFinanceiraConsumoLote.createMany({
         data: sai.fatias.map((f) => ({
           cliente_id: cli, empresa_id: empresaId, item_id: itemBanco.id, estoque_lote_nota_id: f.lote_id,
@@ -1437,7 +1442,7 @@ const aplicarEfeitosDoPlano = async (tx, contexto, a) => {
     }
     await tx.operacaoFinanceiraItem.update({ where: { cliente_id_id: { cliente_id: cli, id: itemBanco.id } }, data: dadosItem });
   }
-  return { movimentos, lotes, comEfeito: new Set(efeitos.map((e) => e.item_ordem)) };
+  return { movimentos, lotes, comEfeito: new Set(efeitos.map((e) => e.item_ordem)), avisos };
 };
 
 /**
@@ -1505,7 +1510,7 @@ export const confirmar = async (contexto, id, corpo) => {
             await exigirDocumentoForaDeEntradaManual(tx, cli, empresaId, op.documento_referencia, plano);
           }
           // Sequência de movimentos SÓ no fim (§8.4 item 5): `numerarMovimentos`.
-          const { movimentos, lotes, comEfeito } = await aplicarEfeitosDoPlano(tx, contexto, {
+          const { movimentos, lotes, comEfeito, avisos } = await aplicarEfeitosDoPlano(tx, contexto, {
             cli, empresaId, operacaoId: id, direcao: op.direcao, dia: doc.data_operacional, plano, itens, refs,
             documento: { numero: op.documento_referencia ?? op.numero, data: doc.data_emissao }, parceiro: { id: refs.parceiro.id, nome: refs.parceiro.nome },
             lotesPorItem,
@@ -1553,7 +1558,7 @@ export const confirmar = async (contexto, id, corpo) => {
             dadosNovos: auditoriaDoc(confirmado, { ...contagens(plano), movimentos_estoque: movimentos, lotes_estoque: lotes, baixa_no_ato: Boolean(baixaValidada), liquidacao_id: liquidacaoId }),
           }, tx);
           await numerarMovimentos(tx, cli, movimentos);
-          return { httpStatus: 200, body: await carregarDetalhe(tx, cli, id) };
+          return { httpStatus: 200, body: { ...(await carregarDetalhe(tx, cli, id)), ...(avisos.length ? { avisos } : {}) } };
         },
       }),
     { documento_chave_ativa: () => documentoDuplicado(), direcao_parceiro: () => documentoDuplicado() }

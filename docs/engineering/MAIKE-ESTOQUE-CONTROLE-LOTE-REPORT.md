@@ -103,6 +103,32 @@ Branch: `claude/estoque-controle-lote` (da `main` `d62a4ef8`, sem push).
 | `typecheck` (ratchet) | 374 (base 374), sem regressão |
 | gates tenancy, indices, deploy-migrations, governance-paths, no-secrets, product-scope, import-integrity, base44 | PASSOU |
 
+## 3a. Achados da revisão e correções
+
+Revisão independente (cenário temporário `mistura.test.mjs`) transformada em `backend/tests/estoqueControleLoteRevisao.test.mjs`
+(12 testes). **Antes da correção: 10 vermelhos, 2 verdes; depois: 12/12.** Os 2 verdes de antes são de regressão
+(mesmo modo, sem troca do cadastro; e o R3, ver abaixo).
+
+| # | Achado | Correção | Prova (números) |
+|---|---|---|---|
+| 1 (importante) | `carregarReferencias` do financeiro não lia `controla_lote`/`controla_validade`: `comLote` ficava vazio e a prévia mostrava o médio | as duas colunas no `select` | A 100 a 4 (31/12/27), B 50 a 6 (01/08/27), venda de 60: prévia **340,0000** com as fatias B 50 × 6 + A 10 × 4 = movimento gravado **340,0000** (5,6667/kg, `LOTE`) e as mesmas fatias em `OperacaoFinanceiraConsumoLote`. Antes a prévia dava 280,0000 (4,6667 × 60) |
+| 2 (importante) | a troca do flag era driblada por estorno posterior (camada sem lote em produto com lote; custos de lote num poço médio) | `exigirModoLoteDoCadastro` no motor (ponto único: `estornarEntrada`, `estornarSaida`, `estornarEmLote`, `estornarTransferenciaEstoque`) e em `provarExclusaoComRecalculo`; 409 `ESTOQUE_ESTORNO_MODO_LOTE_DIVERGENTE` (`movimento_sem_lote` / `movimento_com_lote`); mensagem em `gestaoErros` e na SPEC §5 | o cenário da revisão (10 a 2, saída 10, troca, L1 10 a 8, excluir a saída) → 409 e as camadas iguais; o inverso (L1 10 a 4, saída LOTE, volta a sem lote, 10 a 2 + 10 a 6) → 409; entrada sem lote consumida e entrada com lote consumida → 409 pela prova do recálculo; cancelar transferência antiga → 409; cancelar linha de atividade e cancelar venda → 409; nada gravado em nenhum |
+| 3 (menor) | o fallback do estorno exato decidia a reavaliação pela marca do movimento | `estornarSaida`, `estornarEmLote` e `estornarTransferenciaEstoque` decidem pelo **cadastro atual** (`controleDeLote`); com o item 2 a marca e o cadastro sempre batem | L1 10 a 4, L2 10 a 6; atividade 5 (L1), saída manual 2 depois; cancelar a linha → L1 **8 a 4**, L2 **10 a 6**, replay = gravado. Este teste já passava antes (o caminho divergente só existia com a troca do cadastro, que o item 2 fecha); fica como cinto |
+| 4 (menor) | o custo da sobra "do mesmo lote" aceitava camada `Estornado` e ignorava o custo informado | filtro `status ≠ Estornado`; com camada vigente do lote, `custo_unitario` → 400 `custo_do_lote_existente` (escolha do proprietário registrada na D-PROD-279) | A 10 a 4 excluída: sobra de 5 do A sem custo → 422 `custo_obrigatorio_sem_saldo` (antes entrava a 4); com 7 → **35,0000** informado; depois, sobra de 3 do A com custo 9 → 400; sem custo → **21,0000** a 7 |
+| 5 (menor) | lote vencido sem aviso nas origens só com API | `aplicarSaida` devolve `avisos` (`avisosDeLoteVencido`, pelo dia da saída); atividade (lançar/editar), abastecimento, cocho e venda respondem `avisos: [{ tipo: 'lote_vencido', lote_id, lote, validade }]` (venda com `item_ordem`) **só quando há aviso** (as respostas de sempre não mudam de forma) | V1 30 a 3 (vence 10/01/2027) e OK 30 a 5 (10/01/2028), dia 10/06/2027: atividade 5, venda 5, cocho 5 e atividade 20 (15 do V1 + 5 do OK) → um aviso do V1 cada; atividade 5 só do OK → sem `avisos`; abastecimento de 50 L de diesel com lote V1 → aviso |
+
+- **Toast nas telas (item 5): não feito.** Os ports de atividade, abastecimento, cocho e financeiro normalizam a
+  resposta; mostrar o aviso pede mexer em quatro fluxos de tela. Fica com a escolha manual nessas telas (decisão do
+  proprietário: depois). A criação em lote de linhas de produto junto com o apontamento (`criarLinhasProduto`) também
+  não devolve `avisos` (devolve só ids).
+- **Validação (banco `maike_lote2`, `migrate deploy`, PG 17 :5433):** regressão dos 68 arquivos + o novo (69):
+  1076 testes, 1069 ok, 5 todo, 2 falhas na 1ª rodada, as duas em `atividadeLinhaProduto` (as chaves da resposta
+  estavam fixadas e `avisos` vinha sempre). Depois de `avisos` só aparecer com aviso, esse arquivo e os de lote
+  rodaram de novo: 43/43. `test:smoke` 323 arquivos, 4058 testes, 0 falhas; gate tests 1074/1074; eslint 0;
+  `typecheck:backend` 0; `typecheck` 374 (base 374); os gates tenancy, indices, deploy-migrations, governance-paths,
+  no-secrets, product-scope, import-integrity e base44 passaram.
+- Smoke novo: mensagem de `ESTOQUE_ESTORNO_MODO_LOTE_DIVERGENTE` nos dois sentidos (`tests/smoke/estoqueControleLote.test.jsx`, 5).
+
 ## 4. O que ficou de fora
 - **Atividade e abastecimento**: a API não aceita a lista `lotes` (sai pelo FEFO do servidor, com o custo do lote).
   A escolha manual nessas duas origens fica para depois (precisa mexer nos esquemas e fingerprints de linhas que

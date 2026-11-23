@@ -540,7 +540,8 @@ export const confirmar = async (contexto, corpo) => {
               { acao: 'abastecimento_bem.confirmar', entidade: ENTIDADE, entidadeId: id, dadosNovos: paraAuditoria(linha, fatias) },
               tx
             ); // R13
-            return { httpStatus: 201, body: await carregarDetalhe(tx, cli, empresaId, id) };
+            // D-PROD-279 (revisão): lote vencido consumido pelo FEFO — aviso na resposta (a escolha manual fica para depois).
+            return { httpStatus: 201, body: { ...(await carregarDetalhe(tx, cli, empresaId, id)), ...(saida.avisos?.length ? { avisos: saida.avisos } : {}) } };
           },
         }),
       { operation_id: conflitoDeChave(entrada.operation_id) }

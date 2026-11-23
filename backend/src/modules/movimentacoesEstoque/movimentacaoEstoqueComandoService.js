@@ -236,6 +236,8 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
           replay: false,
           movimentacao: publico,
           rateio: rateioLegado(/** @type {any[]} */ (saida.fatias)),
+          // D-PROD-279 (revisão): lote vencido consumido pelo FEFO (ou escolhido) — aviso, nunca recusa.
+          ...(saida.avisos?.length ? { avisos: saida.avisos } : {}),
         };
         return { httpStatus: 201, body };
       },

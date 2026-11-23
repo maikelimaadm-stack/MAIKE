@@ -110,3 +110,12 @@ describe('D-PROD-279 — Saldo por lote e regras puras', () => {
     expect(semLote.ok).toBe(true);
   });
 });
+
+describe('D-PROD-279 (revisão) — recusa do estorno com o controle de lote trocado', () => {
+  it('mensagem clara nos dois sentidos, pela mesma função de erro das telas', async () => {
+    const { mensagemErroGestao } = await import('@/lib/gestaoErros');
+    const erro = (reason) => ({ code: 'ESTOQUE_ESTORNO_MODO_LOTE_DIVERGENTE', details: { field: 'movimento_id', reason } });
+    expect(mensagemErroGestao(erro('movimento_sem_lote'), 'x')).toMatch(/não controlava lote, e agora o produto controla.*Nada foi alterado\./);
+    expect(mensagemErroGestao(erro('movimento_com_lote'), 'x')).toMatch(/controlava lote, e o produto não controla mais.*Nada foi alterado\./);
+  });
+});

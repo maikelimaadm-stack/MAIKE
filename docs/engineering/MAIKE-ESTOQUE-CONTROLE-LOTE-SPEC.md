@@ -43,6 +43,9 @@ tem (ou teve) uma camada com o **mesmo lote do fabricante**, a sobra entra pelo 
 e herda a validade dela quando a validade não vier; senão, o custo da sobra é obrigatório (`custo_informado = true`,
 422 `custo_obrigatorio_sem_saldo` como no depósito vazio). Motivo: uma sobra de contagem é "achei mais do lote X"; o
 custo mais honesto é o que o lote X custou.
+**Confirmado pelo proprietário (revisão):** só camadas vigentes do lote contam (a camada `Estornado` de uma entrada
+excluída não dá custo); com camada vigente do lote, informar `custo_unitario` é recusado — 400
+`REQUEST_VALIDATION_FAILED`, `field: custo_unitario`, `reason: custo_do_lote_existente` (o custo é o do lote).
 
 **Saídas** — saída manual, transferência (origem), cocho, linha de produto da atividade, abastecimento, venda do
 financeiro e falta de ajuste: cada linha aceita `lotes: [{ estoque_lote_nota_id, quantidade }]` (opcional).
@@ -57,6 +60,10 @@ financeiro e falta de ajuste: cada linha aceita `lotes: [{ estoque_lote_nota_id,
   `lote_repetido`). Produto sem lote com lista → 422 (`reason: 'produto_sem_controle_de_lote'`).
 - **Vencido** não é recusa: o servidor aceita; a tela avisa "Lote vencido em dd/mm" e pede confirmação antes de enviar.
   A resposta da prévia de lotes diz `vencido: true`.
+- **Aviso nas origens só com API (revisão):** atividade (lançar e editar linha), abastecimento (confirmar), cocho
+  (`saida-suplementacao`) e venda (confirmar) respondem `avisos: [{ tipo: 'lote_vencido', lote_id, lote, validade }]`
+  (venda: mais `item_ordem`) quando a saída consumiu lote vencido no dia dela; lista vazia sem vencido. A tela dessas
+  origens ainda não mostra o aviso (fica com a escolha manual).
 
 **Troca do cadastro.** `controla_lote` (ou `controla_validade`) só muda com o saldo do produto **zero em todos os
 depósitos** (Σ disponível das camadas, mais `estoque_atual`). Senão 409 `PRODUTO_LOTE_TROCA_COM_SALDO`, com o saldo.
@@ -92,6 +99,16 @@ usuário pode trocar ou dividir.
   nada depois é recalculado (não há médio).
 - Transferência de produto com lote: excluir = estorno exato se as camadas recebidas estão intocadas; senão a mesma
   recusa `lote_consumido`.
+- **Modo gravado × cadastro atual (revisão).** Estornar ou excluir (com ou sem recálculo, inclusive o fallback do
+  estorno exato) exige que o modo do movimento seja o do cadastro de agora: saída/transferência `LOTE` ⇔ produto com
+  lote; camada de entrada com `lote_fabricante` ⇔ produto com lote. Senão 409 `ESTOQUE_ESTORNO_MODO_LOTE_DIVERGENTE`
+  (`movimento_sem_lote`: o produto passou a controlar lote; `movimento_com_lote`: deixou de controlar), nada alterado.
+  Vale para saída manual, cocho, atividade, abastecimento, venda/compra do financeiro, transferência, ajuste (sobra e
+  falta) e entrada documentada — o teste fica num ponto só do motor (`exigirModoLoteDoCadastro`, chamado em
+  `estornarEntrada`, `estornarSaida`, `estornarEmLote`, `estornarTransferenciaEstoque` e na prova do recálculo).
+  Tela: "Este movimento foi lançado quando o produto (não) controlava lote… Para corrigir, lance um ajuste ou um
+  movimento novo. Nada foi alterado." Com isso, a reavaliação no estorno decide pelo cadastro: produto com lote nunca
+  tem camada reavaliada.
 
 ## 6. Telas e endpoint
 

@@ -236,13 +236,18 @@ export const criar = async (contexto, corpo) => {
               tipo = SOBRA;
               if (!it.lote_fabricante) throw invalido422('lote_fabricante', 'lote_obrigatorio', 'este produto controla lote: informe o lote da sobra', { indice });
               const mesmo = await tx.estoqueLoteNota.findFirst({
-                where: { cliente_id: cli, empresa_id: empresaId, produto_id: p.id, local_estoque_id: item.local_estoque_id, lote_fabricante: it.lote_fabricante },
+                // Revisão: camada Estornada (entrada excluída) não dá custo; o lote "existe no depósito" só pelas vigentes.
+                where: { cliente_id: cli, empresa_id: empresaId, produto_id: p.id, local_estoque_id: item.local_estoque_id, lote_fabricante: it.lote_fabricante, status: { not: 'Estornado' } },
                 orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
                 select: { custo_unitario: true, data_validade: true },
               });
               const validade = it.data_validade ?? (mesmo?.data_validade ? mesmo.data_validade.toISOString().slice(0, 10) : null);
               if (controle.validade && !validade) throw invalido422('data_validade', 'validade_obrigatoria', 'este produto controla validade: informe a validade do lote', { indice });
               if (mesmo) {
+                // Escolha do proprietário (revisão D-PROD-279): o custo é o do mesmo lote; informar outro é recusado.
+                if (item.custo_unitario !== null) {
+                  throw invalido('o lote já tem entrada neste depósito: a sobra entra pelo custo dele; não informe o custo', { field: 'custo_unitario', reason: 'custo_do_lote_existente', indice });
+                }
                 custo = dec(mesmo.custo_unitario);
               } else {
                 if (item.custo_unitario === null) {

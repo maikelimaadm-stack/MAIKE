@@ -39,7 +39,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEventosEmLote } from '../auditoria/auditService.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, dec, paraBanco } from '../financeiro/decimalFinanceiro.js';
-import { travarProdutosEstoque } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { camadaEmModoLote, controleDeLote, exigirModoLoteDoCadastro, saidaEmModoLote, travarProdutosEstoque } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { buscarMovimentoPosterior } from '../estoqueFisico/movimentoPosterior.js';
 import { recomporRateio } from '../estoqueFisico/rateioObservacoes.js';
 import { recalcularCustosDosCochos } from '../suplementacaoEventos/fechamentoCustoCocho.js';
@@ -102,6 +102,9 @@ const porProduto = (movimentos) => {
 export const provarExclusaoComRecalculo = async (tx, cli, a) => {
   const historico = await lerHistoricoDoProduto(tx, cli, a.empresaId, a.produtoId, { teto: a.teto ?? TETO_MOVIMENTOS_PRODUTO });
   const porId = new Map(historico.movimentos.map((x) => [x.id, x]));
+  // D-PROD-279 (revisão): o movimento excluído tem de estar no modo do cadastro atual (o mesmo ponto do estorno).
+  const controle = await controleDeLote(tx, cli, { id: a.produtoId });
+  const camadaDaEntrada = new Map(historico.camadas.filter((c) => c.movimentacao_entrada_id).map((c) => [c.movimentacao_entrada_id, c]));
   for (const id of a.excluirIds) {
     const m = porId.get(id);
     if (!m) throw recalculoInviavel('movimento_fora_do_historico', { movimento_id: id });
@@ -112,6 +115,8 @@ export const provarExclusaoComRecalculo = async (tx, cli, a) => {
     // Fatia 4: SAÍDAS (manual, cocho, atividade, abastecimento, venda, falta do ajuste). Fatia 5: ENTRADAS (entrada
     // documentada, compra, sobra do ajuste) e a TRANSFERÊNCIA (as duas pernas juntas). Estorno nunca.
     if (!CLASSES_EXCLUIVEIS.includes(classe)) throw recalculoInviavel('origem_nao_suportada', { movimento_id: id, origem_sistema: m.origem_sistema });
+    if (classe === CLASSE.SAIDA || classe === CLASSE.TRANSFERENCIA_ENVIADA) exigirModoLoteDoCadastro(controle, saidaEmModoLote(m), { movimento_id: id });
+    if (classe === CLASSE.ENTRADA) exigirModoLoteDoCadastro(controle, camadaEmModoLote(camadaDaEntrada.get(id)), { movimento_id: id });
     if (classe === CLASSE.TRANSFERENCIA_ENVIADA || classe === CLASSE.TRANSFERENCIA_RECEBIDA) {
       const s = classe === CLASSE.TRANSFERENCIA_ENVIADA ? m : porId.get(m.movimento_pai_id);
       const r = s?.movimento_filho_id ? porId.get(s.movimento_filho_id) : null;

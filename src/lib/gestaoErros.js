@@ -444,6 +444,12 @@ export const mensagemRecalculoDaExclusao = (code, reason, details = {}) => {
   if (code === 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO') {
     return `Sem este movimento o saldo do depósito ficaria negativo${details.movimento_numero != null ? ` no movimento nº ${details.movimento_numero}` : ''}. A exclusão não é possível. Nada foi alterado.`;
   }
+  // D-PROD-279 (revisão): o controle de lote do produto mudou depois do movimento — estorno e exclusão recusados.
+  if (code === 'ESTOQUE_ESTORNO_MODO_LOTE_DIVERGENTE') {
+    return reason === 'movimento_com_lote'
+      ? 'Este movimento foi lançado quando o produto controlava lote, e o produto não controla mais. Ele não pode ser excluído nem estornado. Para corrigir, lance um ajuste ou um movimento novo. Nada foi alterado.'
+      : 'Este movimento foi lançado quando o produto não controlava lote, e agora o produto controla. Ele não pode ser excluído nem estornado. Para corrigir, lance um ajuste ou um movimento novo. Nada foi alterado.';
+  }
   if (code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO') return 'Há movimentos demais deste produto depois deste para recalcular de uma vez. Procure o suporte. Nada foi alterado.';
   // Escolha do proprietário (2026-11-23): com contagem de inventário depois, no depósito, a exclusão é recusada.
   if (code === 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL' && reason === 'ajuste_de_inventario_posterior') {
