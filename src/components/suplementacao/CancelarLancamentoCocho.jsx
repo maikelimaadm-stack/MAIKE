@@ -17,6 +17,8 @@ import { refreshMapaCacheEntry, updateMapaCachedData } from "@/services/mapaCach
 import { CANCELAMENTO_COCHO_HABILITADO } from "@/domain/estornos/politicaEstorno";
 import { invalidarCachesDoMapa } from "@/components/mapa/invalidarCachesMapa";
 import { confirmar as pedirConfirmacao } from "@/lib/maikeConfirmar";
+import { mensagemRecalculoDaExclusao } from "@/lib/gestaoErros";
+import PreviaRecalculoExclusao from "@/components/estoque/PreviaRecalculoExclusao";
 
 // Componentes de `ui/*` são forwardRef sem tipos de props: o checkJs não enxerga `children`.
 /** @type {React.ComponentType<any>} */ const Button = ButtonUi;
@@ -78,6 +80,10 @@ export const MENSAGENS_CODIGO = Object.freeze({
   IDEMPOTENCY_CONFLICT: "Esta exclusão já foi enviada com outro motivo. Feche e abra de novo para recomeçar.",
   CONCURRENCY_CONFLICT: `Outra operação alterava este cocho ao mesmo tempo. Tente de novo. ${NADA}`,
   ESTOQUE_LOCAL_INVALIDO: `O depósito deste lançamento não foi encontrado. ${NADA}`,
+  // D-PROD-273 (fatia 4): recusas do recálculo do que veio depois (a frase com o motivo vem de `mensagemRecalculoDaExclusao`).
+  ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL: `A exclusão com recálculo não é segura para este lançamento. ${NADA}`,
+  ESTOQUE_EXCLUSAO_SALDO_NEGATIVO: `Sem este lançamento o saldo do depósito ficaria negativo. ${NADA}`,
+  ESTOQUE_RECALCULO_VOLUME_EXCEDIDO: `Há movimentos demais deste produto depois deste lançamento para recalcular de uma vez. ${NADA}`,
 });
 
 /**
@@ -85,6 +91,8 @@ export const MENSAGENS_CODIGO = Object.freeze({
  * @param {string|null|undefined} codigo @param {string|null|undefined} reason
  */
 export const mensagemDoCancelamento = (codigo, reason) => {
+  const recalculo = mensagemRecalculoDaExclusao(codigo ?? null, reason ?? null, {});
+  if (recalculo) return recalculo;
   if (codigo === "SUPLEMENTACAO_CANCELAMENTO_BLOQUEADO") return (reason && MENSAGENS_REASON[reason]) || `O lançamento não pode ser excluído com segurança agora. ${NADA}`;
   return (codigo && MENSAGENS_CODIGO[codigo]) || `Não foi possível excluir. ${NADA}`;
 };
@@ -153,6 +161,10 @@ export const descreverEfeitos = (efeitos) => {
   }
   const n = Number(efeitos?.lotes_a_cancelar ?? 0);
   if (n > 0) linhas.push(`Tira o lançamento do rateio de ${n} lote${n === 1 ? "" : "s"}.`);
+  // D-PROD-273 (fatia 4): o que veio depois no depósito tem o custo médio recalculado (outros cochos, saídas, vendas…).
+  const m = Number(efeitos?.recalculo?.movimentos ?? 0);
+  const d = Number(efeitos?.recalculo?.dependentes ?? 0);
+  if (m > 0) linhas.push(`Recalcula o custo de ${m} movimento${m === 1 ? "" : "s"} lançado${m === 1 ? "" : "s"} depois no depósito${d > 0 ? ` e de ${d} registro${d === 1 ? "" : "s"} que usa${d === 1 ? "" : "m"} esse custo` : ""}.`);
   return linhas;
 };
 
@@ -392,6 +404,9 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
                 <li key={linha}>{linha}</li>
               ))}
             </ul>
+          ) : null}
+          {elegivelAgora && e?.efeitos?.recalculo ? (
+            <PreviaRecalculoExclusao empresaId={evento.empresa_id} movimentoIds={[evento.movimentacao_estoque_id]} className="text-xs" />
           ) : null}
           {e && e.elegivel === false && !elegibilidade.isFetching && !desconhecido ? (
             <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">

@@ -45,6 +45,7 @@
  * tenant. Linha de outro apontamento, atividade, fazenda ou tenant = 404.
  */
 
+import { aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import {
   AppError,
@@ -57,7 +58,7 @@ import {
   concurrencyConflict,
 } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
-import { MENSAGEM_CONFLITO_IDEMPOTENTE, TRANSACAO_CURTA, emTransacao, soPeloAlvo } from '../../shared/prisma/transacaoConcorrente.js';
+import { MENSAGEM_CONFLITO_IDEMPOTENTE, TRANSACAO_CURTA, TRANSACAO_LONGA, emTransacao, soPeloAlvo } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import {
   EFEITO_SAIDA,
@@ -434,11 +435,14 @@ const traduzirErroDoEstorno = (erro, linhas) => {
  * mesma unidade efetiva, movimento original 'Ativa' e sem filho, fatias que
  * somam a quantidade. Os produtos têm de estar travados por quem chama (ou
  * são travados aqui, todos de uma vez). Números PROVISÓRIOS: quem chama numera.
+ * D-PROD-273 (fatia 4): com `recalcular` (o CANCELAMENTO da linha, do apontamento ou da atividade; nunca a edição),
+ * se o produto teve outro movimento no depósito depois da linha, a exclusão recalcula o custo médio de tudo que veio
+ * depois (`estoqueExclusaoRecalculo`: prova antes do estorno, recálculo e dependentes depois dele, mesma transação).
  * @param {any} tx @param {{auth: any}} contexto
- * @param {{ empresaId: string, atividade: { id: string, numero: string }, linhas: any[], hoje: string }} a
+ * @param {{ empresaId: string, atividade: { id: string, numero: string }, linhas: any[], hoje: string, recalcular?: boolean, motivo?: string }} a
  * @returns {Promise<Map<string, string>>} id da linha → id do movimento de estorno
  */
-export const estornarLinhasProduto = async (tx, contexto, { empresaId, atividade, linhas, hoje }) => {
+export const estornarLinhasProduto = async (tx, contexto, { empresaId, atividade, linhas, hoje, recalcular = false, motivo = MOTIVO_ESTORNO }) => {
   if (!linhas.length) return new Map();
   const cli = exigirAuthContext(contexto?.auth).clienteId;
   const produtoIds = await travarProdutosEstoque(tx, cli, empresaId, linhas.map((l) => l.produto_id));
@@ -468,6 +472,9 @@ export const estornarLinhasProduto = async (tx, contexto, { empresaId, atividade
     const fatias = linha.consumos ?? [];
     if (!fatias.length || !somar(fatias.map((/** @type {any} */ f) => f.quantidade)).eq(dec(linha.quantidade))) throw atividadeEstornoBloqueado('fatias_inconsistentes', base);
   }
+  const planos = recalcular
+    ? await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: linhas.map((l) => ({ id: l.movimentacao_estoque_id, produtoId: l.produto_id, localId: l.local_estoque_id })), estornoExatoSeInviavel: true })
+    : [];
   let estornos;
   try {
     estornos = await estornarEmLote(tx, contexto, {
@@ -488,6 +495,12 @@ export const estornarLinhasProduto = async (tx, contexto, { empresaId, atividade
     });
   } catch (erro) {
     throw traduzirErroDoEstorno(erro, linhas);
+  }
+  if (planos.length) {
+    await aplicarExclusaoComRecalculo(tx, contexto, planos, {
+      empresaId, origem: ORIGEM_APONTAMENTO, motivo: [...`Atividade ${atividade.numero}: ${motivo}`].slice(0, 255).join(''),
+      estornos: new Map(linhas.map((l, k) => [l.movimentacao_estoque_id, estornos[k]])),
+    });
   }
   return new Map(linhas.map((l, k) => [l.id, estornos[k]]));
 };
@@ -602,7 +615,7 @@ export const cancelarLinhasProdutoDosApontamentos = async (tx, contexto, { clien
   const atividade = await tx.atividade.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, id: atividadeId }, select: { id: true, numero: true } });
   if (!atividade) throw atividadeNotFound();
   const dia = hoje ?? (await hojeDaFazenda(tx, clienteId, empresaId, agora));
-  const estornos = await estornarLinhasProduto(tx, contexto, { empresaId, atividade, linhas, hoje: dia });
+  const estornos = await estornarLinhasProduto(tx, contexto, { empresaId, atividade, linhas, hoje: dia, recalcular: true, motivo });
   await marcarCanceladas(tx, { clienteId, empresaId, linhas, estornos, motivo, origem, usuarioId, agora });
   await numerarMovimentos(tx, clienteId, [...estornos.values()]);
   return linhas.length;
@@ -708,14 +721,14 @@ const lerLinhaConfirmada = async (tx, clienteId, empresaId, apontamentoId, linha
 /**
  * Roda a escrita sob o recibo de idempotência; reenvio conflitante auditado à parte.
  * @param {any} contexto @param {{ operationId: string, tipoOperacao: string, fingerprint: string,
- *   executar: (tx: any) => Promise<{ httpStatus: number, body: Record<string, unknown> }> }} a
+ *   executar: (tx: any) => Promise<{ httpStatus: number, body: Record<string, unknown> }>, transacao?: any }} a
  * @returns {Promise<{ status: number, body: Record<string, unknown> }>}
  */
-const comRecibo = async (contexto, { operationId, tipoOperacao, fingerprint, executar }) => {
+const comRecibo = async (contexto, { operationId, tipoOperacao, fingerprint, executar, transacao = TRANSACAO_CURTA }) => {
   const clienteId = exigirAuthContext(contexto?.auth).clienteId;
   try {
     const r = await emTransacao(
-      TRANSACAO_CURTA,
+      transacao,
       (tx) => executarComIdempotencia(tx, { clienteId, operationKey: operationId, tipoOperacao, fingerprint, executar: () => executar(tx) }),
       unicosDaLinha(clienteId, operationId),
       MENSAGEM_CONFLITO_IDEMPOTENTE
@@ -844,6 +857,8 @@ export const cancelarLinhaProduto = async (contexto, atividadeId, apontamentoId,
   const fingerprint = fingerprintDePayload({ v: 1, atividade_id: atividadeId, apontamento_id: apontamentoId, linha_id: linhaId, empresa_id: corpo.empresa_id, versao: corpo.versao, motivo });
   return comRecibo(contexto, {
     operationId,
+    // D-PROD-273 (fatia 4): o cancelamento pode recalcular o que veio depois: a transação longa (30 s), não a curta.
+    transacao: TRANSACAO_LONGA,
     tipoOperacao: TIPOS_OPERACAO_LINHA_PRODUTO.cancelar,
     fingerprint,
     executar: async (tx) => {
@@ -852,7 +867,7 @@ export const cancelarLinhaProduto = async (contexto, atividadeId, apontamentoId,
       });
       const anterior = await lerLinhaConfirmada(tx, cli, empresaId, apontamentoId, linhaId, 'cancelar_linha');
       const antes = comoLinhaProdutoPublica(anterior);
-      const estornos = await estornarLinhasProduto(tx, contexto, { empresaId, atividade, linhas: [anterior], hoje: tempo.hoje });
+      const estornos = await estornarLinhasProduto(tx, contexto, { empresaId, atividade, linhas: [anterior], hoje: tempo.hoje, recalcular: true, motivo });
       await marcarCanceladas(tx, {
         clienteId: cli, empresaId, linhas: [anterior], estornos, motivo, origem: ORIGEM_CANCELAMENTO_LINHA.LINHA, usuarioId: auth.usuarioId ?? null, agora: tempo.agora,
       });

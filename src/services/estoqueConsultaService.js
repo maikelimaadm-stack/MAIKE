@@ -6,6 +6,7 @@ import {
   listSaldoEstoque,
   listMovimentosEstoque,
   getMovimentoEstoque,
+  getPreviaExclusaoMovimento,
   listOpcoesProdutosEstoque,
   listOpcoesLocaisEstoque,
 } from '@/apis/estoque-consulta';
@@ -76,4 +77,14 @@ export const listarProdutosDoFiltro = async (empresaId) => {
 export const listarDepositosDoFiltro = async () => {
   const r = await listOpcoesLocaisEstoque({ limit: 100 });
   return r.itens.map((l) => ({ id: String(l.id), nome: String(l.nome ?? '') }));
+};
+
+/**
+ * D-PROD-273 (fatia 4): prévias da exclusão (uma por movimento), somente leitura.
+ * @param {string|null} empresaId @param {string[]} movimentoIds
+ */
+export const previasDaExclusao = async (empresaId, movimentoIds) => {
+  const ids = [...new Set((movimentoIds ?? []).filter((v) => typeof v === 'string' && v))];
+  if (!empresaId || !ids.length) return [];
+  return Promise.all(ids.map((id) => getPreviaExclusaoMovimento(id, empresaId)));
 };

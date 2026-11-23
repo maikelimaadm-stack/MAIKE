@@ -21,15 +21,34 @@
  *    valor FIFO GRAVADOS (sem reavaliar); estorno anterior ao corte (`cutover`) devolve sem reavaliar. Quando a
  *    simulação de exclusão alcança o depósito dele, passa à regra atual (médio), como a SPEC §4.7 manda.
  *
+ *  - SOBRA DE AJUSTE (D-PROD-272, `ajuste_sobra`): entrada cuja camada nasce ao custo médio do depósito NAQUELE
+ *    ponto (`pocoDoDeposito`: valor ÷ saldo, `CASAS_CUSTO`), valor = quantidade × médio; não reavalia. O custo é
+ *    refeito pelo replay (é custo derivado do estoque: na simulação, segue o médio recalculado), salvo quando a linha
+ *    do ajuste diz `custo_informado` (depósito sem saldo; vale o gravado, como o valor de compra). Sobra sem a linha
+ *    do ajuste, ou sem custo informado num poço vazio, para o replay (fail-closed). A FALTA é uma saída a médio comum.
+ *  - AJUSTE DEPOIS DO EXCLUÍDO (escolha do proprietário, 2026-11-23): na simulação (`opcoes.excluir`), uma sobra/falta
+ *    de ajuste VIGENTE num depósito que a exclusão já alcançou (o do excluído e, pela cascata, o destino de uma
+ *    transferência processada depois) para a simulação com `ajuste_de_inventario_posterior`: o estoque nunca fica
+ *    diferente do contado. Os pares marcados (exclusões com recálculo já gravadas) não contam: só `opcoes.excluir`.
+ *
  * Movimento fora do protocolo (origem que o motor não grava, estorno sem original legível, entrada sem camada)
  * não é adivinhado: vira `problema` e o replay daquele produto é declarado não reproduzível (fail-closed).
+ *
+ * D-PROD-273 (fatia 4) — EXCLUSÃO COM RECÁLCULO gravada: o original e o estorno dele marcados com
+ * `movimentacao_grupo_id = 'exclusao_recalculo:<id do original>'` (`marcaDoPar`) ficam FORA da sequência, como na
+ * simulação: o recálculo gravou os posteriores como se o par nunca tivesse existido. Os pares excluídos pela regra
+ * antiga (sem a marca) continuam na sequência como foram gravados. Marca incoerente → `problema` (fail-closed).
+ * Transferência cujas fatias mudaram no recálculo: a camada de destino gravada na mesma posição é reaproveitada
+ * quando a camada de origem é a mesma (a quantidade pode mudar); senão nasce uma nova (`novoIdCamada`), e a
+ * gravada que sobrou fica 'Estornado' com disponível 0 (nunca se apaga camada).
  */
 import { CASAS_CUSTO, CASAS_QUANTIDADE, Dec, ZERO, arredondar, dec, somar } from '../financeiro/decimalFinanceiro.js';
 import {
-  MODO_CUSTO_MEDIO, ORIGEM_APONTAMENTO, ORIGEM_SISTEMA, consumirCustoMedio, ordenarFifo,
-  TIPO_ESTORNO_TRANSFERENCIA_ENVIADA, TIPO_ESTORNO_TRANSFERENCIA_RECEBIDA,
+  MODO_CUSTO_MEDIO, ORIGEM_AJUSTE_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_SISTEMA, consumirCustoMedio, ordenarFifo,
+  TIPO_ESTORNO_TRANSFERENCIA_ENVIADA, TIPO_ESTORNO_TRANSFERENCIA_RECEBIDA, TIPO_FALTA_AJUSTE, TIPO_SOBRA_AJUSTE,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { ORIGENS_PROTOCOLO } from '../estoqueFisico/reconciliacaoEstoque.js';
+import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueFisico/movimentoPosterior.js';
 
 export const CLASSE = Object.freeze({
   ENTRADA: 'entrada',
@@ -47,6 +66,13 @@ export const CLASSE = Object.freeze({
 const ORIGENS_ESTORNO_EM_LOTE = new Set([ORIGEM_SISTEMA, ORIGEM_APONTAMENTO]);
 
 const NUMERO_CANONICO = /^\d{1,18}$/;
+
+/** D-PROD-273 (fatia 4): prefixo da marca do par excluído com recálculo (em `movimentacao_grupo_id`, sem migration). */
+export { MARCA_EXCLUSAO_RECALCULO };
+/** Marca do par (o original e o estorno dele) excluído com recálculo. @param {string} originalId */
+export const marcaDoPar = (originalId) => `${MARCA_EXCLUSAO_RECALCULO}${originalId}`;
+/** O movimento traz a marca de recálculo (qualquer). @param {any} m */
+export const temMarcaDeRecalculo = (m) => typeof m?.movimentacao_grupo_id === 'string' && m.movimentacao_grupo_id.startsWith(MARCA_EXCLUSAO_RECALCULO);
 const ms = (d) => (d instanceof Date ? d.getTime() : new Date(d ?? 0).getTime());
 
 /**
@@ -97,7 +123,7 @@ export const classificar = (m, porId) => {
 /** Dia UTC (meia-noite) de um instante — `comoDia(createdAt.toISOString().slice(0, 10))` do motor. */
 const diaUtc = (d) => new Date(`${new Date(ms(d)).toISOString().slice(0, 10)}T00:00:00.000Z`);
 
-const fatiasGravadas = (json, { comDestino = false } = {}) => {
+export const fatiasGravadas = (json, { comDestino = false } = {}) => {
   if (!Array.isArray(json) || !json.length) return null;
   const saida = [];
   for (const f of json) {
@@ -175,8 +201,8 @@ const novoEstado = (fatos) => {
 };
 
 const medioDe = (v, q) => (q.gt(0) ? arredondar(v.dividedBy(q), CASAS_CUSTO) : ZERO);
-const texto4 = (x) => (x === null || x === undefined ? null : dec(x).toFixed(4));
-const fatiaComoTexto = (f) => ({
+export const texto4 = (x) => (x === null || x === undefined ? null : dec(x).toFixed(4));
+export const fatiaComoTexto = (f) => ({
   lote_id: f.lote_id,
   quantidade: dec(f.quantidade).toFixed(CASAS_QUANTIDADE),
   custo_unitario: f.custo_unitario === null || f.custo_unitario === undefined ? null : dec(f.custo_unitario).toFixed(CASAS_CUSTO),
@@ -263,18 +289,51 @@ const devolver = (estado, local, fatias, m) => {
 };
 
 /**
+ * D-PROD-273 (fatia 4) — pares excluídos COM recálculo: o original 'Estornada' (saída) com a marca dele e o estorno
+ * (filho, `estorno_*`, pai = ele) com a mesma marca. Marca fora desse desenho → `problema` (o replay não adivinha).
+ * @param {any[]} ordem @param {Map<string, any>} porId @param {any[]} problemas
+ * @returns {Set<string>}
+ */
+const paresMarcados = (ordem, porId, problemas) => {
+  /** @type {Set<string>} */
+  const ids = new Set();
+  for (const m of ordem) {
+    if (!temMarcaDeRecalculo(m) || ids.has(m.id)) continue;
+    const original = m.movimento_pai_id && m.movimentacao_grupo_id === marcaDoPar(m.movimento_pai_id) ? porId.get(m.movimento_pai_id) : m;
+    const estorno = original?.movimento_filho_id ? porId.get(original.movimento_filho_id) : null;
+    const valido = original && estorno && original.movimentacao_grupo_id === marcaDoPar(original.id) && estorno.movimentacao_grupo_id === marcaDoPar(original.id)
+      && original.status === 'Estornada' && original.tipo_movimentacao === 'Saída' && !ehEstorno(original) && original.tipo_detalhado !== 'transferencia_enviada'
+      && estorno.movimento_pai_id === original.id && ehEstorno(estorno) && estorno.tipo_movimentacao === 'Entrada';
+    if (!valido) {
+      problemas.push({ reason: 'marca_de_recalculo_incoerente', movimento_id: m.id, movimento_numero: m.numero_movimentacao });
+      continue;
+    }
+    ids.add(original.id);
+    ids.add(estorno.id);
+  }
+  return ids;
+};
+
+/**
  * O replay. `opcoes.excluir`: ids fora da sequência (a simulação de exclusão; o movimento e o par dele). Sem ele,
  * é o replay "sem exclusão" que tem de reproduzir o gravado.
- * @param {{ movimentos: any[], camadas: any[], cutover?: Date|number|null }} historico
- * @param {{ excluir?: string[] }} [opcoes]
+ * `opcoes.novoIdCamada(r, k)`: id da camada de destino que a transferência `r` precisa criar na posição `k` (a escrita
+ * da fatia 4 passa ids reais; a prévia usa `simulada:…`).
+ * @param {{ movimentos: any[], camadas: any[], cutover?: Date|number|null, ajustes?: Array<{ movimentacao_estoque_id: string|null, custo_informado: boolean }> }} historico
+ * @param {{ excluir?: string[], novoIdCamada?: (r: any, k: number) => string }} [opcoes]
  * @returns {{ resultados: Map<string, any>, camadas: Map<string, any>, problemas: any[], parada: any|null,
- *   afetados: Set<string>, ordem: any[], reproduzivel: boolean }}
+ *   afetados: Set<string>, ordem: any[], reproduzivel: boolean, marcados: Set<string> }}
  */
 export const reproduzir = (historico, opcoes = {}) => {
-  const excluir = new Set(opcoes.excluir ?? []);
   const ordem = ordenarCanonico(historico.movimentos);
   const porId = new Map(ordem.map((m) => [m.id, m]));
+  const problemas = [];
+  const marcados = paresMarcados(ordem, porId, problemas);
+  const excluir = new Set([...(opcoes.excluir ?? []), ...marcados]);
+  const novoIdCamada = opcoes.novoIdCamada ?? ((r, k) => `simulada:${r.id}:${k + 1}`);
   const fatos = new Map(historico.camadas.map((l) => [l.id, l]));
+  /** D-PROD-272: movimento da sobra/falta do ajuste → a linha diz se o custo foi informado. */
+  const linhasDeAjuste = new Map((historico.ajustes ?? []).filter((x) => x.movimentacao_estoque_id).map((x) => [x.movimentacao_estoque_id, x]));
   /** @type {Map<string, string[]>} */
   const camadasDaEntrada = new Map();
   for (const l of historico.camadas) {
@@ -288,11 +347,19 @@ export const reproduzir = (historico, opcoes = {}) => {
   const estado = novoEstado(fatos);
   /** @type {Map<string, any>} */
   const resultados = new Map();
-  const problemas = [];
   const afetados = new Set();
   const feitos = new Set();
   let parada = null;
   const afetado = (local) => afetados.has(local);
+  /** Depósitos alcançados pela exclusão SIMULADA (`opcoes.excluir`; sem os pares já marcados): o ajuste neles recusa. */
+  const alvo = new Set(opcoes.excluir ?? []);
+  const alcancados = new Set();
+  /** Sobra/falta de ajuste vigente num depósito alcançado → a simulação para (ver o topo). */
+  const exigirSemAjusteAlcancado = (m, local) => {
+    if (m.origem_sistema !== ORIGEM_AJUSTE_ESTOQUE || ![TIPO_SOBRA_AJUSTE, TIPO_FALTA_AJUSTE].includes(m.tipo_detalhado)) return;
+    if (m.status !== 'Ativa' || m.movimento_filho_id || !alcancados.has(local)) return;
+    throw new Parada({ reason: 'ajuste_de_inventario_posterior', local_estoque_id: local, movimento_id: m.id, movimento_numero: m.numero_movimentacao, ajuste_id: m.lancamento_origem_id ?? null });
+  };
   const classes = new Map(ordem.map((m) => [m.id, classificar(m, porId)]));
   const filhoEstorno = (paiId, tipo) => ordem.find((x) => x.movimento_pai_id === paiId && x.tipo_detalhado === tipo) ?? null;
 
@@ -303,6 +370,7 @@ export const reproduzir = (historico, opcoes = {}) => {
 
   const saida = (m) => {
     const local = m.local_estoque_origem;
+    exigirSemAjusteAlcancado(m, local);
     const kg = dec(m.quantidade);
     const saldoAntes = estado.saldo(local);
     const legado = m.modo_saida_fifo !== MODO_CUSTO_MEDIO && !afetado(local);
@@ -339,12 +407,25 @@ export const reproduzir = (historico, opcoes = {}) => {
     const local = m.local_estoque_destino;
     const ids = camadasDaEntrada.get(m.id) ?? [];
     if (ids.length !== 1) throw new Parada({ reason: 'entrada_sem_camada', movimento_id: m.id, movimento_numero: m.numero_movimentacao });
+    exigirSemAjusteAlcancado(m, local);
     const fato = /** @type {any} */ (fatos.get(ids[0]));
     const saldoAntes = estado.saldo(local);
-    estado.criar({ id: fato.id, local: fato.local_estoque_id, quantidade: fato.quantidade_entrada, custo: m.valor_unitario ?? 0 });
+    let valorUnitario = m.valor_unitario === null ? null : dec(m.valor_unitario);
+    let valorTotal = m.valor_total === null ? null : dec(m.valor_total);
+    if (m.origem_sistema === ORIGEM_AJUSTE_ESTOQUE && m.tipo_detalhado === TIPO_SOBRA_AJUSTE) {
+      const linha = linhasDeAjuste.get(m.id);
+      if (!linha) throw new Parada({ reason: 'sobra_de_ajuste_sem_linha', movimento_id: m.id, movimento_numero: m.numero_movimentacao });
+      if (!linha.custo_informado) {
+        // O motor: sobra ao médio do depósito (`pocoDoDeposito`); sem saldo ele exigiria o custo informado.
+        if (!saldoAntes.gt(0)) throw new Parada({ reason: 'sobra_de_ajuste_sem_custo_medio', local_estoque_id: local, movimento_id: m.id, movimento_numero: m.numero_movimentacao });
+        valorUnitario = medioDe(estado.valor(local), saldoAntes);
+        valorTotal = arredondar(dec(m.quantidade).times(valorUnitario), CASAS_CUSTO);
+      }
+    }
+    estado.criar({ id: fato.id, local: fato.local_estoque_id, quantidade: fato.quantidade_entrada, custo: valorUnitario ?? 0 });
     registrar(m, {
       regra: 'atual', local, saldo_antes: saldoAntes, saldo_depois: saldoAntes.plus(dec(m.quantidade)),
-      valor_unitario: m.valor_unitario === null ? null : dec(m.valor_unitario), valor_total: m.valor_total === null ? null : dec(m.valor_total),
+      valor_unitario: valorUnitario, valor_total: valorTotal,
       custo_medio_antes: null, custo_medio_depois: null, fatias: null,
     });
   };
@@ -361,6 +442,7 @@ export const reproduzir = (historico, opcoes = {}) => {
     const legadoOrigem = s.modo_saida_fifo !== MODO_CUSTO_MEDIO && !afetado(origem);
     // Cascata: o custo recalculado na origem chega ao destino (e daí às saídas e transferências dele).
     if (afetado(origem)) afetados.add(destino);
+    if (alcancados.has(origem)) alcancados.add(destino);
     const legadoDestino = s.modo_saida_fifo !== MODO_CUSTO_MEDIO && !afetado(destino);
     let fatias;
     let valorTotal;
@@ -387,12 +469,16 @@ export const reproduzir = (historico, opcoes = {}) => {
     }
     const vDestino = estado.valor(destino);
     const saldoDestino = estado.saldo(destino);
-    // Camada de destino: a gravada na mesma posição quando a fatia é a mesma (replay = gravado); senão, uma virtual.
-    const recebidas = new Set(camadasDaEntrada.get(r.id) ?? []);
+    // Camada de destino: a gravada na mesma posição quando a camada de origem é a mesma (replay = gravado; no
+    // recálculo a quantidade pode mudar); senão, uma nova (`novoIdCamada`). A gravada que sobrar fica 'Estornado'.
+    const recebidas = camadasDaEntrada.get(r.id) ?? [];
+    const recebidasSet = new Set(recebidas);
+    const usadas = new Set();
     const comDestino = fatias.map((f, k) => {
       const g = gravadas?.[k];
-      const mesma = g && g.lote_id === f.lote_id && dec(g.quantidade).eq(dec(f.quantidade)) && g.lote_destino_id && recebidas.has(g.lote_destino_id);
-      const idDestino = mesma ? /** @type {string} */ (g.lote_destino_id) : `simulada:${r.id}:${k + 1}`;
+      const mesma = g && g.lote_id === f.lote_id && g.lote_destino_id && recebidasSet.has(g.lote_destino_id) && !usadas.has(g.lote_destino_id);
+      const idDestino = mesma ? /** @type {string} */ (g.lote_destino_id) : novoIdCamada(r, k);
+      usadas.add(idDestino);
       const fonte = estado.camadas.get(f.lote_id);
       estado.criar({
         id: idDestino, local: destino, quantidade: f.quantidade, custo: f.custo_unitario ?? ZERO,
@@ -400,6 +486,14 @@ export const reproduzir = (historico, opcoes = {}) => {
       });
       return { ...f, lote_destino_id: idDestino };
     });
+    for (const id of recebidas) {
+      if (usadas.has(id)) continue;
+      const fato = /** @type {any} */ (fatos.get(id));
+      estado.criar({ id, local: destino, quantidade: fato.quantidade_entrada, custo: fato.custo_unitario });
+      const morta = /** @type {any} */ (estado.camadas.get(id));
+      morta.disp = ZERO;
+      morta.status = 'Estornado';
+    }
     if (!legadoDestino) estado.reavaliarPoco(destino, vDestino.plus(valorTotal), saldoDestino.plus(kg));
     const comum = { valor_unitario: valorUnitario, valor_total: valorTotal, custo_medio_antes: medioAntes, custo_medio_depois: medioDepois };
     registrar(s, {
@@ -472,6 +566,10 @@ export const reproduzir = (historico, opcoes = {}) => {
       afetados.add(origem);
       afetados.add(destino);
     }
+    if (alcancados.has(origem) || alcancados.has(destino)) {
+      alcancados.add(origem);
+      alcancados.add(destino);
+    }
     const kg = dec(s.quantidade);
     const valorTotal = dec(rs.valor_total ?? 0);
     const fatias = (rs.fatias ?? []).map((f) => ({ lote_id: f.lote_id, lote_destino_id: f.lote_destino_id, quantidade: dec(f.quantidade) }));
@@ -514,7 +612,11 @@ export const reproduzir = (historico, opcoes = {}) => {
     const m = ordem[i];
     if (feitos.has(m.id)) continue;
     if (excluir.has(m.id)) {
-      for (const local of [m.local_estoque_origem, m.local_estoque_destino]) if (local) afetados.add(local);
+      for (const local of [m.local_estoque_origem, m.local_estoque_destino]) {
+        if (!local) continue;
+        afetados.add(local);
+        if (alvo.has(m.id)) alcancados.add(local);
+      }
       feitos.add(m.id);
       continue;
     }
@@ -538,10 +640,10 @@ export const reproduzir = (historico, opcoes = {}) => {
       break;
     }
   }
-  return { resultados, camadas: estado.camadas, problemas, parada, afetados, ordem, reproduzivel: !parada && !problemas.length };
+  return { resultados, camadas: estado.camadas, problemas, parada, afetados, ordem, reproduzivel: !parada && !problemas.length, marcados };
 };
 
-const CAMPOS_VALOR = Object.freeze(['valor_unitario', 'valor_total', 'saldo_antes', 'saldo_depois', 'custo_medio_antes', 'custo_medio_depois']);
+export const CAMPOS_VALOR = Object.freeze(['valor_unitario', 'valor_total', 'saldo_antes', 'saldo_depois', 'custo_medio_antes', 'custo_medio_depois']);
 
 /**
  * Prova "replay = gravado": cada movimento reproduzido contra o gravado (valores, saldos, médios quando gravados, fatias) e
