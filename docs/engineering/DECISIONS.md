@@ -9105,4 +9105,15 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Decisão (tela):** "Planejar" pergunta o que planejar — **Reforma de pastagem** ou **Um serviço** (o planejar de antes). O formulário da reforma tem só os 4 campos (Áreas com hectares, Tipo, Capim que vai ficar com "(recuperação: mesmo capim)" ou "(renovação: troca de capim)" comparando com o capim de hoje da área, Início previsto) e mostra a Safra e o nome sugerido só para leitura. Na Nova realização, a seção Planejamento ganha "Faz parte de: Reforma · … ✓" já marcada com o "tirar" (e o "pôr de volta"); com duas reformas abertas, uma lista obrigatória ("Não faz parte de reforma" é uma opção); o serviço que continua e já está numa reforma mostra a dela. A lista ganha a pílula **Reforma** (só quando a fazenda tem reforma) e, com ela, a barra em cima: custo total, R$/ha, área, por tipo e os serviços em ordem de data com a situação, e os botões **Concluir reforma** (com a pergunta "Trocar o capim da área para MOMBAÇA?": "Sim, trocar e concluir" / "Não, só concluir"; sem a permissão do Cadastro do Mapa só o segundo) e **Cancelar**. No mapa, o Detalhes da área mostra "Em reforma desde 01/09" (com o início ainda no futuro, "Reforma prevista para …") e o nome da reforma.
 - **Fora de escopo:** planejar cada serviço com data, insumo e custo previsto (as linhas "Planejada"); "Conferir nascimento"; o aviso do 1º pastejo; offline; editar a reforma depois de criada (áreas, capim, início) e reabrir a concluída.
 
-<!-- Próxima decisão: D-PROD-277 -->
+## D-PROD-277 — Número de decisão conferido antes de abrir a PR e de novo antes do merge
+
+**Data:** 2026-11-23 · **Origem:** proprietário: "os números das decisões precisamos organizar… antes de iniciar uma PR ou uma decisão confere as outras decisões" · **Relatório:** [`MAIKE-NUMERO-DECISAO-REPORT.md`](./MAIKE-NUMERO-DECISAO-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `41d9e907` deu D-PROD-277 (o marcador; nenhuma PR aberta citava 277 ou mais); o marcador passa a D-PROD-278.
+
+- **Contexto:** a Entrega 2 (D-PROD-274) foi renumerada seis vezes, e a Entrega 3 (D-PROD-276) duas, porque outras sessões abriam PRs com o mesmo número do marcador da `main`. Cada renumeração custou um merge, testes e um envio (minutos de CI e créditos).
+- **Decisão:** regra **A5** em `docs/constitution/08-REGRAS-DE-IA.md`: rodar `scripts/dev/proxima-decisao.mjs` antes de abrir a PR ou escrever a decisão **e** de novo antes do merge, e pôr o número no título da PR. O script lê o marcador da `origin/main` e os `D-PROD-NNN` citados em títulos de PRs abertas (`gh api search/issues`) e devolve o primeiro número livre. Só leitura; sem rede, usa só o marcador e avisa.
+- **Testes:** `scripts/tests/gates/proxima-decisao.test.mjs` (PD-1 a PD-3), dentro do `test:gates`.
+- **Fora:** gate que reprove número repetido no CI (pode vir depois, se a regra não bastar).
+
+<!-- Próxima decisão: D-PROD-278 -->
