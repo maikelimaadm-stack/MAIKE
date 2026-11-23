@@ -1,0 +1,145 @@
+/* Detalhes do Lote v13 — aba Detalhes do pasto (cartão da área, régua de UA/ha
+   e grade da Lotação). Só classes `mk-dp-d13-*`; o resto vem da casca v12. */
+
+/* Cartão da área: "Pastagem" (rótulo) acima do capim (destaque). */
+.mk-dp .mk-dp-d13 .mk-dp-d13-area .mk-dp-cartao__txt {
+  display: flex;
+  flex-direction: column-reverse;
+  min-width: 0;
+}
+.mk-dp .mk-dp-d13 .mk-dp-d13-area .mk-dp-cartao__titulo {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.mk-dp .mk-dp-d13 .mk-dp-d13-area .mk-dp-cartao__sub {
+  margin-top: 0;
+  font-size: 12px;
+}
+.mk-dp .mk-dp-d13 .mk-dp-d13-status {
+  flex: 0 0 auto;
+  max-width: 55%;
+  height: auto;
+  min-height: 20px;
+  white-space: normal;
+  text-align: right;
+}
+
+/* Grades em colunas (rótulo em cima, valor embaixo) no lugar das linhas. */
+.mk-dp .mk-dp-area-organizada .mk-dp-grade.mk-dp-d13-grade {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 12px;
+  row-gap: 0;
+  padding: 0 12px 4px;
+  border-top: 1px solid #e7e9ec;
+}
+.mk-dp .mk-dp-area-organizada .mk-dp-grade.mk-dp-d13-grade--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.mk-dp .mk-dp-area-organizada .mk-dp-grade.mk-dp-d13-grade--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.mk-dp .mk-dp-area-organizada .mk-dp-d13-grade .mk-dp-cel {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  row-gap: 1px;
+  padding: 8px 0;
+  border-top: 0;
+}
+.mk-dp .mk-dp-area-organizada .mk-dp-d13-grade .mk-dp-cel__rot {
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+.mk-dp .mk-dp-area-organizada .mk-dp-d13-grade .mk-dp-cel__val {
+  justify-content: flex-start;
+  text-align: left;
+  font-size: 14.5px;
+  font-weight: 500;
+}
+@media (max-width: 359px) {
+  .mk-dp .mk-dp-area-organizada .mk-dp-grade.mk-dp-d13-grade--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Lotação: UA/ha no topo, faixa em etiqueta e a régua das faixas do mapa. */
+.mk-dp .mk-dp-d13-uaha {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 12px 12px 0;
+}
+.mk-dp .mk-dp-d13-uaha__rot {
+  font-size: 13px;
+  color: #656970;
+}
+.mk-dp .mk-dp-d13-uaha__val {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.mk-dp .mk-dp-d13-uaha .mk-dp-d13-faixa {
+  margin-left: auto;
+  align-self: center;
+}
+.mk-dp .mk-dp-d13-uaha .mk-dp-d13-faixa::before {
+  background: var(--mk-d13-faixa, currentColor);
+}
+.mk-dp .mk-dp-d13-regua {
+  padding: 14px 12px 10px;
+}
+.mk-dp .mk-dp-d13-regua__trilho {
+  position: relative;
+  display: flex;
+  height: 10px;
+}
+.mk-dp .mk-dp-d13-regua__trilho > span:first-child { border-radius: 5px 0 0 5px; }
+.mk-dp .mk-dp-d13-regua__trilho > span:last-of-type { border-radius: 0 5px 5px 0; }
+.mk-dp .mk-dp-d13-regua__marcador {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: #0f172a;
+  box-shadow: 0 0 0 1.5px #fff;
+}
+.mk-dp .mk-dp-d13-regua__marcas {
+  position: relative;
+  height: 15px;
+  margin-top: 5px;
+  font-size: 11px;
+  color: #656970;
+}
+.mk-dp .mk-dp-d13-regua__marcas > span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-variant-numeric: tabular-nums;
+}
+.mk-dp .mk-dp-d13-regua__nomes {
+  display: flex;
+  font-size: 11px;
+  color: #656970;
+}
+.mk-dp .mk-dp-d13-regua__nomes > span {
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mk-dp .mk-dp-d13-regua__nomes > span[data-ativa] {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+/* Desktop: área e lotação lado a lado quando há largura. */
+@media (min-width: 1024px) {
+  .mk-dp .mk-dp-area-organizada.mk-dp-d13 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  }
+  .mk-dp .mk-dp-area-organizada.mk-dp-d13 > :is(.mk-dp-aviso, .mk-dp-vazio) {
+    grid-column: 1 / -1;
+  }
+}

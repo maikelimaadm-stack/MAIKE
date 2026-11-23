@@ -11,6 +11,8 @@ import { render, screen, cleanup, fireEvent, act, within } from "@testing-librar
 import { CascaDeTeste, modeloV12, movimentacoesV12, AREA_V12 } from "./fixtures/pastoV12.jsx";
 import { esquecerEstadoLotes } from "@/components/mapa/detalhes-lote/useEstadoLotes";
 import { urlSubiconeLote } from "@/assets/icones/lotes";
+import { posicaoNaRegua } from "@/components/mapa/detalhes-lote/AbaDetalhes";
+import { CORES_UA_HA } from "@/components/mapa/MapaFiltrosAvancados";
 
 const clicar = (el) => act(async () => { fireEvent.click(el); });
 const vistaAtiva = () => ["Resumo", "Lote", "Lista"].find((v) => screen.getByRole("button", { name: v, exact: true }).getAttribute("aria-pressed") === "true");
@@ -42,68 +44,92 @@ afterEach(() => cleanup());
 // ── Aba Detalhes ────────────────────────────────────────────────────────────
 
 describe("aba Detalhes", () => {
-  it("remove a dica Ideal da lotação mantendo o valor e a bolinha", () => {
+  const regua = () => screen.getByRole("tabpanel").querySelector(".mk-dp-d13-regua");
+
+  it("UA/ha no topo da Lotação: valor, etiqueta da faixa e a régua com o marcador na faixa do mapa", () => {
     const modelo = modeloV12({ area: { ...AREA_V12, tamanho_hectares: 180, area_pastejada: 180 } });
     render(<CascaDeTeste modelo={modelo} abaInicial="detalhes" />);
+    const lotacao = document.querySelector(".mk-dp-area-lotacao");
+    expect(lotacao.querySelector(".mk-dp-d13-uaha__val").textContent).toBe("1,28");
+    expect(lotacao.querySelector(".mk-dp-d13-faixa").textContent).toBe("Ideal");
+    // O UA/ha saiu da grade (está no topo); a dica longa só no texto acessível da régua.
+    expect(grade(lotacao)["UA/ha"]).toBeUndefined();
     expect(screen.queryByText("Ideal (1,2 - 1,8 UA/ha)")).toBeNull();
-    const ua = [...document.querySelectorAll('.mk-dp-area-lotacao .mk-dp-cel')].find(c => c.querySelector('dt').textContent === 'UA/ha');
-    expect(ua.querySelector('dd').textContent).toBe('1,28');
-    expect(ua.querySelector('.mk-dp-bolinha')).toBeTruthy();
+    const r = regua();
+    expect(r.getAttribute("role")).toBe("img");
+    expect(r.getAttribute("aria-label")).toBe("UA/ha 1,28 — Ideal (1,2 - 1,8 UA/ha)");
+    expect(r.dataset.posicao).toBe("42.7"); // 1,28 ÷ 3
+    expect(r.querySelector(".mk-dp-d13-regua__marcador").style.left).toBe("42.7%");
+    expect(r.querySelector(".mk-dp-d13-regua__nomes [data-ativa]").textContent).toBe("Ideal");
   });
 
-  it("cartão da área, aviso de capacidade, Lotação e Categorias com os números do v12", () => {
+  it("régua: as cinco faixas e cores do mapa, nos limites 0,8 · 1,2 · 1,8 · 2,4 de uma escala 0–3; acima de 3 o marcador prende na borda", () => {
+    render(<CascaDeTeste modelo={modeloV12()} abaInicial="detalhes" />);
+    const faixas = [...regua().querySelectorAll(".mk-dp-d13-regua__trilho > span")];
+    expect(faixas.map((f) => f.style.background)).toEqual(Object.values(CORES_UA_HA).slice(1).map((hex) => {
+      const n = parseInt(hex.slice(1), 16);
+      return `rgb(${n >> 16}, ${(n >> 8) & 255}, ${n & 255})`;
+    }));
+    expect(faixas.map((f) => Number(parseFloat(f.style.width).toFixed(1)))).toEqual([26.7, 13.3, 20, 20, 20]);
+    expect([...regua().querySelectorAll(".mk-dp-d13-regua__marcas > span")].map((m) => m.textContent)).toEqual(["0,8", "1,2", "1,8", "2,4"]);
+    expect([...regua().querySelectorAll(".mk-dp-d13-regua__nomes > span")].map((m) => m.textContent)).toEqual(["Sublotação", "Moderada", "Ideal", "Alta", "Superlotação"]);
+    expect(posicaoNaRegua(2.24)).toBeCloseTo(74.67, 1);
+    expect(posicaoNaRegua(7)).toBe(100);
+    expect(posicaoNaRegua(-1)).toBe(0);
+    expect(posicaoNaRegua(null)).toBeNull();
+  });
+
+  it("cartão da área (capim, status, áreas e dias), aviso de capacidade e Lotação com os números do v12; sem Categorias", () => {
     render(<CascaDeTeste modelo={modeloV12()} abaInicial="detalhes" />);
     const painel = screen.getByRole("tabpanel");
-    const [cartaoArea, cartaoLotacao, cartaoCategorias] = painel.querySelectorAll(".mk-dp-cartao");
+    const cartoes = painel.querySelectorAll(".mk-dp-cartao");
+    expect(cartoes.length).toBe(2);
+    const [cartaoArea, cartaoLotacao] = cartoes;
 
-    expect(within(cartaoArea).getByText("Pasto 07")).toBeTruthy();
-    expect(within(cartaoArea).getByText("Pastagem / Braquiária Brizantha")).toBeTruthy();
+    // Nome da área e setor já estão no cabeçalho do diálogo: aqui o capim ocupa o título.
+    expect(within(cartaoArea).queryByText("Pasto 07")).toBeNull();
+    expect(within(cartaoArea).queryByText("Retiro")).toBeNull();
+    expect(cartaoArea.querySelector(".mk-dp-cartao__titulo").textContent).toBe("Braquiária Brizantha");
+    expect(cartaoArea.querySelector(".mk-dp-cartao__sub").textContent).toBe("Pastagem");
     expect(cartaoArea.querySelector("svg.mk-dp-cartao__ic")).toBeTruthy(); // broto
+    const status = cartaoArea.querySelector(".mk-dp-d13-status");
+    expect(status.textContent).toBe("OCUPADO");
+    expect(status.classList.contains("mk-dp-chip--ok")).toBe(true);
     expect(grade(cartaoArea)).toEqual({
       "Área (ha)": "109,30",
       "Área pastejada (ha)": "102,70",
-      Status: "OCUPADO",
       "Dias pastejo": "26",
     });
+    expect(cartaoArea.querySelector(".mk-dp-cel__barra")).toBeNull();
 
     expect(painel.querySelector(".mk-dp-aviso--atencao").textContent).toBe("Lotação de 2,24 UA/ha acima da capacidade cadastrada (2,20 UA/ha).");
 
-    expect(grade(cartaoLotacao)).toEqual({
-      "Qtd. Lotes": "6",
-      "Qtd. Cabeças": "314",
-      "UA total": "230,09",
-      "UA/ha": "2,24",
-      "Capacidade (UA/ha)": "2,20",
-      "% da capacidade": "102%",
-      "kg PV/ha": "1.008",
-      "Cab/ha": "3,06",
-      "Peso médio geral (kg)": "329,75",
-    });
-    const ua = [...cartaoLotacao.querySelectorAll(".mk-dp-cel")].find((c) => c.querySelector("dt").textContent === "UA/ha");
-    expect(ua.querySelector(".mk-dp-bolinha").style.background).toBe("rgb(245, 158, 11)"); // faixa Alta
-    expect(ua.querySelector(".mk-dp-cel__sub").textContent).toBe("Alta (1,8 - 2,4 UA/ha)");
+    expect(cartaoLotacao.querySelector(".mk-dp-d13-uaha__val").textContent).toBe("2,24");
+    const faixa = cartaoLotacao.querySelector(".mk-dp-d13-faixa");
+    expect(faixa.textContent).toBe("Alta");
+    expect(faixa.style.getPropertyValue("--mk-d13-faixa")).toBe("#f59e0b");
+    expect(regua().getAttribute("aria-label")).toBe("UA/ha 2,24 — Alta (1,8 - 2,4 UA/ha)");
+    expect(Object.entries(grade(cartaoLotacao))).toEqual([
+      ["Qtd. Lotes", "6"],
+      ["Qtd. Cabeças", "314"],
+      ["UA total", "230,09"],
+      ["kg PV/ha", "1.008"],
+      ["Cab/ha", "3,06"],
+      ["Peso médio geral (kg)", "329,75"],
+      ["Capacidade (UA/ha)", "2,20"],
+      ["% da capacidade", "102%"],
+    ]);
     const cap = [...cartaoLotacao.querySelectorAll(".mk-dp-cel")].find((c) => c.querySelector("dt").textContent === "% da capacidade");
     expect(cap.querySelector(".mk-dp-cel__val").style.color).toBe("rgb(180, 83, 9)");
     expect(cap.querySelector(".mk-dp-cel__barra > span").style.background).toBe("rgb(245, 158, 11)");
 
-    expect(screen.getByRole("heading", { name: "Categorias" })).toBeTruthy();
-    const linhas = [...cartaoCategorias.querySelectorAll(".mk-dp-linha")].map((l) => [
-      l.querySelector(".mk-dp-linha__rot").textContent,
-      l.querySelector(".mk-dp-linha__sub").textContent,
-      l.querySelector(".mk-dp-linha__val").textContent,
-    ]);
-    expect(linhas).toEqual([
-      ["BEZERRO", "20% do pasto · peso 196 kg", "62 cab"],
-      ["BOI MAGRO", "40% do pasto · peso 377 kg", "127 cab"],
-      ["NOVILHA", "28% do pasto · peso 304 kg", "87 cab"],
-      ["VACA", "12% do pasto · peso 450 kg", "38 cab"],
-    ]);
-    // Subícone do código (D-PROD-191), 26 px na densidade compacta (D-PROD-224).
-    const imgs = [...cartaoCategorias.querySelectorAll("img")].map((i) => i.getAttribute("src"));
-    expect(imgs).toEqual(["macho-0-8", "macho-25-36", "femea-13-24", "femea-37-mais"].map((f) => urlSubiconeLote(f, 26)));
+    // A composição por categoria fica só na aba Lotes.
+    expect(screen.queryByRole("heading", { name: "Categorias" })).toBeNull();
+    expect(painel.querySelector(".mk-dp-linha")).toBeNull();
+    expect(painel.querySelector(".mk-dp-vazio")).toBeNull();
   });
 
-  it("pasto vazio: VAZIO · descanso desde a última saída (mesma regra do mapa), Sem gado e o aviso de nenhum lote", () => {
+  it("pasto vazio: VAZIO · descanso desde a última saída (mesma regra do mapa), Sem gado, régua sem marcador e o aviso de nenhum lote", () => {
     const modelo = modeloV12({ qtd: 0 });
     const movs = movimentacoesV12({ qtd: 0, saidaEm: "2026-10-25" });
     render(<CascaDeTeste modelo={modelo} abaInicial="detalhes" movimentacoes={movs} setorNome="" />);
@@ -111,14 +137,18 @@ describe("aba Detalhes", () => {
     const [cartaoArea, cartaoLotacao] = painel.querySelectorAll(".mk-dp-cartao");
     const area = grade(cartaoArea);
     expect(area.Setor).toBeUndefined();
-    expect(area.Status).toBe("VAZIO · descanso há 21 dias");
+    const status = cartaoArea.querySelector(".mk-dp-d13-status");
+    expect(status.textContent).toBe("VAZIO · descanso há 21 dias");
+    expect(status.classList.contains("mk-dp-chip--neutro")).toBe(true);
     expect(area["Dias pastejo"]).toBe("—");
-    const status = [...cartaoArea.querySelectorAll(".mk-dp-cel")].find((c) => c.querySelector("dt").textContent === "Status");
-    expect(status.querySelector(".mk-dp-cel__val").style.color).toBe("rgb(100, 116, 139)");
 
     const lot = grade(cartaoLotacao);
-    expect(lot).toMatchObject({ "Qtd. Lotes": "0", "Qtd. Cabeças": "0", "UA total": "0,00", "UA/ha": "—", "% da capacidade": "—", "kg PV/ha": "—", "Cab/ha": "—", "Peso médio geral (kg)": "—" });
-    expect(cartaoLotacao.textContent).toContain("Sem gado");
+    expect(lot).toMatchObject({ "Qtd. Lotes": "0", "Qtd. Cabeças": "0", "UA total": "0,00", "% da capacidade": "—", "kg PV/ha": "—", "Cab/ha": "—", "Peso médio geral (kg)": "—" });
+    expect(cartaoLotacao.querySelector(".mk-dp-d13-uaha__val").textContent).toBe("—");
+    expect(cartaoLotacao.querySelector(".mk-dp-d13-faixa").textContent).toBe("Sem gado");
+    expect(regua().querySelector(".mk-dp-d13-regua__marcador")).toBeNull();
+    expect(regua().dataset.posicao).toBeUndefined();
+    expect(regua().getAttribute("aria-label")).toBe("UA/ha sem valor — Sem gado");
     expect(painel.querySelector(".mk-dp-aviso")).toBeNull();
     expect(screen.queryByRole("heading", { name: "Categorias" })).toBeNull();
     expect(painel.querySelector(".mk-dp-vazio").textContent).toBe("Nenhum lote neste pasto agora.");
@@ -126,7 +156,7 @@ describe("aba Detalhes", () => {
 
   it("vazio sem saída registrada: só VAZIO", () => {
     render(<CascaDeTeste modelo={modeloV12({ qtd: 0 })} abaInicial="detalhes" movimentacoes={[]} />);
-    expect(grade(screen.getByRole("tabpanel").querySelector(".mk-dp-cartao")).Status).toBe("VAZIO");
+    expect(screen.getByRole("tabpanel").querySelector(".mk-dp-d13-status").textContent).toBe("VAZIO");
   });
 });
 
