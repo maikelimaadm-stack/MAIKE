@@ -490,3 +490,157 @@ describe('D-PROD-273 fatia 4 — fail-closed', () => {
     );
   });
 });
+
+// ─── achados da revisão independente (rev4) ─────────────────────────────────
+const cancelarTransferencia = (x, id) => H.req('POST', `/movimentacoes-estoque/${id}/cancelar-transferencia`, x.token, { empresa_id: x.e1.id, motivo: 'errada', operation_id: opId() });
+const previa = (x, id) => H.req('GET', `/estoque/movimentos/${id}/exclusao/previa?empresa_id=${x.e1.id}`, x.token);
+/** O "caso do dono" (cocho 1 e a cadeia do cocho 2 com fechamentos pela conta da tela). */
+const montarCocho = async () => {
+  const x = await montar();
+  const A = x.local;
+  await entrar(x, x.sal, A, '100', '4');
+  await entrar(x, x.sal, A, '100', '6');
+  const c1 = await lancarCocho(x, A, { ponto: 'cocho-1', kg: 50, data: '2027-06-01' });
+  await entrar(x, x.sal, A, '50', '9');
+  const c2 = await lancarCocho(x, A, { ponto: 'cocho-2', kg: 80, data: '2027-06-02' });
+  const fech2 = { sobra_kg: 10, dias_periodo: 5, consumo_diario_grupo_kg: 14, custo_unitario_kg: 6, custo_total_periodo: 420, custo_cab_dia: 8.4, sobra_herdada_kg: 0, custo_sobra_herdada_kg: null, custo_sobra_aproximado: null, sobra_final_camadas: [{ kg: 10, custo_kg: 6 }] };
+  const c3 = await lancarCocho(x, A, { ponto: 'cocho-2', kg: 20, sobra: 10, data: '2027-06-07', anterior: c2.evento, fechamento: fech2 });
+  const fech3 = { sobra_kg: 5, dias_periodo: 5, consumo_diario_grupo_kg: 5, custo_unitario_kg: 6, custo_total_periodo: 150, custo_cab_dia: 3, sobra_herdada_kg: 10, custo_sobra_herdada_kg: 6, custo_sobra_aproximado: false, sobra_final_camadas: [{ kg: 5, custo_kg: 6 }] };
+  const c4 = await lancarCocho(x, A, { ponto: 'cocho-2', kg: 10, sobra: 5, data: '2027-06-12', anterior: c3.evento, fechamento: fech3 });
+  return { x, A, c1, c2, c3, c4 };
+};
+
+describe('D-PROD-273 fatia 4 — achados da revisão: depois de um recálculo, as operações seguintes passam', () => {
+  test('(1) cancelar C1 com recálculo e depois C2, agora o último do cocho 2: o estorno marcado do C1 não é "movimento posterior"', async () => {
+    const x = await montar();
+    const A = x.local;
+    await entrar(x, x.sal, A, '100', '4');
+    await entrar(x, x.sal, A, '100', '6');
+    const c1 = await lancarCocho(x, A, { ponto: 'cocho-1', kg: 50, data: '2027-06-01' });
+    await entrar(x, x.sal, A, '50', '9');
+    const c2 = await lancarCocho(x, A, { ponto: 'cocho-2', kg: 80, data: '2027-06-02' });
+    assert.equal(ok(await cancelarCocho(x, c1.evento.id)).recalculo.produtos, 1);
+    const r = ok(await cancelarCocho(x, c2.evento.id));
+    assert.equal(r.recalculo, null, 'C2 é o último de verdade: estorno exato');
+    assert.equal(v4(r.estorno.valor_total), '464.0000', 'devolve o valor já recalculado (80 × 5,8)');
+    await provarReplay(x, x.sal);
+  });
+
+  test('(2) cancelar C1 com recálculo e depois C4: o período de C3 reabre (o fechamento reescrito pelo recálculo é o estado legítimo) com o custo/kg novo', async () => {
+    const { x, c1, c3, c4 } = await montarCocho();
+    ok(await cancelarCocho(x, c1.evento.id));
+    assert.equal((await evento(c3.evento.id)).dados.custo_total_periodo, 145);
+    const r = ok(await cancelarCocho(x, c4.evento.id));
+    assert.equal(r.periodo_reaberto.evento_id, c3.evento.id);
+    const d3 = (await evento(c3.evento.id)).dados;
+    assert.deepEqual([d3.dias_periodo ?? null, d3.custo_total_periodo ?? null, d3.sobra_kg, d3.custo_unitario_kg], [null, null, 10, 5.8],
+      'volta ao retrato de antes do fechamento, mas com o custo/kg da saída já recalculado');
+    await provarReplay(x, x.sal);
+  });
+
+  test('(1) excluir S1 com recálculo e depois cancelar a transferência recalculada (a última nos dois depósitos)', async () => {
+    const x = await montar();
+    const A = x.local;
+    const B = x.local2;
+    await entrar(x, x.sal, A, '50', '2');
+    await entrar(x, x.sal, A, '100', '5');
+    const s1 = await sair(x, x.sal, A, '50');
+    await entrar(x, x.sal, A, '50', '10');
+    const t = await transferir(x, x.sal, A, B, '80');
+    ok(await excluirSaida(x, s1));
+    await provarReplay(x, x.sal);
+    ok(await cancelarTransferencia(x, t.s.id));
+    // a transferência volta inteira (80 a 5,5 = 440): A fica com 200 kg, R$ 1.100
+    const camadasA = (await camadasDe(x, x.sal, A)).filter((l) => l.status === 'Disponivel');
+    assert.equal(camadasA.reduce((t2, l) => t2 + Number(l.disp), 0), 200);
+    await provarReplay(x, x.sal);
+  });
+
+  test('(1) excluir S1 com recálculo e depois EDITAR a S2 (D-PROD-271; a última de verdade): passa e o replay bate', async () => {
+    const x = await montar();
+    const c = await cenarioBase(x, (A, kg) => sair(x, x.sal, A, kg), (A, kg) => sair(x, x.sal, A, kg));
+    ok(await excluirSaida(x, c.s1));
+    const s2 = await prisma().saidaEstoque.findUnique({ where: { id: c.s2.id } });
+    const r = ok(await H.req('PATCH', `/estoque/saidas/${c.s2.id}`, x.token, {
+      empresa_id: x.e1.id, operation_id: `ed-${randomUUID()}`, motivo_id: x.perda, data_saida: hoje(),
+      itens: [{ produto_id: x.sal.id, local_estoque_id: c.A.id, unidade: 'KG', quantidade: '70' }], versao: s2.versao, motivo_edicao: 'pesagem refeita',
+    }));
+    assert.equal(v4(r.itens[0].valor_total), '406.0000', '70 × 5,8');
+    await provarReplay(x, x.sal);
+  });
+});
+
+describe('D-PROD-273 fatia 4 — achados da revisão: fallback do estorno exato (abastecimento, atividade, venda)', () => {
+  test('(3) venda com cocho posterior cujo fechamento não reproduz: o recálculo é desfeito (SAVEPOINT) e a venda é cancelada pelo estorno exato, com o motivo na trilha', async () => {
+    const x = await montar();
+    const A = x.local;
+    await entrar(x, x.sal, A, '100', '4');
+    await entrar(x, x.sal, A, '100', '6');
+    const v = await vender(x, [[x.sal, A, '50', '12']]);
+    await entrar(x, x.sal, A, '50', '9');
+    const c2 = await lancarCocho(x, A, { ponto: 'cocho-2', kg: 80, data: '2027-06-02' });
+    // fechamento gravado fora da conta da tela (custo 999): o servidor não sabe refazer → recusa do recálculo
+    const fech = { sobra_kg: 10, dias_periodo: 5, consumo_diario_grupo_kg: 14, custo_unitario_kg: 6, custo_total_periodo: 999, custo_cab_dia: 8.4, sobra_herdada_kg: 0, custo_sobra_herdada_kg: null, custo_sobra_aproximado: null, sobra_final_camadas: [{ kg: 10, custo_kg: 6 }] };
+    await lancarCocho(x, A, { ponto: 'cocho-2', kg: 20, sobra: 10, data: '2027-06-07', anterior: c2.evento, fechamento: fech });
+    const m2Antes = valores(await mov(c2.mov.id));
+    ok(await cancelarVenda(x, v.id));
+    const mv = await mov(v.itens[0].movimentacao_estoque_id);
+    assert.deepEqual([mv.status, mv.movimentacao_grupo_id], ['Estornada', null], 'estorno exato, sem marca');
+    assert.deepEqual(valores(await mov(c2.mov.id)), m2Antes, 'nada recalculado');
+    assert.equal((await evento(c2.evento.id)).dados.custo_total_periodo, 999);
+    const [t] = await trilha(x, 'Produto', x.sal.id);
+    assert.deepEqual([t.dados_novos.recalculo_dispensado, t.dados_novos.recusa.code, t.dados_novos.recusa.reason], [true, 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', 'cocho_fechamento_nao_reproduzivel']);
+    await provarReplay(x, x.sal);
+  });
+
+  test('(6) movimento legado com movimentacao_grupo_id preenchido: a saída manual recusa grupo_legado_preenchido; a venda cai no estorno exato', async () => {
+    const x = await montar();
+    const c = await cenarioBase(x, (A, kg) => sair(x, x.sal, A, kg), (A, kg) => sair(x, x.sal, A, kg));
+    const m1 = await movDoItem(c.s1);
+    await prisma().movimentacaoEstoque.update({ where: { id: m1.id }, data: { movimentacao_grupo_id: 'grupo-legado-1' } });
+    const r = await excluirSaida(x, c.s1);
+    assert.deepEqual([r.statusCode, r.json().code, r.json().reason ?? r.json().details?.reason], [409, 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', 'grupo_legado_preenchido'], r.body);
+
+    const v = await vender(x, [[x.sal, c.A, '10', '12']]);
+    await sair(x, x.sal, c.A, '5');
+    const mv0 = await movDoItem(v);
+    await prisma().movimentacaoEstoque.update({ where: { id: mv0.id }, data: { movimentacao_grupo_id: 'grupo-legado-2' } });
+    ok(await cancelarVenda(x, v.id));
+    const mv = await mov(mv0.id);
+    assert.deepEqual([mv.status, mv.movimentacao_grupo_id], ['Estornada', 'grupo-legado-2']);
+    const dispensas = (await trilha(x, 'Produto', x.sal.id)).filter((t) => t.dados_novos.recalculo_dispensado);
+    assert.equal(dispensas.at(-1).dados_novos.recusa.reason, 'grupo_legado_preenchido');
+  });
+});
+
+describe('D-PROD-273 fatia 4 — achados da revisão: a prévia diz o que a exclusão vai fazer', () => {
+  test('(4) nada depois → "estorno exato" mesmo com histórico que não reproduz; venda com recálculo inviável → estorno exato sem recalcular (sem recusa); venda de 2 itens do mesmo produto e depósito → simula os dois juntos', async () => {
+    const x = await montar();
+    const A = x.local;
+    await entrar(x, x.sal, A, '100', '4');
+    const ultima = await sair(x, x.sal, A, '10');
+    const camada = await prisma().estoqueLoteNota.findFirst({ where: { cliente_id: x.c, produto_id: x.sal.id } });
+    await prisma().estoqueLoteNota.update({ where: { id: camada.id }, data: { custo_unitario: '9.9999' } });
+    const p1 = ok(await previa(x, (await movDoItem(ultima)).id));
+    assert.deepEqual([p1.permitido, p1.modo, p1.movimentos_posteriores, p1.movimentos.length], [true, 'estorno_exato', 0, 0]);
+
+    const v = await vender(x, [[x.sal, A, '5', '12']]);
+    await sair(x, x.sal, A, '3');
+    const p2 = ok(await previa(x, (await movDoItem(v)).id));
+    assert.deepEqual([p2.permitido, p2.modo, p2.recusa, p2.aviso.reason], [true, 'estorno_exato_sem_recalculo', null, 'replay_diverge_do_gravado']);
+    await prisma().estoqueLoteNota.update({ where: { id: camada.id }, data: { custo_unitario: camada.custo_unitario } });
+
+    const y = await montar();
+    await entrar(y, y.sal, y.local, '100', '4');
+    await entrar(y, y.sal, y.local, '100', '6');
+    const v2 = await vender(y, [[y.sal, y.local, '20', '12'], [y.sal, y.local, '30', '12']]);
+    await entrar(y, y.sal, y.local, '50', '9');
+    const s2 = await sair(y, y.sal, y.local, '80');
+    const p3 = ok(await previa(y, v2.itens[0].movimentacao_estoque_id));
+    assert.deepEqual([...p3.excluidos].sort(), [v2.itens[0].movimentacao_estoque_id, v2.itens[1].movimentacao_estoque_id].sort(), 'os dois itens do documento');
+    // sem os 50 kg da venda: 250 kg, R$ 1.450, médio 5,8; S2 = 464 (o mesmo do cancelamento de verdade)
+    assert.equal(p3.movimentos.find((m) => m.id === s2.itens[0].movimentacao_estoque_id).depois.valor_total, '464.0000');
+    ok(await cancelarVenda(y, v2.id));
+    assert.equal(v4((await movDoItem(s2)).valor_total), '464.0000');
+  });
+});
