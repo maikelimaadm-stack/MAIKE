@@ -366,10 +366,12 @@ export function Celula({ rotulo, valor, cor, bolinha, sub, barra, corBarra, titl
 /**
  * Linha (dentro de um `Cartao`): ícone 20 px teal ou imagem 26 px (D-PROD-224), rótulo e
  * sub; no fim bolinha, valor à direita e chevron. `quebra`: o valor ocupa o
- * espaço que sobra e quebra em mais linhas. Com `onClick` vira botão.
- * @param {{ icone?: IconeLucide, imagem?: React.ReactNode, rotulo: React.ReactNode, sub?: React.ReactNode, bolinha?: string | null, valor?: React.ReactNode, cor?: string | null, chevron?: boolean, quebra?: boolean, onClick?: () => void, title?: string, className?: string, textoAutomatico?: boolean } & Record<string, any>} props
+ * espaço que sobra e quebra em mais linhas. Com `onClick` vira botão. Aceita `ref` (D-PROD-278: a linha tocável é o
+ * gatilho do menu das ações da atividade, que se prende a ela).
+ * @typedef {{ icone?: IconeLucide, imagem?: React.ReactNode, rotulo: React.ReactNode, sub?: React.ReactNode, bolinha?: string | null, valor?: React.ReactNode, cor?: string | null, chevron?: boolean, quebra?: boolean, onClick?: (e?: any) => void, title?: string, className?: string, textoAutomatico?: boolean } & Record<string, any>} LinhaProps
+ * @type {React.ForwardRefRenderFunction<HTMLElement, LinhaProps>}
  */
-export function Linha({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, chevron = false, quebra = false, onClick, title, className, textoAutomatico = false, ...resto }) {
+const LinhaRender = ({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, chevron = false, quebra = false, onClick, title, className, textoAutomatico = false, ...resto }, ref) => {
   const temValor = valor != null && valor !== "" && valor !== false;
   const conteudo = (
     <>
@@ -396,17 +398,19 @@ export function Linha({ icone: Icone, imagem, rotulo, sub, bolinha, valor, cor, 
   const classes = cls("mk-dp-linha", quebra && "mk-dp-linha--quebra", onClick && "mk-dp-linha--toque", className);
   if (onClick) {
     return (
-      <button type="button" className={classes} onClick={onClick} title={title} {...resto}>
+      <button ref={/** @type {any} */ (ref)} type="button" className={classes} onClick={onClick} title={title} {...resto}>
         {conteudo}
       </button>
     );
   }
   return (
-    <div className={classes} title={title} {...resto}>
+    <div ref={/** @type {any} */ (ref)} className={classes} title={title} {...resto}>
       {conteudo}
     </div>
   );
-}
+};
+export const Linha = React.forwardRef(LinhaRender);
+Linha.displayName = "Linha";
 
 /**
  * Bloco do nível do cocho/depósito (D-PROD-220, `v11-nivel` do v12): figura de

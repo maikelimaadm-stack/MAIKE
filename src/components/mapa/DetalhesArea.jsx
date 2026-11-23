@@ -110,7 +110,7 @@ export default function DetalhesArea({ area, permissions, setorNome = "", ocupad
   let corpo;
   if (abaAtual === "historico") corpo = <AbaRegistrosDaArea area={area} tipos={tipos} podeCancelar={podeCancelarRegistro} />;
   else if (abaAtual === "abate") corpo = <HistoricoAbateCurral areaId={area.id} />;
-  else corpo = <AbaDetalhesDaArea area={area} setorNome={setorNome} ocupada={ocupada} verAtividades={verAtividades} forragem={forragem} />;
+  else corpo = <AbaDetalhesDaArea area={area} setorNome={setorNome} ocupada={ocupada} verAtividades={verAtividades} forragem={forragem} tipos={tipos} />;
 
   return (
     <>

@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-23 (missão ativa D-PROD-277; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-23 (missão ativa D-PROD-278; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,12 +9,22 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-23) — MAIKE-NUMERO-DECISAO: número de decisão conferido antes da PR e antes do merge (D-PROD-277)
+## Missão ativa (2026-11-23) — MAIKE-MAPA-ATIVIDADE-ACOES: ações da atividade em andamento nos Detalhes da área (D-PROD-278)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-278**, pedido do proprietário: tocar a atividade em andamento no Mapa e lançar sem refazer tudo pela "Nova realização" |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `6eb44285` · PR (a abrir) |
+| Mudança | Linha tocável em "Atividades em andamento" → menu "+ Lançar dia", "Só máquina / mão de obra / insumo / serviço de terceiro" (presos na área) e "Concluir", com as permissões da lista |
+| Migration | Nenhuma |
+| Relatório | [`MAIKE-MAPA-ATIVIDADE-ACOES-REPORT.md`](./MAIKE-MAPA-ATIVIDADE-ACOES-REPORT.md) |
+
+## Missão anterior (2026-11-23) — MAIKE-NUMERO-DECISAO: número de decisão conferido antes da PR e antes do merge (D-PROD-277)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-277**, pedido do proprietário: conferir as outras decisões antes de abrir uma PR |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `41d9e907` · PR (a abrir) |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `41d9e907` · PR **#364** (mergeada, `6eb44285`) |
 | Mudança | `scripts/dev/proxima-decisao.mjs` + regra A5 em `08-REGRAS-DE-IA.md` + testes PD-1..3 |
 | Migration | Nenhuma |
 | Relatório | [`MAIKE-NUMERO-DECISAO-REPORT.md`](./MAIKE-NUMERO-DECISAO-REPORT.md) |
