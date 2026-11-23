@@ -9044,4 +9044,11 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Fora de escopo.** Recalcular pela ordem das datas; corrigir datas retroativas; mudar preço de venda ou valor de compra.
 
+**Escolha do proprietário (2026-11-23): com ajuste de inventário depois, no mesmo depósito, a exclusão é recusada; o estoque nunca fica diferente do contado.**
+
+- **Quando recusa.** Uma sobra ou falta de ajuste de inventário (D-PROD-272) foi lançada depois do movimento excluído, na ordem de lançamento. O ajuste ainda está valendo, isto é, não foi excluído. Ele está num depósito que a exclusão mudaria: o do movimento ou, pela transferência, um destino alcançado antes do ajuste.
+- **Como recusa.** 409 `ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL`, `reason: 'ajuste_de_inventario_posterior'`, com o depósito, o movimento e o número do ajuste. Nada é gravado.
+- **Sem estorno exato.** A regra vale nas cinco origens de saída. Abastecimento, atividade e venda não podem trocar essa recusa pelo estorno exato, porque ele também deixaria o saldo fora do contado.
+- **O que não recusa.** Ajuste anterior ao movimento excluído e ajuste já excluído. Nesses casos, o custo da sobra segue o médio recalculado, salvo custo informado, e a linha do ajuste acompanha o movimento.
+
 <!-- Próxima decisão: D-PROD-274 -->
