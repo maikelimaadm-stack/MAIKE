@@ -289,27 +289,60 @@ const devolver = (estado, local, fatias, m) => {
 };
 
 /**
- * D-PROD-273 (fatia 4) — pares excluídos COM recálculo: o original 'Estornada' (saída) com a marca dele e o estorno
- * (filho, `estorno_*`, pai = ele) com a mesma marca. Marca fora desse desenho → `problema` (o replay não adivinha).
+ * D-PROD-273 (fatias 4 e 5) — pares excluídos COM recálculo. A marca é `marcaDoPar(<id do original>)`, no original
+ * 'Estornada' e no estorno dele (filho, `estorno_*`, pai = ele):
+ *  - SAÍDA (fatia 4) e ENTRADA (fatia 5: entrada documentada, compra, sobra do ajuste): o estorno é o filho do original;
+ *  - TRANSFERÊNCIA (fatia 5): dois pares, cada perna com o seu estorno — S `transferencia_enviada` + E_o
+ *    (`estorno_transferencia_enviada`, pai = S) com a marca de S, e R `transferencia_recebida` + E_d
+ *    (`estorno_transferencia_recebida`, filho de R) com a marca de R. Os DOIS pares têm de estar marcados.
+ * Marca fora desse desenho → `problema` (o replay não adivinha).
  * @param {any[]} ordem @param {Map<string, any>} porId @param {any[]} problemas
  * @returns {Set<string>}
  */
 const paresMarcados = (ordem, porId, problemas) => {
+  /** @type {Map<string, any[]>} raiz (id do original) → movimentos com a marca dela */
+  const grupos = new Map();
+  for (const m of ordem) {
+    if (!temMarcaDeRecalculo(m)) continue;
+    const raiz = m.movimentacao_grupo_id.slice(MARCA_EXCLUSAO_RECALCULO.length);
+    if (!grupos.has(raiz)) grupos.set(raiz, []);
+    grupos.get(raiz)?.push(m);
+  }
+  /** O par (original, estorno) da raiz, pelo desenho do motor; null se incoerente. */
+  const parDe = (raiz) => {
+    const o = porId.get(raiz);
+    if (!o || o.status !== 'Estornada' || ehEstorno(o) || !['Entrada', 'Saída'].includes(o.tipo_movimentacao)) return null;
+    let e;
+    if (o.tipo_movimentacao === 'Saída' && o.tipo_detalhado === 'transferencia_enviada') {
+      e = ordem.find((x) => x.movimento_pai_id === o.id && x.tipo_movimentacao === 'Entrada' && x.tipo_detalhado === TIPO_ESTORNO_TRANSFERENCIA_ENVIADA);
+    } else {
+      e = o.movimento_filho_id ? porId.get(o.movimento_filho_id) : null;
+      if (o.tipo_detalhado === 'transferencia_recebida' && e?.tipo_detalhado !== TIPO_ESTORNO_TRANSFERENCIA_RECEBIDA) return null;
+    }
+    if (!e || e.movimento_pai_id !== o.id || !ehEstorno(e) || e.tipo_movimentacao === o.tipo_movimentacao) return null;
+    const membros = grupos.get(raiz) ?? [];
+    const marca = marcaDoPar(raiz);
+    if (membros.length !== 2 || !membros.every((x) => (x.id === o.id || x.id === e.id) && x.movimentacao_grupo_id === marca)) return null;
+    return [o, e];
+  };
   /** @type {Set<string>} */
   const ids = new Set();
-  for (const m of ordem) {
-    if (!temMarcaDeRecalculo(m) || ids.has(m.id)) continue;
-    const original = m.movimento_pai_id && m.movimentacao_grupo_id === marcaDoPar(m.movimento_pai_id) ? porId.get(m.movimento_pai_id) : m;
-    const estorno = original?.movimento_filho_id ? porId.get(original.movimento_filho_id) : null;
-    const valido = original && estorno && original.movimentacao_grupo_id === marcaDoPar(original.id) && estorno.movimentacao_grupo_id === marcaDoPar(original.id)
-      && original.status === 'Estornada' && original.tipo_movimentacao === 'Saída' && !ehEstorno(original) && original.tipo_detalhado !== 'transferencia_enviada'
-      && estorno.movimento_pai_id === original.id && ehEstorno(estorno) && estorno.tipo_movimentacao === 'Entrada';
-    if (!valido) {
-      problemas.push({ reason: 'marca_de_recalculo_incoerente', movimento_id: m.id, movimento_numero: m.numero_movimentacao });
+  for (const [raiz, membros] of grupos) {
+    const par = parDe(raiz);
+    let valido = Boolean(par);
+    if (par && par[0].tipo_detalhado === 'transferencia_enviada') {
+      const r = par[0].movimento_filho_id ? porId.get(par[0].movimento_filho_id) : null;
+      valido = Boolean(r && r.movimento_pai_id === par[0].id && r.tipo_detalhado === 'transferencia_recebida' && parDe(r.id));
+    } else if (par && par[0].tipo_detalhado === 'transferencia_recebida') {
+      const s = par[0].movimento_pai_id ? porId.get(par[0].movimento_pai_id) : null;
+      valido = Boolean(s && s.movimento_filho_id === par[0].id && s.tipo_detalhado === 'transferencia_enviada' && parDe(s.id));
+    }
+    if (!valido || !par) {
+      for (const m of membros) problemas.push({ reason: 'marca_de_recalculo_incoerente', movimento_id: m.id, movimento_numero: m.numero_movimentacao });
       continue;
     }
-    ids.add(original.id);
-    ids.add(estorno.id);
+    ids.add(par[0].id);
+    ids.add(par[1].id);
   }
   return ids;
 };
@@ -616,6 +649,17 @@ export const reproduzir = (historico, opcoes = {}) => {
         if (!local) continue;
         afetados.add(local);
         if (alvo.has(m.id)) alcancados.add(local);
+      }
+      // D-PROD-273 (fatia 5): a camada de uma ENTRADA excluída (e as recebidas numa transferência excluída) fica
+      // 'Estornado' com disponível 0, no custo e na entrada gravados — nunca apagada e nunca no poço. Quem consumiu dela
+      // depois volta a consumir das outras camadas (FIFO, pelo médio do poço sem ela).
+      for (const id of camadasDaEntrada.get(m.id) ?? []) {
+        if (estado.camadas.has(id)) continue;
+        const fato = /** @type {any} */ (fatos.get(id));
+        estado.criar({ id, local: fato.local_estoque_id, quantidade: fato.quantidade_entrada, custo: fato.custo_unitario });
+        const morta = /** @type {any} */ (estado.camadas.get(id));
+        morta.disp = ZERO;
+        morta.status = 'Estornado';
       }
       feitos.add(m.id);
       continue;
