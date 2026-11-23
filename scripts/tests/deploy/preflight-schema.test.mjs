@@ -80,7 +80,7 @@ const COLUNAS_OK = [
   { table_name: 'AjusteEstoque', column_name: 'numero' },
   { table_name: 'AjusteEstoqueItem', column_name: 'contado_estoque' },
   { table_name: 'AjusteEstoqueEvento', column_name: 'motivo' },
-  // D-PROD-273: o plantio (tabela nova) e as 5 colunas dos campos por tipo.
+  // D-PROD-274: o plantio (tabela nova) e as 5 colunas dos campos por tipo.
   { table_name: 'AtividadePlantio', column_name: 'cultura_id' },
   { table_name: 'Atividade', column_name: 'local' },
   { table_name: 'AtividadeApontamento', column_name: 'numero_receituario' },

@@ -1,8 +1,8 @@
-MAIKE-ENTREGA2 (D-PROD-273) · `claude/tipo-tarefa-drop-colunas-1aznvv` · PR #354
+MAIKE-ENTREGA2 (D-PROD-274) · `claude/tipo-tarefa-drop-colunas-1aznvv` · PR #354
 
 # MAIKE — Entrega 2: os campos de cada tipo na "Nova realização"
 
-Decisão: [D-PROD-273](./DECISIONS.md) · Proposta aprovada (Parte 1, itens B, D, E e G):
+Decisão: [D-PROD-274](./DECISIONS.md) · Proposta aprovada (Parte 1, itens B, D, E e G):
 [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md) · Pesquisa:
 [`MAIKE-PESQUISA-OPERACOES-CAMPO.md`](./MAIKE-PESQUISA-OPERACOES-CAMPO.md) · Runbook:
 [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md) · Entrega anterior:
@@ -225,7 +225,7 @@ LA-PORTA-3 do smoke (a query da lista com `local`).
 
 A PR #350 (ajuste de inventário) entrou na `main` como **D-PROD-272**, com a migration EXPAND
 `20261120300000_estoque_ajustes` (3 tabelas novas: `AjusteEstoque`, `AjusteEstoqueItem`, `AjusteEstoqueEvento`), de
-nome **anterior** ao desta e já aplicada em produção (2026-11-23, caminho B). Esta decisão continua D-PROD-273 (o
+nome **anterior** ao desta e já aplicada em produção (2026-11-23, caminho B). Esta decisão continua D-PROD-274 (o
 marcador já apontava para ela) e o marcador passa a D-PROD-274. O `migration.sql` desta entrega não mudou (checksum
 `9e6487ff…2a58`).
 

@@ -115,7 +115,7 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['AjusteEstoque', 'numero'],
   ['AjusteEstoqueItem', 'contado_estoque'],
   ['AjusteEstoqueEvento', 'motivo'],
-  // D-PROD-273: a Nova realização lê e grava o plantio (tabela nova), o local do serviço sem área, o receituário, o VC
+  // D-PROD-274: a Nova realização lê e grava o plantio (tabela nova), o local do serviço sem área, o receituário, o VC
   // da semente, a carência do produto e o alvo da operação; sem a migration `20261121100000_atividade_campos_por_tipo`,
   // `/atividades`, `/produtos` e `/tipos-atividade` respondem 500.
   ['AtividadePlantio', 'cultura_id'],

@@ -117,7 +117,7 @@ const assertNomeLivre = ({ produtos, nome, empresaId, ignorarId }) => {
  * @param {{isEditing?: boolean}} [opcoes] mantido por compatibilidade: novo e edição montam o mesmo payload
  */
 /**
- * D-PROD-273 — a carência do formulário: campo ausente (formulário antigo) não vai; vazio vai `null` (limpa); número
+ * D-PROD-274 — a carência do formulário: campo ausente (formulário antigo) não vai; vazio vai `null` (limpa); número
  * inteiro vai como número.
  * @param {unknown} valor @returns {{ carencia_dias?: number|null }}
  */
@@ -152,7 +152,7 @@ export const normalizarProduto = (formData, opcoes = {}) => {
     consumo_maximo_pv: parseDecimalPtBR(formData.consumo_maximo_pv) || undefined,
     unidade_principal_estoque: unidadePrincipal,
     peso_por_saco_kg: unidadePrincipal === 'SACO' ? pesoPorSaco || undefined : undefined,
-    // D-PROD-273: a carência da bula em dias (vazio = sem carência: null limpa na edição; ausente fica como estava).
+    // D-PROD-274: a carência da bula em dias (vazio = sem carência: null limpa na edição; ausente fica como estava).
     ...carenciaDoFormulario(formData.carencia_dias),
     observacoes: maiusculoOuIndefinido(formData.observacoes),
     ativo: formData.ativo,

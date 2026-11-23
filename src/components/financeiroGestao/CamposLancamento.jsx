@@ -116,7 +116,7 @@ export function CampoDia({ label, value, onChange, readOnly = false, required = 
 /**
  * Valor calculado (somente leitura) dentro da grade do formulário.
  * @param {{ label: string, valor: string, span?: number, testId?: string, destaque?: boolean, dica?: React.ReactNode }} props
- *   `dica` (D-PROD-273): a linha de ajuda embaixo do campo.
+ *   `dica` (D-PROD-274): a linha de ajuda embaixo do campo.
  */
 export function ValorCalculado({ label, valor, span = 4, testId = undefined, destaque = false, dica = undefined }) {
   return (

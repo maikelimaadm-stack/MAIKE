@@ -74,7 +74,7 @@ const nomeDaArea = (a) => texto(a?.nome) || texto(a?.numero_area);
 
 /**
  * A coluna "Área": a primeira área e "+N" das outras ("Pasto da Aroeira +1"); sem áreas, a do cabeçalho; sem nenhuma, "".
- * D-PROD-273: o serviço sem área (Manutenção e Outros) mostra o local ("DIVISA NORTE").
+ * D-PROD-274: o serviço sem área (Manutenção e Outros) mostra o local ("DIVISA NORTE").
  * @param {any} item
  */
 export const textoDaAreaDoServico = (item) => {
@@ -84,7 +84,7 @@ export const textoDaAreaDoServico = (item) => {
   return areas.length > 1 ? `${primeira} +${areas.length - 1}` : primeira;
 };
 
-// ─── D-PROD-273 (ajustes do teste de ponta a ponta): o capim e o serviço sem área ─────
+// ─── D-PROD-274 (ajustes do teste de ponta a ponta): o capim e o serviço sem área ─────
 
 /** O capim do Plantio de pastagem (o nome do Cadastro de Culturas, lido da `AtividadePlantio`); fora dele, "". @param {any} item */
 export const capimDoServico = (item) => texto(item?.plantio?.cultura?.nome);
@@ -169,7 +169,7 @@ export const textoDosHectares = (feitos, area, percentual) => {
 };
 
 /**
- * A linha do andamento: "12 de 40 ha (30%) · último dia 02/12" (só Em andamento com dia lançado). D-PROD-273: o serviço
+ * A linha do andamento: "12 de 40 ha (30%) · último dia 02/12" (só Em andamento com dia lançado). D-PROD-274: o serviço
  * sem área nunca mostra hectares — o local e a quantidade feita ("DIVISA NORTE · 2,5 km · último dia 20/11"; sem
  * quantidade, "DIVISA NORTE · último dia 20/11").
  * @param {any} item
@@ -190,7 +190,7 @@ export const textoDoAndamento = (item) => {
 /** A barra (0 a 100) do andamento; sem %, null. @param {any} item */
 export const barraDoAndamento = (item) => percentualInteiro(item?.andamento?.percentual);
 
-/** "30 de 30 ha" da concluída (o card do celular). D-PROD-273: sem área, a quantidade feita ("2,5 km") ou nada. @param {any} item */
+/** "30 de 30 ha" da concluída (o card do celular). D-PROD-274: sem área, a quantidade feita ("2,5 km") ou nada. @param {any} item */
 export const hectaresDaConcluida = (item) => {
   if (servicoSemArea(item)) return quantidadeFeitaDoServico(item);
   const a = item?.andamento ?? {};
@@ -257,7 +257,7 @@ export const erroDoUltimoDia = (dia, { hoje = null, dataInicio = null, ultimoDia
 };
 
 /**
- * "Concluir <operação> · <área>". D-PROD-273: no Plantio de pastagem, com o capim ("… · PASTO DA AROEIRA · capim PANICUM
+ * "Concluir <operação> · <área>". D-PROD-274: no Plantio de pastagem, com o capim ("… · PASTO DA AROEIRA · capim PANICUM
  * CV. MOMBAÇA"): dois plantios na mesma área se distinguem.
  * @param {any} item
  */

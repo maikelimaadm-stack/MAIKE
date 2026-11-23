@@ -8,6 +8,7 @@ import { formatKg } from "./formatters";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO, MENSAGEM_ESTORNO_SUSPENSO } from "@/domain/estornos/politicaEstorno";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
+import { comSaldoSemExcluidos } from "@/lib/estoqueSaldoSemExcluidos";
 
 function formatObsKgPtBR(obs) {
   if (!obs) return "";
@@ -36,8 +37,14 @@ function getLabelTipoDetalhado(tipo) {
  * lançamento do cocho excluído) e os movimentos de estorno que o servidor gera
  * por baixo (`estorno_*`: `estorno_transferencia_enviada/recebida`,
  * `estorno_suplementacao`...) não aparecem. Cada par some inteiro (o original e
- * o seu estorno), e os outros cartões continuam com o saldo gravado pelo
- * servidor (nada é recalculado). O kardex da tela de Estoque não usa esta regra.
+ * o seu estorno). D-PROD-273 (fatia 2): o saldo antes/depois dos outros cartões
+ * é o gravado menos o efeito dos pares excluídos (original + estorno ligados por
+ * `movimento_pai_id`) do mesmo produto e depósito lançados antes dele
+ * (`comSaldoSemExcluidos`, a regra do kardex no servidor): o saldo não "pula"
+ * no cartão lançado entre o original e o estorno; um par inteiro antes soma
+ * zero e o cartão fica com o gravado. Nada é gravado. O kardex da tela de
+ * Estoque esconde só o par completo (com o filtro "Mostrar excluídos"); aqui,
+ * no mapa, só há exclusão e a regra continua a de sempre.
  * Cada lado de uma transferência (e a baixa da suplementação) só
  * aparece no depósito certo — a saída na origem, a entrada no destino —,
  * porque o par da transferência grava origem e destino nas DUAS linhas.
@@ -52,7 +59,8 @@ function getLabelTipoDetalhado(tipo) {
  * @returns {any[]}
  */
 export function movimentacoesDoHistoricoDeposito(movimentacoes, { empresaId, localEstoqueId }) {
-  return (Array.isArray(movimentacoes) ? movimentacoes : [])
+  const todas = Array.isArray(movimentacoes) ? movimentacoes : [];
+  const visiveis = todas
     .filter((item) => {
       if (item.empresa_id !== empresaId) return false;
       if (item.origem_sistema === "reversao") return false;
@@ -77,6 +85,7 @@ export function movimentacoesDoHistoricoDeposito(movimentacoes, { empresaId, loc
       if (createdDiff !== 0) return createdDiff;
       return new Date(b.data_movimentacao || 0).getTime() - new Date(a.data_movimentacao || 0).getTime();
     });
+  return comSaldoSemExcluidos(visiveis, todas);
 }
 
 /** @param {any} valor */

@@ -64,7 +64,7 @@ export const resumoDaArea = async (contexto, areaId, query = {}) => {
         select: {
           id: true, numero: true, nome: true, tipo_atividade_id: true, tipo_atividade_nome: true, status: true, data_inicio: true, data_prevista_fim: true,
           areas: { where: { area_id: areaId }, select: { id: true, status: true, area_planejada: true } },
-          // D-PROD-273: o capim do Plantio de pastagem (a prévia "Entra em…" usa a mesma regra do servidor).
+          // D-PROD-274: o capim do Plantio de pastagem (a prévia "Entra em…" usa a mesma regra do servidor).
           plantio: { select: { cultura_id: true } },
         },
       })
@@ -131,7 +131,7 @@ export const resumoDaArea = async (contexto, areaId, query = {}) => {
           ultimo_dia: aa ? ultimoDia.get(aa.id) ?? null : null,
           data_inicio: diaDe(a.data_inicio),
           data_prevista_fim: diaDe(a.data_prevista_fim),
-          // D-PROD-273: o capim plantado (só no Plantio de pastagem; capim diferente abre outra atividade).
+          // D-PROD-274: o capim plantado (só no Plantio de pastagem; capim diferente abre outra atividade).
           plantio_cultura_id: a.plantio?.cultura_id ?? null,
         };
       }),

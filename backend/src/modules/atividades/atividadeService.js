@@ -167,7 +167,7 @@ const andamentoDoItem = (item, linhas, categoria) => {
   /** Algum dos valores existe? (a soma de nada não é "0 ha"). @param {Array<string|null|undefined>} vs */
   const algum = (vs) => vs.some((v) => v !== null && v !== undefined);
   const lancamentos = linhas.reduce((t, l) => t + Number(l.lancamentos ?? 0), 0);
-  // D-PROD-273 (ajuste do teste de ponta a ponta): o serviço SEM área (Manutenção e Outros com o local) lança dias sem
+  // D-PROD-274 (ajuste do teste de ponta a ponta): o serviço SEM área (Manutenção e Outros com o local) lança dias sem
   // hectares (`area_executada_dia` nulo): os hectares feitos ficam nulos, nunca "0 ha".
   const feitos = lancamentos > 0 && algum(linhas.map((l) => l.hectares)) ? somar(linhas.map((l) => l.hectares)) : null;
   const areas = /** @type {any[]} */ (Array.isArray(item.areas) ? item.areas : []);
@@ -233,7 +233,7 @@ const nomeDoCorpo = (v) => {
 };
 
 /**
- * D-PROD-273 — o `local` do filtro da lista, normalizado como o registro de campo o grava (`localDoCorpo`: aparado,
+ * D-PROD-274 — o `local` do filtro da lista, normalizado como o registro de campo o grava (`localDoCorpo`: aparado,
  * espaços juntos, em MAIÚSCULAS; caractere de controle ou marcação → 400). Ausente ou vazio = sem filtro.
  * @param {unknown} v @returns {string|null}
  */
@@ -447,7 +447,7 @@ const paraAuditoria = (r) => ({
   tem_observacao: Boolean(r.observacao),
   tem_motivo_cancelamento: Boolean(r.motivo_cancelamento),
   tem_motivo_reabertura: Boolean(r.motivo_reabertura),
-  // MAIKE-ENTREGA2 (D-PROD-273): o local (texto livre) fica fora; só se há.
+  // MAIKE-ENTREGA2 (D-PROD-274): o local (texto livre) fica fora; só se há.
   tem_local: Boolean(r.local),
 });
 
@@ -543,7 +543,7 @@ export const listar = async (contexto, query = {}) => {
         ? { OR: [{ categoria: null }, { categoria: { notIn: CATEGORIAS_TIPO_FIXO.filter((c) => c !== 'OUTROS') } }] }
         : { categoria: query.tipo_fixo };
   }
-  // D-PROD-273 (ajuste do teste de ponta a ponta): `local` — o serviço SEM área no local (a mesma busca do registro de
+  // D-PROD-274 (ajuste do teste de ponta a ponta): `local` — o serviço SEM área no local (a mesma busca do registro de
   // campo, `buscarAtividadeAbertaNoLocal`: o local exato, como o servidor grava, e nenhuma área). É o que a prévia
   // "Entra em …" da Nova realização sem área consulta.
   const local = localDoFiltro(query.local);
@@ -683,7 +683,7 @@ export const obterTotais = async (contexto, id, query = {}) => {
  * @param {{ clienteId: string, empresaId: string, tempo: { agora: Date, hoje: string, fuso: string },
  *   tipoAtividadeId: string, estado: Record<string, any>, acao: string, auditoriaExtra?: Record<string, unknown>,
  *   dispensarArea?: boolean, unidadeSemCadastro?: string|null }} abertura
- *   MAIKE-ENTREGA2 (D-PROD-273): `dispensarArea` (o registro de campo sem área de Manutenção e Outros) ignora `exige_area`;
+ *   MAIKE-ENTREGA2 (D-PROD-274): `dispensarArea` (o registro de campo sem área de Manutenção e Outros) ignora `exige_area`;
  *   `unidadeSemCadastro` é a unidade da quantidade feita quando a operação não tem unidade de produção; `estado.local` é o
  *   local do serviço sem área.
  */
@@ -713,7 +713,7 @@ export const abrirNa = async (tx, contexto, { clienteId, empresaId, tempo, tipoA
   }
   if (estado.bem_id) await exigirBem(tx, clienteId, empresaId, estado.bem_id);
   if (estado.lancamento_tarefa_id) await exigirTarefa(tx, clienteId, empresaId, estado.lancamento_tarefa_id);
-  // MAIKE-ENTREGA2 (D-PROD-273): o registro de campo de Manutenção e Outros SEM área (com o local) dispensa a área, mesmo
+  // MAIKE-ENTREGA2 (D-PROD-274): o registro de campo de Manutenção e Outros SEM área (com o local) dispensa a área, mesmo
   // com `exige_area` (a chave saiu da tela na D-PROD-258 e nasce ligada em toda operação nova).
   exigirFlagsDoTipo(dispensarArea ? { ...regrasDoTipo(tipo), exige_area: false } : regrasDoTipo(tipo), estado);
   const snapshots = snapshotsDoTipo(tipo, empresaId);
@@ -733,7 +733,7 @@ export const abrirNa = async (tx, contexto, { clienteId, empresaId, tempo, tipoA
       }),
       ...setor,
       ...snapshots,
-      // MAIKE-ENTREGA2 (D-PROD-273): a unidade da quantidade feita quando a operação não tem unidade de produção (só o
+      // MAIKE-ENTREGA2 (D-PROD-274): a unidade da quantidade feita quando a operação não tem unidade de produção (só o
       // registro de campo a passa) e o local do serviço sem área.
       ...(unidadeSemCadastro && !snapshots.unidade_producao_sigla ? { unidade_producao_sigla: unidadeSemCadastro } : {}),
       ...(estado.local ? { local: estado.local } : {}),

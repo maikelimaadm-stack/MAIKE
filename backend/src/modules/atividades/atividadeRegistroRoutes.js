@@ -23,7 +23,7 @@
  * `concluir: true` ou `nova_atividade: true` o registro também CONCLUI (as áreas do registro, ou as da atividade parada):
  * a guarda pede, além de lançar, a permissão de editar a atividade (a mesma do "Concluir" — `GUARDAS.atividades.editar`).
  *
- * D-PROD-273 (MAIKE-ENTREGA2): os campos de cada tipo, todos opcionais no schema (a regra de cada um é do tipo, no serviço):
+ * D-PROD-274 (MAIKE-ENTREGA2): os campos de cada tipo, todos opcionais no schema (a regra de cada um é do tipo, no serviço):
  * `plantio` (objeto fechado: `cultura_id`, `forma_plantio`, `semente_incrustada`, `cobertura`, `consorcio_cultura_id`),
  * `numero_receituario`, `local` (Manutenção e Outros sem área) e `unidade_producao_sigla` (KM | M | UN). Os booleanos do
  * plantio chegam como booleano ou null, sem coerção. A linha de insumo aceita `vc_percentual` (texto).
@@ -54,7 +54,7 @@ const AREA_DO_REGISTRO = {
 
 const ID_NULO = { type: ['string', 'null'], minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 
-/** D-PROD-273 — os dados do Plantio de pastagem (fechado): o capim (obrigatório no objeto) e o que é opcional. */
+/** D-PROD-274 — os dados do Plantio de pastagem (fechado): o capim (obrigatório no objeto) e o que é opcional. */
 const PLANTIO_DO_REGISTRO = {
   type: 'object',
   required: ['cultura_id'],
@@ -86,7 +86,7 @@ const REGISTRAR = {
       // D-PROD-267: "Como fica depois de salvar?" (Concluída) e a resposta ao "serviço parado".
       concluir: { type: 'boolean' },
       nova_atividade: { type: 'boolean' },
-      // D-PROD-273: os campos de cada tipo (Plantio, Aplicação, Manutenção e Outros).
+      // D-PROD-274: os campos de cada tipo (Plantio, Aplicação, Manutenção e Outros).
       plantio: { ...PLANTIO_DO_REGISTRO, type: ['object', 'null'] },
       numero_receituario: { type: ['string', 'null'], maxLength: 80 },
       local: { type: ['string', 'null'], maxLength: 240 },
@@ -116,7 +116,7 @@ const REGISTROS = {
 /** D-PROD-267 — os booleanos do registro chegam como booleano, nunca "true"/1 (a coerção do AJV não decide por ninguém). */
 const BOOLEANOS_DO_REGISTRO = Object.freeze(['concluir', 'nova_atividade']);
 
-/** D-PROD-273 — os booleanos do plantio (true, false ou null; nunca "true"/1). */
+/** D-PROD-274 — os booleanos do plantio (true, false ou null; nunca "true"/1). */
 const BOOLEANOS_DO_PLANTIO = Object.freeze(['semente_incrustada', 'cobertura']);
 
 /** @param {unknown} corpo */

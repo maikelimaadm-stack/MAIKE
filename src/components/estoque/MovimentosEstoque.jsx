@@ -22,7 +22,7 @@ import TabelaMovimentosEstoque, {
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { hojeNoFuso } from "@/lib/diaCivil";
 import { listEmpresas } from "@/services/empresaService";
-import { OPCOES_ORIGEM, OPCOES_TIPO, ehDia, rotuloDoMovimento } from "@/lib/estoqueConsultaRegras";
+import { OPCOES_EXCLUIDOS, OPCOES_ORIGEM, OPCOES_TIPO, ehDia, rotuloDoMovimento } from "@/lib/estoqueConsultaRegras";
 import { listarDepositosDoFiltro, listarMovimentosEstoque, listarProdutosDoFiltro } from "@/services/estoqueConsultaService";
 
 const NO_OP = () => {};
@@ -46,6 +46,9 @@ export const opcoesDeProduto = (/** @type {Array<{ id: string, nome: string }>} 
  * D-PROD-271: o "Editar" do detalhe da entrada ou da saída (com a ação e o fuso da fazenda) fecha o detalhe e abre a
  * janela "Novo movimento" em modo edição; salvar (ou cancelar) volta ao detalhe, já com a versão nova. O ajuste não
  * tem edição (só o estorno integral, no detalhe dele).
+ * D-PROD-273 (fatia 2): o movimento excluído e o estorno dele somem da lista (o servidor tira o par, com a paginação
+ * certa); o filtro "Mostrar excluídos" (desligado por padrão) os traz de volta, com a etiqueta "Excluído" no original e
+ * "Estorno da exclusão" no estorno. O saldo de cada movimento ativo vem do servidor já sem os excluídos.
  * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos', onAba: (a: 'saldo'|'movimentos') => void, podeLancar?: boolean, podeSaida?: boolean, podeAjuste?: boolean,
  *   inicial?: { produto: { id: string, nome: string }|null, deposito: { id: string, nome: string }|null } | null }} props
  *   `podeLancar` é a ação `entrada`; `podeSaida`, a ação `saida`; `podeAjuste`, a ação `ajuste`.
@@ -72,6 +75,9 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
   const [tipo, setTipo] = useState("");
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
+  // D-PROD-273 (fatia 2): o par excluído some da lista (o servidor tira); "Mostrar excluídos" o traz, marcado.
+  const [excluidos, setExcluidos] = useState("");
+  const mostrarExcluidos = excluidos === "sim";
   const [aberto, setAberto] = useState(/** @type {any} */ (null));
   const periodoInvertido = Boolean(ehDia(de) && ehDia(ate) && de > ate);
 
@@ -98,15 +104,16 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
         tipo: tipo || null,
         dataDe: ehDia(de) ? de : null,
         dataAte: ehDia(ate) ? ate : null,
+        incluirExcluidos: mostrarExcluidos,
       }),
-    [empresaId, produto, depositoId, origem, tipo, de, ate],
+    [empresaId, produto, depositoId, origem, tipo, de, ate, mostrarExcluidos],
   );
 
   const controller = useCadastroBase1Controller({
     storageKey: MOVIMENTOS_ESTOQUE_STORAGE_KEY,
     columnIds: MOVIMENTOS_ESTOQUE_CAMPOS_CARD,
     listEnabled: Boolean(empresaId) && !periodoInvertido,
-    queryKey: ["estoque", "movimentos", empresaId, produto?.id ?? null, depositoId, origem, tipo, de, ate],
+    queryKey: ["estoque", "movimentos", empresaId, produto?.id ?? null, depositoId, origem, tipo, de, ate, mostrarExcluidos],
     fetchPage,
     duplicateLabelField: "numero",
     searchPlaceholder: "Buscar movimentos…",
@@ -164,8 +171,9 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
           setAte(p.ate);
         },
       },
+      { id: "excluidos", rotulo: "Mostrar excluídos", nome: "Mostrar excluídos", opcoes: OPCOES_EXCLUIDOS, valor: excluidos, padrao: "", onChange: setExcluidos, ocultarPadrao: true },
     ]),
-    [produtos, produto, depositosComAtual, depositoId, origem, tipo, de, ate],
+    [produtos, produto, depositosComAtual, depositoId, origem, tipo, de, ate, excluidos],
   );
 
   const listErrorMessage = useMemo(

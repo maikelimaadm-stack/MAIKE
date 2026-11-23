@@ -306,7 +306,7 @@ describe('D-PROD-255 — Movimentos (E2, P1-04)', () => {
     assert.equal((await get(`/estoque/movimentos${qs({ empresa_id: x.e.id, limit: 100000 })}`, x.token)).statusCode, 400);
   });
 
-  test('resumo: campos públicos, decimais como texto, sem tenant; par estorno aparece com pai e filho', async () => {
+  test('resumo: campos públicos, decimais como texto, sem tenant; par estorno aparece com pai e filho (com incluir_excluidos, D-PROD-273)', async () => {
     const x = await cenario();
     const original = await movimento(x.c, x.e.id, x.diesel, { quantidade: '20', unidade_medida: 'L', valor_unitario: '5', valor_total: '100', saldo_antes: '130', saldo_depois: '150', status: 'Estornada', local_estoque_destino: x.tanque.id, local_destino: x.tanque.nome, tipo_detalhado: 'compra_financeiro' });
     const estorno = await movimento(x.c, x.e.id, x.diesel, {
@@ -314,9 +314,13 @@ describe('D-PROD-255 — Movimentos (E2, P1-04)', () => {
       movimento_pai_id: original.id, data_movimentacao: new Date('2026-11-11T12:00:00Z'), local_estoque_origem: x.tanque.id, local_origem: x.tanque.nome,
     });
     await prisma().movimentacaoEstoque.update({ where: { cliente_id_id: { cliente_id: x.c, id: original.id } }, data: { movimento_filho_id: estorno.id } });
-    const lista = (await get(`/estoque/movimentos${qs({ empresa_id: x.e.id })}`, x.token)).json().items;
+    // D-PROD-273 (fatia 2): o par excluído some por padrão e volta, marcado, com incluir_excluidos=true.
+    assert.deepEqual((await get(`/estoque/movimentos${qs({ empresa_id: x.e.id })}`, x.token)).json().items, []);
+    const lista = (await get(`/estoque/movimentos${qs({ empresa_id: x.e.id, incluir_excluidos: true })}`, x.token)).json().items;
     const e = lista.find((i) => i.id === estorno.id);
     const o = lista.find((i) => i.id === original.id);
+    assert.equal(e.excluido, true);
+    assert.equal(o.excluido, true);
     assert.equal(e.estorno, true);
     assert.equal(e.movimento_pai_id, original.id);
     assert.equal(o.estorno, false);

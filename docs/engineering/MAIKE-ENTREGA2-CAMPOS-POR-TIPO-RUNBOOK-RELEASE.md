@@ -1,4 +1,4 @@
-# MAIKE — Campos por tipo (Entrega 2): runbook de release expand-only (D-PROD-273)
+# MAIKE — Campos por tipo (Entrega 2): runbook de release expand-only (D-PROD-274)
 
 > **Estado: PLANO. `SCHEMA_APPLIED_PROD: NÃO`.** A migration foi testada só no PostgreSQL local. Nada foi aplicado
 > em produção.
@@ -6,7 +6,7 @@
 > Cada passo exige o GO do proprietário ("aplica") e para no primeiro desvio com **`RELEASE_BLOCKED`**. Valores
 > entre `<…>` são preenchidos na hora, a partir de leituras reais, nunca copiados deste texto.
 
-Decisão: [D-PROD-273](./DECISIONS.md) · Relatório: [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md).
+Decisão: [D-PROD-274](./DECISIONS.md) · Relatório: [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md).
 Molde e precedente executado de EXPAND: [`MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-SAIDA-MANUAL-RUNBOOK-RELEASE.md)
 (D-PROD-264, caminho B). A anterior em produção: [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md)
 (D-PROD-272, EXPAND, caminho B, aplicada em 2026-11-23; PR #350 mergeada na `main` em `c1cd2be9`). Antes dela, a
@@ -245,5 +245,5 @@ do §3.
 
 | Data | Quem | O quê |
 |---|---|---|
-| 2026-11-21 | Claude (sessão D-PROD-273) | plano preparado; migration aplicada e testada só no PostgreSQL local (banco de teste e banco do ensaio do §3); **nada aplicado em produção** |
+| 2026-11-21 | Claude (sessão D-PROD-274) | plano preparado; migration aplicada e testada só no PostgreSQL local (banco de teste e banco do ensaio do §3); **nada aplicado em produção** |
 | 2026-11-23 | Claude (merge da `main` `c1cd2be9`, PR #350 / D-PROD-272) | recontado: antes 73 concluídas (a anterior por nome passa a `20261120300000_estoque_ajustes`, checksum `ac836ddf…6ccc9`) e 108 tabelas; depois 74 e 109; guarda e preflight do §2/§3 ajustados; ensaio do caminho B refeito no PostgreSQL local; **nada aplicado em produção** |

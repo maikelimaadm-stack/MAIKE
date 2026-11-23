@@ -1,5 +1,5 @@
 /**
- * D-PROD-273 (MAIKE-ENTREGA2) — os CAMPOS DE CADA TIPO da "Nova realização de <Tipo>" no `POST /atividades/registrar`,
+ * D-PROD-274 (MAIKE-ENTREGA2) — os CAMPOS DE CADA TIPO da "Nova realização de <Tipo>" no `POST /atividades/registrar`,
  * contra PostgreSQL real e HTTP autenticado.
  *
  * Cobre: Plantio de pastagem com o capim OBRIGATÓRIO (do Cadastro de Culturas da fazenda, ativo; outra fazenda ou outro
@@ -237,7 +237,7 @@ describe('safra automática (1º de julho a 30 de junho)', () => {
 });
 
 describe('idempotência: o fingerprint de antes, byte a byte', () => {
-  test('sem os campos novos (plantio, receituário, local, unidade, VC), o recibo guarda a fórmula de ANTES da D-PROD-273 — inclusive com a safra calculada no servidor; com eles, eles entram', async () => {
+  test('sem os campos novos (plantio, receituário, local, unidade, VC), o recibo guarda a fórmula de ANTES da D-PROD-274 — inclusive com a safra calculada no servidor; com eles, eles entram', async () => {
     const s = await montar();
     // A Fertilização ganha a safra no servidor: o fingerprint continua com `safra_ciclo: null` (o do corpo).
     const operation_id = opId('fp');
@@ -486,7 +486,7 @@ describe('lista de referência de capins (Doc 397)', () => {
   });
 });
 
-describe('ajustes do teste de ponta a ponta (D-PROD-273)', () => {
+describe('ajustes do teste de ponta a ponta (D-PROD-274)', () => {
   const semArea = (s, corpo = {}) => {
     const c = s.corpoBase({ tipo_atividade_id: s.manutencao.id, ...corpo });
     delete c.area_id;

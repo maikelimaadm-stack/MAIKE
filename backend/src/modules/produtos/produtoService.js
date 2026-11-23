@@ -101,7 +101,7 @@ export const comoProdutoPublico = (registro) => ({
   consumo_maximo_pv: comoNumero(registro.consumo_maximo_pv),
   unidade_principal_estoque: registro.unidade_principal_estoque ?? 'KG',
   peso_por_saco_kg: comoNumero(registro.peso_por_saco_kg),
-  // MAIKE-ENTREGA2 (D-PROD-273): a carência da bula, em dias (nulo = sem carência cadastrada).
+  // MAIKE-ENTREGA2 (D-PROD-274): a carência da bula, em dias (nulo = sem carência cadastrada).
   carencia_dias: registro.carencia_dias ?? null,
   observacoes: registro.observacoes ?? null,
   ativo: registro.ativo,
@@ -111,7 +111,7 @@ export const comoProdutoPublico = (registro) => ({
     registro.updatedAt instanceof Date ? registro.updatedAt.toISOString() : registro.updatedAt,
 });
 
-/** MAIKE-ENTREGA2 (D-PROD-273): carência máxima aceita, em dias (a coluna não tem CHECK: a allowlist EXPAND o recusa). */
+/** MAIKE-ENTREGA2 (D-PROD-274): carência máxima aceita, em dias (a coluna não tem CHECK: a allowlist EXPAND o recusa). */
 export const CARENCIA_MAXIMA_DIAS = 365;
 
 /**

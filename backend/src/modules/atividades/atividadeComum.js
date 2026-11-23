@@ -442,10 +442,10 @@ export const comoAreaDaAtividadePublica = (r) => ({
   updatedAt: iso(r.updatedAt),
 });
 
-/** MAIKE-ENTREGA2 (D-PROD-273) — resumo da cultura (capim plantado e consórcio) do plantio. */
+/** MAIKE-ENTREGA2 (D-PROD-274) — resumo da cultura (capim plantado e consórcio) do plantio. */
 export const CULTURA_RESUMO = Object.freeze({ select: { id: true, codigo: true, nome: true, especie: true, cultivar: true, tipo: true } });
 
-/** MAIKE-ENTREGA2 (D-PROD-273) — os dados do plantio de pastagem, com o resumo das culturas. */
+/** MAIKE-ENTREGA2 (D-PROD-274) — os dados do plantio de pastagem, com o resumo das culturas. */
 export const PLANTIO_RESUMO = Object.freeze({
   select: {
     cultura_id: true, forma_plantio: true, semente_incrustada: true, cobertura: true, consorcio_cultura_id: true,
@@ -457,7 +457,7 @@ export const PLANTIO_RESUMO = Object.freeze({
 const culturaPublica = (c) => (c ? { id: c.id, codigo: c.codigo, nome: c.nome, especie: c.especie ?? null, cultivar: c.cultivar ?? null, tipo: c.tipo } : null);
 
 /**
- * MAIKE-ENTREGA2 (D-PROD-273) — forma pública dos dados do plantio (nulo fora do Plantio de pastagem).
+ * MAIKE-ENTREGA2 (D-PROD-274) — forma pública dos dados do plantio (nulo fora do Plantio de pastagem).
  * @param {any} p  registro de `AtividadePlantio` com `cultura` e `consorcio`
  */
 export const plantioPublico = (p) =>
@@ -487,7 +487,7 @@ export const INCLUIR_ATIVIDADE = Object.freeze({
   concluidaPor: USUARIO_RESUMO,
   canceladoPor: USUARIO_RESUMO,
   reabertaPor: USUARIO_RESUMO,
-  // MAIKE-ENTREGA2 (D-PROD-273): o capim plantado e os dados do plantio.
+  // MAIKE-ENTREGA2 (D-PROD-274): o capim plantado e os dados do plantio.
   plantio: PLANTIO_RESUMO,
 });
 
@@ -544,7 +544,7 @@ export const comoAtividadePublica = (r) => ({
   // D-PROD-249: as áreas da atividade (a 1ª é a `area_id` acima) e quantas são.
   areas: (r.areas ?? []).map(comoAreaDaAtividadePublica),
   areas_count: (r.areas ?? []).length,
-  // MAIKE-ENTREGA2 (D-PROD-273): onde foi o serviço sem área (Manutenção e Outros) e o plantio (capim e dados).
+  // MAIKE-ENTREGA2 (D-PROD-274): onde foi o serviço sem área (Manutenção e Outros) e o plantio (capim e dados).
   local: r.local ?? null,
   plantio: plantioPublico(r.plantio),
 });
@@ -558,7 +558,7 @@ export const comoAtividadePublica = (r) => ({
  */
 
 /**
- * D-PROD-273 — "Pasto liberado em": o fim do serviço (`AAAA-MM-DD`) mais a MAIOR carência (dias) entre os produtos. Sem
+ * D-PROD-274 — "Pasto liberado em": o fim do serviço (`AAAA-MM-DD`) mais a MAIOR carência (dias) entre os produtos. Sem
  * nenhuma carência cadastrada (ou sem fim), nulo: o sistema não inventa prazo.
  * @param {string|null|undefined} fim @param {Array<number|null|undefined>} carencias
  * @returns {PastoLiberado}
@@ -573,7 +573,7 @@ export const pastoLiberadoEm = (fim, carencias) => {
 };
 
 /**
- * D-PROD-273 (ajuste do teste de ponta a ponta) — o "Pasto liberado em" da ATIVIDADE, calculado na LEITURA (nunca
+ * D-PROD-274 (ajuste do teste de ponta a ponta) — o "Pasto liberado em" da ATIVIDADE, calculado na LEITURA (nunca
  * gravado): o último fim lançado (o maior `data_termino ?? data_operacional` dos apontamentos CONFIRMADO) mais a MAIOR
  * carência atual (cadastro do produto) dos produtos das linhas CONFIRMADO desses apontamentos. Uma instrução.
  * @param {any} db @param {string} clienteId @param {string} empresaId @param {string} atividadeId
@@ -597,7 +597,7 @@ export const lerPastoLiberadoDaAtividade = async (db, clienteId, empresaId, ativ
  * DETALHE da atividade: a forma pública + `totais`. É o corpo do
  * `GET /atividades/:id`, de toda escrita do cabeçalho e o `atividade` das
  * escritas do apontamento.
- * D-PROD-273 (ajuste do teste de ponta a ponta): e o "pasto liberado em" (`pasto_liberado_em`, `carencia_dias`),
+ * D-PROD-274 (ajuste do teste de ponta a ponta): e o "pasto liberado em" (`pasto_liberado_em`, `carencia_dias`),
  * calculado na leitura (`lerPastoLiberadoDaAtividade`); sem ele (quem não leu), nulos.
  * @param {any} r  registro lido com `INCLUIR_ATIVIDADE` @param {TotaisDaAtividade} totais @param {PastoLiberado} [liberado]
  */
@@ -862,7 +862,7 @@ export const comoLinhaProdutoPublica = (r) => ({
   quantidade: t4(r.quantidade),
   unidade: r.unidade,
   dose_ha: t4(r.dose_ha),
-  // MAIKE-ENTREGA2 (D-PROD-273): o VC (%) do saco de semente, 2 casas (nulo sem VC).
+  // MAIKE-ENTREGA2 (D-PROD-274): o VC (%) do saco de semente, 2 casas (nulo sem VC).
   vc_percentual: r.vc_percentual === null || r.vc_percentual === undefined ? null : dec(r.vc_percentual).toFixed(2),
   custo_unitario: t4(r.custo_unitario),
   custo_total: t4(r.custo_total),
