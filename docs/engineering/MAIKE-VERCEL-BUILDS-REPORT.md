@@ -28,3 +28,36 @@ comando conferido localmente (`main` → builda; `claude/*` → pula).
 
 ## Reversão
 Remover a chave `ignoreCommand` dos dois arquivos.
+
+---
+
+# Custo mínimo na Vercel (2026-11-23, D-PROD-274)
+
+FATIA: MAIKE-VERCEL-CUSTO-MINIMO · BRANCH: `chore/vercel-custo-minimo` · PR: a PR aberta desta branch
+
+## Diagnóstico (cobrança diária da Vercel, 31/10 a 22/11)
+
+| Serviço | US$ | % |
+|---|---|---|
+| Build CPU Minutes | 52,68 | 77% |
+| Assinatura Pro | 12,94 | 19% |
+| Function Storage + Deployment Storage | 1,68 | 2% |
+| Funções, tráfego e observabilidade | ≈1,4 | 2% |
+| **Total** | **68,73** | |
+
+- Dias de pico: 14/11 (US$ 7,02), 13/11 (6,65), 06/11 (6,09), 10/11 (6,06). Em 14/11 foram mais de 100 builds; só 12 da `main`, o resto prévias de branches `claude/*`, `feat/*`, `codex/*`.
+- Depois da mudança de 17/11 (#314): 20/11 US$ 0,95, 21/11 US$ 0,96, 22/11 US$ 0,81 — quase só a assinatura Pro (≈ US$ 0,67/dia).
+- Um build da `main` (`58c0697b`): ≈ 70 s em máquina padrão (4 núcleos, 8 GB), `npm ci` 18 s, Vite 16 s; ≈ US$ 0,02.
+- Projetos `projetomg` e `controle-de-estoque`: nenhum deploy desde 01/11.
+
+## Mudança
+
+- `vercel.json`: `ignoreCommand` só libera a `main`; as cinco exceções antigas saem (todas mergeadas). Na `main`, pula o build quando o diff desde o último deploy bem-sucedido só toca `docs/`, `tests/`, `backend/tests/`, `.github/` ou `*.md`. Sem SHA anterior no clone, builda.
+- Conferido localmente: branch fora da `main` → pula; `main` sem SHA ou com SHA ausente → builda; commit só de docs (`a01c1f35`, `790857ea`) → pula; commit de código (`11c6bbb5`) → builda.
+- Testes `adminVercelConfig`, `vercelSpaRoutes`, `vercelFunctionDuration` e `admin-isolation` verdes; gates estáticos verdes.
+
+## O que ainda pode ser feito no painel da Vercel (pelo proprietário)
+
+- **Spend Management** (Settings → Billing): definir um teto/alerta mensal, para um pico não passar despercebido.
+- **Deployment Retention** (Project Settings → Security/Deployment Retention): guardar prévias e deploys antigos por menos tempo reduz `Deployment Storage` (centavos por mês).
+- O custo fixo que sobra é a assinatura Pro (US$ 20/mês).

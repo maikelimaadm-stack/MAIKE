@@ -9044,4 +9044,19 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Fora de escopo.** Recalcular pela ordem das datas; corrigir datas retroativas; mudar preço de venda ou valor de compra.
 
-<!-- Próxima decisão: D-PROD-274 -->
+## D-PROD-274 — Vercel no custo mínimo: só a `main` faz build, e merge só de documentação ou testes não faz build
+
+**Data:** 2026-11-23 · **Origem:** proprietário: "meus custos da vercel está ficando muito alto" e "vamos reduzir o máximo de custos" · **Branch:** `chore/vercel-custo-minimo`.
+
+> **Numeração:** a `main` (`58c0697b`) indica `Próxima decisão: D-PROD-274`, que é esta; o marcador passa a D-PROD-275.
+
+**Diagnóstico (cobrança da Vercel, 31/10 a 22/11):** US$ 68,73 no total; **US$ 52,68 (77%) em minutos de build**, US$ 12,94 da assinatura Pro, o resto abaixo de US$ 2. Até 17/11, cada push de branch gerava prévia (no dia 14/11, mais de 100 builds, só 12 da `main`). Depois da #314 (17/11) o build caiu para US$ 0,04–0,17 por dia. Um build da `main` dura cerca de 70 s (máquina padrão, 4 núcleos), uns US$ 0,02.
+
+**Decisão.**
+1. `vercel.json` (projeto `maike`): `ignoreCommand` passa a liberar **só a `main`**. Saem as cinco exceções de branch das D-PROD-24x/25x (`codex/previa-detalhes-mapa`, `cursor/atividades-por-area-0b6c`, `cursor/estoque-saldo-movimentos`, `cursor/estoque-custo-medio`, `cursor/estoque-entradas`), todas já mergeadas. Prévia de branch fica desligada para qualquer sessão; as PRs continuam validadas pelo GitHub Actions.
+2. Na `main`, o build é pulado quando nada mudou desde o último deploy bem-sucedido (`VERCEL_GIT_PREVIOUS_SHA`) fora de `docs/`, `tests/`, `backend/tests/`, `.github/` e arquivos `.md`. Sem o SHA, ou se ele não estiver no clone, o build roda (falha aberta para publicar, nunca para pular). O `apps/admin/vercel.json` já seguia essa regra e não muda.
+3. Sem efeito em código, banco, rotas, rewrites ou funções.
+
+**Relatório:** [`MAIKE-VERCEL-BUILDS-REPORT.md`](./MAIKE-VERCEL-BUILDS-REPORT.md) (seção de 2026-11-23).
+
+<!-- Próxima decisão: D-PROD-275 -->
