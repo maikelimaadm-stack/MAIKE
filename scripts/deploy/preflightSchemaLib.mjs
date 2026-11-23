@@ -130,6 +130,12 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['Planejamento', 'status'],
   ['PlanejamentoArea', 'hectares'],
   ['Atividade', 'planejamento_id'],
+  // D-PROD-279: o motor de estoque lê o controle de lote do produto e o lote/validade da camada; sem a migration
+  // `20261123100000_estoque_controle_lote`, toda entrada e saída de estoque responde 500.
+  ['Produto', 'controla_lote'],
+  ['Produto', 'controla_validade'],
+  ['EstoqueLoteNota', 'lote_fabricante'],
+  ['EstoqueLoteNota', 'data_validade'],
 ]);
 
 /**

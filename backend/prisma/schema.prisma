@@ -1247,6 +1247,9 @@ model Produto {
   /// MAIKE-ENTREGA2 — carência do produto (dias): quanto o pasto fica sem gado depois da aplicação (da bula). Nulo =
   /// sem carência cadastrada. A API confere 0..365 (a allowlist EXPAND recusa CHECK em tabela antiga).
   carencia_dias             Int?
+  // D-PROD-279 — controle de lote e de validade (padrão Não). CHECK no banco: validade só com lote.
+  controla_lote             Boolean  @default(false)
+  controla_validade         Boolean  @default(false)
   observacoes               String?  @db.VarChar(2000)
   ativo                     Boolean  @default(true)
   createdAt                 DateTime @default(now())
@@ -1733,6 +1736,9 @@ model EstoqueLoteNota {
   quantidade_disponivel   Decimal   @db.Decimal(14, 4)
   movimentacao_entrada_id String?   @db.VarChar(64)
   status                  String    @default("Disponivel") @db.VarChar(32)
+  // D-PROD-279 — lote do fabricante e validade da camada (produto com controle de lote).
+  lote_fabricante         String?   @db.VarChar(64)
+  data_validade           DateTime? @db.Date
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
@@ -1750,6 +1756,7 @@ model EstoqueLoteNota {
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
   @@index([cliente_id, produto_id])
+  @@index([cliente_id, empresa_id, produto_id, local_estoque_id, data_validade], map: "EstoqueLoteNota_fefo_idx")
 }
 
 model MovimentacaoEstoque {
