@@ -9,6 +9,14 @@ import { IconeEditarInformacao, IconeHistoricoMovimentacao, IconeHistoricoSuplem
 
 afterEach(cleanup);
 
+describe("Ícone do Mover visível no quadro branco (v13)", () => {
+  it("o desenho usa o azul dos ícones, não traço branco", () => {
+    const svg = readFileSync("src/assets/icones/manejos/mover-lotes-enviado.svg", "utf8");
+    expect(svg).not.toMatch(/rgb\(255, 255, 255\)|#ffffff/i);
+    expect(svg).toContain("#3db5c9");
+  });
+});
+
 describe("Ícones em imagem dos manejos (D-PROD-131)", () => {
   it("imagens existem e o Detalhes do Lote usa nos quadros Saída, Mover, Pesar, Nascimento, Morte, Juntar Lotes, Mudar Categoria e Editar Informação", () => {
     expect(existsSync("public/icons/mover-animais.png")).toBe(true);
@@ -79,7 +87,7 @@ describe("Ícones em imagem dos manejos (D-PROD-131)", () => {
       { nome: "Juntar Lotes", Icone: IconeJuntarLotes, onClick: juntar, disabled: true, motivoBloqueio: "Dois lotes da mesma categoria são necessários." },
       { nome: "Editar Informação", Icone: IconeEditarInformacao, onClick: () => {} },
     ] }]} />);
-    expect([...document.querySelectorAll(".mk-al__quadro")].map(b => b.textContent)).toEqual(["Editar Informação", "Juntar Lotes", "Pesar"]);
+    expect([...document.querySelectorAll(".mk-al__quadro .mk-al__nome")].map(b => b.textContent)).toEqual(["Editar Informação", "Juntar Lotes", "Pesar"]);
     const button = screen.getByRole("button", { name: "Juntar Lotes" });
     expect(button.disabled).toBe(true);
     fireEvent.click(button);
