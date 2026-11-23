@@ -356,8 +356,9 @@ export const aplicarExclusaoComRecalculo = async (tx, contexto, planos, a) => {
     /** @type {Map<string, { r: any, k: number }>} */
     const novas = new Map();
     const sim = reproduzir(historico, {
+      // Como o cuid do Prisma: o instante na frente, para a camada nova ordenar depois das antigas no desempate FIFO por id.
       novoIdCamada: (r, k) => {
-        const id = `c${randomUUID().replace(/-/g, '')}`;
+        const id = `c${Date.now().toString(36)}${String(novas.size).padStart(4, '0')}${randomUUID().replace(/-/g, '').slice(0, 12)}`;
         novas.set(id, { r, k });
         return id;
       },

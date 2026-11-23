@@ -255,3 +255,194 @@ describe('D-PROD-273 fatia 4 — cocho (o caso do dono)', () => {
     await provarReplay(x, x.sal);
   });
 });
+
+// ─── atividade, abastecimento, venda ────────────────────────────────────────
+/** Atividade aberta + apontamento do dia; devolve as ações da linha de produto. */
+const atividade = async (x) => {
+  const a = ok(await H.req('POST', '/atividades', x.token, {
+    empresa_id: x.e1.id, nome: `Adubação ${++seq}`, tipo_atividade_id: x.tipo.id, data_inicio: '2027-06-01', data_prevista_fim: '2027-06-30',
+  }), 201);
+  const base = `/atividades/${a.id}/apontamentos`;
+  let ap = ok(await H.req('POST', base, x.token, { empresa_id: a.empresa_id, data_operacional: '2027-06-10', area_executada_dia: '10' }), 201).apontamento;
+  return {
+    lancar: async (produto, local, kg) => {
+      const r = ok(await H.req('POST', `${base}/${ap.id}/produtos`, x.token, { empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), produto_id: produto.id, local_estoque_id: local.id, quantidade: kg }), 201);
+      ap = r.apontamento;
+      return r.linha;
+    },
+    cancelar: async (linha) => {
+      const r = ok(await H.req('POST', `${base}/${ap.id}/produtos/${linha.id}/cancelar`, x.token, { empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), motivo: 'lançado errado' }));
+      ap = r.apontamento;
+      return r.linha;
+    },
+  };
+};
+/** Venda (RECEBER) confirmada pelo financeiro, com as linhas dadas (`[produto, local, kg, preço]`). */
+const vender = async (x, linhas) => {
+  const p = prisma();
+  const base = { cliente_id: x.c, empresa_id: x.e1.id };
+  const marca = randomUUID().slice(0, 6);
+  const cli = await p.fornecedor.create({ data: { ...base, numero_cadastro: `CL-${marca}`, tipo_pessoa: 'Jurídica', nome: `Cliente ${marca}`, tipos: ['cliente'] } });
+  const rec = await p.naturezaFinanceira.create({ data: { ...base, numero: `RC-${marca}`, tipo: 'RECEITA', nome: `VENDAS ${marca}` } });
+  const centavos = linhas.reduce((t, [, , kg, preco]) => t + Math.round(Number(kg) * Number(preco) * 100), 0);
+  const total = `${Math.trunc(centavos / 100)}.${String(centavos % 100).padStart(2, '0')}`;
+  const doc = {
+    empresa_id: x.e1.id, direcao: 'RECEBER', conteudo: 'COM_PRODUTOS', condicao: 'PRAZO', parceiro_id: cli.id, data_emissao: '2027-06-10', data_operacional: '2027-06-10',
+    efeito_fisico_confirmado: true,
+    itens: linhas.map(([produto, local, kg, preco]) => ({ tipo_item: 'MERCADORIA', produto_id: produto.id, local_estoque_id: local.id, unidade: 'KG', quantidade: kg, valor_unitario: preco })),
+    rateio_modo: 'PERCENTUAL', rateios: [{ natureza_id: rec.id, percentual: '100' }], parcelas: [{ vencimento: '2027-07-10', valor: total }],
+  };
+  const criada = ok(await H.req('POST', '/operacoes-financeiras', x.token, { ...doc, operation_id: opId() }), 201);
+  return ok(await H.req('POST', `/operacoes-financeiras/${criada.id}/confirmar`, x.token, { empresa_id: x.e1.id, operation_id: opId(), versao: criada.versao }));
+};
+const cancelarVenda = (x, id) => H.req('POST', `/operacoes-financeiras/${id}/cancelar`, x.token, { empresa_id: x.e1.id, operation_id: opId(), motivo: 'venda lançada errada' });
+const consumosDoItem = async (itemId) =>
+  (await prisma().operacaoFinanceiraConsumoLote.findMany({ where: { item_id: itemId }, orderBy: { estoque_lote_nota_id: 'asc' } })).map((c) => [c.estoque_lote_nota_id, v4(c.quantidade), v4(c.custo_unitario)]);
+
+describe('D-PROD-273 fatia 4 — atividade, abastecimento e venda', () => {
+  test('linha de produto da atividade: cancelar a antiga recalcula a linha posterior (480 → 464) e as fatias dela (L1 50 + L2 30 → L1 80: a fatia da L2 sai, a camada fica)', async () => {
+    const x = await montar();
+    const at = await atividade(x);
+    let l1;
+    let l2;
+    const c = await cenarioBase(x, async (A, kg) => { l1 = await at.lancar(x.sal, A, kg); return l1; }, async (A, kg) => { l2 = await at.lancar(x.sal, A, kg); return l2; });
+    const antes = await prisma().atividadeApontamentoProduto.findUnique({ where: { id: l2.id }, include: { consumos: { orderBy: { ordem: 'asc' } } } });
+    assert.deepEqual([v4(antes.custo_unitario), v4(antes.custo_total), antes.consumos.map((f) => [f.estoque_lote_nota_id, f.ordem, v4(f.quantidade)])], ['6.0000', '480.0000', [[c.L1, 1, '50.0000'], [c.L2, 2, '30.0000']]]);
+    await provarReplay(x, x.sal);
+    const cancelada = await at.cancelar(l1);
+    assert.equal(cancelada.status, 'CANCELADO');
+    const depois = await prisma().atividadeApontamentoProduto.findUnique({ where: { id: l2.id }, include: { consumos: { orderBy: { ordem: 'asc' } } } });
+    assert.deepEqual([v4(depois.custo_unitario), v4(depois.custo_total)], ['5.8000', '464.0000']);
+    assert.deepEqual(depois.consumos.map((f) => [f.estoque_lote_nota_id, f.ordem, v4(f.quantidade), v4(f.custo_unitario)]), [[c.L1, 1, '80.0000', '5.8000']]);
+    assert.equal(depois.consumos[0].id, antes.consumos[0].id, 'a fatia da mesma camada é atualizada, não recriada');
+    assert.deepEqual(valores(await mov(l2.movimentacao_estoque_id)), ['5.8000', '464.0000', '250.0000', '170.0000']);
+    const [t] = await trilha(x, 'AtividadeApontamentoProduto', l2.id);
+    assert.deepEqual([t.dados_anteriores.custo_total, t.dados_novos.custo_total, t.dados_anteriores.fatias.length, t.dados_novos.fatias.length], ['480.0000', '464.0000', 2, 1]);
+    await provarReplay(x, x.sal);
+  });
+
+  test('abastecimento: cancelar o antigo recalcula o posterior (custo do abastecimento 480 → 464 e as fatias); diesel em L', async () => {
+    const x = await montar();
+    const d = x.diesel;
+    const A = x.local;
+    const e1 = await entrar(x, d, A, '100', '4', 'L');
+    const e2 = await entrar(x, d, A, '100', '6', 'L');
+    const ab1 = await AB.confirmarOk(x.token, corpoAbastecimento(x, { quantidade: '50', medidor_leitura: '1550.5' }));
+    await entrar(x, d, A, '50', '9', 'L');
+    const ab2 = await AB.confirmarOk(x.token, corpoAbastecimento(x, { quantidade: '80', medidor_leitura: '1551' }));
+    const L1 = await camadaDaEntrada(e1);
+    const L2 = await camadaDaEntrada(e2);
+    assert.deepEqual([v4(ab2.custo_unitario), v4(ab2.custo_total)], ['6.0000', '480.0000']);
+    await provarReplay(x, d);
+    ok(await AB.cancelar(x.token, ab1.id, { empresa_id: x.e1.id, versao: ab1.versao, motivo: 'lançado em dobro', operation_id: opId() }));
+    const b2 = await prisma().abastecimentoBem.findUnique({ where: { id: ab2.id } });
+    assert.deepEqual([v4(b2.custo_unitario), v4(b2.custo_total)], ['5.8000', '464.0000']);
+    const f2 = await prisma().abastecimentoBemConsumoLote.findMany({ where: { abastecimento_id: ab2.id }, orderBy: { ordem: 'asc' } });
+    assert.deepEqual(f2.map((f) => [f.estoque_lote_nota_id, f.ordem, v4(f.quantidade), v4(f.custo_unitario)]), [[L1, 1, '80.0000', '5.8000']]);
+    assert.ok(await prisma().estoqueLoteNota.findUnique({ where: { id: L2 } }), 'a camada que deixou de ser consumida continua');
+    assert.deepEqual(valores(await mov(b2.movimentacao_estoque_id)), ['5.8000', '464.0000', '250.0000', '170.0000']);
+    await provarReplay(x, d);
+  });
+
+  test('venda do financeiro: cancelar a antiga recalcula a posterior (custo das fatias 6 → 5,8; preço de venda não muda)', async () => {
+    const x = await montar();
+    let v1;
+    let v2;
+    const c = await cenarioBase(x, async (A, kg) => { v1 = await vender(x, [[x.sal, A, kg, '12']]); return v1; }, async (A, kg) => { v2 = await vender(x, [[x.sal, A, kg, '12']]); return v2; });
+    const item2 = v2.itens[0];
+    assert.deepEqual(await consumosDoItem(item2.id), [[c.L1, '50.0000', '6.0000'], [c.L2, '30.0000', '6.0000']].sort());
+    await provarReplay(x, x.sal);
+    const r = ok(await cancelarVenda(x, v1.id));
+    assert.equal(r.status, 'CANCELADO');
+    assert.deepEqual(await consumosDoItem(item2.id), [[c.L1, '80.0000', '5.8000']]);
+    assert.deepEqual(valores(await mov(item2.movimentacao_estoque_id)), ['5.8000', '464.0000', '250.0000', '170.0000']);
+    const it = await prisma().operacaoFinanceiraItem.findUnique({ where: { id: item2.id } });
+    assert.deepEqual([Number(it.valor_unitario), v4(it.valor_total)], [12, '960.0000'], 'o preço de venda é o mesmo');
+    await provarReplay(x, x.sal);
+  });
+});
+
+// ─── cascata e concorrência ─────────────────────────────────────────────────
+describe('D-PROD-273 fatia 4 — cascata pela transferência e concorrência', () => {
+  test('excluir a saída antiga na origem: a transferência posterior muda de fatias e de custo, as camadas do destino são recriadas (a antiga fica Estornado) e a venda no destino é recalculada', async () => {
+    const x = await montar();
+    const A = x.local;
+    const B = x.local2;
+    const e1 = await entrar(x, x.sal, A, '50', '2');
+    const e2 = await entrar(x, x.sal, A, '100', '5');
+    const L1 = await camadaDaEntrada(e1);
+    const L2 = await camadaDaEntrada(e2);
+    // S1 tira os 50 da L1 a R$ 4 (150 kg, R$ 600); entra 50 a R$ 10: 150 kg, R$ 900, médio R$ 6
+    const s1 = await sair(x, x.sal, A, '50');
+    await entrar(x, x.sal, A, '50', '10');
+    // T: 80 kg A→B a R$ 6 = R$ 480 (só L2); venda de 30 no B a R$ 6 = R$ 180
+    const t = await transferir(x, x.sal, A, B, '80');
+    const venda = await vender(x, [[x.sal, B, '30', '20']]);
+    const [D1] = (await camadasDe(x, x.sal, B)).map((l) => l.id);
+    assert.deepEqual(fatias(await mov(t.s.id)).map((f) => f.slice(0, 2)), [[L2, '80.0000']]);
+    assert.deepEqual(await consumosDoItem(venda.itens[0].id), [[D1, '30.0000', '6.0000']]);
+    await provarReplay(x, x.sal);
+
+    const r = ok(await excluirSaida(x, s1));
+    assert.equal(r.recalculo.produtos, 1);
+    // sem S1: 200 kg, R$ 1.100, médio R$ 5,5; T = 80 × 5,5 = R$ 440 (L1 50 + L2 30); B: 80 a 5,5; venda 30 × 5,5 = R$ 165
+    const ts = await mov(t.s.id);
+    assert.deepEqual(valores(ts), ['5.5000', '440.0000', '200.0000', '120.0000']);
+    assert.deepEqual(valores(await mov(t.r.id)), ['5.5000', '440.0000', '0.0000', '80.0000']);
+    const destinos = ts.lotes_consumidos.map((f) => f.lote_destino_id);
+    assert.deepEqual(ts.lotes_consumidos.map((f) => [f.lote_id, f.quantidade, f.custo_unitario]), [[L1, '50.0000', '5.5000'], [L2, '30.0000', '5.5000']]);
+    assert.equal(destinos.includes(D1), false, 'a origem mudou: camadas de destino novas');
+    const camadasB = await camadasDe(x, x.sal, B);
+    const porId = new Map(camadasB.map((l) => [l.id, l]));
+    assert.deepEqual(porId.get(D1), { id: D1, disp: '0.0000', custo: porId.get(D1).custo, status: 'Estornado', entrada: '80.0000' }, 'a camada antiga fica, Estornado, sem disponível');
+    assert.deepEqual([porId.get(destinos[0]).disp, porId.get(destinos[0]).custo, porId.get(destinos[0]).entrada], ['20.0000', '5.5000', '50.0000']);
+    assert.deepEqual([porId.get(destinos[1]).disp, porId.get(destinos[1]).custo, porId.get(destinos[1]).entrada], ['30.0000', '5.5000', '30.0000']);
+    const mv = await mov(venda.itens[0].movimentacao_estoque_id);
+    assert.deepEqual(valores(mv), ['5.5000', '165.0000', '80.0000', '50.0000']);
+    assert.deepEqual(await consumosDoItem(venda.itens[0].id), [[destinos[0], '30.0000', '5.5000']], 'a fatia da venda passa à camada nova (a do D1 sai)');
+    // L1 esgota na transferência sem nunca ter sido reavaliada (a reavaliação só toca o disponível): fica com o custo dela
+    assert.deepEqual((await camadasDe(x, x.sal, A)).map((l) => [l.id === L1 ? 'L1' : l.id === L2 ? 'L2' : 'L3', l.disp, l.custo, l.status]), [['L1', '0.0000', '2.0000', 'Esgotado'], ['L2', '70.0000', '5.5000', 'Disponivel'], ['L3', '50.0000', '5.5000', 'Disponivel']]);
+    const [nova] = await trilha(x, 'EstoqueLoteNota', destinos[0]);
+    assert.equal(nova.dados_novos.nova, true);
+    await provarReplay(x, x.sal);
+  });
+
+  test('duas exclusões simultâneas no mesmo produto (a trava do produto as enfileira): as duas passam, uma depois da outra, e o replay bate com o gravado', async () => {
+    const x = await montar();
+    const A = x.local;
+    await entrar(x, x.sal, A, '100', '4');
+    await entrar(x, x.sal, A, '100', '6');
+    const s1 = await sair(x, x.sal, A, '50');
+    await entrar(x, x.sal, A, '50', '9');
+    const s2 = await sair(x, x.sal, A, '30');
+    const s3 = await sair(x, x.sal, A, '80');
+    const m3 = await movDoItem(s3);
+    // segura a trava do produto de fora; as duas exclusões param na fila; solta
+    let liberar = () => {};
+    const liberado = new Promise((res) => { liberar = () => res(undefined); });
+    let pronto = () => {};
+    const comTrava = new Promise((res) => { pronto = res; });
+    const fim = aux.$transaction(async (t) => {
+      await t.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${chaveTravaProduto(x.c, x.e1.id, x.sal.id)}, 0))`;
+      pronto();
+      await liberado;
+    }, { timeout: 60000, maxWait: 10000 });
+    await comTrava;
+    const ex1 = excluirSaida(x, s1);
+    const ex2 = excluirSaida(x, s2);
+    for (let i = 0; i < 400; i++) {
+      const [{ c }] = /** @type {any[]} */ (await prisma().$queryRaw`SELECT count(*)::int AS c FROM pg_locks WHERE NOT granted`);
+      if (c >= 2) break;
+      await new Promise((res) => setTimeout(res, 25));
+    }
+    liberar();
+    await fim;
+    const [r1, r2] = await Promise.all([ex1, ex2]);
+    assert.deepEqual([r1.statusCode, r2.statusCode], [200, 200], `${r1.body} ${r2.body}`);
+    // sem S1 e S2: 250 kg, R$ 1.450, médio 5,8; S3 = 80 × 5,8 = R$ 464, saldo 250 → 170
+    assert.deepEqual(valores(await mov(m3.id)), ['5.8000', '464.0000', '250.0000', '170.0000']);
+    const pares = await prisma().movimentacaoEstoque.count({ where: { cliente_id: x.c, movimentacao_grupo_id: { startsWith: 'exclusao_recalculo:' } } });
+    assert.equal(pares, 4, 'os dois pares marcados');
+    await provarReplay(x, x.sal);
+  });
+});
