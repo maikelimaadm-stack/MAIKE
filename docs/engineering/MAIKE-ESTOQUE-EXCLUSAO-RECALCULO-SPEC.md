@@ -48,7 +48,18 @@ Recibos de idempotência, snapshots de `*Evento` e `AuditLog` antigos **não** s
 2. **Some da tela**: consulta de movimentos com `incluir_excluidos` (padrão falso) e o filtro no Kardex; saldo exibido coerente.
 3. **Replay puro + prévia + prova** (sem escrita), com teto fail-closed de volume.
 4. **Exclusão com recálculo — saídas** (manual, cocho, atividade, abastecimento, venda): só sobem o saldo, não há risco de negativo; recalcula a jusante e os dependentes.
-5. **Exclusão com recálculo — entradas, compra, transferência e edição (D-PROD-271)**: prova de saldo ≥ 0 e reatribuição de camadas.
+5. **Exclusão com recálculo — entradas, compra, transferência e ajuste**: prova de saldo ≥ 0 e reatribuição de camadas.
+   Feita (relatório, seção Fatia 5). Regras de implementação: o estorno da origem é gravado sem baixar a camada da
+   entrada (ou as recebidas na transferência) e o recálculo, na mesma transação, a deixa 'Estornado' com disponível 0
+   (nunca apagada); quem consumia dela volta a consumir das outras camadas (FIFO para a fatia, médio do poço sem ela
+   para o valor), e as fatias `*ConsumoLote` dos dependentes seguem (atualizada, criada ou removida). A transferência
+   sai inteira, como dois pares marcados (S + estorno da enviada, R + estorno da recebida). Entrada cuja camada continua
+   intocada (disponível = entrada, custo = o do movimento: nenhuma reavaliação a alcançou) segue o estorno exato de
+   antes mesmo com algo depois — nada foi valorizado com o custo dela. **Sem estorno exato como
+   saída** para essas origens: recusa é recusa. **Edição (D-PROD-271)**: continua exigindo "nada depois" — ela relança a
+   versão nova no FIM da sequência, então recalcular seria valorizar os posteriores sem a entrada, não com a versão
+   corrigida; corrigir no lugar exige uma chave de ordem nova (§1.3) e fica para decisão do proprietário. Hoje: excluir
+   com recálculo e lançar de novo.
 6. **Reconciliação de valor** (Σ disponível × custo = replay) e gate.
 
 ## 6. Riscos
