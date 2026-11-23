@@ -41,6 +41,12 @@
  * Transferência cujas fatias mudaram no recálculo: a camada de destino gravada na mesma posição é reaproveitada
  * quando a camada de origem é a mesma (a quantidade pode mudar); senão nasce uma nova (`novoIdCamada`), e a
  * gravada que sobrou fica 'Estornado' com disponível 0 (nunca se apaga camada).
+ *
+ * D-PROD-273 (fatia 5) — ENTRADAS e TRANSFERÊNCIA excluídas com recálculo: o par da entrada (original 'Estornada' +
+ * `estorno_*`) e os dois pares da transferência (S + E_o, R + E_d, cada um com a marca do seu original) ficam fora da
+ * sequência. A camada da entrada excluída (e as recebidas na transferência excluída) nasce no ponto dela já 'Estornado',
+ * com disponível 0, no custo e na entrada gravados: nunca entra no poço, e quem consumia dela passa a consumir das
+ * outras camadas (FIFO, pelo médio do poço sem ela). Vale igual na simulação (`opcoes.excluir`) e nos pares marcados.
  */
 import { CASAS_CUSTO, CASAS_QUANTIDADE, Dec, ZERO, arredondar, dec, somar } from '../financeiro/decimalFinanceiro.js';
 import {

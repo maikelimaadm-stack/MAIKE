@@ -556,8 +556,9 @@ describe('P1-02 — cancelamento bloqueado e efeitos na P3', () => {
     const fotoAntes = await fotoAbastecimento(s.c);
     await bloqueiosP3();
     const cancel1 = await A.req('POST', `/operacoes-financeiras/${compra.operacao.id}/cancelar`, s.token, { empresa_id: s.e1.id, operation_id: opId(), motivo: 'compra devolvida' });
-    assert.deepEqual(erro(cancel1), [409, 'ESTOQUE_JA_CONSUMIDO', 'itens', 'lote_consumido'], cancel1.body);
-    assert.equal(cancel1.json().details.lote_id, L);
+    // D-PROD-273 (fatia 5): com o abastecimento depois, o cancelamento da compra tenta o recálculo; os lotes legados do
+    // cenário (criados sem movimento de entrada) não se reproduzem → 409 recálculo inviável, nada muda
+    assert.deepEqual(erro(cancel1), [409, 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', 'movimento_id', 'replay_diverge_do_gravado'], cancel1.body);
     assert.equal(await fotoAbastecimento(s.c), fotoAntes, 'nenhuma recusa da P3 mexeu no estoque nem no abastecimento');
 
     // cancelar o abastecimento devolve os 80 L ao lote da compra

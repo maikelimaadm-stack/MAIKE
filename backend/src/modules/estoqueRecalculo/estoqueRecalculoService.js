@@ -9,6 +9,7 @@
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
+import { dec } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { CLASSE, classificar, compararComGravado, compararCanonico, reproduzir, simularExclusao } from './estoqueReplay.js';
 import {
@@ -164,6 +165,21 @@ const nadaDepois = async (tx, cli, m, ids) => {
 };
 
 /**
+ * D-PROD-273 (fatia 5) — a camada da ENTRADA `movimentoId` continua intocada: uma só, 'Disponivel', disponível = entrada e
+ * custo = o valor unitário do movimento (nenhuma reavaliação do poço a alcançou). Então nada lançado depois foi valorizado
+ * com o custo dela e o estorno exato de sempre (tirar a camada inteira, pelo custo dela) é o mesmo que o recálculo daria.
+ * @param {any} tx @param {string} cli @param {string} movimentoId
+ */
+export const entradaIntocada = async (tx, cli, movimentoId) => {
+  const [m] = /** @type {any[]} */ (await tx.$queryRaw`SELECT valor_unitario FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${movimentoId}`);
+  const camadas = /** @type {any[]} */ (await tx.$queryRaw`SELECT status, quantidade_entrada, quantidade_disponivel, custo_unitario FROM "EstoqueLoteNota"
+    WHERE cliente_id = ${cli} AND movimentacao_entrada_id = ${movimentoId}`);
+  if (!m || m.valor_unitario === null || camadas.length !== 1) return false;
+  const [l] = camadas;
+  return l.status === 'Disponivel' && dec(l.quantidade_disponivel).eq(dec(l.quantidade_entrada)) && dec(l.custo_unitario).eq(dec(m.valor_unitario));
+};
+
+/**
  * Ajuste de inventário vigente depois de algum dos movimentos `ids`, no depósito dele (origem ou destino).
  * @param {any} tx @param {string} cli @param {string} empresaId @param {string} produtoId @param {string[]} ids
  */
@@ -212,7 +228,10 @@ export const previaExclusao = async (contexto, movimentoId, query = {}, o = {}) 
       const ajuste = await ajusteDepoisDe(tx, cli, empresaId, m.produto_id, juntos);
       if (ajuste) return recusaDeAjuste(await recusaAjustePosterior(tx, cli, ajuste));
     }
-    if (m.status === 'Ativa' && !m.movimento_filho_id && !ehEstorno && juntos.length && await nadaDepois(tx, cli, m, juntos)) {
+    // D-PROD-273 (fatia 5): entrada (documentada ou compra) com a camada intocada → o estorno exato de antes, como o serviço.
+    const entradasIntocadas = async () => m.tipo_movimentacao === 'Entrada' && [ORIGEM_SISTEMA, ORIGEM_ENTRADA_ESTOQUE].includes(m.origem_sistema)
+      && (await Promise.all(juntos.map((id) => entradaIntocada(tx, cli, id)))).every(Boolean);
+    if (m.status === 'Ativa' && !m.movimento_filho_id && !ehEstorno && juntos.length && (await nadaDepois(tx, cli, m, juntos) || await entradasIntocadas())) {
       return { ...vazio, movimento: resumoDoMovimento(m), excluidos: juntos, permitido: true, modo: 'estorno_exato' };
     }
     const contorna = ORIGENS_ESTORNO_EXATO_SE_INVIAVEL.includes(m.origem_sistema) && m.tipo_movimentacao === 'Saída' && !ehEstorno;

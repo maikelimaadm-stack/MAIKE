@@ -45,6 +45,7 @@ import {
   exigirLocaisEstoque,
   numerarMovimentos,
   numeroMovimentoProvisorio,
+  travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
@@ -118,11 +119,15 @@ const efeitosDoPar = (s, r, locais = {}) => ({
  */
 const cancelarNaTransacao = async (tx, contexto, a) => {
   const cli = exigirAuthContext(contexto?.auth).clienteId;
-  const par = await descobrirParDeTransferencia(tx, cli, { empresaId: a.empresaId, movimentoId: a.movimentoId });
+  const antes = await descobrirParDeTransferencia(tx, cli, { empresaId: a.empresaId, movimentoId: a.movimentoId });
   const locais = await exigirLocaisEstoque(tx, cli, [
-    { id: par.origemId, field: 'local_origem_id', exigirAtivo: false },
-    { id: par.destinoId, field: 'local_destino_id', exigirAtivo: false },
+    { id: antes.origemId, field: 'local_origem_id', exigirAtivo: false },
+    { id: antes.destinoId, field: 'local_destino_id', exigirAtivo: false },
   ]);
+  // A descoberta de novo, já sob a trava do produto (um cancelamento concorrente que venceu → `original_ja_estornado`,
+  // como antes, e não uma recusa do recálculo).
+  await travarProdutosEstoque(tx, cli, a.empresaId, [antes.produtoId]);
+  const par = await descobrirParDeTransferencia(tx, cli, { empresaId: a.empresaId, movimentoId: a.movimentoId });
   // Origem inativa: o motor recusa (422 `local_inativo`) antes de qualquer escrita, como antes — sem planejar.
   const planos = !locais.get(par.origemId)?.ativo ? [] : await planejarExclusaoComRecalculo(tx, cli, {
     empresaId: a.empresaId,

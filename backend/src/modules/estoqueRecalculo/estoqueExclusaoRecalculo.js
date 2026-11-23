@@ -47,9 +47,11 @@ import {
   CAMPOS_VALOR, CLASSE, classificar, compararCanonico, compararComGravado, fatiaComoTexto, fatiasGravadas, marcaDoPar, reproduzir, simularExclusao, texto4,
 } from './estoqueReplay.js';
 import { TETO_MOVIMENTOS_AFETADOS, TETO_MOVIMENTOS_PRODUTO, lerHistoricoDoProduto, volumeExcedido } from './estoqueRecalculoLeitor.js';
-import { RAZAO_AJUSTE_POSTERIOR, ajusteDepoisDe, ehRecusaContornavel, exigirReplayIgualAoGravado, recalculoInviavel, recusaAjustePosterior } from './estoqueRecalculoService.js';
+import {
+  RAZAO_AJUSTE_POSTERIOR, ajusteDepoisDe, ehRecusaContornavel, entradaIntocada, exigirReplayIgualAoGravado, recalculoInviavel, recusaAjustePosterior,
+} from './estoqueRecalculoService.js';
 
-export { ehRecusaContornavel };
+export { ehRecusaContornavel, entradaIntocada };
 
 export const ACAO_AUDITORIA_RECALCULO = 'estoque.recalculo';
 /** `MovimentacaoEstoque.movimentacao_grupo_id` é VarChar(64). */
@@ -144,8 +146,12 @@ const comoDispensa = (erro) => ({ code: /** @type {any} */ (erro).code, reason: 
  * volume, cocho, camada…), aqui ou depois de escrever (`aplicarExclusaoComRecalculo`, desfeito por SAVEPOINT), vira o
  * estorno exato de antes desta fatia, sem recalcular nada, com o motivo na trilha. Sem a opção (saída manual, cocho),
  * a mesma situação é recusa 409/422. Saldo negativo é sempre recusa.
+ * D-PROD-273 (fatia 5) — `intacto(movimentoId)` (opcional, entradas): com algo depois, a entrada cuja camada continua
+ * INTOCADA (ver `entradaIntocada`) segue o estorno exato de antes, sem recálculo: nada do que veio depois foi valorizado
+ * com o custo dela (nenhuma reavaliação a tocou) e o motor aceita tirá-la inteira. Sem regressão para o que já passava.
  * @param {{ empresaId: string, movimentos: Array<{ id: string, produtoId: string, localId: string }>, ignorarIds?: string[],
- *   ignorarParesNeutros?: boolean, estornoExatoSeInviavel?: boolean, teto?: number, tetoAfetados?: number }} a
+ *   ignorarParesNeutros?: boolean, estornoExatoSeInviavel?: boolean, teto?: number, tetoAfetados?: number,
+ *   intacto?: (movimentoId: string) => Promise<boolean> }} a
  * @returns {Promise<PlanoRecalculo[]>}
  */
 export const planejarExclusaoComRecalculo = async (tx, cli, a) => {
@@ -173,6 +179,7 @@ export const planejarExclusaoComRecalculo = async (tx, cli, a) => {
         desde: { createdAt: ref.createdAt, numero: ref.numero_movimentacao }, ignorarParesNeutros: a.ignorarParesNeutros === true,
       });
       if (depois) {
+        if (a.intacto && await a.intacto(m.id)) continue;
         temDepois = true;
         break;
       }

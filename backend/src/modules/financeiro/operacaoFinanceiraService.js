@@ -41,7 +41,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
-import { aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
+import { aplicarExclusaoComRecalculo, entradaIntocada, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
 import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueFisico/movimentoPosterior.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { TELAS, carregarAutorizacao, exigirTela, telaPermite } from '../../shared/auth/autorizacaoTela.js';
@@ -1605,7 +1605,11 @@ export const cancelar = async (contexto, id, corpo) => {
         const comMovimento = mercadorias.filter((i) => i.movimentacao_estoque_id);
         const compra = op.direcao === 'PAGAR';
         const planos = comMovimento.length
-          ? await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: comMovimento.map((i) => ({ id: i.movimentacao_estoque_id, produtoId: i.produto_id, localId: i.local_estoque_id })), estornoExatoSeInviavel: !compra })
+          ? await planejarExclusaoComRecalculo(tx, cli, {
+            empresaId, movimentos: comMovimento.map((i) => ({ id: i.movimentacao_estoque_id, produtoId: i.produto_id, localId: i.local_estoque_id })), estornoExatoSeInviavel: !compra,
+            // compra com a camada intocada (o que o motor já aceitava): o estorno exato de sempre, sem recálculo
+            ...(compra ? { intacto: (/** @type {string} */ id) => entradaIntocada(tx, cli, id) } : {}),
+          })
           : [];
         // Sequência de movimentos SÓ no fim (§8.4 item 5): `numerarMovimentos`.
         const estornos = await estornarEfeitosDoDocumento(tx, contexto, {

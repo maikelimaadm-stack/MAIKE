@@ -56,7 +56,7 @@ import {
   normalizarExclusao,
 } from './entradaEstoqueRegras.js';
 import { exigirMotivoAtivo } from './motivoEntradaEstoqueService.js';
-import { aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
+import { aplicarExclusaoComRecalculo, entradaIntocada, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
 
 const LEITURA = Object.freeze({ maxWait: 2000, timeout: 9000, isolationLevel: /** @type {const} */ ('RepeatableRead') });
 /** Teto da prova (contrato A8.3): acima dele a prova é INDETERMINADA e a exclusão é recusada (nunca varredura ilimitada). */
@@ -480,6 +480,18 @@ export const excluir = async (contexto, id, corpo) => {
           // saída). Sem nada depois: a prova da camada intocada e o estorno exato de sempre.
           const planos = await planejarExclusaoComRecalculo(tx, cli, {
             empresaId, movimentos: itens.map((i) => ({ id: i.movimentacao_estoque_id, produtoId: i.produto_id, localId: i.local_estoque_id })),
+            // a camada intocada (a prova de sempre) segue o estorno exato de antes, mesmo com algo depois (sem regressão)
+            intacto: async (movimentoId) => {
+              const item = itens.find((i) => i.movimentacao_estoque_id === movimentoId);
+              if (!item || !(await entradaIntocada(tx, cli, movimentoId))) return false;
+              try {
+                await provaDeCamadaIntocada(tx, cli, [item]);
+                return true;
+              } catch (erro) {
+                if (/** @type {any} */ (erro)?.code === 'ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS') return false;
+                throw erro;
+              }
+            },
           });
           const peloRecalculo = new Set(planos.flatMap((p) => p.excluirIds));
           await provaDeCamadaIntocada(tx, cli, itens.filter((i) => !peloRecalculo.has(i.movimentacao_estoque_id)));

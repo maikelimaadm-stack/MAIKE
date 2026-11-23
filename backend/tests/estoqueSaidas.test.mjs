@@ -291,12 +291,13 @@ describe('D-PROD-264 — excluir: estorno integral, só sem movimento depois', (
     assert.equal(await estoqueAtual(x.ureia), 100);
   });
 
-  test('a saída que consumiu a camada de uma entrada impede excluir a entrada (camada consumida)', async () => {
+  test('a saída que consumiu a camada de uma entrada impede excluir a entrada quando ela é o único estoque (D-PROD-273 fatia 5: saldo negativo)', async () => {
     const x = await cenario();
     const ent = await entrar(x, x.ureia, '100', '3');
     await sair(x);
     const r = await chamar('POST', `/estoque/entradas/${ent.id}/excluir`, x.token, { empresa_id: x.e.id, versao: 1, motivo: 'teste', operation_id: `ex-${randomUUID()}` });
-    assert.deepEqual([r.statusCode, r.json().code], [409, 'ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS']);
+    assert.deepEqual([r.statusCode, r.json().code], [409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO'], r.body);
+    assert.equal(await estoqueAtual(x.ureia) < 100, true, 'nada foi devolvido');
   });
 });
 
