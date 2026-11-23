@@ -195,7 +195,7 @@ describe('D-PROD-273 fatia 5 — entrada documentada', () => {
     assert.deepEqual([linha.movimentacao_estorno_id, v4(linha.custo_unitario)], [est.id, '4.0000']);
     const [t2] = await trilha(x, 'MovimentacaoEstoque', ms2.id);
     assert.deepEqual([t2.dados_anteriores.valor_total, t2.dados_novos.valor_total, t2.dados_novos.movimentos_excluidos, t2.dados_novos.origem, t2.usuario_id],
-      ['480.0000', '600.0000', [m1.id], 'entrada_estoque', x.adm.usuario.id]);
+      ['480.0000', '600.0000', [m1.id], 'entrada_documentada', x.adm.usuario.id]);
     assert.match(t2.dados_novos.motivo, /lançada errada/);
     const [tl] = await trilha(x, 'EstoqueLoteNota', c.L1);
     assert.deepEqual([tl.dados_anteriores.status, tl.dados_novos.status], ['Esgotado', 'Estornado']);

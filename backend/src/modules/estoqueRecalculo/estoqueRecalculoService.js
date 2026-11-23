@@ -13,8 +13,8 @@ import { dec } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { CLASSE, classificar, compararComGravado, compararCanonico, reproduzir, simularExclusao } from './estoqueReplay.js';
 import {
-  ORIGEM_ABASTECIMENTO, ORIGEM_AJUSTE_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_ENTRADA_ESTOQUE, ORIGEM_SAIDA_ESTOQUE, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO,
-  TIPO_FALTA_AJUSTE, TIPO_SOBRA_AJUSTE,
+  ORIGEM_ABASTECIMENTO, ORIGEM_AJUSTE_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_SAIDA_ESTOQUE, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO,
+  TIPO_FALTA_AJUSTE, TIPO_SOBRA_AJUSTE, ehOrigemEntradaDocumentada,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { buscarMovimentoPosterior } from '../estoqueFisico/movimentoPosterior.js';
 import {
@@ -117,7 +117,9 @@ export const ORIGENS_ESTORNO_EXATO_SE_INVIAVEL = Object.freeze([ORIGEM_ABASTECIM
  * Origens cujo documento exclui TODOS os movimentos dele juntos (a prévia simula o documento inteiro): venda e compra
  * do financeiro, saída manual, entrada documentada (fatia 5) e ajuste de inventário (fatia 5: sobras e faltas juntas).
  */
-const ORIGENS_DOCUMENTO_INTEIRO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_SAIDA_ESTOQUE, ORIGEM_ENTRADA_ESTOQUE, ORIGEM_AJUSTE_ESTOQUE]);
+const ORIGENS_DOCUMENTO_INTEIRO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_SAIDA_ESTOQUE, ORIGEM_AJUSTE_ESTOQUE]);
+/** A origem é de um documento inteiro (a entrada documentada é reconhecida pelo motor — D-PROD-257). @param {string} o */
+const ehDocumentoInteiro = (o) => ORIGENS_DOCUMENTO_INTEIRO.includes(o) || ehOrigemEntradaDocumentada(o);
 
 /**
  * Os movimentos que a exclusão de `m` exclui junto: a transferência (as duas pernas) ou, no documento (venda, compra,
@@ -131,7 +133,7 @@ const excluidosJuntos = async (tx, cli, m) => {
     return [m.tipo_detalhado === 'transferencia_enviada' ? m.id : m.movimento_pai_id, m.tipo_detalhado === 'transferencia_enviada' ? m.movimento_filho_id : m.id].filter(Boolean);
   }
   const ehEstorno = typeof m.tipo_detalhado === 'string' && m.tipo_detalhado.startsWith('estorno_');
-  if (!ORIGENS_DOCUMENTO_INTEIRO.includes(m.origem_sistema) || !m.lancamento_origem_id || ehEstorno) return [m.id];
+  if (!ehDocumentoInteiro(m.origem_sistema) || !m.lancamento_origem_id || ehEstorno) return [m.id];
   const doAjuste = m.origem_sistema === ORIGEM_AJUSTE_ESTOQUE;
   const irmaos = await tx.movimentacaoEstoque.findMany({
     where: {
@@ -229,7 +231,7 @@ export const previaExclusao = async (contexto, movimentoId, query = {}, o = {}) 
       if (ajuste) return recusaDeAjuste(await recusaAjustePosterior(tx, cli, ajuste));
     }
     // D-PROD-273 (fatia 5): entrada (documentada ou compra) com a camada intocada → o estorno exato de antes, como o serviço.
-    const entradasIntocadas = async () => m.tipo_movimentacao === 'Entrada' && [ORIGEM_SISTEMA, ORIGEM_ENTRADA_ESTOQUE].includes(m.origem_sistema)
+    const entradasIntocadas = async () => m.tipo_movimentacao === 'Entrada' && (m.origem_sistema === ORIGEM_SISTEMA || ehOrigemEntradaDocumentada(m.origem_sistema))
       && (await Promise.all(juntos.map((id) => entradaIntocada(tx, cli, id)))).every(Boolean);
     if (m.status === 'Ativa' && !m.movimento_filho_id && !ehEstorno && juntos.length && (await nadaDepois(tx, cli, m, juntos) || await entradasIntocadas())) {
       return { ...vazio, movimento: resumoDoMovimento(m), excluidos: juntos, permitido: true, modo: 'estorno_exato' };

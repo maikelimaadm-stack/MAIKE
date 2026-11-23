@@ -519,7 +519,7 @@ export const excluir = async (contexto, id, corpo) => {
           }
           const recalculo = planos.length
             ? await aplicarExclusaoComRecalculo(tx, contexto, planos, {
-              empresaId, motivo: motivoEstorno, origem: 'entrada_estoque', estornos: new Map(itens.map((item, k) => [item.movimentacao_estoque_id, estornos[k]])),
+              empresaId, motivo: motivoEstorno, origem: 'entrada_documentada', estornos: new Map(itens.map((item, k) => [item.movimentacao_estoque_id, estornos[k]])),
             })
             : null;
           await numerarMovimentos(tx, cli, estornos);
