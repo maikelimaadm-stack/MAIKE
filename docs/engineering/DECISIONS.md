@@ -9179,4 +9179,17 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** "Abrir atividade" (a tela de atividades não abre uma atividade pelo endereço; não se criou rota). Nenhuma mudança no servidor; nenhuma migration; a tela de atividades não foi refatorada.
 - **Testes:** `tests/smoke/mapaAtividadeAcoes.test.jsx` (menu com os itens permitidos, área planejada, "+ Lançar dia" preenchido, "Só máquina" presa na área, Concluir com a versão do detalhe e a releitura do resumo, sem permissão não tocável).
 
-<!-- Próxima decisão: D-PROD-279 -->
+## D-PROD-279 — O tipo de implemento diz se usa produto, como conta e a capacidade
+
+**Data:** 2026-11-23 · **Origem:** proprietário: "a máquina sozinha não leva produto; quem leva é o implemento" · **Relatório:** [`MAIKE-TIPO-IMPLEMENTO-PRODUTO-REPORT.md`](./MAIKE-TIPO-IMPLEMENTO-PRODUTO-REPORT.md) · **Runbook:** [`MAIKE-TIPO-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `d62a4ef8` deu D-PROD-279 (o marcador); o marcador passa a D-PROD-280. O número não está no `migration.sql`.
+
+- **Contexto:** nas telas de atividade, o que leva produto (calda, adubo) é o implemento, não o trator. Para depois perguntar "Jatos de hoje" quando o implemento escolhido é um pulverizador, o cadastro precisa saber quais implementos usam produto e quanto cabe num jato.
+- **Decisão:** o tipo patrimonial ganha 4 campos, só para a natureza **IMPLEMENTO**: `usa_produto` (sim/não), `forma_produto` (hoje só `JATO`, "Por jato (tanque)"; texto para `SACO`/`CARGA` no futuro), `capacidade` (texto decimal > 0 e ≤ 100000, até 4 casas) e `capacidade_unidade` (`L` | `KG`). Regras da API (`tipoPatrimonialService`): em outra natureza, mandar qualquer um dos campos (mesmo `null`) é 400 `so_implemento`; sem produto (`false`/`null`), forma, capacidade e unidade ficam nulas (mandá-las preenchidas é 400 `sem_produto`; as gravadas são limpas); com produto, as três são obrigatórias, conferidas no estado final (no PATCH, o que não vem é o gravado). PATCH com o CAS por `versao` de sempre; auditoria pelo padrão do módulo (os 4 campos em `campos_alterados`). A leitura devolve os 4 (nulos fora do implemento).
+- **Tela:** no "+ Novo tipo" do "⋯ › Gerenciar tipos", com Tipo de bem Implemento: "Usa produto?" (Sim/Não, `EscolhaSegmentada`); com Sim, "Como conta" (Por jato (tanque)), "Capacidade do jato" e "Unidade" (L/kg); a dica "Ex.: pulverizador 2.000 L. A grade não usa produto.". A lista mostra, discreto, "usa produto · jato 2.000 L".
+- **Migration:** `20261124100000_tipo_implemento_produto`, EXPAND, as 4 colunas anuláveis sem DEFAULT e sem CHECK em `TipoPatrimonial` (a allowlist EXPAND recusa CHECK em tabela antiga; a API confere). sha256 `a18362400ec4345487bca6bb4b6c94c62991cb120bb36786448a46c39a64ae45`. 76 migrations; 111 tabelas (sem mudança). Não aplicada; ordem: aplicar com o GO do proprietário, depois o merge.
+- **Fora:** o uso nas telas de atividade ("Jatos de hoje"); a edição dos campos num tipo já criado pela tela (a API aceita no PATCH; a linha do "Gerenciar tipos" continua só com nome e teto de salto).
+- **Testes:** `backend/tests/tipoImplementoProduto.test.mjs` (Postgres real), `tests/smoke/tipoImplementoProduto.test.jsx`, B43a/B43b/B43k e as contagens de migrations nos testes que as pinam.
+
+<!-- Próxima decisão: D-PROD-280 -->

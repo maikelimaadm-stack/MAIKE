@@ -207,6 +207,9 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // Atividade.planejamento_id (com o índice não-único e a FK (cliente_id, planejamento_id) → Planejamento) e as tabelas
   // novas Planejamento e PlanejamentoArea (com os CHECKs delas e o RLS).
   '20261122100000_reforma_planejamento': '27f16e1d44df673e97a62ef2122199c94d8d6adcdd07d006180ef0f90b873a10',
+  // MAIKE-TIPO-IMPLEMENTO-PRODUTO (D-PROD-279): EXPAND — o produto do implemento: 4 colunas anuláveis sem DEFAULT em tabela
+  // antiga (TipoPatrimonial.usa_produto, forma_produto, capacidade e capacidade_unidade); sem CHECK (a API confere).
+  '20261124100000_tipo_implemento_produto': 'a18362400ec4345487bca6bb4b6c94c62991cb120bb36786448a46c39a64ae45',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
