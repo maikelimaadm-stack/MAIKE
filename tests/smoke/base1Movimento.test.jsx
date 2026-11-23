@@ -163,6 +163,44 @@ describe("movimento do design no motor Base1 (6.32)", () => {
     expect(document.querySelector("[data-mk-fantasma]")).toBeNull();
   });
 
+  it.each([false, true])("Mais opções: expansão fluida e saída inerte; reduzir movimento=%s", async (reduzir) => {
+    consultas(reduzir ? ["(prefers-reduced-motion: reduce)"] : []);
+    desligar = ligarMovimentoBase1();
+    document.body.innerHTML = '<div class="cadastro-b1 cadastro-b1--full-page"></div>';
+    const original = Element.prototype.getBoundingClientRect;
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function () {
+      return this.classList?.contains("mg-mais-opcoes")
+        ? { left: 100, top: 80, width: 240, height: 280, right: 340, bottom: 360, x: 100, y: 80, toJSON() {} }
+        : original.call(this);
+    });
+    const inv = document.createElement("div");
+    inv.setAttribute("data-radix-popper-content-wrapper", "");
+    inv.innerHTML = '<div class="cadastro-b1 mg-mais-opcoes" style="border-radius:18px"><div role="menu"><button role="menuitem">Configurar</button></div></div>';
+    const painel = inv.firstElementChild;
+    retangulo(painel, { left: 100, top: 80, width: 240, height: 280 });
+    await act(async () => { document.body.appendChild(inv); await Promise.resolve(); });
+    if (reduzir) {
+      expect(animate).not.toHaveBeenCalled();
+    } else {
+      const entrada = chamadas().find((c) => c.alvo === painel);
+      expect(entrada?.opc.duration).toBe(660);
+      expect(entrada?.quadros[1]).toMatchObject({ transform: "scale(1.013, 1.025)" });
+      expect(chamadas().find((c) => c.alvo === painel.firstElementChild)?.opc).toMatchObject({ delay: 150, duration: 420 });
+      expect(chamadas().some((c) => c.alvo === inv)).toBe(false);
+    }
+    animate.mockClear();
+    await act(async () => { inv.remove(); await Promise.resolve(); });
+    if (reduzir) {
+      expect(document.querySelector("[data-mk-fantasma]")).toBeNull();
+    } else {
+      expect(document.querySelector("[data-mk-fantasma]")).toHaveAttribute("inert");
+      expect(chamadas().some((c) => c.opc.duration === 320)).toBe(true);
+      act(() => { vi.advanceTimersByTime(330); });
+      expect(document.querySelector("[data-mk-fantasma]")).toBeNull();
+    }
+    expect(document.body.style.pointerEvents).not.toBe("none");
+  });
+
   it("clique de teclado (detail 0) nunca é desviado para o botão apertado antes", () => {
     desligar = ligarMovimentoBase1();
     document.body.innerHTML =

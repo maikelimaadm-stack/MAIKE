@@ -356,18 +356,34 @@ export function iniciarMovimentoBase1() {
     const solto = p === el; // sem invólucro: o desfoque vai no próprio painel
     /** @type {HTMLElement} */ (p).style.transformOrigin = `${Math.round(F.ox)}px ${Math.round(F.oy)}px`;
     p.setAttribute("data-mk-abre", "");
+    const fluido = p.matches(".mg-mais-opcoes");
+    // Mais opções: o contorno se expande com uma mola leve; o texto entra depois,
+    // sem desfocar a lista. Não anima width/height nem recalcula a posição do Radix.
+    const quadrosFluidos = [
+      { offset: 0, clipPath: F.ini, opacity: 0.7, transform: "scale(1, .95)", borderRadius: "25px", easing: "cubic-bezier(.19, 1.22, .20, 1)" },
+      { offset: 0.36, clipPath: F.cheio, opacity: 1, transform: "scale(1.013, 1.025)", borderRadius: "25px", easing: "cubic-bezier(.23, .89, .3, 1)" },
+      { offset: 0.66, clipPath: F.fora, opacity: 1, transform: "scale(.995, .989)", borderRadius: getComputedStyle(p).borderTopLeftRadius, easing: "ease-out" },
+      { offset: 1, clipPath: F.fora, opacity: 1, transform: "scale(1)", borderRadius: getComputedStyle(p).borderTopLeftRadius },
+    ];
     const a = anima(
       p,
-      [
+      fluido ? quadrosFluidos : [
         { offset: 0, clipPath: F.ini, opacity: 0.55, transform: "scale(.96)", ...(solto ? { filter: "blur(8px)" } : {}), easing: "cubic-bezier(.25, .75, .2, 1)" },
         { offset: 0.12, opacity: 1 },
         { offset: 0.46, clipPath: F.cheio, transform: "scale(1.022)", ...(solto ? { filter: "blur(2px)" } : {}), easing: "cubic-bezier(.4, 0, .4, 1)" },
         { offset: 0.72, clipPath: F.fora, transform: "scale(.996)", ...(solto ? { filter: "blur(0px)" } : {}), easing: "ease-out" },
         { offset: 1, clipPath: F.fora, opacity: 1, transform: "scale(1)", ...(solto ? { filter: "blur(0px)" } : {}) },
       ],
-      { duration: 460, fill: "backwards" },
+      { duration: fluido ? 660 : 460, fill: "backwards" },
     );
-    if (!solto) {
+    if (fluido) {
+      Array.from(p.children).forEach((conteudo) => {
+        anima(conteudo, [
+          { opacity: 0, transform: "translate3d(12px, -11px, 0) scale(.97)" },
+          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)" },
+        ], { delay: 150, duration: 420, easing: "cubic-bezier(.18, 1.18, .26, 1)", fill: "backwards" });
+      });
+    } else if (!solto) {
       anima(
         el,
         [
@@ -442,14 +458,14 @@ export function iniciarMovimentoBase1() {
             { offset: 0.2, clipPath: F.cheio, opacity: 1 },
             { offset: 1, clipPath: F.ini, opacity: 0, transform: "scale(.96)" },
           ],
-          { duration: 210, easing: "cubic-bezier(.4, 0, .85, .5)", fill: "forwards" },
+          { duration: p.matches(".mg-mais-opcoes") ? 320 : 210, easing: "cubic-bezier(.4, 0, .85, .5)", fill: "forwards" },
         );
-        if (p !== g) anima(g, [{ filter: "blur(0px)" }, { filter: "blur(9px)" }], { duration: 210, easing: "ease-in", fill: "forwards" });
+        if (p !== g && !p.matches(".mg-mais-opcoes")) anima(g, [{ filter: "blur(0px)" }, { filter: "blur(9px)" }], { duration: 210, easing: "ease-in", fill: "forwards" });
       } else {
         anima(p, [{ opacity: 1 }, { opacity: 0 }], { duration: 150, fill: "forwards" });
       }
     }
-    setTimeout(() => g.remove(), folha ? 340 : 215);
+    setTimeout(() => g.remove(), folha ? 340 : p?.matches(".mg-mais-opcoes") ? 325 : 215);
   };
 
   const observador = new MutationObserver((lista) => {
