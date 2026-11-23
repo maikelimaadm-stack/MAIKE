@@ -56,6 +56,13 @@ export const LANCAMENTOS_POR_TIPO = Object.freeze([
 /** @param {string} tipo */
 export const lancamentoDoTipo = (tipo) => LANCAMENTOS_POR_TIPO.find((l) => l.tipo === tipo) ?? null;
 
+/**
+ * D-PROD-278 — os lançamentos que a operação da atividade permite (a mesma regra do `tipoPermitido` da janela: máquina
+ * sempre; os outros pela chave do tipo). `flags`: `flagsDoTipoDaAtividade`.
+ * @param {{ permiteProduto?: boolean, permiteMaoObra?: boolean, permiteServico?: boolean } | null | undefined} flags
+ */
+export const lancamentosPermitidos = (flags) => LANCAMENTOS_POR_TIPO.filter((l) => !l.flag || flags?.[l.flag] === true);
+
 /** Texto auxiliar (o tom das notas dos formulários do motor). */
 const NOTA = "min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]";
 
