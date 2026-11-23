@@ -332,13 +332,14 @@ describe('C3 — abastecimento × venda P3 do mesmo produto', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('C4 — abastecimento × cancelamento/retificação/exclusão P3 do mesmo produto', () => {
-  test('compra: cancelar e retificar nas duas ordens → sem ciclo; quem chega depois vê o efeito do outro (409 ESTOQUE_JA_CONSUMIDO / OPERACAO_RETIFICACAO_BLOQUEADA, 422 sem saldo, ou 2xx coerente)', async () => {
+  test('compra: cancelar e retificar nas duas ordens → sem ciclo; quem chega depois vê o efeito do outro (409 saldo negativo / OPERACAO_RETIFICACAO_BLOQUEADA, 422 sem saldo, ou 2xx coerente)', async () => {
     const s = await montarAbastecimento(app, { lotes: false });
     const cx = await confirmadoP3(s, 'PAGAR', '100', '6.00');
-    // R1: abastecimento segura o produto; cancelar a compra espera → o lote já foi consumido
+    // R1: abastecimento segura o produto; cancelar a compra espera → o lote já foi consumido. D-PROD-273 (fatia 5): o
+    // cancelamento recalcularia, mas sem a compra o abastecimento de 80 L deixaria o depósito negativo → 409 saldo negativo
     const r1 = await corrida(s, NO_MOVIMENTO_DO_ABASTECIMENTO, () => A.confirmar(s.operador.token, corpoAbastecimento(s)), () => cancelarP3(s, cx));
     assert.equal(r1.r1.statusCode, 201, r1.r1.body);
-    assert.deepEqual(erro(r1.r2).slice(0, 2), [409, 'ESTOQUE_JA_CONSUMIDO'], r1.r2.body);
+    assert.deepEqual(erro(r1.r2).slice(0, 2), [409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO'], r1.r2.body);
     assert.equal(await loteKg(loteDaCompra(cx)), '20.0000 Disponivel');
     assert.equal(await coerente(s, s.diesel, 'C4 R1'), '20.0000');
     // R2: compra Y; abastecimento (consome X e Y) segura; retificar Y espera → bloqueada

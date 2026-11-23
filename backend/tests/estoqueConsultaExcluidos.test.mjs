@@ -292,8 +292,11 @@ describe('D-PROD-273 fatia 2 — saldo exibido sem os excluídos', () => {
     await excluirEntrada(x, a);
     const idA = a.itens[0].movimentacao_estoque_id;
     const idB = b.itens[0].movimentacao_estoque_id;
+    // D-PROD-273 (fatia 5): com a entrada B depois, a exclusão de A recalcula e grava o saldo de B sem A (o par marcado
+    // não desconta de novo na leitura); a tela mostra o mesmo 0 → 50 de antes, agora gravado
     const gravadoB = await prisma().movimentacaoEstoque.findUnique({ where: { id: idB } });
-    assert.deepEqual([gravadoB.saldo_antes.toFixed(4), gravadoB.saldo_depois.toFixed(4)], ['100.0000', '150.0000']);
+    assert.deepEqual([gravadoB.saldo_antes.toFixed(4), gravadoB.saldo_depois.toFixed(4)], ['0.0000', '50.0000']);
+    assert.equal((await prisma().movimentacaoEstoque.findUnique({ where: { id: idA } })).movimentacao_grupo_id, `exclusao_recalculo:${idA}`);
 
     const padrao = porId((await kardex(x, { produto_id: x.p.id })).items);
     assert.deepEqual(Object.keys(padrao).length, 2);
@@ -313,7 +316,7 @@ describe('D-PROD-273 fatia 2 — saldo exibido sem os excluídos', () => {
     const dA = await detalhe(x, idA);
     assert.deepEqual([dA.excluido, dA.saldo_antes, dA.saldo_depois], [true, '0.0000', '100.0000']);
     // a consulta não regrava o saldo
-    assert.equal((await prisma().movimentacaoEstoque.findUnique({ where: { id: idB } })).saldo_depois.toFixed(4), '150.0000');
+    assert.equal((await prisma().movimentacaoEstoque.findUnique({ where: { id: idB } })).saldo_depois.toFixed(4), '50.0000');
   });
 
   test('par inteiro antes do movimento soma zero: a saída depois de uma saída excluída fica com o saldo gravado', async () => {

@@ -1037,8 +1037,8 @@ export default function LancamentosFinanceirosTela() {
           rotuloBotao="Cancelar lançamento"
           contexto={contextoMoeda}
           conteudo={
-            // D-PROD-273 (fatia 4): na venda, a prévia do recálculo do custo do que veio depois no estoque.
-            dialogo.registro?.direcao === "RECEBER" ? (
+            // D-PROD-273 (fatias 4 e 5): na venda e na compra, a prévia do recálculo do custo do que veio depois no estoque.
+            Array.isArray(dialogo.registro?.itens) && dialogo.registro.itens.some((/** @type {any} */ i) => i?.movimentacao_estoque_id) ? (
               <div className="grid grid-cols-12">
                 <PreviaRecalculoExclusao
                   empresaId={emp}

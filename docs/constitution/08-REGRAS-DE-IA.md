@@ -30,6 +30,7 @@ repositório, o repositório vence.
 | A2 | Ler como o PROJETOMG resolveu antes de propor solução |
 | A3 | Confirmar que a missão autoriza tocar naquele arquivo |
 | A4 | Se o arquivo estiver fora do escopo da fase, não tocar |
+| A5 | Número de decisão: rodar `node scripts/dev/proxima-decisao.mjs` **antes** de abrir a PR ou escrever a decisão (confere o marcador da `main` **e** os números já citados em títulos de PRs abertas) e **de novo antes do merge**. Pôr o número no título da PR, para que as outras sessões o vejam reservado. Se mudou, renumerar só naquele momento (D-PROD-277) |
 
 ## 3. Ao afirmar
 

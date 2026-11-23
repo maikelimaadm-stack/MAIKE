@@ -18,7 +18,7 @@ na **ordem em que foi lançado** (número do movimento). Emenda aprovada.
 | 2 | "Some da tela": `incluir_excluidos` na consulta, filtro **Mostrar excluídos** no Kardex, saldo exibido sem os excluídos | feita |
 | 3 | Replay puro + prévia + prova replay = gravado (sem escrita) | feita (branch `claude/estoque-recalculo-replay`) |
 | 4 | Exclusão com recálculo — saídas (manual, cocho, atividade, abastecimento, venda) | feita (branch `claude/estoque-exclusao-saidas`) |
-| 5 | Exclusão com recálculo — entradas, compra, transferência, edição | pendente |
+| 5 | Exclusão com recálculo — entradas, compra, transferência, ajuste (a edição D-PROD-271 continua recusando, ver abaixo) | feita (branch `claude/estoque-exclusao-entradas`) |
 | 6 | Reconciliação de valor + gate | pendente |
 
 ## Fatia 2 — o que mudou
@@ -441,3 +441,196 @@ depois (D-PROD-272).
   ou fora da conta da tela recusam a exclusão (409 com o `evento_id`).
 - Fatia 5: entradas, compra, transferência e edição D-PROD-271 com a mesma maquinaria (prova de saldo ≥ 0 e
   reatribuição de camadas nos estornos de entrada).
+
+## Fatia 5 — exclusão com recálculo das ENTRADAS
+
+**Origens:** entrada documentada (`entradaEstoqueService.excluir`), compra do financeiro (`operacaoFinanceira`
+**cancelar**, `PAGAR`), cancelamento da transferência entre depósitos (`transferenciaEstornoService`, POST e o ensaio da
+elegibilidade) e exclusão do ajuste de inventário (`ajusteEstoqueService.excluir`: a sobra é entrada, a falta é saída).
+Até aqui todas recusavam quando havia movimento posterior no mesmo produto e depósito (`camada_consumida`,
+`lote_consumido`, `movimento_posterior`, `AJUSTE_ESTOQUE_MOVIMENTO_POSTERIOR`).
+
+**Desenho.** A mesma maquinaria da fatia 4 (`planejarExclusaoComRecalculo` → estorno → `aplicarExclusaoComRecalculo`),
+com uma diferença: o estorno exato de uma entrada exige a camada intocada, o que é justamente o que não vale quando
+alguém consumiu dela depois. Por isso o estorno da origem é gravado **sem tocar na camada** e o recálculo, logo depois,
+na mesma transação, deixa a camada como ela tem de ficar:
+
+1. **Planejar** (antes de qualquer escrita, sob a trava do produto): a mesma consulta "algo depois"
+   (`buscarMovimentoPosterior`; na transferência, nos dois depósitos). Nada depois → o caminho de sempre, sem mudança
+   (na entrada documentada continua valendo a prova da camada intocada). **Algo depois, mas sem saída válida depois**
+   (`entradaIntocada`, corrigida na revisão: a camada inteira — uma, 'Disponivel', disponível = entrada, custo = o do
+   movimento — **e** nenhuma saída válida depois no poço da entrada; saídas de pares já excluídos não contam): nenhum
+   médio que valorizou alguma coisa incluiu a entrada, então o estorno exato está certo. O plano sai com
+   `camadaIntocada`: a camada sai inteira pelo motor, o recálculo é tentado (num SAVEPOINT) para o par sair da
+   sequência e, se ele recusar (recusa contornável, ou saldo negativo num ponto intermediário — que aqui só pode vir de
+   saídas de pares já excluídos, ex.: compra com um abastecimento já cancelado no meio), fica o estorno exato de antes,
+   com o motivo na trilha. A camada no custo original **não** basta: toda saída reavalia as camadas ao médio e o custo
+   pode voltar ao original depois de saídas que usaram um médio que incluía a entrada (achado 2 da revisão). Com saída
+   válida depois, recusa do recálculo é recusa. A prévia usa a mesma função. Senão → contagem de inventário vigente
+   depois → 409 `ajuste_de_inventario_posterior`; tetos 422; replay sem exclusão = gravado (senão 409); simulação sem o
+   movimento: saldo < 0 em qualquer ponto, de qualquer depósito (inclusive o destino de transferências em cascata) →
+   **409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO`** com `local_estoque_id`, `movimento_id`, `movimento_numero` e `saldo`; nada
+   gravado. **Sem estorno exato como saída** (`estornoExatoSeInviavel` falso): recusa é recusa.
+2. **Estorno da origem sem baixa de camada** (motor):
+   - `estornarEmLote` ganhou `camadaPeloRecalculo` (ids dos originais, só efeito ENTRADA): o lote precisa existir, ser
+     da empresa/produto/local e ter a entrada = kg do item, mas não precisa estar intocado e **não é escrito**. O resto
+     é o de sempre (original 'Ativa', movimento de estorno com o valor do original, `estoque_atual −= kg`, CAS). Usado
+     por `estornarEntradaDocumentada`, `estornarSobraDeAjuste` e o cancelamento da compra.
+   - `estornarTransferenciaEstoque` ganhou `recalculo: true`: valem a descoberta, as travas, o par coerente e ativo, as
+     fatias com linhagem, a origem ativa e o limite; não valem a regra do último, as camadas do destino intocadas, a
+     devolução nas camadas da origem e a prova de saldo; nenhuma camada é escrita. E_d e E_o nascem como sempre
+     (saldos = os de agora ∓ kg, que é o saldo de cada depósito sem a transferência).
+3. **Recálculo** (`aplicarExclusaoComRecalculo`): marca o par em `movimentacao_grupo_id` e refaz a sequência sem ele.
+   - Entrada: original 'Estornada' + estorno (filho), marca do original.
+   - Transferência: **dois pares**, cada um com a marca do seu original: S + E_o (`estorno_transferencia_enviada`, pai =
+     S; a S continua com o filho R) e R + E_d. Assim o kardex e o histórico do mapa (que já tratavam o par pela marca do
+     original) escondem os dois sem descontar saldo, sem mudar código de leitura.
+   - Replay (`estoqueReplay.js`): `paresMarcados` aceita os pares de entrada e os dois pares da transferência (os dois
+     têm de estar marcados; qualquer outro desenho → `marca_de_recalculo_incoerente`, fail-closed). A camada da entrada
+     excluída (e as recebidas na transferência excluída) nasce no ponto dela **já 'Estornado', disponível 0, no custo e
+     na entrada gravados**: nunca entra no poço. Quem consumia dela volta a consumir das outras camadas pela regra do
+     motor (FIFO para a fatia, médio do poço sem ela para o valor) — é a reatribuição.
+   - A escrita é a da fatia 4: valores, saldos, médios e fatias dos posteriores (todos os depósitos), a camada excluída
+     → 'Estornado'/0 (CAS), as outras camadas, camadas novas no destino de transferências em cascata (a antiga fica
+     'Estornado'), o rateio `[RATEIO_FIFO]`, os dependentes (`SaidaEstoqueItem`, linha da atividade e fatias,
+     abastecimento e fatias, venda e fatias, linha do ajuste já excluído, custo do cocho) — a fatia `*ConsumoLote` da
+     mesma camada é atualizada, a que falta é criada, a da camada que deixou de ser consumida é removida; **nenhuma
+     camada é apagada** —, a trilha `estoque.recalculo` e a prova final replay = gravado (senão tudo volta, 409).
+4. **Prévia** (`GET /estoque/movimentos/:id/exclusao/previa`): guarda nova para a sobra/falta do ajuste
+   (`estoque.ajuste`); documento inteiro também na entrada documentada, na compra e no ajuste (todas as linhas do mesmo
+   produto do documento são simuladas juntas). A camada da entrada aparece na lista de camadas indo a 'Estornado'.
+5. **Tela.** `PreviaRecalculoExclusao` nas janelas de exclusão da entrada (`JanelaEntradaEstoque`), do ajuste
+   (`JanelaAjusteEstoque`), no cancelamento do lançamento financeiro também na compra (`LancamentosFinanceirosTela`) e
+   na exclusão da transferência pelo mapa (`CancelarTransferenciaDeposito`, quando o ensaio diz que haverá recálculo).
+   Frases das recusas do recálculo em `mensagemErroEntrada`, `mensagemErroAjuste` e `mensagemDaRecusaTransferencia`.
+   Os textos "só é possível se ... não foi usado / nenhum movimento depois" foram trocados.
+
+**Escolha do dono (2026-11-23) mantida.** Com OUTRO ajuste vigente depois, no depósito que a exclusão muda, a exclusão
+(da entrada, da compra, da transferência ou do próprio ajuste) é recusada com `ajuste_de_inventario_posterior` e o
+número do ajuste. Excluir primeiro o ajuste mais novo (que é o último: estorno exato) destrava o anterior.
+
+### O que continua recusando, e por quê
+
+| Caso | Recusa | Por quê |
+|---|---|---|
+| Edição completa D-PROD-271 da entrada e da saída com algo depois | a de antes (`ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS` / `SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR`) | A edição estorna e **relança no fim da sequência** (número novo). Com movimentos depois, o "recálculo" seria o da exclusão: quem veio depois passaria a ser valorizado **sem** a entrada, não com a versão corrigida (ex.: a entrada nº 31 de 3.600 kg a R$ 0: corrigir o custo não corrigiria as transferências seguintes, e tirar a quantidade deixaria saldo negativo). Fazer certo exige substituir o movimento **no lugar** dele na ordem de lançamento — chave de ordem nova no replay e no kardex. Não cabe no mesmo motor sem mexer na ordem canônica (SPEC §1.3). O caminho hoje: excluir (com recálculo) e lançar de novo. |
+| `excluirConfirmado` e retificação do financeiro (compra) | a de antes (elegibilidade com `lote_consumido`) | Como na venda (fatia 4): a elegibilidade é a fonte única da tela do financeiro; o cancelamento cobre a necessidade. |
+| Estorno antigo de entrada cuja camada a simulação consome (`reatribuido`) | 409 `reatribuicao_de_camada` | Só aparece com um estorno exato antigo depois do excluído; o valor gravado do estorno antigo deixaria de ser o valor que sai do poço. Raro (o estorno exato antigo exigia a camada intocada). |
+| Saldo negativo em qualquer ponto | 409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO` | Regra da emenda. |
+
+### Testes PG novos (`backend/tests/estoqueExclusaoRecalculoEntradas.test.mjs`, números à mão)
+
+Base: A recebe E1 100 kg a R$ 4 (L1) e E2 100 a R$ 6 (L2) → 200 kg, médio 5; S1 tira 50 a 5 = 250 (L1); entra E3 50 a 9
+(L3) → 200 kg, médio 6; S2 tira 80 a 6 = 480 (L1 50 + L2 30).
+
+| Cenário | Resultado |
+|---|---|
+| Excluir E1 (consumida por S1 e S2) | S1 250 → **300** (50 × 6, fatia L1 → L2); E3 vê 50 → 100 kg; S2 480 → **600** (80 × 7,5; L2 50 + L3 30); L1 Esgotado → **Estornado**/0 no custo 5; L3 20 a 7,5; estoque 120 → 20 kg; itens das saídas 300/600; estorno `estorno_entrada_exclusao` de R$ 400 (valor de compra); trilha; prévia igual sem gravar; kardex sem desconto duplo; depois disso excluir S2 (a última) = estorno exato |
+| Saldo negativo | E1 100, E2 100, S 150, entra 200. Excluir E2 → **409** no movimento de S, saldo **−50**; nada gravado (foto do tenant igual); prévia diz o mesmo |
+| Nada depois | estorno exato, sem marca, `recalculo: null` (sem regressão) |
+| Compra cancelada com saída depois | compra 100 a 4 (LC), E2 100 a 6, S 50 a 5 = 250 (LC). Cancelar → S **300** (50 × 6, L2); LC Estornado; item da compra continua 4 / 400; estorno `estorno_compra` marcado; estoque 50 |
+| Compra cujo estoque foi usado, sem outra entrada | **409** saldo **−30** no movimento da saída; lançamento continua CONFIRMADO |
+| Transferência cancelada com consumo depois na origem e no destino | A: E1 100 a 4, E2 100 a 6; B: EB 40 a 8; T 80 A→B a 5 = 400; A recebe 40 a 20 (160 kg, médio 8,75); SA 60 = 525; SB 30 a 6 = 180 (DB1). Cancelar → SA **450** (60 × 7,5, L1), saldo 240 → 180; SB **240** (30 × 8, DB1), saldo 40 → 10; D1 Estornado; camadas de A a 7,5; total da empresa igual; os dois pares marcados (S mantém o filho R); elegibilidade ensaia (`efeitos.recalculo`) sem gravar |
+| Transferência deixando o destino negativo | A 100; T 50 A→B; SB 20. Cancelar → **409** no depósito **B**, movimento de SB, saldo **−20**; elegibilidade `elegivel: false` com o mesmo código |
+| Ajuste — sobra | E1 100 a 4; sobra 20 a 4; E2 60 a 10 (180 kg, médio 6); S 90 × 6 = 540. Excluir → S **562,5** (90 × 6,25; 160 → 70 kg); camada da sobra Estornado; linha do ajuste guarda 4 / 80 |
+| Ajuste — falta | E1 100 a 4, E2 100 a 6; falta 50 a 5; E3 50 a 9; S 80 × 6 = 480. Excluir → S **464** (80 × 5,8, L1 80) |
+| Outro ajuste depois | ajuste nº 1 (falta 10), saída 20, ajuste nº 2 (sobra 5). Excluir o nº 1 → **409** `ajuste_de_inventario_posterior`, ajuste nº 2; nada gravado; excluir o nº 2 = estorno exato |
+| Cascata por transferência | A: E1 50 a 2, E2 100 a 5 (médio 4); T 80 A→B = 320 (L1 50 + L2 30); SB 30 = 120. Excluir E1 → T **400** (80 × 5, L2); camada nova no B (as duas antigas Estornado); SB **150** na camada nova; L1 Estornado; L2 20 a 5 |
+| Cocho e atividade dependentes | E1 50 a 2, E2 150 a 6 (médio 5); cocho 30 = 150 (L1 30); linha da atividade 60 = 300 (L1 20 + L2 40). Excluir E1 → cocho **180** (30 × 6, L2; rateio e custo/kg do lançamento 5 → 6); linha **360** (L2 60): a fatia da L1 sai, a da L2 é atualizada (mesmo id, ordem 2 → 1); L1 fica (FK Restrict) |
+| Concorrência | E1 100 a 4, E2 100 a 6, E3 100 a 8; S 50 × 6 = 300. Trava do produto segura de fora, exclusões de E1 e E2 na fila → as duas passam; S **400** (50 × 8, L3); quatro movimentos marcados |
+
+Em todos: `auditarReplayDoProduto` sem divergência antes e depois. Replay puro (`estoqueRecalculoReplayPuro`): par de
+entrada marcado reproduz; marca só no original → `problema`; simulação sem E1 (venda 15 → 20, L1 Estornado) e a recusa
+com depósito, movimento e saldo (−5); transferência com os dois pares marcados reproduz; com um só → `problema`.
+
+Vermelho antes do verde: replay puro 3/5 falham sem a mudança do replay; PG 0/13 sem a implementação; smoke 3/4 sem a
+mudança da tela.
+
+### Prova com dados reais (`maike_prova_prod`)
+
+A cópia não tinha as tabelas do ajuste (D-PROD-272); a prova rodou num clone (`maike_prova_prod_rx5`, `CREATE DATABASE
+… TEMPLATE` + `migrate deploy`, só EXPAND), sem tocar na cópia original. `scripts/ops/replay-estoque-custo-medio.mjs
+--exigir-zero` **antes** (código da `main` `e05522af`) e **depois** (esta branch): 1 produto, 23 movimentos, 7 camadas,
+**0 divergência** nos dois, 5 movimentos da era FIFO. Simulação só de leitura das exclusões das entradas e
+transferências ativas desse produto:
+
+| Movimento | Simulação |
+|---|---|
+| nº 22 compra 15.000 kg | recusa: saldo −450 no nº 23 |
+| nº 23 transferência 450 kg | recusa: saldo −60 no nº 25 |
+| **nº 31 entrada manual 3.600 kg a R$ 0** (o caso do dono) | **permitida**: 10 posteriores mudam; no depósito da entrada (o Barracão: 13.800 → 10.200 kg no fim) o médio volta de R$ 2,9833 a **R$ 3,96**, e no outro (810 kg) de R$ 3,00 a **R$ 3,96**; transferências nº 33/34 R$ 2.192,40 → 2.970,00, nº 35/36 2.430,00 → 3.207,60, linha da atividade nº 41 105,00 → 138,60 |
+| nº 33 transferência 750 kg | recusa: saldo −750 no nº 35 |
+
+### Testes existentes que mudaram de expectativa (só onde provavam a recusa por movimento posterior nessas origens)
+
+| Teste | Antes | Agora |
+|---|---|---|
+| `estoqueAjustes` (outro movimento depois) | 409 `AJUSTE_ESTOQUE_MOVIMENTO_POSTERIOR` | 200, recalcula (falta 10 a 3; a saída de 1 kg continua 3, saldo 90→89 vira 100→99; estoque 99) |
+| `estoqueSaidas` (saída consumiu a camada da entrada) | 409 `ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS` | 409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO` (a entrada era o único estoque) |
+| `estoqueEntradasEdicao` (a exclusão no mesmo cenário da edição recusada) | mesma recusa da edição | 409 saldo negativo −10 (a edição continua com a recusa de antes) |
+| `depositoCancelarTransferencia` (regra do último) | 409 `movimento_posterior` | cocho no destino → 409 saldo negativo −5 no Barracão; entrada ou cocho na origem → 200 com recálculo; cadeia A→B→C → 409 saldo negativo |
+| `estoqueP0MotorUnico`, `patrimonioP1Abastecimentos` (AB13) | 409 `lote_consumido` | 409 `replay_diverge_do_gravado` (cenários com lote legado criado direto no banco, que o replay não reproduz) ou saldo negativo |
+| `gestaoP3Estoque`, `gestaoP3Lancamentos`, `patrimonioP1AbastecimentosConcorrencia` (compra consumida) | 409 `ESTOQUE_JA_CONSUMIDO` | 409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO` (a compra era o único estoque) |
+| `estoqueExclusaoRecalculoSaidas` (fail-closed) | entrada = `origem_nao_suportada` | a entrada passa a validação (para no teto); o estorno é que dá `origem_nao_suportada` |
+| `estoqueConsultaExcluidos` (fatia 2, entrada entre o original e o estorno) | saldo de B gravado 100→150, descontado na leitura | B regravado 0→50 pelo recálculo (o par marcado não desconta); a tela mostra o mesmo 0→50 |
+
+Sem regressão: a compra cujo abastecimento foi cancelado (AB11/AB13) e a entrada com outra entrada depois continuam
+passando (o abastecimento cancelado é par excluído e não conta; camada inteira → estorno exato se o recálculo recusar).
+
+### Validação (PG 17, banco novo `maike_rx5`, `prisma migrate deploy`)
+
+| Verificação | Resultado |
+|---|---|
+| PG `estoqueExclusaoRecalculoEntradas` (novo) | 13/13 (vermelho antes: 0/13) |
+| Replay puro `estoqueRecalculoReplayPuro` | 15/15 (3 novos vermelhos antes) |
+| Regressão PG: `estoque*`, `motorEstornoCochoTransferencia`, `suplementacao*`, `atividade*`, `gestaoP3*`, `depositoCancelar*`, `patrimonioP1Abastec*`, `patrimonioSimplificaAbast*`, `leituraCocho*`, `abastecimento*`, `foundation` | **1210/1210 (78 arquivos)** |
+| Smoke inteiro (`npm run -s test:smoke`) | 320 arquivos, 4031 testes: 4030 + 1 intermitente sem relação (`detalhesAreaHistorico`, animação de saída; 28/28 sozinho) |
+| Smoke novo `estoqueExclusaoRecalculoEntradas` | 4/4 (vermelho antes: 3/4) |
+| Gate tests (`scripts/tests/run-gate-tests.mjs`) | 1061/1061 |
+| gates `tenancy`, `indices`, `governance-paths`, `no-secrets`, `product-scope`, `import-integrity`, `base44` | ok |
+| eslint nos tocados, `typecheck:backend` | ok (0) |
+| `typecheck` | 374 (igual à base) |
+| Prova com dados reais (clone migrado de `maike_prova_prod`) | 0 divergência antes e depois |
+
+### Riscos e próximos passos
+
+- A transferência e as entradas usam a transação longa (30 s); o cancelamento da compra usa a do financeiro. Um produto
+  com milhares de posteriores pode estourar o tempo (a transação volta inteira). Tetos de 20.000/5.000 valem.
+- Exclusão de uma entrada cujo histórico tem lote legado sem movimento de entrada (saldo importado) recusa com
+  `replay_diverge_do_gravado` sempre que houver algo depois que tocou a camada. Na cópia de produção isso não ocorre.
+- `reatribuicao_de_camada` continua recusa (estorno antigo de entrada sem marca, consumido na simulação). Raro.
+- A edição completa (D-PROD-271) com algo depois pede decisão do proprietário (corrigir no lugar = chave de ordem nova).
+- O `excluirConfirmado` e a retificação da compra no financeiro seguem a elegibilidade antiga (como a venda na fatia 4).
+
+### Achados da revisão independente e correções
+
+A revisão confirmou três achados por teste (`rev5.test.mjs`). Cada cenário virou teste PG permanente em
+`estoqueExclusaoRecalculoEntradas.test.mjs` (describe "achados da revisão"): 3 vermelhos antes da correção, verdes
+depois; o 4º prova que a regra nova não regride.
+
+| # | Achado | Correção |
+|---|---|---|
+| 1 (importante) | **Corrida no cancelamento da venda.** `cancelar` lia os itens e as fatias (`consumos`) antes da trava do produto; uma exclusão com recálculo na fila à frente reescrevia as fatias da venda, e o estorno devolvia às camadas velhas (L2 Disponivel 50 e L3 50 em vez de L2 0 e L3 100; replay divergente para sempre) | No financeiro (`cancelar`, `excluirConfirmado`, `retificar`) as mercadorias e as fatias são relidas **depois** da trava (`mercadoriasSobTrava`) e conferidas com o `lotes_consumidos` relido; divergência → 409 `CONCURRENCY_CONFLICT` `fatias_divergentes`. Os outros escritores conferidos: a linha de produto da atividade (cancelar a linha, o apontamento, a atividade e a edição passam por `estornarLinhasProduto`) lia as fatias de quem chamava, antes da trava — agora as relê sob a trava; abastecimento, saída manual, ajuste (falta) e cocho já liam depois da trava (o cocho e a transferência relêem no motor); a compra usa só o id da camada do item, que não muda. Teste: E1, E2, E3 a 4/6/8; saída de 100; venda de 50; exclusão da E1 e cancelamento da venda na fila → os dois 200, L2 0 (Esgotado), L3 100 a 7, replay = gravado |
+| 2 (importante) | **O estorno exato da "camada intocada" gravava valores errados.** Custo atual = custo do movimento não prova que a entrada ficou fora do médio (o custo volta depois de reavaliações). Com o recálculo recusado, o estorno exato deixava S1 e S2 calculados com a entrada excluída | `entradaIntocada` exige também **nenhuma saída válida depois** no poço (saídas de pares já excluídos não contam: original 'Estornada' com estorno, com ou sem a marca). Com saída válida depois e recálculo recusado → a recusa do recálculo. A prévia usa a mesma regra; o estorno exato por camada intocada aparece como `estorno_exato_sem_recalculo` com `aviso`, e o `catch` da prévia só converte as recusas que o planejador contorna. Teste: L0 100 a 5, E 100 a 5, X 100 a 11 (médio 7), S1 50 = 350, Y 250 a 3 (médio 5), S2 10 = 50 (E volta a 5). Recálculo possível: S1 400, S2 48,75. Com grupo legado na entrada (recusa contornável) → prévia e exclusão **409 `grupo_legado_preenchido`**, nada gravado (antes: 200 e S1/S2 errados). Regressão citada (compra cujo abastecimento foi cancelado): continua 200 pelo estorno exato |
+| 3 (menor) | A prévia usava só `entradaIntocada`; o serviço também a prova da entrada documentada — podiam discordar | Uma função só (`entradaIntocada`, com a condição nova) no planejador e na prévia; a prova de sempre da entrada documentada só onde nada veio depois. Teste: E 100 (único estoque), saída de 30 excluída → prévia `estorno_exato_sem_recalculo` (aviso saldo negativo) e exclusão 200 |
+| 4 | Smoke `detalhesAreaHistorico` falhou uma vez | Smoke completo rodado duas vezes depois das correções: 320 arquivos, 4031/4031 nas duas; o teste passou também sozinho (28/28). Intermitente de tempo (animação de saída do diálogo do mapa), sem relação com a fatia: a fatia não toca nesse componente nem no que ele importa |
+
+Teste existente que mudou de expectativa por causa do achado 2: `patrimonioP1Abastecimentos` AB11(b). A compra tinha o
+lote "reposto por fora" com o abastecimento **ativo** depois (saída válida): antes passava pelo estorno exato; agora o
+recálculo vê o histórico adulterado e recusa (409 `replay_diverge_do_gravado`, nada gravado). O estado "compra cancelada
+com o lote Estornado" passou a ser emulado no banco para manter provada a defesa `lote_indisponivel_para_devolucao` do
+cancelamento do abastecimento. O AB13 (compra cujo abastecimento foi **cancelado**) continua 200.
+
+### Validação depois da revisão (PG 17, `maike_rx5`)
+
+| Verificação | Resultado |
+|---|---|
+| PG `estoqueExclusaoRecalculoEntradas` (com os 4 da revisão) | 17/17 (os 3 da revisão vermelhos antes) |
+| `rev5.test.mjs` da revisão | 3/3; H1: as duas operações 200, L2 0 Esgotado, L3 100 a 7, replay sem divergência; H2: prévia `estorno_exato_sem_recalculo` e exclusão 200; H3: prévia e exclusão 409 `grupo_legado_preenchido`, S1 350 e S2 50 intactos |
+| Regressão PG (78 arquivos, mesma lista) | 1213/1214 na rodada; a falha era o AB11(b) acima, verde depois do ajuste (15/15) |
+| Smoke completo, duas vezes | 4031/4031 e 4031/4031 |
+| Gate tests | 1061/1061 |
+| gates `tenancy`, `indices`, `governance-paths`, `no-secrets`, `product-scope`, `import-integrity`, `base44` | ok |
+| eslint nos tocados, `typecheck:backend` | ok (0) |
+| `typecheck` | 374 (igual à base) |
+| Prova com dados reais (`maike_prova_prod_rx5`) | replay 0 divergência; a exclusão do nº 31 continua permitida (10 posteriores; médios de volta a R$ 3,96) — ela tem saídas válidas depois, então vai pelo recálculo, não pelo estorno exato |

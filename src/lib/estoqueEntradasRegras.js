@@ -16,6 +16,7 @@ import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import { lerErroGestao } from '@/lib/gestaoErros';
 import { deUnidades, lerNumeroLocal, multiplicarArredondar, paraUnidades } from '@/lib/dinheiroDecimal';
 import { formatarDia, formatarQtd, formatarReais } from '@/lib/estoqueConsultaRegras';
+import { mensagemRecusaRecalculo } from '@/lib/estoqueRecalculoExclusao';
 
 export const LOCALE_ENTRADA = 'pt-BR';
 export const LIMITES_ENTRADA = Object.freeze({ inteiros: 10, casas: 4 });
@@ -399,6 +400,9 @@ const INVALIDA = /** @type {Record<string, string>} */ ({
  * @param {unknown} erro @param {string} padrao
  */
 export const mensagemErroEntrada = (erro, padrao) => {
+  // D-PROD-273 (fatia 5): recusas da exclusão com recálculo (saldo negativo, contagem depois, inviável).
+  const recalculo = mensagemRecusaRecalculo(erro);
+  if (recalculo) return recalculo;
   const { code, field, reason } = lerErroGestao(erro);
   switch (code) {
     case 'ENTRADA_ESTOQUE_NOT_FOUND':

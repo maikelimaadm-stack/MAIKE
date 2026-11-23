@@ -550,11 +550,17 @@ describe('D-PROD-273 fatia 4 — fail-closed', () => {
       prisma().$transaction((tx) => provarExclusaoComRecalculo(tx, x.c, { empresaId: x.e1.id, produtoId: x.sal.id, excluirIds: [m1.id], tetoAfetados: 1 })),
       (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO' && e.details.teto === 1,
     );
+    // D-PROD-273 (fatia 5): a entrada passou a ser aceita; o ESTORNO continua não sendo excluível
     const me3 = await movDoItem(c.e3);
     await assert.rejects(
-      prisma().$transaction((tx) => provarExclusaoComRecalculo(tx, x.c, { empresaId: x.e1.id, produtoId: x.sal.id, excluirIds: [me3.id] })),
+      prisma().$transaction((tx) => provarExclusaoComRecalculo(tx, x.c, { empresaId: x.e1.id, produtoId: x.sal.id, excluirIds: [me3.id], tetoAfetados: 0 })),
+      (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO',
+      'a entrada passa da validação da origem (para no teto, que vem depois)',
+    );
+    await assert.rejects(
+      prisma().$transaction((tx) => provarExclusaoComRecalculo(tx, x.c, { empresaId: x.e1.id, produtoId: x.sal.id, excluirIds: [o.movimento_filho_id] })),
       (e) => e.code === 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL' && e.details.reason === 'origem_nao_suportada',
-      'entrada é a fatia 5',
+      'estorno não se exclui',
     );
   });
 });

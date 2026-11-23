@@ -208,43 +208,49 @@ describe('D-PROD-268 depósito — POST cancelar-transferencia', () => {
     await reconciliacaoLimpa(x);
   });
 
-  test('regra do último nos DOIS depósitos: cocho no destino e entrada na origem recusam (ensaio e POST, nada muda); outro produto não conta; cadeia A→B→C só pelo último', async () => {
+  test('D-PROD-273 (fatia 5): com movimento depois nos depósitos, o cancelamento RECALCULA (antes: regra do último); recusa só se um saldo ficaria negativo (ensaio e POST, nada muda); outro produto não conta; cadeia A→B→C', async () => {
     const x = await cenario();
     await entrar(x, '100', '2');
     const t1 = await transferir(x, 30);
     await entrar(x, '5', '9', x.galpao, x.outro);
     await suplementar(x, 5, x.barracao);
     const ret = await retrato(x);
+    // sem t1 o Barracão tinha 0 kg quando o cocho tirou 5 → −5 no destino
     const g = (await elegibilidade(x, t1.s.id)).json();
-    assert.deepEqual([g.elegivel, g.codigo, g.detalhes.reason, g.detalhes.lado], [false, 'TRANSFERENCIA_CANCELAMENTO_BLOQUEADO', 'movimento_posterior', 'destino'], JSON.stringify(g));
+    assert.deepEqual([g.elegivel, g.codigo, g.detalhes.reason, g.detalhes.local_estoque_id, g.detalhes.saldo], [false, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo_negativo', x.barracao.id, '-5.0000'], JSON.stringify(g));
     assert.equal(g.efeitos.quantidade, '30.0000');
-    const j = erro(await cancelar(x, t1.s.id), 409, 'TRANSFERENCIA_CANCELAMENTO_BLOQUEADO', 'movimento_posterior');
-    assert.deepEqual([j.details.lado, j.details.local_estoque_id], ['destino', x.barracao.id]);
+    const j = erro(await cancelar(x, t1.s.id), 409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo_negativo');
+    assert.deepEqual([j.details.local_estoque_id, j.details.saldo], [x.barracao.id, '-5.0000']);
     assert.match(String(j.details.movimento_numero), /^[0-9]+$/);
     assert.deepEqual(await retrato(x), ret);
 
+    // entrada na origem depois: o cancelamento passa e recalcula (o Galpão volta a 71 kg; o Barracão fica com 25)
     const t2 = await transferir(x, 20);
     await entrar(x, '1', '3');
-    const j2 = erro(await cancelar(x, t2.r.id), 409, 'TRANSFERENCIA_CANCELAMENTO_BLOQUEADO', 'movimento_posterior');
-    assert.deepEqual([j2.details.lado, j2.details.local_estoque_id], ['origem', x.galpao.id]);
+    const r2 = await cancelar(x, t2.r.id);
+    assert.equal(r2.statusCode, 200, r2.body);
+    assert.equal(r2.json().recalculo.produtos, 1);
+    await reconciliacaoLimpa(x);
 
-    // outro produto nos mesmos locais não bloqueia
+    // outro produto nos mesmos locais não conta: estorno exato
     const y = await cenario();
     await entrar(y, '50', '2');
     await entrar(y, '50', '2', y.galpao, y.outro);
     const ty = await transferir(y, 10);
     await transferir(y, 5, y.galpao, y.barracao, y.outro);
-    assert.equal((await cancelar(y, ty.s.id)).statusCode, 200);
+    const ry = await cancelar(y, ty.s.id);
+    assert.deepEqual([ry.statusCode, ry.json().recalculo], [200, null]);
     await reconciliacaoLimpa(y);
 
-    // cadeia A→B→C: só o último elo; depois dele o primeiro continua bloqueado (B teve movimento)
+    // cadeia A→B→C: sem A→B, o B não teria os 10 que foram para C → recusa; o último elo é estorno exato; depois dele o
+    // primeiro continua recusado (o estorno exato de B→C fica na sequência, e B→C ainda tira 10 do B)
     const z = await cenario();
     await entrar(z, '50', '2');
     const ab = await transferir(z, 20, z.galpao, z.barracao);
     const bc = await transferir(z, 10, z.barracao, z.retiro);
-    erro(await cancelar(z, ab.s.id), 409, 'TRANSFERENCIA_CANCELAMENTO_BLOQUEADO', 'movimento_posterior');
+    erro(await cancelar(z, ab.s.id), 409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo_negativo');
     assert.equal((await cancelar(z, bc.s.id)).statusCode, 200);
-    erro(await cancelar(z, ab.s.id), 409, 'TRANSFERENCIA_CANCELAMENTO_BLOQUEADO', 'movimento_posterior');
+    erro(await cancelar(z, ab.s.id), 409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo_negativo');
     await reconciliacaoLimpa(z);
   });
 
@@ -294,10 +300,12 @@ describe('D-PROD-268 depósito — POST cancelar-transferencia', () => {
     assert.equal((await chamar('GET', `/movimentacoes-estoque/${t.s.id}/elegibilidade-cancelamento-transferencia`, x.token)).statusCode, 400);
     assert.equal((await cancelar(x, t.s.id, { token: null })).statusCode, 401);
     assert.deepEqual(await retrato(x), ret);
-    // a baixa do cocho na ORIGEM depois da transferência bloqueia (regra do último no lado da origem)
-    const j = erro(await cancelar(x, t.s.id), 409, 'TRANSFERENCIA_CANCELAMENTO_BLOQUEADO', 'movimento_posterior');
-    assert.deepEqual([j.details.lado, j.details.local_estoque_id, j.details.movimento_numero], ['origem', x.galpao.id, sup.numero_movimentacao]);
-    assert.deepEqual(await retrato(x), ret);
+    // D-PROD-273 (fatia 5): a baixa do cocho na ORIGEM depois da transferência não bloqueia mais — o cancelamento
+    // recalcula (a origem tinha 100 kg sem a transferência; o cocho de 5 continua a R$ 2)
+    const okc = await cancelar(x, t.s.id);
+    assert.equal(okc.statusCode, 200, okc.body);
+    assert.equal(okc.json().recalculo.produtos, 1);
+    assert.equal(String((await mov(sup.id)).valor_total), '10');
   });
 
   test('legado sem fatias recusa (fatias_ausentes), nada muda', async () => {
