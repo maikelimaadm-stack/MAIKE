@@ -14,7 +14,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-280**, pedido e aprovação do proprietário, tela a tela (atual × proposto) |
-| Branch / PR | `claude/kind-knuth-tztu1v` · PR (a abrir) |
+| Branch / PR | `claude/kind-knuth-tztu1v` · PR **#367** |
 | Mudança | Só apresentação do Detalhes do Lote: abas, seletor, rodapé, Detalhes (capim, régua de UA/ha, grade), Lotes (barras, grade, tabela compacta), Histórico (cartões curtos), Suplementação (réguas, barras, gráfico) e Manejos (frase por quadro, ícone do Mover visível) |
 | Migration | Nenhuma |
 | Relatório | [`MAIKE-DETALHES-LOTE-V13-REPORT.md`](./MAIKE-DETALHES-LOTE-V13-REPORT.md) |
