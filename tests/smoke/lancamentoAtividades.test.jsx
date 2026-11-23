@@ -1487,7 +1487,7 @@ describe("LA-PORTA — porta por allowlist e service sem fazenda", () => {
     // A query da lista que a porta monta só usa chaves que a rota aceita.
     const listar = cabecalho.slice(cabecalho.indexOf("const LISTAR = {"), cabecalho.indexOf("const DETALHE"));
     const aceitas = [...listar.matchAll(/^ {6}([a-z_]+):/gm)].map((m) => m[1]);
-    const todas = { empresa_id: "e", status: "ABERTA", tipo_atividade_id: "t", area_id: "a", data_de: HOJE, data_ate: HOJE, limit: 100, cursor: "c" };
+    const todas = { empresa_id: "e", status: "ABERTA", tipo_atividade_id: "t", area_id: "a", data_de: HOJE, data_ate: HOJE, local: "DIVISA NORTE", limit: 100, cursor: "c" };
     const usadas = [...new URLSearchParams(porta.montarCaminhoListagem(todas).split("?")[1]).keys()];
     expect(usadas.length).toBe(Object.keys(todas).length);
     for (const chave of usadas) expect(aceitas, chave).toContain(chave);
@@ -2343,5 +2343,62 @@ describe("LA-VARIOS-DIAS — a linha do serviço: \"+ Lançar dia\" e \"Concluir
     await waitFor(() => expect(ultimaEscrita()).toEqual({ method: "POST", path: "/atividades/a1/concluir", query: {}, body: { empresa_id: "emp-1", versao: 4, data_conclusao: "2026-11-12" } }));
     await waitFor(() => expect(screen.queryByTestId("dialogo-concluir-servico")).toBeNull());
     expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Serviço nº 3 concluído.");
+  });
+});
+
+describe("LA-E2E — ajustes do teste de ponta a ponta da Entrega 2 (D-PROD-274)", () => {
+  /** A Manutenção sem área, no local (como o servidor devolve: sem área, com o local, a produção e a unidade). */
+  const semArea = () => ({
+    ...ATV_A1,
+    id: "a9", numero: "9", nome: "REFORMA DE CERCA · DIVISA NORTE · nov/26", tipo_atividade_id: "t2", tipo_atividade_nome: "REFORMA DE CERCA",
+    area_id: null, area: null, setor_id: null, setor_nome: null, areas: [], areas_count: 0, local: "DIVISA NORTE", bem_id: null, bem: null,
+    area_planejada: null, area_executada: null, quantidade_produzida: "2.5000", unidade_producao_id: null, unidade_producao_sigla: "KM", unidade_producao: null,
+    createdAt: "2026-11-13T12:00:00.000Z",
+    andamento: { ...ATV_A1.andamento, tipo_fixo: "BENFEITORIA", hectares_feitos: null, hectares_area: null, percentual: null, ultimo_dia: "2026-11-13" },
+  });
+
+  it("LA-E2E-1 — a lista: o serviço sem área mostra o local e a quantidade (nunca \"0 ha\"); o plantio mostra o capim embaixo da operação", async () => {
+    atividades.set("a9", semArea());
+    atividades.set("a8", {
+      ...ATV_A1, id: "a8", numero: "8", tipo_atividade_nome: "SEMEADURA DE CAPIM", createdAt: "2026-11-13T13:00:00.000Z",
+      plantio: { cultura_id: "c-mom", cultura: { id: "c-mom", codigo: "007", nome: "PANICUM CV. MOMBAÇA" }, forma_plantio: null },
+    });
+    await montarComLista();
+    expect(screen.getByTestId("servico-andamento-a9")).toHaveTextContent(/^DIVISA NORTE · 2,5 km · último dia 13\/11$/);
+    expect(screen.getByTestId("atividade-status-a9").textContent).not.toMatch(/\d ha/);
+    expect(screen.getByTestId("servico-capim-a8")).toHaveTextContent("capim PANICUM CV. MOMBAÇA");
+    expect(screen.queryByTestId("servico-capim-a1")).toBeNull();
+  });
+
+  it("LA-E2E-2 — o Resumo da atividade sem área mostra \"Local: DIVISA NORTE\" no lugar da Área", async () => {
+    atividades.set("a9", semArea());
+    await montarComLista();
+    const cabecalho = await abrir("a9");
+    expect(rotulos(cabecalho)).toContain("Local");
+    expect(rotulos(cabecalho)).not.toContain("Área");
+    expect(within(cabecalho).getByTestId("atividade-local")).toHaveValue("DIVISA NORTE");
+  });
+
+  it("LA-E2E-3 — o Resumo da Aplicação mostra o \"Pasto liberado em\" que o servidor calcula na leitura; o do Plantio, o capim", async () => {
+    atividades.set("a1", { ...atividades.get("a1"), pasto_liberado_em: "2026-12-03", carencia_dias: 21 });
+    await montarComLista();
+    const cabecalho = await abrir("a1");
+    expect(within(cabecalho).getByTestId("atividade-pasto-liberado")).toHaveTextContent("03/12/2026");
+    expect(within(cabecalho).getByTestId("atividade-pasto-liberado-nota")).toHaveTextContent("último dia lançado + carência do produto (21 dias)");
+    expect(within(cabecalho).queryByTestId("atividade-capim")).toBeNull();
+  });
+
+  it("LA-E2E-4 — Aplicação sem carência: \"Pasto liberado em\" = \"—\"; fora da Aplicação, o campo não aparece", async () => {
+    // O servidor manda as chaves nulas sem produto com carência.
+    atividades.set("a1", { ...atividades.get("a1"), pasto_liberado_em: null, carencia_dias: null });
+    atividades.set("a9", { ...semArea(), pasto_liberado_em: null, carencia_dias: null });
+    await montarComLista();
+    const cabecalho = await abrir("a1");
+    await waitFor(() => expect(within(cabecalho).getByTestId("atividade-pasto-liberado")).toHaveTextContent(/^—$/));
+    expect(within(cabecalho).getByTestId("atividade-pasto-liberado-nota")).toHaveTextContent("sem produto com carência no cadastro");
+    cleanup();
+    await montarComLista();
+    const daManutencao = await abrir("a9");
+    expect(within(daManutencao).queryByTestId("atividade-pasto-liberado")).toBeNull();
   });
 });

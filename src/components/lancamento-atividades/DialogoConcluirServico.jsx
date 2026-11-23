@@ -6,13 +6,15 @@ import { CampoDia } from "@/components/financeiroGestao/CamposLancamento";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import { mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
 import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
-import { barraDoAndamento, erroDoUltimoDia, textoDosHectares, tituloDoConcluir } from "@/lib/servicoVariosDias";
+import { barraDoAndamento, erroDoUltimoDia, feitoNoConcluir, tituloDoConcluir } from "@/lib/servicoVariosDias";
 
 /**
  * D-PROD-267 — o "Concluir" da linha da lista (maquete V3): "Concluir <operação> · <área>", um campo só — "Qual foi o
  * último dia?", já com o último dia lançado ("sugerido: último dia lançado") — e "40 de 40 ha (100%)" com a barra. Grava
  * pelo `POST /atividades/:id/concluir` de sempre (as áreas em andamento e a atividade, numa transação; o servidor recusa
  * o dia futuro, antes do início ou antes do último dia lançado). A data é conferida aqui antes da rede, com a mesma regra.
+ * D-PROD-274 (ajustes do teste de ponta a ponta): o título diz o capim do Plantio de pastagem; o serviço sem área mostra a
+ * quantidade feita no lugar dos hectares (o local já está no título).
  *
  * @param {{ item: any, hoje: string, onFechar: () => void, onConcluir: (dia: string) => Promise<unknown> }} props
  */
@@ -23,7 +25,8 @@ export default function DialogoConcluirServico({ item, hoje, onFechar, onConclui
   const [erro, setErro] = useState(/** @type {string|null} */ (null));
   const [aviso, setAviso] = useState(/** @type {string|null} */ (null));
   const [enviando, setEnviando] = useState(false);
-  const hectares = textoDosHectares(a.hectares_feitos, a.hectares_area, a.percentual);
+  // D-PROD-274: sem área, a quantidade feita (o local está no título; nunca "0 ha"); o título leva o capim do plantio.
+  const hectares = feitoNoConcluir(item);
   const barra = barraDoAndamento(item);
 
   const concluir = async () => {

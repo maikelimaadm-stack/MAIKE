@@ -222,7 +222,7 @@ describe("TA-FORM — formulário da operação (D-PROD-258): tipo fixo + nome +
     const { form } = await montar();
     expect(await opcoesDe(form, "Tipo")).toEqual([
       "Preparo do solo",
-      "Formação de pastagem (plantio)",
+      "Plantio de pastagem",
       "Fertilização",
       "Aplicação",
       "Roçada e tratos",
@@ -350,7 +350,7 @@ describe("TA-PAGE — tela de operações (D-PROD-258)", () => {
     servico.criarTipoAtividade.mockResolvedValue({ ...SALVO, id: "novo", nome_tipo: "PLANTIO DIRETO", categoria: "PLANTIO" });
     await montarTela();
     const form = await abrirNovo();
-    await escolher(form, "Tipo", "Formação de pastagem (plantio)");
+    await escolher(form, "Tipo", "Plantio de pastagem");
     fireEvent.change(within(form).getByLabelText(/Nome da operação/), { target: { value: "plantio direto" } });
     fireEvent.submit(document.getElementById(FORMULARIO_TIPO_ATIVIDADE_ID));
     await waitFor(() => expect(servico.criarTipoAtividade).toHaveBeenCalledTimes(1));

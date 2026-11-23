@@ -31,9 +31,9 @@ Remover a chave `ignoreCommand` dos dois arquivos.
 
 ---
 
-# Custo mínimo na Vercel (2026-11-23, D-PROD-274)
+# Custo mínimo na Vercel (2026-11-23, D-PROD-275)
 
-FATIA: MAIKE-VERCEL-CUSTO-MINIMO · BRANCH: `chore/vercel-custo-minimo` · PR: a PR aberta desta branch
+FATIA: MAIKE-VERCEL-CUSTO-MINIMO · BRANCH: `chore/vercel-custo-minimo` · PR: #361
 
 ## Diagnóstico (cobrança diária da Vercel, 31/10 a 22/11)
 

@@ -199,6 +199,10 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // D-PROD-272: EXPAND — ajuste de inventário do Estoque (AjusteEstoque, AjusteEstoqueItem e AjusteEstoqueEvento),
   // só tabelas novas.
   '20261120300000_estoque_ajustes': 'ac836ddf1b4830c4cd73ca1894e9925a77a8ea6c2bda735ad1859c830f26ccc9',
+  // MAIKE-ENTREGA2 (D-PROD-274): EXPAND — campos de cada tipo na Nova realização: 5 colunas anuláveis sem DEFAULT em tabelas
+  // antigas (Atividade.local, AtividadeApontamento.numero_receituario, AtividadeApontamentoProduto.vc_percentual,
+  // Produto.carencia_dias e TipoAtividade.alvo) e a tabela nova AtividadePlantio (capim plantado, 1 para 1 com a atividade).
+  '20261121100000_atividade_campos_por_tipo': '9e6487ffddb92a35945c675c1924f363c3396e97dac52e56e8d3c94c20a32a58',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -254,6 +258,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   'c0806122464b767913dd451fb066b803fb13451923a10b75462fc96038feffe3',
   // D-PROD-272: RLS/REVOKE das 3 tabelas do ajuste de inventário (mesmo corpo, lista nova).
   '4825a207a444b5b3bff8ac669e4e6e4a4db95d5aebd68986125bc8db00094fb8',
+  // D-PROD-274: RLS/REVOKE da AtividadePlantio (mesmo corpo, lista nova).
+  'e47bfde02699052ca52f4c6c750e9f28aec247d1fcaf5c2c308a05e006799765',
 ]);
 
 /**
