@@ -1954,6 +1954,10 @@
     margin: 0 -12px;
   }
   .mk-dp .mk-dp-area-resumo > .mk-dp-grade { display: contents; }
+  /* D-PROD-275: a linha "Em reforma desde" ocupa a largura toda (não uma das 4 colunas). */
+  .mk-dp .mk-dp-area-resumo > .mk-dp-area-reforma {
+    grid-column: 1 / -1;
+  }
 }
 
 /* D-PROD-242 — leitura suave: fontes pequenas e valores abaixo dos rótulos, inclusive nas quatro colunas. */
