@@ -173,6 +173,8 @@ Violação exige **rollback**, não flexibilização da regra.
 
 > **Nota (D-PROD-273, emenda aprovada pelo proprietário em 2026-11-22):** a exclusão com recálculo é exceção, nos limites da decisão, às proibições de excluir depois de outro movimento e de recalcular o custo de baixas passadas. Continua proibido: excluir quando o saldo de algum depósito ficaria negativo em algum ponto da sequência; recalcular fora do motor de estoque único ou por outra ordem que não a de lançamento; reescrever valor sem registrar o antes, o depois, o autor e o motivo; apagar fisicamente movimento ou camada; mudar preço de venda ou valor de compra; conceder ações do estoque a perfis existentes por padrão.
 
+> **Nota (D-PROD-279, emenda aprovada pelo proprietário em 2026-11-23):** produto que controla lote usa o custo do lote escolhido; os demais seguem no custo médio do depósito (D-PROD-256). É exceção, nos limites da decisão, à regra de que toda saída é valorizada pelo médio do depósito. Continua proibido: reavaliar a camada de produto com lote; dar entrada em produto com lote sem o lote (ou sem a validade, quando controla); escolher lote de outro produto, empresa ou depósito; trocar "Controla lote"/"Controla validade" com saldo; recalcular por média a saída de produto com lote; excluir a entrada de um lote que já teve saída.
+
 > **Nota (D-PROD-193):** os itens do Apontamento de Atividade são a segunda exceção, depois do abastecimento, à
 > lista "fora" da D-PROD-157, só no trecho baixa de estoque, nos limites da decisão. Continua proibido: baixar o
 > item fora do motor de estoque ou por `Produto.estoque_atual -= …`; gravar o movimento com a origem do

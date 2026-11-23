@@ -9128,4 +9128,28 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** "Abrir atividade" (a tela de atividades não abre uma atividade pelo endereço; não se criou rota). Nenhuma mudança no servidor; nenhuma migration; a tela de atividades não foi refatorada.
 - **Testes:** `tests/smoke/mapaAtividadeAcoes.test.jsx` (menu com os itens permitidos, área planejada, "+ Lançar dia" preenchido, "Só máquina" presa na área, Concluir com a versão do detalhe e a releitura do resumo, sem permissão não tocável).
 
-<!-- Próxima decisão: D-PROD-279 -->
+## D-PROD-279 — Estoque: controle de lote (e de validade) por produto; produto com lote sai pelo custo do lote
+
+**Data:** 2026-11-23 · **Origem:** escolhas do proprietário (2026-11-23, aprovadas) · **Branch:** `claude/estoque-controle-lote` (da `main` `d62a4ef8`) · **Migration:** `20261123100000_estoque_controle_lote` (CONTRACT condicionado e **aditivo**; ver abaixo) · **Especificação:** [`MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md) · **Runbook:** [`MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md) · **Relatório:** [`MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md)
+
+> **Numeração:** a `main` (`d62a4ef8`) indica `Próxima decisão: D-PROD-279`, que é esta; o marcador passa a D-PROD-280. Sem rede nesta sessão, o `scripts/dev/proxima-decisao.mjs` só lê o marcador: **conferir de novo antes de abrir a PR e antes do merge (D-PROD-277, regra A5)**. O número não está no `migration.sql` (só na entrada de `MIGRATIONS_CONTRACT_APROVADAS`), então renumerar não muda o checksum.
+
+**Escolhas do proprietário (2026-11-23).**
+1. **Cadastro.** O produto ganha "Controla lote" e "Controla validade" (Sim/Não, padrão Não; os de hoje ficam Não). Validade só com lote.
+2. **Camada.** A `EstoqueLoteNota` continua sendo a camada por entrada e ganha `lote_fabricante` e `data_validade`. Produto com lote exige o lote em toda entrada (documentada, compra do financeiro, sobra de ajuste); com "Controla validade", também a validade. A transferência leva lote e validade para o destino.
+3. **Saídas.** Saída manual, transferência, cocho, linha de atividade, abastecimento, venda e falta de ajuste: o sistema sugere o lote que vence primeiro (FEFO; empate ou sem validade → a entrada mais antiga); o usuário pode trocar e dividir entre lotes; lote vencido avisa "Lote vencido em dd/mm" e deixa confirmar. Produto sem lote continua como hoje (fatias FIFO e custo médio).
+4. **Custo.** Produto com lote sai pelo custo da camada escolhida (o custo da nota); os demais no custo médio do depósito (D-PROD-256). As camadas de produto com lote não são reavaliadas.
+5. **Troca do cadastro** só com saldo zero em todos os depósitos (409 `PRODUTO_LOTE_TROCA_COM_SALDO`).
+6. **Recálculo (D-PROD-273).** Produto com lote não tem médio a refazer. Excluir entrada cujo lote já teve saída → recusa clara (`lote_consumido`); sem saída, estorno exato. Excluir saída → estorno exato no mesmo lote. O replay sem exclusão reproduz o gravado também para esses produtos.
+
+**Sobra de ajuste de produto com lote (tratamento do agente, explicado na SPEC §2).** Exige o lote (e a validade, se controla); entra pelo custo da camada mais recente do mesmo lote do fabricante no depósito (herdando a validade quando não vier); sem camada desse lote, o custo é obrigatório (`custo_informado`).
+
+**Marca do método.** Saída e transferência de produto com lote gravam `modo_saida_fifo = 'LOTE'`; estorno e replay decidem pela marca do movimento, não pelo cadastro atual.
+
+**Migration.** `20261123100000_estoque_controle_lote`: `Produto.controla_lote` e `Produto.controla_validade` BOOLEAN NOT NULL DEFAULT false, CHECK `Produto_controla_validade_check`, `EstoqueLoteNota.lote_fabricante` VARCHAR(64) NULL e `EstoqueLoteNota.data_validade` DATE NULL, e o índice `EstoqueLoteNota_fefo_idx` (`cliente_id`, `empresa_id`, `produto_id`, `local_estoque_id`, `data_validade`). Nenhuma linha muda de valor, nenhum DROP, nenhum DML. É **aditiva**, mas o classificador a trata como **CONTRACT condicionado** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`, `--contract D-PROD-279`), porque a allowlist EXPAND recusa em tabela antiga coluna NOT NULL DEFAULT, coluna DATE e CHECK — o mesmo caminho da D-PROD-197, da D-PROD-259 e da D-PROD-265. **Não aplicada em produção**; só ensaiada localmente.
+
+**Constituição — emenda APROVADA pelo proprietário em 2026-11-23** (aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-273, e nota própria em `07-DO-NOT-DO.md`, depois da nota D-PROD-273). Texto aprovado: "Produto que controla lote usa o custo do lote escolhido; os demais seguem no custo médio do depósito (D-PROD-256)".
+
+**Fora de escopo.** Rastreio de lote por animal ou área; lote no cadastro de nota fiscal/NF-e; recusa de saída de lote vencido (só aviso); relatório de lotes vencidos.
+
+<!-- Próxima decisão: D-PROD-280 -->
