@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-21 (missão ativa D-PROD-273; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-21 (missão ativa D-PROD-274; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -14,7 +14,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-253** (nasceu D-PROD-195 e passou a D-PROD-252; a `main` deu a D-PROD-195 à curva obrigatória na Categoria de Manejo, PR #278, e a D-PROD-252 ao Lançamento de Atividades organizado, PR #331, e chegou a `Próxima decisão: D-PROD-253`; a PR #332 deixou a 253 reservada e usou a D-PROD-254) |
-| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273), com a `main` `3a329d90` (PRs #276 a #329, inclusive os módulos novos `atividades` e `culturas`) com a `main` `0981d262` (PR #330, só frontend) com a `main` `633f75f0` (PR #331, só frontend, com a correção dos smokes que a #330 quebrou) com a `main` `9d791735` (PR #332, D-PROD-254) com a `main` `75464e88` (PRs #333 a #335, inclusive a D-PROD-255) com a `main` `bab0f38a` (PR #338, D-PROD-258) com a `main` `187491be` (PR #337, D-PROD-256) com a `main` `0e38b012` (PR #340, D-PROD-257) com a `main` `095b057d` (PRs #336, #339 e #341, inclusive a D-PROD-259) com a `main` `d447a781` (PRs #342 e #343, inclusive a D-PROD-260) com a `main` `d8fa5ced` (PR #345, D-PROD-261, R-DEDUPE) com a `main` `5261ec13` (PR #346, D-PROD-262, só frontend) e com a `main` `a12e3c5c` (PR #348, D-PROD-263, várias áreas no registro: a conferência sem o alvo passa a cobrir as chaves de todas as áreas) com a `main` `46fe34f5` (PR #347, D-PROD-264, saída manual do estoque: o mapa do `criar` convertido no merge) com a `main` `3c8329b1` (PR #349, D-PROD-265, data de término do registro, sem P2002 nem mapa novo) com a `main` `2e048854` (PR #351, D-PROD-266, excluir nos históricos do mapa, só autorização no backend) com a `main` `695ddb25` (PR #352, D-PROD-267, serviço de vários dias, sem P2002 nem mapa novo) com a `main` `80aa1db3` (PR #353, D-PROD-268, estorno de cocho e transferência, transações novas sem mapa de unique) com a `main` `fe9bd3ed` (PR #356, D-PROD-269, só frontend) com a `main` `f8abde68` (PR #357, D-PROD-270, só frontend) com a `main` `cdfb1174` (PR #355, D-PROD-271, edição da entrada e da saída: os mapas do `editar` convertidos no merge) com a `main` `c1cd2be9` (PR #350, D-PROD-272, ajuste de inventário: o mapa do `criar` convertido no merge) e com a `main` `58c0697b` (PRs #358 e #359, D-PROD-273, exclusão com recálculo do custo médio: só leituras no backend, sem mapa de unique nem P2002). PR **#275** (rascunho), exclusiva desta correção |
+| Branch / PR | `claude/relaxed-cori-51av1f`, criada da `main` `cfa3e7e` (merge da PR #274) e integrada por merge (sem rebase) com a `main` `a65ea46` (PR #273), com a `main` `3a329d90` (PRs #276 a #329, inclusive os módulos novos `atividades` e `culturas`) com a `main` `0981d262` (PR #330, só frontend) com a `main` `633f75f0` (PR #331, só frontend, com a correção dos smokes que a #330 quebrou) com a `main` `9d791735` (PR #332, D-PROD-254) com a `main` `75464e88` (PRs #333 a #335, inclusive a D-PROD-255) com a `main` `bab0f38a` (PR #338, D-PROD-258) com a `main` `187491be` (PR #337, D-PROD-256) com a `main` `0e38b012` (PR #340, D-PROD-257) com a `main` `095b057d` (PRs #336, #339 e #341, inclusive a D-PROD-259) com a `main` `d447a781` (PRs #342 e #343, inclusive a D-PROD-260) com a `main` `d8fa5ced` (PR #345, D-PROD-261, R-DEDUPE) com a `main` `5261ec13` (PR #346, D-PROD-262, só frontend) e com a `main` `a12e3c5c` (PR #348, D-PROD-263, várias áreas no registro: a conferência sem o alvo passa a cobrir as chaves de todas as áreas) com a `main` `46fe34f5` (PR #347, D-PROD-264, saída manual do estoque: o mapa do `criar` convertido no merge) com a `main` `3c8329b1` (PR #349, D-PROD-265, data de término do registro, sem P2002 nem mapa novo) com a `main` `2e048854` (PR #351, D-PROD-266, excluir nos históricos do mapa, só autorização no backend) com a `main` `695ddb25` (PR #352, D-PROD-267, serviço de vários dias, sem P2002 nem mapa novo) com a `main` `80aa1db3` (PR #353, D-PROD-268, estorno de cocho e transferência, transações novas sem mapa de unique) com a `main` `fe9bd3ed` (PR #356, D-PROD-269, só frontend) com a `main` `f8abde68` (PR #357, D-PROD-270, só frontend) com a `main` `cdfb1174` (PR #355, D-PROD-271, edição da entrada e da saída: os mapas do `editar` convertidos no merge) com a `main` `c1cd2be9` (PR #350, D-PROD-272, ajuste de inventário: o mapa do `criar` convertido no merge) com a `main` `58c0697b` (PRs #358 e #359, D-PROD-273, exclusão com recálculo do custo médio: só leituras no backend, sem mapa de unique nem P2002) e com a `main` `6cb0b176` (PR #354, D-PROD-274, campos por tipo na Nova realização: migration aditiva e o módulo `atividades` mexido sem tocar nos mapas, nas conferências nem no P2002). PR **#275** (rascunho), exclusiva desta correção |
 | Origem | o achado fora do escopo da Fatia D ([relatório](./MAIKE-APONTAMENTO-ITENS-REPORT.md) §9): em produção o runtime não é dono das tabelas e elas têm RLS, e o P2002 chega com `meta.target` nulo |
 | Escopo | `emTransacao` com o mapa tipado (`UniqueDeNegocio { erro, conferir }`, conferência da chave depois do rollback; `alvoDaUnique` como único leitor do alvo, nem o `meta` inteiro fora dele; `soPeloAlvo` em lista fechada); pré-conferência da `operation_id` no abastecimento e nas linhas de máquina, de mão de obra e de serviço do Lançamento de Atividades (linha de produto, lançamento do dia e área já tinham a dela, e ganham a conferência no mapa); conferência do nome e do número na empresa; `meta.modelName` no MAIKE Admin; culturas sem o palpite "nome" quando falta o alvo; o `criar` das Entradas de Estoque (D-PROD-257) e o das Saídas (D-PROD-264), o `editar` das duas (D-PROD-271) e o `criar` do Ajuste de inventário (D-PROD-272), com o mapa convertido; financeiro e patrimônio sem mudança de comportamento (pré-conferências sob trava) |
 | Banco | **Sem migration.** Nenhuma rota, nenhum contrato HTTP novo, nada no frontend |
@@ -23,7 +23,18 @@ rollout pausado **D-PROD-41**)
 | Validação | `npm run verify:all` local **verde** no `946b5965` (39 etapas; backend 2364/2370 com 6 `todo` antigos, smoke 3682/3682, gates 1038/1038), com banco recriado; **CI da PR verde** no mesmo head (o GitHub Actions voltou) ([relatório](./MAIKE-P2002-SEM-ALVO-REPORT.md) §6) |
 | Documentos | [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md) |
 
-## Missão ativa (2026-11-22) — MAIKE-ESTOQUE-EXCLUSAO-RECALCULO: exclusão com recálculo; o excluído some das telas (D-PROD-273)
+## Missão ativa (2026-11-21) — MAIKE-ENTREGA2: os campos de cada tipo na "Nova realização" (D-PROD-274)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-274**, a proposta aprovada pelo proprietário em 2026-11-21 (Parte 1, itens B, D, E e G de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)), a "Entrega 2" do plano de campo |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `695ddb25`, com a `main` `c1cd2be9` integrada · PR **#354** |
+| Escopo | Plantio de pastagem com o capim obrigatório (do Cadastro de Culturas; capim diferente abre outra atividade), forma, semente incrustada, cobertura, consórcio e o VC % da semente; safra automática (1º/jul a 30/jun, "2026/27"); Aplicação com o alvo da operação, o nº do receituário e o "pasto liberado em" pela carência do produto; Manutenção e Outros com a área opcional e o local; quantidade feita + unidade na Manutenção; a lista de referência de capins (Marandu 35/20 e 6 capins do Doc 397) sem tocar no que a fazenda já tem; a data no celular |
+| Migration | `20261121100000_atividade_campos_por_tipo`, **EXPAND** (tabela nova `AtividadePlantio` e 5 colunas anuláveis), checksum `9e6487ff…2a58`. **Aplicada em produção em 2026-11-23** (GO "aplica"; caminho B; pós-checagem 74/0, 109 tabelas). Depois: o merge |
+| Próximas | agrupador de Reforma e "Faz parte de: Reforma"; "Conferir nascimento"; aviso do 1º pastejo |
+| Relatório | [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-REPORT.md) · runbook [`MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md`](./MAIKE-ENTREGA2-CAMPOS-POR-TIPO-RUNBOOK-RELEASE.md) |
+
+## Missão (2026-11-22) — MAIKE-ESTOQUE-EXCLUSAO-RECALCULO: exclusão com recálculo; o excluído some das telas (D-PROD-273)
 
 | Campo | Valor |
 |---|---|
@@ -49,7 +60,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-271**, escolha do proprietário: editar tudo (data, motivo, fornecedor/documento, centros, produtos, quantidades, custo, depósitos) se nada mexeu depois, desfazendo pelo motor e lançando de novo, com histórico |
-| Branch / PR | `claude/edicao-entrada-saida`, a partir da `main` `80aa1db3`, com a `main` `f8abde68` integrada · PR #355 |
+| Branch / PR | `claude/edicao-entrada-saida`, a partir da `main` `80aa1db3`, com a `main` `f8abde68` integrada · PR **#355** (mergeada, `cdfb1174`) |
 | Migration | Nenhuma |
 | Constituição | emenda **aprovada** pelo proprietário (2026-11-21) e aplicada em `00-CONSTITUICAO.md` §1 e `07-DO-NOT-DO.md` |
 | Relatório | [`MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA-REPORT.md`](./MAIKE-ESTOQUE-EDICAO-ENTRADA-SAIDA-REPORT.md) |
@@ -59,7 +70,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-270**, pedido do proprietário: "não preciso de motivos para exclusão nos históricos de todos" |
-| Branch / PR | `feat/excluir-sem-motivo-mapa`, a partir da `main` `fe9bd3ed` · PR (a abrir) |
+| Branch / PR | `feat/excluir-sem-motivo-mapa`, a partir da `main` `fe9bd3ed` · PR **#357** (mergeada, `f8abde68`) |
 | Escopo | Só tela: sem campo de motivo nos 4 diálogos de exclusão do mapa; a tela envia "Excluído pelo histórico do mapa". Servidor sem mudança |
 | Migration | Nenhuma |
 | Relatório | [`MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md`](./MAIKE-EXCLUIR-SEM-MOTIVO-MAPA-REPORT.md) |
@@ -89,7 +100,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-267**, a proposta aprovada pelo proprietário em 2026-11-21 (Partes 2 e 3 de [`MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md`](./MAIKE-PROPOSTA-REFORMA-E-VARIOS-DIAS.md)) e as maquetes V1, V2 e V3 |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `2e048854` · PR #352 |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `2e048854` · PR #352 (mergeada) |
 | Servidor | `POST /atividades/registrar` sem a regra do mês (trava por área), 409 `ATIVIDADE_SERVICO_PARADO` depois de 30 dias sem lançamento (`nova_atividade` decide), `concluir` opcional; todas as áreas concluídas ⇒ atividade concluída; concluir nunca antes do último dia lançado; `GET /atividades` com o `andamento` e os filtros `situacao` e `tipo_fixo` |
 | Tela | Lista uma linha por serviço (Nº · Tipo · Operação · Área · Data · Situação · Custo; "+ Nova realização" e "Planejar"; "+ Lançar dia" e "Concluir" na linha; "100%, falta concluir"), "+ Lançar dia" preenchido, "Como fica depois de salvar?", a pergunta do parado e o diálogo "Concluir" |
 | Migration | Nenhuma. Merge e deploy normais |

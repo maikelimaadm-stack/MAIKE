@@ -28,6 +28,7 @@ const SELECAO = Object.freeze({
   consumo_maximo_pv: true,
   unidade_principal_estoque: true,
   peso_por_saco_kg: true,
+  carencia_dias: true,
   observacoes: true,
   ativo: true,
   createdAt: true,

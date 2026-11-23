@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { AlertCircle, Check, Plus, X } from "lucide-react";
-import { SecaoForm } from "@/components/gestao/GestaoFormParts";
+import { CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import {
   CamposDaLinhaMaoObra,
@@ -30,6 +30,7 @@ import {
   validarLinhaProduto,
   valorDaLinhaServico,
 } from "@/lib/atividadeLinhasRegras";
+import { lerVc, textoDoVc } from "@/lib/camposPorTipo";
 
 /**
  * @typedef {import("@/lib/registroDeCampoRegras").ColecaoDoRegistro} ColecaoDoRegistro
@@ -130,6 +131,17 @@ const celulasDoItem = (colecao, item, areaDoDia) => {
 };
 
 /**
+ * D-PROD-274 — a linha de baixo do insumo na tabela: o VC da semente e os pontos de VC/ha (dose × VC), quando há VC.
+ * @param {ColecaoDoRegistro} colecao @param {ItemDoRegistro} item @param {string|null} areaDoDia
+ */
+const detalheDoItem = (colecao, item, areaDoDia) => {
+  if (colecao !== "produtos") return "";
+  const vc = lerVc(item.form?.vc).valor;
+  if (!vc) return "";
+  return textoDoVc(vc, doseHa(corpoDaLinhaProduto(item.form).quantidade, areaDoDia));
+};
+
+/**
  * Os itens de uma seção: tabela (`b1-tipo-tabela`, a tabela das janelas do Base1); no celular, um cartão por item
  * (`b1-tipo-card`), sem rolagem para o lado. Clicar no item abre o editor nele; o ✕ tira o item. A recusa do servidor
  * fica embaixo do item, com a marca de erro.
@@ -169,6 +181,7 @@ function ItensDaSecao({ colecao, itens, areaDoDia, celular, editandoChave, podeA
         {itens.map((item, i) => {
           const n = i + 1;
           const [nome, ...resto] = celulasDoItem(colecao, item, areaDoDia);
+          const extra = detalheDoItem(colecao, item, areaDoDia);
           const erro = errosDasLinhas[item.chave];
           const detalhe = resto
             // O par "rótulo: valor" não se parte no fim da linha do cartão (valores curtos, como "0,2 L/ha", ficam inteiros).
@@ -188,6 +201,7 @@ function ItensDaSecao({ colecao, itens, areaDoDia, celular, editandoChave, podeA
                     {erro ? <AlertCircle className="h-4 w-4 shrink-0 text-red-600" aria-hidden /> : null}
                     {nome}
                   </span>
+                  {extra ? <span className="b1-tipo-card__valor break-words" data-testid={`registro-${cfg.id}-linha-${n}-vc`}>{extra}</span> : null}
                   {detalhe ? <span className="b1-tipo-card__valor break-words">{detalhe}</span> : null}
                 </button>
                 {botaoRemover(item, n)}
@@ -223,6 +237,7 @@ function ItensDaSecao({ colecao, itens, areaDoDia, celular, editandoChave, podeA
           {itens.map((item, i) => {
             const n = i + 1;
             const [nome, ...resto] = celulasDoItem(colecao, item, areaDoDia);
+            const extra = detalheDoItem(colecao, item, areaDoDia);
             const erro = errosDasLinhas[item.chave];
             const editando = item.chave === editandoChave;
             return (
@@ -248,6 +263,11 @@ function ItensDaSecao({ colecao, itens, areaDoDia, celular, editandoChave, podeA
                       {erro ? <AlertCircle className="h-4 w-4 shrink-0 text-red-600" aria-hidden /> : null}
                       {nome}
                     </button>
+                    {extra ? (
+                      <span className="block min-w-0 whitespace-normal text-[11px] normal-case text-[var(--mg-text-2,#475569)]" data-testid={`registro-${cfg.id}-linha-${n}-vc`}>
+                        {extra}
+                      </span>
+                    ) : null}
                   </td>
                   {resto.map((valor, j) => (
                     <td key={cfg.colunas[j + 1]} className={cfg.numericas.includes(j + 1) ? "is-numero" : undefined}>
@@ -276,17 +296,18 @@ function ItensDaSecao({ colecao, itens, areaDoDia, celular, editandoChave, podeA
 
 /**
  * Os campos do editor de INSUMO: os da linha de produto (`CamposDaLinhaProduto`), com o saldo do produto escolhido. Conta
- * para o registro o disponível e o nome do local escolhido.
+ * para o registro o disponível e o nome do local escolhido. D-PROD-274: no Plantio de pastagem (`comVc`), o VC % do saco
+ * de semente (opcional) e, com ele, os pontos de VC/ha.
  * @param {{ editor: EditorDaSecao, mudar: (mudanca: Record<string, any>, campos: string[]) => void, setForm: (f: (atual: any) => any) => void,
- *   onLido: (lido: LidoNoEditor) => void, areaDoDia: string|null, bloqueado: boolean }} props
+ *   onLido: (lido: LidoNoEditor) => void, areaDoDia: string|null, bloqueado: boolean, comVc?: boolean }} props
  */
-function CamposDoInsumo({ editor, mudar, setForm, onLido, areaDoDia, bloqueado }) {
+function CamposDoInsumo({ editor, mudar, setForm, onLido, areaDoDia, bloqueado, comVc = false }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const saldo = useSaldoDoProduto(empresaId, editor.form, setForm, null);
   const { aviso } = validarLinhaProduto(editor.form, { disponivel: saldo.disponivel });
   const localNome = saldo.escolhido ? String(saldo.escolhido.local_nome ?? "") || null : null;
   useEffect(() => onLido({ id: editor.id, disponivel: saldo.disponivel, localNome }));
-  return (
+  const campos = (
     <CamposDaLinhaProduto
       form={editor.form}
       mudar={mudar}
@@ -300,6 +321,29 @@ function CamposDoInsumo({ editor, mudar, setForm, onLido, areaDoDia, bloqueado }
       comObservacao={false}
       tituloGrupo={null}
     />
+  );
+  if (!comVc) return campos;
+  const vc = lerVc(editor.form?.vc);
+  const pontos = vc.valor ? textoDoVc(vc.valor, doseHa(corpoDaLinhaProduto(editor.form).quantidade, areaDoDia)) : "";
+  return (
+    <>
+      {campos}
+      <CampoTexto
+        label="VC % (semente)"
+        value={editor.form?.vc ?? ""}
+        onChange={(v) => mudar({ vc: v }, ["vc"])}
+        readOnly={bloqueado}
+        error={editor.erros.vc ?? vc.erro ?? undefined}
+        span={6}
+        inputMode="decimal"
+        maxLength={6}
+        placeholder="Ex.: 50"
+        keepCase
+      />
+      <p className="col-span-12 min-w-0 text-[12px] text-[var(--mg-text-2,#475569)] md:col-span-6 md:self-center" data-testid="registro-produto-vc-nota">
+        {pontos || "opcional · está no rótulo do saco"}
+      </p>
+    </>
   );
 }
 
@@ -340,15 +384,15 @@ function CamposDaMaquina({ editor, mudar, setForm, onLido, dia, permiteImplement
  * aqui — há no máximo um editor por seção.
  * @param {{ colecao: ColecaoDoRegistro, editor: EditorDaSecao, numero: number, mudar: (mudanca: Record<string, any>, campos: string[]) => void,
  *   setForm: (f: (atual: any) => any) => void, onLido: (lido: LidoNoEditor) => void, areaDoDia: string|null, dia: string|null,
- *   permiteImplemento: boolean, bloqueado: boolean, onIncluir: () => void, onCancelar: () => void }} props `numero`: a posição do
- *   item na tabela (0 = item novo).
+ *   permiteImplemento: boolean, bloqueado: boolean, onIncluir: () => void, onCancelar: () => void, comVc?: boolean }} props `numero`: a
+ *   posição do item na tabela (0 = item novo). D-PROD-274: `comVc` mostra o VC % no editor de insumo (Plantio de pastagem).
  */
-export function EditorDaLinhaDoRegistro({ colecao, editor, numero, mudar, setForm, onLido, areaDoDia, dia, permiteImplemento, bloqueado, onIncluir, onCancelar }) {
+export function EditorDaLinhaDoRegistro({ colecao, editor, numero, mudar, setForm, onLido, areaDoDia, dia, permiteImplemento, bloqueado, onIncluir, onCancelar, comVc = false }) {
   const cfg = SECOES_DO_REGISTRO[colecao];
   const editando = editor.chave !== null;
   const campos =
     colecao === "produtos" ? (
-      <CamposDoInsumo editor={editor} mudar={mudar} setForm={setForm} onLido={onLido} areaDoDia={areaDoDia} bloqueado={bloqueado} />
+      <CamposDoInsumo editor={editor} mudar={mudar} setForm={setForm} onLido={onLido} areaDoDia={areaDoDia} bloqueado={bloqueado} comVc={comVc} />
     ) : colecao === "maquinas" ? (
       <CamposDaMaquina editor={editor} mudar={mudar} setForm={setForm} onLido={onLido} dia={dia} permiteImplemento={permiteImplemento} bloqueado={bloqueado} />
     ) : colecao === "mao_obra" ? (

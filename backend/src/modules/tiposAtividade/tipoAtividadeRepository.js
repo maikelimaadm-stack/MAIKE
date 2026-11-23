@@ -43,6 +43,7 @@ const SELECAO = Object.freeze({
   permite_servico: true,
   permite_mao_obra: true,
   exige_producao: true,
+  alvo: true,
   centroCustoPadrao: CENTRO_PADRAO,
   centroResultadoPadrao: CENTRO_PADRAO,
   unidadeProducao: UNIDADE_PRODUCAO,

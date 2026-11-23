@@ -18,8 +18,10 @@ import { API_FAKE, erroServidor, instalarBackendFake } from "./fixtures/gestaoBa
 
 const notify = vi.hoisted(() => ({ notifyWarning: vi.fn(), notifySuccess: vi.fn(), notifyInfo: vi.fn(), notifyError: vi.fn() }));
 vi.mock("@/lib/maikeNotify", async (importOriginal) => ({ ...(await importOriginal()), ...notify }));
+// D-PROD-274: quem conclui tem a permissão de editar (a do "Concluir"); um teste a tira.
+const sessao = vi.hoisted(() => ({ editar: true }));
 vi.mock("@/hooks/useLancamentoAtividadesSessao", () => ({
-  useAcoesTelaAtividades: () => ({ ver: true, lancarApontamento: true, carregando: false, login: "operador" }),
+  useAcoesTelaAtividades: () => ({ ver: true, lancarApontamento: true, editar: sessao.editar, carregando: false, login: "operador" }),
   useEmpresaRealSelecionadaId: () => "emp-1",
   useFusoDaFazenda: () => ({ fuso: "America/Cuiaba", fusoOk: true, semFuso: false, hoje: "2026-12-07" }),
 }));
@@ -106,7 +108,7 @@ describe("regras puras do serviço de vários dias", () => {
     const rotulos = opcoes.map((o) => o.label);
     const iRocada = rotulos.indexOf("Roçada e tratos");
     expect(rotulos.slice(iRocada, iRocada + 3)).toEqual(["Roçada e tratos", "Roçada e tratos › ROÇADA MANUAL (INATIVO)", "Roçada e tratos › ROÇADA MECÂNICA"]);
-    expect(rotulos.filter((r) => !r.includes("›")).slice(1)).toEqual(["Preparo do solo", "Formação de pastagem (plantio)", "Fertilização", "Aplicação", "Roçada e tratos", "Manutenção", "Outros"]);
+    expect(rotulos.filter((r) => !r.includes("›")).slice(1)).toEqual(["Preparo do solo", "Plantio de pastagem", "Fertilização", "Aplicação", "Roçada e tratos", "Manutenção", "Outros"]);
     expect(regras.filtroDoTipo("tipo:PASTAGEM")).toEqual({ tipo_fixo: "PASTAGEM", tipo_atividade_id: null });
     expect(regras.filtroDoTipo("op:t-roc")).toEqual({ tipo_fixo: null, tipo_atividade_id: "t-roc" });
     expect(regras.filtroDoTipo("")).toEqual({ tipo_fixo: null, tipo_atividade_id: null });
@@ -327,6 +329,7 @@ beforeEach(async () => {
   setNativeToken("jwt.teste");
   confirmacao.confirmar.mockResolvedValue(true);
   proximas = [];
+  sessao.editar = true;
   backend = instalarBackendFake(rotear);
 });
 
@@ -485,5 +488,106 @@ describe("serviço parado: a pergunta e o reenvio com a decisão", () => {
     fireEvent.click(within(pergunta).getByRole("button", { name: "É um serviço novo" }));
     await waitFor(() => expect(registros()).toHaveLength(3));
     expect(registros()[2].body).toMatchObject({ nova_atividade: true, areas: [{ area_id: "area-aroeira", hectares: "5" }] });
+  });
+});
+
+// ─── D-PROD-274: ajustes do teste de ponta a ponta ────────────────────────────
+describe("ajustes do teste de ponta a ponta (D-PROD-274): o capim, o serviço sem área e quem conclui", () => {
+  /** A Manutenção sem área, como a lista do servidor devolve (o servidor antigo mandava hectares_feitos "0.0000"). */
+  const CERCA = Object.freeze({
+    id: "at-21", numero: "21", nome: "REFORMA DE CERCA · DIVISA NORTE · nov/26", status: "ABERTA", versao: 3,
+    tipo_atividade_id: "t-cerca", tipo_atividade_nome: "REFORMA DE CERCA", area_id: null, area: null, areas: [], local: "DIVISA NORTE",
+    quantidade_produzida: "2.5000", unidade_producao_sigla: "KM", data_inicio: "2026-11-19", data_conclusao: null, custo_total: null,
+    andamento: andamento({ tipo_fixo: "BENFEITORIA", hectares_feitos: "0.0000", hectares_area: null, percentual: null, ultimo_dia: "2026-11-20", lancamentos: 2 }),
+  });
+  /** Dois plantios abertos na mesma área (o mesmo nome; só o capim os distingue). */
+  const plantio = (id, nome) => ({
+    ...SERVICO, id, numero: id.slice(3), nome: "SEMEADURA DE CAPIM · PASTO DA AROEIRA · nov/26", tipo_atividade_id: "t-sem", tipo_atividade_nome: "SEMEADURA DE CAPIM",
+    areas: [SERVICO.areas[0]], plantio: { cultura_id: `c-${id}`, cultura: { id: `c-${id}`, nome }, forma_plantio: null }, andamento: andamento({ tipo_fixo: "PLANTIO" }),
+  });
+  const MOMBACA = plantio("at-31", "PANICUM CV. MOMBAÇA");
+  const MARANDU = plantio("at-32", "BRACHIARIA BRIZANTHA CV. MARANDU");
+
+  it("regras: o capim do serviço; sem área, o local e a quantidade feita com a unidade — nunca '0 ha'", () => {
+    expect([regras.capimDoServico(MOMBACA), regras.capimDoServico(SERVICO)]).toEqual(["PANICUM CV. MOMBAÇA", ""]);
+    expect(regras.textoDoCapim("PANICUM CV. MOMBAÇA")).toBe("capim PANICUM CV. MOMBAÇA");
+    expect(regras.textoDoCapim("")).toBe("");
+    expect(regras.tituloDoConcluir(MOMBACA)).toBe("SEMEADURA DE CAPIM · PASTO DA AROEIRA · capim PANICUM CV. MOMBAÇA");
+    expect(regras.tituloDoConcluir(MARANDU)).toBe("SEMEADURA DE CAPIM · PASTO DA AROEIRA · capim BRACHIARIA BRIZANTHA CV. MARANDU");
+    expect([regras.servicoSemArea(CERCA), regras.servicoSemArea(SERVICO), regras.servicoSemArea({ areas: [], local: null })]).toEqual([true, false, false]);
+    expect(regras.quantidadeFeitaDoServico(CERCA)).toBe("2,5 km");
+    expect(regras.quantidadeFeitaDoServico({ ...CERCA, quantidade_produzida: "4.0000", unidade_producao_sigla: "UN" })).toBe("4 unidades");
+    expect(regras.quantidadeFeitaDoServico({ ...CERCA, quantidade_produzida: null })).toBe("");
+    expect(regras.quantidadeFeitaDoServico({ ...CERCA, quantidade_produzida: "0.0000" })).toBe("");
+    expect(regras.textoDoAndamento(CERCA)).toBe("DIVISA NORTE · 2,5 km · último dia 20/11");
+    expect(regras.textoDoAndamento({ ...CERCA, quantidade_produzida: null, andamento: { ...CERCA.andamento, hectares_feitos: null } })).toBe("DIVISA NORTE · último dia 20/11");
+    const concluida = { ...CERCA, status: "CONCLUIDA", data_conclusao: "2026-11-20", andamento: { ...CERCA.andamento, situacao: "CONCLUIDA" } };
+    expect(regras.hectaresDaConcluida(concluida)).toBe("2,5 km");
+    expect(regras.hectaresDaConcluida({ ...concluida, quantidade_produzida: null })).toBe("");
+    expect(regras.feitoNoConcluir(CERCA)).toBe("2,5 km");
+    expect(regras.feitoNoConcluir({ ...CERCA, quantidade_produzida: null })).toBe("");
+    expect(regras.feitoNoConcluir(SERVICO)).toBe("12 de 40 ha (30%)");
+  });
+
+  it("a lista: a Situação do serviço sem área mostra o local e a quantidade; o card do celular diz o capim e, concluído sem área, a quantidade (nunca '0 ha')", () => {
+    const a = { onLancarDia: vi.fn(), onConcluir: vi.fn() };
+    const { unmount } = render(<SituacaoDoServico item={CERCA} podeLancar podeConcluir {...a} />);
+    expect(screen.getByTestId("servico-andamento-at-21")).toHaveTextContent(/^DIVISA NORTE · 2,5 km · último dia 20\/11$/);
+    expect(screen.getByTestId("atividade-status-at-21").textContent).not.toMatch(/\bha\b/);
+    unmount();
+    const r1 = render(<BlocoDoServico item={MOMBACA} tipos={OPERACOES} comAcoes podeLancar podeConcluir {...a} />);
+    expect(r1.container.querySelector(".b1-servico-bloco__linha")?.textContent).toBe("SEMEADURA DE CAPIM · PASTO DA AROEIRA · capim PANICUM CV. MOMBAÇA");
+    r1.unmount();
+    const concluida = { ...CERCA, status: "CONCLUIDA", data_conclusao: "2026-11-20", andamento: { ...CERCA.andamento, situacao: "CONCLUIDA" } };
+    const r2 = render(<BlocoDoServico item={concluida} tipos={OPERACOES} comAcoes podeLancar podeConcluir {...a} />);
+    expect([...r2.container.querySelectorAll(".b1-servico-bloco__linha")].map((el) => el.textContent)).toEqual(["REFORMA DE CERCA · DIVISA NORTE", "19/11 a 20/11 · Concluída · 2,5 km"]);
+  });
+
+  it("a célula Operação (computador) traz o capim embaixo; sem plantio, só a operação", async () => {
+    const { OperacaoDoServico } = await import("@/components/lancamento-atividades/ServicoNaLista");
+    const { unmount } = render(<OperacaoDoServico item={MARANDU} />);
+    expect(screen.getByTestId("servico-capim-at-32")).toHaveTextContent("capim BRACHIARIA BRIZANTHA CV. MARANDU");
+    unmount();
+    const r = render(<OperacaoDoServico item={SERVICO} />);
+    expect(r.container.textContent).toBe("ROÇADA MECÂNICA");
+    expect(screen.queryByTestId("servico-capim-at-14")).toBeNull();
+  });
+
+  it("o diálogo Concluir: o título com o capim; sem área, o local no título e a quantidade no lugar dos hectares", () => {
+    const { unmount } = render(<DialogoConcluirServico item={MOMBACA} hoje={HOJE} onFechar={vi.fn()} onConcluir={vi.fn()} />);
+    expect(screen.getByTestId("dialogo-concluir-servico-titulo")).toHaveTextContent("Concluir SEMEADURA DE CAPIM · PASTO DA AROEIRA · capim PANICUM CV. MOMBAÇA");
+    unmount();
+    render(<DialogoConcluirServico item={CERCA} hoje={HOJE} onFechar={vi.fn()} onConcluir={vi.fn()} />);
+    expect(screen.getByTestId("dialogo-concluir-servico-titulo")).toHaveTextContent("Concluir REFORMA DE CERCA · DIVISA NORTE");
+    expect(screen.getByTestId("dialogo-concluir-servico-hectares")).toHaveTextContent(/^2,5 km$/);
+  });
+
+  it("sem a permissão de editar: 'Concluída' fica desligada (\"Só quem pode editar conclui.\"), o término não a marca e o corpo vai SEM concluir", async () => {
+    sessao.editar = false;
+    const { janela } = await montar({ continuar: SERVICO });
+    await within(janela).findByTestId("registro-de-campo-form");
+    fireEvent.change(within(janela).getByTestId("registro-de-campo-data"), { target: { value: "2026-12-05" } });
+    fireEvent.change(within(janela).getByTestId("registro-de-campo-data-termino"), { target: { value: HOJE } });
+    await preencherODia(janela);
+    const situacao = within(janela).getByTestId("registro-de-campo-situacao");
+    const concluida = within(situacao).getByRole("radio", { name: "Concluída" });
+    expect(concluida).toBeDisabled();
+    expect(concluida).toHaveAttribute("aria-checked", "false");
+    expect(within(situacao).getByRole("radio", { name: "Em andamento" })).toHaveAttribute("aria-checked", "true");
+    expect(within(janela).getByTestId("registro-de-campo-situacao-sem-permissao")).toHaveTextContent("Só quem pode editar conclui.");
+    fireEvent.click(concluida);
+    expect(concluida).toHaveAttribute("aria-checked", "false");
+    expect(within(janela).getByTestId("registro-de-campo-resumo")).toHaveTextContent("Vai ficar EM ANDAMENTO");
+    fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(registros()).toHaveLength(1));
+    expect(registros()[0].body).toMatchObject({ data_operacional: "2026-12-05", data_termino: HOJE });
+    expect(registros()[0].body).not.toHaveProperty("concluir");
+  });
+
+  it("com a permissão de editar, 'Concluída' é oferecida e a nota não aparece", async () => {
+    const { janela } = await montar({ continuar: SERVICO });
+    await within(janela).findByTestId("registro-de-campo-form");
+    expect(within(within(janela).getByTestId("registro-de-campo-situacao")).getByRole("radio", { name: "Concluída" })).not.toBeDisabled();
+    expect(within(janela).queryByTestId("registro-de-campo-situacao-sem-permissao")).toBeNull();
   });
 });
