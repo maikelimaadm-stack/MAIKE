@@ -23,6 +23,14 @@
  *
  * Movimento fora do protocolo (origem que o motor não grava, estorno sem original legível, entrada sem camada)
  * não é adivinhado: vira `problema` e o replay daquele produto é declarado não reproduzível (fail-closed).
+ *
+ * D-PROD-273 (fatia 4) — EXCLUSÃO COM RECÁLCULO gravada: o original e o estorno dele marcados com
+ * `movimentacao_grupo_id = 'exclusao_recalculo:<id do original>'` (`marcaDoPar`) ficam FORA da sequência, como na
+ * simulação: o recálculo gravou os posteriores como se o par nunca tivesse existido. Os pares excluídos pela regra
+ * antiga (sem a marca) continuam na sequência como foram gravados. Marca incoerente → `problema` (fail-closed).
+ * Transferência cujas fatias mudaram no recálculo: a camada de destino gravada na mesma posição é reaproveitada
+ * quando a camada de origem é a mesma (a quantidade pode mudar); senão nasce uma nova (`novoIdCamada`), e a
+ * gravada que sobrou fica 'Estornado' com disponível 0 (nunca se apaga camada).
  */
 import { CASAS_CUSTO, CASAS_QUANTIDADE, Dec, ZERO, arredondar, dec, somar } from '../financeiro/decimalFinanceiro.js';
 import {
@@ -47,6 +55,13 @@ export const CLASSE = Object.freeze({
 const ORIGENS_ESTORNO_EM_LOTE = new Set([ORIGEM_SISTEMA, ORIGEM_APONTAMENTO]);
 
 const NUMERO_CANONICO = /^\d{1,18}$/;
+
+/** D-PROD-273 (fatia 4): prefixo da marca do par excluído com recálculo (em `movimentacao_grupo_id`, sem migration). */
+export const MARCA_EXCLUSAO_RECALCULO = 'exclusao_recalculo:';
+/** Marca do par (o original e o estorno dele) excluído com recálculo. @param {string} originalId */
+export const marcaDoPar = (originalId) => `${MARCA_EXCLUSAO_RECALCULO}${originalId}`;
+/** O movimento traz a marca de recálculo (qualquer). @param {any} m */
+export const temMarcaDeRecalculo = (m) => typeof m?.movimentacao_grupo_id === 'string' && m.movimentacao_grupo_id.startsWith(MARCA_EXCLUSAO_RECALCULO);
 const ms = (d) => (d instanceof Date ? d.getTime() : new Date(d ?? 0).getTime());
 
 /**
@@ -97,7 +112,7 @@ export const classificar = (m, porId) => {
 /** Dia UTC (meia-noite) de um instante — `comoDia(createdAt.toISOString().slice(0, 10))` do motor. */
 const diaUtc = (d) => new Date(`${new Date(ms(d)).toISOString().slice(0, 10)}T00:00:00.000Z`);
 
-const fatiasGravadas = (json, { comDestino = false } = {}) => {
+export const fatiasGravadas = (json, { comDestino = false } = {}) => {
   if (!Array.isArray(json) || !json.length) return null;
   const saida = [];
   for (const f of json) {
@@ -175,8 +190,8 @@ const novoEstado = (fatos) => {
 };
 
 const medioDe = (v, q) => (q.gt(0) ? arredondar(v.dividedBy(q), CASAS_CUSTO) : ZERO);
-const texto4 = (x) => (x === null || x === undefined ? null : dec(x).toFixed(4));
-const fatiaComoTexto = (f) => ({
+export const texto4 = (x) => (x === null || x === undefined ? null : dec(x).toFixed(4));
+export const fatiaComoTexto = (f) => ({
   lote_id: f.lote_id,
   quantidade: dec(f.quantidade).toFixed(CASAS_QUANTIDADE),
   custo_unitario: f.custo_unitario === null || f.custo_unitario === undefined ? null : dec(f.custo_unitario).toFixed(CASAS_CUSTO),
@@ -263,17 +278,48 @@ const devolver = (estado, local, fatias, m) => {
 };
 
 /**
+ * D-PROD-273 (fatia 4) — pares excluídos COM recálculo: o original 'Estornada' (saída) com a marca dele e o estorno
+ * (filho, `estorno_*`, pai = ele) com a mesma marca. Marca fora desse desenho → `problema` (o replay não adivinha).
+ * @param {any[]} ordem @param {Map<string, any>} porId @param {any[]} problemas
+ * @returns {Set<string>}
+ */
+const paresMarcados = (ordem, porId, problemas) => {
+  /** @type {Set<string>} */
+  const ids = new Set();
+  for (const m of ordem) {
+    if (!temMarcaDeRecalculo(m) || ids.has(m.id)) continue;
+    const original = m.movimento_pai_id && m.movimentacao_grupo_id === marcaDoPar(m.movimento_pai_id) ? porId.get(m.movimento_pai_id) : m;
+    const estorno = original?.movimento_filho_id ? porId.get(original.movimento_filho_id) : null;
+    const valido = original && estorno && original.movimentacao_grupo_id === marcaDoPar(original.id) && estorno.movimentacao_grupo_id === marcaDoPar(original.id)
+      && original.status === 'Estornada' && original.tipo_movimentacao === 'Saída' && !ehEstorno(original) && original.tipo_detalhado !== 'transferencia_enviada'
+      && estorno.movimento_pai_id === original.id && ehEstorno(estorno) && estorno.tipo_movimentacao === 'Entrada';
+    if (!valido) {
+      problemas.push({ reason: 'marca_de_recalculo_incoerente', movimento_id: m.id, movimento_numero: m.numero_movimentacao });
+      continue;
+    }
+    ids.add(original.id);
+    ids.add(estorno.id);
+  }
+  return ids;
+};
+
+/**
  * O replay. `opcoes.excluir`: ids fora da sequência (a simulação de exclusão; o movimento e o par dele). Sem ele,
  * é o replay "sem exclusão" que tem de reproduzir o gravado.
+ * `opcoes.novoIdCamada(r, k)`: id da camada de destino que a transferência `r` precisa criar na posição `k` (a escrita
+ * da fatia 4 passa ids reais; a prévia usa `simulada:…`).
  * @param {{ movimentos: any[], camadas: any[], cutover?: Date|number|null }} historico
- * @param {{ excluir?: string[] }} [opcoes]
+ * @param {{ excluir?: string[], novoIdCamada?: (r: any, k: number) => string }} [opcoes]
  * @returns {{ resultados: Map<string, any>, camadas: Map<string, any>, problemas: any[], parada: any|null,
- *   afetados: Set<string>, ordem: any[], reproduzivel: boolean }}
+ *   afetados: Set<string>, ordem: any[], reproduzivel: boolean, marcados: Set<string> }}
  */
 export const reproduzir = (historico, opcoes = {}) => {
-  const excluir = new Set(opcoes.excluir ?? []);
   const ordem = ordenarCanonico(historico.movimentos);
   const porId = new Map(ordem.map((m) => [m.id, m]));
+  const problemas = [];
+  const marcados = paresMarcados(ordem, porId, problemas);
+  const excluir = new Set([...(opcoes.excluir ?? []), ...marcados]);
+  const novoIdCamada = opcoes.novoIdCamada ?? ((r, k) => `simulada:${r.id}:${k + 1}`);
   const fatos = new Map(historico.camadas.map((l) => [l.id, l]));
   /** @type {Map<string, string[]>} */
   const camadasDaEntrada = new Map();
@@ -288,7 +334,6 @@ export const reproduzir = (historico, opcoes = {}) => {
   const estado = novoEstado(fatos);
   /** @type {Map<string, any>} */
   const resultados = new Map();
-  const problemas = [];
   const afetados = new Set();
   const feitos = new Set();
   let parada = null;
@@ -387,12 +432,16 @@ export const reproduzir = (historico, opcoes = {}) => {
     }
     const vDestino = estado.valor(destino);
     const saldoDestino = estado.saldo(destino);
-    // Camada de destino: a gravada na mesma posição quando a fatia é a mesma (replay = gravado); senão, uma virtual.
-    const recebidas = new Set(camadasDaEntrada.get(r.id) ?? []);
+    // Camada de destino: a gravada na mesma posição quando a camada de origem é a mesma (replay = gravado; no
+    // recálculo a quantidade pode mudar); senão, uma nova (`novoIdCamada`). A gravada que sobrar fica 'Estornado'.
+    const recebidas = camadasDaEntrada.get(r.id) ?? [];
+    const recebidasSet = new Set(recebidas);
+    const usadas = new Set();
     const comDestino = fatias.map((f, k) => {
       const g = gravadas?.[k];
-      const mesma = g && g.lote_id === f.lote_id && dec(g.quantidade).eq(dec(f.quantidade)) && g.lote_destino_id && recebidas.has(g.lote_destino_id);
-      const idDestino = mesma ? /** @type {string} */ (g.lote_destino_id) : `simulada:${r.id}:${k + 1}`;
+      const mesma = g && g.lote_id === f.lote_id && g.lote_destino_id && recebidasSet.has(g.lote_destino_id) && !usadas.has(g.lote_destino_id);
+      const idDestino = mesma ? /** @type {string} */ (g.lote_destino_id) : novoIdCamada(r, k);
+      usadas.add(idDestino);
       const fonte = estado.camadas.get(f.lote_id);
       estado.criar({
         id: idDestino, local: destino, quantidade: f.quantidade, custo: f.custo_unitario ?? ZERO,
@@ -400,6 +449,14 @@ export const reproduzir = (historico, opcoes = {}) => {
       });
       return { ...f, lote_destino_id: idDestino };
     });
+    for (const id of recebidas) {
+      if (usadas.has(id)) continue;
+      const fato = /** @type {any} */ (fatos.get(id));
+      estado.criar({ id, local: destino, quantidade: fato.quantidade_entrada, custo: fato.custo_unitario });
+      const morta = /** @type {any} */ (estado.camadas.get(id));
+      morta.disp = ZERO;
+      morta.status = 'Estornado';
+    }
     if (!legadoDestino) estado.reavaliarPoco(destino, vDestino.plus(valorTotal), saldoDestino.plus(kg));
     const comum = { valor_unitario: valorUnitario, valor_total: valorTotal, custo_medio_antes: medioAntes, custo_medio_depois: medioDepois };
     registrar(s, {
@@ -538,10 +595,10 @@ export const reproduzir = (historico, opcoes = {}) => {
       break;
     }
   }
-  return { resultados, camadas: estado.camadas, problemas, parada, afetados, ordem, reproduzivel: !parada && !problemas.length };
+  return { resultados, camadas: estado.camadas, problemas, parada, afetados, ordem, reproduzivel: !parada && !problemas.length, marcados };
 };
 
-const CAMPOS_VALOR = Object.freeze(['valor_unitario', 'valor_total', 'saldo_antes', 'saldo_depois', 'custo_medio_antes', 'custo_medio_depois']);
+export const CAMPOS_VALOR = Object.freeze(['valor_unitario', 'valor_total', 'saldo_antes', 'saldo_depois', 'custo_medio_antes', 'custo_medio_depois']);
 
 /**
  * Prova "replay = gravado": cada movimento reproduzido contra o gravado (valores, saldos, médios quando gravados, fatias) e

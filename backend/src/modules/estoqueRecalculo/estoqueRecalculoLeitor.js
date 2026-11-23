@@ -37,10 +37,13 @@ const COLUNAS_MOVIMENTO = {
   origem_sistema: true, status: true, quantidade: true, valor_unitario: true, valor_total: true, local_estoque_origem: true,
   local_estoque_destino: true, saldo_antes: true, saldo_depois: true, custo_medio_antes: true, custo_medio_depois: true,
   modo_saida_fifo: true, lotes_consumidos: true, movimento_pai_id: true, movimento_filho_id: true, lancamento_origem_id: true,
+  movimentacao_grupo_id: true,
 };
 const COLUNAS_CAMADA = {
   id: true, local_estoque_id: true, data_documento: true, createdAt: true, custo_unitario: true, quantidade_entrada: true,
   quantidade_disponivel: true, status: true, movimentacao_entrada_id: true,
+  // D-PROD-273 (fatia 4): a procedência e os nomes para criar a camada de destino de uma transferência recalculada.
+  numero_documento: true, serie_documento: true, fornecedor_id: true, fornecedor_nome: true, local_estoque_nome: true, produto_nome: true,
 };
 
 /**
