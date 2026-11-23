@@ -53,9 +53,11 @@ Recibos de idempotência, snapshots de `*Evento` e `AuditLog` antigos **não** s
    entrada (ou as recebidas na transferência) e o recálculo, na mesma transação, a deixa 'Estornado' com disponível 0
    (nunca apagada); quem consumia dela volta a consumir das outras camadas (FIFO para a fatia, médio do poço sem ela
    para o valor), e as fatias `*ConsumoLote` dos dependentes seguem (atualizada, criada ou removida). A transferência
-   sai inteira, como dois pares marcados (S + estorno da enviada, R + estorno da recebida). Entrada cuja camada continua
-   intocada (disponível = entrada, custo = o do movimento: nenhuma reavaliação a alcançou) segue o estorno exato de
-   antes mesmo com algo depois — nada foi valorizado com o custo dela. **Sem estorno exato como
+   sai inteira, como dois pares marcados (S + estorno da enviada, R + estorno da recebida). Com algo depois, o estorno
+   exato só vale como saída quando a camada está inteira (disponível = entrada, custo = o do movimento) **e** não há
+   nenhuma saída válida depois no poço da entrada (saídas de pares já excluídos não contam): custo igual ao original não
+   basta, porque a reavaliação ao médio pode devolver o custo depois de saídas que usaram um médio com a entrada. Com
+   saída válida depois, recusa do recálculo é recusa. Planejador e prévia usam a mesma prova. **Sem estorno exato como
    saída** para essas origens: recusa é recusa. **Edição (D-PROD-271)**: continua exigindo "nada depois" — ela relança a
    versão nova no FIM da sequência, então recalcular seria valorizar os posteriores sem a entrada, não com a versão
    corrigida; corrigir no lugar exige uma chave de ordem nova (§1.3) e fica para decisão do proprietário. Hoje: excluir

@@ -457,16 +457,16 @@ na mesma transação, deixa a camada como ela tem de ficar:
 
 1. **Planejar** (antes de qualquer escrita, sob a trava do produto): a mesma consulta "algo depois"
    (`buscarMovimentoPosterior`; na transferência, nos dois depósitos). Nada depois → o caminho de sempre, sem mudança
-   (na entrada documentada continua valendo a prova da camada intocada). **Algo depois, mas a camada da entrada
-   intocada** (`entradaIntocada`: uma camada, 'Disponivel', disponível = entrada e custo = o do movimento, isto é, nenhuma
-   reavaliação a alcançou; na entrada documentada também a prova de sempre): nada do que veio depois foi valorizado com o
-   custo dela, então o estorno exato está certo. O plano sai com `camadaIntocada`: a camada sai inteira pelo motor, o
-   recálculo é tentado (num SAVEPOINT) para o par sair da sequência e, se ele recusar por qualquer motivo — inclusive um
-   saldo negativo num ponto intermediário que o estorno exato de antes aceitava (ex.: compra com um abastecimento já
-   cancelado no meio) —, fica o estorno exato de antes, com o motivo na trilha. Sem isso: regressão (o que passava
-   passaria a recusar) ou par sem marca na sequência, que faz a exclusão seguinte, mais antiga, cair em
-   `reatribuicao_de_camada` (foi o que o teste de concorrência pegou). A prévia segue a mesma regra. Algo depois que
-   tocou a camada → contagem de inventário vigente
+   (na entrada documentada continua valendo a prova da camada intocada). **Algo depois, mas sem saída válida depois**
+   (`entradaIntocada`, corrigida na revisão: a camada inteira — uma, 'Disponivel', disponível = entrada, custo = o do
+   movimento — **e** nenhuma saída válida depois no poço da entrada; saídas de pares já excluídos não contam): nenhum
+   médio que valorizou alguma coisa incluiu a entrada, então o estorno exato está certo. O plano sai com
+   `camadaIntocada`: a camada sai inteira pelo motor, o recálculo é tentado (num SAVEPOINT) para o par sair da
+   sequência e, se ele recusar (recusa contornável, ou saldo negativo num ponto intermediário — que aqui só pode vir de
+   saídas de pares já excluídos, ex.: compra com um abastecimento já cancelado no meio), fica o estorno exato de antes,
+   com o motivo na trilha. A camada no custo original **não** basta: toda saída reavalia as camadas ao médio e o custo
+   pode voltar ao original depois de saídas que usaram um médio que incluía a entrada (achado 2 da revisão). Com saída
+   válida depois, recusa do recálculo é recusa. A prévia usa a mesma função. Senão → contagem de inventário vigente
    depois → 409 `ajuste_de_inventario_posterior`; tetos 422; replay sem exclusão = gravado (senão 409); simulação sem o
    movimento: saldo < 0 em qualquer ponto, de qualquer depósito (inclusive o destino de transferências em cascata) →
    **409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO`** com `local_estoque_id`, `movimento_id`, `movimento_numero` e `saldo`; nada
@@ -575,7 +575,7 @@ transferências ativas desse produto:
 | `estoqueConsultaExcluidos` (fatia 2, entrada entre o original e o estorno) | saldo de B gravado 100→150, descontado na leitura | B regravado 0→50 pelo recálculo (o par marcado não desconta); a tela mostra o mesmo 0→50 |
 
 Sem regressão: a compra cujo abastecimento foi cancelado (AB11/AB13) e a entrada com outra entrada depois continuam
-passando (camada intocada → estorno exato se o recálculo recusar).
+passando (o abastecimento cancelado é par excluído e não conta; camada inteira → estorno exato se o recálculo recusar).
 
 ### Validação (PG 17, banco novo `maike_rx5`, `prisma migrate deploy`)
 
@@ -601,3 +601,36 @@ passando (camada intocada → estorno exato se o recálculo recusar).
 - `reatribuicao_de_camada` continua recusa (estorno antigo de entrada sem marca, consumido na simulação). Raro.
 - A edição completa (D-PROD-271) com algo depois pede decisão do proprietário (corrigir no lugar = chave de ordem nova).
 - O `excluirConfirmado` e a retificação da compra no financeiro seguem a elegibilidade antiga (como a venda na fatia 4).
+
+### Achados da revisão independente e correções
+
+A revisão confirmou três achados por teste (`rev5.test.mjs`). Cada cenário virou teste PG permanente em
+`estoqueExclusaoRecalculoEntradas.test.mjs` (describe "achados da revisão"): 3 vermelhos antes da correção, verdes
+depois; o 4º prova que a regra nova não regride.
+
+| # | Achado | Correção |
+|---|---|---|
+| 1 (importante) | **Corrida no cancelamento da venda.** `cancelar` lia os itens e as fatias (`consumos`) antes da trava do produto; uma exclusão com recálculo na fila à frente reescrevia as fatias da venda, e o estorno devolvia às camadas velhas (L2 Disponivel 50 e L3 50 em vez de L2 0 e L3 100; replay divergente para sempre) | No financeiro (`cancelar`, `excluirConfirmado`, `retificar`) as mercadorias e as fatias são relidas **depois** da trava (`mercadoriasSobTrava`) e conferidas com o `lotes_consumidos` relido; divergência → 409 `CONCURRENCY_CONFLICT` `fatias_divergentes`. Os outros escritores conferidos: a linha de produto da atividade (cancelar a linha, o apontamento, a atividade e a edição passam por `estornarLinhasProduto`) lia as fatias de quem chamava, antes da trava — agora as relê sob a trava; abastecimento, saída manual, ajuste (falta) e cocho já liam depois da trava (o cocho e a transferência relêem no motor); a compra usa só o id da camada do item, que não muda. Teste: E1, E2, E3 a 4/6/8; saída de 100; venda de 50; exclusão da E1 e cancelamento da venda na fila → os dois 200, L2 0 (Esgotado), L3 100 a 7, replay = gravado |
+| 2 (importante) | **O estorno exato da "camada intocada" gravava valores errados.** Custo atual = custo do movimento não prova que a entrada ficou fora do médio (o custo volta depois de reavaliações). Com o recálculo recusado, o estorno exato deixava S1 e S2 calculados com a entrada excluída | `entradaIntocada` exige também **nenhuma saída válida depois** no poço (saídas de pares já excluídos não contam: original 'Estornada' com estorno, com ou sem a marca). Com saída válida depois e recálculo recusado → a recusa do recálculo. A prévia usa a mesma regra; o estorno exato por camada intocada aparece como `estorno_exato_sem_recalculo` com `aviso`, e o `catch` da prévia só converte as recusas que o planejador contorna. Teste: L0 100 a 5, E 100 a 5, X 100 a 11 (médio 7), S1 50 = 350, Y 250 a 3 (médio 5), S2 10 = 50 (E volta a 5). Recálculo possível: S1 400, S2 48,75. Com grupo legado na entrada (recusa contornável) → prévia e exclusão **409 `grupo_legado_preenchido`**, nada gravado (antes: 200 e S1/S2 errados). Regressão citada (compra cujo abastecimento foi cancelado): continua 200 pelo estorno exato |
+| 3 (menor) | A prévia usava só `entradaIntocada`; o serviço também a prova da entrada documentada — podiam discordar | Uma função só (`entradaIntocada`, com a condição nova) no planejador e na prévia; a prova de sempre da entrada documentada só onde nada veio depois. Teste: E 100 (único estoque), saída de 30 excluída → prévia `estorno_exato_sem_recalculo` (aviso saldo negativo) e exclusão 200 |
+| 4 | Smoke `detalhesAreaHistorico` falhou uma vez | Smoke completo rodado duas vezes depois das correções: 320 arquivos, 4031/4031 nas duas; o teste passou também sozinho (28/28). Intermitente de tempo (animação de saída do diálogo do mapa), sem relação com a fatia: a fatia não toca nesse componente nem no que ele importa |
+
+Teste existente que mudou de expectativa por causa do achado 2: `patrimonioP1Abastecimentos` AB11(b). A compra tinha o
+lote "reposto por fora" com o abastecimento **ativo** depois (saída válida): antes passava pelo estorno exato; agora o
+recálculo vê o histórico adulterado e recusa (409 `replay_diverge_do_gravado`, nada gravado). O estado "compra cancelada
+com o lote Estornado" passou a ser emulado no banco para manter provada a defesa `lote_indisponivel_para_devolucao` do
+cancelamento do abastecimento. O AB13 (compra cujo abastecimento foi **cancelado**) continua 200.
+
+### Validação depois da revisão (PG 17, `maike_rx5`)
+
+| Verificação | Resultado |
+|---|---|
+| PG `estoqueExclusaoRecalculoEntradas` (com os 4 da revisão) | 17/17 (os 3 da revisão vermelhos antes) |
+| `rev5.test.mjs` da revisão | 3/3; H1: as duas operações 200, L2 0 Esgotado, L3 100 a 7, replay sem divergência; H2: prévia `estorno_exato_sem_recalculo` e exclusão 200; H3: prévia e exclusão 409 `grupo_legado_preenchido`, S1 350 e S2 50 intactos |
+| Regressão PG (78 arquivos, mesma lista) | 1213/1214 na rodada; a falha era o AB11(b) acima, verde depois do ajuste (15/15) |
+| Smoke completo, duas vezes | 4031/4031 e 4031/4031 |
+| Gate tests | 1061/1061 |
+| gates `tenancy`, `indices`, `governance-paths`, `no-secrets`, `product-scope`, `import-integrity`, `base44` | ok |
+| eslint nos tocados, `typecheck:backend` | ok (0) |
+| `typecheck` | 374 (igual à base) |
+| Prova com dados reais (`maike_prova_prod_rx5`) | replay 0 divergência; a exclusão do nº 31 continua permitida (10 posteriores; médios de volta a R$ 3,96) — ela tem saídas válidas depois, então vai pelo recálculo, não pelo estorno exato |
