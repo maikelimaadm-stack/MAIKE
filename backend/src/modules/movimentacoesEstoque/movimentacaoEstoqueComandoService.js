@@ -24,7 +24,8 @@ import { buscarRegistro as buscarEmpresa } from '../empresas/empresaRepository.j
 import { buscarProduto } from '../produtos/produtoRepository.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { comoPublico, ENTIDADE_SEQUENCIA } from './movimentacaoEstoqueService.js';
-import { CASAS_CUSTO, CASAS_QUANTIDADE, Dec, dec, paraBanco } from '../financeiro/decimalFinanceiro.js';
+import { CASAS_CUSTO, CASAS_QUANTIDADE, dec, paraBanco } from '../financeiro/decimalFinanceiro.js';
+import { comporObservacoes } from '../estoqueFisico/rateioObservacoes.js';
 import {
   ENTIDADE_MOVIMENTO,
   ORIGEM_SUPLEMENTACAO,
@@ -114,28 +115,6 @@ const dataMovimentacaoDeEntrada = (valor) => {
     });
   }
   return instante;
-};
-
-/** VarChar(2000) de `MovimentacaoEstoque.observacoes` (schema.prisma). */
-const LIMITE_OBSERVACOES = 2000;
-const ROTULO_RATEIO = '[RATEIO_FIFO] ';
-
-/**
- * Observações do usuário (≤ 2000 pelo schema da rota) + `\n[RATEIO_FIFO] NF: q kg | …`
- * com q em Decimal HALF_UP(3). Se passar de 2000 caracteres, corta SÓ o bloco
- * gerado (com reticências) e nunca o texto do usuário; sem espaço útil, o bloco sai.
- * @param {unknown} texto
- * @param {Array<{ quantidade: any, lote: { numero_documento?: string|null } }>} fatias
- */
-const comporObservacoes = (texto, fatias) => {
-  const usuario = typeof texto === 'string' ? texto : '';
-  const partes = fatias.map((f) => `${f.lote?.numero_documento || 'S/N'}: ${dec(f.quantidade).toFixed(3, Dec.ROUND_HALF_UP)} kg`);
-  const gerado = partes.length ? [...`${ROTULO_RATEIO}${partes.join(' | ')}`] : [];
-  const cabe = LIMITE_OBSERVACOES - [...usuario].length - (usuario ? 1 : 0);
-  let bloco = '';
-  if (gerado.length <= cabe) bloco = gerado.join('');
-  else if (cabe > ROTULO_RATEIO.length + 1) bloco = `${gerado.slice(0, cabe - 1).join('')}…`;
-  return [usuario, bloco].filter(Boolean).join('\n');
 };
 
 /**

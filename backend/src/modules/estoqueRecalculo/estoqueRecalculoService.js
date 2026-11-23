@@ -9,9 +9,17 @@
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
+import { dec } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { CLASSE, classificar, compararComGravado, compararCanonico, reproduzir, simularExclusao } from './estoqueReplay.js';
-import { TETO_MOVIMENTOS_AFETADOS, TETO_MOVIMENTOS_PRODUTO, emLeituraSomente, lerDependentes, lerHistoricoDoProduto, volumeExcedido } from './estoqueRecalculoLeitor.js';
+import {
+  ORIGEM_ABASTECIMENTO, ORIGEM_AJUSTE_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_SAIDA_ESTOQUE, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO,
+  TIPO_FALTA_AJUSTE, TIPO_SOBRA_AJUSTE, ehOrigemEntradaDocumentada,
+} from '../estoqueFisico/estoqueFisicoMotor.js';
+import { buscarMovimentoPosterior } from '../estoqueFisico/movimentoPosterior.js';
+import {
+  TETO_MOVIMENTOS_AFETADOS, TETO_MOVIMENTOS_PRODUTO, buscarAjustePosterior, emLeituraSomente, lerDependentes, lerHistoricoDoProduto, volumeExcedido,
+} from './estoqueRecalculoLeitor.js';
 
 /** Recusa de negócio da prévia (o recálculo não é seguro; `details.reason` diz por quê). */
 export const recalculoInviavel = (reason, extra = {}, mensagem = undefined) =>
@@ -20,6 +28,26 @@ export const recalculoInviavel = (reason, extra = {}, mensagem = undefined) =>
   });
 
 const DIVERGENCIAS_MOSTRADAS = 20;
+
+/** D-PROD-273 (escolha do proprietário, 2026-11-23): razão da recusa com ajuste de inventário depois. Nunca contornável. */
+export const RAZAO_AJUSTE_POSTERIOR = 'ajuste_de_inventario_posterior';
+
+/**
+ * Recusa: há uma contagem de inventário (sobra/falta de ajuste vigente) depois do movimento, num depósito que a exclusão
+ * mudaria. Excluir (com recálculo ou pelo estorno exato) deixaria o estoque diferente do contado. Completa o número do
+ * ajuste quando só veio o id (a simulação não lê o cabeçalho).
+ * @param {any} tx @param {string} cli
+ * @param {{ local_estoque_id?: string, movimento_id?: string, movimento_numero?: string, ajuste_id?: string|null, ajuste_numero?: string|null }} d
+ */
+export const recusaAjustePosterior = async (tx, cli, d) => {
+  let ajusteNumero = d.ajuste_numero ?? null;
+  if (!ajusteNumero && d.ajuste_id) ajusteNumero = (await tx.ajusteEstoque.findFirst({ where: { cliente_id: cli, id: d.ajuste_id }, select: { numero: true } }))?.numero ?? null;
+  const qual = ajusteNumero ? `ajuste nº ${ajusteNumero}` : `movimento nº ${d.movimento_numero}`;
+  return recalculoInviavel(RAZAO_AJUSTE_POSTERIOR, {
+    local_estoque_id: d.local_estoque_id ?? null, movimento_id: d.movimento_id ?? null, movimento_numero: d.movimento_numero ?? null,
+    ajuste_id: d.ajuste_id ?? null, ajuste_numero: ajusteNumero,
+  }, `há uma contagem de inventário (${qual}) depois deste movimento no depósito; exclua a contagem primeiro ou faça uma nova contagem; nada foi alterado`);
+};
 
 /**
  * Movimento a excluir e o par dele (transferência: S e R). Recusa estorno, excluído e o que o motor não gravou.
@@ -69,8 +97,143 @@ export const exigirReplayIgualAoGravado = (historico) => {
 };
 
 /**
+ * Recusa do recálculo que as origens que já estornavam pelo valor exato (abastecimento, atividade, venda) contornam
+ * com o estorno exato de antes da fatia 4: inviável (qualquer motivo), volume acima do teto e cocho ocupado. Saldo
+ * negativo NUNCA é contornado.
+ * @param {unknown} erro
+ */
+export const ehRecusaContornavel = (erro) => {
+  const e = /** @type {any} */ (erro);
+  if (!(e instanceof AppError)) return false;
+  // Ajuste de inventário depois: o estorno exato também deixaria o saldo acima/abaixo do contado — nunca contorna.
+  if (e.details?.reason === RAZAO_AJUSTE_POSTERIOR) return false;
+  if (e.code === 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL' || e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO') return true;
+  return e.code === 'CONCURRENCY_CONFLICT' && e.details?.reason === 'cocho_ocupado';
+};
+
+/** O aviso da prévia quando a simulação dá saldo negativo e a entrada sai pelo estorno exato (mesmo código do planejador). */
+const saldoNegativoDaPrevia = (detalhes) => new AppError('ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo negativo na simulação', { details: { reason: 'saldo_negativo', ...detalhes } });
+
+/** D-PROD-273 (fatia 4): origens que, com o recálculo inviável, fazem o estorno exato (sem recalcular). */
+export const ORIGENS_ESTORNO_EXATO_SE_INVIAVEL = Object.freeze([ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_SISTEMA]);
+/**
+ * Origens cujo documento exclui TODOS os movimentos dele juntos (a prévia simula o documento inteiro): venda e compra
+ * do financeiro, saída manual, entrada documentada (fatia 5) e ajuste de inventário (fatia 5: sobras e faltas juntas).
+ */
+const ORIGENS_DOCUMENTO_INTEIRO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_SAIDA_ESTOQUE, ORIGEM_AJUSTE_ESTOQUE]);
+/** A origem é de um documento inteiro (a entrada documentada é reconhecida pelo motor — D-PROD-257). @param {string} o */
+const ehDocumentoInteiro = (o) => ORIGENS_DOCUMENTO_INTEIRO.includes(o) || ehOrigemEntradaDocumentada(o);
+
+/**
+ * Os movimentos que a exclusão de `m` exclui junto: a transferência (as duas pernas) ou, no documento (venda, compra,
+ * saída manual, entrada documentada, ajuste), os outros movimentos do MESMO produto do mesmo documento (o cancelamento é
+ * do documento inteiro). No ajuste, a sobra e a falta do produto vão juntas.
+ * @param {any} tx @param {string} cli @param {any} m
+ * @returns {Promise<string[]>}
+ */
+const excluidosJuntos = async (tx, cli, m) => {
+  if (m.tipo_detalhado === 'transferencia_enviada' || m.tipo_detalhado === 'transferencia_recebida') {
+    return [m.tipo_detalhado === 'transferencia_enviada' ? m.id : m.movimento_pai_id, m.tipo_detalhado === 'transferencia_enviada' ? m.movimento_filho_id : m.id].filter(Boolean);
+  }
+  const ehEstorno = typeof m.tipo_detalhado === 'string' && m.tipo_detalhado.startsWith('estorno_');
+  if (!ehDocumentoInteiro(m.origem_sistema) || !m.lancamento_origem_id || ehEstorno) return [m.id];
+  const doAjuste = m.origem_sistema === ORIGEM_AJUSTE_ESTOQUE;
+  const irmaos = await tx.movimentacaoEstoque.findMany({
+    where: {
+      cliente_id: cli, empresa_id: m.empresa_id, produto_id: m.produto_id, lancamento_origem_id: m.lancamento_origem_id, origem_sistema: m.origem_sistema,
+      ...(doAjuste ? { tipo_detalhado: { in: [TIPO_SOBRA_AJUSTE, TIPO_FALTA_AJUSTE] } } : { tipo_detalhado: m.tipo_detalhado, tipo_movimentacao: m.tipo_movimentacao }),
+      status: 'Ativa', movimento_filho_id: null,
+    },
+    select: { id: true },
+  });
+  return [...new Set([m.id, ...irmaos.map((x) => x.id)])].sort();
+};
+
+/**
+ * A exclusão faria o estorno exato de sempre: nenhum dos movimentos teve outro DEPOIS no depósito dele (a mesma
+ * consulta dos serviços; no cocho, descontando os pares neutros).
+ */
+const nadaDepois = async (tx, cli, m, ids) => {
+  const lidos = await tx.movimentacaoEstoque.findMany({
+    where: { cliente_id: cli, id: { in: ids } }, select: { id: true, numero_movimentacao: true, createdAt: true, local_estoque_origem: true, local_estoque_destino: true },
+  });
+  for (const x of lidos) {
+    const locais = [x.local_estoque_origem, x.local_estoque_destino].filter((v) => typeof v === 'string' && v);
+    if (!locais.length) return false;
+    const depois = await buscarMovimentoPosterior(tx, cli, {
+      empresaId: m.empresa_id, produtoId: m.produto_id, locais, ignorarIds: ids,
+      desde: { createdAt: x.createdAt, numero: x.numero_movimentacao }, ignorarParesNeutros: m.origem_sistema === ORIGEM_SUPLEMENTACAO,
+    });
+    if (depois) return false;
+  }
+  return true;
+};
+
+/**
+ * D-PROD-273 (fatia 5, corrigido na revisão) — a ENTRADA `movimentoId` pode sair pelo estorno exato de antes mesmo com
+ * algo lançado depois no depósito dela. Fail-closed, as duas condições:
+ *  1. a camada dela está inteira: uma só, 'Disponivel', disponível = entrada e custo = o valor unitário do movimento;
+ *  2. no poço dela (produto × depósito da entrada) NÃO há nenhuma SAÍDA válida lançada depois dela (a regra fail-closed
+ *     de "depois" de `buscarMovimentoPosterior`). Saída inclui a transferência enviada (a cascata começa por ela). Não
+ *     contam as saídas de pares já excluídos: o original 'Estornada' com um estorno `estorno_*` dele, e o estorno de um
+ *     original 'Estornada' (com ou sem a marca do recálculo).
+ * A condição 1 sozinha NÃO basta: toda saída reavalia as camadas restantes ao médio, e o custo pode voltar ao original
+ * depois de saídas que usaram um médio que incluía a entrada. Sem saída válida depois, nada foi valorizado com um médio
+ * que a incluísse; o estorno exato (tirar a camada inteira pelo custo dela) é então o mesmo que o recálculo daria.
+ * É a ÚNICA prova usada pelo planejador (via o serviço de cada origem) e pela prévia, para que as duas concordem.
+ * @param {any} tx @param {string} cli @param {string} movimentoId
+ */
+export const entradaIntocada = async (tx, cli, movimentoId) => {
+  const [m] = /** @type {any[]} */ (await tx.$queryRaw`SELECT id, empresa_id, produto_id, tipo_movimentacao, local_estoque_destino, numero_movimentacao, "createdAt", valor_unitario
+    FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${movimentoId}`);
+  if (!m || m.tipo_movimentacao !== 'Entrada' || m.valor_unitario === null || !m.local_estoque_destino) return false;
+  const camadas = /** @type {any[]} */ (await tx.$queryRaw`SELECT status, quantidade_entrada, quantidade_disponivel, custo_unitario FROM "EstoqueLoteNota"
+    WHERE cliente_id = ${cli} AND movimentacao_entrada_id = ${movimentoId}`);
+  if (camadas.length !== 1) return false;
+  const [l] = camadas;
+  if (!(l.status === 'Disponivel' && dec(l.quantidade_disponivel).eq(dec(l.quantidade_entrada)) && dec(l.custo_unitario).eq(dec(m.valor_unitario)))) return false;
+  const numero = m.numero_movimentacao ?? '';
+  const [saida] = /** @type {any[]} */ (await tx.$queryRaw`SELECT s.id FROM "MovimentacaoEstoque" s
+    WHERE s.cliente_id = ${cli} AND s.empresa_id = ${m.empresa_id} AND s.produto_id = ${m.produto_id} AND s.id <> ${m.id}
+      AND s.tipo_movimentacao = 'Saída' AND s.local_estoque_origem = ${m.local_estoque_destino}
+      AND (s."createdAt" >= ${m.createdAt}
+        OR s.numero_movimentacao !~ '^[0-9]{1,30}$'
+        OR (${numero} ~ '^[0-9]{1,30}$' AND s.numero_movimentacao::numeric > ${numero}::numeric))
+      AND NOT (s.status = 'Estornada' AND EXISTS (SELECT 1 FROM "MovimentacaoEstoque" e
+        WHERE e.cliente_id = s.cliente_id AND e.movimento_pai_id = s.id AND left(COALESCE(e.tipo_detalhado, ''), 8) = 'estorno_'))
+      AND NOT (left(COALESCE(s.tipo_detalhado, ''), 8) = 'estorno_' AND EXISTS (SELECT 1 FROM "MovimentacaoEstoque" o
+        WHERE o.cliente_id = s.cliente_id AND o.id = s.movimento_pai_id AND o.status = 'Estornada'))
+    LIMIT 1`);
+  return !saida;
+};
+
+/**
+ * Ajuste de inventário vigente depois de algum dos movimentos `ids`, no depósito dele (origem ou destino).
+ * @param {any} tx @param {string} cli @param {string} empresaId @param {string} produtoId @param {string[]} ids
+ */
+export const ajusteDepoisDe = async (tx, cli, empresaId, produtoId, ids) => {
+  const lidos = await tx.movimentacaoEstoque.findMany({
+    where: { cliente_id: cli, id: { in: ids } }, select: { id: true, numero_movimentacao: true, createdAt: true, local_estoque_origem: true, local_estoque_destino: true },
+  });
+  for (const x of lidos) {
+    const ajuste = await buscarAjustePosterior(tx, cli, {
+      empresaId, produtoId, locais: [x.local_estoque_origem, x.local_estoque_destino], ignorarIds: ids, desde: { createdAt: x.createdAt, numero: x.numero_movimentacao },
+    });
+    if (ajuste) return ajuste;
+  }
+  return null;
+};
+
+/**
  * GET …/exclusao/previa. `autorizar(origem)` é a guarda da exclusão correspondente (a rota escolhe pela origem do
  * movimento lido); roda depois de achar o movimento e antes de ler o histórico.
+ *
+ * D-PROD-273 (fatia 4) — `modo` diz o que a exclusão VAI fazer:
+ *  - `estorno_exato`: nada foi lançado depois (mesmo com histórico que não se sabe recalcular) — nada é lido além;
+ *  - `recalculo`: o que mudaria (movimentos, depósitos, camadas, dependentes);
+ *  - `estorno_exato_sem_recalculo` (abastecimento, atividade, venda): o recálculo não é possível (`aviso`), e a
+ *    exclusão faz o estorno exato de antes, sem recalcular os posteriores — não é recusa.
+ * Na venda e na saída manual, simula juntas as saídas do mesmo produto do documento (o cancelamento é do documento).
  * @param {{ auth: any }} contexto @param {string} movimentoId @param {{ empresa_id?: string }} query
  * @param {{ autorizar?: (origem: string) => Promise<void>, teto?: number, tetoAfetados?: number }} [o]
  */
@@ -81,35 +244,75 @@ export const previaExclusao = async (contexto, movimentoId, query = {}, o = {}) 
     const m = await tx.movimentacaoEstoque.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: movimentoId } } });
     if (!m || m.empresa_id !== empresaId) throw new AppError('MOVIMENTACAO_ESTOQUE_NOT_FOUND', 'movimento de estoque não encontrado');
     if (o.autorizar) await o.autorizar(m.origem_sistema);
-    const historico = await lerHistoricoDoProduto(tx, cli, empresaId, m.produto_id, { teto: o.teto ?? TETO_MOVIMENTOS_PRODUTO });
-    const porId = new Map(historico.movimentos.map((x) => [x.id, x]));
-    const excluir = excluidosDe(m, porId);
-    const primeiro = historico.movimentos.filter((x) => excluir.includes(x.id)).sort(compararCanonico)[0];
-    const afetados = historico.movimentos.filter((x) => compararCanonico(x, primeiro) > 0 && !excluir.includes(x.id)).length;
-    const tetoAfetados = o.tetoAfetados ?? TETO_MOVIMENTOS_AFETADOS;
-    if (afetados > tetoAfetados) throw volumeExcedido({ afetados, teto: tetoAfetados });
-    const base = exigirReplayIgualAoGravado(historico);
-    const sim = simularExclusao(historico, base, excluir);
-    const dependentes = sim.permitido ? await lerDependentes(tx, cli, empresaId, sim.movimentos.map((x) => x.id)) : [];
-    const { reason, ...detalhes } = sim.recusa ?? { reason: null };
-    return {
-      movimento: resumoDoMovimento(m),
-      excluidos: excluir,
-      permitido: sim.permitido,
-      recusa: sim.permitido ? null : {
-        code: reason === 'saldo_negativo' ? 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO' : 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL',
-        reason,
-        ...detalhes,
-      },
-      movimentos_lidos: historico.movimentos.length,
-      movimentos_posteriores: afetados,
-      depositos_afetados: sim.afetados,
-      movimentos: sim.movimentos,
-      depositos: sim.depositos,
-      camadas: sim.camadas,
-      dependentes,
-      gravado: false,
-    };
+    const ehEstorno = typeof m.tipo_detalhado === 'string' && m.tipo_detalhado.startsWith('estorno_');
+    const juntos = await excluidosJuntos(tx, cli, m);
+    const vazio = { movimentos_lidos: 0, movimentos_posteriores: 0, depositos_afetados: [], movimentos: [], depositos: [], camadas: [], dependentes: [], gravado: false, recusa: null, aviso: null };
+    // Ajuste de inventário depois, no depósito do movimento (ou da outra perna): recusa, nem recálculo nem estorno exato.
+    const recusaDeAjuste = (erro) => ({
+      ...vazio, movimento: resumoDoMovimento(m), excluidos: juntos, permitido: false, modo: null,
+      recusa: { code: erro.code, message: erro.message, ...erro.details },
+    });
+    if (m.status === 'Ativa' && !m.movimento_filho_id && !ehEstorno) {
+      const ajuste = await ajusteDepoisDe(tx, cli, empresaId, m.produto_id, juntos);
+      if (ajuste) return recusaDeAjuste(await recusaAjustePosterior(tx, cli, ajuste));
+    }
+    const ativo = m.status === 'Ativa' && !m.movimento_filho_id && !ehEstorno;
+    if (ativo && juntos.length && await nadaDepois(tx, cli, m, juntos)) {
+      return { ...vazio, movimento: resumoDoMovimento(m), excluidos: juntos, permitido: true, modo: 'estorno_exato' };
+    }
+    // D-PROD-273 (fatia 5): entrada (documentada ou compra) que pode sair pelo estorno exato (`entradaIntocada`: camada
+    // inteira E nenhuma saída válida depois no poço) — como o planejador: o recálculo é tentado e, se ele recusar (as
+    // recusas contornáveis, ou saldo negativo num ponto intermediário), a exclusão faz o estorno exato sem recalcular.
+    const intactas = ativo && m.tipo_movimentacao === 'Entrada' && (m.origem_sistema === ORIGEM_SISTEMA || ehOrigemEntradaDocumentada(m.origem_sistema))
+      && (await Promise.all(juntos.map((id) => entradaIntocada(tx, cli, id)))).every(Boolean);
+    const contorna = (ORIGENS_ESTORNO_EXATO_SE_INVIAVEL.includes(m.origem_sistema) && m.tipo_movimentacao === 'Saída' && !ehEstorno) || intactas;
+    const semRecalculo = (erro) => ({
+      ...vazio, movimento: resumoDoMovimento(m), excluidos: juntos, permitido: true, modo: 'estorno_exato_sem_recalculo',
+      aviso: { code: erro.code, reason: erro.details?.reason ?? null },
+    });
+    try {
+      const historico = await lerHistoricoDoProduto(tx, cli, empresaId, m.produto_id, { teto: o.teto ?? TETO_MOVIMENTOS_PRODUTO });
+      const porId = new Map(historico.movimentos.map((x) => [x.id, x]));
+      const excluir = [...new Set([...excluidosDe(m, porId), ...juntos])].sort();
+      if (m.movimentacao_grupo_id !== null && m.movimentacao_grupo_id !== undefined && m.status === 'Ativa') {
+        throw recalculoInviavel('grupo_legado_preenchido', { movimento_id: m.id });
+      }
+      const primeiro = historico.movimentos.filter((x) => excluir.includes(x.id)).sort(compararCanonico)[0];
+      const afetados = historico.movimentos.filter((x) => compararCanonico(x, primeiro) > 0 && !excluir.includes(x.id)).length;
+      const tetoAfetados = o.tetoAfetados ?? TETO_MOVIMENTOS_AFETADOS;
+      if (afetados > tetoAfetados) throw volumeExcedido({ afetados, teto: tetoAfetados });
+      const base = exigirReplayIgualAoGravado(historico);
+      const sim = simularExclusao(historico, base, excluir);
+      const dependentes = sim.permitido ? await lerDependentes(tx, cli, empresaId, sim.movimentos.map((x) => x.id)) : [];
+      const { reason, ...detalhes } = sim.recusa ?? { reason: null };
+      if (!sim.permitido && reason === RAZAO_AJUSTE_POSTERIOR) return recusaDeAjuste(await recusaAjustePosterior(tx, cli, detalhes));
+      if (!sim.permitido && reason === 'saldo_negativo' && intactas) return semRecalculo(saldoNegativoDaPrevia(detalhes));
+      if (!sim.permitido && reason !== 'saldo_negativo' && contorna) return semRecalculo(recalculoInviavel(reason, detalhes));
+      return {
+        movimento: resumoDoMovimento(m),
+        excluidos: excluir,
+        permitido: sim.permitido,
+        modo: sim.permitido ? 'recalculo' : null,
+        recusa: sim.permitido ? null : {
+          code: reason === 'saldo_negativo' ? 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO' : 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL',
+          reason,
+          ...detalhes,
+        },
+        aviso: null,
+        movimentos_lidos: historico.movimentos.length,
+        movimentos_posteriores: afetados,
+        depositos_afetados: sim.afetados,
+        movimentos: sim.movimentos,
+        depositos: sim.depositos,
+        camadas: sim.camadas,
+        dependentes,
+        gravado: false,
+      };
+    } catch (erro) {
+      // Só as recusas que o planejador também contorna (as mesmas de `ehRecusaContornavel`); as outras são recusa.
+      if (contorna && ehRecusaContornavel(erro) && m.status === 'Ativa' && !m.movimento_filho_id) return semRecalculo(erro);
+      throw erro;
+    }
   });
 };
 

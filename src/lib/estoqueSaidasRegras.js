@@ -15,6 +15,7 @@ import { lerErroGestao } from '@/lib/gestaoErros';
 import { lerNumeroLocal } from '@/lib/dinheiroDecimal';
 import { formatarQtd } from '@/lib/estoqueConsultaRegras';
 import { LIMITES_ENTRADA, LOCALE_ENTRADA, paraCampo } from '@/lib/estoqueEntradasRegras';
+import { mensagemRecusaRecalculo } from '@/lib/estoqueRecalculoExclusao';
 
 export const MAX_ITENS_SAIDA = 50;
 export const ROTULO_STATUS_SAIDA = Object.freeze({ CONFIRMADA: 'Confirmada', EXCLUIDA: 'Excluída' });
@@ -186,6 +187,8 @@ const naLinha = (details, itens) => {
  * @param {unknown} erro @param {string} padrao @param {any[]} [itens]
  */
 export const mensagemErroSaida = (erro, padrao, itens = []) => {
+  const recalculo = mensagemRecusaRecalculo(erro);
+  if (recalculo) return recalculo;
   const { code, field, reason, details } = lerErroGestao(erro);
   const onde = naLinha(details, itens);
   switch (code) {

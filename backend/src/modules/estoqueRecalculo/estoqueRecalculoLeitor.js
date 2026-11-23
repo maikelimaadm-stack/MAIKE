@@ -8,7 +8,8 @@
  */
 import { AppError } from '../../shared/errors/AppError.js';
 import { emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
-import { MODO_CUSTO_MEDIO } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { MODO_CUSTO_MEDIO, ORIGEM_AJUSTE_ESTOQUE, TIPO_FALTA_AJUSTE, TIPO_SOBRA_AJUSTE } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueFisico/movimentoPosterior.js';
 
 /** Teto fail-closed de leitura: movimentos do produto na empresa (todos os depósitos e situações). */
 export const TETO_MOVIMENTOS_PRODUTO = 20000;
@@ -37,10 +38,13 @@ const COLUNAS_MOVIMENTO = {
   origem_sistema: true, status: true, quantidade: true, valor_unitario: true, valor_total: true, local_estoque_origem: true,
   local_estoque_destino: true, saldo_antes: true, saldo_depois: true, custo_medio_antes: true, custo_medio_depois: true,
   modo_saida_fifo: true, lotes_consumidos: true, movimento_pai_id: true, movimento_filho_id: true, lancamento_origem_id: true,
+  movimentacao_grupo_id: true,
 };
 const COLUNAS_CAMADA = {
   id: true, local_estoque_id: true, data_documento: true, createdAt: true, custo_unitario: true, quantidade_entrada: true,
   quantidade_disponivel: true, status: true, movimentacao_entrada_id: true,
+  // D-PROD-273 (fatia 4): a procedência e os nomes para criar a camada de destino de uma transferência recalculada.
+  numero_documento: true, serie_documento: true, fornecedor_id: true, fornecedor_nome: true, local_estoque_nome: true, produto_nome: true,
 };
 
 /**
@@ -70,7 +74,12 @@ export const lerHistoricoDoProduto = async (tx, cli, empresaId, produtoId, o = {
   const movimentos = await tx.movimentacaoEstoque.findMany({ where: { cliente_id: cli, empresa_id: empresaId, produto_id: produtoId }, select: COLUNAS_MOVIMENTO });
   const camadas = await tx.estoqueLoteNota.findMany({ where: { cliente_id: cli, empresa_id: empresaId, produto_id: produtoId }, select: COLUNAS_CAMADA });
   const cutover = o.cutover === undefined || o.cutover === null ? await lerCorteCustoMedio(tx, cli) : o.cutover;
-  return { movimentos, camadas, cutover };
+  // D-PROD-272: a linha do ajuste de cada sobra/falta do produto diz se o custo da sobra foi informado (sem saldo).
+  const ajustes = await tx.ajusteEstoqueItem.findMany({
+    where: { cliente_id: cli, empresa_id: empresaId, produto_id: produtoId, movimentacao_estoque_id: { not: null } },
+    select: { movimentacao_estoque_id: true, custo_informado: true },
+  });
+  return { movimentos, camadas, cutover, ajustes };
 };
 
 /**
@@ -95,6 +104,7 @@ export const lerDependentes = async (tx, cli, empresaId, ids) => {
   const consumosItem = itens.length
     ? await tx.operacaoFinanceiraConsumoLote.findMany({ where: { cliente_id: cli, empresa_id: empresaId, item_id: { in: itens.map((i) => i.id) } }, select: { id: true, item_id: true } })
     : [];
+  const ajustes = await tx.ajusteEstoqueItem.findMany({ where: base, select: { id: true, ajuste_id: true, movimentacao_estoque_id: true } });
   const eventos = /** @type {Array<{ id: string, movimento_id: string }>} */ (await tx.$queryRaw`SELECT id, dados->>'movimentacao_estoque_id' AS movimento_id
       FROM "SuplementacaoEvento" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId} AND dados->>'movimentacao_estoque_id' = ANY(${ids}::text[]) ORDER BY id`);
   const movDe = (lista, chave) => new Map(lista.map((x) => [x.id, x[chave]]));
@@ -110,6 +120,38 @@ export const lerDependentes = async (tx, cli, empresaId, ids) => {
     ...itens.map((x) => ({ tipo: 'OperacaoFinanceiraItem', id: x.id, movimento_id: /** @type {string} */ (x.movimentacao_estoque_id), documento_id: x.operacao_id })),
     ...consumosItem.map((x) => ({ tipo: 'OperacaoFinanceiraConsumoLote', id: x.id, movimento_id: /** @type {string} */ (movItem.get(x.item_id)), documento_id: x.item_id })),
     ...eventos.map((x) => ({ tipo: 'SuplementacaoEvento', id: x.id, movimento_id: x.movimento_id, documento_id: null })),
+    ...ajustes.map((x) => ({ tipo: 'AjusteEstoqueItem', id: x.id, movimento_id: /** @type {string} */ (x.movimentacao_estoque_id), documento_id: x.ajuste_id })),
   ];
   return saida.sort((a, b) => (a.tipo + a.id < b.tipo + b.id ? -1 : 1));
+};
+
+/**
+ * D-PROD-273 × D-PROD-272 (escolha do proprietário, 2026-11-23) — a primeira SOBRA/FALTA de ajuste de inventário
+ * VIGENTE (`Ativa`, sem estorno: ajuste não excluído) do produto nos `locais`, DEPOIS da referência `desde`, fora de
+ * `ignorarIds` e dos pares excluídos com recálculo. "Depois" é o critério fail-closed de `buscarMovimentoPosterior`
+ * (`createdAt` igual ou posterior, número não numérico, ou número maior). Com uma, a exclusão é recusada: o estoque
+ * nunca fica diferente do contado. Traz o número do ajuste (`lancamento_origem_id` → `AjusteEstoque`).
+ * @param {any} tx @param {string} cli
+ * @param {{ empresaId: string, produtoId: string, locais: string[], ignorarIds?: string[], desde: { createdAt: Date, numero: string|null } }} a
+ * @returns {Promise<{ movimento_id: string, movimento_numero: string, local_estoque_id: string, ajuste_id: string|null, ajuste_numero: string|null }|null>}
+ */
+export const buscarAjustePosterior = async (tx, cli, a) => {
+  const locais = [...new Set((a.locais ?? []).filter((v) => typeof v === 'string' && v))];
+  const ignorar = [...new Set((a.ignorarIds ?? []).filter((v) => typeof v === 'string' && v))];
+  if (!locais.length) return null;
+  const numero = a.desde.numero ?? '';
+  const [m] = /** @type {any[]} */ (await tx.$queryRaw`SELECT m.id, m.numero_movimentacao, COALESCE(m.local_estoque_destino, m.local_estoque_origem) AS local_id,
+        m.lancamento_origem_id, aj.numero AS ajuste_numero
+      FROM "MovimentacaoEstoque" m
+      LEFT JOIN "AjusteEstoque" aj ON aj.cliente_id = m.cliente_id AND aj.id = m.lancamento_origem_id
+      WHERE m.cliente_id = ${cli} AND m.empresa_id = ${a.empresaId} AND m.produto_id = ${a.produtoId} AND m.id <> ALL(${ignorar}::text[])
+        AND m.origem_sistema = ${ORIGEM_AJUSTE_ESTOQUE} AND m.tipo_detalhado = ANY(${[TIPO_SOBRA_AJUSTE, TIPO_FALTA_AJUSTE]}::text[])
+        AND m.status = 'Ativa' AND m.movimento_filho_id IS NULL
+        AND (m.local_estoque_origem = ANY(${locais}::text[]) OR m.local_estoque_destino = ANY(${locais}::text[]))
+        AND NOT starts_with(COALESCE(m.movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})
+        AND (m."createdAt" >= ${a.desde.createdAt}
+          OR m.numero_movimentacao !~ '^[0-9]{1,30}$'
+          OR (${numero} ~ '^[0-9]{1,30}$' AND m.numero_movimentacao::numeric > ${numero}::numeric))
+      ORDER BY m."createdAt", m.id LIMIT 1`);
+  return m ? { movimento_id: m.id, movimento_numero: m.numero_movimentacao, local_estoque_id: m.local_id, ajuste_id: m.lancamento_origem_id ?? null, ajuste_numero: m.ajuste_numero ?? null } : null;
 };

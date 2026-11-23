@@ -7,6 +7,7 @@
  *  - o saldo de cada movimento que fica na tela = o `saldo_antes/depois` gravado menos o efeito dos excluídos do
  *    MESMO produto e depósito lançados antes dele (ordem canônica: `numero_movimentacao` numérico; empate/legado por
  *    `created_date`, `id`). Um par inteiro antes soma zero; só o movimento lançado ENTRE o original e o estorno muda.
+ *  - D-PROD-273 (fatia 4): o par excluído COM recálculo some, mas não desconta (os saldos já foram regravados).
  *
  * O depósito do saldo é o do motor: Entrada → `local_estoque_destino`; Saída → `local_estoque_origem`. Decimais em
  * inteiro (4 casas, BigInt): nada de ponto flutuante. Puro; não grava nada.
@@ -62,6 +63,17 @@ const lancadoAntes = (a, b) => {
 };
 
 /**
+ * D-PROD-273 (fatia 4) — o par excluído COM recálculo (marca `exclusao_recalculo:<id do original>` em
+ * `movimentacao_grupo_id`, no original e no estorno): o servidor já regravou os saldos de quem veio depois sem ele,
+ * então ele some da lista mas não desconta nada. A mesma regra do kardex no servidor.
+ * @param {any} m
+ */
+const MARCA_RECALCULO = "exclusao_recalculo:";
+const ehDoParRecalculado = (m) =>
+  typeof m?.movimentacao_grupo_id === "string"
+  && (m.movimentacao_grupo_id === `${MARCA_RECALCULO}${m.id}` || (m.movimento_pai_id && m.movimentacao_grupo_id === `${MARCA_RECALCULO}${m.movimento_pai_id}`));
+
+/**
  * Ids dos movimentos de pares excluídos COMPLETOS da lista (original 'Estornada' com estorno presente, e o estorno).
  * @param {any[]} movimentos
  * @returns {Set<string>}
@@ -95,7 +107,7 @@ export function comSaldoSemExcluidos(visiveis, todos) {
   const excluidos = idsDeParesExcluidos(lista);
   if (!excluidos.size) return visiveis;
   const fatos = lista
-    .filter((m) => excluidos.has(String(m?.id)))
+    .filter((m) => excluidos.has(String(m?.id)) && !ehDoParRecalculado(m))
     .map((m) => ({ produto_id: m.produto_id, deposito: depositoDoSaldo(m), efeito: efeitoNoSaldo(m), ordem: chaveDeOrdem(m) }))
     .filter((f) => f.deposito && f.efeito !== null);
   return visiveis.map((m) => {

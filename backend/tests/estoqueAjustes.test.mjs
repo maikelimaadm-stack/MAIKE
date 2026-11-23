@@ -200,15 +200,18 @@ describe('D-PROD-272 — excluir: estorno integral, só sem movimento depois', (
     await reconciliacaoLimpa(x);
   });
 
-  test('outro movimento do produto no mesmo depósito depois → 409 AJUSTE_ESTOQUE_MOVIMENTO_POSTERIOR; ajuste só SEM_DIFERENCA exclui sem estorno', async () => {
+  test('D-PROD-273 (fatia 5): outro movimento do produto no mesmo depósito depois → a exclusão RECALCULA (antes: 409 AJUSTE_ESTOQUE_MOVIMENTO_POSTERIOR); ajuste só SEM_DIFERENCA exclui sem estorno', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
-    const a = (await ajustar(x, [linhaAjuste(x)])).json();
-    assert.equal((await sair(x, x.ureia, '1')).statusCode, 201);
+    const a = (await ajustar(x, [linhaAjuste(x)])).json(); // falta 10 a 3
+    const s = (await sair(x, x.ureia, '1')).json();
     const r = await excluirAjuste(x, a);
-    assert.deepEqual([r.statusCode, r.json().code], [409, 'AJUSTE_ESTOQUE_MOVIMENTO_POSTERIOR']);
-    assert.equal(await estoqueAtual(x.ureia), 89);
-    const zero = (await ajustar(x, [linhaAjuste(x, { quantidade_contada: '89' })])).json();
+    // sem a falta: 100 kg a 3; a saída de 1 continua 1 × 3 = 3, mas o saldo dela passa de 90 → 89 para 100 → 99
+    assert.deepEqual([r.statusCode, r.json().status, r.json().recalculo?.produtos], [200, 'EXCLUIDA', 1], r.body);
+    assert.equal(await estoqueAtual(x.ureia), 99);
+    const ms = await prisma().movimentacaoEstoque.findUnique({ where: { id: s.itens[0].movimentacao_estoque_id } });
+    assert.deepEqual([Number(ms.valor_total), Number(ms.saldo_antes), Number(ms.saldo_depois)], [3, 100, 99]);
+    const zero = (await ajustar(x, [linhaAjuste(x, { quantidade_contada: '99' })])).json();
     assert.equal(zero.itens[0].tipo, 'SEM_DIFERENCA');
     const ok = await excluirAjuste(x, zero);
     assert.deepEqual([ok.statusCode, ok.json().status], [200, 'EXCLUIDA']);

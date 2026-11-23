@@ -7,7 +7,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { compararCanonico, compararComGravado, ordenarCanonico, reproduzir, simularExclusao } from '../src/modules/estoqueRecalculo/estoqueReplay.js';
+import { compararCanonico, compararComGravado, marcaDoPar, ordenarCanonico, reproduzir, simularExclusao } from '../src/modules/estoqueRecalculo/estoqueReplay.js';
 
 const A = 'deposito-a';
 const dd = (d) => String(d).padStart(2, '0');
@@ -146,5 +146,192 @@ describe('D-PROD-273 fatia 3 — replay puro (era legada e corte do custo médio
     const r = reproduzir(h);
     assert.equal(r.reproduzivel, false);
     assert.deepEqual(r.problemas.map((p) => [p.reason, p.movimento_id]), [['fora_do_protocolo', 'x']]);
+  });
+});
+
+/**
+ * D-PROD-272 — sobra do ajuste de inventário: E1 10 a 2 (L1), E2 10 a 4 (L2) → 20 kg, R$ 60, médio 3; sobra de 5 ao
+ * médio (L3 5 a 3 = 15). A linha do ajuste diz se o custo foi informado. `excluido`: o ajuste foi excluído depois
+ * (estorno `estorno_ajuste_sobra`: a camada sai pelo custo dela, 25 → 20 kg).
+ */
+const historicoSobra = ({ custoSobra = '3.0000', informado = false, comLinha = true, excluido = false } = {}) => {
+  n = 0;
+  const movimentos = [
+    entrada('e1', '10', '2', '0', { createdAt: dia(1) }),
+    entrada('e2', '10', '4', '10', { createdAt: dia(2) }),
+    entrada('sobra', '5', custoSobra, '20', { createdAt: dia(3), origem_sistema: 'ajuste_estoque', tipo_detalhado: 'ajuste_sobra', lancamento_origem_id: 'ajuste-1',
+      ...(excluido ? { status: 'Estornada', movimento_filho_id: 'est-sobra' } : {}) }),
+  ];
+  if (excluido) {
+    movimentos.push(mov({ id: 'est-sobra', createdAt: dia(4), origem_sistema: 'ajuste_estoque', tipo_movimentacao: 'Saída', tipo_detalhado: 'estorno_ajuste_sobra', quantidade: '5',
+      valor_unitario: custoSobra, valor_total: (5 * Number(custoSobra)).toFixed(4), local_estoque_origem: A, saldo_antes: '25', saldo_depois: '20', movimento_pai_id: 'sobra' }));
+  }
+  movimentos.forEach((m, i) => { m.numero_movimentacao = String(i + 1); });
+  const camadas = [
+    camada('L1', 'e1', '10', '2.0000', '10.0000', 'Disponivel', 1), camada('L2', 'e2', '10', '4.0000', '10.0000', 'Disponivel', 2),
+    excluido ? camada('L3', 'sobra', '5', custoSobra, '0.0000', 'Estornado', 3) : camada('L3', 'sobra', '5', custoSobra, '5.0000', 'Disponivel', 3),
+  ];
+  return { movimentos, camadas, cutover: -Infinity, ajustes: comLinha ? [{ movimentacao_estoque_id: 'sobra', custo_informado: informado }] : [] };
+};
+
+describe('D-PROD-272 — replay puro da sobra do ajuste (custo = médio do depósito naquele ponto)', () => {
+  test('sobra ao médio reproduz; gravada com outro custo (não informado) diverge; com custo informado vale o gravado; ajuste excluído reproduz', () => {
+    const h = historicoSobra();
+    assert.deepEqual(compararComGravado(reproduzir(h), h), []);
+    const errada = historicoSobra({ custoSobra: '9.0000' });
+    const div = compararComGravado(reproduzir(errada), errada);
+    assert.ok(div.some((d) => d.movimento_id === 'sobra' && d.campo === 'valor_unitario' && d.gravado === '9.0000' && d.calculado === '3.0000'), JSON.stringify(div));
+    const informada = historicoSobra({ custoSobra: '9.0000', informado: true });
+    assert.deepEqual(compararComGravado(reproduzir(informada), informada), []);
+    const excluida = historicoSobra({ excluido: true });
+    const r = reproduzir(excluida);
+    assert.equal(r.reproduzivel, true, JSON.stringify(r.parada));
+    assert.deepEqual(compararComGravado(r, excluida), []);
+  });
+
+  test('fail-closed: sobra sem a linha do ajuste para o replay; na simulação, sobra (de ajuste excluído) não informada num poço vazio para (o motor exigiria o custo)', () => {
+    const sem = reproduzir(historicoSobra({ comLinha: false }));
+    assert.deepEqual([sem.reproduzivel, sem.parada?.reason], [false, 'sobra_de_ajuste_sem_linha']);
+    const h = historicoSobra({ excluido: true });
+    const sim = simularExclusao(h, reproduzir(h), ['e1', 'e2']);
+    assert.deepEqual([sim.permitido, sim.recusa?.reason], [false, 'sobra_de_ajuste_sem_custo_medio']);
+  });
+
+  test('escolha do proprietário (2026-11-23): excluída E2, a contagem VIGENTE depois no depósito recusa a simulação (ajuste_de_inventario_posterior)', () => {
+    const h = historicoSobra();
+    const sim = simularExclusao(h, reproduzir(h), ['e2']);
+    assert.deepEqual([sim.permitido, sim.recusa?.reason, sim.recusa?.local_estoque_id, sim.recusa?.movimento_id, sim.recusa?.ajuste_id], [false, 'ajuste_de_inventario_posterior', A, 'sobra', 'ajuste-1']);
+  });
+
+  test('ajuste JÁ EXCLUÍDO depois: excluída E2, a simulação passa; a sobra segue o médio de E1 (3 → 2) e o estorno dela também', () => {
+    const h = historicoSobra({ excluido: true });
+    const sim = simularExclusao(h, reproduzir(h), ['e2']);
+    assert.equal(sim.permitido, true, JSON.stringify(sim.recusa));
+    const porId = new Map(sim.movimentos.map((m) => [m.id, m]));
+    assert.deepEqual([porId.get('sobra')?.antes.valor_unitario, porId.get('sobra')?.depois.valor_unitario, porId.get('sobra')?.depois.valor_total], ['3.0000', '2.0000', '10.0000']);
+    assert.deepEqual([porId.get('est-sobra')?.antes.valor_total, porId.get('est-sobra')?.depois.valor_total], ['15.0000', '10.0000']);
+    assert.deepEqual(sim.camadas.find((c) => c.lote_id === 'L3')?.depois, { quantidade_disponivel: '0.0000', custo_unitario: '2.0000', status: 'Estornado' });
+  });
+});
+
+// ─── D-PROD-273 (fatia 5): entradas e transferência excluídas com recálculo ────────────────────────────────────────
+const B = 'deposito-b';
+const camadaEm = (local, ...args) => ({ ...camada(...args), local_estoque_id: local });
+const saidaMedio = (id, kg, custo, saldoAntes, fatias, extra = {}) =>
+  mov({ id, tipo_movimentacao: 'Saída', tipo_detalhado: 'venda_financeiro', quantidade: kg, modo_saida_fifo: 'CUSTO_MEDIO', valor_unitario: custo,
+    valor_total: (Number(kg) * Number(custo)).toFixed(4), local_estoque_origem: A, saldo_antes: saldoAntes, saldo_depois: (Number(saldoAntes) - Number(kg)).toFixed(4),
+    lotes_consumidos: fatias, ...extra });
+
+/**
+ * E1 10 a 2 (L1), E2 10 a 4 (L2) e uma venda de 5 depois. Antes da exclusão: médio 3, venda 15 (L1 5). `marcada`: a E2
+ * já foi excluída COM recálculo (par E2 + estorno com a marca): a venda foi regravada sem ela — 5 × 2 = 10, saldo 10 → 5 —
+ * e a L2 ficou 'Estornado' com disponível 0 no custo de antes (3, o da reavaliação).
+ */
+const historicoEntradaExcluida = ({ marcaNoEstorno = true } = {}) => {
+  n = 0;
+  const marca = marcaDoPar('e2');
+  const movimentos = [
+    entrada('e1', '10', '2', '0', { createdAt: dia(1) }),
+    entrada('e2', '10', '4', '10', { createdAt: dia(2), status: 'Estornada', movimento_filho_id: 'est-e2', movimentacao_grupo_id: marca }),
+    saidaMedio('v', '5', '2.0000', '10', [{ lote_id: 'L1', quantidade: '5.0000', custo_unitario: '2.0000' }], { createdAt: dia(3) }),
+    mov({ id: 'est-e2', createdAt: dia(4), tipo_movimentacao: 'Saída', tipo_detalhado: 'estorno_compra', quantidade: '10', valor_unitario: '4', valor_total: '40.0000',
+      local_estoque_origem: A, saldo_antes: '15', saldo_depois: '5', movimento_pai_id: 'e2', movimentacao_grupo_id: marcaNoEstorno ? marca : null }),
+  ];
+  movimentos.forEach((m, i) => { m.numero_movimentacao = String(i + 1); });
+  const camadas = [camada('L1', 'e1', '10', '2.0000', '5.0000', 'Disponivel', 1), camada('L2', 'e2', '10', '3.0000', '0.0000', 'Estornado', 2)];
+  return { movimentos, camadas, cutover: -Infinity };
+};
+
+/**
+ * A: E1 10 a 2 (L1). T: 4 kg A → B a 2 (S/R; LB1 4 a 2 em B). Venda de 3 em A depois. A transferência foi cancelada COM
+ * recálculo (os dois pares marcados): a venda foi regravada sem ela — saldo 10 → 7, 3 × 2 = 6 — e a LB1 ficou
+ * 'Estornado' com disponível 0.
+ */
+const historicoTransferenciaExcluida = ({ semMarcaEmR = false } = {}) => {
+  n = 0;
+  const ms = marcaDoPar('s');
+  const mr = semMarcaEmR ? null : marcaDoPar('r');
+  const comum = { origem_sistema: 'deposito', quantidade: '4', valor_unitario: '2.0000', valor_total: '8.0000', local_estoque_origem: A, local_estoque_destino: B, createdAt: dia(2) };
+  const movimentos = [
+    entrada('e1', '10', '2', '0', { createdAt: dia(1) }),
+    mov({ ...comum, id: 's', tipo_movimentacao: 'Saída', tipo_detalhado: 'transferencia_enviada', status: 'Estornada', movimento_filho_id: 'r', modo_saida_fifo: 'CUSTO_MEDIO',
+      saldo_antes: '10', saldo_depois: '6', lotes_consumidos: [{ lote_id: 'L1', quantidade: '4.0000', custo_unitario: '2.0000', lote_destino_id: 'LB1' }], movimentacao_grupo_id: ms }),
+    mov({ ...comum, id: 'r', tipo_movimentacao: 'Entrada', tipo_detalhado: 'transferencia_recebida', status: 'Estornada', movimento_pai_id: 's', movimento_filho_id: 'ed',
+      saldo_antes: '0', saldo_depois: '4', movimentacao_grupo_id: mr }),
+    saidaMedio('v', '3', '2.0000', '10', [{ lote_id: 'L1', quantidade: '3.0000', custo_unitario: '2.0000' }], { createdAt: dia(3) }),
+    mov({ ...comum, id: 'ed', createdAt: dia(4), tipo_movimentacao: 'Saída', tipo_detalhado: 'estorno_transferencia_recebida', local_estoque_origem: B, local_estoque_destino: null,
+      movimento_pai_id: 'r', saldo_antes: '4', saldo_depois: '0', movimentacao_grupo_id: mr }),
+    mov({ ...comum, id: 'eo', createdAt: dia(4), tipo_movimentacao: 'Entrada', tipo_detalhado: 'estorno_transferencia_enviada', local_estoque_origem: null, local_estoque_destino: A,
+      movimento_pai_id: 's', saldo_antes: '3', saldo_depois: '7', movimentacao_grupo_id: ms }),
+  ];
+  movimentos.forEach((m, i) => { m.numero_movimentacao = String(i + 1); });
+  const camadas = [camada('L1', 'e1', '10', '2.0000', '7.0000', 'Disponivel', 1), camadaEm(B, 'LB1', 'r', '4', '2.0000', '0.0000', 'Estornado', 2)];
+  return { movimentos, camadas, cutover: -Infinity };
+};
+
+describe('D-PROD-273 fatia 5 — replay puro das entradas e da transferência excluídas com recálculo', () => {
+  test('par de ENTRADA marcado: fora da sequência; a venda regravada sem ela reproduz; a camada dela fica Estornado com disponível 0 (custo gravado)', () => {
+    const h = historicoEntradaExcluida();
+    const r = reproduzir(h);
+    assert.equal(r.reproduzivel, true, JSON.stringify({ p: r.problemas, parada: r.parada }));
+    assert.deepEqual(compararComGravado(r, h), []);
+    assert.deepEqual([...r.marcados].sort(), ['e2', 'est-e2']);
+    assert.deepEqual([r.camadas.get('L2').status, r.camadas.get('L2').disp.toFixed(4), r.camadas.get('L2').custo.toFixed(4)], ['Estornado', '0.0000', '3.0000']);
+  });
+
+  test('marca incoerente no par de entrada (só o original marcado) → problema, não reproduzível', () => {
+    const r = reproduzir(historicoEntradaExcluida({ marcaNoEstorno: false }));
+    assert.equal(r.reproduzivel, false);
+    assert.deepEqual(r.problemas.map((p) => [p.reason, p.movimento_id]), [['marca_de_recalculo_incoerente', 'e2']]);
+  });
+
+  test('simulação: excluída a E1, a venda posterior volta a consumir da L2 pelo médio sem ela (5 × 4 = 20) e a L1 fica Estornado; sem saldo → recusa com depósito, movimento e saldo', () => {
+    n = 0;
+    const montarH = (kg) => {
+      n = 0;
+      const custo = '3.0000';
+      const movimentos = [
+        entrada('e1', '10', '2', '0', { createdAt: dia(1) }),
+        entrada('e2', '10', '4', '10', { createdAt: dia(2) }),
+        saidaMedio('v', kg, custo, '20', [{ lote_id: 'L1', quantidade: Number(kg) > 10 ? '10.0000' : Number(kg).toFixed(4), custo_unitario: custo },
+          ...(Number(kg) > 10 ? [{ lote_id: 'L2', quantidade: (Number(kg) - 10).toFixed(4), custo_unitario: custo }] : [])], { createdAt: dia(3) }),
+      ];
+      movimentos.forEach((m, i) => { m.numero_movimentacao = String(i + 1); });
+      const resto = 20 - Number(kg);
+      const camadas = Number(kg) > 10
+        ? [camada('L1', 'e1', '10', '2.0000', '0.0000', 'Esgotado', 1), camada('L2', 'e2', '10', custo, resto.toFixed(4), 'Disponivel', 2)]
+        : [camada('L1', 'e1', '10', custo, (10 - Number(kg)).toFixed(4), 'Disponivel', 1), camada('L2', 'e2', '10', custo, '10.0000', 'Disponivel', 2)];
+      return { movimentos, camadas, cutover: -Infinity };
+    };
+    const h = montarH('5');
+    const base = reproduzir(h);
+    assert.deepEqual(compararComGravado(base, h), []);
+    const sim = simularExclusao(h, base, ['e1']);
+    assert.equal(sim.permitido, true, JSON.stringify(sim.recusa));
+    const v = sim.movimentos.find((m) => m.id === 'v');
+    assert.deepEqual([v.antes.valor_total, v.depois.valor_total, v.depois.saldo_antes, v.depois.saldo_depois, v.fatias_mudaram], ['15.0000', '20.0000', '10.0000', '5.0000', true]);
+    assert.deepEqual(sim.camadas.find((c) => c.lote_id === 'L1')?.depois, { quantidade_disponivel: '0.0000', custo_unitario: '3.0000', status: 'Estornado' }, 'o custo gravado da camada não muda');
+    assert.deepEqual(sim.depositos.map((d) => [d.saldo_antes, d.saldo_depois, d.valor_depois]), [['15.0000', '5.0000', '20.0000']]);
+    // venda de 15: sem a E1 só há 10 kg → a venda deixaria −5 no depósito
+    const h2 = montarH('15');
+    const base2 = reproduzir(h2);
+    assert.deepEqual(compararComGravado(base2, h2), []);
+    const sim2 = simularExclusao(h2, base2, ['e1']);
+    assert.deepEqual([sim2.permitido, sim2.recusa.reason, sim2.recusa.local_estoque_id, sim2.recusa.movimento_id, sim2.recusa.saldo], [false, 'saldo_negativo', A, 'v', '-5.0000']);
+  });
+
+  test('TRANSFERÊNCIA cancelada com recálculo (dois pares marcados): fora da sequência; a venda na origem regravada reproduz; a camada recebida fica Estornado', () => {
+    const h = historicoTransferenciaExcluida();
+    const r = reproduzir(h);
+    assert.equal(r.reproduzivel, true, JSON.stringify({ p: r.problemas, parada: r.parada }));
+    assert.deepEqual(compararComGravado(r, h), []);
+    assert.deepEqual([...r.marcados].sort(), ['ed', 'eo', 'r', 's']);
+    assert.equal(r.camadas.get('LB1').status, 'Estornado');
+  });
+
+  test('transferência com só um dos pares marcado → problema (fail-closed)', () => {
+    const r = reproduzir(historicoTransferenciaExcluida({ semMarcaEmR: true }));
+    assert.equal(r.reproduzivel, false);
+    assert.deepEqual(r.problemas.map((p) => [p.reason, p.movimento_id]).sort(), [['marca_de_recalculo_incoerente', 'eo'], ['marca_de_recalculo_incoerente', 's']]);
   });
 });

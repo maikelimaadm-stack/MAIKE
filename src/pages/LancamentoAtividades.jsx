@@ -18,6 +18,12 @@ import { useCelular } from "@/components/common/MobileSheet";
 import AtividadeAberta from "@/components/lancamento-atividades/AtividadeAberta";
 import DialogoConcluirAtividade from "@/components/lancamento-atividades/DialogoConcluirAtividade";
 import DialogoConcluirServico from "@/components/lancamento-atividades/DialogoConcluirServico";
+import BarraDaReforma from "@/components/lancamento-atividades/BarraDaReforma";
+import DialogoConcluirReforma from "@/components/lancamento-atividades/DialogoConcluirReforma";
+import FormularioReforma from "@/components/lancamento-atividades/FormularioReforma";
+import JanelaPlanejar from "@/components/lancamento-atividades/JanelaPlanejar";
+import { rotuloDaReformaNoFiltro } from "@/lib/reformaRegras";
+import { QUERY_ATIVIDADES_DA_AREA } from "@/lib/registroDeCampoRegras";
 import { BlocoDoServico, OperacaoDoServico, SituacaoDoServico } from "@/components/lancamento-atividades/ServicoNaLista";
 import FormularioAtividade from "@/components/lancamento-atividades/FormularioAtividade";
 import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDeCampo";
@@ -78,13 +84,17 @@ import {
 import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 import {
   cancelarAtividade,
+  cancelarReforma,
   concluirAtividade,
+  concluirReforma,
   definirFazendaDaTela,
   duplicarAtividade,
   listarAreasDaFazenda,
   listarAtividades,
+  listarReformas,
   listarTiposAtividade,
   obterAtividade,
+  obterReforma,
   reabrirAtividade,
 } from "@/services/lancamentoAtividadesService";
 
@@ -282,6 +292,11 @@ export default function LancamentoAtividades() {
   const [dataDe, setDataDe] = useState("");
   const [dataAte, setDataAte] = useState("");
   const periodoInvertido = Boolean(dataDe && dataAte && dataDe > dataAte);
+  // MAIKE-ENTREGA3 (D-PROD-276): o filtro "Reforma" (com a barra do custo), o "Planejar" (o que planejar → a reforma ou um
+  // serviço) e a conclusão da reforma.
+  const [reformaFiltro, setReformaFiltro] = useState("");
+  const [planejar, setPlanejar] = useState(/** @type {null|'escolher'|'reforma'} */ (null));
+  const [concluindoReforma, setConcluindoReforma] = useState(/** @type {any|null} */ (null));
 
   /** Diálogo aberto: concluir (com a data), reabrir ou cancelar (com motivo), sobre a atividade lida no clique. */
   const [dialogo, setDialogo] = useState(/** @type {{ tipo: 'concluir'|'reabrir'|'cancelar', atividade: any } | null} */ (null));
@@ -313,6 +328,21 @@ export default function LancamentoAtividades() {
     staleTime: 30 * 1000,
   });
 
+  // D-PROD-276: as reformas da fazenda (a pílula "Reforma") e a reforma escolhida, com o custo calculado no servidor.
+  const reformasQuery = useQuery({
+    queryKey: [QUERY_RAIZ, "reformas", empresaId],
+    queryFn: () => listarReformas(),
+    enabled: Boolean(empresaId) && acoes.ver,
+    staleTime: 30 * 1000,
+  });
+  const reformas = /** @type {any[]} */ (reformasQuery.data?.items ?? []);
+  const reformaQuery = useQuery({
+    queryKey: [QUERY_RAIZ, "reforma", empresaId, reformaFiltro],
+    queryFn: () => obterReforma(reformaFiltro),
+    enabled: Boolean(empresaId && reformaFiltro) && acoes.ver,
+    staleTime: 15 * 1000,
+  });
+
   const listEnabled = Boolean(empresaId) && acoes.ver && !periodoInvertido;
 
   const fetchPage = useCallback(
@@ -324,18 +354,20 @@ export default function LancamentoAtividades() {
         situacao: situacaoFiltro && situacaoFiltro !== SITUACAO_ABERTAS ? situacaoFiltro : null,
         ...filtroDoTipo(tipoFiltro),
         area_id: areaFiltro || null,
+        // D-PROD-276: as realizações da reforma escolhida.
+        planejamento_id: reformaFiltro || null,
         data_de: dataDe || null,
         data_ate: dataAte || null,
       }),
     // A fazenda vem do service (`definirFazendaDaTela`) e está na chave da lista: trocar de fazenda relê a página.
-    [situacaoFiltro, tipoFiltro, areaFiltro, dataDe, dataAte],
+    [situacaoFiltro, tipoFiltro, areaFiltro, reformaFiltro, dataDe, dataAte],
   );
 
   const controller = useCadastroBase1Controller({
     storageKey: ATIVIDADES_STORAGE_KEY,
     columnIds: ATIVIDADES_CAMPOS_CARD,
     listEnabled,
-    queryKey: [QUERY_RAIZ, "page", empresaId, situacaoFiltro, tipoFiltro, areaFiltro, dataDe, dataAte],
+    queryKey: [QUERY_RAIZ, "page", empresaId, situacaoFiltro, tipoFiltro, areaFiltro, reformaFiltro, dataDe, dataAte],
     fetchPage,
     duplicateLabelField: "nome",
     searchPlaceholder: "Buscar nº, nome, tipo ou área…",
@@ -374,6 +406,10 @@ export default function LancamentoAtividades() {
     setLancandoDia(null);
     setConcluindoServico(null);
     setAreaFiltro("");
+    // D-PROD-276: a reforma é da fazenda.
+    setReformaFiltro("");
+    setPlanejar(null);
+    setConcluindoReforma(null);
   }, [empresaId, closeForm]);
   // Resposta que chega depois de trocar a fazenda não mexe na atividade aberta da fazenda nova.
   const empresaAtual = useRef(empresaId);
@@ -381,7 +417,11 @@ export default function LancamentoAtividades() {
   /** @param {string|null|undefined} emp */
   const daEmpresaAtual = (emp) => Boolean(emp) && emp === empresaAtual.current;
 
-  const invalidarLista = () => queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "page"] });
+  const invalidarLista = () => {
+    void queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "page"] });
+    // D-PROD-276: o custo da reforma vem das mesmas realizações da lista.
+    void queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "reforma"] });
+  };
   /** O totalizador (área, produtos, máquinas, custo) se relê depois de toda escrita (D-PROD-202). */
   const invalidarTotais = () => queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "totais"] });
   /** @param {string|null|undefined} emp @param {string} id */
@@ -634,6 +674,56 @@ export default function LancamentoAtividades() {
     }
   };
 
+  // ─── D-PROD-276: a reforma de pastagem (o agrupador) ──────────────────
+  const podeConcluirReforma = podeGravar && acoes.editar;
+  const podeCancelarReforma = podeGravar && acoes.cancelar;
+  /** Releu a reforma (e as reformas da pílula, o resumo das áreas no mapa e as áreas, que podem ter trocado de capim). */
+  const aposEscritaDaReforma = () => {
+    void queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "reformas"] });
+    void queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "reforma"] });
+    void queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "areas"] });
+    void queryClient.invalidateQueries({ queryKey: [QUERY_ATIVIDADES_DA_AREA] });
+  };
+  /** A reforma planejada: a pílula passa a mostrá-la (com a barra do custo). @param {any} criada */
+  const aoPlanejarReforma = (criada) => {
+    setPlanejar(null);
+    aposEscritaDaReforma();
+    if (criada?.id && daEmpresaAtual(empresaId)) setReformaFiltro(String(criada.id));
+  };
+  /** "Concluir reforma" (com a troca do capim, se o dono quiser). A recusa volta ao diálogo. @param {{ data_conclusao: string, trocar_capim: boolean }} d */
+  const enviarConclusaoDaReforma = async (d) => {
+    const alvoDaReforma = concluindoReforma;
+    if (!alvoDaReforma) return;
+    const r = /** @type {any} */ (await concluirReforma(String(alvoDaReforma.id), { versao: alvoDaReforma.versao, ...d }));
+    aposEscritaDaReforma();
+    setConcluindoReforma(null);
+    const trocadas = Array.isArray(r?.capim_trocado_nas_areas) ? r.capim_trocado_nas_areas.length : 0;
+    notifySuccess(
+      "Sucesso",
+      trocadas
+        ? `${r?.nome ?? "Reforma"} concluída. O capim de ${trocadas === 1 ? "1 área" : `${trocadas} áreas`} passou a ser ${r?.cultura_alvo?.nome ?? "o novo"}.`
+        : `${r?.nome ?? "Reforma"} concluída.`,
+    );
+  };
+  /** "Cancelar" a reforma: nada é apagado (as realizações continuam ligadas a ela). @param {any} reforma */
+  const cancelarAReforma = async (reforma) => {
+    const ok = await confirmar({
+      titulo: `Cancelar a ${reforma?.nome ?? "reforma"}?`,
+      descricao: "A reforma deixa de receber realizações novas. Nada é apagado: os serviços já lançados continuam com o custo e ligados a ela.",
+      textoConfirmar: "Cancelar reforma",
+      textoCancelar: "Voltar",
+    });
+    if (!ok) return;
+    try {
+      const r = /** @type {any} */ (await cancelarReforma(String(reforma.id), { versao: reforma.versao }));
+      aposEscritaDaReforma();
+      notifySuccess("Sucesso", `${r?.nome ?? "Reforma"} cancelada. Nada foi apagado.`);
+    } catch (erro) {
+      aposEscritaDaReforma();
+      notifyWarning("Atenção", ehResultadoIncerto(erro) ? "Não recebemos a resposta do servidor: confira a reforma antes de tentar de novo." : mensagemDeErroAtividade(erro, "Não foi possível cancelar a reforma. Nada foi alterado."));
+    }
+  };
+
   // Na atividade aberta, "Concluir" é o botão à vista na barra (D-PROD-232): o Mais opções não repete.
   const concluirNaBarra = controller.showForm;
   /** @type {Array<{ key: string, label: string, disabled?: boolean, hidden?: boolean, onSelect: () => void }>} */
@@ -736,6 +826,11 @@ export default function LancamentoAtividades() {
     [areas],
   );
 
+  const opcoesReformaFiltro = useMemo(
+    () => [{ value: "", label: "Todas as atividades" }, ...reformas.map((r) => ({ value: String(r.id), label: rotuloDaReformaNoFiltro(r) }))],
+    [reformas],
+  );
+
   const listaVazia = listEnabled && !controller.showForm && !controller.isLoading && !controller.listaErro && controller.visibleRows.length === 0;
 
   const banner = (
@@ -746,6 +841,18 @@ export default function LancamentoAtividades() {
           Configure o fuso horário da fazenda (Empresa → Fuso horário) antes de abrir, editar, concluir, reabrir, cancelar ou duplicar atividades e de lançar
           apontamentos: o servidor recusa sem ele.
         </AvisoGestao>
+      ) : null}
+      {/* D-PROD-276: a barra da reforma escolhida no filtro (custo total, R$/ha, por tipo e os serviços). */}
+      {empresaId && acoes.ver && reformaFiltro && !controller.showForm ? (
+        <BarraDaReforma
+          reforma={reformaQuery.data && String(/** @type {any} */ (reformaQuery.data).id) === reformaFiltro ? reformaQuery.data : null}
+          carregando={reformaQuery.isLoading}
+          erro={reformaQuery.isError ? mensagemDeErroAtividade(reformaQuery.error, "Não foi possível ler o custo da reforma.") : null}
+          podeConcluir={podeConcluirReforma}
+          podeCancelar={podeCancelarReforma}
+          onConcluir={(r) => setConcluindoReforma(r)}
+          onCancelar={(r) => void cancelarAReforma(r)}
+        />
       ) : null}
       {listaVazia ? <AvisoGestao testId="atividades-lista-vazia">Nenhuma atividade encontrada com estes filtros.</AvisoGestao> : null}
     </>
@@ -765,6 +872,11 @@ export default function LancamentoAtividades() {
           { id: "tipo", rotulo: "Tipo", nome: "Filtrar por tipo", opcoes: opcoesTipoFiltro, valor: tipoFiltro, padrao: "", onChange: setTipoFiltro, coluna: "tipo", ocultarPadrao: true },
           { id: "situacao", rotulo: "Situação", nome: "Filtrar por situação", opcoes: OPCOES_SITUACAO, valor: situacaoFiltro, padrao: "", onChange: setSituacaoFiltro, coluna: "status", ocultarPadrao: true },
           { id: "area", rotulo: "Área", nome: "Filtrar por área", opcoes: opcoesAreaFiltro, valor: areaFiltro, padrao: "", onChange: setAreaFiltro, coluna: "area", ocultarPadrao: true },
+          // D-PROD-276: as realizações de uma reforma (e, em cima da lista, a barra do custo dela). Só aparece quando a
+          // fazenda tem reforma (ou uma está escolhida): a fazenda sem reforma não ganha uma pílula vazia.
+          ...(reformas.length || reformaFiltro
+            ? [{ id: "reforma", rotulo: "Reforma", nome: "Filtrar por reforma", opcoes: opcoesReformaFiltro, valor: reformaFiltro, padrao: "", onChange: setReformaFiltro, ocultarPadrao: true }]
+            : []),
           {
             id: "inicio",
             tipo: /** @type {const} */ ("periodo"),
@@ -1015,9 +1127,9 @@ export default function LancamentoAtividades() {
       <PillBtn
         type="button"
         tone="outline"
-        onClick={() => controller.openNew()}
+        onClick={() => setPlanejar("escolher")}
         aria-label="Planejar"
-        title="Planejar um serviço (a atividade, antes de lançar os dias)"
+        title="Planejar uma reforma de pastagem ou um serviço"
         className="mg-act-planejar"
         data-testid="atividade-planejar"
       >
@@ -1143,6 +1255,32 @@ export default function LancamentoAtividades() {
             continuar={lancandoDia}
             onGravou={() => invalidarLista()}
             onFechar={() => setLancandoDia(null)}
+          />
+        ) : null}
+
+        {planejar === "escolher" ? (
+          <JanelaPlanejar
+            onFechar={() => setPlanejar(null)}
+            onReforma={() => setPlanejar("reforma")}
+            onServico={() => {
+              setPlanejar(null);
+              controller.openNew();
+            }}
+          />
+        ) : null}
+
+        {planejar === "reforma" ? (
+          <FormularioReforma areas={areasDoRegistro} hoje={hoje} onFechar={() => setPlanejar(null)} onCriada={aoPlanejarReforma} />
+        ) : null}
+
+        {concluindoReforma ? (
+          <DialogoConcluirReforma
+            key={`concluir-reforma-${concluindoReforma.id}-${concluindoReforma.versao}`}
+            reforma={concluindoReforma}
+            hoje={hoje}
+            podeTrocarCapim={acoes.trocarCapimDaArea === true}
+            onFechar={() => setConcluindoReforma(null)}
+            onConcluir={enviarConclusaoDaReforma}
           />
         ) : null}
 

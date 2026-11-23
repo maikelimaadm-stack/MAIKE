@@ -12,14 +12,15 @@ import { useQuery } from '@tanstack/react-query';
 import { carregarPermissaoEfetiva, getCurrentUser } from '@/services/sessionService';
 import { listEmpresas } from '@/services/empresaService';
 import { hojeNoFuso } from '@/lib/diaCivil';
-import { acoesDaTelaAtividades } from '@/lib/lancamentoAtividadesPermissions';
+import { acoesDaTelaAtividades, podeTrocarCapimDaArea } from '@/lib/lancamentoAtividadesPermissions';
 
 export { useEmpresaRealSelecionadaId } from '@/hooks/useGestaoSessao';
 
 /**
  * @returns {{ ver: boolean, criar: boolean, editar: boolean, cancelar: boolean, reabrir: boolean,
  *   lancarApontamento: boolean, editarApontamento: boolean, cancelarApontamento: boolean,
- *   carregando: boolean, login: string|null }}
+ *   trocarCapimDaArea: boolean, carregando: boolean, login: string|null }}
+ *   D-PROD-276: `trocarCapimDaArea` — a troca do capim na conclusão da reforma (o editar do Cadastro do Mapa).
  */
 export const useAcoesTelaAtividades = () => {
   const { data: usuarioAtual = null, isLoading: carregandoUsuario } = useQuery({
@@ -38,6 +39,7 @@ export const useAcoesTelaAtividades = () => {
   });
   return {
     ...acoesDaTelaAtividades(permissao),
+    trocarCapimDaArea: podeTrocarCapimDaArea(permissao),
     carregando: carregandoUsuario || (Boolean(login) && carregandoPermissao),
     login,
   };

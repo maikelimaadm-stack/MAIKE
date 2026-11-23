@@ -13,6 +13,8 @@ import {
 import { cancelarTransferenciaEntreDepositos, consultarCancelamentoTransferencia } from "@/services/suplementacaoEstoqueService";
 import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { invalidarCachesDoMapa } from "@/components/mapa/invalidarCachesMapa";
+import PreviaRecalculoExclusao from "@/components/estoque/PreviaRecalculoExclusao";
+import { mensagemRecalculoDaExclusao } from "@/lib/gestaoErros";
 
 // Componentes de `ui/*` são forwardRef sem tipos de props: o checkJs não enxerga `children`.
 /** @type {React.ComponentType<any>} */ const Button = ButtonUi;
@@ -35,7 +37,8 @@ import { invalidarCachesDoMapa } from "@/components/mapa/invalidarCachesMapa";
  *
  *  - Só online: sem conexão o botão fica desligado com o motivo; nada vai para a fila offline.
  *  - Ao abrir, o servidor ensaia o cancelamento (GET de elegibilidade) e diz o que acontece — ou por que não pode
- *    (outro movimento depois nos depósitos, estoque já usado, transferência antiga sem rastreio, origem inativa...).
+ *    (saldo que ficaria negativo, contagem de inventário depois, transferência antiga sem rastreio, origem inativa...);
+ *    com outro movimento depois nos depósitos, o servidor recalcula o custo deles (D-PROD-273, fatia 5) e a prévia mostra.
  *  - A chave é criada uma vez por diálogo e GRAVADA (com o motivo) antes do envio; resultado desconhecido (rede,
  *    5xx, conflito transitório) mantém a MESMA chave e o MESMO motivo, inclusive ao fechar e reabrir: o servidor
  *    nunca cancela duas vezes. Só uma resposta definitiva limpa a pendência. `replay` conta como sucesso.
@@ -148,6 +151,9 @@ const MENSAGEM_LOTES = "Esta transferência não pode ser excluída com seguran�
 /** Mensagem em português por código/`reason` da recusa do servidor. */
 export const mensagemDaRecusaTransferencia = (codigo, detalhes) => {
   const d = detalhes && typeof detalhes === "object" ? detalhes : {};
+  // D-PROD-273 (fatia 5): com movimento depois, a exclusão recalcula; recusa só por saldo negativo, contagem ou inviável.
+  const recalculo = mensagemRecalculoDaExclusao(codigo ?? null, d.reason ?? null, d);
+  if (recalculo) return recalculo;
   if (codigo === "TRANSFERENCIA_CANCELAMENTO_BLOQUEADO") {
     switch (d.reason) {
       case "movimento_posterior": {
@@ -414,7 +420,8 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
             <DialogDescription>
               {movimento?.produto_nome || "Produto"} · {fmtKg(quantidade)} {unidade} · {origemNome} → {destinoNome}
               {movimento?.numero_movimentacao ? ` · nº ${movimento.numero_movimentacao}` : ""}. Ao excluir, o produto volta ao depósito de origem e
-              sai do de destino, pelo valor gravado, e a transferência sai do histórico do depósito.
+              sai do de destino, e a transferência sai do histórico do depósito. Se o produto teve outros movimentos depois dela nesses depósitos,
+              o custo médio deles é recalculado.
             </DialogDescription>
           </DialogHeader>
 
@@ -452,6 +459,11 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
                 <div>{`${destinoNome}: −${fmtKg(quantidade)} ${unidade} (sai do depósito de destino)`}</div>
                 {valor ? <div>{`Valor devolvido à origem: ${valor}`}</div> : null}
               </div>
+              {elegivelAgora && efeitos?.recalculo ? (
+                <div className="grid grid-cols-12">
+                  <PreviaRecalculoExclusao empresaId={empresaId} movimentoIds={[id]} />
+                </div>
+              ) : null}
               {desconhecido ? (
                 <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
                   Sem confirmação do servidor. A exclusão pode ou não ter sido concluída. Reenvie: a MESMA operação é repetida e nunca é aplicada duas vezes.

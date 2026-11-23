@@ -41,6 +41,8 @@
 import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { aplicarExclusaoComRecalculo, camadasPeloRecalculo, entradaIntocada, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
+import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueFisico/movimentoPosterior.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { TELAS, carregarAutorizacao, exigirTela, telaPermite } from '../../shared/auth/autorizacaoTela.js';
 import { AppError } from '../../shared/errors/AppError.js';
@@ -55,7 +57,7 @@ import { entradaManualComDocumento, travarDocumentoDeEstoque } from '../estoqueF
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { ESCOPO_TENANT, reservarNumero, reservarNumeros } from '../sequencias/entidadeCodigoService.js';
 import {
-  CAMPOS_PROCEDENCIA_LOTE, ENTIDADE_MOVIMENTO, aplicarEntradaEstoque, aplicarSaida, atualizarProcedencia, estornarEmLote, lotesFifo, travarProdutosEstoque,
+  CAMPOS_PROCEDENCIA_LOTE, ENTIDADE_MOVIMENTO, ORIGEM_SISTEMA, aplicarEntradaEstoque, aplicarSaida, atualizarProcedencia, estornarEmLote, lotesFifo, travarProdutosEstoque,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { casasDaMoeda, metodosPermitidos, VERSAO_CONTRATO } from './financeiroCatalogo.js';
 import {
@@ -1538,10 +1540,12 @@ export const confirmar = async (contexto, id, corpo) => {
  * (D-PROD-158). Quem chama já travou cabeçalho → produtos → títulos e numera
  * os estornos no FIM (`numerarMovimentos`).
  * @param {any} tx @param {any} contexto
- * @param {{ cli: string, empresaId: string, op: any, mercadorias: any[], dia: string|undefined }} a
+ * D-PROD-273 (fatia 5): `camadaPeloRecalculo` (compra cancelada com recálculo) — os originais cuja camada o recálculo
+ * regrava (ver `estornarEmLote`).
+ * @param {{ cli: string, empresaId: string, op: any, mercadorias: any[], dia: string|undefined, camadaPeloRecalculo?: string[] }} a
  * @returns {Promise<string[]>} ids dos movimentos de estorno, na ordem dos itens
  */
-const estornarEfeitosDoDocumento = async (tx, contexto, { cli, empresaId, op, mercadorias, dia }) => {
+const estornarEfeitosDoDocumento = async (tx, contexto, { cli, empresaId, op, mercadorias, dia, camadaPeloRecalculo = undefined }) => {
   const parceiro = await tx.fornecedor.findUnique({ where: { cliente_id_id: { cliente_id: cli, id: op.parceiro_id } }, select: { id: true, nome: true } });
   // Rodada 2 (CRITICO-2): estornos EM LOTE — mesmo resultado e mesmas
   // recusas do laço item a item, com um número fixo de idas ao banco
@@ -1550,6 +1554,7 @@ const estornarEfeitosDoDocumento = async (tx, contexto, { cli, empresaId, op, me
     empresaId, direcao: op.direcao, itens: mercadorias, dia: /** @type {any} */ (dia),
     documento: { numero: op.documento_referencia ?? op.numero, data: diaDe(op.data_emissao) },
     parceiro: { id: parceiro?.id ?? op.parceiro_id, nome: parceiro?.nome ?? op.parceiro_nome }, origem: { operacaoId: op.id }, numeroMovimento: numeroProvisorio,
+    ...(camadaPeloRecalculo ? { camadaPeloRecalculo } : {}),
   });
   if (estornos.length) {
     const ligados = await tx.$executeRaw`UPDATE "OperacaoFinanceiraItem" AS i
@@ -1582,9 +1587,10 @@ export const cancelar = async (contexto, id, corpo) => {
         const op = await travarCabecalho(tx, cli, empresaId, id, 'UPDATE');
         if (op.status !== 'CONFIRMADO') throw statusInvalido(op.status, 'CONFIRMADO');
         const w = { cliente_id: cli, operacao_id: id };
-        const itens = await tx.operacaoFinanceiraItem.findMany({ where: w, orderBy: { ordem: 'asc' }, include: { consumos: true } });
-        const mercadorias = itens.filter((i) => i.tipo_item === 'MERCADORIA');
-        await travarProdutosEstoque(tx, cli, empresaId, mercadorias.map((i) => i.produto_id));
+        const antesDaTrava = await lerMercadorias(tx, cli, id);
+        await travarProdutosEstoque(tx, cli, empresaId, antesDaTrava.map((i) => i.produto_id));
+        // D-PROD-273 (fatia 5, revisão): as fatias SÓ depois da trava (uma exclusão com recálculo pode tê-las reescrito).
+        const mercadorias = await mercadoriasSobTrava(tx, cli, id);
         const titulos = /** @type {any[]} */ (await travarTitulos(tx, cli, id));
         const comBaixa = titulos.filter((t) => dec(t.valor_liquidado).gt(0));
         if (comBaixa.length) {
@@ -1593,8 +1599,29 @@ export const cancelar = async (contexto, id, corpo) => {
           });
         }
         const tempo = mercadorias.length ? await hojeDaEmpresa(tx, cli, empresaId) : null;
+        // D-PROD-273 (fatia 4): na VENDA, com outro movimento do produto no depósito depois, o cancelamento recalcula
+        // o custo médio do que veio depois (o preço não muda; só o custo derivado do estoque). Prova antes do estorno.
+        // Fatia 5: na COMPRA também — a entrada sai da sequência e quem consumiu dela volta a consumir das outras camadas
+        // (o valor de compra não muda); saldo negativo em qualquer ponto → 409; sem estorno exato como saída.
+        const comMovimento = mercadorias.filter((i) => i.movimentacao_estoque_id);
+        const compra = op.direcao === 'PAGAR';
+        const planos = comMovimento.length
+          ? await planejarExclusaoComRecalculo(tx, cli, {
+            empresaId, movimentos: comMovimento.map((i) => ({ id: i.movimentacao_estoque_id, produtoId: i.produto_id, localId: i.local_estoque_id })), estornoExatoSeInviavel: !compra,
+            // compra com a camada intocada (o que o motor já aceitava): o estorno exato de sempre, sem recálculo
+            ...(compra ? { intacto: (/** @type {string} */ id) => entradaIntocada(tx, cli, id) } : {}),
+          })
+          : [];
         // Sequência de movimentos SÓ no fim (§8.4 item 5): `numerarMovimentos`.
-        const estornos = await estornarEfeitosDoDocumento(tx, contexto, { cli, empresaId, op, mercadorias, dia: tempo?.hoje });
+        const estornos = await estornarEfeitosDoDocumento(tx, contexto, {
+          cli, empresaId, op, mercadorias, dia: tempo?.hoje, ...(compra ? { camadaPeloRecalculo: camadasPeloRecalculo(planos) } : {}),
+        });
+        const recalculo = planos.length
+          ? await aplicarExclusaoComRecalculo(tx, contexto, planos, {
+            empresaId, origem: ORIGEM_SISTEMA, motivo: [...`Cancelamento do lançamento ${op.numero}: ${motivo}`].slice(0, 255).join(''),
+            estornos: new Map(mercadorias.map((i, k) => [i.movimentacao_estoque_id, estornos[k]])),
+          })
+          : null;
         await tx.tituloFinanceiro.updateMany({ where: w, data: { status: 'CANCELADO' } });
         const cancelado = await tx.operacaoFinanceira.update({
           where: { cliente_id_id: { cliente_id: cli, id } },
@@ -1611,7 +1638,7 @@ export const cancelar = async (contexto, id, corpo) => {
           acao: 'operacao_financeira.cancelar',
           entidade: ENTIDADE,
           entidadeId: id,
-          dadosNovos: auditoriaDoc(cancelado, { motivo_informado: true, movimentos_estorno: estornos, titulos_n: titulos.length }),
+          dadosNovos: auditoriaDoc(cancelado, { motivo_informado: true, movimentos_estorno: estornos, titulos_n: titulos.length, recalculo }),
         }, tx);
         await numerarMovimentos(tx, cli, estornos);
         return { httpStatus: 200, body: await carregarDetalhe(tx, cli, id) };
@@ -2078,6 +2105,8 @@ const provaDaVenda = async (tx, cli, empresaId, op, itens) => {
           AND (m."createdAt" > v.instante::timestamp(3) OR (m."createdAt" = v.instante::timestamp(3) AND m.id <> v.original_id)
             OR (m.numero_movimentacao ~ '^[0-9]{1,18}$' AND v.numero ~ '^[0-9]{1,18}$' AND m.numero_movimentacao::numeric > v.numero::numeric))
           AND NOT (m.id = ANY(${proprios}::text[]))
+          -- D-PROD-273 (fatia 4): o par excluído com recálculo está fora da sequência (a regra de movimentoPosterior.js).
+          AND NOT starts_with(COALESCE(m.movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})
         ORDER BY v.ordem, m."createdAt", m.id`
     : []);
   for (const p of posteriores) {
@@ -2119,6 +2148,40 @@ const dependenciaFisica = async (tx, cli, empresaId, op, mercadorias) => {
 /** Mercadorias do documento (com as fatias), em ordem. */
 const lerMercadorias = (tx, cli, operacaoId) =>
   tx.operacaoFinanceiraItem.findMany({ where: { cliente_id: cli, operacao_id: operacaoId, tipo_item: 'MERCADORIA' }, orderBy: { ordem: 'asc' }, include: { consumos: true } });
+
+/**
+ * D-PROD-273 (fatia 5, revisão) — as mercadorias RELIDAS sob a trava dos produtos, com as fatias conferidas contra o
+ * `lotes_consumidos` do movimento (relido também sob a trava). Uma exclusão com recálculo do mesmo produto pode ter
+ * reescrito as fatias da venda entre a leitura sem trava e a trava; estornar com as fatias velhas devolveria às camadas
+ * erradas. Quem estorna (cancelar, excluir, retificar) usa SEMPRE esta leitura. Fatias que não batem → 409
+ * `CONCURRENCY_CONFLICT` (`fatias_divergentes`), nada gravado.
+ * @param {any} tx @param {string} cli @param {string} operacaoId
+ */
+const mercadoriasSobTrava = async (tx, cli, operacaoId) => {
+  const mercadorias = await lerMercadorias(tx, cli, operacaoId);
+  const ids = mercadorias.filter((i) => i.movimentacao_estoque_id && (i.consumos ?? []).length).map((i) => /** @type {string} */ (i.movimentacao_estoque_id));
+  if (!ids.length) return mercadorias;
+  const movimentos = new Map((await tx.movimentacaoEstoque.findMany({ where: { cliente_id: cli, id: { in: ids } }, select: { id: true, lotes_consumidos: true } })).map((m) => [m.id, m]));
+  const porLote = (lista) => {
+    /** @type {Map<string, any>} */
+    const mapa = new Map();
+    for (const f of lista) mapa.set(f.lote, (mapa.get(f.lote) ?? ZERO).plus(dec(f.quantidade)));
+    return mapa;
+  };
+  for (const item of mercadorias) {
+    const gravadas = item.movimentacao_estoque_id ? movimentos.get(item.movimentacao_estoque_id)?.lotes_consumidos : null;
+    if (!Array.isArray(gravadas) || !gravadas.length || !(item.consumos ?? []).length) continue;
+    const a = porLote(item.consumos.map((c) => ({ lote: c.estoque_lote_nota_id, quantidade: c.quantidade })));
+    const b = porLote(gravadas.map((/** @type {any} */ f) => ({ lote: f?.lote_id, quantidade: f?.quantidade ?? 0 })));
+    const iguais = a.size === b.size && [...a].every(([lote, q]) => b.has(lote) && dec(b.get(lote)).eq(q));
+    if (!iguais) {
+      throw new AppError('CONCURRENCY_CONFLICT', 'as fatias de estoque do item mudaram durante a operação; nada foi alterado, tente de novo', {
+        details: { reason: 'fatias_divergentes', item_ordem: item.ordem, movimento_id: item.movimentacao_estoque_id },
+      });
+    }
+  }
+  return mercadorias;
+};
 
 /**
  * D-PROD-158 §3 — elegibilidade de fonte ÚNICA. O GET chama em REPEATABLE READ
@@ -2386,11 +2449,13 @@ export const retificar = async (contexto, id, corpo) => {
           const casas = op.moeda_casas;
           const doc = normalizarDocumento({ ...documento, empresa_id: empresaId }, casas);
           const w = { cliente_id: cli, operacao_id: id };
-          const itens = await tx.operacaoFinanceiraItem.findMany({ where: w, orderBy: { ordem: 'asc' }, include: { consumos: true } });
-          const mercadorias = itens.filter((i) => i.tipo_item === 'MERCADORIA');
+          const antesDaTrava = await lerMercadorias(tx, cli, id);
           // §8.4: cabeçalho → produtos (antigo ∪ novo, crescente) → títulos → lotes/movimentos (motor) → sequências.
           await travarProdutosEstoque(tx, cli, empresaId,
-            await produtosATravar(tx, cli, empresaId, unicos(mercadorias.map((i) => i.produto_id)), doc.itens.map((i) => i.produto_id)));
+            await produtosATravar(tx, cli, empresaId, unicos(antesDaTrava.map((i) => i.produto_id)), doc.itens.map((i) => i.produto_id)));
+          // D-PROD-273 (fatia 5, revisão): as fatias SÓ depois da trava (uma exclusão com recálculo pode tê-las reescrito).
+          const mercadorias = await mercadoriasSobTrava(tx, cli, id);
+          const itens = await tx.operacaoFinanceiraItem.findMany({ where: w, orderBy: { ordem: 'asc' }, include: { consumos: true } });
           await travarTitulos(tx, cli, id);
           // DE-01: produto que o documento já tinha em SACO replaneja com o peso GRAVADO (o do recebimento).
           const refs = comPesoGravado(await carregarReferencias(tx, cli, empresaId, doc), mercadorias);
@@ -2524,8 +2589,9 @@ export const excluirConfirmado = async (contexto, id, corpo) => {
         await exigirVigente(tx, cli, empresaId, op, exclusaoBloqueada);
         if (op.versao !== corpo.versao) throw versaoConflito(op.versao, corpo.versao);
         const w = { cliente_id: cli, operacao_id: id };
-        const mercadorias = await lerMercadorias(tx, cli, id);
-        await travarProdutosEstoque(tx, cli, empresaId, mercadorias.map((i) => i.produto_id));
+        await travarProdutosEstoque(tx, cli, empresaId, (await lerMercadorias(tx, cli, id)).map((i) => i.produto_id));
+        // D-PROD-273 (fatia 5, revisão): as fatias SÓ depois da trava (uma exclusão com recálculo pode tê-las reescrito).
+        const mercadorias = await mercadoriasSobTrava(tx, cli, id);
         const titulos = /** @type {any[]} */ (await travarTitulos(tx, cli, id));
         const eleg = await avaliarElegibilidade(tx, cli, empresaId, op, { aut: await carregarAutorizacao(contexto, tx), mercadorias });
         if (!eleg.excluir.permitido) throw exclusaoBloqueada(eleg.excluir.motivos);

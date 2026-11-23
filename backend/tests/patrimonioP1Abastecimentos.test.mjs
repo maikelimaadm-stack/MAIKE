@@ -495,9 +495,16 @@ describe('P1-02 — cancelamento bloqueado e efeitos na P3', () => {
     assert.equal(excede.json().details.lote_id, L);
     assert.equal(await fotoAbastecimento(s.c), fotoA);
 
-    // (b) com o lote intocado de novo, a compra P3 é cancelada (lote 'Estornado') → a devolução não tem para onde voltar
+    // (b) lote 'Estornado' → a devolução não tem para onde voltar. D-PROD-273 (fatia 5, revisão): com o abastecimento
+    // ATIVO depois (saída válida), cancelar a compra não é mais estorno exato — o recálculo vê a reposição feita por fora
+    // (o histórico não reproduz) e recusa, nada gravado. O estado "compra cancelada com o lote Estornado" é emulado no
+    // banco para manter provada a defesa do cancelamento do abastecimento.
+    const fotoAntesCompra = await fotoAbastecimento(s.c);
     const cancelCompra = await A.req('POST', `/operacoes-financeiras/${compra.operacao.id}/cancelar`, s.token, { empresa_id: s.e1.id, operation_id: opId(), motivo: 'compra devolvida ao fornecedor' });
-    assert.equal(cancelCompra.statusCode, 200, cancelCompra.body);
+    assert.deepEqual(erro(cancelCompra), [409, 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', 'movimento_id', 'replay_diverge_do_gravado'], cancelCompra.body);
+    assert.equal(await fotoAbastecimento(s.c), fotoAntesCompra);
+    await prisma().$executeRaw`UPDATE "EstoqueLoteNota" SET status = 'Estornado', quantidade_disponivel = 0 WHERE id = ${L}`;
+    await prisma().$executeRaw`UPDATE "Produto" SET estoque_atual = estoque_atual - 100 WHERE id = ${s.diesel.id}`;
     assert.deepEqual(await saldoLote(L), ['0.0000', 'Estornado']);
     const fotoB = await fotoAbastecimento(s.c);
     const estornado = await A.cancelar(s.contaCancelar.token, d.id, { empresa_id: s.e1.id, ...cancelarCorpo() });
@@ -556,8 +563,9 @@ describe('P1-02 — cancelamento bloqueado e efeitos na P3', () => {
     const fotoAntes = await fotoAbastecimento(s.c);
     await bloqueiosP3();
     const cancel1 = await A.req('POST', `/operacoes-financeiras/${compra.operacao.id}/cancelar`, s.token, { empresa_id: s.e1.id, operation_id: opId(), motivo: 'compra devolvida' });
-    assert.deepEqual(erro(cancel1), [409, 'ESTOQUE_JA_CONSUMIDO', 'itens', 'lote_consumido'], cancel1.body);
-    assert.equal(cancel1.json().details.lote_id, L);
+    // D-PROD-273 (fatia 5): com o abastecimento depois, o cancelamento da compra tenta o recálculo; os lotes legados do
+    // cenário (criados sem movimento de entrada) não se reproduzem → 409 recálculo inviável, nada muda
+    assert.deepEqual(erro(cancel1), [409, 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', 'movimento_id', 'replay_diverge_do_gravado'], cancel1.body);
     assert.equal(await fotoAbastecimento(s.c), fotoAntes, 'nenhuma recusa da P3 mexeu no estoque nem no abastecimento');
 
     // cancelar o abastecimento devolve os 80 L ao lote da compra

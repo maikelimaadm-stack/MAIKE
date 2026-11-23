@@ -191,12 +191,11 @@ describe('EX1 — exemplo da missão (compra 100 sacos → suplementação 20 �
     assert.equal(q4((await lote(T1.id)).custo_unitario), '2.9000', 'o restante foi reavaliado: (2900,03 − 870) ÷ 700');
     assert.equal(await estoqueAtual(e.racao), '2200.0000');
 
-    // 5. cancelar a compra: 409 por dependência, nada muda
+    // 5. cancelar a compra: D-PROD-273 (fatia 5) — com movimento depois, o cancelamento tenta o recálculo; o lote legado
+    // (criado sem movimento de entrada) não se reproduz → 409 recálculo inviável, nada muda
     const antes = await foto([s.c]);
     const rc = await A.cancelarReq(s.token, compra.id, e.id);
-    assert.deepEqual([rc.statusCode, codigo(rc), motivo(rc)], [409, 'ESTOQUE_JA_CONSUMIDO', 'lote_consumido'], rc.body);
-    const det = rc.json().details;
-    assert.deepEqual([det.lote_id, det.entrada, det.disponivel], [L1.id, '3000.0000', '1500.0000']);
+    assert.deepEqual([rc.statusCode, codigo(rc), motivo(rc)], [409, 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', 'replay_diverge_do_gravado'], rc.body);
     assert.equal(await foto([s.c]), antes, 'o cancelamento recusado não desfez nada');
     const el = await A.ok(A.req('GET', `/operacoes-financeiras/${compra.id}/elegibilidade?empresa_id=${e.id}`, s.token));
     assert.equal(el.excluir.permitido, false);
@@ -661,7 +660,7 @@ describe('M — guardas, tenancy, recibo antigo, empate, rollback e data', () =>
     assert.equal((await movimento(ok.json().movimentacao.id)).data_movimentacao.toISOString(), '2027-06-11T12:00:00.000Z');
   });
 
-  test('M6: compra consumida por suplementação e transferência continua bloqueada para cancelar (prova = lotes_consumidos do movimento)', async () => {
+  test('M6: compra consumida por transferência continua bloqueada para cancelar (D-PROD-273 fatia 5: sem ela a transferência deixaria o saldo negativo; a exclusão do financeiro pela prova = lotes_consumidos)', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
     const compra = await A.criarConfirmar(s.token, docCom(e, s.local, [item(e.sal, '100', '2')]));
@@ -669,7 +668,7 @@ describe('M — guardas, tenancy, recibo antigo, empate, rollback e data', () =>
     assert.equal(t.statusCode, 201, t.body);
     const antes = await foto([s.c]);
     const rc = await A.cancelarReq(s.token, compra.id, e.id);
-    assert.deepEqual([rc.statusCode, codigo(rc), motivo(rc)], [409, 'ESTOQUE_JA_CONSUMIDO', 'lote_consumido'], rc.body);
+    assert.deepEqual([rc.statusCode, codigo(rc), motivo(rc)], [409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo_negativo'], rc.body);
     assert.equal(await foto([s.c]), antes);
     const el = await A.ok(A.req('GET', `/operacoes-financeiras/${compra.id}/elegibilidade?empresa_id=${e.id}`, s.token));
     const m = el.excluir.motivos.find((x) => x.codigo === 'lote_consumido');

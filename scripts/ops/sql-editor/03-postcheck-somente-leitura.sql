@@ -35,6 +35,11 @@ tenant(nome) AS (
     -- D-PROD-200: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
     -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia, a área da atividade (D-PROD-249) e o abastecimento (acima) a referenciam.
     'Atividade',
+    -- D-PROD-276: a reforma de pastagem sai logo depois da atividade, que a referencia (FK composta): primeiro as áreas dela
+    -- (PlanejamentoArea: referencia a reforma, a área e a fazenda) e depois a reforma (Planejamento: referencia o capim —
+    -- CADCULTURAS —, o usuário e a fazenda), antes de todos eles.
+    'PlanejamentoArea',
+    'Planejamento',
     -- D-PROD-197: o tipo de atividade sai logo depois da atividade (a única tabela que o referencia, D-PROD-200) e ANTES dos
     -- centros de custo e de resultado e da UnidadeMedida, que ele referencia como padrão (FKs RESTRICT).
     'TipoAtividade',
