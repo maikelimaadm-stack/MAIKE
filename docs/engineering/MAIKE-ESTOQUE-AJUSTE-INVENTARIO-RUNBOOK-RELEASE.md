@@ -124,9 +124,9 @@ As tabelas são novas e nenhuma tabela antiga as referencia. Reverter seria uma 
 
 | Campo | Valor |
 |---|---|
-| Data/hora (UTC) | — |
-| Caminho | — |
-| GO | — |
-| Preflight (§2) | — |
-| Postcheck (§4) | — |
-| Resultado | **PENDENTE** |
+| Data/hora (UTC) | 2026-11-23 |
+| Caminho | B — uma transação pelo MCP do Supabase (`execute_sql`), envelope com guarda (sid, 72 concluídas e 0 com falha, checksum da anterior `20261120200000_apontamento_data_termino`, tabelas ausentes) + `migration.sql` integral + registro em `_prisma_migrations` |
+| GO | dono do produto (aprovação da migration de produção e confirmação no Supabase) |
+| Preflight (§2) | 72 migrations concluídas, última `20261120200000_apontamento_data_termino`, 105 tabelas, 0 tabelas do ajuste; `main` sem migration nova; sha256 da migration `ac836ddf…6ccc9` |
+| Postcheck (§4) | 73 concluídas, 0 com falha, checksum `ac836ddf1b4830c4cd73ca1894e9925a77a8ea6c2bda735ad1859c830f26ccc9`; 108 tabelas; RLS ligado sem FORCE nas 3 tabelas; 13 FKs, 6 CHECKs, 3 políticas `maike_backend_all`; 0 grants para `anon`/`authenticated`; advisors de segurança: nenhum |
+| Resultado | **APLICADA** |
