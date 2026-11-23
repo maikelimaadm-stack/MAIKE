@@ -446,3 +446,47 @@ describe('D-PROD-273 fatia 4 — cascata pela transferência e concorrência', (
     await provarReplay(x, x.sal);
   });
 });
+
+// ─── fail-closed ────────────────────────────────────────────────────────────
+describe('D-PROD-273 fatia 4 — fail-closed', () => {
+  const retrato = async (x) => JSON.stringify({
+    m: await prisma().movimentacaoEstoque.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' } }),
+    l: await prisma().estoqueLoteNota.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' } }),
+    i: await prisma().saidaEstoqueItem.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' } }),
+    s: await prisma().saidaEstoque.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' } }),
+  });
+
+  test('histórico que não reproduz o gravado: a saída manual recusa 409 (nada gravado); a venda mantém o estorno exato de antes, sem marca nem recálculo; teto de posteriores → 422', async () => {
+    const x = await montar();
+    const c = await cenarioBase(x, (A, kg) => sair(x, x.sal, A, kg), (A, kg) => sair(x, x.sal, A, kg));
+    // adultera o custo de uma camada fora do motor: o replay sem exclusão deixa de reproduzir o gravado
+    await prisma().estoqueLoteNota.update({ where: { id: c.L3 }, data: { custo_unitario: '9.9999' } });
+    const antes = await retrato(x);
+    const r = await excluirSaida(x, c.s1);
+    assert.deepEqual([r.statusCode, r.json().code, r.json().reason ?? r.json().details?.reason], [409, 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', 'replay_diverge_do_gravado'], r.body);
+    assert.equal(await retrato(x), antes, 'nada gravado');
+
+    const v = await vender(x, [[x.sal, c.A, '10', '12']]);
+    await entrar(x, x.sal, c.A, '5', '7');
+    const mv = await mov(v.itens[0].movimentacao_estoque_id);
+    ok(await cancelarVenda(x, v.id));
+    const o = await mov(mv.id);
+    assert.deepEqual([o.status, o.movimentacao_grupo_id], ['Estornada', null], 'estorno exato, sem marca');
+    assert.equal(await prisma().auditLog.count({ where: { cliente_id: x.c, acao: 'estoque.recalculo' } }), 0);
+
+    // teto de posteriores (o serviço usa 5.000; aqui 1): 422 antes de processar qualquer coisa
+    await prisma().estoqueLoteNota.update({ where: { id: c.L3 }, data: { custo_unitario: '6.0000' } });
+    const { provarExclusaoComRecalculo } = await import('../src/modules/estoqueRecalculo/estoqueExclusaoRecalculo.js');
+    const m1 = await movDoItem(c.s1);
+    await assert.rejects(
+      prisma().$transaction((tx) => provarExclusaoComRecalculo(tx, x.c, { empresaId: x.e1.id, produtoId: x.sal.id, excluirIds: [m1.id], tetoAfetados: 1 })),
+      (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO' && e.details.teto === 1,
+    );
+    const me3 = await movDoItem(c.e3);
+    await assert.rejects(
+      prisma().$transaction((tx) => provarExclusaoComRecalculo(tx, x.c, { empresaId: x.e1.id, produtoId: x.sal.id, excluirIds: [me3.id] })),
+      (e) => e.code === 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL' && e.details.reason === 'origem_nao_suportada',
+      'entrada é a fatia 5',
+    );
+  });
+});

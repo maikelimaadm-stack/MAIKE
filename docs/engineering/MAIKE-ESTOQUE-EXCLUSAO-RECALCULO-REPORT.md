@@ -248,7 +248,22 @@ atividade, financeiro e cocho). Os textos que diziam "só se nada mexeu depois" 
 
 ### Validação (PG 17, banco `maike_rx4`)
 
-VALIDACAO_FATIA4
+| Verificação | Resultado |
+|---|---|
+| PG `estoqueExclusaoRecalculoSaidas` (novo: manual, cocho, atividade, abastecimento, venda, cascata, concorrência, fail-closed) | 9/9 |
+| PG regressão: `estoqueRecalculo*`, `estoqueConsulta*`, `estoqueSaidas*`, `estoqueEntradas*`, `estoqueCustoMedio`, `estoqueP0*`, `estoqueP1M2MotorParametros` (P7), `motorEstornoCochoTransferencia`, `suplementacao*`, `leituraCocho*`, `atividade*`, `abastecimento*`, `patrimonioP1Abastec*`, `patrimonioSimplificaAbast*`, `gestaoP3*`, `depositoCancelar*`, `foundation` + o novo | 981/981 (63 arquivos) |
+| Smoke inteiro (inclui o novo `estoqueExclusaoRecalculoCocho`: porte do custo do cocho = tela, par recalculado no histórico) | 318 arquivos, 3984 testes |
+| Gate tests | 1055/1055 |
+| gates `tenancy`, `indices`, `governance-paths`, `no-secrets`, `product-scope`, `import-integrity`, `base44`, `native-api` | ok |
+| eslint nos tocados, `typecheck:backend` | ok (0) |
+| `typecheck` | 374 (igual à base) |
+
+Testes existentes que mudaram de expectativa (só onde provavam a recusa "movimento posterior" nestas origens):
+`estoqueSaidas` (excluir com movimento depois → passa e recalcula), `estoqueSaidasEdicao` (a edição continua recusando;
+a exclusão no mesmo cenário passa), `suplementacaoCancelamentoCocho` (compra/outro cocho depois e a corrida "saída
+primeiro" → o cancelamento passa e recalcula), `estoqueRecalculoReplay` (a prova do estorno em lote do financeiro
+passa a usar a primitiva do motor, a regra dos pares antigos), e dois textos do smoke (abastecimento e linha de
+produto, que diziam "volta exatamente").
 
 ### Testes PG novos (`backend/tests/estoqueExclusaoRecalculoSaidas.test.mjs`, números à mão)
 
