@@ -76,6 +76,7 @@ import { registrarEstoqueConsultaRoutes } from './modules/estoqueConsulta/estoqu
 import { registrarEstoqueRecalculoRoutes } from './modules/estoqueRecalculo/estoqueRecalculoRoutes.js';
 import { registrarEntradaEstoqueRoutes } from './modules/estoqueEntradas/entradaEstoqueRoutes.js';
 import { registrarSaidaEstoqueRoutes } from './modules/estoqueSaidas/saidaEstoqueRoutes.js';
+import { registrarAjusteEstoqueRoutes } from './modules/estoqueAjustes/ajusteEstoqueRoutes.js';
 import { registrarMovimentacaoMapaRoutes } from './modules/movimentacoesMapa/movimentacaoMapaRoutes.js';
 import { registrarRebanhoLedgerRoutes } from './modules/rebanhoLedger/rebanhoLedgerRoutes.js';
 import { registrarMovimentacaoPecuariaRoutes } from './modules/movimentacoesPecuaria/movimentacaoPecuariaRoutes.js';
@@ -289,6 +290,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarEstoqueRecalculoRoutes); // D-PROD-273 (fatia 3): prévia da exclusão com recálculo, somente leitura
   await app.register(registrarEntradaEstoqueRoutes); // D-PROD-257: entradas manuais documentadas e saldo de implantação
   await app.register(registrarSaidaEstoqueRoutes); // D-PROD-264: saída manual documentada (custo médio)
+  await app.register(registrarAjusteEstoqueRoutes); // D-PROD-272: ajuste de inventário (contagem)
   await app.register(registrarMovimentacaoMapaRoutes);
   await app.register(registrarRebanhoLedgerRoutes);
   await app.register(registrarMovimentacaoPecuariaRoutes);

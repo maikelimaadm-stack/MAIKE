@@ -86,9 +86,15 @@ export const ORIGEM_APONTAMENTO = 'apontamento_atividade';
  * `aplicarSaidaDocumentada`/`estornarSaidaDocumentada`. As fatias ficam em `lotes_consumidos` (sem tabela de FK).
  */
 export const ORIGEM_SAIDA_ESTOQUE = 'saida_estoque';
+/**
+ * D-PROD-272 — origem do AJUSTE DE INVENTÁRIO documentado (sobra = entrada com camada; falta = saída) e dos
+ * estornos dele. 14 chars (VarChar(32)). Só este arquivo cita o rótulo: o módulo `estoqueAjustes` usa os
+ * invólucros `aplicarSobraDeAjuste`, `aplicarFaltaDeAjuste`, `estornarSobraDeAjuste` e `estornarFaltaDeAjuste`.
+ */
+export const ORIGEM_AJUSTE_ESTOQUE = 'ajuste_estoque';
 /** D-PROD-256: marca `modo_saida_fifo` (nome legado da coluna) das saídas valorizadas a custo médio; as antigas ficam 'FIFO'. */
 export const MODO_CUSTO_MEDIO = 'CUSTO_MEDIO';
-const ORIGENS_SISTEMA = new Set([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_ENTRADA_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_SAIDA_ESTOQUE]);
+const ORIGENS_SISTEMA = new Set([ORIGEM_SISTEMA, ORIGEM_ABASTECIMENTO, ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_ENTRADA_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_SAIDA_ESTOQUE, ORIGEM_AJUSTE_ESTOQUE]);
 /** `exclusao_somente_em` por origem. As 2 origens da P3/P1 não mudam; as 2 da P0 mantêm os valores gravados antes da P0. */
 const EXCLUSAO_SOMENTE_EM = Object.freeze({
   [ORIGEM_SISTEMA]: ORIGEM_SISTEMA,
@@ -98,6 +104,7 @@ const EXCLUSAO_SOMENTE_EM = Object.freeze({
   [ORIGEM_ENTRADA_ESTOQUE]: ORIGEM_ENTRADA_ESTOQUE,
   [ORIGEM_APONTAMENTO]: ORIGEM_APONTAMENTO,
   [ORIGEM_SAIDA_ESTOQUE]: ORIGEM_SAIDA_ESTOQUE,
+  [ORIGEM_AJUSTE_ESTOQUE]: ORIGEM_AJUSTE_ESTOQUE,
 });
 /** D-PROD-177 (§6.2 item 3): `tipo_detalhado` da entrada documentada = `entrada_<motivo>`; nunca `compra_financeiro`. */
 const TIPO_ENTRADA_ESTOQUE = /^entrada_[a-z0-9_]{1,40}$/;
@@ -225,7 +232,7 @@ const localInvalido = (field, reason) =>
  * segura o DELETE do local até o commit). Chamar ANTES de `travarProdutosEstoque`.
  * Local de outro tenant = inexistente (mesmo corpo de erro: sem oráculo).
  * @param {any} tx @param {string} clienteId
- * @param {Array<{ id: string, field: 'local_origem_id'|'local_destino_id', exigirAtivo: boolean }>} pedidos
+ * @param {Array<{ id: string, field: 'local_origem_id'|'local_destino_id'|'local_estoque_id', exigirAtivo: boolean }>} pedidos
  * @returns {Promise<Map<string, { id: string, nome: string, ativo: boolean }>>}
  * @throws 422 ESTOQUE_LOCAL_INVALIDO { field, reason: 'local_inexistente'|'local_inativo' }
  */
@@ -1609,6 +1616,63 @@ export const estornarSaidaDocumentada = (tx, ctx, a) => {
   }));
 };
 
+// ─── ajuste de inventário documentado (D-PROD-272) ───────────────────────────
+/** Rótulos fechados do ajuste (o texto do movimento diz "Ajuste de inventário nº N"). */
+const TIPO_SOBRA_AJUSTE = 'ajuste_sobra';
+const TIPO_FALTA_AJUSTE = 'ajuste_falta';
+const TIPO_ESTORNO_SOBRA_AJUSTE = 'estorno_ajuste_sobra';
+const TIPO_ESTORNO_FALTA_AJUSTE = 'estorno_ajuste_falta';
+
+/**
+ * D-PROD-272 — o poço do produto no depósito, para a contagem: saldo (Σ disponível das camadas Disponivel) e
+ * custo médio (valor ÷ quantidade, `CASAS_CUSTO`; null sem saldo). Chamar sob a trava do produto.
+ * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} produtoId @param {string} localId
+ * @returns {Promise<{ quantidade: any, valor: any, custoMedio: any|null }>}
+ */
+export const pocoDoDeposito = async (tx, clienteId, empresaId, produtoId, localId) => {
+  const poco = await lerPoco(tx, clienteId, empresaId, produtoId, localId);
+  const custoMedio = poco.quantidade.gt(0) ? arredondar(poco.valor.dividedBy(poco.quantidade), CASAS_CUSTO) : null;
+  return { quantidade: poco.quantidade, valor: poco.valor, custoMedio };
+};
+
+/**
+ * D-PROD-272 — as quatro pontas do ajuste de inventário. Só fixam a origem e os rótulos e delegam às primitivas:
+ *  - sobra → `aplicarEntradaEstoque` (camada nova com o custo dado: o médio do depósito, ou o informado sem saldo);
+ *  - falta → `aplicarSaida` (custo médio, fatias em `lotes_consumidos`);
+ *  - estorno da sobra → `estornarEmLote` efeito ENTRADA (camada Estornada, movimento compensatório);
+ *  - estorno da falta → `estornarSaida` (devolve cada fatia ao seu lote e o valor exato).
+ * `origem.motivo` (aplicar) e `origem.motivoEstorno` (estornar) são obrigatórios.
+ * @param {any} tx @param {{auth: any}} ctx @param {{ origem: { operacaoId: string, motivo: string } } & Record<string, any>} a
+ */
+export const aplicarSobraDeAjuste = (tx, ctx, a) => {
+  const { origem, ...resto } = a;
+  if (!textoInformado(origem?.motivo)) throw new Error('aplicarSobraDeAjuste: origem.motivo é obrigatório');
+  return aplicarEntradaEstoque(tx, ctx, /** @type {any} */ ({ ...resto, origem: { operacaoId: origem.operacaoId, sistema: ORIGEM_AJUSTE_ESTOQUE, tipoDetalhado: TIPO_SOBRA_AJUSTE, motivo: origem.motivo } }));
+};
+/** @param {any} tx @param {{auth: any}} ctx @param {{ origem: { operacaoId: string, motivo: string } } & Record<string, any>} a */
+export const aplicarFaltaDeAjuste = (tx, ctx, a) => {
+  const { origem, ...resto } = a;
+  if (!textoInformado(origem?.motivo)) throw new Error('aplicarFaltaDeAjuste: origem.motivo é obrigatório');
+  return aplicarSaida(tx, ctx, /** @type {any} */ ({ ...resto, origem: { operacaoId: origem.operacaoId, sistema: ORIGEM_AJUSTE_ESTOQUE, tipoDetalhado: TIPO_FALTA_AJUSTE, motivo: origem.motivo } }));
+};
+/** @param {any} tx @param {{auth: any}} ctx @param {{ origem: { operacaoId: string, motivoEstorno: string } } & Record<string, any>} a */
+export const estornarSobraDeAjuste = (tx, ctx, a) => {
+  const { origem, ...resto } = a;
+  if (!textoInformado(origem?.motivoEstorno)) throw new Error('estornarSobraDeAjuste: origem.motivoEstorno é obrigatório');
+  return estornarEmLote(tx, ctx, /** @type {any} */ ({
+    ...resto, efeito: EFEITO_ENTRADA,
+    origem: { operacaoId: origem.operacaoId, sistema: ORIGEM_AJUSTE_ESTOQUE, tipoDetalhadoEstorno: TIPO_ESTORNO_SOBRA_AJUSTE, motivoEstorno: origem.motivoEstorno },
+  }));
+};
+/** @param {any} tx @param {{auth: any}} ctx @param {{ origem: { operacaoId: string, motivoEstorno: string } } & Record<string, any>} a */
+export const estornarFaltaDeAjuste = (tx, ctx, a) => {
+  const { origem, ...resto } = a;
+  if (!textoInformado(origem?.motivoEstorno)) throw new Error('estornarFaltaDeAjuste: origem.motivoEstorno é obrigatório');
+  return estornarSaida(tx, ctx, /** @type {any} */ ({
+    ...resto, origem: { operacaoId: origem.operacaoId, sistema: ORIGEM_AJUSTE_ESTOQUE, tipoDetalhadoEstorno: TIPO_ESTORNO_FALTA_AJUSTE, motivoEstorno: origem.motivoEstorno },
+  }));
+};
+
 // ─── estorno da suplementação do cocho (D-PROD-268) ─────────────────────────
 /** Rótulos fechados da baixa de suplementação e do estorno dela. */
 const TIPO_SAIDA_SUPLEMENTACAO = 'suplementacao';
@@ -2088,4 +2152,4 @@ export const estornarTransferenciaEstoque = async (tx, ctx, a) => {
 };
 
 /** Origens do motor que têm documento próprio (a reconciliação as inclui em `ORIGENS_PROTOCOLO`). */
-export const ORIGENS_DOCUMENTADAS = Object.freeze([ORIGEM_ENTRADA_ESTOQUE, ORIGEM_SAIDA_ESTOQUE]);
+export const ORIGENS_DOCUMENTADAS = Object.freeze([ORIGEM_ENTRADA_ESTOQUE, ORIGEM_SAIDA_ESTOQUE, ORIGEM_AJUSTE_ESTOQUE]);

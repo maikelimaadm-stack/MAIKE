@@ -13,11 +13,11 @@
 -- GARANTIAS (falha fechada; qualquer erro desfaz TUDO):
 --   - Uma única transação; fora dela, para antes de alterar.
 --   - Confere alvo, 25/25 migrations (as 7 da PR com o checksum do repositório),
---     o conjunto EXATO de 105 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 3 das Formulações, D-PROD-203, + 1 LEITURACOCHO, D-PROD-205, + 4 da mão de obra e do serviço, D-PROD-207, − Funcionario, D-PROD-208, + CADCULTURAS, D-PROD-215, + MEDICAOFORRAGEM, D-PROD-219, + AtividadeArea, D-PROD-249, + 3 das Entradas do Estoque, D-PROD-257, + MotivoEntradaEstoque, D-PROD-259, + 4 da saída manual do Estoque, D-PROD-264), cliente_id, ordem das FKs, nenhuma FK de
+--     o conjunto EXATO de 108 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 3 das Formulações, D-PROD-203, + 1 LEITURACOCHO, D-PROD-205, + 4 da mão de obra e do serviço, D-PROD-207, − Funcionario, D-PROD-208, + CADCULTURAS, D-PROD-215, + MEDICAOFORRAGEM, D-PROD-219, + AtividadeArea, D-PROD-249, + 3 das Entradas do Estoque, D-PROD-257, + MotivoEntradaEstoque, D-PROD-259, + 4 da saída manual do Estoque, D-PROD-264, + 3 do ajuste de inventário, D-PROD-272), cliente_id, ordem das FKs, nenhuma FK de
 --     fora do tenant com linhas, RLS e grants; exatamente 1 cliente ("maike",
 --     ativo) e 1 conta ("maike", ativa, nesse cliente); todas as linhas de tenant
 --     desse cliente. Trava as tabelas e RECONFERE tudo, inclusive a impressão.
---   - Apaga SOMENTE as linhas das 90 tabelas de tenant do cliente "maike",
+--   - Apaga SOMENTE as linhas das 93 tabelas de tenant do cliente "maike",
 --     EXCETO a própria conta. O Cliente fica intacto.
 --   - Preserva Usuario.id, senha_hash, login, nome, ativo e o vínculo; Cliente.id,
 --     código, nome e ativo. Altera SÓ Usuario.papel_tenant → 'administrador'
@@ -84,6 +84,9 @@ DECLARE
     -- de resultado, do movimento, do produto, do local e da fazenda que elas referenciam (FKs RESTRICT); o cadastro de
     -- motivos de saída (a saída o referencia) logo depois delas.
     'SaidaEstoqueEvento','SaidaEstoqueItem','SaidaEstoque','MotivoSaidaEstoque',
+    -- D-PROD-272: os ajustes de inventário (evento e item antes do cabeçalho) saem ANTES dos centros de custo e de
+    -- resultado, do lote, do movimento, do produto, do local e da fazenda que eles referenciam (FKs RESTRICT).
+    'AjusteEstoqueEvento','AjusteEstoqueItem','AjusteEstoque',
     'CentroCustoResultado','CentroCusto','CentroResultado','NaturezaFinanceira',
     -- D-PROD-188: CADESTACOES (estações da fazenda) antes de Empresa, que ela referencia.
     'CADESTACOES',
@@ -150,7 +153,7 @@ BEGIN
       LOCK TABLE "AtividadeApontamentoMaoObra","AtividadeApontamentoServico","Servico","AtividadeApontamentoProdutoConsumoLote","AtividadeApontamentoProduto","AtividadeApontamentoMaquina","AtividadeApontamento","AtividadeArea","Atividade","TipoAtividade","HistoricoLancamentoTarefa","LancamentoTarefa","PesoRebanho","PartidaRebanho","EventoRebanho","PosicaoRebanho","RebanhoLedgerAtivacao",
         "OperacaoFinanceiraEvento","LiquidacaoFinanceiraEstorno","LiquidacaoFinanceira","TituloFinanceiro","OperacaoFinanceiraConsumoLote","OperacaoFinanceiraItemRateio","OperacaoFinanceiraItem","OperacaoFinanceiraRateio","OperacaoFinanceira","PerfilFinanceiroEmpresa","AbastecimentoBemConsumoLote","AbastecimentoBem","TanqueBemProduto","TanqueBem","BemPatrimonial","TipoPatrimonial","FamiliaPatrimonial","CentroCustoResultado","CentroCusto","CentroResultado","NaturezaFinanceira","CADESTACOES","CADFORMULACAOREGRA","CADFORMULACAOINGREDIENTE","CADFORMULACAO","LEITURACOCHO","MEDICAOFORRAGEM","CADCULTURAS",
     "AplicacaoMedicamento","AuditLog","Bebedouro","BebedouroAlerta","BebedouroHistorico","BebedouroSanidade",
-        "Categoria","CADCATEGORIA","CADCURVAGANHO","ConfiguracaoIcone","Empresa","EntradaEstoqueEvento","EntradaEstoqueItem","EntradaEstoque","SaidaEstoqueEvento","SaidaEstoqueItem","SaidaEstoque","MotivoSaidaEstoque","EntidadeCodigoSequencia","EstoqueLoteNota",
+        "Categoria","CADCATEGORIA","CADCURVAGANHO","ConfiguracaoIcone","Empresa","EntradaEstoqueEvento","EntradaEstoqueItem","EntradaEstoque","MotivoEntradaEstoque","SaidaEstoqueEvento","SaidaEstoqueItem","SaidaEstoque","MotivoSaidaEstoque","AjusteEstoqueEvento","AjusteEstoqueItem","AjusteEstoque","EntidadeCodigoSequencia","EstoqueLoteNota",
         "EventoSanitario","Fornecedor","LinhaGeografica","LocalEstoque",
         "ManejoTecnicoRebanho","Marca","MovimentacaoEstoque","MovimentacaoMapa","MovimentacaoPecuaria",
         "OperacaoIdempotente","Permissao","PontoReferencia","PontoSuplementacao","Produto","RegistroAnexo",

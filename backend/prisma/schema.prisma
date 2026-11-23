@@ -128,6 +128,9 @@ model Cliente {
   saidasEstoque                SaidaEstoque[]
   saidasEstoqueItens           SaidaEstoqueItem[]
   saidasEstoqueEventos         SaidaEstoqueEvento[]
+  ajustesEstoque               AjusteEstoque[] // D-PROD-272
+  ajustesEstoqueItens          AjusteEstoqueItem[]
+  ajustesEstoqueEventos        AjusteEstoqueEvento[]
   operacoesFinanceirasConsumos OperacaoFinanceiraConsumoLote[]
   operacoesFinanceirasRateios  OperacaoFinanceiraRateio[]
   operacoesFinanceirasItensRateios OperacaoFinanceiraItemRateio[]
@@ -1185,6 +1188,7 @@ model LocalEstoque {
   itensFinanceiros OperacaoFinanceiraItem[]
   entradasEstoqueItens EntradaEstoqueItem[]
   saidasEstoqueItens   SaidaEstoqueItem[] // D-PROD-264
+  ajustesEstoqueItens  AjusteEstoqueItem[] // D-PROD-272
   // D-PROD-159 — abastecimentos que baixaram estoque deste local.
   abastecimentosBem AbastecimentoBem[]
   // D-PROD-202 — linhas de produto que baixaram estoque deste local.
@@ -1233,6 +1237,7 @@ model Produto {
   itensFinanceiros OperacaoFinanceiraItem[]
   entradasEstoqueItens EntradaEstoqueItem[]
   saidasEstoqueItens   SaidaEstoqueItem[] // D-PROD-264
+  ajustesEstoqueItens  AjusteEstoqueItem[] // D-PROD-272
   // D-PROD-157 (R2) — vínculos a tipos de combustível (só relação Prisma; zero DDL em Produto).
   tanquesAceitos    TanqueBemProduto[]
   abastecimentosBem AbastecimentoBem[]
@@ -1406,6 +1411,7 @@ model Empresa {
   atividadeAreas        AtividadeArea[]
   entradasEstoque       EntradaEstoque[]
   saidasEstoque         SaidaEstoque[] // D-PROD-264
+  ajustesEstoque        AjusteEstoque[] // D-PROD-272
   // D-PROD-207 — funcionários e serviços da fazenda.
   servicos              Servico[]
   @@unique([cliente_id, id])
@@ -1709,6 +1715,7 @@ model EstoqueLoteNota {
   // D-PROD-155 — lote criado pela entrada de um lançamento e fatias FIFO consumidas.
   itemFinanceiroEntrada OperacaoFinanceiraItem?         @relation("OperacaoFinanceiraItemLoteEntrada")
   itemEntradaEstoque    EntradaEstoqueItem?         @relation("EntradaEstoqueItemLote")
+  itemAjusteEstoque     AjusteEstoqueItem?          @relation("AjusteEstoqueItemLote") // D-PROD-272
   consumosFinanceiros   OperacaoFinanceiraConsumoLote[] @relation("OperacaoFinanceiraConsumoDoLote")
   // D-PROD-159 — fatias FIFO consumidas por abastecimento de bem.
   consumosAbastecimento AbastecimentoBemConsumoLote[]   @relation("AbastecimentoBemConsumoDoLote")
@@ -1792,6 +1799,8 @@ model MovimentacaoEstoque {
   itemEntradaEstoqueEstorno EntradaEstoqueItem?     @relation("EntradaEstoqueItemEstorno")
   itemSaidaEstoque          SaidaEstoqueItem?       @relation("SaidaEstoqueItemMovimento") // D-PROD-264
   itemSaidaEstoqueEstorno   SaidaEstoqueItem?       @relation("SaidaEstoqueItemEstorno")
+  itemAjusteEstoque         AjusteEstoqueItem?      @relation("AjusteEstoqueItemMovimento") // D-PROD-272
+  itemAjusteEstoqueEstorno  AjusteEstoqueItem?      @relation("AjusteEstoqueItemEstorno")
   itemFinanceiroEstorno OperacaoFinanceiraItem? @relation("OperacaoFinanceiraItemEstorno")
   // D-PROD-159 — abastecimento que gerou / estornou este movimento.
   abastecimentoBem        AbastecimentoBem? @relation("AbastecimentoBemMovimento")
@@ -2393,6 +2402,7 @@ model CentroCusto {
   abastecimentos AbastecimentoBem[] // D-PROD-211
   entradasEstoque EntradaEstoque[] // D-PROD-259
   saidasEstoque   SaidaEstoque[]   // D-PROD-264
+  ajustesEstoque  AjusteEstoque[]  // D-PROD-272
   @@unique([cliente_id, id])
   /// Alvo das FKs com empresa (pai e vínculo não cruzam empresa).
   @@unique([cliente_id, empresa_id, id])
@@ -2431,6 +2441,7 @@ model CentroResultado {
 
   entradasEstoque EntradaEstoque[] // D-PROD-259
   saidasEstoque   SaidaEstoque[]   // D-PROD-264
+  ajustesEstoque  AjusteEstoque[]  // D-PROD-272
   @@unique([cliente_id, id])
   @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, numero])
@@ -3957,4 +3968,110 @@ model SaidaEstoqueEvento {
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id, saida_id, createdAt], map: "SaidaEstoqueEvento_saida_idx")
+}
+
+/// D-PROD-272 — ajuste de inventário (contagem): CONFIRMADA ao criar; EXCLUIDA com estorno pelo motor, só se os
+/// produtos não tiveram outro movimento naqueles depósitos depois. Sempre no dia de hoje da fazenda.
+model AjusteEstoque {
+  id                        String    @id @default(cuid())
+  cliente_id                String    @db.VarChar(64)
+  empresa_id                String    @db.VarChar(64)
+  numero                    String    @db.VarChar(32)
+  /// CONFIRMADA | EXCLUIDA
+  status                    String    @db.VarChar(16)
+  versao                    Int       @default(1)
+  data_ajuste               DateTime  @db.Date
+  centro_custo_id           String?   @db.VarChar(64)
+  centro_resultado_id       String?   @db.VarChar(64)
+  observacao                String?   @db.VarChar(500)
+  confirmada_em             DateTime
+  confirmada_por_usuario_id String?   @db.VarChar(64)
+  excluida_em               DateTime?
+  excluida_por_usuario_id   String?   @db.VarChar(64)
+  motivo_exclusao           String?   @db.VarChar(500)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  cliente         Cliente               @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa         Empresa               @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  centroCusto     CentroCusto?          @relation(fields: [cliente_id, empresa_id, centro_custo_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AjusteEstoque_centro_custo_fkey")
+  centroResultado CentroResultado?      @relation(fields: [cliente_id, empresa_id, centro_resultado_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AjusteEstoque_centro_resultado_fkey")
+  itens           AjusteEstoqueItem[]
+  eventos         AjusteEstoqueEvento[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, numero])
+  @@index([cliente_id, empresa_id, status, data_ajuste])
+  @@index([cliente_id, empresa_id, centro_custo_id])
+  @@index([cliente_id, empresa_id, centro_resultado_id])
+}
+
+/// D-PROD-272 — uma linha por produto e depósito: o contado, o saldo de antes e a diferença (contado − saldo).
+/// SOBRA = entrada pelo motor a custo médio (camada nova); FALTA = saída a custo médio; SEM_DIFERENCA = só registro.
+model AjusteEstoqueItem {
+  id                      String   @id @default(cuid())
+  cliente_id              String   @db.VarChar(64)
+  empresa_id              String   @db.VarChar(64)
+  ajuste_id               String   @db.VarChar(64)
+  ordem                   Int
+  produto_id              String   @db.VarChar(64)
+  local_estoque_id        String   @db.VarChar(64)
+  /// KG | SACO | L (como digitado)
+  unidade                 String   @db.VarChar(8)
+  quantidade_contada      Decimal  @db.Decimal(14, 4)
+  fator_kg                Decimal  @db.Decimal(14, 4)
+  contado_estoque         Decimal  @db.Decimal(14, 4)
+  saldo_anterior          Decimal  @db.Decimal(14, 4)
+  diferenca               Decimal  @db.Decimal(14, 4)
+  /// SOBRA | FALTA | SEM_DIFERENCA
+  tipo                    String   @db.VarChar(16)
+  custo_unitario          Decimal  @db.Decimal(14, 4)
+  custo_informado         Boolean  @default(false)
+  valor_total             Decimal  @db.Decimal(18, 4)
+  estoque_lote_nota_id    String?  @db.VarChar(64)
+  movimentacao_estoque_id String?  @db.VarChar(64)
+  movimentacao_estorno_id String?  @db.VarChar(64)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  cliente   Cliente              @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  ajuste    AjusteEstoque        @relation(fields: [cliente_id, empresa_id, ajuste_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AjusteEstoqueItem_ajuste_fkey")
+  produto   Produto              @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict, map: "AjusteEstoqueItem_produto_fkey")
+  local     LocalEstoque         @relation(fields: [cliente_id, local_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "AjusteEstoqueItem_local_fkey")
+  lote      EstoqueLoteNota?     @relation("AjusteEstoqueItemLote", fields: [cliente_id, estoque_lote_nota_id], references: [cliente_id, id], onDelete: Restrict, map: "AjusteEstoqueItem_lote_fkey")
+  movimento MovimentacaoEstoque? @relation("AjusteEstoqueItemMovimento", fields: [cliente_id, movimentacao_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "AjusteEstoqueItem_movimento_fkey")
+  estorno   MovimentacaoEstoque? @relation("AjusteEstoqueItemEstorno", fields: [cliente_id, movimentacao_estorno_id], references: [cliente_id, id], onDelete: Restrict, map: "AjusteEstoqueItem_estorno_fkey")
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, ajuste_id, ordem], map: "AjusteEstoqueItem_linha_key")
+  @@unique([cliente_id, ajuste_id, produto_id, local_estoque_id], map: "AjusteEstoqueItem_par_key")
+  @@unique([cliente_id, estoque_lote_nota_id])
+  @@unique([cliente_id, movimentacao_estoque_id])
+  @@unique([cliente_id, movimentacao_estorno_id])
+  @@index([cliente_id, produto_id])
+  @@index([cliente_id, local_estoque_id])
+}
+
+/// D-PROD-272 — histórico do ajuste (CONFIRMACAO | EDICAO | EXCLUSAO), append-only por convenção do serviço.
+model AjusteEstoqueEvento {
+  id                String   @id @default(cuid())
+  cliente_id        String   @db.VarChar(64)
+  empresa_id        String   @db.VarChar(64)
+  ajuste_id         String   @db.VarChar(64)
+  tipo              String   @db.VarChar(16)
+  versao_anterior   Int
+  versao_nova       Int
+  motivo            String   @db.VarChar(500)
+  usuario_id        String?  @db.VarChar(64)
+  snapshot_anterior Json?
+  snapshot_novo     Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  cliente Cliente       @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  ajuste  AjusteEstoque @relation(fields: [cliente_id, empresa_id, ajuste_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AjusteEstoqueEvento_ajuste_fkey")
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id, ajuste_id, createdAt], map: "AjusteEstoqueEvento_ajuste_idx")
 }
