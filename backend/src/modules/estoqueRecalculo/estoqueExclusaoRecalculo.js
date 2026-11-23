@@ -38,7 +38,7 @@ import {
   CAMPOS_VALOR, CLASSE, classificar, compararCanonico, compararComGravado, fatiaComoTexto, fatiasGravadas, marcaDoPar, reproduzir, simularExclusao, texto4,
 } from './estoqueReplay.js';
 import { TETO_MOVIMENTOS_AFETADOS, TETO_MOVIMENTOS_PRODUTO, lerHistoricoDoProduto, volumeExcedido } from './estoqueRecalculoLeitor.js';
-import { ehRecusaContornavel, exigirReplayIgualAoGravado, recalculoInviavel } from './estoqueRecalculoService.js';
+import { RAZAO_AJUSTE_POSTERIOR, ajusteDepoisDe, ehRecusaContornavel, exigirReplayIgualAoGravado, recalculoInviavel, recusaAjustePosterior } from './estoqueRecalculoService.js';
 
 export { ehRecusaContornavel };
 
@@ -101,6 +101,8 @@ export const provarExclusaoComRecalculo = async (tx, cli, a) => {
   if (!sim.permitido) {
     const { reason, ...detalhes } = /** @type {any} */ (sim.recusa);
     if (reason === 'saldo_negativo') throw saldoNegativo(detalhes);
+    // Ajuste de inventário vigente num depósito que a cascata da transferência alcança: recusa (nunca contornável).
+    if (reason === RAZAO_AJUSTE_POSTERIOR) throw await recusaAjustePosterior(tx, cli, detalhes);
     throw recalculoInviavel(reason, detalhes);
   }
   return { produtoId: a.produtoId, excluirIds: [...a.excluirIds], posteriores, dispensa: null };
@@ -134,6 +136,10 @@ export const planejarExclusaoComRecalculo = async (tx, cli, a) => {
   for (const [produtoId, movimentos] of [...grupos.entries()].sort(([x], [y]) => (x < y ? -1 : 1))) {
     // Os pares já excluídos COM recálculo são ignorados pelo próprio `buscarMovimentoPosterior`.
     const ignorar = [...movimentos.map((m) => m.id), ...(a.ignorarIds ?? [])];
+    // Escolha do proprietário (2026-11-23): contagem de inventário vigente DEPOIS, no depósito do movimento → recusa,
+    // antes de qualquer escrita, nas cinco origens e sem o estorno exato (que também deixaria o saldo fora do contado).
+    const ajuste = await ajusteDepoisDe(tx, cli, a.empresaId, produtoId, movimentos.map((m) => m.id));
+    if (ajuste) throw await recusaAjustePosterior(tx, cli, ajuste);
     let temDepois = false;
     for (const m of movimentos) {
       const ref = referencias.get(m.id);

@@ -26,6 +26,10 @@
  *    refeito pelo replay (é custo derivado do estoque: na simulação, segue o médio recalculado), salvo quando a linha
  *    do ajuste diz `custo_informado` (depósito sem saldo; vale o gravado, como o valor de compra). Sobra sem a linha
  *    do ajuste, ou sem custo informado num poço vazio, para o replay (fail-closed). A FALTA é uma saída a médio comum.
+ *  - AJUSTE DEPOIS DO EXCLUÍDO (escolha do proprietário, 2026-11-23): na simulação (`opcoes.excluir`), uma sobra/falta
+ *    de ajuste VIGENTE num depósito que a exclusão já alcançou (o do excluído e, pela cascata, o destino de uma
+ *    transferência processada depois) para a simulação com `ajuste_de_inventario_posterior`: o estoque nunca fica
+ *    diferente do contado. Os pares marcados (exclusões com recálculo já gravadas) não contam: só `opcoes.excluir`.
  *
  * Movimento fora do protocolo (origem que o motor não grava, estorno sem original legível, entrada sem camada)
  * não é adivinhado: vira `problema` e o replay daquele produto é declarado não reproduzível (fail-closed).
@@ -41,7 +45,7 @@
 import { CASAS_CUSTO, CASAS_QUANTIDADE, Dec, ZERO, arredondar, dec, somar } from '../financeiro/decimalFinanceiro.js';
 import {
   MODO_CUSTO_MEDIO, ORIGEM_AJUSTE_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_SISTEMA, consumirCustoMedio, ordenarFifo,
-  TIPO_ESTORNO_TRANSFERENCIA_ENVIADA, TIPO_ESTORNO_TRANSFERENCIA_RECEBIDA, TIPO_SOBRA_AJUSTE,
+  TIPO_ESTORNO_TRANSFERENCIA_ENVIADA, TIPO_ESTORNO_TRANSFERENCIA_RECEBIDA, TIPO_FALTA_AJUSTE, TIPO_SOBRA_AJUSTE,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { ORIGENS_PROTOCOLO } from '../estoqueFisico/reconciliacaoEstoque.js';
 import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueFisico/movimentoPosterior.js';
@@ -347,6 +351,15 @@ export const reproduzir = (historico, opcoes = {}) => {
   const feitos = new Set();
   let parada = null;
   const afetado = (local) => afetados.has(local);
+  /** Depósitos alcançados pela exclusão SIMULADA (`opcoes.excluir`; sem os pares já marcados): o ajuste neles recusa. */
+  const alvo = new Set(opcoes.excluir ?? []);
+  const alcancados = new Set();
+  /** Sobra/falta de ajuste vigente num depósito alcançado → a simulação para (ver o topo). */
+  const exigirSemAjusteAlcancado = (m, local) => {
+    if (m.origem_sistema !== ORIGEM_AJUSTE_ESTOQUE || ![TIPO_SOBRA_AJUSTE, TIPO_FALTA_AJUSTE].includes(m.tipo_detalhado)) return;
+    if (m.status !== 'Ativa' || m.movimento_filho_id || !alcancados.has(local)) return;
+    throw new Parada({ reason: 'ajuste_de_inventario_posterior', local_estoque_id: local, movimento_id: m.id, movimento_numero: m.numero_movimentacao, ajuste_id: m.lancamento_origem_id ?? null });
+  };
   const classes = new Map(ordem.map((m) => [m.id, classificar(m, porId)]));
   const filhoEstorno = (paiId, tipo) => ordem.find((x) => x.movimento_pai_id === paiId && x.tipo_detalhado === tipo) ?? null;
 
@@ -357,6 +370,7 @@ export const reproduzir = (historico, opcoes = {}) => {
 
   const saida = (m) => {
     const local = m.local_estoque_origem;
+    exigirSemAjusteAlcancado(m, local);
     const kg = dec(m.quantidade);
     const saldoAntes = estado.saldo(local);
     const legado = m.modo_saida_fifo !== MODO_CUSTO_MEDIO && !afetado(local);
@@ -393,6 +407,7 @@ export const reproduzir = (historico, opcoes = {}) => {
     const local = m.local_estoque_destino;
     const ids = camadasDaEntrada.get(m.id) ?? [];
     if (ids.length !== 1) throw new Parada({ reason: 'entrada_sem_camada', movimento_id: m.id, movimento_numero: m.numero_movimentacao });
+    exigirSemAjusteAlcancado(m, local);
     const fato = /** @type {any} */ (fatos.get(ids[0]));
     const saldoAntes = estado.saldo(local);
     let valorUnitario = m.valor_unitario === null ? null : dec(m.valor_unitario);
@@ -427,6 +442,7 @@ export const reproduzir = (historico, opcoes = {}) => {
     const legadoOrigem = s.modo_saida_fifo !== MODO_CUSTO_MEDIO && !afetado(origem);
     // Cascata: o custo recalculado na origem chega ao destino (e daí às saídas e transferências dele).
     if (afetado(origem)) afetados.add(destino);
+    if (alcancados.has(origem)) alcancados.add(destino);
     const legadoDestino = s.modo_saida_fifo !== MODO_CUSTO_MEDIO && !afetado(destino);
     let fatias;
     let valorTotal;
@@ -550,6 +566,10 @@ export const reproduzir = (historico, opcoes = {}) => {
       afetados.add(origem);
       afetados.add(destino);
     }
+    if (alcancados.has(origem) || alcancados.has(destino)) {
+      alcancados.add(origem);
+      alcancados.add(destino);
+    }
     const kg = dec(s.quantidade);
     const valorTotal = dec(rs.valor_total ?? 0);
     const fatias = (rs.fatias ?? []).map((f) => ({ lote_id: f.lote_id, lote_destino_id: f.lote_destino_id, quantidade: dec(f.quantidade) }));
@@ -592,7 +612,11 @@ export const reproduzir = (historico, opcoes = {}) => {
     const m = ordem[i];
     if (feitos.has(m.id)) continue;
     if (excluir.has(m.id)) {
-      for (const local of [m.local_estoque_origem, m.local_estoque_destino]) if (local) afetados.add(local);
+      for (const local of [m.local_estoque_origem, m.local_estoque_destino]) {
+        if (!local) continue;
+        afetados.add(local);
+        if (alvo.has(m.id)) alcancados.add(local);
+      }
       feitos.add(m.id);
       continue;
     }

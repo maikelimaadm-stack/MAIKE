@@ -1619,7 +1619,7 @@ export const estornarSaidaDocumentada = (tx, ctx, a) => {
 // ─── ajuste de inventário documentado (D-PROD-272) ───────────────────────────
 /** Rótulos fechados do ajuste (o texto do movimento diz "Ajuste de inventário nº N"). */
 export const TIPO_SOBRA_AJUSTE = 'ajuste_sobra';
-const TIPO_FALTA_AJUSTE = 'ajuste_falta';
+export const TIPO_FALTA_AJUSTE = 'ajuste_falta';
 const TIPO_ESTORNO_SOBRA_AJUSTE = 'estorno_ajuste_sobra';
 const TIPO_ESTORNO_FALTA_AJUSTE = 'estorno_ajuste_falta';
 

@@ -445,6 +445,11 @@ export const mensagemRecalculoDaExclusao = (code, reason, details = {}) => {
     return `Sem este movimento o saldo do depósito ficaria negativo${details.movimento_numero != null ? ` no movimento nº ${details.movimento_numero}` : ''}. A exclusão não é possível. Nada foi alterado.`;
   }
   if (code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO') return 'Há movimentos demais deste produto depois deste para recalcular de uma vez. Procure o suporte. Nada foi alterado.';
+  // Escolha do proprietário (2026-11-23): com contagem de inventário depois, no depósito, a exclusão é recusada.
+  if (code === 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL' && reason === 'ajuste_de_inventario_posterior') {
+    const qual = details.ajuste_numero != null ? ` (ajuste nº ${details.ajuste_numero})` : details.movimento_numero != null ? ` (movimento nº ${details.movimento_numero})` : '';
+    return `Há uma contagem de inventário${qual} depois deste movimento no depósito; exclua a contagem primeiro ou faça uma nova contagem. Nada foi alterado.`;
+  }
   if (code === 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL') return `${INVIAVEL_RECALCULO[String(reason)] ?? 'A exclusão com recálculo não é segura para este movimento.'} Nada foi alterado.`;
   return null;
 };
