@@ -37,7 +37,8 @@ export const PADRAO_CODIGO_CATALOGO = /^[A-Z0-9_]{2,32}$/;
 const CAMPOS = Object.freeze({
   tipos: Object.freeze({
     // D-PROD-202: `salto_maximo_medidor` = teto do salto do medidor por lançamento (texto decimal; null limpa).
-    criacao: Object.freeze(['natureza', 'codigo', 'nome', 'descricao', 'vida_util_meses_sugerida', 'salto_maximo_medidor']),
+    // D-PROD-279: o produto do implemento (`usa_produto`, `forma_produto`, `capacidade` em texto decimal, `capacidade_unidade`).
+    criacao: Object.freeze(['natureza', 'codigo', 'nome', 'descricao', 'vida_util_meses_sugerida', 'salto_maximo_medidor', 'usa_produto', 'forma_produto', 'capacidade', 'capacidade_unidade']),
     edicao: Object.freeze(['nome', 'descricao', 'vida_util_meses_sugerida', 'salto_maximo_medidor']),
   }),
 });

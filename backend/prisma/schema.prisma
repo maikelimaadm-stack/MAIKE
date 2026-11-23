@@ -2979,6 +2979,15 @@ model TipoPatrimonial {
   vida_util_meses_sugerida Int?
   /// D-PROD-202 — teto do salto do medidor por lançamento (acima dele a linha de máquina pede justificativa).
   salto_maximo_medidor     Decimal?  @db.Decimal(14, 4)
+  // MAIKE-TIPO-IMPLEMENTO-PRODUTO
+  /// D-PROD-279 — só para IMPLEMENTO (a API confere): usa produto? como conta (JATO) e a capacidade do jato (L|KG).
+  usa_produto              Boolean?
+  // MAIKE-TIPO-IMPLEMENTO-PRODUTO
+  forma_produto            String?   @db.VarChar(16)
+  // MAIKE-TIPO-IMPLEMENTO-PRODUTO
+  capacidade               Decimal?  @db.Decimal(14, 4)
+  // MAIKE-TIPO-IMPLEMENTO-PRODUTO
+  capacidade_unidade       String?   @db.VarChar(8)
   ativo                    Boolean  @default(true)
   versao                   Int      @default(1)
   createdAt                DateTime @default(now())
