@@ -378,6 +378,26 @@ export const GUARDAS = Object.freeze({
       return true;
     }),
   },
+  // MAIKE-ENTREGA3 (D-PROD-276) — a REFORMA DE PASTAGEM (`/planejamentos`), na mesma tela `op-atividades`: ver =
+  // visualizar (a lista, a barra de custo e o "Faz parte de"); criar pelo "Planejar" = novo|salvar (como abrir uma
+  // atividade); concluir = editar|salvar (como concluir a atividade) e, com `trocar_capim: true`, também o editar do
+  // Mapa Cadastro (o mesmo do `PATCH /areas-pastagem/:id`, que é por onde o capim da área muda); cancelar = excluir
+  // (como cancelar a atividade; nada é apagado).
+  planejamentos: {
+    ver: porTela(T.ATIVIDADES, 'visualizar'),
+    criar: CADASTRO_ATIVIDADES.criar,
+    concluir: autorizar((req, aut) => {
+      if (!telaPermite(aut, T.ATIVIDADES, 'editar') && !telaPermite(aut, T.ATIVIDADES, 'salvar')) {
+        return { tela: T.ATIVIDADES.tela, exige: [`${T.ATIVIDADES.tela}:editar|${T.ATIVIDADES.tela}:salvar`] };
+      }
+      const corpo = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? /** @type {Record<string, unknown>} */ (req.body) : {};
+      if (corpo.trocar_capim === true && !telaPermite(aut, T.MAPA_CADASTRO, 'editar')) {
+        return { tela: T.MAPA_CADASTRO.tela, exige: [`${T.ATIVIDADES.tela}:editar|${T.ATIVIDADES.tela}:salvar`, `${T.MAPA_CADASTRO.tela}:editar`] };
+      }
+      return true;
+    }),
+    cancelar: CADASTRO_ATIVIDADES.excluir,
+  },
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),
   // D-PROD-207 — Serviços da fazenda: leitura pela própria tela (dado por
   // fazenda); inativar e reativar são edição do registro (editar|salvar, como nos

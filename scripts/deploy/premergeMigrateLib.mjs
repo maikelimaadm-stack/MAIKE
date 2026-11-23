@@ -203,6 +203,10 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // antigas (Atividade.local, AtividadeApontamento.numero_receituario, AtividadeApontamentoProduto.vc_percentual,
   // Produto.carencia_dias e TipoAtividade.alvo) e a tabela nova AtividadePlantio (capim plantado, 1 para 1 com a atividade).
   '20261121100000_atividade_campos_por_tipo': '9e6487ffddb92a35945c675c1924f363c3396e97dac52e56e8d3c94c20a32a58',
+  // MAIKE-ENTREGA3 (D-PROD-276): EXPAND — a reforma de pastagem como agrupador: a coluna anulável sem DEFAULT
+  // Atividade.planejamento_id (com o índice não-único e a FK (cliente_id, planejamento_id) → Planejamento) e as tabelas
+  // novas Planejamento e PlanejamentoArea (com os CHECKs delas e o RLS).
+  '20261122100000_reforma_planejamento': '27f16e1d44df673e97a62ef2122199c94d8d6adcdd07d006180ef0f90b873a10',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -260,6 +264,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   '4825a207a444b5b3bff8ac669e4e6e4a4db95d5aebd68986125bc8db00094fb8',
   // D-PROD-274: RLS/REVOKE da AtividadePlantio (mesmo corpo, lista nova).
   'e47bfde02699052ca52f4c6c750e9f28aec247d1fcaf5c2c308a05e006799765',
+  // D-PROD-276: RLS/REVOKE do Planejamento e da PlanejamentoArea (mesmo corpo, lista nova).
+  '3dd03bb8d852888ae7f058ec6eb8c6304f93d3dcdb3f4e946d03413a5565c654',
 ]);
 
 /**

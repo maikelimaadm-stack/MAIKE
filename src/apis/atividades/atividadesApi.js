@@ -348,7 +348,62 @@ export const getAtividadesDaAreaResumo = async (areaId, empresaId) => {
   assertArgument(isId(empresaId), 'empresa_id', contexto);
   const bruto = await runProviderCall(() => atividadeNativa.resumoDaArea(areaId, empresaId), { ...contexto, details: { areaId } });
   const o = isObjeto(bruto) ? /** @type {Record<string, any>} */ (bruto) : {};
-  return { ...o, mes: typeof o.mes === 'string' ? o.mes : null, atividades: Array.isArray(o.atividades) ? o.atividades.filter(isObjeto) : [], custos: isObjeto(o.custos) ? o.custos : null };
+  return {
+    ...o,
+    mes: typeof o.mes === 'string' ? o.mes : null,
+    atividades: Array.isArray(o.atividades) ? o.atividades.filter(isObjeto) : [],
+    custos: isObjeto(o.custos) ? o.custos : null,
+    // MAIKE-ENTREGA3 (D-PROD-276): as reformas abertas da área ("Faz parte de" e "Em reforma desde").
+    planejamentos: Array.isArray(o.planejamentos) ? o.planejamentos.filter(isObjeto) : [],
+  };
+};
+
+// ─── A reforma de pastagem (MAIKE-ENTREGA3, D-PROD-276) ──────────────────
+
+const RESOURCE_PLANEJAMENTO = 'Planejamento';
+/** @param {string} operation */
+const ctxPlanejamento = (operation) => ({ operation, resource: RESOURCE_PLANEJAMENTO });
+
+/** As reformas da fazenda (`GET /planejamentos`): `{ items }`. @param {Record<string, unknown>} filtros */
+export const listPlanejamentos = async (filtros = {}) => {
+  const contexto = ctxPlanejamento('listPlanejamentos');
+  assertArgument(isId(filtros.empresa_id), 'empresa_id', contexto);
+  const bruto = await runProviderCall(() => atividadeNativa.listarReformas(filtros), contexto);
+  const o = isObjeto(bruto) ? /** @type {Record<string, any>} */ (bruto) : {};
+  return { items: Array.isArray(o.items) ? o.items.filter(isObjeto) : [] };
+};
+
+/** A reforma com o custo (`GET /planejamentos/:id`). @param {string} id @param {string} empresaId */
+export const getPlanejamento = async (id, empresaId) => {
+  const contexto = ctxPlanejamento('getPlanejamento');
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(isId(empresaId), 'empresa_id', contexto);
+  return runProviderCall(() => atividadeNativa.obterReforma(id, empresaId), { ...contexto, details: { id } });
+};
+
+/** O "Planejar" da reforma (`POST /planejamentos`). @param {Record<string, unknown>} corpo */
+export const createPlanejamento = async (corpo) => {
+  const contexto = ctxPlanejamento('createPlanejamento');
+  assertArgument(ehObjetoComEmpresa(corpo), 'empresa_id', contexto);
+  assertArgument(Array.isArray(corpo.areas) && corpo.areas.length > 0, 'areas', contexto);
+  assertArgument(ehDia(corpo.data_inicio), 'data_inicio', contexto);
+  return runProviderCall(() => atividadeNativa.criarReforma(corpo), contexto);
+};
+
+/** Concluir a reforma (`POST /planejamentos/:id/concluir`). @param {string} id @param {Record<string, unknown>} corpo */
+export const completePlanejamento = async (id, corpo) => {
+  const contexto = ctxPlanejamento('completePlanejamento');
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(ehObjetoComEmpresa(corpo) && ehVersao(corpo.versao), 'versao', contexto);
+  return runProviderCall(() => atividadeNativa.concluirReforma(id, corpo), { ...contexto, details: { id } });
+};
+
+/** Cancelar a reforma (`POST /planejamentos/:id/cancelar`). @param {string} id @param {Record<string, unknown>} corpo */
+export const cancelPlanejamento = async (id, corpo) => {
+  const contexto = ctxPlanejamento('cancelPlanejamento');
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(ehObjetoComEmpresa(corpo) && ehVersao(corpo.versao), 'versao', contexto);
+  return runProviderCall(() => atividadeNativa.cancelarReforma(id, corpo), { ...contexto, details: { id } });
 };
 
 /**

@@ -38,10 +38,12 @@ const ha = (v) => (v ? `${formatarDecimalLinha(v)} ha` : "—");
  *   readOnly?: boolean,
  *   carregando?: boolean,
  *   opcional?: boolean,
+ *   palavraDosHectares?: string,
  * }} props `erros`: `areas` (nenhuma), `area:<id>` (os hectares ou a recusa do servidor naquela área) e `pct:<id>`.
  *   D-PROD-274: `opcional` (Manutenção e Outros) tira o asterisco e mostra "Nenhuma área" sem área escolhida.
+ *   D-PROD-276: `palavraDosHectares` — o que os hectares são ("feitos" no registro; "na reforma" no Planejar da reforma).
  */
-export default function AreasDoRegistro({ areasDoMapa, linhas, onChange, erros = {}, travada = null, celular = false, readOnly = false, carregando = false, opcional = false }) {
+export default function AreasDoRegistro({ areasDoMapa, linhas, onChange, erros = {}, travada = null, celular = false, readOnly = false, carregando = false, opcional = false, palavraDosHectares = "feitos" }) {
   const ativas = useMemo(() => areasDoMapa.filter((a) => a && a.id != null && a.ativo !== false), [areasDoMapa]);
   const travadas = useMemo(() => new Set(travada ? [String(travada)] : []), [travada]);
   const escolhidas = new Set(linhas.map((l) => l.area_id));
@@ -96,7 +98,7 @@ export default function AreasDoRegistro({ areasDoMapa, linhas, onChange, erros =
         value={l.hectares}
         onChange={(e) => mudar(l.area_id, (x) => comHectaresDigitados(x, e.target.value, a))}
         readOnly={readOnly}
-        aria-label={`Hectares feitos em ${rotuloDaArea(a) || "a área"}`}
+        aria-label={`Hectares ${palavraDosHectares} em ${rotuloDaArea(a) || "a área"}`}
         aria-invalid={erro ? true : undefined}
         data-testid={`registro-areas-hectares-${l.area_id}`}
       />
@@ -175,7 +177,7 @@ export default function AreasDoRegistro({ areasDoMapa, linhas, onChange, erros =
               </span>
               <span className="flex shrink-0 flex-col items-end">
                 <span>{ha(total.hectares)}</span>
-                <span className="text-[12px] font-normal text-[var(--mg-text-2,#475569)]">feitos</span>
+                <span className="text-[12px] font-normal text-[var(--mg-text-2,#475569)]">{palavraDosHectares}</span>
               </span>
             </li>
           </ul>
