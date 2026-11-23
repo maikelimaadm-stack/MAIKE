@@ -125,7 +125,7 @@ import { emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { CASAS_QUANTIDADE, Dec, ZERO, dec, somar } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { agoraDoServidor } from '../rebanhoLedger/rebanhoLedgerTempo.js';
-import { ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_DEPOSITO, ORIGEM_SAIDA_ESTOQUE, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO, ORIGENS_DOCUMENTADAS } from './estoqueFisicoMotor.js';
+import { ORIGEM_ABASTECIMENTO, ORIGEM_AJUSTE_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_DEPOSITO, ORIGEM_SAIDA_ESTOQUE, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO, ORIGENS_DOCUMENTADAS } from './estoqueFisicoMotor.js';
 
 /**
  * Origens de movimento do protocolo (motor físico único, D-PROD-161). Vêm dos
@@ -138,7 +138,13 @@ export const ORIGENS_PROTOCOLO = Object.freeze([ORIGEM_SISTEMA, ORIGEM_ABASTECIM
  * Origens cuja fatia vive em JSON (`lotes_consumidos`) ou, no legado, só no recibo. D-PROD-264: a saída
  * manual documentada grava sempre as fatias no movimento (nunca cai no ramo do recibo legado).
  */
-const ORIGENS_SEM_FK = Object.freeze([ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_SAIDA_ESTOQUE]);
+const ORIGENS_SEM_FK = Object.freeze([ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO, ORIGEM_SAIDA_ESTOQUE, ORIGEM_AJUSTE_ESTOQUE]);
+/**
+ * D-PROD-272: só as origens ANTIGAS têm saída sem fatia em JSON (explicada pelo recibo). As documentadas (saída
+ * manual, ajuste) gravam sempre as fatias; a única saída delas sem JSON é o estorno da sobra do ajuste (camada
+ * inteira, explicada pela FK do estorno), que não é "consumo legado".
+ */
+const ORIGENS_SEM_FK_LEGADAS = Object.freeze([ORIGEM_SUPLEMENTACAO, ORIGEM_DEPOSITO]);
 /**
  * Origens com fatia FK própria (`OperacaoFinanceiraConsumoLote`, `AbastecimentoBemConsumoLote` e,
  * D-PROD-202, `AtividadeApontamentoProdutoConsumoLote`, a linha de produto do apontamento da atividade).
@@ -273,7 +279,7 @@ const recibosNosIntervalos = (cli, intervalos) => {
 /** Recibo `r` da saída `s` (colunas `id`, `t`): mesmo id do movimento E dentro da janela do `createdAt` da saída. */
 const casaRecibo = (s, r) => Prisma.raw(`${r}.movimento_id = ${s}.id AND ${r}.criado_em >= ${s}.t - ${JANELA_TEXTO} AND ${r}.criado_em <= ${s}.t + ${JANELA_TEXTO}`);
 /** Saída legada de suplementação/transferência (a fatia só está no recibo). */
-const saidaLegada = (alias) => Prisma.raw(`${alias}.tipo_movimentacao = 'Saída' AND ${alias}.lotes_consumidos IS NULL AND ${alias}.origem_sistema = ANY(ARRAY['${ORIGENS_SEM_FK.join("','")}']::text[])`);
+const saidaLegada = (alias) => Prisma.raw(`${alias}.tipo_movimentacao = 'Saída' AND ${alias}.lotes_consumidos IS NULL AND ${alias}.origem_sistema = ANY(ARRAY['${ORIGENS_SEM_FK_LEGADAS.join("','")}']::text[])`);
 
 /**
  * Próximo `produto_id` de uma tabela depois de `anterior` (passo da varredura
@@ -545,6 +551,11 @@ const lerLotes = (tx, cli, f, faixa, evidencia, teto, amostra, comItens) => {
         SELECT e.estoque_lote_nota_id, (e.movimentacao_estorno_id IS NOT NULL)
         FROM "EntradaEstoqueItem" e
         WHERE e.cliente_id = ${cli} AND e.estoque_lote_nota_id = ANY(ARRAY(SELECT id FROM lt))
+        UNION ALL
+        -- D-PROD-272: a camada da sobra de um ajuste de inventário excluído é explicada pela FK do estorno, como a entrada.
+        SELECT a.estoque_lote_nota_id, (a.movimentacao_estorno_id IS NOT NULL)
+        FROM "AjusteEstoqueItem" a
+        WHERE a.cliente_id = ${cli} AND a.estoque_lote_nota_id = ANY(ARRAY(SELECT id FROM lt))
       ) u
       GROUP BY 1
     ), x AS (

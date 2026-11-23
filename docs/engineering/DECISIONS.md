@@ -8985,11 +8985,46 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 
 **Testes.** `backend/tests/estoqueEntradasEdicao.test.mjs` (novo) e `backend/tests/estoqueSaidasEdicao.test.mjs` (novo), Postgres real, vermelhos contra a `main` e verdes com a mudança; suítes do Estoque e da reconciliação; smoke da tela.
 
+## D-PROD-272 — Estoque: ajuste de inventário ("Novo movimento" → Ajuste), pelo saldo contado
+
+**Data:** 2026-11-20 · **Origem:** pedido do proprietário ("Vamos para o próximo passo" → "Ajuste de inventário") · **Branch:** `claude/new-session-26kpxu` · **Migration:** `20261120300000_estoque_ajustes`, **EXPAND** (3 tabelas novas) · **Relatório:** [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-REPORT.md) · **Runbook:** [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md)
+
+> **Numeração:** nasceu D-PROD-265 nesta branch, com a migration `20261120200000_estoque_ajustes`. A `main` deu a D-PROD-265 à Nova realização (PR #349), com a CONTRACT `20261120200000_apontamento_data_termino` no mesmo carimbo, já aplicada em produção; a pasta passou a `20261120300000_estoque_ajustes` (estritamente depois da dela; conteúdo idêntico, checksum igual). Antes do merge, a `main` usou também a D-PROD-266 (exclusão nos históricos do mapa, #351), a D-PROD-267 (serviço de vários dias, #352), a D-PROD-268 (estorno do cocho e da transferência, #353), a D-PROD-269 ("só Excluir" no mapa, #356) e a D-PROD-270 (exclusão sem motivo no mapa, #357), todas sem migration; a D-PROD-271 ficou com a edição da entrada e da saída (#355). Esta decisão é a **D-PROD-272**; o marcador passa a D-PROD-273. A aprovação da emenda e o GO da migration ("Aprovo as duas", 2026-11-20) foram dados com o número D-PROD-265; é a mesma decisão. 
+
+**Escolhas do proprietário (2026-11-20).**
+- **Contagem:** digita-se o **saldo contado** por produto e depósito. A tela mostra o saldo atual e a diferença; o servidor recalcula a diferença ao gravar, sob a trava do produto, com o saldo daquele momento.
+- **Custo da sobra:** custo médio do depósito. Sem saldo no depósito (sem custo médio), a linha exige o custo informado. A falta sai sempre pelo custo médio.
+- **Excluir:** sim, só se os produtos não tiveram outro movimento naqueles depósitos depois do ajuste (como na saída manual).
+- **Permissão:** ação própria **`ajuste`** da tela `sup-estoque` (o nome já estava reservado); ninguém recebe por padrão.
+
+**Decidido pelo agente (e dito ao proprietário):** o ajuste é sempre **do dia de hoje** da fazenda, sem data no corpo. A contagem é comparada com o saldo de agora; uma data passada misturaria o que já se moveu depois dela.
+
+**Como funciona.** Por linha: contado (na unidade escolhida: KG, SACO pelo peso do saco, L) × saldo do depósito (Σ das camadas Disponivel).
+- **SOBRA** (contado > saldo): entrada pelo motor (`aplicarSobraDeAjuste` → `aplicarEntradaEstoque`), com camada nova ao custo médio (ou ao custo informado, sem saldo).
+- **FALTA** (contado < saldo): saída pelo motor (`aplicarFaltaDeAjuste` → `aplicarSaida`) a custo médio, com as fatias em `lotes_consumidos`.
+- **SEM DIFERENÇA:** só o registro da contagem, sem movimento.
+
+Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`, `estorno_ajuste_falta`). A exclusão estorna cada linha pelo motor: a camada da sobra fica Estornada, e a falta devolve as fatias e o valor exato. A reconciliação explica a camada da sobra estornada pela FK do estorno e não trata o estorno dela (uma saída sem fatias em JSON) como consumo legado. O detalhe do movimento (Kardex) leva ao ajuste.
+
+**Helper "nada mexeu depois" (saída manual, D-PROD-264).** Esta branch tinha extraído a regra da saída para um helper e mudado o critério de número fora do padrão. A `main` extraiu o mesmo helper na D-PROD-268 (`buscarMovimentoPosteriorA`, em `movimentoPosterior.js`), mantendo o critério fail-closed da D-PROD-264 (número fora do padrão conta como posterior). No merge ficou a versão da `main`; o ajuste usa o mesmo helper e a regra da saída não muda nesta PR. Em produção nenhum movimento tem número fora do padrão.
+
+**Constituição — emenda APROVADA pelo proprietário em 2026-11-20** (chat: "Aprovo as duas", para a emenda e para a migration). Aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1 (depois da emenda D-PROD-264) e nota própria em `07-DO-NOT-DO.md` (depois da nota D-PROD-264). O texto ratificado punha "ajuste ou inventário" explicitamente em "Continua **fora**" (expansão D-PROD-177) e na lista do `07-DO-NOT-DO.md` (entrada manual não serve como inventário/ajuste). Texto aprovado:
+
+> *Em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-264:* "**Emenda aprovada pelo proprietário (D-PROD-272):** **Estoque — ajuste de inventário.** A contagem física pode ajustar o estoque por um **documento de Ajuste de Inventário** confirmado, só pelo motor de estoque único e com a permissão própria `ajuste`. Por produto e depósito informa-se o saldo contado; a diferença para o saldo do depósito, recalculada ao gravar, entra (sobra, ao custo médio do depósito, ou ao custo informado quando o depósito não tem saldo) ou sai (falta, ao custo médio). O ajuste é sempre do dia de hoje da fazenda, não cria título, conta nem receita, e não edita saldo fora do motor. O usuário edita só a observação e pode excluir o ajuste; a exclusão estorna pelo motor e só é aceita se os produtos não tiveram outro movimento naqueles depósitos depois dele. Em "Continua **fora**", deixa de constar "ajuste ou inventário"; continuam fora devolução a fornecedor, transferência entre empresas, edição de saldo e qualquer escritor genérico de estoque."
+>
+> *Em `07-DO-NOT-DO.md`, nota própria depois da nota D-PROD-264:* "o ajuste de inventário documentado (Estoque → Novo movimento → Ajuste) é exceção à proibição de inventário/ajuste, nos limites da decisão. Continua proibido: ajustar estoque fora do motor ou escrevendo saldo direto; digitar o valor da sobra quando o depósito tem custo médio, ou da falta; ajustar com data diferente de hoje; usar o ajuste para devolução, transferência entre empresas ou venda, ou criar título, conta ou receita a partir dele; excluir um ajuste depois de outro movimento do produto no mesmo depósito; mudar a contagem de um ajuste lançado; conceder a ação `ajuste` a perfis existentes por padrão. A entrada manual continua não servindo como inventário/ajuste."
+
+**O que roda no merge.** Só o código. A migration EXPAND vai para produção **antes** do merge, pelo caminho B do runbook, com o GO escrito do proprietário (registro no runbook §7). O código antigo não conhece as tabelas: não há janela.
+
+**Fora de escopo.** Contagem em várias etapas (rascunho de inventário), contagem cega, ajuste com data retroativa, edição da contagem lançada (exclui e faz outra).
+
+**Testes.** `backend/tests/estoqueAjustes.test.mjs` (novo, 11, Postgres real), o smoke `tests/smoke/estoqueNovoMovimento.test.jsx` e as provas da release (`premerge-migrate` B40a/B40b/B40k).
+
 ## D-PROD-273 — Estoque: exclusão com recálculo do custo médio; o excluído some das telas
 
 **Data:** 2026-11-22 · **Origem:** pedido do proprietário ("quando eu excluo um movimento ele dá como estorno, e não pode … agora tudo fica bloqueado e não consigo excluir") · **Branch:** `claude/estoque-exclusao-recalculo` · **Migration:** nenhuma prevista · **Especificação:** [`MAIKE-ESTOQUE-EXCLUSAO-RECALCULO-SPEC.md`](./MAIKE-ESTOQUE-EXCLUSAO-RECALCULO-SPEC.md)
 
-> **Numeração:** a `main` (`cdfb1174`) indica `Próxima decisão: D-PROD-272`, mas a D-PROD-272 está reservada para o ajuste de inventário (PR #350, aberta). Esta é a **D-PROD-273**; o marcador passa a D-PROD-274.
+> **Numeração:** a D-PROD-272 é o ajuste de inventário (PR #350, mergeada antes desta). Esta é a **D-PROD-273**; o marcador passa a D-PROD-274.
 
 **O problema (produção, leitura de 2026-11-22).** No FORTUSAIS ENGORDA PRIME (BARRACÃO DE SAL e DEP - 15 / 15 A): cada exclusão lança um estorno que aparece na tela; como o estorno é um movimento "depois", a regra "só exclui se nada mexeu depois" passa a travar tudo o que é anterior (no DEP 15, os estornos nº 38 e 42 travam as suplementações nº 25, 26, 27, 32 e a transferência nº 33/34); e uma entrada manual de 3.600 kg a custo R$ 0,00 (nº 31, provável tentativa de desfazer a saída manual nº 1, que já não podia ser excluída) baixou o custo médio do Barracão de R$ 3,96 para R$ 2,98/kg, custo que as transferências seguintes levaram ao DEP 15.
 
@@ -8999,7 +9034,7 @@ Entrada e Transferência pedem a ação `entrada`; Saída pede `saida`.
 - **Ordem:** a ordem em que os movimentos foram lançados (`numero_movimentacao`, a ordem em que o motor valorizou), não a das datas. Recalcular sem excluir nada reproduz exatamente os valores gravados.
 - **PRs:** a edição completa (D-PROD-271, #355) entrou antes, com a regra antiga; ganha o recálculo junto com o resto.
 
-**Constituição — emenda APROVADA pelo proprietário em 2026-11-22** (aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-271, e nota própria em `07-DO-NOT-DO.md`, depois da nota D-PROD-271). Texto aprovado:
+**Constituição — emenda APROVADA pelo proprietário em 2026-11-22** (aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-272, e nota própria em `07-DO-NOT-DO.md`, depois da nota D-PROD-272). Texto aprovado:
 
 > *Em `00-CONSTITUICAO.md` §1:* "**Estoque — exclusão com recálculo.** Qualquer movimento de estoque (entrada, saída, transferência, cocho, atividade, abastecimento, compra, venda, ajuste) pode ser excluído desde que, refeita a sequência do produto na ordem em que os movimentos foram lançados, o saldo de nenhum depósito fique negativo em nenhum ponto. A exclusão é feita pelo motor de estoque único: o movimento excluído deixa de contar e o custo médio de todos os movimentos lançados depois dele, em todos os depósitos do produto, é recalculado, assim como os valores copiados desse custo (cocho, atividade, abastecimento, venda e transferência). Cada valor reescrito fica registrado com o antes e o depois, o autor e o motivo. O movimento excluído e o estorno dele saem das telas e continuam guardados para auditoria. Para a exclusão, esta regra substitui a exigência de que nada tenha mexido depois e a proibição de recalcular o custo de baixas passadas. Preço de venda e valor de compra não mudam; só o custo derivado do estoque."
 >
