@@ -29,7 +29,7 @@ valorizado (o cadastro pode mudar depois, com saldo zero).
 | Origem | De onde vêm lote e validade |
 |---|---|
 | Entrada documentada (aba Entradas) | `itens[].lote_fabricante` e `itens[].data_validade` (as colunas da linha já existiam, D-PROD-259) |
-| Compra do financeiro (P3) | `itens[].lote_fabricante` e `itens[].data_validade` na linha MERCADORIA (no corpo; não há coluna nova na linha: ficam na camada) |
+| Compra do financeiro (P3) | `lotes_por_item: [{ item_ordem, lote_fabricante, data_validade }]` no corpo da **confirmação** (é ela que lança o estoque; não há coluna nova na linha do lançamento: ficam na camada). A retificação por substituição não leva lote (recusa `lote_obrigatorio`) |
 | Sobra de ajuste | `itens[].lote_fabricante` e `itens[].data_validade` (ver abaixo) |
 | Transferência recebida | copiados da camada de origem, fatia a fatia |
 
@@ -47,6 +47,10 @@ custo mais honesto é o que o lote X custou.
 **Saídas** — saída manual, transferência (origem), cocho, linha de produto da atividade, abastecimento, venda do
 financeiro e falta de ajuste: cada linha aceita `lotes: [{ estoque_lote_nota_id, quantidade }]` (opcional).
 - Sem a lista, o servidor escolhe pelo **FEFO** (§3).
+- Onde a lista entra: saída manual (`itens[].lotes`), transferência e cocho (`lotes` no comando), venda
+  (`lotes_por_item[].lotes` na confirmação) e falta de ajuste (`itens[].lotes`). **Atividade e abastecimento:
+  só FEFO nesta entrega** (a escolha manual nessas origens fica para depois).
+- A quantidade de cada lote vai na unidade de ESTOQUE do produto (kg ou L), em texto decimal.
 - Com a lista: cada camada tem de ser do produto, da empresa e do depósito da linha, estar Disponivel, ter o
   disponível; a soma tem de ser a quantidade da linha; a mesma camada não se repete. Recusas 422
   `ESTOQUE_LOTE_INVALIDO` (`lote_inexistente`, `lote_de_outro_deposito`, `lote_sem_saldo`, `lotes_nao_somam`,
@@ -97,6 +101,6 @@ usuário pode trocar ou dividir.
 - Cadastro de produto: dois Sim/Não ("Controla lote", "Controla validade"; o segundo só com o primeiro).
 - Entrada: colunas "Lote" e "Validade" na linha, obrigatórias conforme o produto.
 - Saída manual e transferência: campo "Lote" com a sugestão FEFO, "Dividir entre lotes" e o aviso de vencido com
-  confirmação. Cocho, atividade, abastecimento e venda usam o FEFO do servidor (a lista é aceita na API).
+  confirmação. Cocho e venda aceitam a lista na API (sem tela nesta entrega); atividade e abastecimento usam o FEFO do servidor.
 - Saldo: nos produtos com lote, detalhe por lote com validade e o aviso "vence em N dias" (≤ 30) ou "vencido".
 - Tudo cabe em 390 px (linhas empilhadas; o detalhe do lote é lista, não tabela larga).

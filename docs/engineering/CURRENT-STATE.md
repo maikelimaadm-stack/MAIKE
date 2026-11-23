@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-23 (missão ativa D-PROD-278; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-23 (missão ativa D-PROD-279; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-23) — MAIKE-MAPA-ATIVIDADE-ACOES: ações da atividade em andamento nos Detalhes da área (D-PROD-278)
+## Missão ativa (2026-11-23) — MAIKE-ESTOQUE-CONTROLE-LOTE: controle de lote (e de validade) por produto (D-PROD-279)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-279**, escolhas do proprietário (2026-11-23): "Controla lote"/"Controla validade" no produto, lote e validade na camada, saída pelo lote escolhido (sugestão FEFO) e pelo custo dele; emenda da Constituição aprovada |
+| Branch / PR | `claude/estoque-controle-lote`, a partir da `main` `d62a4ef8` · sem push (PR a abrir; conferir o número com `proxima-decisao.mjs`) |
+| Mudança | motor (FEFO, escolha, custo do lote sem reavaliar, transferência leva lote), serviços, `GET /estoque/lotes-disponiveis`, troca do cadastro só com saldo zero, replay/exclusão com `lote_consumido`, telas (cadastro, entrada, saída, transferência, saldo por lote) |
+| Migration | `20261123100000_estoque_controle_lote`, **CONTRACT condicionado aditivo** (`--contract D-PROD-279`), sha256 `b6b33b0e…48fc`. **Não aplicada em produção**; ensaiada localmente com o envelope do runbook |
+| Relatório | [`MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md) · SPEC [`MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md) · Runbook [`MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md) |
+| Próximas | escolha manual de lote na atividade e no abastecimento; lote na tela de confirmação do financeiro e no cocho |
+
+## Missão anterior (2026-11-23) — MAIKE-MAPA-ATIVIDADE-ACOES: ações da atividade em andamento nos Detalhes da área (D-PROD-278)
 
 | Campo | Valor |
 |---|---|
