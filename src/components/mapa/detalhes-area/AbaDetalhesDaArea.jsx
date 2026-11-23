@@ -1,6 +1,7 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Sprout } from "lucide-react";
+import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { Cartao, Celula, Chip, Grade, Linha, SecaoDetalhe, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import PainelForragemArea from "@/components/pastagem/PainelForragemArea";
 import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
@@ -11,6 +12,7 @@ import { QUERY_ATIVIDADES_DA_AREA, rotuloDoMesCurto } from "@/lib/registroDeCamp
 import { STATUS_AREA } from "@/lib/atividadeAreasRegras";
 import { textoDaReformaNaArea } from "@/lib/reformaRegras";
 import { definirFazendaDaTela, obterResumoDaArea } from "@/services/lancamentoAtividadesService";
+import { useAcoesDaAtividadeDaArea } from "./AcoesDaAtividadeDaArea";
 
 
 /*
@@ -21,6 +23,11 @@ import { definirFazendaDaTela, obterResumoDaArea } from "@/services/lancamentoAt
  *
  * MAIKE-ENTREGA3 (D-PROD-276): com uma reforma ABERTA na área (o resumo traz as reformas), o cartão da área mostra
  * "Em reforma desde 10/09" (o início previsto; ainda no futuro, "Reforma prevista para 10/09") e o nome dela embaixo.
+ *
+ * MAIKE-MAPA-ATIVIDADE-ACOES (D-PROD-278): com permissão de lançar ou de concluir, a linha da atividade é tocável e abre o
+ * menu das ações rápidas (o do ⚡ da lista: janela presa à linha no computador, folha de baixo no celular) — "+ Lançar
+ * dia", "Só máquina / mão de obra / insumo / serviço de terceiro" (presos nesta área) e "Concluir"
+ * (`AcoesDaAtividadeDaArea`). Sem permissão, a linha fica como era (só leitura).
  */
 
 /** @param {unknown} v */
@@ -60,9 +67,10 @@ const subDaAtividade = (a) => {
 };
 
 /**
- * @param {{ area: any, setorNome?: string, ocupada?: boolean | null, verAtividades: boolean, forragem: boolean }} props
+ * @param {{ area: any, setorNome?: string, ocupada?: boolean | null, verAtividades: boolean, forragem: boolean, tipos?: any[] }} props
+ *   `tipos`: as operações ativas (as que os Detalhes da área já leem), para as ações da atividade.
  */
-export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades, forragem }) {
+export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades, forragem, tipos = [] }) {
   const empresaId = useEmpresaRealSelecionadaId();
   definirFazendaDaTela(empresaId);
   const resumo = useQuery({
@@ -79,6 +87,8 @@ export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades,
   // D-PROD-276: a reforma aberta da área (a mais antiga).
   const reformas = verAtividades && resumo.isSuccess && Array.isArray(resumo.data?.planejamentos) ? resumo.data.planejamentos : [];
   const emReforma = textoDaReformaNaArea(reformas, hoje);
+  // D-PROD-278: as ações rápidas da atividade tocada.
+  const acoesDaAtividade = useAcoesDaAtividadeDaArea({ area, tipos });
 
   return (
     <div className="mk-dp-area-organizada">
@@ -109,14 +119,34 @@ export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades,
               <Cartao>
                 {atividades.map((a) => {
                   const s = situacaoDaAtividade(a);
+                  const props = {
+                    textoAutomatico: true,
+                    icone: iconeDoTipoAtividade({ nome_tipo: a.tipo_atividade_nome }),
+                    rotulo: a.nome,
+                    sub: subDaAtividade(a),
+                    valor: <Chip tom={s.tom}>{s.rotulo}</Chip>,
+                  };
+                  const grupos = acoesDaAtividade.gruposDe(a);
+                  if (!grupos) return <Linha key={a.atividade_id} {...props} data-testid={`area-atividade-${a.atividade_id}`} />;
                   return (
-                    <Linha
+                    <B1MenuAcoesDaLinha
                       key={a.atividade_id}
-                      textoAutomatico
-                      icone={iconeDoTipoAtividade({ nome_tipo: a.tipo_atividade_nome })}
-                      rotulo={a.nome}
-                      sub={subDaAtividade(a)}
-                      valor={<Chip tom={s.tom}>{s.rotulo}</Chip>}
+                      rotulo={`Ações da atividade ${a.numero != null ? `nº ${a.numero}` : a.nome}`}
+                      titulo={[a.numero != null ? `Nº ${a.numero}` : "", a.nome].filter(Boolean).join(" · ")}
+                      subtitulo={subDaAtividade(a)}
+                      grupos={grupos}
+                      testId={`area-atividade-${a.atividade_id}`}
+                      gatilho={(b) => (
+                        <Linha
+                          {...props}
+                          {...b}
+                          // No computador o Popover põe o clique; no celular ele já vem (a folha de baixo).
+                          onClick={b.onClick ?? (() => {})}
+                          chevron
+                          aria-busy={acoesDaAtividade.buscando || undefined}
+                          title="Ações da atividade"
+                        />
+                      )}
                     />
                   );
                 })}
@@ -141,6 +171,7 @@ export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades,
         </>
       ) : null}
       {forragem ? <PainelForragemArea area={area} /> : null}
+      {acoesDaAtividade.janelas}
     </div>
   );
 }

@@ -30,15 +30,19 @@ B1BotaoAcoesDaLinha.displayName = "B1BotaoAcoesDaLinha";
  * separados por divisória; grupo vazio não aparece. Teclado: o botão diz se está aberto (`aria-expanded`), Esc fecha,
  * ↑ ↓ andam pelos itens e o foco volta ao botão ao fechar. Quem escolhe o que entra (permissão, status) é a tela.
  *
+ * D-PROD-278: `gatilho` (opcional) troca o ⚡ por outro elemento — no mapa, a própria linha da atividade: recebe as props
+ * do botão (`ref`, `aria-expanded`, `aria-haspopup`, `data-testid`, `onClick`) e devolve um elemento que aceita `ref`.
+ *
  * @param {{
  *   rotulo: string,
  *   titulo?: string,
  *   subtitulo?: string,
  *   grupos: ItemDasAcoesDaLinha[][],
  *   testId?: string,
+ *   gatilho?: (props: Record<string, any>) => import('react').ReactElement,
  * }} props
  */
-export function B1MenuAcoesDaLinha({ rotulo, titulo = "", subtitulo = "", grupos, testId = undefined }) {
+export function B1MenuAcoesDaLinha({ rotulo, titulo = "", subtitulo = "", grupos, testId = undefined, gatilho = undefined }) {
   const celular = useCelular();
   const [aberto, setAberto] = React.useState(false);
   const botaoRef = React.useRef(/** @type {HTMLButtonElement | null} */ (null));
@@ -109,15 +113,8 @@ export function B1MenuAcoesDaLinha({ rotulo, titulo = "", subtitulo = "", grupos
     </div>
   );
 
-  const botao = (
-    <B1BotaoAcoesDaLinha
-      ref={botaoRef}
-      rotulo={rotulo}
-      aria-expanded={aberto}
-      data-testid={testId}
-      onClick={celular ? () => setAberto(true) : undefined}
-    />
-  );
+  const propsDoBotao = { ref: botaoRef, "aria-expanded": aberto, "data-testid": testId, onClick: celular ? () => setAberto(true) : undefined };
+  const botao = gatilho ? gatilho({ ...propsDoBotao, "aria-haspopup": "menu" }) : <B1BotaoAcoesDaLinha rotulo={rotulo} {...propsDoBotao} />;
 
   if (celular) {
     return (

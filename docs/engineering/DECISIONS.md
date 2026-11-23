@@ -9167,4 +9167,16 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Testes:** `scripts/tests/gates/proxima-decisao.test.mjs` (PD-1 a PD-3), dentro do `test:gates`.
 - **Fora:** gate que reprove número repetido no CI (pode vir depois, se a regra não bastar).
 
-<!-- Próxima decisão: D-PROD-278 -->
+## D-PROD-278 — Ações da atividade em andamento a partir dos Detalhes da área no Mapa
+
+**Data:** 2026-11-23 · **Origem:** proprietário: no Mapa, "Detalhes da área" → "Atividades em andamento" lista as atividades, mas tocar numa não faz nada; é preciso refazer tudo pela "Nova realização" · **Relatório:** [`MAIKE-MAPA-ATIVIDADE-ACOES-REPORT.md`](./MAIKE-MAPA-ATIVIDADE-ACOES-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `6eb44285` deu D-PROD-278 (o marcador; nenhuma PR aberta citava 278 ou mais); o marcador passa a D-PROD-279.
+
+- **Contexto:** no Lançamento de Atividades o serviço em andamento tem as ações rápidas ("+ Lançar dia", o lançamento de um tipo só, "Concluir"); nos Detalhes da área do Mapa, a mesma atividade era só uma linha de leitura.
+- **Decisão:** com permissão, a linha da atividade em "Atividades em andamento" é tocável e abre o menu das ações da linha (`B1MenuAcoesDaLinha`, o do ⚡ da lista: janela presa à linha no computador, folha de baixo no celular; o menu ganhou o `gatilho` opcional e a `Linha` dos detalhes aceita `ref`). Itens: **"+ Lançar dia"** (`JanelaRegistroDeCampo` com `continuar`, como na lista); **"Só máquina", "Só mão de obra", "Só insumo", "Só serviço de terceiro"** (`JanelaLancamentoPorTipo` presa NESTA área; só os que a operação permite, `flagsDoTipoDaAtividade` + `lancamentosPermitidos`; só com a área em andamento na atividade, que é o que a janela aceita); **"Concluir"** (`DialogoConcluirServico`, só com dia lançado na área). As permissões são as da lista: `acoesDaAtividade` + fuso da fazenda (`podeGravar`); lançar pede `lancarApontamento`, concluir pede `editar`. Sem nenhuma ação, a linha fica como era (não tocável).
+- **Dados:** o resumo da área traz a atividade leve; ao escolher uma ação, lê-se `GET /atividades/:id` (versão, operação, áreas) e a lista `GET /atividades?area_id=…&status=ABERTA` só para o `andamento` (o que a lista passa às mesmas janelas). Depois de gravar, o resumo da área (`atividades-da-area`: atividades e custos) e as consultas da tela de atividades se relêem.
+- **Fora:** "Abrir atividade" (a tela de atividades não abre uma atividade pelo endereço; não se criou rota). Nenhuma mudança no servidor; nenhuma migration; a tela de atividades não foi refatorada.
+- **Testes:** `tests/smoke/mapaAtividadeAcoes.test.jsx` (menu com os itens permitidos, área planejada, "+ Lançar dia" preenchido, "Só máquina" presa na área, Concluir com a versão do detalhe e a releitura do resumo, sem permissão não tocável).
+
+<!-- Próxima decisão: D-PROD-279 -->
