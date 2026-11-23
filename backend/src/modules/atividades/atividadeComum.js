@@ -442,6 +442,37 @@ export const comoAreaDaAtividadePublica = (r) => ({
   updatedAt: iso(r.updatedAt),
 });
 
+/** MAIKE-ENTREGA2 (D-PROD-274) — resumo da cultura (capim plantado e consórcio) do plantio. */
+export const CULTURA_RESUMO = Object.freeze({ select: { id: true, codigo: true, nome: true, especie: true, cultivar: true, tipo: true } });
+
+/** MAIKE-ENTREGA2 (D-PROD-274) — os dados do plantio de pastagem, com o resumo das culturas. */
+export const PLANTIO_RESUMO = Object.freeze({
+  select: {
+    cultura_id: true, forma_plantio: true, semente_incrustada: true, cobertura: true, consorcio_cultura_id: true,
+    cultura: CULTURA_RESUMO, consorcio: CULTURA_RESUMO,
+  },
+});
+
+/** @param {any} c */
+const culturaPublica = (c) => (c ? { id: c.id, codigo: c.codigo, nome: c.nome, especie: c.especie ?? null, cultivar: c.cultivar ?? null, tipo: c.tipo } : null);
+
+/**
+ * MAIKE-ENTREGA2 (D-PROD-274) — forma pública dos dados do plantio (nulo fora do Plantio de pastagem).
+ * @param {any} p  registro de `AtividadePlantio` com `cultura` e `consorcio`
+ */
+export const plantioPublico = (p) =>
+  p
+    ? {
+        cultura_id: p.cultura_id,
+        cultura: culturaPublica(p.cultura),
+        forma_plantio: p.forma_plantio ?? null,
+        semente_incrustada: p.semente_incrustada ?? null,
+        cobertura: p.cobertura ?? null,
+        consorcio_cultura_id: p.consorcio_cultura_id ?? null,
+        consorcio: culturaPublica(p.consorcio),
+      }
+    : null;
+
 /** `include` da atividade: o resumo ao lado de cada id da forma pública. */
 export const INCLUIR_ATIVIDADE = Object.freeze({
   // D-PROD-249: as áreas (várias áreas por atividade).
@@ -456,6 +487,8 @@ export const INCLUIR_ATIVIDADE = Object.freeze({
   concluidaPor: USUARIO_RESUMO,
   canceladoPor: USUARIO_RESUMO,
   reabertaPor: USUARIO_RESUMO,
+  // MAIKE-ENTREGA2 (D-PROD-274): o capim plantado e os dados do plantio.
+  plantio: PLANTIO_RESUMO,
 });
 
 /**
@@ -511,6 +544,9 @@ export const comoAtividadePublica = (r) => ({
   // D-PROD-249: as áreas da atividade (a 1ª é a `area_id` acima) e quantas são.
   areas: (r.areas ?? []).map(comoAreaDaAtividadePublica),
   areas_count: (r.areas ?? []).length,
+  // MAIKE-ENTREGA2 (D-PROD-274): onde foi o serviço sem área (Manutenção e Outros) e o plantio (capim e dados).
+  local: r.local ?? null,
+  plantio: plantioPublico(r.plantio),
 });
 
 /**
@@ -518,12 +554,59 @@ export const comoAtividadePublica = (r) => ({
  */
 
 /**
+ * @typedef {{ pasto_liberado_em: string|null, carencia_dias: number|null }} PastoLiberado
+ */
+
+/**
+ * D-PROD-274 — "Pasto liberado em": o fim do serviço (`AAAA-MM-DD`) mais a MAIOR carência (dias) entre os produtos. Sem
+ * nenhuma carência cadastrada (ou sem fim), nulo: o sistema não inventa prazo.
+ * @param {string|null|undefined} fim @param {Array<number|null|undefined>} carencias
+ * @returns {PastoLiberado}
+ */
+export const pastoLiberadoEm = (fim, carencias) => {
+  const validas = carencias.filter((c) => Number.isInteger(c) && /** @type {number} */ (c) >= 0).map(Number);
+  if (!validas.length || typeof fim !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(fim)) return { pasto_liberado_em: null, carencia_dias: null };
+  const maior = Math.max(...validas);
+  const d = new Date(`${fim}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + maior);
+  return { pasto_liberado_em: d.toISOString().slice(0, 10), carencia_dias: maior };
+};
+
+/**
+ * D-PROD-274 (ajuste do teste de ponta a ponta) — o "Pasto liberado em" da ATIVIDADE, calculado na LEITURA (nunca
+ * gravado): o último fim lançado (o maior `data_termino ?? data_operacional` dos apontamentos CONFIRMADO) mais a MAIOR
+ * carência atual (cadastro do produto) dos produtos das linhas CONFIRMADO desses apontamentos. Uma instrução.
+ * @param {any} db @param {string} clienteId @param {string} empresaId @param {string} atividadeId
+ * @returns {Promise<PastoLiberado>}
+ */
+export const lerPastoLiberadoDaAtividade = async (db, clienteId, empresaId, atividadeId) => {
+  const [r] = /** @type {Array<{ fim: Date|null, carencia: number|null }>} */ (
+    await db.$queryRaw`SELECT
+        (SELECT MAX(COALESCE(a.data_termino, a.data_operacional)) FROM "AtividadeApontamento" a
+          WHERE a.cliente_id = ${clienteId} AND a.empresa_id = ${empresaId} AND a.atividade_id = ${atividadeId} AND a.status = 'CONFIRMADO') AS fim,
+        (SELECT MAX(pr.carencia_dias) FROM "AtividadeApontamentoProduto" p
+          JOIN "AtividadeApontamento" a ON a.cliente_id = p.cliente_id AND a.empresa_id = p.empresa_id AND a.id = p.apontamento_id
+          JOIN "Produto" pr ON pr.cliente_id = p.cliente_id AND pr.id = p.produto_id
+          WHERE p.cliente_id = ${clienteId} AND p.empresa_id = ${empresaId} AND a.atividade_id = ${atividadeId}
+            AND p.status = 'CONFIRMADO' AND a.status = 'CONFIRMADO')::int AS carencia`
+  );
+  return pastoLiberadoEm(diaDe(r?.fim) ?? null, [r?.carencia ?? null]);
+};
+
+/**
  * DETALHE da atividade: a forma pública + `totais`. É o corpo do
  * `GET /atividades/:id`, de toda escrita do cabeçalho e o `atividade` das
  * escritas do apontamento.
- * @param {any} r  registro lido com `INCLUIR_ATIVIDADE` @param {TotaisDaAtividade} totais
+ * D-PROD-274 (ajuste do teste de ponta a ponta): e o "pasto liberado em" (`pasto_liberado_em`, `carencia_dias`),
+ * calculado na leitura (`lerPastoLiberadoDaAtividade`); sem ele (quem não leu), nulos.
+ * @param {any} r  registro lido com `INCLUIR_ATIVIDADE` @param {TotaisDaAtividade} totais @param {PastoLiberado} [liberado]
  */
-export const comoAtividadeDetalhe = (r, totais) => ({ ...comoAtividadePublica(r), totais });
+export const comoAtividadeDetalhe = (r, totais, liberado = { pasto_liberado_em: null, carencia_dias: null }) => ({
+  ...comoAtividadePublica(r),
+  totais,
+  pasto_liberado_em: liberado.pasto_liberado_em,
+  carencia_dias: liberado.carencia_dias,
+});
 
 // ─── leituras e trava (adaptador de dados, sem regra) ───────────────────────
 
@@ -585,7 +668,7 @@ export const lerTotaisDaAtividade = async (db, clienteId, empresaId, atividadeId
 export const carregarAtividadeDetalhe = async (db, clienteId, empresaId, id) => {
   const r = await buscarAtividade(db, clienteId, empresaId, id);
   if (!r) throw atividadeNotFound();
-  return comoAtividadeDetalhe(r, await lerTotaisDaAtividade(db, clienteId, empresaId, id));
+  return comoAtividadeDetalhe(r, await lerTotaisDaAtividade(db, clienteId, empresaId, id), await lerPastoLiberadoDaAtividade(db, clienteId, empresaId, id));
 };
 
 /**
@@ -740,10 +823,10 @@ export const recusarCoercaoNasListas = (corpo, listas) => {
 };
 
 /** Decimais da linha de PRODUTO (corpo da linha e itens de `produtos[]`). */
-export const DECIMAIS_DA_LINHA_PRODUTO = Object.freeze(['quantidade']);
+export const DECIMAIS_DA_LINHA_PRODUTO = Object.freeze(['quantidade', 'vc_percentual']);
 
 /** Resumos das linhas (só exibição), no formato do `select` do Prisma. */
-export const PRODUTO_RESUMO = Object.freeze({ select: { id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true } });
+export const PRODUTO_RESUMO = Object.freeze({ select: { id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true, carencia_dias: true } });
 export const LOCAL_RESUMO = Object.freeze({ select: { id: true, numero_local: true, nome: true } });
 
 /** @param {any} p */
@@ -779,6 +862,8 @@ export const comoLinhaProdutoPublica = (r) => ({
   quantidade: t4(r.quantidade),
   unidade: r.unidade,
   dose_ha: t4(r.dose_ha),
+  // MAIKE-ENTREGA2 (D-PROD-274): o VC (%) do saco de semente, 2 casas (nulo sem VC).
+  vc_percentual: r.vc_percentual === null || r.vc_percentual === undefined ? null : dec(r.vc_percentual).toFixed(2),
   custo_unitario: t4(r.custo_unitario),
   custo_total: t4(r.custo_total),
   movimentacao_estoque_id: r.movimentacao_estoque_id,

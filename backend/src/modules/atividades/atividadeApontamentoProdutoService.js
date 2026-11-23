@@ -151,7 +151,25 @@ export const aceiteDeCombustivelQueVale = (clienteId, produtoId) => ({
 
 // ─── normalização do corpo (400 antes da transação) ─────────────────────────
 
-/** @typedef {{ produto_id: string, local_estoque_id: string, quantidade: string, observacao: string|null }} DadosDaLinha */
+/** @typedef {{ produto_id: string, local_estoque_id: string, quantidade: string, observacao: string|null, vc_percentual?: string }} DadosDaLinha */
+
+/** MAIKE-ENTREGA2 (D-PROD-274) — o VC (%) da semente: texto decimal com até 2 casas, maior que 0 e até 100. */
+const PADRAO_VC = /^\d{1,3}(\.\d{1,2})?$/;
+
+/**
+ * MAIKE-ENTREGA2 (D-PROD-274) — o VC (valor cultural, %) do rótulo do saco de semente, na linha do insumo: opcional;
+ * texto ("50", "62.5"), maior que 0 e até 100, até 2 casas (400 `formato` / `fora_da_faixa`). A coluna não tem CHECK
+ * (a allowlist EXPAND o recusa em tabela antiga): a API é a barreira, como na D-PROD-265.
+ * @param {unknown} v @param {string} campo @returns {string}
+ */
+export const vcDoCorpo = (v, campo = 'vc_percentual') => {
+  if (typeof v !== 'string' || !PADRAO_VC.test(v.trim())) {
+    throw invalido(`${campo} deve ser o VC em %, em texto decimal com até 2 casas (ex.: "50" ou "62.5")`, { field: campo, reason: 'formato' });
+  }
+  const vc = dec(v.trim());
+  if (!vc.gt(0) || vc.gt(100)) throw invalido(`${campo} deve ser maior que 0 e no máximo 100`, { field: campo, reason: 'fora_da_faixa' });
+  return vc.toFixed(2);
+};
 
 /**
  * Id obrigatório de referência: texto não vazio; senão 400.
@@ -184,6 +202,8 @@ export const normalizarDadosDaLinha = (c, prefixo = '') => ({
   local_estoque_id: idObrigatorio(c.local_estoque_id, `${prefixo}local_estoque_id`),
   quantidade: quantidadeDoCorpo(c.quantidade, `${prefixo}quantidade`),
   observacao: textoDoCorpo(c.observacao, `${prefixo}observacao`) ?? null,
+  // MAIKE-ENTREGA2 (D-PROD-274): o VC só existe na linha quando vem (sem ele — ou null —, a linha e o fingerprint de antes).
+  ...(c.vc_percentual !== undefined && c.vc_percentual !== null ? { vc_percentual: vcDoCorpo(c.vc_percentual, `${prefixo}vc_percentual`) } : {}),
 });
 
 /** Linha gravada na forma dos dados do corpo (base da edição). @param {any} r @returns {DadosDaLinha} */
@@ -354,6 +374,8 @@ const gravarLinha = async (tx, contexto, { clienteId, empresaId, atividade, apon
     ...baixa.colunas,
     operation_id: operationId,
     observacao: dados.observacao,
+    // MAIKE-ENTREGA2 (D-PROD-274): o VC da semente (só na linha de lançamento que o trouxe).
+    ...(dados.vc_percentual ? { vc_percentual: dados.vc_percentual } : {}),
     criado_por_usuario_id: auth.usuarioId ?? null,
   });
   await inserirFatias(

@@ -349,14 +349,21 @@ export const textoDaLeituraVigente = (medidor) => {
 // ─── Linha de PRODUTO (janela e "Repetir") ───────────────────────────────
 
 /**
- * @typedef {{ id: string, rotulo: string, unidade_principal_estoque: string|null } | null} ProdutoEscolhido
- * @typedef {{ produto: ProdutoEscolhido, local_estoque_id: string|null, quantidade: string, observacao: string }} FormularioLinhaProduto
+ * @typedef {{ id: string, rotulo: string, unidade_principal_estoque: string|null, carencia_dias?: number|null } | null} ProdutoEscolhido
+ * @typedef {{ produto: ProdutoEscolhido, local_estoque_id: string|null, quantidade: string, observacao: string, vc?: string }} FormularioLinhaProduto
+ *   D-PROD-274: `carencia_dias` (a carência da bula, para o "Pasto liberado em") e `vc` (o VC % digitado, Plantio).
  */
 
 /** A opção do seletor (ou o resumo gravado) como o formulário guarda. @param {any} o @returns {ProdutoEscolhido} */
 export const produtoEscolhido = (o) =>
   ehObjeto(o) && o.id != null
-    ? { id: String(o.id), rotulo: texto(o.nome) || texto(o.rotulo) || String(o.id), unidade_principal_estoque: texto(o.unidade_principal_estoque) || texto(o.unidade) || null }
+    ? {
+        id: String(o.id),
+        rotulo: texto(o.nome) || texto(o.rotulo) || String(o.id),
+        unidade_principal_estoque: texto(o.unidade_principal_estoque) || texto(o.unidade) || null,
+        // D-PROD-274: a carência da bula (dias), quando a opção a traz.
+        ...(Number.isInteger(o.carencia_dias) ? { carencia_dias: o.carencia_dias } : {}),
+      }
     : null;
 
 /** @returns {FormularioLinhaProduto} */

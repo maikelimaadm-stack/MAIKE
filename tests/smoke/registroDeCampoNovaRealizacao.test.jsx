@@ -41,7 +41,7 @@ const ACUDE = { id: "area-acude", nome: "PASTO DO AÇUDE", tamanho_hectares: 27.
 const AREAS = [AROEIRA, ACUDE];
 const PRODUTOS = [{ id: "p1", nome: "Tiametoxam", unidade: "L", unidade_principal_estoque: "L" }];
 const LOCAIS = { p1: [{ local_estoque_id: "l1", local_nome: "Depósito", disponivel: "60.0000", unidade: "L" }] };
-const TIPOS_NA_ORDEM = ["Preparo do solo", "Formação de pastagem (plantio)", "Fertilização", "Aplicação", "Roçada e tratos", "Manutenção", "Outros"];
+const TIPOS_NA_ORDEM = ["Preparo do solo", "Plantio de pastagem", "Fertilização", "Aplicação", "Roçada e tratos", "Manutenção", "Outros"];
 // D-PROD-267: "Como fica depois de salvar?" fecha o formulário, logo antes do rodapé.
 const SECOES_NA_ORDEM = ["Área", "Operação", "Datas", "Insumos", "Máquinas", "Equipe", "Serviço de terceiro (se houver)", "Planejamento", "Informações complementares", "Como fica depois de salvar?"];
 

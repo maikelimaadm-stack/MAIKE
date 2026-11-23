@@ -58,13 +58,32 @@
  * `<operation_id>` (i = 0) ou `<operation_id>:a<i+1>`, que deriva as das linhas como sempre (`:p1`, `:o1`, `:s1`).
  * Permissão = a de lançar apontamento (`atividadeApontamentos.criar`). Tenant só do auth_context.
  * D-PROD-267: `concluir` e `nova_atividade` entram no fingerprint só quando vêm (sem eles, byte a byte o de antes).
+ *
+ * D-PROD-274 (MAIKE-ENTREGA2) — os campos de cada TIPO FIXO (a `categoria` da operação):
+ *  - PLANTIO ("Plantio de pastagem"): `plantio: { cultura_id, forma_plantio?, semente_incrustada?, cobertura?,
+ *    consorcio_cultura_id? }` é OBRIGATÓRIO (o capim, do Cadastro de Culturas da MESMA fazenda e ativo; 422 se não). A busca
+ *    do passo 3 só acha a atividade de plantio com o MESMO capim: capim diferente abre outra. Ao criar, grava a
+ *    `AtividadePlantio` (1 para 1); ao continuar, só completa o que estava vazio (nunca sobrescreve). Fora do PLANTIO, 400;
+ *  - SAFRA automática: sem `safra_ciclo` no corpo, a atividade NOVA de Plantio, de Fertilização (TRATO_CULTURAL) ou de
+ *    operação com `exige_safra` recebe o ano agrícola do dia, de 1º de julho a 30 de junho (`safraDoDia`: 28/11/2026 e
+ *    15/01/2027 → "2026/27"). É calculada DEPOIS do fingerprint (que segue com `safra_ciclo: null`);
+ *  - APLICACAO: `numero_receituario` opcional (texto curto, no apontamento de cada área); fora da Aplicação, 400;
+ *  - BENFEITORIA e OUTROS (Manutenção e Outros): a ÁREA É OPCIONAL. Sem `area_id`/`areas`, `local` é obrigatório (texto,
+ *    em MAIÚSCULAS); a atividade é buscada pelo MESMO local (aberta, da operação, sem área) e a trava é por local; com
+ *    área, `local` → 400. `unidade_producao_sigla` (KM | M | UN, opcional) é a unidade da quantidade feita
+ *    (`quantidade_produzida_dia`) quando a operação não tem unidade de produção; diferente da do serviço → 422;
+ *  - a linha de insumo aceita `vc_percentual` (o VC da semente, 0 < VC ≤ 100, até 2 casas, sem CHECK no banco);
+ *  - a resposta traz `registro.pasto_liberado_em` (o fim — término ou dia — mais a maior carência dos produtos lançados,
+ *    do cadastro do produto) e `registro.carencia_dias`; nada é gravado (calculado na leitura).
+ * Os campos novos entram no fingerprint SÓ quando vêm: sem eles, byte a byte o de antes (`v: 1`/`v: 2`). O registro sem
+ * área usa `v: 3`. Com várias áreas, a quantidade feita é repartida pelos hectares, como as linhas.
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { AppError, atividadeReferenciaInvalida, atividadeServicoParado } from '../../shared/errors/AppError.js';
+import { AppError, atividadeDataInvalida, atividadeReferenciaInvalida, atividadeServicoParado } from '../../shared/errors/AppError.js';
 import { fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { dec } from '../financeiro/decimalFinanceiro.js';
-import { exigirEmpresaDoTenant, invalido } from '../gestao/gestaoComum.js';
+import { exigirEmpresaDoTenant, invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import {
   PADRAO_DECIMAL,
   STATUS_ATIVIDADE,
@@ -75,6 +94,7 @@ import {
   diaDoCorpo,
   exigirDiaNaoFuturo,
   idOuNulo,
+  pastoLiberadoEm,
   temCampo,
   tempoDaFazenda,
   travarAtividade,
@@ -97,13 +117,15 @@ import {
   concluirAtividadeSeAreasConcluidas,
   exigirAreaDoMapa,
   iniciarAreaNaTransacao,
+  ultimoDiaDaAtividade,
   ultimosDiasDasAreas,
 } from './atividadeAreaService.js';
 import { buscarAreaDaAtividade } from './atividadeAreaRepository.js';
 import { camposDaLinha as camposDaLinhaMaquina, leituraVigenteDoBem } from './atividadeApontamentoMaquinaService.js';
 import { travarBens } from './atividadeApontamentoMaquinaRepository.js';
 import { partesPorHectares, trechosDoMedidor } from './atividadeRegistroRateio.js';
-import { ehTipoAbastecimento } from '../tiposAtividade/tipoAtividadePadroes.js';
+import { CATEGORIAS_TIPO_FIXO, ehTipoAbastecimento } from '../tiposAtividade/tipoAtividadePadroes.js';
+import { registrarEvento } from '../auditoria/auditService.js';
 import { lerTipoAtividade } from './atividadeRepository.js';
 import { NOME_MAXIMO, abrirNa } from './atividadeService.js';
 
@@ -177,6 +199,229 @@ export const areasDoRegistro = (v) => {
     if (!dec(hectares).gt(0)) throw invalido(`${campo} deve ser maior que zero`, { field: campo, reason: 'nao_positivo' });
     return { area_id: areaId, hectares };
   });
+};
+
+// ─── os campos de cada tipo (D-PROD-274, MAIKE-ENTREGA2) ─────────────────────
+
+/** As formas de plantio (CHECK `AtividadePlantio_forma_plantio_check`). */
+export const FORMAS_PLANTIO = Object.freeze(['A_LANCO', 'EM_LINHA', 'AEREA', 'MUDA']);
+
+/** Os tipos fixos em que a área é OPCIONAL no registro (sem área, o `local` é obrigatório): Manutenção e Outros. */
+export const TIPOS_SEM_AREA = Object.freeze(['BENFEITORIA', 'OUTROS']);
+
+/** Os tipos fixos que recebem a SAFRA automática (além das operações com `exige_safra`): Plantio e Fertilização. */
+export const TIPOS_COM_SAFRA = Object.freeze(['PLANTIO', 'TRATO_CULTURAL']);
+
+/** As unidades da quantidade feita quando a operação não tem unidade de produção: km, m e unidades. */
+export const UNIDADES_FEITAS = Object.freeze(['KM', 'M', 'UN']);
+
+/** Tamanhos (colunas sem CHECK: a API confere). */
+export const LOCAL_MAXIMO = 120;
+export const RECEITUARIO_MAXIMO = 40;
+
+/** O tipo fixo de uma categoria: um dos 7 (o que não for, Outros). @param {unknown} categoria */
+export const tipoFixoDaCategoria = (categoria) => (typeof categoria === 'string' && CATEGORIAS_TIPO_FIXO.includes(categoria) ? categoria : 'OUTROS');
+
+/**
+ * O ANO AGRÍCOLA do dia, de 1º de julho a 30 de junho (o do Plano Safra), no formato "AAAA/AA": 28/11/2026 e 15/01/2027 →
+ * "2026/27"; 30/06/2027 → "2026/27"; 01/07/2027 → "2027/28".
+ * @param {string} dia  `AAAA-MM-DD`
+ */
+export const safraDoDia = (dia) => {
+  const ano = Number(dia.slice(0, 4));
+  const inicio = Number(dia.slice(5, 7)) >= 7 ? ano : ano - 1;
+  return `${inicio}/${String(inicio + 1).slice(-2)}`;
+};
+
+/**
+ * "Pasto liberado em": o fim do serviço (término ou dia) mais a MAIOR carência (dias) entre os produtos aplicados. Sem
+ * nenhuma carência cadastrada, null (o sistema não inventa prazo). A regra mora em `atividadeComum.js` (o detalhe da
+ * atividade calcula o mesmo na leitura); daqui ela segue exportada como antes.
+ */
+export { pastoLiberadoEm };
+
+/**
+ * O LOCAL do serviço sem área (Manutenção e Outros): texto aparado, espaços juntados, em MAIÚSCULAS, até 120 caracteres
+ * (caractere de controle ou marcação → 400). Vazio ou null = sem local.
+ * @param {unknown} v @returns {string|null}
+ */
+export const localDoCorpo = (v) => {
+  const texto = textoDoCorpo(v, 'local', { maiusculas: true });
+  if (!texto) return null;
+  const local = texto.replace(/\s+/g, ' ');
+  if ([...local].length > LOCAL_MAXIMO) throw invalido(`local deve ter no máximo ${LOCAL_MAXIMO} caracteres`, { field: 'local', reason: 'longo' });
+  return local;
+};
+
+/**
+ * O nº do receituário agronômico (Aplicação): texto aparado, até 40 caracteres, como foi digitado. Vazio ou null = sem.
+ * @param {unknown} v @returns {string|null}
+ */
+export const receituarioDoCorpo = (v) => {
+  const texto = textoDoCorpo(v, 'numero_receituario');
+  if (!texto) return null;
+  if ([...texto].length > RECEITUARIO_MAXIMO) {
+    throw invalido(`numero_receituario deve ter no máximo ${RECEITUARIO_MAXIMO} caracteres`, { field: 'numero_receituario', reason: 'longo' });
+  }
+  return texto;
+};
+
+/**
+ * A unidade da quantidade feita: uma de `UNIDADES_FEITAS` (o schema da rota já recusou outra); null = sem.
+ * @param {unknown} v @returns {string|null}
+ */
+export const unidadeFeitaDoCorpo = (v) => {
+  if (v === undefined || v === null) return null;
+  if (typeof v !== 'string' || !UNIDADES_FEITAS.includes(v)) {
+    throw invalido(`unidade_producao_sigla deve ser ${UNIDADES_FEITAS.join(', ')} ou nula`, { field: 'unidade_producao_sigla', reason: 'formato' });
+  }
+  return v;
+};
+
+/**
+ * @typedef {{ cultura_id: string, forma_plantio?: string|null, semente_incrustada?: boolean|null, cobertura?: boolean|null,
+ *   consorcio_cultura_id?: string|null }} PlantioDoCorpo
+ */
+
+/**
+ * Os dados do PLANTIO do corpo: o capim (`cultura_id`, obrigatório) e o que é opcional; só as chaves que VIERAM (a forma do
+ * fingerprint não depende do que o cliente omitiu). O consórcio nunca é o próprio capim (400 `igual_ao_capim`).
+ * @param {unknown} v @returns {PlantioDoCorpo}
+ */
+export const plantioDoCorpo = (v) => {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) throw invalido('plantio deve ser um objeto', { field: 'plantio', reason: 'formato' });
+  const c = /** @type {Record<string, unknown>} */ (v);
+  const culturaId = idOuNulo(c.cultura_id, 'plantio.cultura_id');
+  if (!culturaId) throw invalido('plantio.cultura_id é obrigatório: escolha o capim plantado', { field: 'plantio.cultura_id', reason: 'obrigatorio' });
+  /** @type {PlantioDoCorpo} */
+  const p = { cultura_id: culturaId };
+  if (c.forma_plantio !== undefined) {
+    if (c.forma_plantio !== null && (typeof c.forma_plantio !== 'string' || !FORMAS_PLANTIO.includes(c.forma_plantio))) {
+      throw invalido(`plantio.forma_plantio deve ser ${FORMAS_PLANTIO.join(', ')} ou nula`, { field: 'plantio.forma_plantio', reason: 'formato' });
+    }
+    p.forma_plantio = /** @type {string|null} */ (c.forma_plantio);
+  }
+  for (const chave of /** @type {const} */ (['semente_incrustada', 'cobertura'])) {
+    if (c[chave] === undefined) continue;
+    if (c[chave] !== null && typeof c[chave] !== 'boolean') throw invalido(`plantio.${chave} deve ser true, false ou nulo`, { field: `plantio.${chave}`, reason: 'formato' });
+    p[chave] = /** @type {boolean|null} */ (c[chave]);
+  }
+  if (c.consorcio_cultura_id !== undefined) {
+    const consorcio = idOuNulo(c.consorcio_cultura_id, 'plantio.consorcio_cultura_id');
+    if (consorcio && consorcio === culturaId) {
+      throw invalido('plantio.consorcio_cultura_id não pode ser o próprio capim plantado', { field: 'plantio.consorcio_cultura_id', reason: 'igual_ao_capim' });
+    }
+    p.consorcio_cultura_id = consorcio ?? null;
+  }
+  return p;
+};
+
+/**
+ * Uma cultura do plantio (o capim ou o consórcio): do Cadastro de Culturas DESTA fazenda (outra fazenda ou outro tenant =
+ * `inexistente`, sem oráculo) e ativa. A FK composta (cliente, fazenda, cultura) é a última barreira.
+ * @param {any} tx @param {string} clienteId @param {string} empresaId @param {string} id @param {string} campo
+ */
+const exigirCulturaDoPlantio = async (tx, clienteId, empresaId, id, campo) => {
+  const c = await tx.cultura.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, id }, select: { id: true, ativo: true } });
+  if (!c) throw atividadeReferenciaInvalida(campo, 'inexistente');
+  if (!c.ativo) throw atividadeReferenciaInvalida(campo, 'inativo');
+};
+
+/** As colunas opcionais do plantio, na ordem do formulário. */
+const OPCIONAIS_DO_PLANTIO = Object.freeze(/** @type {const} */ (['forma_plantio', 'semente_incrustada', 'cobertura', 'consorcio_cultura_id']));
+
+/**
+ * Grava os dados do plantio de uma atividade de Plantio de pastagem: ao CRIAR a atividade, a linha nova (1 para 1); ao
+ * CONTINUAR, completa só o que estava vazio (nunca sobrescreve o que já foi gravado), auditado. Devolve o que mudou.
+ * @param {any} tx @param {any} contexto
+ * @param {{ clienteId: string, empresaId: string, atividadeId: string, plantio: PlantioDoCorpo, nova: boolean }} p
+ */
+const gravarPlantio = async (tx, contexto, { clienteId, empresaId, atividadeId, plantio, nova }) => {
+  if (nova) {
+    const linha = await tx.atividadePlantio.create({
+      data: {
+        cliente_id: clienteId, empresa_id: empresaId, atividade_id: atividadeId, cultura_id: plantio.cultura_id,
+        ...Object.fromEntries(OPCIONAIS_DO_PLANTIO.map((k) => [k, plantio[k] ?? null])),
+      },
+    });
+    await registrarEvento(contexto, { acao: 'atividade.plantio', entidade: 'AtividadePlantio', entidadeId: linha.id, dadosNovos: { atividade_id: atividadeId, cultura_id: linha.cultura_id, ...Object.fromEntries(OPCIONAIS_DO_PLANTIO.map((k) => [k, linha[k] ?? null])) } }, tx);
+    return [];
+  }
+  const atual = await tx.atividadePlantio.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, atividade_id: atividadeId } });
+  if (!atual) return [];
+  /** @type {Record<string, unknown>} */
+  const completar = {};
+  for (const k of OPCIONAIS_DO_PLANTIO) {
+    if ((atual[k] === null || atual[k] === undefined) && plantio[k] !== undefined && plantio[k] !== null) completar[k] = plantio[k];
+  }
+  if (!Object.keys(completar).length) return [];
+  await tx.atividadePlantio.update({ where: { id: atual.id }, data: completar });
+  await registrarEvento(
+    contexto,
+    { acao: 'atividade.plantio', entidade: 'AtividadePlantio', entidadeId: atual.id, dadosAnteriores: Object.fromEntries(Object.keys(completar).map((k) => [k, null])), dadosNovos: { ...completar, completado_pelo_registro: true } },
+    tx
+  );
+  return Object.keys(completar);
+};
+
+/**
+ * A unidade da quantidade feita na atividade (`unidade_producao_sigla`): vazia, recebe a do registro (auditado, sem
+ * mexer na `versao`: é dado do lançamento, como os totais); igual (sem caixa), nada; diferente → 422.
+ * @param {any} tx @param {any} contexto @param {{ clienteId: string, empresaId: string, atividadeId: string, sigla: string }} p
+ */
+const exigirUnidadeDaAtividade = async (tx, contexto, { clienteId, empresaId, atividadeId, sigla }) => {
+  const a = await tx.atividade.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, id: atividadeId }, select: { unidade_producao_sigla: true } });
+  const atual = a?.unidade_producao_sigla ?? null;
+  if (atual && atual.toUpperCase() !== sigla.toUpperCase()) {
+    throw atividadeReferenciaInvalida('unidade_producao_sigla', 'diferente_da_atividade', { details: { unidade_da_atividade: atual, unidade_informada: sigla } });
+  }
+  if (atual) return;
+  await tx.atividade.updateMany({ where: { cliente_id: clienteId, empresa_id: empresaId, id: atividadeId }, data: { unidade_producao_sigla: sigla } });
+  await registrarEvento(contexto, { acao: 'atividade.unidade_producao', entidade: 'Atividade', entidadeId: atividadeId, dadosAnteriores: { unidade_producao_sigla: null }, dadosNovos: { unidade_producao_sigla: sigla, origem_registro_de_campo: true } }, tx);
+};
+
+/**
+ * Conclui a atividade SEM ÁREA (Manutenção e Outros com o local) no `dia`, na transação de quem chama e SOB a trava dela:
+ * nunca antes do início nem do último dia lançado (422, como na área); tipo que exige produção sem produção somada > 0 fica
+ * ABERTA (como na conclusão automática). Auditado. Devolve se concluiu.
+ * @param {any} tx @param {any} contexto
+ * @param {{ clienteId: string, empresaId: string, atividadeId: string, dia: string, tempo: { agora: Date }, automatica: boolean }} p
+ */
+const concluirAtividadeSemArea = async (tx, contexto, { clienteId, empresaId, atividadeId, dia, tempo, automatica }) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const a = await tx.atividade.findFirst({
+    where: { cliente_id: clienteId, empresa_id: empresaId, id: atividadeId },
+    select: { id: true, status: true, versao: true, data_inicio: true, tipo_atividade_id: true },
+  });
+  if (!a || a.status !== STATUS_ATIVIDADE.ABERTA) return false;
+  const inicio = diaDe(a.data_inicio) ?? null;
+  if (inicio && dia < inicio) throw atividadeDataInvalida('data_conclusao', 'antes_do_inicio', { data: dia, data_inicio: inicio });
+  const ultimo = await ultimoDiaDaAtividade(tx, { clienteId, empresaId, atividadeId });
+  if (ultimo && dia < ultimo) throw atividadeDataInvalida('data_conclusao', 'antes_do_ultimo_dia', { data: dia, ultimo_dia: ultimo });
+  const tipo = await lerTipoAtividade(tx, clienteId, a.tipo_atividade_id);
+  if (tipo?.exige_producao) {
+    const soma = await tx.atividadeApontamento.aggregate({
+      where: { cliente_id: clienteId, empresa_id: empresaId, atividade_id: atividadeId, status: 'CONFIRMADO' },
+      _sum: { quantidade_produzida_dia: true },
+    });
+    const producao = soma._sum.quantidade_produzida_dia;
+    if (producao === null || !dec(producao).gt(0)) return false;
+  }
+  const r = await tx.atividade.updateMany({
+    where: { cliente_id: clienteId, empresa_id: empresaId, id: atividadeId, status: STATUS_ATIVIDADE.ABERTA, versao: a.versao },
+    data: { status: STATUS_ATIVIDADE.CONCLUIDA, data_conclusao: comoData(dia), concluida_em: tempo.agora, concluida_por_usuario_id: auth.usuarioId ?? null, versao: { increment: 1 } },
+  });
+  if (r.count !== 1) return false;
+  await registrarEvento(
+    contexto,
+    {
+      acao: 'atividade.concluir', entidade: 'Atividade', entidadeId: atividadeId,
+      dadosAnteriores: { id: atividadeId, status: STATUS_ATIVIDADE.ABERTA, versao: a.versao },
+      dadosNovos: { id: atividadeId, status: STATUS_ATIVIDADE.CONCLUIDA, data_conclusao: dia, versao: a.versao + 1, sem_area: true, ...(automatica ? { conclusao_automatica: true, motivo: 'servico_novo' } : { origem_registro_de_campo: true }) },
+    },
+    tx
+  );
+  return true;
 };
 
 /** A chave das linhas do apontamento da área `i` (0-based): a do corpo na 1ª; `<chave>:a<i+1>` nas outras. @param {string} chave @param {number} i */
@@ -332,14 +577,29 @@ const naArea = async ({ ativo, indice, areaId, indices }, fn) => {
 /**
  * A atividade ABERTA do tipo (a operação), da fazenda, que contém a área PLANEJADA ou EM_ANDAMENTO, em qualquer mês
  * (D-PROD-267: sem a regra do mês); havendo mais de uma, a de `updatedAt` mais recente (desempate: `id` maior).
- * @param {any} tx @param {{ clienteId: string, empresaId: string, tipoId: string, areaId: string }} p
+ * D-PROD-274: `culturaId` (o capim, no Plantio de pastagem) restringe às atividades de plantio com o MESMO capim.
+ * @param {any} tx @param {{ clienteId: string, empresaId: string, tipoId: string, areaId: string, culturaId?: string|null }} p
  */
-const buscarAtividadeAberta = (tx, { clienteId, empresaId, tipoId, areaId }) =>
+const buscarAtividadeAberta = (tx, { clienteId, empresaId, tipoId, areaId, culturaId = null }) =>
   tx.atividade.findFirst({
     where: {
       cliente_id: clienteId, empresa_id: empresaId, tipo_atividade_id: tipoId, status: STATUS_ATIVIDADE.ABERTA,
       areas: { some: { area_id: areaId, status: { in: [STATUS_AREA.PLANEJADA, STATUS_AREA.EM_ANDAMENTO] } } },
+      // D-PROD-274: no Plantio de pastagem, o MESMO capim (capim diferente abre outra atividade).
+      ...(culturaId ? { plantio: { is: { cultura_id: culturaId } } } : {}),
     },
+    orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+    select: { id: true, nome: true, data_inicio: true },
+  });
+
+/**
+ * D-PROD-274 — a atividade ABERTA da operação SEM área no MESMO local (Manutenção e Outros); havendo mais de uma, a de
+ * `updatedAt` mais recente (desempate: `id` maior).
+ * @param {any} tx @param {{ clienteId: string, empresaId: string, tipoId: string, local: string }} p
+ */
+const buscarAtividadeAbertaNoLocal = (tx, { clienteId, empresaId, tipoId, local }) =>
+  tx.atividade.findFirst({
+    where: { cliente_id: clienteId, empresa_id: empresaId, tipo_atividade_id: tipoId, status: STATUS_ATIVIDADE.ABERTA, local, areas: { none: {} } },
     orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
     select: { id: true, nome: true, data_inicio: true },
   });
@@ -377,7 +637,7 @@ const situacaoDoParado = async (tx, { clienteId, empresaId, atividadeId, areaIds
 export const registrarCampo = async (contexto, corpo) => {
   const cli = exigirAuthContext(contexto?.auth).clienteId;
   const comAreas = temCampo(corpo, 'areas') && corpo.areas !== undefined;
-  const comAreaId = temCampo(corpo, 'area_id') && corpo.area_id !== undefined;
+  const comAreaId = temCampo(corpo, 'area_id') && corpo.area_id !== undefined && corpo.area_id !== null;
   if (comAreas && comAreaId) {
     throw invalido('envie a área em area_id ou as áreas em areas[], nunca os dois', { field: 'areas', reason: 'areas_e_area_id' });
   }
@@ -385,13 +645,25 @@ export const registrarCampo = async (contexto, corpo) => {
     throw invalido('com areas[], os hectares vão em cada área (areas[i].hectares), não em area_executada_dia', { field: 'area_executada_dia', reason: 'com_areas' });
   }
   const tipoId = idOuNulo(corpo.tipo_atividade_id, 'tipo_atividade_id');
-  if (!comAreas && !idOuNulo(corpo.area_id, 'area_id')) throw invalido('area_id ou areas é obrigatório', { field: 'area_id', reason: 'obrigatorio' });
+  // D-PROD-274: sem área, a decisão (Manutenção e Outros com o local; os outros tipos → área obrigatória) é do tipo, lido
+  // na transação. Aqui só o que não depende dele.
+  const semArea = !comAreas && !idOuNulo(corpo.area_id, 'area_id');
   if (!tipoId) throw invalido('tipo_atividade_id é obrigatório', { field: 'tipo_atividade_id', reason: 'obrigatorio' });
   const safra = corpo.safra_ciclo === undefined || corpo.safra_ciclo === null ? null : String(corpo.safra_ciclo).trim() || null;
   /** @type {import('./atividadeApontamentoService.js').EstadoDoDia} */
   const estado = { ...VAZIO, ...camposDoCorpo(corpo) };
+  // D-PROD-274: os campos de cada tipo (só os que vieram; a regra de cada um depende do tipo, conferida na transação).
+  const local = localDoCorpo(corpo.local);
+  const receituario = receituarioDoCorpo(corpo.numero_receituario);
+  const unidadeFeita = unidadeFeitaDoCorpo(corpo.unidade_producao_sigla);
+  const plantio = corpo.plantio === undefined || corpo.plantio === null ? null : plantioDoCorpo(corpo.plantio);
+  if (local && !semArea) throw invalido('local só vale sem área: com área, o lugar do serviço é a própria área', { field: 'local', reason: 'com_area' });
+  if (semArea && estado.area_executada_dia !== null && estado.area_executada_dia !== undefined) {
+    throw invalido('sem área não há hectares feitos: informe a quantidade feita', { field: 'area_executada_dia', reason: 'sem_area' });
+  }
   // As áreas do registro (na ordem do corpo). Uma área só é o caso de sempre: os hectares dela são o `area_executada_dia`.
-  const alvos = comAreas ? areasDoRegistro(corpo.areas) : [{ area_id: /** @type {string} */ (idOuNulo(corpo.area_id, 'area_id')), hectares: estado.area_executada_dia }];
+  // D-PROD-274: sem área (Manutenção e Outros), nenhuma.
+  const alvos = semArea ? [] : comAreas ? areasDoRegistro(corpo.areas) : [{ area_id: /** @type {string} */ (idOuNulo(corpo.area_id, 'area_id')), hectares: estado.area_executada_dia }];
   if (comAreas && alvos.length === 1) estado.area_executada_dia = alvos[0].hectares;
   const varias = alvos.length > 1;
   /** @param {number} i */
@@ -414,6 +686,12 @@ export const registrarCampo = async (contexto, corpo) => {
     ...(typeof corpo.concluir === 'boolean' ? { concluir: corpo.concluir } : {}),
     ...(novaAtividade !== undefined ? { nova_atividade: novaAtividade } : {}),
   };
+  /** D-PROD-274: os campos de cada tipo, só os que vieram (sem eles, o fingerprint de antes, byte a byte). */
+  const comCamposDoTipo = {
+    ...(plantio ? { plantio: canonico(plantio) } : {}),
+    ...(receituario ? { numero_receituario: receituario } : {}),
+    ...(unidadeFeita ? { unidade_producao_sigla: unidadeFeita } : {}),
+  };
   const origem = origemDoCorpo(corpo.origem);
   const linhas = linhasDoCorpo(corpo);
   if (!linhas.operationId) throw invalido('operation_id é obrigatório', { field: 'operation_id', reason: 'obrigatorio' });
@@ -423,13 +701,16 @@ export const registrarCampo = async (contexto, corpo) => {
   return comReciboOpcional(contexto, {
     operationId: chave,
     tipoOperacao: TIPO_OPERACAO_REGISTRAR,
-    bases: alvos.map((_, i) => chaveDaArea(chave, i)),
+    bases: semArea ? [chave] : alvos.map((_, i) => chaveDaArea(chave, i)),
     // Uma área: o fingerprint de sempre (o `areas` de um item é o mesmo registro do `area_id`). Várias: v2, com as áreas.
+    // D-PROD-274: sem área (Manutenção e Outros), v3, com o local.
     fingerprint: () =>
       fingerprintDePayload(
-        varias
-          ? { v: 2, empresa_id: corpo.empresa_id, areas: alvos, tipo_atividade_id: tipoId, safra_ciclo: safra, estado, ...comTermino, ...comDecisoes, origem, ...linhasDoFingerprint }
-          : { v: 1, empresa_id: corpo.empresa_id, area_id: alvos[0].area_id, tipo_atividade_id: tipoId, safra_ciclo: safra, estado, ...comTermino, ...comDecisoes, origem, ...linhasDoFingerprint }
+        semArea
+          ? { v: 3, empresa_id: corpo.empresa_id, local, tipo_atividade_id: tipoId, safra_ciclo: safra, estado, ...comTermino, ...comDecisoes, ...comCamposDoTipo, origem, ...linhasDoFingerprint }
+          : varias
+            ? { v: 2, empresa_id: corpo.empresa_id, areas: alvos, tipo_atividade_id: tipoId, safra_ciclo: safra, estado, ...comTermino, ...comDecisoes, ...comCamposDoTipo, origem, ...linhasDoFingerprint }
+            : { v: 1, empresa_id: corpo.empresa_id, area_id: alvos[0].area_id, tipo_atividade_id: tipoId, safra_ciclo: safra, estado, ...comTermino, ...comDecisoes, ...comCamposDoTipo, origem, ...linhasDoFingerprint }
       ),
     executar: async (tx) => {
       const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
@@ -451,17 +732,33 @@ export const registrarCampo = async (contexto, corpo) => {
       // Emenda 1: abastecimento é da máquina (tanque, litros, horímetro), não um registro genérico por área.
       if (ehTipoAbastecimento(tipo.nome_tipo)) throw atividadeReferenciaInvalida('tipo_atividade_id', 'abastecimento');
 
+      // D-PROD-274: os campos de cada tipo fixo.
+      const tipoFixo = tipoFixoDaCategoria(tipo.categoria);
+      if (semArea) {
+        if (!TIPOS_SEM_AREA.includes(tipoFixo)) throw invalido('area_id ou areas é obrigatório', { field: 'area_id', reason: 'obrigatorio' });
+        if (!local) throw invalido('sem área, informe o local do serviço (ex.: "DIVISA NORTE")', { field: 'local', reason: 'obrigatorio' });
+      }
+      if (plantio && tipoFixo !== 'PLANTIO') throw invalido('plantio só vale no Plantio de pastagem', { field: 'plantio', reason: 'tipo_sem_plantio' });
+      if (!plantio && tipoFixo === 'PLANTIO') throw invalido('plantio.cultura_id é obrigatório: escolha o capim plantado', { field: 'plantio.cultura_id', reason: 'obrigatorio' });
+      if (receituario && tipoFixo !== 'APLICACAO') throw invalido('numero_receituario só vale na Aplicação', { field: 'numero_receituario', reason: 'tipo_sem_receituario' });
+      if (plantio) {
+        await exigirCulturaDoPlantio(tx, cli, empresaId, plantio.cultura_id, 'plantio.cultura_id');
+        if (plantio.consorcio_cultura_id) await exigirCulturaDoPlantio(tx, cli, empresaId, plantio.consorcio_cultura_id, 'plantio.consorcio_cultura_id');
+      }
+
       // A corrida: quem chega depois espera aqui e então ENXERGA a atividade criada pelo primeiro. Uma trava por área,
       // em ordem de id: dois registros com áreas em comum se enfileiram, sem deadlock. D-PROD-267: sem o mês na chave
-      // (a atividade aberta vale em qualquer mês).
-      for (const areaId of alvos.map((a) => a.area_id).sort()) {
-        const trava = `atividade-registro:${cli}:${empresaId}:${tipoId}:${areaId}`;
+      // (a atividade aberta vale em qualquer mês). D-PROD-274: sem área, uma trava pelo local.
+      const travas = semArea ? [`local:${local}`] : alvos.map((a) => a.area_id).sort();
+      for (const alvoDaTrava of travas) {
+        const trava = `atividade-registro:${cli}:${empresaId}:${tipoId}:${alvoDaTrava}`;
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${trava}, 0))`;
       }
 
       let achada = null;
+      if (semArea) achada = await buscarAtividadeAbertaNoLocal(tx, { clienteId: cli, empresaId, tipoId, local: /** @type {string} */ (local) });
       for (const a of alvos) {
-        achada = await buscarAtividadeAberta(tx, { clienteId: cli, empresaId, tipoId, areaId: a.area_id });
+        achada = await buscarAtividadeAberta(tx, { clienteId: cli, empresaId, tipoId, areaId: a.area_id, culturaId: plantio?.cultura_id ?? null });
         if (achada) break;
       }
 
@@ -470,29 +767,47 @@ export const registrarCampo = async (contexto, corpo) => {
       let anterior = null;
       if (achada) {
         if (!(await travarAtividade(tx, cli, empresaId, achada.id))) throw atividadeReferenciaInvalida('tipo_atividade_id', 'inexistente');
-        const p = await situacaoDoParado(tx, { clienteId: cli, empresaId, atividadeId: achada.id, areaIds: alvos.map((a) => a.area_id), dia });
-        if (p.parado && p.maisRecente) {
-          if (novaAtividade === undefined) {
-            throw atividadeServicoParado({
-              atividade_id: achada.id, atividade_nome: achada.nome, ultimo_dia: p.maisRecente.ultimo, area_id: p.maisRecente.area_id, dias_parado: p.dias, limite_dias: DIAS_PARADO_MAXIMO,
-            });
-          }
-          if (novaAtividade === true) {
-            // "É um serviço novo": as áreas do registro em andamento na antiga concluem no último dia lançado em cada uma.
-            let concluidas = 0;
-            for (const l of p.linhas) {
-              const ultimo = p.ultimos.get(l.id);
-              if (l.status !== STATUS_AREA.EM_ANDAMENTO || !ultimo) continue;
-              const linha = await buscarAreaDaAtividade(tx, cli, empresaId, achada.id, l.id);
-              // O lançamento antes do início da área (o dia anterior ao início da atividade) não a conclui antes de começar.
-              const inicioDaArea = diaDe(linha?.data_inicio) ?? null;
-              const fim = inicioDaArea && inicioDaArea > ultimo ? inicioDaArea : ultimo;
-              await concluirAreaNaTransacao(tx, contexto, { clienteId: cli, empresaId, atividadeId: achada.id, area: linha, dia: fim });
-              concluidas += 1;
+        if (semArea) {
+          // D-PROD-274: sem área, o "parado" olha o último dia lançado na atividade toda.
+          const ultimo = await ultimoDiaDaAtividade(tx, { clienteId: cli, empresaId, atividadeId: achada.id });
+          const dias = ultimo ? diasEntre(ultimo, dia) : 0;
+          if (ultimo && dias > DIAS_PARADO_MAXIMO) {
+            if (novaAtividade === undefined) {
+              throw atividadeServicoParado({ atividade_id: achada.id, atividade_nome: achada.nome, ultimo_dia: ultimo, area_id: null, local, dias_parado: dias, limite_dias: DIAS_PARADO_MAXIMO });
             }
-            const fechou = await concluirAtividadeSeAreasConcluidas(tx, contexto, { clienteId: cli, empresaId, atividadeId: achada.id, tempo });
-            anterior = { atividade_id: achada.id, atividade_nome: achada.nome, ultimo_dia: p.maisRecente.ultimo, areas_concluidas: concluidas, atividade_concluida: fechou };
-            achada = null;
+            if (novaAtividade === true) {
+              const inicio = diaDe(achada.data_inicio) ?? null;
+              const fim = inicio && inicio > ultimo ? inicio : ultimo;
+              const fechou = await concluirAtividadeSemArea(tx, contexto, { clienteId: cli, empresaId, atividadeId: achada.id, dia: fim, tempo, automatica: true });
+              anterior = { atividade_id: achada.id, atividade_nome: achada.nome, ultimo_dia: ultimo, areas_concluidas: 0, atividade_concluida: fechou };
+              achada = null;
+            }
+          }
+        } else {
+          const p = await situacaoDoParado(tx, { clienteId: cli, empresaId, atividadeId: achada.id, areaIds: alvos.map((a) => a.area_id), dia });
+          if (p.parado && p.maisRecente) {
+            if (novaAtividade === undefined) {
+              throw atividadeServicoParado({
+                atividade_id: achada.id, atividade_nome: achada.nome, ultimo_dia: p.maisRecente.ultimo, area_id: p.maisRecente.area_id, dias_parado: p.dias, limite_dias: DIAS_PARADO_MAXIMO,
+              });
+            }
+            if (novaAtividade === true) {
+              // "É um serviço novo": as áreas do registro em andamento na antiga concluem no último dia lançado em cada uma.
+              let concluidas = 0;
+              for (const l of p.linhas) {
+                const ultimo = p.ultimos.get(l.id);
+                if (l.status !== STATUS_AREA.EM_ANDAMENTO || !ultimo) continue;
+                const linha = await buscarAreaDaAtividade(tx, cli, empresaId, achada.id, l.id);
+                // O lançamento antes do início da área (o dia anterior ao início da atividade) não a conclui antes de começar.
+                const inicioDaArea = diaDe(linha?.data_inicio) ?? null;
+                const fim = inicioDaArea && inicioDaArea > ultimo ? inicioDaArea : ultimo;
+                await concluirAreaNaTransacao(tx, contexto, { clienteId: cli, empresaId, atividadeId: achada.id, area: linha, dia: fim });
+                concluidas += 1;
+              }
+              const fechou = await concluirAtividadeSeAreasConcluidas(tx, contexto, { clienteId: cli, empresaId, atividadeId: achada.id, tempo });
+              anterior = { atividade_id: achada.id, atividade_nome: achada.nome, ultimo_dia: p.maisRecente.ultimo, areas_concluidas: concluidas, atividade_concluida: fechou };
+              achada = null;
+            }
           }
         }
       }
@@ -502,6 +817,8 @@ export const registrarCampo = async (contexto, corpo) => {
       let criada = false;
       /** O que o registro fez com cada área da atividade, na ordem do corpo. */
       const situacao = alvos.map(() => ({ atividade_area_id: /** @type {string|null} */ (null), adicionada: false, iniciada: false }));
+      /** D-PROD-274: os dados do plantio que o registro completou na atividade que continuou. */
+      let plantioCompletado = /** @type {string[]} */ ([]);
       if (achada) {
         atividadeId = achada.id;
         atividadeNome = achada.nome;
@@ -520,23 +837,32 @@ export const registrarCampo = async (contexto, corpo) => {
             situacao[i].atividade_area_id = linha.id;
           });
         }
+        if (plantio) plantioCompletado = await gravarPlantio(tx, contexto, { clienteId: cli, empresaId, atividadeId, plantio, nova: false });
+        if (unidadeFeita) await exigirUnidadeDaAtividade(tx, contexto, { clienteId: cli, empresaId, atividadeId, sigla: unidadeFeita });
       } else {
         criada = true;
         const bemDaPrimeiraMaquina = Array.isArray(corpo.maquinas) && corpo.maquinas[0]?.bem_id ? String(corpo.maquinas[0].bem_id) : null;
-        const comum = { data_inicio: dia, safra_ciclo: safra, bem_id: bemDaPrimeiraMaquina };
-        const nome = nomeDoRegistro(tipo.nome_tipo, nomes.get(alvos[0].area_id) ?? '', dia, alvos.length - 1);
+        // D-PROD-274: a SAFRA automática (o ano agrícola do dia) quando o corpo não a traz — Plantio, Fertilização e as
+        // operações com `exige_safra`. Calculada aqui, DEPOIS do fingerprint (que segue com o `safra_ciclo` do corpo).
+        const safraDaAtividade = safra ?? (TIPOS_COM_SAFRA.includes(tipoFixo) || tipo.exige_safra ? safraDoDia(dia) : null);
+        const comum = { data_inicio: dia, safra_ciclo: safraDaAtividade, bem_id: bemDaPrimeiraMaquina };
+        const nome = semArea ? nomeDoRegistro(tipo.nome_tipo, /** @type {string} */ (local), dia) : nomeDoRegistro(tipo.nome_tipo, nomes.get(alvos[0].area_id) ?? '', dia, alvos.length - 1);
         const aberta = await abrirNa(tx, contexto, {
           clienteId: cli,
           empresaId,
           tempo,
           tipoAtividadeId: tipoId,
           // Uma área: a abertura de sempre (EM_ANDAMENTO desde o dia). Várias: `areas[]` (todas "a iniciar", planejada =
-          // o tamanho), iniciadas logo abaixo no dia do registro (= o início da atividade).
-          estado: varias
-            ? { ...comum, nome, areas: alvos.map((a) => ({ area_id: a.area_id, area_planejada: undefined })) }
-            : { ...comum, nome, area_id: alvos[0].area_id, area_planejada: mapas[0].tamanho },
+          // o tamanho), iniciadas logo abaixo no dia do registro (= o início da atividade). D-PROD-274: sem área, o local.
+          estado: semArea
+            ? { ...comum, nome, local }
+            : varias
+              ? { ...comum, nome, areas: alvos.map((a) => ({ area_id: a.area_id, area_planejada: undefined })) }
+              : { ...comum, nome, area_id: alvos[0].area_id, area_planejada: mapas[0].tamanho },
           acao: 'atividade.abrir',
-          auditoriaExtra: { origem_registro_de_campo: true },
+          auditoriaExtra: { origem_registro_de_campo: true, ...(safra === null && safraDaAtividade ? { safra_automatica: true } : {}) },
+          dispensarArea: semArea,
+          unidadeSemCadastro: unidadeFeita,
         });
         atividadeId = aberta.id;
         atividadeNome = aberta.nome;
@@ -545,18 +871,37 @@ export const registrarCampo = async (contexto, corpo) => {
           if (linha?.status === STATUS_AREA.PLANEJADA) await iniciarAreaNaTransacao(tx, contexto, { clienteId: cli, empresaId, atividadeId, area: linha, dia, inicioDaAtividade: dia });
           situacao[i].atividade_area_id = linha?.id ?? null;
         }
+        if (plantio) await gravarPlantio(tx, contexto, { clienteId: cli, empresaId, atividadeId, plantio, nova: true });
+        // A operação COM unidade de produção: a quantidade feita tem de vir nela.
+        if (unidadeFeita) await exigirUnidadeDaAtividade(tx, contexto, { clienteId: cli, empresaId, atividadeId, sigla: unidadeFeita });
       }
 
-      // As linhas de cada área: as do corpo (uma área) ou as partes pelos hectares (várias).
+      // As linhas de cada área: as do corpo (uma área ou nenhuma) ou as partes pelos hectares (várias).
       const planos = varias
         ? await repartirLinhas(tx, { clienteId: cli, empresaId, dia, linhas, hectares: alvos.map((a) => /** @type {string} */ (a.hectares)) })
         : [{ linhas, indices: undefined }];
+      // D-PROD-274: com várias áreas, a quantidade feita também é repartida pelos hectares (antes ia inteira a cada área).
+      const producaoPorArea = varias && estado.quantidade_produzida_dia
+        ? partesPorHectares(estado.quantidade_produzida_dia, alvos.map((a) => /** @type {string} */ (a.hectares)))
+        : null;
+      /** D-PROD-274: o nº do receituário vai em cada apontamento (sem ele, nenhuma chave nova: a gravação de sempre). */
+      const comReceituario = receituario ? { numero_receituario: receituario } : {};
       const respostas = [];
+      if (semArea) {
+        respostas.push(await lancarNaTransacao(tx, contexto, { clienteId: cli, empresaId, tempo, atividadeId, estado: { ...estado, atividade_area_id: null, ...comTermino, ...comReceituario }, origem, linhas }));
+      }
       for (const [i, a] of alvos.entries()) {
         const plano = planos[i];
         const linhasDaArea = varias ? { ...plano.linhas, operationId: chaveDaArea(chave, i) } : linhas;
         // D-PROD-265: o mesmo término em todas as áreas (sem ele, nenhuma chave nova: a gravação de sempre).
-        const estadoDaArea = { ...estado, area_executada_dia: varias ? a.hectares : estado.area_executada_dia, atividade_area_id: situacao[i].atividade_area_id, ...comTermino };
+        const estadoDaArea = {
+          ...estado,
+          area_executada_dia: varias ? a.hectares : estado.area_executada_dia,
+          ...(producaoPorArea ? { quantidade_produzida_dia: producaoPorArea[i] } : {}),
+          atividade_area_id: situacao[i].atividade_area_id,
+          ...comTermino,
+          ...comReceituario,
+        };
         respostas.push(
           await naArea(area(i, plano.indices), () =>
             lancarNaTransacao(tx, contexto, { clienteId: cli, empresaId, tempo, atividadeId, estado: estadoDaArea, origem, linhas: /** @type {any} */ (linhasDaArea) })
@@ -568,21 +913,31 @@ export const registrarCampo = async (contexto, corpo) => {
       let atividadeConcluida = false;
       if (concluir) {
         const fim = termino ?? dia;
-        for (const [i] of alvos.entries()) {
-          await naArea(area(i), async () => {
-            const linha = await buscarAreaDaAtividade(tx, cli, empresaId, /** @type {string} */ (atividadeId), /** @type {string} */ (situacao[i].atividade_area_id));
-            await concluirAreaNaTransacao(tx, contexto, { clienteId: cli, empresaId, atividadeId: /** @type {string} */ (atividadeId), area: linha, dia: fim });
-          });
-          areasConcluidas += 1;
+        if (semArea) {
+          atividadeConcluida = await concluirAtividadeSemArea(tx, contexto, { clienteId: cli, empresaId, atividadeId: /** @type {string} */ (atividadeId), dia: fim, tempo, automatica: false });
+        } else {
+          for (const [i] of alvos.entries()) {
+            await naArea(area(i), async () => {
+              const linha = await buscarAreaDaAtividade(tx, cli, empresaId, /** @type {string} */ (atividadeId), /** @type {string} */ (situacao[i].atividade_area_id));
+              await concluirAreaNaTransacao(tx, contexto, { clienteId: cli, empresaId, atividadeId: /** @type {string} */ (atividadeId), area: linha, dia: fim });
+            });
+            areasConcluidas += 1;
+          }
+          atividadeConcluida = await concluirAtividadeSeAreasConcluidas(tx, contexto, { clienteId: cli, empresaId, atividadeId: /** @type {string} */ (atividadeId), tempo });
         }
-        atividadeConcluida = await concluirAtividadeSeAreasConcluidas(tx, contexto, { clienteId: cli, empresaId, atividadeId: /** @type {string} */ (atividadeId), tempo });
       }
+      // D-PROD-274: "Pasto liberado em" — o fim do serviço mais a maior carência dos produtos lançados (lida, nunca gravada).
+      const produtoIds = [...new Set(linhas.produtos.map((l) => l.produto_id))];
+      const carencias = produtoIds.length
+        ? (await tx.produto.findMany({ where: { cliente_id: cli, id: { in: produtoIds } }, select: { carencia_dias: true } })).map((/** @type {{ carencia_dias: number|null }} */ r) => r.carencia_dias)
+        : [];
+      const liberado = pastoLiberadoEm(termino ?? dia, carencias);
       const [primeira] = respostas;
       const ultima = respostas[respostas.length - 1];
       return {
         // A forma de sempre (o apontamento da 1ª área, a atividade depois de tudo) e, D-PROD-263, um apontamento por área.
         ...primeira,
-        atividade: concluir ? await carregarAtividadeDetalhe(tx, cli, empresaId, /** @type {string} */ (atividadeId)) : ultima.atividade,
+        atividade: concluir || plantioCompletado.length ? await carregarAtividadeDetalhe(tx, cli, empresaId, /** @type {string} */ (atividadeId)) : ultima.atividade,
         apontamentos: respostas.map((r) => r.apontamento),
         registro: {
           // D-PROD-267: o que o "Concluída" fez e, no "é um serviço novo", o que aconteceu com a atividade parada.
@@ -592,8 +947,8 @@ export const registrarCampo = async (contexto, corpo) => {
           atividade_criada: criada,
           atividade_id: atividadeId,
           atividade_nome: atividadeNome,
-          atividade_area_id: situacao[0].atividade_area_id,
-          area_iniciada: situacao[0].iniciada,
+          atividade_area_id: situacao[0]?.atividade_area_id ?? null,
+          area_iniciada: situacao[0]?.iniciada ?? false,
           areas: alvos.map((a, i) => ({
             area_id: a.area_id,
             atividade_area_id: situacao[i].atividade_area_id,
@@ -602,6 +957,11 @@ export const registrarCampo = async (contexto, corpo) => {
             area_adicionada: situacao[i].adicionada,
             area_iniciada: situacao[i].iniciada,
           })),
+          // D-PROD-274: o local (sem área), o que foi completado no plantio e o "pasto liberado em".
+          local: semArea ? local : null,
+          plantio_completado: plantioCompletado,
+          pasto_liberado_em: liberado.pasto_liberado_em,
+          carencia_dias: liberado.carencia_dias,
         },
       };
     },
