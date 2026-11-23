@@ -63,8 +63,9 @@ const AMOSTRA = 20;
  * @typedef {{ produtoId: string, excluirIds: string[], posteriores: number, dispensa: null | { code: string, reason: string|null },
  *   estornoExatoSeInviavel?: boolean, camadaIntocada?: boolean }} PlanoRecalculo
  * `dispensa`: o recálculo não é possível e a origem contorna com o estorno exato (só a trilha é gravada).
- * `camadaIntocada` (fatia 5): as entradas do produto que têm algo depois estão com a camada intocada — o estorno da origem
- * é o exato de sempre (a camada sai inteira pelo motor) e o recálculo, se possível, só tira o par da sequência.
+ * `camadaIntocada` (fatia 5): as entradas do produto que têm algo depois passam em `entradaIntocada` (camada inteira e
+ * nenhuma saída válida depois) — o estorno da origem é o exato de sempre (a camada sai inteira pelo motor) e o recálculo,
+ * se possível, só tira o par da sequência.
  */
 
 /** Saldo negativo na simulação → 409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO` (a recusa da SPEC §4.4). */
@@ -148,12 +149,14 @@ const comoDispensa = (erro) => ({ code: /** @type {any} */ (erro).code, reason: 
  * volume, cocho, camada…), aqui ou depois de escrever (`aplicarExclusaoComRecalculo`, desfeito por SAVEPOINT), vira o
  * estorno exato de antes desta fatia, sem recalcular nada, com o motivo na trilha. Sem a opção (saída manual, cocho),
  * a mesma situação é recusa 409/422. Saldo negativo é sempre recusa.
- * D-PROD-273 (fatia 5) — `intacto(movimentoId)` (opcional, entradas): com algo depois, a entrada cuja camada continua
- * INTOCADA (ver `entradaIntocada`): nada do que veio depois foi valorizado com o custo dela, então o estorno exato de
- * sempre está certo. O plano sai com `camadaIntocada` e o estorno exato como saída: o recálculo é tentado (para o par
- * sair da sequência — senão ele fica nela e pode travar exclusões mais antigas), e QUALQUER recusa dele (inclusive saldo
- * negativo num ponto intermediário, que o estorno exato de antes aceitava: par já cancelado no meio) vira o estorno
- * exato, com o motivo na trilha. Sem regressão para o que já passava. A contagem de inventário depois continua recusa.
+ * D-PROD-273 (fatia 5, corrigido na revisão) — `intacto(movimentoId)` (opcional, entradas; é `entradaIntocada`): com
+ * algo depois, a entrada com a camada inteira E sem nenhuma saída VÁLIDA depois no poço dela (saídas de pares já
+ * excluídos não contam) não entrou em nenhum médio que valorizou alguma coisa; o estorno exato de sempre está certo. Só
+ * então o plano sai com `camadaIntocada` e o estorno exato como saída: o recálculo é tentado (para o par sair da
+ * sequência — senão ele fica nela e pode travar exclusões mais antigas) e uma recusa contornável dele, ou saldo negativo
+ * num ponto intermediário (só pode vir de saídas de pares já excluídos), vira o estorno exato, com o motivo na trilha.
+ * Com saída válida depois, a camada pode estar no custo original e mesmo assim ter entrado no médio (a reavaliação volta
+ * o custo): não há estorno exato — recusa do recálculo é recusa. A contagem de inventário depois continua recusa.
  * @param {{ empresaId: string, movimentos: Array<{ id: string, produtoId: string, localId: string }>, ignorarIds?: string[],
  *   ignorarParesNeutros?: boolean, estornoExatoSeInviavel?: boolean, teto?: number, tetoAfetados?: number,
  *   intacto?: (movimentoId: string) => Promise<boolean> }} a

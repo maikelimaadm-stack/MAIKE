@@ -480,21 +480,13 @@ export const excluir = async (contexto, id, corpo) => {
           // saída). Sem nada depois: a prova da camada intocada e o estorno exato de sempre.
           const planos = await planejarExclusaoComRecalculo(tx, cli, {
             empresaId, movimentos: itens.map((i) => ({ id: i.movimentacao_estoque_id, produtoId: i.produto_id, localId: i.local_estoque_id })),
-            // a camada intocada (a prova de sempre) segue o estorno exato de antes, mesmo com algo depois (sem regressão)
-            intacto: async (movimentoId) => {
-              const item = itens.find((i) => i.movimentacao_estoque_id === movimentoId);
-              if (!item || !(await entradaIntocada(tx, cli, movimentoId))) return false;
-              try {
-                await provaDeCamadaIntocada(tx, cli, [item]);
-                return true;
-              } catch (erro) {
-                if (/** @type {any} */ (erro)?.code === 'ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS') return false;
-                throw erro;
-              }
-            },
+            // camada inteira e nenhuma saída válida depois (a mesma prova da prévia): o estorno exato de antes é a saída
+            intacto: (movimentoId) => entradaIntocada(tx, cli, movimentoId),
           });
           const peloRecalculo = new Set(camadasPeloRecalculo(planos));
-          await provaDeCamadaIntocada(tx, cli, itens.filter((i) => !peloRecalculo.has(i.movimentacao_estoque_id)));
+          // A prova de sempre só onde nada veio depois (sem plano); com plano, a prova é a do recálculo (ou `entradaIntocada`).
+          const comPlano = new Set(planos.flatMap((p) => p.excluirIds));
+          await provaDeCamadaIntocada(tx, cli, itens.filter((i) => !comPlano.has(i.movimentacao_estoque_id)));
           const motivoEstorno = `Exclusão da entrada ${atual.numero}: ${e.motivo}`.slice(0, 255);
           let estornos;
           try {

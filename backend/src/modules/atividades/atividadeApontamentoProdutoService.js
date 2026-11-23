@@ -442,10 +442,16 @@ const traduzirErroDoEstorno = (erro, linhas) => {
  * @param {{ empresaId: string, atividade: { id: string, numero: string }, linhas: any[], hoje: string, recalcular?: boolean, motivo?: string }} a
  * @returns {Promise<Map<string, string>>} id da linha → id do movimento de estorno
  */
-export const estornarLinhasProduto = async (tx, contexto, { empresaId, atividade, linhas, hoje, recalcular = false, motivo = MOTIVO_ESTORNO }) => {
-  if (!linhas.length) return new Map();
+export const estornarLinhasProduto = async (tx, contexto, { empresaId, atividade, linhas: linhasLidas, hoje, recalcular = false, motivo = MOTIVO_ESTORNO }) => {
+  if (!linhasLidas.length) return new Map();
   const cli = exigirAuthContext(contexto?.auth).clienteId;
-  const produtoIds = await travarProdutosEstoque(tx, cli, empresaId, linhas.map((l) => l.produto_id));
+  const produtoIds = await travarProdutosEstoque(tx, cli, empresaId, linhasLidas.map((l) => l.produto_id));
+  // D-PROD-273 (fatia 5, revisão): as fatias (`consumos`) relidas SOB a trava do produto — uma exclusão com recálculo do
+  // mesmo produto pode tê-las reescrito depois da leitura de quem chama; estornar com as velhas devolveria às camadas erradas.
+  const relidas = await tx.atividadeApontamentoProdutoConsumoLote.findMany({
+    where: { cliente_id: cli, linha_id: { in: linhasLidas.map((l) => l.id) } }, orderBy: [{ linha_id: 'asc' }, { ordem: 'asc' }],
+  });
+  const linhas = linhasLidas.map((l) => ({ ...l, consumos: relidas.filter((c) => c.linha_id === l.id) }));
   const produtos = new Map(
     (await tx.produto.findMany({ where: { cliente_id: cli, id: { in: produtoIds } }, select: { id: true, empresa_id: true, unidade_principal_estoque: true } })).map((p) => [p.id, p])
   );

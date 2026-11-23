@@ -111,6 +111,9 @@ export const ehRecusaContornavel = (erro) => {
   return e.code === 'CONCURRENCY_CONFLICT' && e.details?.reason === 'cocho_ocupado';
 };
 
+/** O aviso da prévia quando a simulação dá saldo negativo e a entrada sai pelo estorno exato (mesmo código do planejador). */
+const saldoNegativoDaPrevia = (detalhes) => new AppError('ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo negativo na simulação', { details: { reason: 'saldo_negativo', ...detalhes } });
+
 /** D-PROD-273 (fatia 4): origens que, com o recálculo inviável, fazem o estorno exato (sem recalcular). */
 export const ORIGENS_ESTORNO_EXATO_SE_INVIAVEL = Object.freeze([ORIGEM_ABASTECIMENTO, ORIGEM_APONTAMENTO, ORIGEM_SISTEMA]);
 /**
@@ -167,18 +170,41 @@ const nadaDepois = async (tx, cli, m, ids) => {
 };
 
 /**
- * D-PROD-273 (fatia 5) — a camada da ENTRADA `movimentoId` continua intocada: uma só, 'Disponivel', disponível = entrada e
- * custo = o valor unitário do movimento (nenhuma reavaliação do poço a alcançou). Então nada lançado depois foi valorizado
- * com o custo dela e o estorno exato de sempre (tirar a camada inteira, pelo custo dela) é o mesmo que o recálculo daria.
+ * D-PROD-273 (fatia 5, corrigido na revisão) — a ENTRADA `movimentoId` pode sair pelo estorno exato de antes mesmo com
+ * algo lançado depois no depósito dela. Fail-closed, as duas condições:
+ *  1. a camada dela está inteira: uma só, 'Disponivel', disponível = entrada e custo = o valor unitário do movimento;
+ *  2. no poço dela (produto × depósito da entrada) NÃO há nenhuma SAÍDA válida lançada depois dela (a regra fail-closed
+ *     de "depois" de `buscarMovimentoPosterior`). Saída inclui a transferência enviada (a cascata começa por ela). Não
+ *     contam as saídas de pares já excluídos: o original 'Estornada' com um estorno `estorno_*` dele, e o estorno de um
+ *     original 'Estornada' (com ou sem a marca do recálculo).
+ * A condição 1 sozinha NÃO basta: toda saída reavalia as camadas restantes ao médio, e o custo pode voltar ao original
+ * depois de saídas que usaram um médio que incluía a entrada. Sem saída válida depois, nada foi valorizado com um médio
+ * que a incluísse; o estorno exato (tirar a camada inteira pelo custo dela) é então o mesmo que o recálculo daria.
+ * É a ÚNICA prova usada pelo planejador (via o serviço de cada origem) e pela prévia, para que as duas concordem.
  * @param {any} tx @param {string} cli @param {string} movimentoId
  */
 export const entradaIntocada = async (tx, cli, movimentoId) => {
-  const [m] = /** @type {any[]} */ (await tx.$queryRaw`SELECT valor_unitario FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${movimentoId}`);
+  const [m] = /** @type {any[]} */ (await tx.$queryRaw`SELECT id, empresa_id, produto_id, tipo_movimentacao, local_estoque_destino, numero_movimentacao, "createdAt", valor_unitario
+    FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND id = ${movimentoId}`);
+  if (!m || m.tipo_movimentacao !== 'Entrada' || m.valor_unitario === null || !m.local_estoque_destino) return false;
   const camadas = /** @type {any[]} */ (await tx.$queryRaw`SELECT status, quantidade_entrada, quantidade_disponivel, custo_unitario FROM "EstoqueLoteNota"
     WHERE cliente_id = ${cli} AND movimentacao_entrada_id = ${movimentoId}`);
-  if (!m || m.valor_unitario === null || camadas.length !== 1) return false;
+  if (camadas.length !== 1) return false;
   const [l] = camadas;
-  return l.status === 'Disponivel' && dec(l.quantidade_disponivel).eq(dec(l.quantidade_entrada)) && dec(l.custo_unitario).eq(dec(m.valor_unitario));
+  if (!(l.status === 'Disponivel' && dec(l.quantidade_disponivel).eq(dec(l.quantidade_entrada)) && dec(l.custo_unitario).eq(dec(m.valor_unitario)))) return false;
+  const numero = m.numero_movimentacao ?? '';
+  const [saida] = /** @type {any[]} */ (await tx.$queryRaw`SELECT s.id FROM "MovimentacaoEstoque" s
+    WHERE s.cliente_id = ${cli} AND s.empresa_id = ${m.empresa_id} AND s.produto_id = ${m.produto_id} AND s.id <> ${m.id}
+      AND s.tipo_movimentacao = 'Saída' AND s.local_estoque_origem = ${m.local_estoque_destino}
+      AND (s."createdAt" >= ${m.createdAt}
+        OR s.numero_movimentacao !~ '^[0-9]{1,30}$'
+        OR (${numero} ~ '^[0-9]{1,30}$' AND s.numero_movimentacao::numeric > ${numero}::numeric))
+      AND NOT (s.status = 'Estornada' AND EXISTS (SELECT 1 FROM "MovimentacaoEstoque" e
+        WHERE e.cliente_id = s.cliente_id AND e.movimento_pai_id = s.id AND left(COALESCE(e.tipo_detalhado, ''), 8) = 'estorno_'))
+      AND NOT (left(COALESCE(s.tipo_detalhado, ''), 8) = 'estorno_' AND EXISTS (SELECT 1 FROM "MovimentacaoEstoque" o
+        WHERE o.cliente_id = s.cliente_id AND o.id = s.movimento_pai_id AND o.status = 'Estornada'))
+    LIMIT 1`);
+  return !saida;
 };
 
 /**
@@ -234,17 +260,16 @@ export const previaExclusao = async (contexto, movimentoId, query = {}, o = {}) 
     if (ativo && juntos.length && await nadaDepois(tx, cli, m, juntos)) {
       return { ...vazio, movimento: resumoDoMovimento(m), excluidos: juntos, permitido: true, modo: 'estorno_exato' };
     }
-    // D-PROD-273 (fatia 5): entrada (documentada ou compra) com a camada intocada — como o serviço, o recálculo é tentado
-    // e qualquer recusa dele vira o estorno exato de antes (certo, porque nada foi valorizado com o custo dela).
+    // D-PROD-273 (fatia 5): entrada (documentada ou compra) que pode sair pelo estorno exato (`entradaIntocada`: camada
+    // inteira E nenhuma saída válida depois no poço) — como o planejador: o recálculo é tentado e, se ele recusar (as
+    // recusas contornáveis, ou saldo negativo num ponto intermediário), a exclusão faz o estorno exato sem recalcular.
     const intactas = ativo && m.tipo_movimentacao === 'Entrada' && (m.origem_sistema === ORIGEM_SISTEMA || ehOrigemEntradaDocumentada(m.origem_sistema))
       && (await Promise.all(juntos.map((id) => entradaIntocada(tx, cli, id)))).every(Boolean);
     const contorna = (ORIGENS_ESTORNO_EXATO_SE_INVIAVEL.includes(m.origem_sistema) && m.tipo_movimentacao === 'Saída' && !ehEstorno) || intactas;
-    const semRecalculo = (erro) => (intactas
-      ? { ...vazio, movimento: resumoDoMovimento(m), excluidos: juntos, permitido: true, modo: 'estorno_exato' }
-      : {
-        ...vazio, movimento: resumoDoMovimento(m), excluidos: juntos, permitido: true, modo: 'estorno_exato_sem_recalculo',
-        aviso: { code: erro.code, reason: erro.details?.reason ?? null },
-      });
+    const semRecalculo = (erro) => ({
+      ...vazio, movimento: resumoDoMovimento(m), excluidos: juntos, permitido: true, modo: 'estorno_exato_sem_recalculo',
+      aviso: { code: erro.code, reason: erro.details?.reason ?? null },
+    });
     try {
       const historico = await lerHistoricoDoProduto(tx, cli, empresaId, m.produto_id, { teto: o.teto ?? TETO_MOVIMENTOS_PRODUTO });
       const porId = new Map(historico.movimentos.map((x) => [x.id, x]));
@@ -261,7 +286,8 @@ export const previaExclusao = async (contexto, movimentoId, query = {}, o = {}) 
       const dependentes = sim.permitido ? await lerDependentes(tx, cli, empresaId, sim.movimentos.map((x) => x.id)) : [];
       const { reason, ...detalhes } = sim.recusa ?? { reason: null };
       if (!sim.permitido && reason === RAZAO_AJUSTE_POSTERIOR) return recusaDeAjuste(await recusaAjustePosterior(tx, cli, detalhes));
-      if (!sim.permitido && (reason !== 'saldo_negativo' || intactas) && contorna) return semRecalculo(recalculoInviavel(reason, detalhes));
+      if (!sim.permitido && reason === 'saldo_negativo' && intactas) return semRecalculo(saldoNegativoDaPrevia(detalhes));
+      if (!sim.permitido && reason !== 'saldo_negativo' && contorna) return semRecalculo(recalculoInviavel(reason, detalhes));
       return {
         movimento: resumoDoMovimento(m),
         excluidos: excluir,
@@ -283,8 +309,8 @@ export const previaExclusao = async (contexto, movimentoId, query = {}, o = {}) 
         gravado: false,
       };
     } catch (erro) {
-      if (contorna && (ehRecusaContornavel(erro) || intactas) && /** @type {any} */ (erro)?.details?.reason !== RAZAO_AJUSTE_POSTERIOR
-        && m.status === 'Ativa' && !m.movimento_filho_id) return semRecalculo(erro);
+      // Só as recusas que o planejador também contorna (as mesmas de `ehRecusaContornavel`); as outras são recusa.
+      if (contorna && ehRecusaContornavel(erro) && m.status === 'Ativa' && !m.movimento_filho_id) return semRecalculo(erro);
       throw erro;
     }
   });

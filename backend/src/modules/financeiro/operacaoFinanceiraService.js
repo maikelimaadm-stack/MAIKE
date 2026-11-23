@@ -1587,9 +1587,10 @@ export const cancelar = async (contexto, id, corpo) => {
         const op = await travarCabecalho(tx, cli, empresaId, id, 'UPDATE');
         if (op.status !== 'CONFIRMADO') throw statusInvalido(op.status, 'CONFIRMADO');
         const w = { cliente_id: cli, operacao_id: id };
-        const itens = await tx.operacaoFinanceiraItem.findMany({ where: w, orderBy: { ordem: 'asc' }, include: { consumos: true } });
-        const mercadorias = itens.filter((i) => i.tipo_item === 'MERCADORIA');
-        await travarProdutosEstoque(tx, cli, empresaId, mercadorias.map((i) => i.produto_id));
+        const antesDaTrava = await lerMercadorias(tx, cli, id);
+        await travarProdutosEstoque(tx, cli, empresaId, antesDaTrava.map((i) => i.produto_id));
+        // D-PROD-273 (fatia 5, revisão): as fatias SÓ depois da trava (uma exclusão com recálculo pode tê-las reescrito).
+        const mercadorias = await mercadoriasSobTrava(tx, cli, id);
         const titulos = /** @type {any[]} */ (await travarTitulos(tx, cli, id));
         const comBaixa = titulos.filter((t) => dec(t.valor_liquidado).gt(0));
         if (comBaixa.length) {
@@ -2149,6 +2150,40 @@ const lerMercadorias = (tx, cli, operacaoId) =>
   tx.operacaoFinanceiraItem.findMany({ where: { cliente_id: cli, operacao_id: operacaoId, tipo_item: 'MERCADORIA' }, orderBy: { ordem: 'asc' }, include: { consumos: true } });
 
 /**
+ * D-PROD-273 (fatia 5, revisão) — as mercadorias RELIDAS sob a trava dos produtos, com as fatias conferidas contra o
+ * `lotes_consumidos` do movimento (relido também sob a trava). Uma exclusão com recálculo do mesmo produto pode ter
+ * reescrito as fatias da venda entre a leitura sem trava e a trava; estornar com as fatias velhas devolveria às camadas
+ * erradas. Quem estorna (cancelar, excluir, retificar) usa SEMPRE esta leitura. Fatias que não batem → 409
+ * `CONCURRENCY_CONFLICT` (`fatias_divergentes`), nada gravado.
+ * @param {any} tx @param {string} cli @param {string} operacaoId
+ */
+const mercadoriasSobTrava = async (tx, cli, operacaoId) => {
+  const mercadorias = await lerMercadorias(tx, cli, operacaoId);
+  const ids = mercadorias.filter((i) => i.movimentacao_estoque_id && (i.consumos ?? []).length).map((i) => /** @type {string} */ (i.movimentacao_estoque_id));
+  if (!ids.length) return mercadorias;
+  const movimentos = new Map((await tx.movimentacaoEstoque.findMany({ where: { cliente_id: cli, id: { in: ids } }, select: { id: true, lotes_consumidos: true } })).map((m) => [m.id, m]));
+  const porLote = (lista) => {
+    /** @type {Map<string, any>} */
+    const mapa = new Map();
+    for (const f of lista) mapa.set(f.lote, (mapa.get(f.lote) ?? ZERO).plus(dec(f.quantidade)));
+    return mapa;
+  };
+  for (const item of mercadorias) {
+    const gravadas = item.movimentacao_estoque_id ? movimentos.get(item.movimentacao_estoque_id)?.lotes_consumidos : null;
+    if (!Array.isArray(gravadas) || !gravadas.length || !(item.consumos ?? []).length) continue;
+    const a = porLote(item.consumos.map((c) => ({ lote: c.estoque_lote_nota_id, quantidade: c.quantidade })));
+    const b = porLote(gravadas.map((/** @type {any} */ f) => ({ lote: f?.lote_id, quantidade: f?.quantidade ?? 0 })));
+    const iguais = a.size === b.size && [...a].every(([lote, q]) => b.has(lote) && dec(b.get(lote)).eq(q));
+    if (!iguais) {
+      throw new AppError('CONCURRENCY_CONFLICT', 'as fatias de estoque do item mudaram durante a operação; nada foi alterado, tente de novo', {
+        details: { reason: 'fatias_divergentes', item_ordem: item.ordem, movimento_id: item.movimentacao_estoque_id },
+      });
+    }
+  }
+  return mercadorias;
+};
+
+/**
  * D-PROD-158 §3 — elegibilidade de fonte ÚNICA. O GET chama em REPEATABLE READ
  * sem trava; os comandos chamam DEPOIS das travas (cabeçalho → produtos →
  * títulos), então a resposta é a mesma regra no mesmo estado que vão alterar.
@@ -2414,11 +2449,13 @@ export const retificar = async (contexto, id, corpo) => {
           const casas = op.moeda_casas;
           const doc = normalizarDocumento({ ...documento, empresa_id: empresaId }, casas);
           const w = { cliente_id: cli, operacao_id: id };
-          const itens = await tx.operacaoFinanceiraItem.findMany({ where: w, orderBy: { ordem: 'asc' }, include: { consumos: true } });
-          const mercadorias = itens.filter((i) => i.tipo_item === 'MERCADORIA');
+          const antesDaTrava = await lerMercadorias(tx, cli, id);
           // §8.4: cabeçalho → produtos (antigo ∪ novo, crescente) → títulos → lotes/movimentos (motor) → sequências.
           await travarProdutosEstoque(tx, cli, empresaId,
-            await produtosATravar(tx, cli, empresaId, unicos(mercadorias.map((i) => i.produto_id)), doc.itens.map((i) => i.produto_id)));
+            await produtosATravar(tx, cli, empresaId, unicos(antesDaTrava.map((i) => i.produto_id)), doc.itens.map((i) => i.produto_id)));
+          // D-PROD-273 (fatia 5, revisão): as fatias SÓ depois da trava (uma exclusão com recálculo pode tê-las reescrito).
+          const mercadorias = await mercadoriasSobTrava(tx, cli, id);
+          const itens = await tx.operacaoFinanceiraItem.findMany({ where: w, orderBy: { ordem: 'asc' }, include: { consumos: true } });
           await travarTitulos(tx, cli, id);
           // DE-01: produto que o documento já tinha em SACO replaneja com o peso GRAVADO (o do recebimento).
           const refs = comPesoGravado(await carregarReferencias(tx, cli, empresaId, doc), mercadorias);
@@ -2552,8 +2589,9 @@ export const excluirConfirmado = async (contexto, id, corpo) => {
         await exigirVigente(tx, cli, empresaId, op, exclusaoBloqueada);
         if (op.versao !== corpo.versao) throw versaoConflito(op.versao, corpo.versao);
         const w = { cliente_id: cli, operacao_id: id };
-        const mercadorias = await lerMercadorias(tx, cli, id);
-        await travarProdutosEstoque(tx, cli, empresaId, mercadorias.map((i) => i.produto_id));
+        await travarProdutosEstoque(tx, cli, empresaId, (await lerMercadorias(tx, cli, id)).map((i) => i.produto_id));
+        // D-PROD-273 (fatia 5, revisão): as fatias SÓ depois da trava (uma exclusão com recálculo pode tê-las reescrito).
+        const mercadorias = await mercadoriasSobTrava(tx, cli, id);
         const titulos = /** @type {any[]} */ (await travarTitulos(tx, cli, id));
         const eleg = await avaliarElegibilidade(tx, cli, empresaId, op, { aut: await carregarAutorizacao(contexto, tx), mercadorias });
         if (!eleg.excluir.permitido) throw exclusaoBloqueada(eleg.excluir.motivos);
