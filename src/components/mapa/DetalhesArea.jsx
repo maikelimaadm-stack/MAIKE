@@ -12,7 +12,8 @@ import JanelaRegistroDeCampo from "../lancamento-atividades/RegistroDeCampo";
 import CascaDetalhe from "./detalhes-lote/CascaDetalhe";
 import AbaDetalhesDaArea from "./detalhes-area/AbaDetalhesDaArea";
 import AbaRegistrosDaArea from "./detalhes-area/AbaRegistrosDaArea";
-import { Abas, RodapePilulas, idsDaAba } from "./detalhes-lote/blocos";
+import PainelForragemArea from "@/components/pastagem/PainelForragemArea";
+import { Abas, RodapePilulas, SecaoDetalhe, idsDaAba } from "./detalhes-lote/blocos";
 
 /**
  * Detalhes da área no Mapa Geral (D-PROD-94a, D-PROD-220, D-PROD-254), no desenho do Detalhes do Lote: cabeçalho com o
@@ -23,6 +24,9 @@ import { Abas, RodapePilulas, idsDaAba } from "./detalhes-lote/blocos";
  * - Histórico: os REGISTROS de campo da área (Gradeação, Aplicação…), com o filtro "Todos". Com a ação extra
  *   `cancelar_apontamento` da tela de atividades, cada cartão traz o "Excluir registro" (D-PROD-266): por baixo, o
  *   mesmo cancelamento do Lançamento de Atividades, só online; no mapa só se vê exclusão e o excluído some.
+ * - MAIKE-AREA-V13 (D-PROD-289): um assunto por aba — Detalhes (cartão + resumo), Forragem (o painel de antes, só com a
+ *   chave `medir_forragem`), Manejos (em andamento e planejado em cima; os REGISTROS de campo, "Já feito", embaixo —
+ *   o antigo Histórico) e Custos. Sem permissão de ver atividades, Manejos e Custos não aparecem.
  * - Curral: a aba Abate de antes (`HistoricoAbateCurral`), à parte: são fatos de natureza diferente.
  * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre DIRETO a "Nova realização" — a mesma do Lançamento de
  *   Atividades (D-PROD-258, D-PROD-265), com a área já marcada e presa: a pessoa escolhe o tipo (cartões), depois a operação.
@@ -65,7 +69,8 @@ export default function DetalhesArea({ area, permissions, setorNome = "", ocupad
 
   const abas = [
     { id: "detalhes", rotulo: "Detalhes" },
-    ...(verAtividades ? [{ id: "historico", rotulo: "Histórico" }] : []),
+    ...(forragem ? [{ id: "forragem", rotulo: "Forragem" }] : []),
+    ...(verAtividades ? [{ id: "manejos", rotulo: "Manejos" }, { id: "custos", rotulo: "Custos" }] : []),
     ...(curral ? [{ id: "abate", rotulo: "Abate" }] : []),
   ];
   const abaAtual = abas.some((a) => a.id === aba) ? aba : "detalhes";
@@ -108,9 +113,20 @@ export default function DetalhesArea({ area, permissions, setorNome = "", ocupad
   const idBase = `area-${area.id}`;
   const ids = idsDaAba(idBase, abaAtual);
   let corpo;
-  if (abaAtual === "historico") corpo = <AbaRegistrosDaArea area={area} tipos={tipos} podeCancelar={podeCancelarRegistro} />;
+  const base = { area, setorNome, ocupada, verAtividades, tipos };
+  if (abaAtual === "manejos") {
+    corpo = (
+      <>
+        <AbaDetalhesDaArea {...base} secao="manejos" />
+        <SecaoDetalhe titulo="Já feito">
+          <AbaRegistrosDaArea area={area} tipos={tipos} podeCancelar={podeCancelarRegistro} />
+        </SecaoDetalhe>
+      </>
+    );
+  } else if (abaAtual === "custos") corpo = <AbaDetalhesDaArea {...base} secao="custos" />;
+  else if (abaAtual === "forragem") corpo = <PainelForragemArea area={area} />;
   else if (abaAtual === "abate") corpo = <HistoricoAbateCurral areaId={area.id} />;
-  else corpo = <AbaDetalhesDaArea area={area} setorNome={setorNome} ocupada={ocupada} verAtividades={verAtividades} forragem={forragem} tipos={tipos} />;
+  else corpo = <AbaDetalhesDaArea {...base} secao="detalhes" onIrAba={irAba} />;
 
   return (
     <>

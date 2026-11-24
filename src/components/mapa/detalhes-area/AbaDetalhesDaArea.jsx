@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Sprout } from "lucide-react";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { Cartao, Celula, Chip, Grade, Linha, SecaoDetalhe, Vazio } from "@/components/mapa/detalhes-lote/blocos";
-import PainelForragemArea from "@/components/pastagem/PainelForragemArea";
 import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
 import { formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
@@ -13,6 +12,9 @@ import { STATUS_AREA } from "@/lib/atividadeAreasRegras";
 import { textoDaReformaNaArea } from "@/lib/reformaRegras";
 import { definirFazendaDaTela, obterResumoDaArea } from "@/services/lancamentoAtividadesService";
 import { useAcoesDaAtividadeDaArea } from "./AcoesDaAtividadeDaArea";
+
+import "@/styles/mk-dp-detalhes-v13.css";
+import "@/styles/mk-dp-area-v13.css";
 
 
 /*
@@ -28,6 +30,11 @@ import { useAcoesDaAtividadeDaArea } from "./AcoesDaAtividadeDaArea";
  * menu das ações rápidas (o do ⚡ da lista: janela presa à linha no computador, folha de baixo no celular) — "+ Lançar
  * dia", "Só máquina / mão de obra / insumo / serviço de terceiro" (presos nesta área) e "Concluir"
  * (`AcoesDaAtividadeDaArea`). Sem permissão, a linha fica como era (só leitura).
+ *
+ * MAIKE-AREA-V13 (D-PROD-289): a mesma aba agora serve três seções (`secao`), cada uma com um assunto só, no visual v13
+ * dos Detalhes do Lote — "detalhes" (o cartão da área e um resumo de uma linha de Manejos e Custos, que leva à aba),
+ * "manejos" (as atividades em andamento e planejadas, com a barra do feito) e "custos" (total, por hectare e a barra
+ * insumos × máquinas e mão de obra). Os números continuam os do servidor; nada é calculado aqui além da proporção da barra.
  */
 
 /** @param {unknown} v */
@@ -67,10 +74,10 @@ const subDaAtividade = (a) => {
 };
 
 /**
- * @param {{ area: any, setorNome?: string, ocupada?: boolean | null, verAtividades: boolean, forragem: boolean, tipos?: any[] }} props
+ * @param {{ area: any, setorNome?: string, ocupada?: boolean | null, verAtividades: boolean, tipos?: any[], secao?: "detalhes" | "manejos" | "custos", onIrAba?: (aba: string) => void }} props
  *   `tipos`: as operações ativas (as que os Detalhes da área já leem), para as ações da atividade.
  */
-export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades, forragem, tipos = [] }) {
+export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos = [], secao = "detalhes", onIrAba }) {
   const empresaId = useEmpresaRealSelecionadaId();
   definirFazendaDaTela(empresaId);
   const resumo = useQuery({
@@ -89,15 +96,99 @@ export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades,
   const emReforma = textoDaReformaNaArea(reformas, hoje);
   // D-PROD-278: as ações rápidas da atividade tocada.
   const acoesDaAtividade = useAcoesDaAtividadeDaArea({ area, tipos });
+  const pronto = verAtividades && resumo.isSuccess;
+
+  const listaDeAtividades = atividades.length ? (
+    <Cartao className="mk-da13-ativs">
+      {atividades.map((a) => {
+        const s = situacaoDaAtividade(a);
+        const props = {
+          textoAutomatico: true,
+          icone: iconeDoTipoAtividade({ nome_tipo: a.tipo_atividade_nome }),
+          rotulo: a.nome,
+          sub: subDaAtividade(a),
+          valor: <Chip tom={s.tom}>{s.rotulo}</Chip>,
+        };
+        const grupos = acoesDaAtividade.gruposDe(a);
+        const linha = !grupos ? (
+          <Linha {...props} data-testid={`area-atividade-${a.atividade_id}`} />
+        ) : (
+          <B1MenuAcoesDaLinha
+            rotulo={`Ações da atividade ${a.numero != null ? `nº ${a.numero}` : a.nome}`}
+            titulo={[a.numero != null ? `Nº ${a.numero}` : "", a.nome].filter(Boolean).join(" · ")}
+            subtitulo={subDaAtividade(a)}
+            grupos={grupos}
+            testId={`area-atividade-${a.atividade_id}`}
+            gatilho={(b) => (
+              <Linha
+                {...props}
+                {...b}
+                // No computador o Popover põe o clique; no celular ele já vem (a folha de baixo).
+                onClick={b.onClick ?? (() => {})}
+                chevron
+                aria-busy={acoesDaAtividade.buscando || undefined}
+                title="Ações da atividade"
+              />
+            )}
+          />
+        );
+        const pct = proporcaoFeita(a);
+        return (
+          <div key={a.atividade_id} className="mk-da13-ativ">
+            {linha}
+            {pct == null ? null : (
+              <span className={`mk-da13-prog mk-da13-prog--${s.tom}`} aria-hidden="true">
+                <i style={{ width: `${pct}%` }} />
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </Cartao>
+  ) : (
+    <Vazio icone={Sprout}>Nenhuma atividade nesta área agora.</Vazio>
+  );
+
+  if (secao === "manejos") {
+    return (
+      <div className="mk-dp-area-organizada mk-dp-d13">
+        {pronto ? <SecaoDetalhe titulo="Em andamento e planejado">{listaDeAtividades}</SecaoDetalhe> : null}
+        {acoesDaAtividade.janelas}
+      </div>
+    );
+  }
+
+  if (secao === "custos") {
+    return (
+      <div className="mk-dp-area-organizada mk-dp-d13">
+        {pronto && custos ? <BlocoDeCustos custos={custos} mes={mes} /> : null}
+        {pronto && !custos ? <Vazio icone={Sprout}>Nenhum custo lançado nesta área no mês.</Vazio> : null}
+      </div>
+    );
+  }
+
+  const situacao = ocupada === null ? null : ocupada ? "OCUPADO" : "VAZIO";
+  const emAndamento = atividades.filter((a) => a.area_status !== STATUS_AREA.CONCLUIDA && a.area_status !== STATUS_AREA.PLANEJADA);
+  const planejadas = atividades.filter((a) => a.area_status === STATUS_AREA.PLANEJADA);
+  const contagem = [
+    emAndamento.length ? `${emAndamento.length} em andamento` : "",
+    planejadas.length ? `${planejadas.length} ${planejadas.length > 1 ? "planejados" : "planejado"}` : "",
+  ].filter(Boolean).join(" · ");
+  const destaque = emAndamento[0];
 
   return (
-    <div className="mk-dp-area-organizada">
-      <Cartao icone={Sprout} titulo={area.nome} className="mk-dp-area-resumo">
-        <Grade className="mk-dp-area-superficies">
+    <div className="mk-dp-area-organizada mk-dp-d13">
+      <Cartao
+        icone={Sprout}
+        titulo={cultura || area.nome}
+        sub={cultura ? "Cultura / forragem" : undefined}
+        chip={situacao ? <Chip tom={ocupada ? "ok" : "neutro"} className="mk-dp-d13-status">{situacao}</Chip> : null}
+        className="mk-dp-area-resumo mk-dp-d13-area"
+      >
+        <Grade className="mk-dp-area-superficies mk-dp-d13-grade mk-dp-d13-grade--3">
           <Celula textoAutomatico rotulo="Área (ha)" valor={ha2(area.tamanho_hectares) || "—"} />
           <Celula textoAutomatico rotulo="Tipo" valor={tipoDaAreaTexto(area).toUpperCase()} />
-          {cultura ? <Celula textoAutomatico rotulo="Cultura / forragem" valor={cultura} /> : null}
-          {ocupada === null ? null : <Celula textoAutomatico rotulo="Situação" valor={ocupada ? "OCUPADO" : "VAZIO"} />}
+          {situacao ? <Celula textoAutomatico rotulo="Situação" valor={situacao} /> : null}
         </Grade>
         {/* D-PROD-276: a reforma aberta da área, numa linha inteira (o nome é longo). */}
         {emReforma ? (
@@ -112,67 +203,93 @@ export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades,
         ) : null}
       </Cartao>
 
-      {verAtividades && resumo.isSuccess ? (
-        <>
-          <SecaoDetalhe titulo="Atividades em andamento">
-            {atividades.length ? (
-              <Cartao>
-                {atividades.map((a) => {
-                  const s = situacaoDaAtividade(a);
-                  const props = {
-                    textoAutomatico: true,
-                    icone: iconeDoTipoAtividade({ nome_tipo: a.tipo_atividade_nome }),
-                    rotulo: a.nome,
-                    sub: subDaAtividade(a),
-                    valor: <Chip tom={s.tom}>{s.rotulo}</Chip>,
-                  };
-                  const grupos = acoesDaAtividade.gruposDe(a);
-                  if (!grupos) return <Linha key={a.atividade_id} {...props} data-testid={`area-atividade-${a.atividade_id}`} />;
-                  return (
-                    <B1MenuAcoesDaLinha
-                      key={a.atividade_id}
-                      rotulo={`Ações da atividade ${a.numero != null ? `nº ${a.numero}` : a.nome}`}
-                      titulo={[a.numero != null ? `Nº ${a.numero}` : "", a.nome].filter(Boolean).join(" · ")}
-                      subtitulo={subDaAtividade(a)}
-                      grupos={grupos}
-                      testId={`area-atividade-${a.atividade_id}`}
-                      gatilho={(b) => (
-                        <Linha
-                          {...props}
-                          {...b}
-                          // No computador o Popover põe o clique; no celular ele já vem (a folha de baixo).
-                          onClick={b.onClick ?? (() => {})}
-                          chevron
-                          aria-busy={acoesDaAtividade.buscando || undefined}
-                          title="Ações da atividade"
-                        />
-                      )}
-                    />
-                  );
-                })}
-              </Cartao>
-            ) : (
-              <Vazio icone={Sprout}>Nenhuma atividade nesta área agora.</Vazio>
-            )}
-          </SecaoDetalhe>
-          {custos ? (
-            <SecaoDetalhe titulo={`Custos da área${mes ? ` · ${mes}` : ""}`}>
-              <Cartao>
-                <Grade>
-                  <Celula textoAutomatico rotulo="Custo total" valor={formatarMoedaAtividade(custos.custo_total) || "—"} />
-                  <Celula textoAutomatico rotulo="Por hectare" valor={formatarMoedaAtividade(custos.custo_por_ha) || "—"} />
-                  <Celula textoAutomatico rotulo="Insumos" valor={formatarMoedaAtividade(custos.insumos) || "—"} />
-                  <Celula textoAutomatico rotulo="Máquinas e mão de obra" valor={formatarMoedaAtividade(somaMaquinasMaoObra(custos)) || "—"} />
-                  {Number(custos.servicos) > 0 ? <Celula textoAutomatico rotulo="Serviços" valor={formatarMoedaAtividade(custos.servicos)} /> : null}
-                </Grade>
-              </Cartao>
-            </SecaoDetalhe>
-          ) : null}
-        </>
+      {pronto ? (
+        <SecaoDetalhe titulo="Resumo">
+          <Cartao className="mk-da13-resumo">
+            <Linha
+              rotulo="Manejos"
+              sub={contagem || "Nenhuma atividade agora"}
+              valor={destaque ? <Chip tom="atencao">{`${destaque.tipo_atividade_nome || destaque.nome}${destaque.area_planejada ? ` ${ha(destaque.area_executada || 0)} de ${ha(destaque.area_planejada)} ha` : ""}`}</Chip> : null}
+              chevron
+              onClick={onIrAba ? () => onIrAba("manejos") : undefined}
+              data-testid="area-resumo-manejos"
+            />
+            <Linha
+              rotulo={`Custos${mes ? ` · ${mes}` : ""}`}
+              sub={custos ? `${formatarMoedaAtividade(custos.custo_por_ha) || "—"} por hectare` : "Nenhum custo no mês"}
+              valor={custos ? <strong className="mk-da13-total">{formatarMoedaAtividade(custos.custo_total) || "—"}</strong> : null}
+              chevron
+              onClick={onIrAba ? () => onIrAba("custos") : undefined}
+              data-testid="area-resumo-custos"
+            />
+          </Cartao>
+        </SecaoDetalhe>
       ) : null}
-      {forragem ? <PainelForragemArea area={area} /> : null}
       {acoesDaAtividade.janelas}
     </div>
+  );
+}
+
+/** Quanto da área já foi feito (0–100), para a barra; sem área planejada, sem barra. @param {any} a */
+function proporcaoFeita(a) {
+  const plan = Number(a.area_planejada);
+  if (!Number.isFinite(plan) || plan <= 0) return null;
+  const feito = Number(a.area_executada || 0);
+  return Math.max(0, Math.min(100, Number.isFinite(feito) ? (feito / plan) * 100 : 0));
+}
+
+/**
+ * Custos do mês (D-PROD-289): total e por hectare em destaque, a barra insumos × máquinas e mão de obra (e serviços,
+ * quando houver) e cada parte com a sua porcentagem.
+ * @param {{ custos: any, mes: string }} props
+ */
+function BlocoDeCustos({ custos, mes }) {
+  const maq = somaMaquinasMaoObra(custos);
+  const partes = [
+    { chave: "insumos", rotulo: "Insumos", valor: custos.insumos },
+    { chave: "maquinas", rotulo: "Máquinas e mão de obra", valor: maq },
+    ...(Number(custos.servicos) > 0 ? [{ chave: "servicos", rotulo: "Serviços", valor: custos.servicos }] : []),
+  ];
+  const total = partes.reduce((t, p) => t + Math.max(0, Number(p.valor) || 0), 0);
+  /** @param {unknown} v */
+  const pct = (v) => (total > 0 ? Math.round((Math.max(0, Number(v) || 0) / total) * 100) : 0);
+  return (
+    <SecaoDetalhe titulo={`Custos da área${mes ? ` · ${mes}` : ""}`}>
+      <Cartao className="mk-da13-custos">
+        <div className="mk-da13-custos__topo">
+          <span>
+            <small>Custo total</small>
+            <strong>{formatarMoedaAtividade(custos.custo_total) || "—"}</strong>
+          </span>
+          <span className="mk-da13-custos__ha">
+            <small>Por hectare</small>
+            <strong>{formatarMoedaAtividade(custos.custo_por_ha) || "—"}</strong>
+          </span>
+        </div>
+        {total > 0 ? (
+          <span className="mk-da13-custos__barra" aria-hidden="true">
+            {partes.map((p) => (
+              <i key={p.chave} className={`mk-da13-cor--${p.chave}`} style={{ flexGrow: Math.max(0, Number(p.valor) || 0) }} />
+            ))}
+          </span>
+        ) : null}
+        <Grade className="mk-dp-d13-grade mk-da13-custos__partes">
+          {partes.map((p) => (
+            <Celula
+              key={p.chave}
+              textoAutomatico
+              rotulo={
+                <>
+                  <i className={`mk-da13-marca mk-da13-cor--${p.chave}`} aria-hidden="true" />
+                  {p.rotulo}
+                </>
+              }
+              valor={`${formatarMoedaAtividade(p.valor) || "—"}${total > 0 ? ` · ${pct(p.valor)}%` : ""}`}
+            />
+          ))}
+        </Grade>
+      </Cartao>
+    </SecaoDetalhe>
   );
 }
 
