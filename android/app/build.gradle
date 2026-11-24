@@ -1,5 +1,11 @@
 apply plugin: 'com.android.application'
 
+// Versão única do app (Android e atualização automática): app-version.json na raiz.
+def versaoDoApp = new groovy.json.JsonSlurper().parse(rootProject.file('../app-version.json'))
+// Assinatura fixa: a chave e a senha vêm do ambiente e nunca entram no repositório.
+def chaveDoApp = System.getenv('MAKGESTAO_KEYSTORE')
+def senhaDoApp = System.getenv('MAKGESTAO_KEYSTORE_PASSWORD')
+
 android {
     namespace = "com.makgestao.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +13,8 @@ android {
         applicationId "com.makgestao.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode versaoDoApp.versionCode as int
+        versionName versaoDoApp.versionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +22,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (chaveDoApp) {
+                storeFile file(chaveDoApp)
+                storePassword senhaDoApp
+                keyAlias 'makgestao'
+                keyPassword senhaDoApp
+            }
+        }
+    }
     buildTypes {
         release {
+            if (chaveDoApp) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

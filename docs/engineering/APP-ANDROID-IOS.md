@@ -14,14 +14,23 @@ Pré-requisitos: Node 22+, JDK 21 e Android SDK (plataforma 36, build-tools 36) 
 
 Variáveis de build (não versionar; R4):
 
-- `VITE_MAIKE_API_URL=https://www.makgestao.com/api/native`: no app o endereço precisa ser completo, porque o relativo `/api/native` do site não existe dentro do APK;
+- `VITE_MAIKE_API_URL=https://www.makgestao.com`: só a origem (o app acrescenta `/api/native`). Dentro do app (Capacitor) vale sempre esta URL, e não a origem da página (`https://localhost`), regra em `src/config/runtimeConfig.js`;
 - `VITE_GOOGLE_MAPS_API_KEY`: a mesma chave do site (satélite).
 
+## Versão e assinatura
+
+- A versão fica em `app-version.json` (`versionName` e `versionCode`). A cada versão nova, suba os dois; o `versionCode` só cresce.
+- O APK de uso é assinado com a chave fixa `makgestao-release.jks` (alias `makgestao`). A chave e a senha **nunca** entram no repositório: vêm de `MAKGESTAO_KEYSTORE` (caminho do arquivo) e `MAKGESTAO_KEYSTORE_PASSWORD`. Perder a chave obriga a desinstalar o app em todos os aparelhos.
+
 ```bash
-npm run app:apk
+npm run app:build
 ```
 
-O APK sai em `android/app/build/outputs/apk/debug/app-debug.apk`. É de teste (assinado com a chave de debug): instala por arquivo no Android, não serve para a Play Store.
+```bash
+cd android && ./gradlew assembleRelease
+```
+
+O APK sai em `android/app/build/outputs/apk/release/app-release.apk` e instala por arquivo no Android, por cima da versão anterior assinada com a mesma chave.
 
 ## iOS
 

@@ -81,6 +81,16 @@ const ehSplitDevLocal = (origem, daEnv) =>
   /localhost/i.test(daEnv) &&
   origem !== daEnv;
 
+/** A página roda dentro do app nativo (Capacitor injeta `window.Capacitor`)? */
+const rodandoNoAppNativo = () => {
+  if (!hasWindow()) return false;
+  try {
+    return /** @type {any} */ (window).Capacitor?.isNativePlatform?.() === true;
+  } catch {
+    return false;
+  }
+};
+
 const lerOrigemDoNavegador = () => {
   if (!hasWindow()) return null;
   try {
@@ -137,6 +147,10 @@ export const getNativeApiUrl = () => {
   const origem = lerOrigemDoNavegador();
 
   if (bruta && !daEnv) return null;
+
+  // App Android/iOS (Capacitor): a página roda em `https://localhost` (Android)
+  // ou `capacitor://localhost` (iOS), onde não há API. Vale a URL do build.
+  if (daEnv && rodandoNoAppNativo()) return daEnv;
 
   if (origem && daEnv && origem !== daEnv) {
     if (ehSplitDevLocal(origem, daEnv)) return daEnv;
