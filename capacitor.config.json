@@ -1,0 +1,12 @@
+{
+  "appId": "com.makgestao.app",
+  "appName": "MAK Gestão",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https",
+    "iosScheme": "capacitor"
+  }
+}
