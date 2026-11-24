@@ -9357,6 +9357,15 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** medições de forragem nos Detalhes do Lote, gráfico de altura, barra de descanso, cartão "Lote aqui agora", tela própria para lavoura. Nenhuma mudança no servidor; nenhuma migration.
 - **Testes:** `detalhesAreaHistorico`, `detalhesAreaCancelarRegistro`, `mapaAtividadeAcoes`, `medicaoForragem` e `reformaPastagem` ajustados às abas novas.
 
+## D-PROD-290 — Detalhes do mapa no computador do tamanho do tablet
+
+**Data:** 2026-11-24 · **Origem:** proprietário: "arrume meus popups em desktop, diminua eles, estão muito grandes … deixe do tamanho do tablet" · **Relatório:** [`MAIKE-POPUP-DESKTOP-TABLET-REPORT.md`](./MAIKE-POPUP-DESKTOP-TABLET-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` deu D-PROD-290; o marcador passa a D-PROD-291.
+
+- **Decisão:** a partir de 1024 px, as janelas de detalhes do Mapa (as que usam a casca `mk-dp` dentro do diálogo largo: lote, área, cocho, depósito, bebedouro) têm 720 px de largura (a do tablet, antes até 880 px) e no máximo 820 px de altura. Sai o arranjo de duas colunas só do computador na aba Detalhes do lote; fica o do tablet. Letras e componentes não mudam (já são os mesmos do tablet).
+- **Fora:** diálogos de lançamento e telas de cadastro. Sem servidor, sem migration.
+
 ## D-PROD-291 — Gerenciar tipos: marcar "usa produto · por jato" num tipo de implemento que já existe
 
 **Data:** 2026-11-24 · **Origem:** proprietário ("veja o que falta para implantar"; "pode começar a fazer tudo") · **Relatório:** [`MAIKE-JATOS-FECHAMENTO-REPORT.md`](./MAIKE-JATOS-FECHAMENTO-REPORT.md)
