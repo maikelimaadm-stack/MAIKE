@@ -63,7 +63,11 @@ const HOJE = '2027-06-15';
 
 const renderizar = (ui) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  const r = render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  // D-PROD-289: nos Detalhes da área, a Forragem tem aba própria.
+  const aba = screen.queryByRole('tab', { name: 'Forragem' });
+  if (aba) fireEvent.click(aba);
+  return r;
 };
 
 beforeEach(() => {

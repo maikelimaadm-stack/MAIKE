@@ -79,6 +79,15 @@
   width: min(880px, calc(100vw - 48px));
 }
 
+/* D-PROD-290: no computador, os detalhes do mapa (lote, área, cocho, depósito…) abrem do tamanho
+   do tablet — a mesma largura e a mesma altura máxima —, não esticados até 880 px. */
+@media (min-width: 1024px) {
+  .mk-ll-dlg--largo.is-desktop:has(.mk-dp):not(#mk-padrao) {
+    width: 720px;
+    max-height: min(820px, calc(100vh - 64px));
+  }
+}
+
 .mk-ll-dlg.is-desktop .mk-ll-dlg__head:not(#mk-padrao) {
   padding: 10px 14px 10px 18px;
   border-bottom: 1px solid var(--mkq-e7eaee, #e7eaee);

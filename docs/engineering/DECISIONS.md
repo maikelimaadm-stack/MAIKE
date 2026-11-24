@@ -9340,4 +9340,30 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Constituição.** Nenhuma regra tocada: abastecimento, atividade e cocho ficam como estão; o custo médio, o lote e o recálculo não mudam. Sem emenda.
 
-<!-- Próxima decisão: D-PROD-289 -->
+## D-PROD-289 — Detalhes da Área no visual v13, um assunto por aba
+
+**Data:** 2026-11-24 · **Origem:** proprietário: "ajustar o mesmo estilo visual para detalhes de áreas"; comparou atual × proposto no celular, apontou que havia "muita coisa junta em apenas detalhes", pediu para organizar "por enquanto sem as medições" e aprovou ("pode implementar") · **Relatório:** [`MAIKE-DETALHES-AREA-V13-REPORT.md`](./MAIKE-DETALHES-AREA-V13-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `8b5d1c01` deu D-PROD-289 (a D-PROD-288 estava no título de uma PR aberta, depois mesclada); o marcador passa a D-PROD-290.
+
+- **Contexto:** a aba Detalhes da área empilhava cartão da área, atividades, custos e forragem; o rótulo "Cultura / forragem" ficava cortado.
+- **Decisão (só arrumação; nenhuma informação removida):**
+  - **Abas:** Detalhes · Forragem (só com a chave `medir_forragem`, como antes) · Manejos · Custos (as duas com a permissão de ver atividades) · Abate (curral).
+  - **Detalhes:** o capim em destaque com "Cultura / forragem" acima, situação em chip, Área/Tipo/Situação em grade de 3, a reforma aberta (D-PROD-276) e um **Resumo** de uma linha para Manejos e Custos que abre a aba.
+  - **Manejos:** "Em andamento e planejado" (as atividades com uma barra do feito e as ações rápidas da D-PROD-278) e "Já feito" (os registros de campo que eram a aba Histórico, com o filtro e o "Excluir registro" da D-PROD-266).
+  - **Custos:** total e por hectare em destaque, barra insumos × máquinas e mão de obra (× serviços quando houver) e cada parte com a porcentagem.
+  - **Forragem:** o painel de antes (D-PROD-219/221/223), só mudou de lugar. Redesenho das medições fica para outra missão.
+  - Rodapé (Manejos · Histórico completo), botão de fechar e ícones não mudam.
+- **Fora:** medições de forragem nos Detalhes do Lote, gráfico de altura, barra de descanso, cartão "Lote aqui agora", tela própria para lavoura. Nenhuma mudança no servidor; nenhuma migration.
+- **Testes:** `detalhesAreaHistorico`, `detalhesAreaCancelarRegistro`, `mapaAtividadeAcoes`, `medicaoForragem` e `reformaPastagem` ajustados às abas novas.
+
+## D-PROD-290 — Detalhes do mapa no computador do tamanho do tablet
+
+**Data:** 2026-11-24 · **Origem:** proprietário: "arrume meus popups em desktop, diminua eles, estão muito grandes … deixe do tamanho do tablet" · **Relatório:** [`MAIKE-POPUP-DESKTOP-TABLET-REPORT.md`](./MAIKE-POPUP-DESKTOP-TABLET-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` deu D-PROD-290; o marcador passa a D-PROD-291.
+
+- **Decisão:** a partir de 1024 px, as janelas de detalhes do Mapa (as que usam a casca `mk-dp` dentro do diálogo largo: lote, área, cocho, depósito, bebedouro) têm 720 px de largura (a do tablet, antes até 880 px) e no máximo 820 px de altura. Sai o arranjo de duas colunas só do computador na aba Detalhes do lote; fica o do tablet. Letras e componentes não mudam (já são os mesmos do tablet).
+- **Fora:** diálogos de lançamento e telas de cadastro. Sem servidor, sem migration.
+
+<!-- Próxima decisão: D-PROD-291 -->

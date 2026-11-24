@@ -9,7 +9,21 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-24) — MAIKE-EXCLUIR-BEM-NAO-USADO: excluir de vez o bem que nunca foi usado (D-PROD-287)
+## Missão ativa (2026-11-24) — MAIKE-POPUP-DESKTOP-TABLET: detalhes do mapa no computador do tamanho do tablet (D-PROD-290)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-290**: janelas de detalhes do Mapa com 720 px no computador |
+| Banco | sem migration |
+| Relatório | [`MAIKE-POPUP-DESKTOP-TABLET-REPORT.md`](./MAIKE-POPUP-DESKTOP-TABLET-REPORT.md) |
+## Missão anterior (2026-11-24) — MAIKE-DETALHES-AREA-V13: Detalhes da Área no visual v13, um assunto por aba (D-PROD-289)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-289**: abas Detalhes · Forragem · Manejos · Custos; resumo de uma linha; barra do feito; custos com barra de composição |
+| Banco | sem migration |
+| Relatório | [`MAIKE-DETALHES-AREA-V13-REPORT.md`](./MAIKE-DETALHES-AREA-V13-REPORT.md) |
+## Missão anterior (2026-11-24) — MAIKE-EXCLUIR-BEM-NAO-USADO: excluir de vez o bem que nunca foi usado (D-PROD-287)
 
 | Item | Estado |
 |---|---|

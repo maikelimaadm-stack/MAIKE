@@ -134,16 +134,6 @@
   font-weight: 600;
 }
 
-/* Desktop: área e lotação lado a lado quando há largura. */
-@media (min-width: 1024px) {
-  .mk-dp .mk-dp-area-organizada.mk-dp-d13 {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-  }
-  .mk-dp .mk-dp-area-organizada.mk-dp-d13 > :is(.mk-dp-aviso, .mk-dp-vazio) {
-    grid-column: 1 / -1;
-  }
-}
-
 /* Celular: a grade da Lotação em 3 colunas (rótulos inteiros, podendo quebrar)
    e, na régua, só o nome da faixa atual (os outros não cabem nos trechos estreitos). */
 @media (max-width: 767px) {

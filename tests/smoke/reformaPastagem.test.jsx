@@ -445,7 +445,7 @@ describe("o mapa: Detalhes da área", () => {
         <AbaDetalhesDaArea area={SEDE} verAtividades forragem={false} />
       </QueryClientProvider>,
     );
-    await screen.findByText("Nenhuma atividade nesta área agora.");
+    await screen.findByText("Nenhuma atividade agora");
     expect(screen.queryByTestId("detalhes-area-em-reforma")).toBeNull();
   });
 });
