@@ -15,6 +15,7 @@ name: app-android
 #   MAKGESTAO_KEYSTORE_BASE64    a chave makgestao-release.jks em base64
 #   MAKGESTAO_KEYSTORE_PASSWORD  a senha da chave
 #   VITE_GOOGLE_MAPS_API_KEY     a chave do Google Maps do site (satélite)
+#   VITE_MAPTILER_KEY            (opcional) satélite do app MapTiler, em cache para usar sem internet
 # A chave e a senha nunca entram no repositório nem no log.
 
 on:
@@ -99,6 +100,8 @@ jobs:
           NODE_ENV: production
           VITE_MAIKE_API_URL: https://www.makgestao.com
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          # Opcional (D-PROD-294): satélite do app em cache para usar sem internet.
+          VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
         run: |
           npx vite build
           node scripts/app/versao-do-pacote.mjs dist

@@ -117,6 +117,22 @@ const lerAssistenteLigado = () => {
   }
 };
 
+/**
+ * Chave da MapTiler (satélite do app Android/iOS que fica no aparelho para usar
+ * sem internet, D-PROD-294). Pública por definição, como a do Google: a
+ * proteção é a restrição de origem no painel da MapTiler.
+ */
+const lerMapTilerKey = () => {
+  try {
+    return normalizarEnv(import.meta.env.VITE_MAPTILER_KEY);
+  } catch {
+    return null;
+  }
+};
+
+/** @returns {string|null} */
+export const getMapTilerKey = () => lerMapTilerKey();
+
 /** @returns {boolean} */
 export const isAssistenteLigado = () => lerAssistenteLigado() === 'true';
 
