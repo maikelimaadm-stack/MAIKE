@@ -4,21 +4,12 @@
  * mk-detalhes-pasto.css) não têm. Tudo vale só sob a raiz `.mk-dp`.
  *
  * ── Mapa de uso ─────────────────────────────────────────────────────────
- * section.mk-dp-deposito__nivel > h3.mk-dp-deposito__oculto + .mk-dp-nivel + .mk-dp-aviso… + .mk-dp-cartao
- * .mk-dp-nivel__val > span.mk-dp-deposito__excesso | span.mk-dp-deposito__neutro
+ * O nível (v13) está em mk-dp-deposito-v13.css (section.mk-dp-dep13).
  * .mk-dp-cartao > .mk-dp-linha… + div.mk-dp-deposito__litros[role=group] > p.mk-dp-deposito__litros-tit + .mk-dp-linha…
  * span.mk-dp-deposito__alerta   texto curto em âmbar ("unidade não confirmada", "Reposição recomendada.")
  * .mk-dp-linha.mk-dp-deposito__linha--fraca   seção vazia ("Sem saldo…", "Nenhum cocho vinculado…")
  * div.mk-dp-vazio.mk-dp-deposito__carregando[role=status]   "Carregando detalhes do depósito..."
  */
-
-/* Região "Nível do depósito": nível, avisos e grade com o mesmo respiro do corpo. */
-.mk-dp .mk-dp-deposito__nivel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
 
 /* Só para o leitor de tela: o v12 não mostra título acima do nível. */
 .mk-dp .mk-dp-deposito__oculto {
@@ -80,84 +71,5 @@
 @media (prefers-reduced-motion: no-preference) {
   .mk-dp .mk-dp-deposito__carregando .mk-dp-vazio__ic {
     animation: mk-dp-deposito-girar 1s linear infinite;
-  }
-}
-
-/* Estoque mínimo: o grupo nomeado vive dentro do dd do valor (linha com a
-   bolinha + orientação embaixo, no desenho do .mk-dp-cel__sub). */
-.mk-dp .mk-dp-deposito__minimo {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.mk-dp .mk-dp-deposito__minimo-linha {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-/* A bolinha acompanha a 1ª linha quando o texto quebra (coluna estreita). */
-.mk-dp .mk-dp-deposito__minimo-linha > .mk-dp-bolinha {
-  flex: 0 0 auto;
-  margin-top: 4px;
-}
-
-.mk-dp .mk-dp-deposito__orientacao {
-  color: #73726C;
-  font-size: 11.5px;
-  font-weight: 400;
-  line-height: 1.3;
-}
-
-/* Cartão dos números como o DepositoNivel antigo (D-PROD-226), em todos os modos (6 trilhos):
-   Ocupação | Estoque mínimo em cima e Saldo atual | Saldo em sacos | Necessidade embaixo; sem a
-   célula de sacos (4 células), a 2ª fileira fica meio a meio. */
-.mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-}
-
-.mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel {
-  grid-column: span 2;
-}
-
-.mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel:nth-child(-n + 2),
-.mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel:nth-child(3):nth-last-child(2),
-.mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel:nth-child(4):last-child {
-  grid-column: span 3;
-}
-
-/* 2ª fileira com os valores na mesma linha: "Necessidade reposição kg" quebra em duas linhas, e
-   cada célula usa os trilhos da grade (subgrid) para rótulo, valor e sub. Sem subgrid, fica como antes. */
-.mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade > .mk-dp-cel:nth-child(n + 3) {
-  display: grid;
-  grid-row: span 3;
-  grid-template-rows: subgrid;
-  row-gap: 1px;
-}
-
-/* ── Popup (a partir de 768 px, D-PROD-224): o nível e o cartão dos números
-   LADO A LADO, como o estilo antigo; os avisos vêm embaixo, de ponta a ponta.
-   O título oculto é absoluto e não ocupa célula da grade. ── */
-@media (min-width: 768px) {
-  .mk-dp .mk-dp-deposito__nivel {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: stretch;
-  }
-
-  .mk-dp .mk-dp-deposito__nivel > .mk-dp-nivel {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .mk-dp .mk-dp-deposito__nivel > .mk-dp-aviso {
-    grid-column: 1 / -1;
   }
 }

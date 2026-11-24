@@ -14,8 +14,8 @@ import { usePodeCancelarLancamentosEstoque } from "./deposito/usePodeCancelarLan
 import DepositoNivel from "./DepositoNivel";
 import CascaDetalhe from "./detalhes-lote/CascaDetalhe";
 import FiltroHistorico from "./detalhes-lote/FiltroHistorico";
-import LinhaDoTempo from "./detalhes-lote/LinhaDoTempo";
 import { Abas, Cartao, Celula, Grade, Item, Linha, ListaItens, RodapePilulas, SecaoDetalhe, Vazio, idsDaAba } from "./detalhes-lote/blocos";
+import LinhaDoTempoDeposito from "./deposito/LinhaDoTempoDeposito";
 import { VAZIO, fmtNumero, rotuloDoDia } from "./detalhes-lote/historicoDoPasto";
 import { formatDecimal } from "../suplementacao/formatters";
 import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
@@ -27,6 +27,7 @@ import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { useDiaCivil } from "@/hooks/useDiaCivil";
 import "@/styles/mk-dp-deposito.css";
 import "@/styles/mk-dp-historico.css";
+import "@/styles/mk-dp-deposito-v13.css";
 
 const FILTROS_DEPOSITO = [
   { valor: "todos", rotulo: "Todos os registros" },
@@ -277,7 +278,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
           nome: String(cocho.nome_ponto || "Cocho"),
           meta: [pastosAtendidos, cocho.produto_padrao].filter(Boolean).join(" · "),
           fracao: nivelCocho.fracaoParaSvg,
-          farol: { hex: farol.hex, texto: descreverFarol(farol) },
+          nivelTexto: /%$/.test(String(nivelCocho.rotuloCurto)) ? `nível ${nivelCocho.rotuloCurto}` : String(nivelCocho.rotuloCurto || ""),
+          farol: { hex: farol.hex, cor: farol.cor, curto: rotuloCurtoDoFarol(farol.rotulo), texto: descreverFarol(farol) },
           ponto: cocho,
         };
       })
@@ -363,6 +365,9 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   // Os produtos entram: sem eles a unidade dos lotes não é conhecida e o litro cairia no kg no primeiro quadro.
   const loadingInicial = loadingSaldo || loadingProdutos || loadingCochos || loadingAreas;
   const semSaldo = saldosAgrupados.emKg.length === 0 && saldosAgrupados.emLitros.length === 0;
+  const totalKg = saldosAgrupados.emKg.reduce((t, item) => t + (Number(item.saldo) || 0), 0);
+  // Nota do estoque mínimo (v13): só quando o mínimo está configurado e o saldo não está abaixo dele.
+  const notaMinimo = nivel.estoqueMinimoKg != null && !nivel.abaixoMinimo;
   const abrirCocho = typeof onAbrirCocho === "function" ? onAbrirCocho : null;
 
   return (
@@ -401,7 +406,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
                 ) : (
                   <>
                     {saldosAgrupados.emKg.map((item) => (
-                      <LinhaSaldoProduto key={item.produto_id} item={item} />
+                      <LinhaSaldoProduto key={item.produto_id} item={item} totalKg={totalKg} />
                     ))}
                     {saldosAgrupados.emLitros.length > 0 ? (
                       <div role="group" aria-labelledby={idGrupoLitros} className="mk-dp-deposito__litros">
@@ -416,11 +421,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
                   </>
                 )}
               </Cartao>
+              {notaMinimo ? <p className="mk-dp-dep13__nota">Abaixo do mínimo o mapa avisa para repor.</p> : null}
             </SecaoDetalhe>
           </>
         ) : aba === "informacoes" ? (
           <>
-            <SecaoDetalhe titulo="Pastos atendidos" className="mk-dp-deposito__pastos">
+            <SecaoDetalhe
+              titulo={cochos.length > 0 ? `Pastos atendidos · ${cochos.length} ${cochos.length === 1 ? "cocho" : "cochos"}` : "Pastos atendidos"}
+              className="mk-dp-deposito__pastos"
+            >
               {cochos.length === 0 ? (
                 <Cartao>
                   <Linha className="mk-dp-deposito__linha--fraca" rotulo="Nenhum cocho vinculado a este depósito." />
@@ -439,7 +448,20 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
                           <span className="mk-dp-deposito__oculto">{` · ${c.farol.texto}`}</span>
                         </>
                       }
-                      bolinha={c.farol.hex}
+                      chip={
+                        <span className="mk-dp-chip mk-dp-dep13__leitura" data-cor={c.farol.cor} aria-hidden="true">
+                          <span className="mk-dp-bolinha" style={{ background: c.farol.hex }} />
+                          {c.farol.curto}
+                        </span>
+                      }
+                      sub={
+                        <span className="mk-dp-dep13__nivel-cocho" aria-hidden="true">
+                          <span className="mk-dp-dep13__nivel-barra">
+                            <span style={{ width: `${Math.round(Math.max(0, Math.min(1, Number(c.fracao) || 0)) * 100)}%` }} />
+                          </span>
+                          <span className="mk-dp-dep13__nivel-txt">{c.nivelTexto}</span>
+                        </span>
+                      }
                       chevron={Boolean(abrirCocho)}
                       title={c.farol.texto}
                       onClick={abrirCocho ? () => abrirCocho(c.ponto) : undefined}
@@ -474,7 +496,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
                 Não foi possível carregar o histórico.
               </div>
             ) : diasDoHistorico.length > 0 ? (
-              <LinhaDoTempo dias={diasDoHistorico} rotulo="Histórico do depósito" />
+              <LinhaDoTempoDeposito dias={diasDoHistorico} rotulo="Histórico do depósito" />
             ) : (
               <Vazio icone={History}>
                 {filtroHistorico === "todos" ? "Nenhum registro ainda." : "Nenhum registro deste tipo neste depósito."}
@@ -520,9 +542,9 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
  * direita; em LITROS, "—" nos sacos e o volume em L (D-PROD-162, P-11).
  * Produto fora do cadastro: unidade não confirmada (o saldo continua em kg,
  * como no nível).
- * @param {{ item: SaldoProduto }} props
+ * @param {{ item: SaldoProduto, totalKg?: number }} props
  */
-function LinhaSaldoProduto({ item }) {
+function LinhaSaldoProduto({ item, totalKg = 0 }) {
   const sub = item.emLitros ? (
     VAZIO
   ) : (
@@ -541,7 +563,18 @@ function LinhaSaldoProduto({ item }) {
   ) : (
     formatarKgNivel(item.saldo)
   );
-  return <Linha data-unidade-confirmada={String(item.unidadeConfirmada)} rotulo={item.produto_nome} sub={sub} valor={valor} />;
+  // v13: em kg, a barra da participação do produto no saldo (só desenho; o número está na linha).
+  const participacao = !item.emLitros && totalKg > 0 ? Math.max(0, Math.min(100, (item.saldo / totalKg) * 100)) : null;
+  return (
+    <div className="mk-dp-dep13__produto" data-unidade-confirmada={String(item.unidadeConfirmada)}>
+      <Linha rotulo={item.produto_nome} sub={sub} valor={valor} />
+      {participacao != null ? (
+        <span className="mk-dp-dep13__part" aria-hidden="true" data-participacao={participacao.toFixed(1)}>
+          <span style={{ width: `${participacao.toFixed(1)}%` }} />
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 /**
@@ -552,8 +585,18 @@ function LinhaSaldoProduto({ item }) {
  *   titulo: string,
  *   linhas: Array<{ rotulo: string, valor: string }>,
  *   acoes?: React.ReactNode,
+ *   curto: { tom: "entrada" | "saida", quantidade: string, sacos: string | null, resumo: string, rotuloQuantidade: string, resto: Array<{ rotulo: string, valor: string }> },
  * }} CartaoDoDeposito
  */
+
+/**
+ * Texto curto da etiqueta da leitura: "Cocho adequado" → "Adequado"; o resto como vem.
+ * @param {string} rotulo
+ */
+function rotuloCurtoDoFarol(rotulo) {
+  const t = String(rotulo || "").replace(/^Cocho\s+/i, "");
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
+}
 
 /**
  * Dia literal da movimentação ('AAAA-MM-DD'), a mesma data que o histórico
@@ -620,12 +663,27 @@ function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId,
   ];
   const observacoes = typeof mov?.observacoes === "string" ? mov.observacoes.trim() : "";
   if (observacoes) linhas.push({ rotulo: "Observações", valor: observacoes });
+  // v13 (cartão curto): a quantidade com sinal à direita (verde na entrada, vermelho na saída),
+  // os sacos embaixo dela, e na linha de baixo do título o produto com a origem/destino.
+  const unidade = emLitros ? "L" : "kg";
+  const qtdTexto = `${entrada ? "+" : "−"}${fmtNumero(mov?.quantidade ?? 0, 2).replace(/,00$/, "")} ${unidade}`;
+  const sacos = pesoPorSaco > 0 ? `${fmtNumero(kgParaSacos(mov?.quantidade, pesoPorSaco), 2)} sacos` : null;
+  const lugar = entrada ? (mov?.local_origem ? `de ${mov.local_origem}` : "") : destinoDaSaida(mov, cochosPorId);
+  const resumo = [mov?.produto_nome || "", lugar && lugar !== VAZIO ? lugar : ""].filter(Boolean).join(" · ") || VAZIO;
   return {
     chave: `mov-${mov?.id ?? "sem-id"}`,
     dia: diaDaMovimentacao(mov),
     Icone: entrada ? Truck : LogOut,
     titulo: entrada ? "Entrada no depósito" : "Saída do depósito",
     linhas,
+    curto: {
+      tom: entrada ? "entrada" : "saida",
+      quantidade: qtdTexto,
+      sacos,
+      resumo,
+      rotuloQuantidade: `${entrada ? "Entraram" : "Saíram"} ${fmtNumero(mov?.quantidade ?? 0, 2)} ${unidade}${sacos ? `, ${sacos}` : ""}`,
+      resto: observacoes ? [{ rotulo: "Observações", valor: observacoes }] : [],
+    },
     ...(acaoDeCancelar && transferenciaCancelavelAqui(mov, localEstoqueId) ? { acoes: acaoDeCancelar(mov) } : {}),
   };
 }

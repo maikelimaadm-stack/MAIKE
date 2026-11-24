@@ -1,0 +1,321 @@
+/*
+ * Detalhe do DEPÓSITO — desenho v13 (as regras do Detalhes do Lote v13, D-PROD-280): campos em
+ * grade, régua onde há número para comparar, cartões curtos no histórico, valores 500 e títulos
+ * 600. Tudo sob a raiz `.mk-dp`.
+ *
+ * ── Mapa de uso ─────────────────────────────────────────────────────────
+ * section.mk-dp-dep13 > h3.mk-dp-deposito__oculto + div.mk-dp-cartao.mk-dp-dep13__cartao + .mk-dp-aviso…
+ *   __cartao > div.mk-dp-dep13__topo(> span.mk-dp-dep13__fig + div.mk-dp-dep13__saldo)
+ *            + div.mk-dp-dep13__regua(> __rotulos--cima? + div.__trilho[role=meter|img] + __rotulos + small.__excesso?)
+ *            + div.mk-dp-dep13__caixas > div.mk-dp-dep13__caixa ×2
+ * div.mk-dp-dep13__produto[data-unidade-confirmada] > .mk-dp-linha + span.mk-dp-dep13__part
+ * p.mk-dp-dep13__nota   "Abaixo do mínimo o mapa avisa para repor."
+ * Pastos atendidos: li.mk-dp-item > … span.mk-dp-item__sub > span.mk-dp-dep13__nivel-cocho
+ * Histórico: ol.mk-dp-tl.mk-dp-tl--curto.mk-dp-dep13__tl (cartão curto do depósito)
+ */
+
+/* A região do nível ocupa a largura do corpo, em coluna, nos três modos. */
+.mk-dp .mk-dp-dep13 {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-dep13__cartao {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Topo: o subícone e SÓ o saldo atual, grande e numa linha. */
+.mk-dp .mk-dp-dep13__topo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px 6px;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-deposito__fig.mk-dp-dep13__fig {
+  width: 112px;
+  height: 82px;
+}
+
+.mk-dp .mk-dp-dep13__saldo {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mk-dp .mk-dp-dep13__rot {
+  color: #656970;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.mk-dp .mk-dp-dep13__grande {
+  color: #1f2328;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.mk-dp .mk-dp-dep13__sub {
+  color: #656970;
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.mk-dp .mk-dp-dep13__linha {
+  color: #4b5563;
+  font-size: 11.5px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* ── Régua 0 → limite operacional ── */
+.mk-dp .mk-dp-dep13__regua {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 14px 10px;
+}
+
+.mk-dp .mk-dp-dep13__trilho {
+  position: relative;
+  height: 10px;
+  margin: 6px 0;
+  border-radius: 999px;
+  background: #eef0f2;
+}
+
+.mk-dp .mk-dp-dep13__trilho[data-variante="neutro"] {
+  background: repeating-linear-gradient(90deg, #eef0f2 0 6px, #f7f8f9 6px 10px);
+}
+
+.mk-dp .mk-dp-dep13__preench {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: #3db5c9;
+}
+
+.mk-dp .mk-dp-dep13__preench--excesso {
+  background: #f59e0b;
+}
+
+.mk-dp .mk-dp-dep13__marca-min,
+.mk-dp .mk-dp-dep13__marca-saldo {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+}
+
+.mk-dp .mk-dp-dep13__marca-min {
+  background: #b91c1c;
+}
+
+.mk-dp .mk-dp-dep13__marca-saldo {
+  background: #1f2328;
+  box-shadow: 0 0 0 1.5px #fff;
+}
+
+/* Linha dos rótulos (embaixo; e em cima quando o do saldo sobe). */
+.mk-dp .mk-dp-dep13__rotulos {
+  position: relative;
+  height: 16px;
+}
+
+.mk-dp .mk-dp-dep13__marca-rot {
+  position: absolute;
+  top: 0;
+  color: #656970;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transform: translateX(-50%);
+}
+
+.mk-dp .mk-dp-dep13__marca-rot[data-ancora="inicio"] {
+  transform: none;
+}
+
+.mk-dp .mk-dp-dep13__marca-rot[data-ancora="fim"] {
+  transform: translateX(-100%);
+}
+
+.mk-dp .mk-dp-dep13__marca-rot--saldo {
+  color: #1f2328;
+  font-weight: 600;
+}
+
+.mk-dp .mk-dp-dep13__marca-rot--minimo {
+  color: #b91c1c;
+}
+
+.mk-dp .mk-dp-dep13__excesso {
+  color: #b45309;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+/* ── Duas caixas lado a lado: necessidade de reposição e estoque mínimo ── */
+.mk-dp .mk-dp-dep13__caixas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid #e7e9ec;
+}
+
+.mk-dp .mk-dp-dep13__caixa {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 14px;
+}
+
+.mk-dp .mk-dp-dep13__caixa + .mk-dp-dep13__caixa {
+  border-left: 1px solid #e7e9ec;
+}
+
+/* O número nunca quebra; só o rótulo e o sub descem de linha. */
+.mk-dp .mk-dp-dep13__val {
+  color: #1f2328;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.mk-dp .mk-dp-dep13__caixa[data-tom="ok"] .mk-dp-dep13__val {
+  color: #15803d;
+}
+
+.mk-dp .mk-dp-dep13__caixa[data-tom="atencao"] .mk-dp-dep13__val {
+  color: #b45309;
+}
+
+.mk-dp .mk-dp-dep13__caixa[data-tom="perigo"] .mk-dp-dep13__val {
+  color: #b91c1c;
+}
+
+.mk-dp .mk-dp-dep13__caixa[data-tom="neutro"] .mk-dp-dep13__val {
+  color: #94a3b8;
+}
+
+.mk-dp .mk-dp-dep13__sub--excesso {
+  color: #b45309;
+}
+
+/* ── Saldo por produto: barra da participação no saldo em kg ── */
+.mk-dp .mk-dp-dep13__produto + .mk-dp-dep13__produto,
+.mk-dp .mk-dp-dep13__produto + .mk-dp-deposito__litros {
+  border-top: 1px solid #e7e9ec;
+}
+
+.mk-dp .mk-dp-dep13__produto > .mk-dp-linha .mk-dp-linha__val {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mk-dp .mk-dp-dep13__part {
+  display: block;
+  height: 6px;
+  margin: -2px 12px 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eef0f2;
+}
+
+.mk-dp .mk-dp-dep13__part > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #3db5c9;
+}
+
+.mk-dp .mk-dp-dep13__nota {
+  color: #656970;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* ── Pastos atendidos: etiqueta da leitura e barra de nível do cocho ── */
+.mk-dp .mk-dp-dep13__leitura > .mk-dp-bolinha {
+  flex: 0 0 auto;
+}
+
+.mk-dp .mk-dp-chip.mk-dp-dep13__leitura::before {
+  display: none;
+}
+
+.mk-dp .mk-dp-chip.mk-dp-dep13__leitura[data-cor="verde"] { background: #ecfdf3; color: #166534; }
+.mk-dp .mk-dp-chip.mk-dp-dep13__leitura[data-cor="vermelho"] { background: #fef2f2; color: #b91c1c; }
+.mk-dp .mk-dp-chip.mk-dp-dep13__leitura[data-cor="azul"] { background: #eff6ff; color: #1d4ed8; }
+.mk-dp .mk-dp-chip.mk-dp-dep13__leitura[data-cor="cinza"] { background: #f1f5f9; color: #475569; }
+
+.mk-dp .mk-dp-dep13__nivel-cocho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.mk-dp .mk-dp-dep13__nivel-barra {
+  flex: 1 1 auto;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eef0f2;
+}
+
+.mk-dp .mk-dp-dep13__nivel-barra > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #3db5c9;
+}
+
+.mk-dp .mk-dp-dep13__nivel-txt {
+  flex: 0 0 auto;
+  color: #656970;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* ── Histórico: o cartão curto do depósito (sobre o `mk-dp-tl--curto` do pasto) ── */
+.mk-dp .mk-dp-tl--curto.mk-dp-dep13__tl .mk-dp-tl__qtd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  white-space: nowrap;
+}
+
+.mk-dp .mk-dp-tl--curto.mk-dp-dep13__tl .mk-dp-tl__qtd[data-tom="saida"] {
+  color: #b91c1c;
+}
+
+.mk-dp .mk-dp-tl--curto.mk-dp-dep13__tl .mk-dp-dep13__qtd-sub {
+  color: #656970;
+  font-size: 11.5px;
+  font-weight: 400;
+}
+
+.mk-dp .mk-dp-tl--curto.mk-dp-dep13__tl .mk-dp-tl__lote {
+  white-space: normal;
+}
