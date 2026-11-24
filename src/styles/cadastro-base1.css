@@ -3563,3 +3563,52 @@ body.b1-tela .mk-sheet .b1-fr-periodo .b1-fr-periodo__in:not(#mk-a):not(#mk-b) {
   font-size: 22px;
   font-weight: 600;
 }
+
+/* D-PROD-283 — "Jatos de hoje": um cartão por jato (mesmo desenho do resumo do "Novo lançamento"). */
+.b1-jato {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #e7e5df;
+  border-radius: 10px;
+  background: #fff;
+}
+.b1-jato__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.b1-jato__topo strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.b1-jato__topo button {
+  flex: none;
+}
+.b1-jato__linha {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  font-size: 14px;
+}
+.b1-jato__linha span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.b1-jato__linha b {
+  flex: none;
+}
+.b1-jato__botoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.b1-jato__total {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}

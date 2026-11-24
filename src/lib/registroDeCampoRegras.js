@@ -104,7 +104,14 @@ export const linhasDoCorpoDoRegistro = (itens) => ({
   ...(itens.maquinas.length ? { maquinas: itens.maquinas.map((i) => corpoDaLinhaMaquina(i.form, i.medidor, { comJustificativa: i.comJustificativa === true })) } : {}),
   // D-PROD-274: o VC (%) da semente só vai quando preenchido e válido (sem ele, a linha de sempre).
   ...(itens.produtos.length
-    ? { produtos: itens.produtos.map((i) => { const vc = lerVc(i.form?.vc).valor; return { ...corpoDaLinhaProduto(i.form), ...(vc ? { vc_percentual: vc } : {}) }; }) }
+    ? {
+        produtos: itens.produtos.map((i) => {
+          const vc = lerVc(i.form?.vc).valor;
+          // D-PROD-283: o número do jato, em texto, só na linha que é de um jato.
+          const jato = Number.isInteger(i.form?.jato) && i.form.jato > 0 ? { jato: String(i.form.jato) } : {};
+          return { ...corpoDaLinhaProduto(i.form), ...(vc ? { vc_percentual: vc } : {}), ...jato };
+        }),
+      }
     : {}),
   ...(itens.mao_obra.length ? { mao_obra: itens.mao_obra.map((i) => corpoDaLinhaMaoObra(i.form)) } : {}),
   ...(itens.servicos.length ? { servicos: itens.servicos.map((i) => corpoDaLinhaServico(i.form)) } : {}),

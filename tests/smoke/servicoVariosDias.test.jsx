@@ -279,6 +279,11 @@ describe("o diálogo Concluir (V3)", () => {
 // ─── A Nova realização de verdade, com o backend falso ──────────────────
 const TRATOR = { id: "b-tr", numero: "2", codigo_frota: "TR-02", nome: "TRATOR MF 4275", natureza: "MAQUINA" };
 const ROCADEIRA = { id: "i-ro", numero: "8", codigo_frota: "RO-01", nome: "ROÇADEIRA", natureza: "IMPLEMENTO" };
+/** D-PROD-283: o implemento de tipo "por jato" (tanque de 2.000 L). */
+const PULVERIZADOR = { id: "i-pv", numero: "9", codigo_frota: "PV-01", nome: "PULVERIZADOR", natureza: "IMPLEMENTO", jato: { capacidade: "2000", unidade: "L" } };
+const GLIFOSATO = { id: "p-gli", nome: "GLIFOSATO", unidade: "L", unidade_principal_estoque: "L" };
+/** O implemento da máquina do último dia (troca por teste). */
+let implementoDoUltimoDia = ROCADEIRA;
 const MEDIDORES = /** @type {Record<string, any>} */ ({
   "b-tr": { medidor_tipo: "HORIMETRO", medidor_unidade: "h", sem_medidor: false, leitura_vigente: { leitura: "1244.0000", data: "2026-12-02", origem: "ATIVIDADE" }, salto_maximo_medidor: null },
 });
@@ -306,11 +311,16 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
   if (path === "/areas-pastagem" && method === "GET") return { status: 200, body: AREAS };
   if (partes[0] === "atividades-opcoes" && method === "GET") {
     if (partes[1] === "medidor") return { status: 200, body: MEDIDORES[String(query.get("bem_id"))] ?? {} };
-    const porRecurso = /** @type {Record<string, any[]>} */ ({ bens: [TRATOR], implementos: [ROCADEIRA], "mao-obra": [JOAO] });
+    if (partes[1] === "locais") return { status: 200, body: { itens: [{ local_estoque_id: "l-gal", local_nome: "Galpão", disponivel: "500.0000", unidade: "L" }] } };
+    const porRecurso = /** @type {Record<string, any[]>} */ ({ bens: [TRATOR], implementos: [ROCADEIRA, PULVERIZADOR], "mao-obra": [JOAO], produtos: [GLIFOSATO] });
     return { status: 200, body: { itens: porRecurso[partes[1]] ?? [], has_more: false, next_cursor: null } };
   }
   if (partes[0] === "atividades-por-area" && method === "GET") {
     return { status: 200, body: { area_id: partes[1], mes: "2026-12", atividades: partes[1] === "area-aroeira" ? [NA_AROEIRA] : [], custos: null } };
+  }
+  if (path === "/atividades/at-14/apontamentos" && method === "GET" && implementoDoUltimoDia !== ROCADEIRA) {
+    const comImplemento = { ...ULTIMO_DIA, maquinas: ULTIMO_DIA.maquinas.map((m) => ({ ...m, implemento_bem_id: implementoDoUltimoDia.id, implemento: implementoDoUltimoDia })) };
+    return { status: 200, body: { items: [comImplemento] } };
   }
   if (path === "/atividades/at-14/apontamentos" && method === "GET") return { status: 200, body: { items: [ULTIMO_DIA, { ...ULTIMO_DIA, id: "ap-1", data_operacional: "2026-11-28", createdAt: "2026-11-28T18:00:00.000Z", mao_obra: [] }] } };
   if (path === "/atividades/registrar" && method === "POST") {
@@ -331,6 +341,7 @@ beforeEach(async () => {
   setNativeToken("jwt.teste");
   confirmacao.confirmar.mockResolvedValue(true);
   proximas = [];
+  implementoDoUltimoDia = ROCADEIRA;
   sessao.editar = true;
   backend = instalarBackendFake(rotear);
 });
@@ -730,5 +741,80 @@ describe("D-PROD-281 — o bloco 'Atividades em andamento'", () => {
     r.unmount();
     const vazio = render(<AtividadesEmAndamento itens={[finalizada]} hoje={HOJE} podeLancar={() => true} podeFinalizar={() => true} onLancar={onLancar} onFinalizar={onFinalizar} />);
     expect(vazio.container.textContent).toBe("");
+  });
+});
+
+describe("D-PROD-283: jatos de hoje no Novo lançamento", () => {
+  const escolherNoSeletor = async (/** @type {HTMLElement} */ raiz, /** @type {string} */ testId, /** @type {RegExp|string} */ nome) => {
+    await waitFor(() => expect(within(raiz).getByTestId(testId)).not.toBeDisabled());
+    fireEvent.click(within(raiz).getByTestId(testId));
+    fireEvent.click(await screen.findByRole("option", { name: nome }));
+    await waitFor(() => expect(screen.queryByTestId(`${testId}-painel`)).toBeNull());
+  };
+
+  it("com o pulverizador do último dia: 'Jatos de hoje' já no curto; o 1º jato, 'Repetir', o total e o corpo com o número de cada jato", async () => {
+    implementoDoUltimoDia = PULVERIZADOR;
+    const { janela } = await montar({ continuar: SERVICO });
+    await within(janela).findByTestId("registro-de-campo-curto");
+    expect(await within(janela).findByTestId("jatos-vazio")).toHaveTextContent("Tanque de 2.000 L");
+    // + Jato: o editor do insumo abre dentro do jato 1.
+    fireEvent.click(within(janela).getByTestId("jatos-novo"));
+    expect(within(janela).getByText("Jato 1 · o que foi no tanque (2.000 L)")).toBeTruthy();
+    const editor = within(janela).getByTestId("registro-insumo-editor");
+    await escolherNoSeletor(editor, "registro-produto-produto", /GLIFOSATO/);
+    await waitFor(() => expect(within(editor).getByRole("combobox", { name: /Local do estoque/ })).toHaveTextContent("Galpão"));
+    fireEvent.change(within(editor).getByTestId("registro-produto-quantidade"), { target: { value: "10" } });
+    fireEvent.click(within(janela).getByTestId("jatos-pronto"));
+    await waitFor(() => expect(within(janela).getByTestId("jato-1")).toHaveTextContent("GLIFOSATO10 L"));
+    // Repetir o jato anterior: o jato 2 igual ao 1; o total do dia.
+    fireEvent.click(within(janela).getByTestId("jatos-repetir"));
+    expect(within(janela).getByTestId("jato-2")).toHaveTextContent("Jato 2 · igual ao jato 1");
+    expect(within(janela).getByTestId("jatos-total")).toHaveTextContent("Hoje: 2 jatos · glifosato 20 L");
+    // Os insumos não se repetem no "Vai junto".
+    expect(within(janela).getByTestId("registro-de-campo-vai-junto")).not.toHaveTextContent("GLIFOSATO");
+    // O resto do dia, como sempre: hectares, horímetro e a situação.
+    fireEvent.change(within(janela).getByTestId("registro-de-campo-hectares-hoje"), { target: { value: "4" } });
+    await waitFor(() => expect(within(janela).getByTestId("registro-maquina-horimetro-dica")).toHaveTextContent("última hora lançada: 1.244"));
+    fireEvent.change(within(janela).getByTestId("registro-maquina-leitura-final"), { target: { value: "1251" } });
+    fireEvent.click(within(within(janela).getByTestId("registro-de-campo-situacao")).getByRole("radio", { name: "Não, continua" }));
+    fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(registros()).toHaveLength(1));
+    const corpo = registros()[0].body;
+    expect(corpo.maquinas).toMatchObject([{ bem_id: "b-tr", implemento_bem_id: "i-pv" }]);
+    expect(corpo.produtos).toEqual([
+      { produto_id: "p-gli", local_estoque_id: "l-gal", quantidade: "10", jato: "1" },
+      { produto_id: "p-gli", local_estoque_id: "l-gal", quantidade: "10", jato: "2" },
+    ]);
+  });
+
+  it("'Editar' de um jato mostra só as linhas dele; mudar a quantidade deixa de ser 'igual'", async () => {
+    implementoDoUltimoDia = PULVERIZADOR;
+    const { janela } = await montar({ continuar: SERVICO });
+    fireEvent.click(await within(janela).findByTestId("jatos-novo"));
+    const editor = within(janela).getByTestId("registro-insumo-editor");
+    await escolherNoSeletor(editor, "registro-produto-produto", /GLIFOSATO/);
+    await waitFor(() => expect(within(editor).getByRole("combobox", { name: /Local do estoque/ })).toHaveTextContent("Galpão"));
+    fireEvent.change(within(editor).getByTestId("registro-produto-quantidade"), { target: { value: "10" } });
+    fireEvent.click(within(janela).getByTestId("jatos-pronto"));
+    await within(janela).findByTestId("jato-1");
+    fireEvent.click(within(janela).getByTestId("jatos-repetir"));
+    fireEvent.click(within(janela).getByTestId("jato-2-editar"));
+    expect(within(janela).getByText("Jato 2 · o que foi no tanque (2.000 L)")).toBeTruthy();
+    expect(within(janela).queryAllByTestId(/^registro-insumo-linha-\d+$/)).toHaveLength(1);
+    fireEvent.click(within(janela).getByTestId("registro-insumo-linha-1"));
+    const ed = within(janela).getByTestId("registro-insumo-editor");
+    fireEvent.change(within(ed).getByTestId("registro-produto-quantidade"), { target: { value: "14" } });
+    fireEvent.click(within(janela).getByTestId("jatos-pronto"));
+    await waitFor(() => expect(within(janela).getByTestId("jato-2")).toHaveTextContent("Jato 2 · 2.000 L"));
+    expect(within(janela).getByTestId("jato-2")).toHaveTextContent("14 L");
+    expect(within(janela).getByTestId("jatos-total")).toHaveTextContent("glifosato 24 L");
+  });
+
+  it("com a roçadeira (sem jato), nada muda: nenhum 'Jatos de hoje'", async () => {
+    const { janela } = await montar({ continuar: SERVICO });
+    await within(janela).findByTestId("registro-de-campo-curto");
+    await waitFor(() => expect(within(janela).getByTestId("registro-de-campo-vai-junto")).toHaveTextContent("JOÃO"));
+    expect(within(janela).queryByTestId("jatos-vazio")).toBeNull();
+    expect(within(janela).queryByTestId("jatos-novo")).toBeNull();
   });
 });

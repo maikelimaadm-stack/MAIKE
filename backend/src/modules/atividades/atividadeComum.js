@@ -409,6 +409,30 @@ export const tarefaPublica = (t) => (t ? { id: t.id, titulo: t.titulo, status: t
 
 /** Resumos dos cadastros apontados (só exibição), no formato do `select` do Prisma. */
 export const BEM_RESUMO = Object.freeze({ select: { id: true, numero: true, codigo_frota: true, nome: true, natureza: true } });
+/** D-PROD-283 — o implemento com o produto do seu tipo (D-PROD-279), para a tela saber se o insumo vai por jato. */
+export const IMPLEMENTO_RESUMO = Object.freeze({
+  select: { ...BEM_RESUMO.select, tipo: { select: { usa_produto: true, forma_produto: true, capacidade: true, capacidade_unidade: true } } },
+});
+
+/**
+ * D-PROD-283 — `{ capacidade, unidade }` quando o tipo do implemento usa produto POR JATO (capacidade em texto, sem os
+ * zeros à direita); senão `null`. Só leitura: o número do jato do insumo é conferido no lançamento (1..999), não pelo tipo.
+ * @param {any} t
+ */
+export const jatoDoTipo = (t) => {
+  if (!t || t.usa_produto !== true || t.forma_produto !== 'JATO' || t.capacidade === null || t.capacidade === undefined) return null;
+  return { capacidade: dec(t.capacidade).toFixed(4).replace(/\.?0+$/, ''), unidade: t.capacidade_unidade ?? null };
+};
+
+/**
+ * D-PROD-283 — o implemento da linha de máquina: a forma de sempre e, SÓ quando o tipo é "por jato", `jato`.
+ * @param {any} b
+ */
+export const implementoPublico = (b) => {
+  if (!b) return null;
+  const jato = jatoDoTipo(b.tipo);
+  return { ...bemPublico(b), ...(jato ? { jato } : {}) };
+};
 export const USUARIO_RESUMO = Object.freeze({ select: { id: true, nome: true } });
 export const CENTRO_RESUMO = Object.freeze({ select: { id: true, numero: true, nome: true } });
 export const AREA_RESUMO = Object.freeze({ select: { id: true, numero_area: true, nome: true } });
@@ -834,7 +858,8 @@ export const recusarCoercaoNasListas = (corpo, listas) => {
 };
 
 /** Decimais da linha de PRODUTO (corpo da linha e itens de `produtos[]`). */
-export const DECIMAIS_DA_LINHA_PRODUTO = Object.freeze(['quantidade', 'vc_percentual']);
+/** D-PROD-283: o `jato` também chega em texto ("2"), nunca número. */
+export const DECIMAIS_DA_LINHA_PRODUTO = Object.freeze(['quantidade', 'vc_percentual', 'jato']);
 
 /** Resumos das linhas (só exibição), no formato do `select` do Prisma. */
 export const PRODUTO_RESUMO = Object.freeze({ select: { id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true, carencia_dias: true } });
@@ -875,6 +900,8 @@ export const comoLinhaProdutoPublica = (r) => ({
   dose_ha: t4(r.dose_ha),
   // MAIKE-ENTREGA2 (D-PROD-274): o VC (%) do saco de semente, 2 casas (nulo sem VC).
   vc_percentual: r.vc_percentual === null || r.vc_percentual === undefined ? null : dec(r.vc_percentual).toFixed(2),
+  // D-PROD-283: o número do jato no dia (nulo sem jato).
+  jato: r.jato ?? null,
   custo_unitario: t4(r.custo_unitario),
   custo_total: t4(r.custo_total),
   movimentacao_estoque_id: r.movimentacao_estoque_id,

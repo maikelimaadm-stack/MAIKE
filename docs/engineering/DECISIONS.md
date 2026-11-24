@@ -9204,4 +9204,18 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Fora de escopo.** Rastreio de lote por animal ou área; lote no cadastro de nota fiscal/NF-e; recusa de saída de lote vencido (só aviso); relatório de lotes vencidos.
 
-<!-- Próxima decisão: D-PROD-283 -->
+## D-PROD-283 — Entrega B: "Jatos de hoje" (o insumo do implemento de tanque lançado por jato, sem mistura)
+
+**Data:** 2026-11-24 · **Origem:** proprietário (maquetes `jatos-sem-mistura` e `jatos-com-maquina` aprovadas; "Editar" no lugar de "Mudar"; "por enquanto sem mistura") · **Migration:** `20261125100000_insumo_por_jato` (EXPAND) · **Runbook:** [`MAIKE-INSUMO-POR-JATO-RUNBOOK-RELEASE.md`](./MAIKE-INSUMO-POR-JATO-RUNBOOK-RELEASE.md) · **Relatório:** [`MAIKE-INSUMO-POR-JATO-REPORT.md`](./MAIKE-INSUMO-POR-JATO-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `fef9e820` disse D-PROD-283 (nenhuma PR aberta a reservava); o marcador passa a D-PROD-284.
+
+- **Contexto:** a pulverização é feita por jato (tanque de 2.000 L, por exemplo), com vários produtos no tanque e quantidades que mudam de um jato para outro. O tipo do implemento já diz se usa produto por jato e a capacidade (D-PROD-279).
+- **Decisão:** cada produto de cada jato é uma **linha de insumo de sempre** (`AtividadeApontamentoProduto`) com o **número do jato no dia** (`jato`, 1..999). Nada muda na baixa FIFO, no custo, no estorno ou no recálculo: o estoque cai pela soma dos jatos. Sem `jato`, a linha é a de antes.
+- **Servidor:** `produtos[]` do lançamento aceita `jato` em texto ("1".."999"; fora disso ou em número → 400, nada gravado; sem CHECK no banco, a API é a barreira, como o VC). A linha pública traz `jato`; editar a linha mantém o jato. `GET /atividades-opcoes/implementos` traz `jato: { capacidade, unidade }` (ou `null`) pelo tipo do implemento; a linha de máquina traz `implemento.jato` só quando o implemento é "por jato".
+- **Tela:** com implemento "por jato" na máquina do lançamento, **Insumos vira "Jatos de hoje"** (formulário inteiro e "Novo lançamento" curto): cartões por jato com "Editar", "igual ao jato N", "+ Repetir o jato anterior", "+ Jato diferente", "Pronto" e o total do dia. Hectares só ao finalizar a área. Máquina, horímetro, pessoas e serviço não mudam; com outro implemento, nada muda.
+- **Migration:** `20261125100000_insumo_por_jato`, 1 coluna anulável sem DEFAULT e sem CHECK em tabela antiga; checksum `725a8c5a…3551`; depois da `20261124200000_estoque_controle_lote` (D-PROD-282). **Não aplicada em produção**: aplicar antes do merge, com o "aplica" do proprietário.
+- **Fora:** cadastro de mistura; cálculo por hectare ao finalizar; jato nas janelas "Só insumo" do mapa.
+- **Testes:** `backend/tests/insumoPorJato.test.mjs`, B43o/B43p/B43q, `tests/smoke/jatosDoDia.test.jsx` e os casos D-PROD-283 de `tests/smoke/servicoVariosDias.test.jsx`.
+
+<!-- Próxima decisão: D-PROD-284 -->

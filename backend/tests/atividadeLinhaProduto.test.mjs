@@ -49,6 +49,8 @@ const CAMPOS_LINHA = [
   'quantidade', 'unidade', 'dose_ha',
   // D-PROD-274: o VC (%) da semente (só a linha do lançamento que o trouxe; nulo aqui).
   'vc_percentual',
+  // D-PROD-283: o número do jato (só a linha de um jato; nulo aqui).
+  'jato',
   'custo_unitario', 'custo_total', 'movimentacao_estoque_id', 'movimentacao_estorno_id',
   'fatias', 'observacao', 'criado_por', 'cancelado_em', 'cancelado_por', 'motivo_cancelamento', 'cancelamento_origem', 'createdAt', 'updatedAt',
 ];

@@ -160,7 +160,8 @@ export const CAMPOS_DA_LINHA_PRODUTO = Object.freeze(['produto_id', 'local_estoq
  * D-PROD-274 — a linha de insumo DENTRO do lançamento (`produtos[]` do apontamento, do duplicar e do registro de campo):
  * a de sempre e o VC (%) da semente, só quando preenchido. As rotas de UMA linha continuam com `CAMPOS_DA_LINHA_PRODUTO`.
  */
-export const CAMPOS_DA_LINHA_PRODUTO_DO_LANCAMENTO = Object.freeze([...CAMPOS_DA_LINHA_PRODUTO, 'vc_percentual']);
+// D-PROD-283: e o número do jato (texto "1".."999"), só na linha de um jato.
+export const CAMPOS_DA_LINHA_PRODUTO_DO_LANCAMENTO = Object.freeze([...CAMPOS_DA_LINHA_PRODUTO, 'vc_percentual', 'jato']);
 /**
  * Linha de MÁQUINA: o bem, o implemento (se o tipo permitir), as leituras inicial e final — ou `sem_medidor` com o
  * uso direto (`quantidade_uso`) — e a justificativa do salto. Tipo e unidade do medidor e custo são do bem (snapshot no
