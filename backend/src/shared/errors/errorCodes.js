@@ -157,6 +157,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   PATRIMONIO_CODIGO_DUPLICADO: { http: 409, meaning: 'já existe item do catálogo com este código neste tenant; nada foi gravado' },
   PATRIMONIO_NOME_DUPLICADO: { http: 409, meaning: 'já existe item do catálogo com este nome neste tenant (no tipo: neste tipo de bem/natureza, D-PROD-169); nada foi gravado' },
   // D-PROD-169 (SIMPLIFICA-02) — catálogo garantido por "Tipo de bem" (natureza) e exclusão de tipo.
+  BEM_PATRIMONIAL_EM_USO: { http: 409, meaning: 'D-PROD-286: o bem já foi usado (details: abastecimentos, atividades, lancamentos): não é excluído, só inativado; nada foi apagado' },
   PATRIMONIO_TIPO_EM_USO: { http: 409, meaning: 'o tipo é usado por bem(ns) ativo(s) ou inativo(s) (details.bens): troque o tipo desses bens antes de excluir; nada foi apagado' },
   PATRIMONIO_FAMILIA_PADRAO_INDISPONIVEL: { http: 422, meaning: 'não há família padrão ativa para o tipo de bem (details.natureza/codigo_familia): ela existe inativa ou com outra natureza e não é alterada automaticamente; nada foi gravado' },
   BEM_TIPO_NATUREZA_INCOMPATIVEL: { http: 422, meaning: 'o tipo escolhido é de outro tipo de bem (details.natureza/natureza_tipo); nada foi gravado' },

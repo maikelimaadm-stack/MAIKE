@@ -9,6 +9,7 @@ export {
   getBemPatrimonial,
   createBemPatrimonial,
   updateBemPatrimonial,
+  deleteBemPatrimonial,
   previaDepreciacaoBemPatrimonial,
   listOpcoesBemPatrimonial,
   // D-PROD-159 — Abastecimentos (D-PROD-162: sem fatores kg/L, sem vínculo combustível × produto).

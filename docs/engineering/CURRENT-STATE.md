@@ -9,7 +9,15 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-24) — MAIKE-COCHO-DEPOSITO-V13: detalhe do cocho e do depósito no desenho v13 (D-PROD-284)
+## Missão ativa (2026-11-24) — MAIKE-EXCLUIR-BEM-NAO-USADO: excluir de vez o bem que nunca foi usado (D-PROD-286)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-286**: `DELETE /bens-patrimoniais/:id` só para bem sem abastecimento, atividade ou lançamento; com uso, 409 `BEM_PATRIMONIAL_EM_USO` (inativar) |
+| Banco | sem migration |
+| Relatório | [`MAIKE-EXCLUIR-BEM-NAO-USADO-REPORT.md`](./MAIKE-EXCLUIR-BEM-NAO-USADO-REPORT.md) |
+
+## Missão anterior (2026-11-24) — MAIKE-COCHO-DEPOSITO-V13: detalhe do cocho e do depósito no desenho v13 (D-PROD-284)
 
 | Campo | Valor |
 |---|---|

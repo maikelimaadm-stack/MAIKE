@@ -9282,4 +9282,15 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** "Consumido (kg)" no cartão de fechamento (o evento não tem um campo próprio do cocho; ficou a Sobra); "% do lançamento" ao lado do saldo (o percentual já aparece uma vez, no desenho); desenho próprio de tablet e computador. Nenhuma mudança no servidor; nenhuma migration.
 - **Testes:** `tests/smoke/detalhesCochoV13.test.jsx` (novo) e os smoke do cocho e do depósito ajustados (`detalhesV12Cocho`, `leituraCocho`, `depositoNivel`, `detalhesV12Deposito`, `detalhesDepositoNiveis`, `detalhesCompactos`, `mapaDepositoLitros`, `mapaNiveisFonteUnica`).
 
+## D-PROD-286 — Bens Patrimoniais: excluir de vez o bem que nunca foi usado
+
+**Data:** 2026-11-24 · **Origem:** proprietário ("eu quero excluir também") · **Relatório:** [`MAIKE-EXCLUIR-BEM-NAO-USADO-REPORT.md`](./MAIKE-EXCLUIR-BEM-NAO-USADO-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `19ca524e`: o marcador dizia D-PROD-285, reservada pela PR aberta #372 (Estoque, Novo movimento); esta é a **D-PROD-286**. O marcador fica em D-PROD-285 (a da #372); quem mergear por último ajusta.
+
+- **Contexto:** o bem só era inativado (D-PROD-157, "nada é apagado"). Cadastro feito errado ficava para sempre na lista de inativos.
+- **Decisão:** `DELETE /bens-patrimoniais/:id?empresa_id=&versao=` exclui de vez SÓ o bem sem nenhum uso: nenhum abastecimento (em qualquer situação), nenhuma atividade com ele no cabeçalho e nenhum lançamento de máquina (como máquina ou implemento). Com uso → 409 `BEM_PATRIMONIAL_EM_USO` e o caminho continua sendo inativar (o proprietário: não apagar o que tem custo). Saem junto os tanques e os produtos aceitos; fica a auditoria `delete`. Permissão: a ação padrão "excluir" da tela Bens. Tela: botão "Excluir" com confirmação e o aviso de "já foi usado, use Inativar".
+- **Fora:** excluir tipo continua no "Gerenciar tipos" (D-PROD-169); nenhuma migration.
+- **Testes:** `backend/tests/bemPatrimonialExcluir.test.mjs`; smoke de permissões do Patrimônio.
+
 <!-- Próxima decisão: D-PROD-285 -->
