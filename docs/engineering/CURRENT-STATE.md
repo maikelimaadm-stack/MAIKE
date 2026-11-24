@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-24 (missão ativa D-PROD-283; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-24 (missão ativa D-PROD-284; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-24) — MAIKE-INSUMO-POR-JATO: "Jatos de hoje", o insumo do implemento de tanque por jato (D-PROD-283)
+## Missão ativa (2026-11-24) — MAIKE-COCHO-DEPOSITO-V13: detalhe do cocho e do depósito no desenho v13 (D-PROD-284)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-284**, pedido e aprovação do proprietário, aba a aba (atual × proposto) |
+| Branch / PR | `claude/kind-knuth-tztu1v` · PR (a abrir) |
+| Mudança | Só apresentação: cocho (Detalhes, Fechamentos, Informações, Histórico) e depósito (Detalhes, Informações, Histórico) com grade, barras, réguas e cartões curtos, como o Detalhes do Lote v13 |
+| Migration | Nenhuma |
+| Relatório | [`MAIKE-COCHO-DEPOSITO-V13-REPORT.md`](./MAIKE-COCHO-DEPOSITO-V13-REPORT.md) |
+| Próximas | Forragem dentro do Detalhes do Lote; acabamento do Mapa Geral (em avaliação pelo proprietário) |
+
+## Missão anterior (2026-11-24) — MAIKE-INSUMO-POR-JATO: "Jatos de hoje", o insumo do implemento de tanque por jato (D-PROD-283)
 
 | Item | Estado |
 |---|---|
