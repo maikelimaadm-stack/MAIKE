@@ -7,7 +7,7 @@ import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos
 import AbasEstoque from "@/components/estoque/AbasEstoque";
 import JanelaEntradaEstoque, { chaveDetalheEntrada } from "@/components/estoque/JanelaEntradaEstoque";
 import JanelaMovimentoEstoque from "@/components/estoque/JanelaMovimentoEstoque";
-import JanelaNovoMovimentoEstoque from "@/components/estoque/JanelaNovoMovimentoEstoque";
+import TelaNovoMovimentoEstoque, { FORMULARIO_NOVO_MOVIMENTO_ID, tituloDoMovimento } from "@/components/estoque/TelaNovoMovimentoEstoque";
 import JanelaSaidaEstoque, { chaveDetalheSaida } from "@/components/estoque/JanelaSaidaEstoque";
 import JanelaAjusteEstoque from "@/components/estoque/JanelaAjusteEstoque";
 import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
@@ -46,6 +46,8 @@ export const opcoesDeProduto = (/** @type {Array<{ id: string, nome: string }>} 
  * D-PROD-271: o "Editar" do detalhe da entrada ou da saída (com a ação e o fuso da fazenda) fecha o detalhe e abre a
  * janela "Novo movimento" em modo edição; salvar (ou cancelar) volta ao detalhe, já com a versão nova. O ajuste não
  * tem edição (só o estorno integral, no detalhe dele).
+ * D-PROD-285: o "Novo movimento" (e a edição) deixou de ser janela: é o REGISTRO desta tela Base1 (tela cheia, com o
+ * cabeçalho do registro e o ✕/✓ da barra, como os outros cadastros Base1). Fechar (ou lançar) volta para a lista.
  * D-PROD-273 (fatia 2): o movimento excluído e o estorno dele somem da lista (o servidor tira o par, com a paginação
  * certa); o filtro "Mostrar excluídos" (desligado por padrão) os traz de volta, com a etiqueta "Excluído" no original e
  * "Estorno da exclusão" no estorno. O saldo de cada movimento ativo vem do servidor já sem os excluídos.
@@ -181,6 +183,40 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
     [controller.listaQueryError],
   );
 
+  // D-PROD-285: a tela do movimento é o registro da CadastroBase1Screen (estado da página, sem rota nova).
+  const [enviandoTela, setEnviandoTela] = useState(false);
+  const telaAberta = Boolean(empresaId) && ((lancando && podeAlgum) || Boolean(editando));
+  const fecharTela = () => {
+    if (enviandoTela) return;
+    if (editando) {
+      // Cancelar a edição volta ao detalhe do documento.
+      const { tipo: tipoEditado, documento } = editando;
+      setEditando(null);
+      const doc = { id: String(documento.id), numero: String(documento.numero ?? "") };
+      if (tipoEditado === "saida") setSaidaAberta(doc);
+      else setEntradaAberta(doc);
+    } else setLancando(false);
+  };
+  const controllerDaTela = telaAberta
+    ? {
+        ...controller,
+        saving: enviandoTela,
+        showForm: true,
+        isEditing: true,
+        detailTitle: tituloDoMovimento(editando),
+        editingItem: null,
+        recordNavRows: [],
+        recordIndex: 0,
+        cancelForm: fecharTela,
+        onViewModeChange: (/** @type {any} */ modo) => {
+          if (enviandoTela) return;
+          fecharTela();
+          controller.onViewModeChange(modo);
+        },
+        openNew: () => setLancando(true),
+      }
+    : { ...controller, saving: false, openNew: () => setLancando(true) };
+
   const aoLancar = async (/** @type {{ tipo: string, entrada?: any, saida?: any, ajuste?: any, editada?: boolean }} */ r) => {
     setLancando(false);
     setEditando(null);
@@ -203,20 +239,38 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
         searchPlaceholder="Buscar movimentos…"
         createLabel="Novo movimento"
         columnsForCardsToolbar={MOVIMENTOS_ESTOQUE_COLUNAS}
-        controller={{ ...controller, saving: false, openNew: () => setLancando(true) }}
+        controller={controllerDaTela}
+        formId={FORMULARIO_NOVO_MOVIMENTO_ID}
         listErrorMessage={listErrorMessage}
         listBanner={
+          telaAberta ? null : (
           <>
             <AbasEstoque aba={aba} onChange={onAba} />
             {semFuso ? <AvisoGestao testId="movimento-sem-fuso">Configure o fuso horário da fazenda (Empresa) para lançar movimentos.</AvisoGestao> : null}
           </>
+          )
         }
         showCreate={Boolean(empresaId) && podeAlgum && Boolean(fuso)}
         showEdit={false}
         showDuplicate={false}
         showDelete={false}
         deleteDialog={{ title: "", descriptionOne: "", descriptionMany: () => "" }}
-        recordForm={null}
+        recordForm={
+          telaAberta && empresaId ? (
+            <TelaNovoMovimentoEstoque
+              key={editando ? `editar-${editando.tipo}-${editando.documento?.id}` : "novo"}
+              edicao={editando}
+              empresaId={empresaId}
+              hoje={hoje}
+              podeEntrada={podeLancar}
+              podeSaida={podeSaida}
+              podeAjuste={editando ? false : podeAjuste}
+              onFechar={fecharTela}
+              onEnviando={setEnviandoTela}
+              onLancado={aoLancar}
+            />
+          ) : null
+        }
         listSlot={
           <TabelaMovimentosEstoque
             rows={controller.visibleRows}
@@ -255,27 +309,6 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
         }}
       />
     </FiltrosDaTelaContext.Provider>
-    {lancando && empresaId && podeAlgum ? (
-      <JanelaNovoMovimentoEstoque aberto empresaId={empresaId} hoje={hoje} podeEntrada={podeLancar} podeSaida={podeSaida} podeAjuste={podeAjuste} onFechar={() => setLancando(false)} onLancado={aoLancar} />
-    ) : null}
-    {editando && empresaId ? (
-      <JanelaNovoMovimentoEstoque
-        aberto
-        edicao={editando}
-        empresaId={empresaId}
-        hoje={hoje}
-        podeEntrada={podeLancar}
-        podeSaida={podeSaida}
-        onFechar={() => {
-          const { tipo: tipoEditado, documento } = editando;
-          setEditando(null);
-          const doc = { id: String(documento.id), numero: String(documento.numero ?? "") };
-          if (tipoEditado === "saida") setSaidaAberta(doc);
-          else setEntradaAberta(doc);
-        }}
-        onLancado={aoLancar}
-      />
-    ) : null}
     <JanelaEntradaEstoque
       entrada={entradaAberta}
       empresaId={empresaId}

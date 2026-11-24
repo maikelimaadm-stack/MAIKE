@@ -9282,4 +9282,14 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** "Consumido (kg)" no cartão de fechamento (o evento não tem um campo próprio do cocho; ficou a Sobra); "% do lançamento" ao lado do saldo (o percentual já aparece uma vez, no desenho); desenho próprio de tablet e computador. Nenhuma mudança no servidor; nenhuma migration.
 - **Testes:** `tests/smoke/detalhesCochoV13.test.jsx` (novo) e os smoke do cocho e do depósito ajustados (`detalhesV12Cocho`, `leituraCocho`, `depositoNivel`, `detalhesV12Deposito`, `detalhesDepositoNiveis`, `detalhesCompactos`, `mapaDepositoLitros`, `mapaNiveisFonteUnica`).
 
-<!-- Próxima decisão: D-PROD-285 -->
+## D-PROD-285 — "Novo movimento" do Estoque em tela cheia Base1, com os produtos na tabela das Áreas
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `19ca524e` disse D-PROD-284, mas outra missão em paralelo pode tomar a D-PROD-284; esta fica com a D-PROD-285. O marcador não é mexido aqui (quem fizer merge por último ajusta).
+
+- **Contexto:** o lançamento de estoque (Entrada, Saída, Transferência e Ajuste, D-PROD-259/264/272) e a edição de entrada/saída (D-PROD-271) abriam numa janela (`B1Janela`, popup). Os cadastros Base1 abrem o registro em tela cheia.
+- **Decisão:** a janela vira **tela** (`TelaNovoMovimentoEstoque`, antes `JanelaNovoMovimentoEstoque`), mostrada como **corpo do registro da `CadastroBase1Screen`** de Movimentos: cabeçalho do registro com o título ("Novo movimento de estoque" / "Editar entrada nº N"), ✕/✓ na barra (o ✓ envia o mesmo formulário) e os botões "Cancelar"/"Lançar …" no pé. Sem rota nova: é estado da página (o escopo de rotas não muda). Fechar volta para a lista; cancelar a edição volta para o detalhe do documento (como antes).
+- **Produtos:** Entrada, Saída e Ajuste mostram os produtos na `TabelaProdutosMovimento`, o mesmo desenho da tabela "Áreas" da abertura da atividade (`SeletorAreasDaAtividade`, D-PROD-249): `b1-tipo-tabela` com cabeçalho, campos editáveis nas células, números à direita, ✕ no fim, linha de total no rodapé; no celular, cartões. Os lotes da saída (FEFO, troca, divisão, aviso e confirmação de vencido, D-PROD-282) e o custo da sobra do ajuste vão numa linha de detalhe sob o produto.
+- **Sem mudança:** chamadas ao servidor, `operation_id`, validações, motivos (e o "Motivos…" na mesma tela), custo, lote/validade, permissões (ações `entrada`/`saida`/`ajuste`).
+- **Testes:** `tests/smoke/estoqueNovoMovimento.test.jsx`. **Relatório:** [`MAIKE-ESTOQUE-LANCAMENTO-TELA-BASE1-REPORT.md`](./MAIKE-ESTOQUE-LANCAMENTO-TELA-BASE1-REPORT.md)
+
+<!-- Próxima decisão: D-PROD-286 -->

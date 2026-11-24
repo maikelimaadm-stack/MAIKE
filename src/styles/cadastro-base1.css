@@ -3612,3 +3612,31 @@ body.b1-tela .mk-sheet .b1-fr-periodo .b1-fr-periodo__in:not(#mk-a):not(#mk-b) {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+
+/* ─── D-PROD-285: produtos do "Novo movimento" do Estoque na tabela das Áreas ───
+   A mesma `b1-tipo-tabela` da abertura da atividade (D-PROD-249), com os campos editáveis nas células. O rótulo de
+   cada campo fica no DOM (leitor de tela) mas sai da vista: o cabeçalho da coluna já o diz. */
+.cadastro-b1 .b1-mov-tabela td {
+  vertical-align: top;
+  white-space: normal;
+}
+.cadastro-b1 .b1-mov-tabela td.b1-tipo-tabela__acoes {
+  vertical-align: middle;
+}
+.cadastro-b1 .b1-mov-tabela td .mg-field__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.cadastro-b1 .b1-mov-tabela tr.tem-detalhe td {
+  border-bottom: 0;
+}
+.cadastro-b1 .b1-mov-tabela tr.b1-mov-tabela__detalhe td {
+  padding-top: 0;
+}
