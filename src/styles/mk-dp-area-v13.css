@@ -1,0 +1,95 @@
+/* Detalhes da Área v13 (D-PROD-289) — barra do feito das atividades, resumo e
+   bloco de custos. Só classes `mk-da13-*`; o resto vem da casca e do v13 do lote. */
+
+.mk-dp .mk-da13-ativ + .mk-da13-ativ {
+  border-top: 1px solid #e7e9ec;
+}
+.mk-dp .mk-da13-ativ .mk-dp-linha {
+  border-top: 0;
+}
+.mk-dp .mk-da13-prog {
+  display: block;
+  height: 6px;
+  margin: -4px 12px 10px 48px;
+  border-radius: 99px;
+  background: #eef1f4;
+  overflow: hidden;
+}
+.mk-dp .mk-da13-prog > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #f59e0b;
+}
+.mk-dp .mk-da13-prog--ok > i {
+  background: #16a34a;
+}
+.mk-dp .mk-da13-prog--neutro > i {
+  background: #94a3b8;
+}
+
+.mk-dp .mk-da13-total {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2328;
+  white-space: nowrap;
+}
+
+.mk-dp .mk-da13-custos__topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 12px 12px 8px;
+}
+.mk-dp .mk-da13-custos__topo > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.mk-dp .mk-da13-custos__topo small {
+  font-size: 11.5px;
+  color: #656970;
+}
+.mk-dp .mk-da13-custos__topo strong {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1f2328;
+  white-space: nowrap;
+}
+.mk-dp .mk-da13-custos__ha {
+  text-align: right;
+}
+.mk-dp .mk-da13-custos__ha strong {
+  font-size: 16px;
+}
+.mk-dp .mk-da13-custos__barra {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  margin: 0 12px 10px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: #eef1f4;
+}
+.mk-dp .mk-da13-custos__barra > i {
+  display: block;
+  flex-basis: 0;
+}
+.mk-dp .mk-da13-marca {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 2px;
+  vertical-align: baseline;
+}
+.mk-dp .mk-da13-cor--insumos {
+  background: #3db5c9;
+}
+.mk-dp .mk-da13-cor--maquinas {
+  background: #94a3b8;
+}
+.mk-dp .mk-da13-cor--servicos {
+  background: #f59e0b;
+}

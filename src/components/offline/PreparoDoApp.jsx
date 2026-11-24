@@ -11,7 +11,7 @@ const ETAPAS = [
 ];
 
 /**
- * D-PROD-289 — primeira entrada no app: baixa tudo ANTES de abrir o sistema.
+ * D-PROD-290 — primeira entrada no app: baixa tudo ANTES de abrir o sistema.
  *
  * Tela cheia, com o andamento por etapa. Termina sozinha e abre o app. Sem
  * internet ou com falha, explica e deixa tentar de novo ou abrir assim mesmo.

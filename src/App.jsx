@@ -73,7 +73,7 @@ const AuthenticatedApp = () => {
     encerrarValidacaoEIrParaLogin,
     clienteId,
   } = useAuth();
-  // D-PROD-289: no app, a primeira entrada baixa tudo ANTES de abrir o sistema.
+  // D-PROD-290: no app, a primeira entrada baixa tudo ANTES de abrir o sistema.
   const [preparoConcluido, setPreparoConcluido] = useState(/** @type {string|null} */ (null));
   const concluirPreparo = useCallback(() => setPreparoConcluido(clienteId), [clienteId]);
   const { layoutBootReady, resetLayoutBoot } = useBootSplash();
@@ -123,7 +123,7 @@ const AuthenticatedApp = () => {
     return <NativeLoginForm entrar={entrar} onAutenticado={() => {}} />;
   }
 
-  // D-PROD-289: primeira entrada no app — prepara antes de abrir (sem splash por cima).
+  // D-PROD-290: primeira entrada no app — prepara antes de abrir (sem splash por cima).
   if (precisaPreparar) {
     return <PreparoDoApp aoConcluir={concluirPreparo} />;
   }

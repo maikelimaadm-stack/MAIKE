@@ -1,5 +1,5 @@
 /**
- * Atualização automática do app Android/iOS (D-PROD-289).
+ * Atualização automática do app Android/iOS (D-PROD-290).
  *
  * O APK traz o frontend dentro dele; versões novas do frontend chegam sem
  * instalar APK de novo:

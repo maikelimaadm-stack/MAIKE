@@ -124,7 +124,7 @@ describe("Atribuição e aviso do satélite discretos", () => {
     expect(screen.getByRole("region", { name: "Fontes de dados do mapa" }).textContent).toBe(LONGO);
   });
 
-  it("D-PROD-289: sem aviso do satélite — nem carregando nem falha (o mapa segue com o fundo normal)", () => {
+  it("D-PROD-290: sem aviso do satélite — nem carregando nem falha (o mapa segue com o fundo normal)", () => {
     const { rerender } = render(<BasemapAtribuicao status="erro" mensagem="Satélite não configurado." onRetry={vi.fn()} />);
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByText(/Satélite indisponível/)).toBeNull();

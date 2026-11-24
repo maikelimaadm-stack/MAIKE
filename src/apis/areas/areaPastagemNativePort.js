@@ -220,7 +220,7 @@ export const areaPastagemPort = createOfflineEntityAdapter({
   tenantScoped: true,
 });
 
-// D-PROD-289: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// D-PROD-290: leituras que as telas deste módulo fazem ao abrir — baixadas antes
 // de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
 registrarLeiturasOffline([
   '/areas-pastagem',

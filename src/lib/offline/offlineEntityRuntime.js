@@ -157,7 +157,7 @@ export const resetOfflineEntityRuntime = () => {
 export const getOfflineEntityNames = () => [...CATALOGO.keys()];
 
 /**
- * D-PROD-289 — "Baixar dados para usar sem internet": lê do servidor TODAS as
+ * D-PROD-290 — "Baixar dados para usar sem internet": lê do servidor TODAS as
  * entidades registradas que sabem listar, pelo próprio adaptador (que guarda o
  * resultado no cache do aparelho, por empresa/tenant, como qualquer leitura).
  * Uma falha isolada não para as demais. Sem internet não faz nada.

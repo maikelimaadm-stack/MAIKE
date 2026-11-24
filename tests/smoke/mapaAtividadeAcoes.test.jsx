@@ -93,6 +93,8 @@ const renderizar = () => {
       <DetalhesArea area={PASTO_A} permissions={{}} />
     </QueryClientProvider>,
   );
+  // D-PROD-289: as atividades ficam na aba Manejos.
+  fireEvent.click(screen.getByRole("tab", { name: "Manejos" }));
   return { invalidar };
 };
 

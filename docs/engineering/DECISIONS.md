@@ -9340,7 +9340,24 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Constituição.** Nenhuma regra tocada: abastecimento, atividade e cocho ficam como estão; o custo médio, o lote e o recálculo não mudam. Sem emenda.
 
-## D-PROD-289 — App Android/iOS: conectado até sair, renovação da sessão e abertura sem internet
+## D-PROD-289 — Detalhes da Área no visual v13, um assunto por aba
+
+**Data:** 2026-11-24 · **Origem:** proprietário: "ajustar o mesmo estilo visual para detalhes de áreas"; comparou atual × proposto no celular, apontou que havia "muita coisa junta em apenas detalhes", pediu para organizar "por enquanto sem as medições" e aprovou ("pode implementar") · **Relatório:** [`MAIKE-DETALHES-AREA-V13-REPORT.md`](./MAIKE-DETALHES-AREA-V13-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `8b5d1c01` deu D-PROD-289 (a D-PROD-288 estava no título de uma PR aberta, depois mesclada); o marcador passa a D-PROD-290.
+
+- **Contexto:** a aba Detalhes da área empilhava cartão da área, atividades, custos e forragem; o rótulo "Cultura / forragem" ficava cortado.
+- **Decisão (só arrumação; nenhuma informação removida):**
+  - **Abas:** Detalhes · Forragem (só com a chave `medir_forragem`, como antes) · Manejos · Custos (as duas com a permissão de ver atividades) · Abate (curral).
+  - **Detalhes:** o capim em destaque com "Cultura / forragem" acima, situação em chip, Área/Tipo/Situação em grade de 3, a reforma aberta (D-PROD-276) e um **Resumo** de uma linha para Manejos e Custos que abre a aba.
+  - **Manejos:** "Em andamento e planejado" (as atividades com uma barra do feito e as ações rápidas da D-PROD-278) e "Já feito" (os registros de campo que eram a aba Histórico, com o filtro e o "Excluir registro" da D-PROD-266).
+  - **Custos:** total e por hectare em destaque, barra insumos × máquinas e mão de obra (× serviços quando houver) e cada parte com a porcentagem.
+  - **Forragem:** o painel de antes (D-PROD-219/221/223), só mudou de lugar. Redesenho das medições fica para outra missão.
+  - Rodapé (Manejos · Histórico completo), botão de fechar e ícones não mudam.
+- **Fora:** medições de forragem nos Detalhes do Lote, gráfico de altura, barra de descanso, cartão "Lote aqui agora", tela própria para lavoura. Nenhuma mudança no servidor; nenhuma migration.
+- **Testes:** `detalhesAreaHistorico`, `detalhesAreaCancelarRegistro`, `mapaAtividadeAcoes`, `medicaoForragem` e `reformaPastagem` ajustados às abas novas.
+
+## D-PROD-290 — App Android/iOS: conectado até sair, renovação da sessão e abertura sem internet
 
 - **Contexto:** no app (Capacitor, `docs/engineering/APP-ANDROID-IOS.md`), sem internet a abertura caía em "Não foi possível validar sua sessão" (restauração fail-closed, P4.0-R1), e o login durava no máximo 30 dias. O dono pediu que o login valha "direto até eu sair" e que o app abra sem internet.
 - **Decisão:**
@@ -9361,4 +9378,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Limite aceito:** quem estiver com o app sem internet por mais de 30 dias seguidos precisa entrar de novo.  Abrir sem internet não dá autorização nenhuma: toda gravação passa pelo servidor.
 - **Testes:** `backend/tests/authRenovarSessao.test.mjs` (RN-01..06), `tests/smoke/sessaoOfflineApp.test.js`, `tests/smoke/sessaoShell.test.jsx` (AUTH-OFF1..4), `tests/smoke/dadosOfflineLeitura.test.js` (DO-01..08, DB-01..02), `tests/smoke/offlineRuntime.test.js` (OFF-B1..2).
 
-<!-- Próxima decisão: D-PROD-290 -->
+<!-- Próxima decisão: D-PROD-291 -->

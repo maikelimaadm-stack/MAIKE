@@ -46,7 +46,7 @@ export const operacoesNativas = Object.freeze({
     nativeRequest(comEmpresa('/servicos-opcoes/centros-custo', empresaId), { autenticado: true }, ctx('listOpcoesCentrosCustoServico')),
 });
 
-// D-PROD-289: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// D-PROD-290: leituras que as telas deste módulo fazem ao abrir — baixadas antes
 // de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
 registrarLeiturasOffline([
   '/servicos?empresa_id={empresa}&limit=100&ativo=true',

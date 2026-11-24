@@ -67,7 +67,7 @@ const FIXED_MOBILE_NAV_ITEMS = [
 
 
 
-/** D-PROD-289: item do menu tipado (o DropdownMenuItem do ui não declara props). */
+/** D-PROD-290: item do menu tipado (o DropdownMenuItem do ui não declara props). */
 /** @type {React.ComponentType<any>} */ const ItemDoMenu = DropdownMenuItem;
 export default function Layout(props) {
   return (

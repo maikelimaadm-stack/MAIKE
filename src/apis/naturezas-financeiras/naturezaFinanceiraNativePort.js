@@ -66,7 +66,7 @@ export const operacoesNativas = Object.freeze({
   opcoesPais: (filtros) => nativeRequest(montarCaminhoOpcoesPais(filtros), { autenticado: true }, ctx('listOpcoesPaiNaturezaFinanceira')),
 });
 
-// D-PROD-289: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// D-PROD-290: leituras que as telas deste módulo fazem ao abrir — baixadas antes
 // de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
 registrarLeiturasOffline([
   '/naturezas-financeiras?empresa_id={empresa}&tipo=DESPESA&ativo=true&limit=100',

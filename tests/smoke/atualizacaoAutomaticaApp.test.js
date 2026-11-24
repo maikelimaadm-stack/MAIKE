@@ -1,5 +1,5 @@
 /**
- * D-PROD-289 — atualização automática do app (sem baixar APK de novo).
+ * D-PROD-290 — atualização automática do app (sem baixar APK de novo).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -38,7 +38,7 @@ afterEach(() => {
   /** @type {any} */ (window).Capacitor = undefined;
 });
 
-describe('D-PROD-289 — atualização automática', () => {
+describe('D-PROD-290 — atualização automática', () => {
   it('AT-01 versão nova: baixa do servidor (com sha256) e deixa para a próxima abertura', async () => {
     vi.stubGlobal('fetch', respostas({ versao: 'v2', url: '/app-atualizacao/v2.zip', checksum: 'abc', nativoMinimo: 4 }));
     const { conferirAtualizacao } = await carregar();

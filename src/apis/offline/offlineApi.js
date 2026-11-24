@@ -1,5 +1,5 @@
 /**
- * Dados para usar sem internet (D-PROD-289).
+ * Dados para usar sem internet (D-PROD-290).
  *
  * Duas leituras em lote, as duas só de leitura:
  *  - `baixarEntidadesParaOffline`: todas as entidades com adaptador offline
@@ -15,7 +15,7 @@ import { baixarEntidadesParaOffline } from '@/lib/offline/offlineEntityRuntime';
 import { leiturasOfflineRegistradas } from '@/lib/offline/leiturasOffline';
 import { API_ERROR_CODES } from '../_core/ApiError.js';
 
-/** Leituras ao mesmo tempo ao baixar (D-PROD-289: preparo mais rápido). */
+/** Leituras ao mesmo tempo ao baixar (D-PROD-290: preparo mais rápido). */
 const CONCORRENCIA = 8;
 
 /**
