@@ -1,5 +1,5 @@
 /**
- * D-PROD-286 — excluir DE VEZ o bem patrimonial que nunca foi usado, contra PostgreSQL real e HTTP autenticado.
+ * D-PROD-287 — excluir DE VEZ o bem patrimonial que nunca foi usado, contra PostgreSQL real e HTTP autenticado.
  *
  * - Bem novo, com tanque e produto aceito: `DELETE /bens-patrimoniais/:id?empresa_id=&versao=` → 204; o bem, os tanques
  *   e os aceites saem; a auditoria `delete` fica.
@@ -29,7 +29,7 @@ beforeEach(async () => {
 
 const excluir = (A, tok, empresaId, id, versao) => A.req('DELETE', `/bens-patrimoniais/${id}?empresa_id=${empresaId}&versao=${versao}`, tok);
 
-describe('excluir bem patrimonial (D-PROD-286)', () => {
+describe('excluir bem patrimonial (D-PROD-287)', () => {
   test('bem nunca usado: 204; o bem, os tanques e os aceites saem; fica a auditoria', async () => {
     const s = await montarAbastecimento(app);
     const A = acoesAbastecimento(app);

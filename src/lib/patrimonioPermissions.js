@@ -47,7 +47,7 @@ export const acoesDaTelaPatrimonio = (permissao, tela) => {
     criar: pode('novo') || pode('salvar'),
     editar: pode('editar') || pode('salvar'),
     inativar: pode(ACAO_INATIVAR),
-    // D-PROD-286: excluir de vez o bem nunca usado (a ação padrão "excluir" da tela).
+    // D-PROD-287: excluir de vez o bem nunca usado (a ação padrão "excluir" da tela).
     excluir: pode('excluir'),
   };
 };

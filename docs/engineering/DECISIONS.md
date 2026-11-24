@@ -9282,15 +9282,40 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** "Consumido (kg)" no cartão de fechamento (o evento não tem um campo próprio do cocho; ficou a Sobra); "% do lançamento" ao lado do saldo (o percentual já aparece uma vez, no desenho); desenho próprio de tablet e computador. Nenhuma mudança no servidor; nenhuma migration.
 - **Testes:** `tests/smoke/detalhesCochoV13.test.jsx` (novo) e os smoke do cocho e do depósito ajustados (`detalhesV12Cocho`, `leituraCocho`, `depositoNivel`, `detalhesV12Deposito`, `detalhesDepositoNiveis`, `detalhesCompactos`, `mapaDepositoLitros`, `mapaNiveisFonteUnica`).
 
-## D-PROD-286 — Bens Patrimoniais: excluir de vez o bem que nunca foi usado
+## D-PROD-285 — "Novo movimento" do Estoque em tela cheia Base1, com os produtos na tabela das Áreas
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `19ca524e` disse D-PROD-284, mas outra missão em paralelo pode tomar a D-PROD-284; esta fica com a D-PROD-285. O marcador não é mexido aqui (quem fizer merge por último ajusta).
+
+- **Contexto:** o lançamento de estoque (Entrada, Saída, Transferência e Ajuste, D-PROD-259/264/272) e a edição de entrada/saída (D-PROD-271) abriam numa janela (`B1Janela`, popup). Os cadastros Base1 abrem o registro em tela cheia.
+- **Decisão:** a janela vira **tela** (`TelaNovoMovimentoEstoque`, antes `JanelaNovoMovimentoEstoque`), mostrada como **corpo do registro da `CadastroBase1Screen`** de Movimentos: cabeçalho do registro com o título ("Novo movimento de estoque" / "Editar entrada nº N"), ✕/✓ na barra (o ✓ envia o mesmo formulário) e os botões "Cancelar"/"Lançar …" no pé. Sem rota nova: é estado da página (o escopo de rotas não muda). Fechar volta para a lista; cancelar a edição volta para o detalhe do documento (como antes).
+- **Produtos:** Entrada, Saída e Ajuste mostram os produtos na `TabelaProdutosMovimento`, o mesmo desenho da tabela "Áreas" da abertura da atividade (`SeletorAreasDaAtividade`, D-PROD-249): `b1-tipo-tabela` com cabeçalho, campos editáveis nas células, números à direita, ✕ no fim, linha de total no rodapé; no celular, cartões. Os lotes da saída (FEFO, troca, divisão, aviso e confirmação de vencido, D-PROD-282) e o custo da sobra do ajuste vão numa linha de detalhe sob o produto.
+- **Sem mudança:** chamadas ao servidor, `operation_id`, validações, motivos (e o "Motivos…" na mesma tela), custo, lote/validade, permissões (ações `entrada`/`saida`/`ajuste`).
+- **Testes:** `tests/smoke/estoqueNovoMovimento.test.jsx`. **Relatório:** [`MAIKE-ESTOQUE-LANCAMENTO-TELA-BASE1-REPORT.md`](./MAIKE-ESTOQUE-LANCAMENTO-TELA-BASE1-REPORT.md)
+
+## D-PROD-286 — Controles do Mapa Geral numa faixa acima do mapa
+
+**Data:** 2026-11-24 · **Origem:** proprietário: "o mapa é a tela principal e abre com coisa demais em cima"; comparou atual × proposto em celular, tablet e computador, escolheu o estilo dos botões pelo exemplo "Chat | Work" e aprovou ("perfeito, pode começar a implementação"; "faça o merge quando ficar pronto") · **Relatório:** [`MAIKE-MAPA-CONTROLES-V13-REPORT.md`](./MAIKE-MAPA-CONTROLES-V13-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` deu D-PROD-286 (o marcador); o marcador passa a D-PROD-287.
+
+- **Contexto:** no celular, uma barra escura flutuava no meio do topo do mapa; no computador e no tablet, botões soltos ficavam por cima do terreno. Quem usa o mapa no campo tem pouca leitura e não deve precisar procurar.
+- **Decisão (só arrumação; nenhuma função removida):**
+  - **Faixa branca fixa acima do mapa**, fora da área do mapa, nos três tamanhos: um trilho segmentado (cinza claro, totalmente arredondado, selecionado em pílula branca) com [Filtro] · Lotes · Pontos · [Visualização]; Filtro e Visualização só com ícone e rótulo acessível. No celular o trilho ocupa a largura; no computador e no tablet fica à esquerda, mais estreito.
+  - **Resumo dos animais** (animais · peso médio · áreas, e a setinha do Resumo) embaixo à esquerda, no mesmo estilo de trilho, com milhar em pt-BR.
+  - **Atualizar · Minha localização · Ativar arrasto** numa pílula em pé embaixo à direita, no mesmo estilo; no celular as três peças têm a mesma altura.
+  - Os painéis de Filtro e de Visualização, o cabeçalho, o menu e a barra de baixo do celular não mudam.
+- **Fora:** aparência dos pastos e marcadores (preenchimento transparente, nomes em branco), "Colorir por"/"Mostrar" como botões próprios, busca e modo campo. Nenhuma mudança no servidor; nenhuma migration.
+- **Testes:** `tests/smoke/mapaControlesV13.test.jsx` (novo); os testes do mapa existentes passam sem alteração.
+
+## D-PROD-287 — Bens Patrimoniais: excluir de vez o bem que nunca foi usado
 
 **Data:** 2026-11-24 · **Origem:** proprietário ("eu quero excluir também") · **Relatório:** [`MAIKE-EXCLUIR-BEM-NAO-USADO-REPORT.md`](./MAIKE-EXCLUIR-BEM-NAO-USADO-REPORT.md)
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `19ca524e`: o marcador dizia D-PROD-285, reservada pela PR aberta #372 (Estoque, Novo movimento); esta é a **D-PROD-286**. O marcador fica em D-PROD-285 (a da #372); quem mergear por último ajusta.
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `19ca524e`: nasceu D-PROD-286 (a 285 era da PR #372); antes do merge a `main` deu a D-PROD-286 aos controles do Mapa Geral (PR #373) e passou a indicar D-PROD-287, que é esta; o marcador passa a D-PROD-288.
 
 - **Contexto:** o bem só era inativado (D-PROD-157, "nada é apagado"). Cadastro feito errado ficava para sempre na lista de inativos.
 - **Decisão:** `DELETE /bens-patrimoniais/:id?empresa_id=&versao=` exclui de vez SÓ o bem sem nenhum uso: nenhum abastecimento (em qualquer situação), nenhuma atividade com ele no cabeçalho e nenhum lançamento de máquina (como máquina ou implemento). Com uso → 409 `BEM_PATRIMONIAL_EM_USO` e o caminho continua sendo inativar (o proprietário: não apagar o que tem custo). Saem junto os tanques e os produtos aceitos; fica a auditoria `delete`. Permissão: a ação padrão "excluir" da tela Bens. Tela: botão "Excluir" com confirmação e o aviso de "já foi usado, use Inativar".
 - **Fora:** excluir tipo continua no "Gerenciar tipos" (D-PROD-169); nenhuma migration.
 - **Testes:** `backend/tests/bemPatrimonialExcluir.test.mjs`; smoke de permissões do Patrimônio.
 
-<!-- Próxima decisão: D-PROD-285 -->
+<!-- Próxima decisão: D-PROD-288 -->

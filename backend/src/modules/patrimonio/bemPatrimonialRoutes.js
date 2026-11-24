@@ -201,7 +201,7 @@ const LISTAR = {
   },
 };
 
-/** D-PROD-286: excluir de vez o bem nunca usado (fazenda e versão na query). */
+/** D-PROD-287: excluir de vez o bem nunca usado (fazenda e versão na query). */
 const EXCLUIR = { params: PARAMS, querystring: { type: 'object', required: ['empresa_id', 'versao'], additionalProperties: false, properties: { empresa_id: ID, versao: VERSAO } } };
 const DETALHE = { params: PARAMS, querystring: { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } } };
 
@@ -270,7 +270,7 @@ export const registrarBemPatrimonialRoutes = async (app) => {
     reply.status(201).send(await criar(ctx(request), corpo(request))));
   app.patch('/bens-patrimoniais/:id', { ...autenticado, preHandler: [g.editar], schema: ATUALIZAR }, async (request) =>
     atualizar(ctx(request), idDe(request), corpo(request)));
-  // D-PROD-286: excluir de vez o bem que nunca foi usado (com histórico → 409 BEM_PATRIMONIAL_EM_USO, só inativar).
+  // D-PROD-287: excluir de vez o bem que nunca foi usado (com histórico → 409 BEM_PATRIMONIAL_EM_USO, só inativar).
   app.delete('/bens-patrimoniais/:id', { ...autenticado, preHandler: [g.excluir], schema: EXCLUIR }, async (request, reply) => {
     await excluir(ctx(request), idDe(request), consulta(request));
     return reply.status(204).send();

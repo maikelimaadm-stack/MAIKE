@@ -90,7 +90,7 @@ export default function BensPatrimoniaisTela() {
 
   /** As linhas visíveis (a versão de cada bem para o DELETE). */
   const linhasRef = useRef(/** @type {any[]} */ ([]));
-  /** D-PROD-286: exclui os bens escolhidos; o que já foi usado fica e a tela diz para inativar. @param {string[]} ids */
+  /** D-PROD-287: exclui os bens escolhidos; o que já foi usado fica e a tela diz para inativar. @param {string[]} ids */
   const excluirSelecionados = async (ids) => {
     if (!empresaId) return;
     let excluidos = 0;
@@ -138,7 +138,7 @@ export default function BensPatrimoniaisTela() {
     getRowId: (b) => String(b.id),
     findRowById: (rows, id) => rows.find((b) => String(b.id) === String(id)),
     onSubmitRecord: (data) => submitRef.current(/** @type {Record<string, any>} */ (data)),
-    // D-PROD-286: "Excluir" apaga de vez SÓ o bem nunca usado; com histórico o servidor recusa e a tela manda inativar.
+    // D-PROD-287: "Excluir" apaga de vez SÓ o bem nunca usado; com histórico o servidor recusa e a tela manda inativar.
     onRequestDeleteMutation: (ids) => void excluirSelecionados(ids),
   });
   linhasRef.current = controller.visibleRows ?? [];

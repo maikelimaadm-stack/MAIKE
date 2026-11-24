@@ -151,7 +151,7 @@ export const updateBemPatrimonial = async (id, corpo) => {
 };
 
 /**
- * D-PROD-286 — exclui DE VEZ o bem que nunca foi usado; com histórico o servidor recusa (409 `BEM_PATRIMONIAL_EM_USO`).
+ * D-PROD-287 — exclui DE VEZ o bem que nunca foi usado; com histórico o servidor recusa (409 `BEM_PATRIMONIAL_EM_USO`).
  * @param {string} id @param {string} empresaId @param {number} versao
  */
 export const deleteBemPatrimonial = async (id, empresaId, versao) => {

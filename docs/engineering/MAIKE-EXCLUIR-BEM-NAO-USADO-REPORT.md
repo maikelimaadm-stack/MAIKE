@@ -1,4 +1,4 @@
-MAIKE-EXCLUIR-BEM-NAO-USADO (D-PROD-286) · `claude/tipo-tarefa-drop-colunas-1aznvv` · PR (a abrir)
+MAIKE-EXCLUIR-BEM-NAO-USADO (D-PROD-287) · `claude/tipo-tarefa-drop-colunas-1aznvv` · PR (a abrir)
 
 # Relatório — excluir de vez o bem patrimonial que nunca foi usado
 

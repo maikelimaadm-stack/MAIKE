@@ -209,7 +209,7 @@ export const operacoesNativas = Object.freeze({
   bemGet: (id, empresaId) => nativeRequest(comEmpresa(doBem(id), empresaId), { autenticado: true }, ctx('getBemPatrimonial', RESOURCE_BEM, { id })),
   /** @param {Record<string, unknown>} corpo */
   bemCreate: (corpo) => nativeRequest(CAMINHO_BENS, { method: 'POST', body: corpo, autenticado: true }, ctx('createBemPatrimonial', RESOURCE_BEM)),
-  /** D-PROD-286: excluir de vez o bem nunca usado (fazenda e versão na query). @param {string} id @param {string} empresaId @param {number} versao */
+  /** D-PROD-287: excluir de vez o bem nunca usado (fazenda e versão na query). @param {string} id @param {string} empresaId @param {number} versao */
   bemDelete: (id, empresaId, versao) =>
     nativeRequest(
       `${doBem(id)}?${new URLSearchParams({ empresa_id: String(empresaId), versao: String(versao) }).toString()}`,

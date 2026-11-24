@@ -621,7 +621,7 @@ export const previaDepreciacao = async (contexto, entrada) => {
   });
 };
 
-// ─── D-PROD-286: excluir o bem que nunca foi usado ─────────────────────────
+// ─── D-PROD-287: excluir o bem que nunca foi usado ─────────────────────────
 
 /**
  * 409 `BEM_PATRIMONIAL_EM_USO`: o bem tem histórico (abastecimento, atividade ou lançamento de máquina, inclusive como
@@ -634,7 +634,7 @@ const bemEmUso = (uso) =>
   });
 
 /**
- * `DELETE /bens-patrimoniais/:id?empresa_id=&versao=` — D-PROD-286: exclui DE VEZ o bem que nunca foi usado (um cadastro
+ * `DELETE /bens-patrimoniais/:id?empresa_id=&versao=` — D-PROD-287: exclui DE VEZ o bem que nunca foi usado (um cadastro
  * feito errado): sem abastecimento, sem atividade com ele no cabeçalho e sem lançamento de máquina (como máquina ou
  * implemento), em qualquer situação. Os tanques e os produtos aceitos saem junto. Com histórico → 409
  * `BEM_PATRIMONIAL_EM_USO` (só inativar). Versão diferente → 409 de concorrência. Auditoria `delete` com o bem inteiro.

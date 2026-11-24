@@ -372,7 +372,7 @@ export const alterarSituacaoBem = async (empresaId, original, ativo) => {
 };
 
 /**
- * D-PROD-286 — exclui de vez o bem nunca usado (`original` traz `id` e `versao`).
+ * D-PROD-287 — exclui de vez o bem nunca usado (`original` traz `id` e `versao`).
  * @param {string|null} empresaId @param {{ id: string, versao: number }} original
  */
 export const excluirBem = async (empresaId, original) => {
