@@ -66,8 +66,8 @@ const textoLongo = (rotulo, valor) => ROTULOS_DE_TEXTO.test(String(rotulo ?? "")
  *  - Movimentação · entrada → "+N cab" (tom "entrada"); · saída → "−N cab" (tom "saida").
  *  - Pesagem → "N kg" (o peso médio); as cabeças pesadas continuam como linha.
  *  - Demais com "Quantidade"/"Cabeças" → "N cab".
- * @param {{ titulo?: string, icone?: string, linhas?: Array<{ rotulo: string, valor: any }> }} cartao
- * @returns {{ lote: any, destaque: null | { texto: string, tom: "entrada" | "saida" | "neutro", rotulo: string }, rota: null | { de: any, ate: any }, resto: Array<{ rotulo: string, valor: any }> }}
+ * @param {{ titulo?: string, icone?: string, sub?: any, destaque?: null | { texto: string, tom: "entrada" | "saida" | "neutro", rotulo: string, sub?: string | null }, linhas?: Array<{ rotulo: string, valor: any }> }} cartao
+ * @returns {{ lote: any, destaque: null | { texto: string, tom: "entrada" | "saida" | "neutro", rotulo: string, sub?: string | null }, rota: null | { de: any, ate: any }, resto: Array<{ rotulo: string, valor: any }> }}
  */
 export function resumoDoCartao(cartao) {
   const linhas = Array.isArray(cartao?.linhas) ? cartao.linhas : [];
