@@ -9307,4 +9307,15 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** aparência dos pastos e marcadores (preenchimento transparente, nomes em branco), "Colorir por"/"Mostrar" como botões próprios, busca e modo campo. Nenhuma mudança no servidor; nenhuma migration.
 - **Testes:** `tests/smoke/mapaControlesV13.test.jsx` (novo); os testes do mapa existentes passam sem alteração.
 
-<!-- Próxima decisão: D-PROD-287 -->
+## D-PROD-287 — Bens Patrimoniais: excluir de vez o bem que nunca foi usado
+
+**Data:** 2026-11-24 · **Origem:** proprietário ("eu quero excluir também") · **Relatório:** [`MAIKE-EXCLUIR-BEM-NAO-USADO-REPORT.md`](./MAIKE-EXCLUIR-BEM-NAO-USADO-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `19ca524e`: nasceu D-PROD-286 (a 285 era da PR #372); antes do merge a `main` deu a D-PROD-286 aos controles do Mapa Geral (PR #373) e passou a indicar D-PROD-287, que é esta; o marcador passa a D-PROD-288.
+
+- **Contexto:** o bem só era inativado (D-PROD-157, "nada é apagado"). Cadastro feito errado ficava para sempre na lista de inativos.
+- **Decisão:** `DELETE /bens-patrimoniais/:id?empresa_id=&versao=` exclui de vez SÓ o bem sem nenhum uso: nenhum abastecimento (em qualquer situação), nenhuma atividade com ele no cabeçalho e nenhum lançamento de máquina (como máquina ou implemento). Com uso → 409 `BEM_PATRIMONIAL_EM_USO` e o caminho continua sendo inativar (o proprietário: não apagar o que tem custo). Saem junto os tanques e os produtos aceitos; fica a auditoria `delete`. Permissão: a ação padrão "excluir" da tela Bens. Tela: botão "Excluir" com confirmação e o aviso de "já foi usado, use Inativar".
+- **Fora:** excluir tipo continua no "Gerenciar tipos" (D-PROD-169); nenhuma migration.
+- **Testes:** `backend/tests/bemPatrimonialExcluir.test.mjs`; smoke de permissões do Patrimônio.
+
+<!-- Próxima decisão: D-PROD-288 -->

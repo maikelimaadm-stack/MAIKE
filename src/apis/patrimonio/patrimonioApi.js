@@ -151,6 +151,18 @@ export const updateBemPatrimonial = async (id, corpo) => {
 };
 
 /**
+ * D-PROD-287 — exclui DE VEZ o bem que nunca foi usado; com histórico o servidor recusa (409 `BEM_PATRIMONIAL_EM_USO`).
+ * @param {string} id @param {string} empresaId @param {number} versao
+ */
+export const deleteBemPatrimonial = async (id, empresaId, versao) => {
+  const contexto = ctx('deleteBemPatrimonial', 'BemPatrimonial');
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(isId(empresaId), 'empresa_id', contexto);
+  assertArgument(ehVersao(versao), 'versao', contexto);
+  return runProviderCall(() => operacoesNativas.bemDelete(id, empresaId, versao), { ...contexto, details: { id } });
+};
+
+/**
  * Prévia gerencial de depreciação linear (não grava nada).
  * @param {Record<string, unknown>} corpo
  */

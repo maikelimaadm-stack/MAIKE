@@ -51,7 +51,7 @@ const usePermissaoEfetivaPatrimonio = () => {
  * `excluirCatalogo`, `inativarCatalogo`, `produtosDoTanque` — sempre sobre a
  * tela de Bens).
  * @param {string} tela id da tela (`TELAS_PATRIMONIO`)
- * @returns {{ ver: boolean, criar: boolean, editar: boolean, inativar: boolean,
+ * @returns {{ ver: boolean, criar: boolean, editar: boolean, inativar: boolean, excluir: boolean,
  *   criarCatalogo: boolean, editarCatalogo: boolean, excluirCatalogo: boolean, inativarCatalogo: boolean, produtosDoTanque: boolean,
  *   carregando: boolean, administrador: boolean, login: string|null }}
  */
