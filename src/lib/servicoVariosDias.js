@@ -21,7 +21,7 @@ export const SITUACOES_DO_SERVICO = Object.freeze(['PLANEJADA', 'EM_ANDAMENTO', 
 
 /** Como cada situação aparece. */
 export const ROTULO_DA_SITUACAO = Object.freeze(
-  /** @type {Record<string, string>} */ ({ PLANEJADA: 'Planejada', EM_ANDAMENTO: 'Em andamento', CONCLUIDA: 'Concluída', CANCELADA: 'Cancelada' }),
+  /** @type {Record<string, string>} */ ({ PLANEJADA: 'Planejada', EM_ANDAMENTO: 'Em andamento', CONCLUIDA: 'Finalizada', CANCELADA: 'Cancelada' }),
 );
 
 /** A trava "serviço parado" (a mesma do servidor: `DIAS_PARADO_MAXIMO`). */
@@ -311,7 +311,8 @@ export const preenchimentoDoLancarDia = ({ atividade, apontamentos = [] }) => {
       pessoas.add(k);
       return true;
     })
-    .map((l) => ({ ...formularioMaoObraDaBase(l), quantidade: '' }))
+    // D-PROD-281: "Vai junto, igual ao último dia" — a quantidade da pessoa também vem (a pessoa muda em "Mudar").
+    .map((l) => formularioMaoObraDaBase(l))
     .filter((f) => f.parceiro);
   return { areaIds, maquinas, equipe, ultimo };
 };
@@ -344,7 +345,7 @@ export const resumoAntesDeSalvar = ({ operacao, areas, quando, hectares, maquina
   const onde = areas.length ? `${operacao ? `${operacao} no ` : ''}${areas.length > 2 ? `${areas[0]} e mais ${areas.length - 1}` : areas.join(' e ')}` : operacao;
   const partes = [onde, quando, hectares ? `${ha(hectares)} ha` : '', ...maquinas, ...equipe].filter(Boolean);
   const andamento = textoDosHectares(feitosDepois, areaTotal, null).replace(/ \(\d+%\)$/, '');
-  const vai = `Vai ficar ${situacao === 'CONCLUIDA' ? 'CONCLUÍDA' : 'EM ANDAMENTO'}${andamento ? ` (${andamento})` : ''}.`;
+  const vai = `Vai ficar ${situacao === 'CONCLUIDA' ? 'FINALIZADA' : 'EM ANDAMENTO'}${andamento ? ` (${andamento})` : ''}.`;
   return { frase: partes.length ? `${partes.join(', ')}.` : '', vai };
 };
 
@@ -357,3 +358,67 @@ export const hectaresDepoisDoRegistro = ({ jaFeitos, areaTotal, hoje }) => {
   const partes = [jaFeitos, hoje].filter((v) => ehCanonico(v));
   return { feitos: partes.length ? somar(/** @type {string[]} */ (partes), 4) : null, area: ehCanonico(areaTotal) ? areaTotal : null };
 };
+
+// ─── D-PROD-281 (MAIKE-ENTREGA-A): o "Novo lançamento" curto e o bloco "Atividades em andamento" ─────
+
+/** "30" (o que falta: área − feitos, nunca negativo); sem os dois, null. @param {unknown} feitos @param {unknown} area */
+const faltaDe = (feitos, area) => {
+  if (!ehCanonico(area)) return null;
+  const f = ehCanonico(feitos) ? Number(feitos) : 0;
+  const falta = Math.max(0, Number(area) - f);
+  return formatarDecimalAtividade(falta.toFixed(4));
+};
+
+/**
+ * "Já feito 10 de 40 ha · falta 30" (a linha de contexto do "Novo lançamento"); sem área (Manutenção e Outros), "Já
+ * feito 2,5 km" ou "Nada feito ainda".
+ * @param {any} item
+ */
+export const textoJaFeito = (item) => {
+  if (servicoSemArea(item)) {
+    const q = quantidadeFeitaDoServico(item);
+    return q ? `Já feito ${q}` : 'Nada feito ainda';
+  }
+  const a = item?.andamento ?? {};
+  const f = ha(a.hectares_feitos) || '0';
+  const t = ha(a.hectares_area);
+  if (!t) return `Já feito ${f} ha`;
+  const falta = faltaDe(a.hectares_feitos, a.hectares_area);
+  return `Já feito ${f} de ${t} ha${falta ? ` · falta ${falta}` : ''}`;
+};
+
+/**
+ * A dica do "Quantos hectares fez hoje?": "Com isso fica 14 de 40 ha"; em branco, "pode deixar em branco e informar
+ * quando finalizar".
+ * @param {any} item @param {string|null} hojeCanonico os hectares de hoje (canônicos) ou null
+ */
+export const dicaDosHectaresDeHoje = (item, hojeCanonico) => {
+  if (!ehCanonico(hojeCanonico)) return 'pode deixar em branco e informar quando finalizar';
+  const a = item?.andamento ?? {};
+  const depois = somar([ehCanonico(a.hectares_feitos) ? a.hectares_feitos : '0', /** @type {string} */ (hojeCanonico)], 4);
+  const t = ha(a.hectares_area);
+  return `Com isso fica ${ha(depois)}${t ? ` de ${t}` : ''} ha`;
+};
+
+/**
+ * O card da atividade em andamento: "10 de 40 ha · falta 30 · último dia ontem" (sem área: "DIVISA NORTE · 2,5 km ·
+ * último dia ontem"). `forte` é a parte em negrito ("10 de 40 ha").
+ * @param {any} item @param {string|null} [hoje]
+ * @returns {{ forte: string, resto: string }}
+ */
+export const textoDoCardEmAndamento = (item, hoje = null) => {
+  const a = item?.andamento ?? {};
+  const u = typeof a.ultimo_dia === 'string' && ehDiaValido(a.ultimo_dia) ? a.ultimo_dia : '';
+  const quando = !u ? '' : hoje && u === hoje ? 'hoje' : hoje && diasEntre(u, hoje) === 1 ? 'ontem' : diaCurto(u);
+  const ultimo = quando ? `último dia ${quando}` : 'nenhum dia lançado';
+  if (servicoSemArea(item)) {
+    return { forte: quantidadeFeitaDoServico(item), resto: [texto(item?.local), ultimo].filter(Boolean).join(' · ') };
+  }
+  const f = ha(a.hectares_feitos) || '0';
+  const t = ha(a.hectares_area);
+  const falta = faltaDe(a.hectares_feitos, a.hectares_area);
+  return { forte: t ? `${f} de ${t} ha` : `${f} ha`, resto: [falta ? `falta ${falta}` : '', ultimo].filter(Boolean).join(' · ') };
+};
+
+/** As atividades em andamento da lista (o bloco do topo), na ordem em que vieram. @param {any[]} itens */
+export const atividadesEmAndamento = (itens) => (Array.isArray(itens) ? itens : []).filter((i) => situacaoDoServico(i) === 'EM_ANDAMENTO');

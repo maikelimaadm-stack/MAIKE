@@ -112,7 +112,7 @@ describe("regras puras do serviço de vários dias", () => {
     expect(regras.filtroDoTipo("tipo:PASTAGEM")).toEqual({ tipo_fixo: "PASTAGEM", tipo_atividade_id: null });
     expect(regras.filtroDoTipo("op:t-roc")).toEqual({ tipo_fixo: null, tipo_atividade_id: "t-roc" });
     expect(regras.filtroDoTipo("")).toEqual({ tipo_fixo: null, tipo_atividade_id: null });
-    expect(regras.OPCOES_DA_SITUACAO.map((o) => o.label)).toEqual(["Todas as situações", "Planejada", "Em andamento", "Concluída", "Cancelada"]);
+    expect(regras.OPCOES_DA_SITUACAO.map((o) => o.label)).toEqual(["Todas as situações", "Planejada", "Em andamento", "Finalizada", "Cancelada"]);
   });
 
   it("o último dia do Concluir: obrigatório, nunca futuro, nem antes do início nem do último dia lançado", () => {
@@ -145,7 +145,8 @@ describe("regras puras do serviço de vários dias", () => {
     expect(p.maquinas).toHaveLength(1);
     expect(p.maquinas[0]).toMatchObject({ bem: { id: "b-tr" }, implemento: { id: "i-ro" }, leitura_inicial: "", leitura_final: "", quantidade_uso: "" });
     expect(p.equipe).toHaveLength(1);
-    expect(p.equipe[0]).toMatchObject({ parceiro: { id: "f-joao" }, tipo_medida: "DIARIA", quantidade: "" });
+    // D-PROD-281: "Vai junto, igual ao último dia" — a quantidade da pessoa também vem.
+    expect(p.equipe[0]).toMatchObject({ parceiro: { id: "f-joao" }, tipo_medida: "DIARIA", quantidade: "3" });
   });
 
   it("Como fica depois de salvar: o padrão segue o término até a pessoa escolher; o resumo numa frase", () => {
@@ -163,7 +164,7 @@ describe("regras puras do serviço de vários dias", () => {
       situacao: "EM_ANDAMENTO", feitosDepois: depois.feitos, areaTotal: depois.area,
     });
     expect(`${r.frase} ${r.vai}`).toBe("Roçada no Pasto da Aroeira, hoje, 4 ha, Trator MF 4275, João 1 diária. Vai ficar EM ANDAMENTO (12 de 40 ha).");
-    expect(regras.resumoAntesDeSalvar({ operacao: "Roçada", areas: [], quando: "", hectares: null, maquinas: [], equipe: [], situacao: "CONCLUIDA", feitosDepois: null, areaTotal: null }).vai).toBe("Vai ficar CONCLUÍDA.");
+    expect(regras.resumoAntesDeSalvar({ operacao: "Roçada", areas: [], quando: "", hectares: null, maquinas: [], equipe: [], situacao: "CONCLUIDA", feitosDepois: null, areaTotal: null }).vai).toBe("Vai ficar FINALIZADA.");
   });
 
   it("Planejamento sem a regra do mês: a aberta de novembro recebe o dia de dezembro, com o andamento; parada há mais de 30 dias, avisa", () => {
@@ -196,8 +197,8 @@ describe("a linha do serviço (computador e celular)", () => {
     expect(screen.getByTestId("atividade-status-at-14")).toHaveTextContent(/^Em andamento12 de 40 ha \(30%\) · último dia 02\/12/);
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "30");
     expect(screen.getByRole("progressbar").firstElementChild).toHaveStyle({ width: "30%" });
-    fireEvent.click(screen.getByRole("button", { name: "Lançar dia" }));
-    fireEvent.click(screen.getByRole("button", { name: "Concluir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lançamento" }));
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
     expect(a.onLancarDia).toHaveBeenCalledWith(SERVICO);
     expect(a.onConcluir).toHaveBeenCalledWith(SERVICO);
     expect(linha).not.toHaveBeenCalled();
@@ -207,9 +208,9 @@ describe("a linha do serviço (computador e celular)", () => {
     const cheio = { ...SERVICO, andamento: andamento({ hectares_feitos: "52.5000", hectares_area: "52.5000", percentual: "100.00" }) };
     const { unmount } = render(<SituacaoDoServico item={cheio} podeLancar podeConcluir {...acoes()} />);
     const falta = screen.getByTestId("servico-falta-concluir-at-14");
-    expect(falta).toHaveTextContent("100%, falta concluir (52,5 de 52,5 ha)");
-    expect(within(falta).getByText("100%, falta concluir").tagName).toBe("STRONG");
-    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Concluir"]);
+    expect(falta).toHaveTextContent("Tudo feito · falta finalizar (52,5 de 52,5 ha)");
+    expect(within(falta).getByText("Tudo feito · falta finalizar").tagName).toBe("STRONG");
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Finalizar"]);
     unmount();
     render(<SituacaoDoServico item={SERVICO} podeLancar={false} podeConcluir={false} {...acoes()} />);
     expect(screen.queryAllByRole("button")).toEqual([]);
@@ -217,7 +218,7 @@ describe("a linha do serviço (computador e celular)", () => {
   });
 
   it("concluída, planejada e cancelada: só a situação (sem andamento nem botões)", () => {
-    for (const [situacao, rotulo] of [["CONCLUIDA", "Concluída"], ["PLANEJADA", "Planejada"], ["CANCELADA", "Cancelada"]]) {
+    for (const [situacao, rotulo] of [["CONCLUIDA", "Finalizada"], ["PLANEJADA", "Planejada"], ["CANCELADA", "Cancelada"]]) {
       const { unmount } = render(<SituacaoDoServico item={{ ...SERVICO, andamento: andamento({ situacao }) }} podeLancar podeConcluir {...acoes()} />);
       expect(screen.getByTestId("atividade-status-at-14")).toHaveTextContent(new RegExp(`^${rotulo}$`));
       expect(screen.queryAllByRole("button")).toEqual([]);
@@ -233,7 +234,7 @@ describe("a linha do serviço (computador e celular)", () => {
     expect(bloco.querySelector(".b1-servico-bloco__custo")?.textContent?.replace(/\s/g, " ")).toBe("R$ 1.260,00");
     expect(bloco.querySelector(".b1-servico-bloco__topo")).toHaveClass("b1-servico-bloco__topo--com-acoes");
     expect([...bloco.querySelectorAll(".b1-servico-bloco__linha")].map((el) => el.textContent)).toEqual(["ROÇADA MECÂNICA · PASTO DA AROEIRA +1", "28/11 – · Em andamento"]);
-    expect(within(bloco).getAllByRole("button").map((b) => b.textContent)).toEqual(["Lançar dia", "Concluir"]);
+    expect(within(bloco).getAllByRole("button").map((b) => b.textContent)).toEqual(["Lançamento", "Finalizar"]);
   });
 });
 
@@ -243,7 +244,8 @@ describe("o diálogo Concluir (V3)", () => {
     const onConcluir = vi.fn(async () => ({}));
     const onFechar = vi.fn();
     render(<DialogoConcluirServico item={item} hoje={HOJE} onFechar={onFechar} onConcluir={onConcluir} />);
-    expect(screen.getByTestId("dialogo-concluir-servico-titulo")).toHaveTextContent("Concluir ROÇADA MECÂNICA · PASTO DA AROEIRA +1");
+    expect(screen.getByTestId("dialogo-concluir-servico-titulo")).toHaveTextContent("Finalizar atividade");
+    expect(screen.getByTestId("dialogo-concluir-servico-nome")).toHaveTextContent("ROÇADA MECÂNICA · PASTO DA AROEIRA +1");
     const campo = screen.getByTestId("dialogo-concluir-servico-dia");
     expect(campo).toHaveValue("2026-12-07");
     expect(screen.getByTestId("dialogo-concluir-servico-sugerido")).toHaveTextContent("sugerido: último dia lançado");
@@ -353,20 +355,32 @@ const montar = async (props = {}) => {
 };
 const registros = () => backend.chamadas.filter((c) => c.method === "POST" && c.path === "/atividades/registrar");
 const editorDe = (/** @type {HTMLElement} */ janela, /** @type {string} */ secao) => within(janela).getByTestId(`registro-${secao}-editor`);
-/** O "+ Lançar dia" já com o que a pessoa digita: os hectares de hoje, a leitura final e a quantidade da equipe. */
-const preencherODia = async (/** @type {HTMLElement} */ janela) => {
+/** D-PROD-281: o "Novo lançamento" abre curto; "Mudar" mostra o formulário inteiro. */
+const abrirTudo = async (/** @type {HTMLElement} */ janela) => {
+  await within(janela).findByTestId("registro-de-campo-curto");
+  await waitFor(() => expect(within(janela).getByTestId("registro-de-campo-vai-junto")).toHaveTextContent("JOÃO"));
+  fireEvent.click(within(janela).getByTestId("registro-de-campo-mudar"));
+  return within(janela).findByTestId("registro-de-campo-form");
+};
+/**
+ * O "+ Lançamento" (formulário inteiro) já com o que a pessoa digita: os hectares de hoje e o "Horímetro agora" (a
+ * pessoa — JOÃO, 1 diária — vem do último dia, D-PROD-281). `finalizou`: a resposta ao "Finalizou a atividade hoje?".
+ */
+const preencherODia = async (/** @type {HTMLElement} */ janela, /** @type {string|null} */ finalizou = "Não, continua") => {
+  if (!within(janela).queryByTestId("registro-de-campo-form")) await abrirTudo(janela);
   fireEvent.change(within(janela).getByTestId("registro-areas-hectares-area-aroeira"), { target: { value: "4" } });
   const maquina = await within(janela).findByTestId("registro-maquina-editor");
-  await waitFor(() => expect(within(maquina).getByTestId("registro-maquina-leitura-inicial")).toHaveValue("1.244"));
+  await waitFor(() => expect(within(maquina).getByTestId("registro-maquina-horimetro-dica")).toHaveTextContent("última hora lançada: 1.244"));
   fireEvent.change(within(maquina).getByTestId("registro-maquina-leitura-final"), { target: { value: "1251" } });
-  fireEvent.change(within(editorDe(janela, "pessoa")).getByTestId("registro-mao-obra-quantidade"), { target: { value: "1" } });
+  if (finalizou) fireEvent.click(within(within(janela).getByTestId("registro-de-campo-situacao")).getByRole("radio", { name: finalizou }));
 };
 
 describe("+ Lançar dia (V2): a Nova realização preenchida com o serviço", () => {
   it("abre no formulário do tipo do serviço, com a operação, a área em aberto (hectares vazios), a máquina e a pessoa do último dia, hoje e o Planejamento", async () => {
     const { janela } = await montar({ continuar: SERVICO });
-    await within(janela).findByTestId("registro-de-campo-form");
-    expect(within(janela).getByTestId("registro-de-campo-titulo")).toHaveTextContent("Nova realização de Roçada e tratos");
+    await abrirTudo(janela);
+    expect(within(janela).getByTestId("registro-de-campo-titulo")).toHaveTextContent(/^Novo lançamento$/);
+    expect(within(janela).getByTestId("registro-de-campo-titulo-atividade")).toHaveTextContent("ROÇADA MECÂNICA · PASTO DA AROEIRA +1");
     expect(within(janela).queryByRole("button", { name: "Trocar tipo" })).toBeNull();
     expect(within(janela).getByRole("combobox", { name: /Operação/ })).toHaveTextContent("ROÇADA MECÂNICA");
     // Só a área em aberto do serviço (o Açude já está concluído nele), com os hectares de hoje vazios.
@@ -382,23 +396,27 @@ describe("+ Lançar dia (V2): a Nova realização preenchida com o serviço", ()
     const maquina = await within(janela).findByTestId("registro-maquina-editor");
     expect(within(maquina).getByTestId("registro-maquina-bem").getAttribute("aria-label")).toMatch(/TR-02/);
     expect(within(maquina).getByTestId("registro-maquina-implemento").getAttribute("aria-label")).toMatch(/RO-01/);
-    await waitFor(() => expect(within(maquina).getByTestId("registro-maquina-leitura-inicial")).toHaveValue("1.244"));
+    await waitFor(() => expect(within(maquina).getByTestId("registro-maquina-horimetro-dica")).toHaveTextContent("última hora lançada: 1.244"));
     expect(within(maquina).getByTestId("registro-maquina-leitura-final")).toHaveValue("");
     expect(within(janela).getByTestId("registro-de-campo-nota-inicial")).toHaveTextContent("inicial = final do último dia");
-    // A pessoa do último dia, com a medida dele e sem a quantidade.
-    const pessoa = editorDe(janela, "pessoa");
-    expect(within(pessoa).getByTestId("registro-mao-obra-parceiro").getAttribute("aria-label")).toMatch(/JOÃO/);
-    expect(within(pessoa).getByTestId("registro-mao-obra-quantidade")).toHaveValue("");
+    // D-PROD-281: a pessoa do último dia vai junto, com a medida e a quantidade dele (na tabela; muda-se lá).
+    expect(within(janela).queryByTestId("registro-pessoa-editor")).toBeNull();
+    expect(within(janela).getByTestId("registro-de-campo-form")).toHaveTextContent("JOÃO");
     // Onde entra: a atividade aberta de novembro, com o andamento.
     expect(await within(janela).findByTestId("registro-de-campo-destino")).toHaveTextContent("Entra em ROÇADA MECÂNICA · PASTO DA AROEIRA · nov/26 (em andamento, 8 de 40 ha)");
   });
 
-  it("Como fica depois de salvar: Em andamento por padrão (sem término), o resumo numa frase e o corpo SEM concluir; a máquina e a pessoa vão no corpo", async () => {
+  it("Finalizou a atividade hoje? nada marcado (sem escolha, nada sai); 'Não, continua', o resumo numa frase e o corpo SEM concluir; a máquina e a pessoa vão no corpo", async () => {
     const { janela } = await montar({ continuar: SERVICO });
-    await preencherODia(janela);
+    await preencherODia(janela, null);
     const situacao = within(janela).getByTestId("registro-de-campo-situacao");
-    expect(within(situacao).getByRole("radio", { name: "Em andamento" })).toHaveAttribute("aria-checked", "true");
-    expect(within(situacao).getByRole("radio", { name: "Concluída" })).toHaveAttribute("aria-checked", "false");
+    expect(within(situacao).getByRole("radio", { name: "Não, continua" })).toHaveAttribute("aria-checked", "false");
+    expect(within(situacao).getByRole("radio", { name: "Sim, finalizei" })).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
+    expect(await within(janela).findByTestId("registro-de-campo-situacao-erro")).toHaveTextContent("Escolha se finalizou a atividade hoje.");
+    expect(registros()).toHaveLength(0);
+    fireEvent.click(within(situacao).getByRole("radio", { name: "Não, continua" }));
+    expect(within(situacao).getByRole("radio", { name: "Não, continua" })).toHaveAttribute("aria-checked", "true");
     await waitFor(() =>
       expect(within(janela).getByTestId("registro-de-campo-resumo")).toHaveTextContent(
         "ROÇADA MECÂNICA no PASTO DA AROEIRA, hoje, 4 ha, TR-02 — TRATOR MF 4275, JOÃO 1 diária. Vai ficar EM ANDAMENTO (16 de 40 ha).",
@@ -419,35 +437,20 @@ describe("+ Lançar dia (V2): a Nova realização preenchida com o serviço", ()
     expect(corpo).not.toHaveProperty("produtos");
   });
 
-  it("com término vem marcado Concluída e manda concluir: true; a escolha da pessoa vale sobre o padrão", async () => {
+  it("com término e 'Sim, finalizei' manda concluir: true; o 'Salvar e novo' não aparece no Novo lançamento", async () => {
     const { janela } = await montar({ continuar: SERVICO });
-    await within(janela).findByTestId("registro-de-campo-form");
+    await abrirTudo(janela);
     fireEvent.change(within(janela).getByTestId("registro-de-campo-data"), { target: { value: "2026-12-05" } });
     fireEvent.change(within(janela).getByTestId("registro-de-campo-data-termino"), { target: { value: HOJE } });
-    await preencherODia(janela);
+    await preencherODia(janela, "Sim, finalizei");
     const situacao = within(janela).getByTestId("registro-de-campo-situacao");
-    await waitFor(() => expect(within(situacao).getByRole("radio", { name: "Concluída" })).toHaveAttribute("aria-checked", "true"));
+    expect(within(situacao).getByRole("radio", { name: "Sim, finalizei" })).toHaveAttribute("aria-checked", "true");
     expect(within(janela).getByTestId("registro-de-campo-resumo")).toHaveTextContent("de 05/12 a 07/12");
-    expect(within(janela).getByTestId("registro-de-campo-resumo")).toHaveTextContent("Vai ficar CONCLUÍDA (16 de 40 ha).");
-    fireEvent.click(within(janela).getByRole("button", { name: "Salvar e novo" }));
+    expect(within(janela).getByTestId("registro-de-campo-resumo")).toHaveTextContent("Vai ficar FINALIZADA (16 de 40 ha).");
+    expect(within(janela).queryByRole("button", { name: "Salvar e novo" })).toBeNull();
+    fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
     await waitFor(() => expect(registros()).toHaveLength(1));
     expect(registros()[0].body).toMatchObject({ data_operacional: "2026-12-05", data_termino: HOJE, concluir: true });
-    // Lançou vários dias de uma vez mas não acabou: escolhe "Em andamento" — o término fica, o concluir não vai.
-    await waitFor(() => expect(within(janela).getByTestId("registro-de-campo-data-termino")).toHaveValue(""));
-    // No "+ Lançar dia", o formulário novo volta com os hectares de hoje vazios (não 100% da área).
-    expect(within(janela).getByTestId("registro-areas-hectares-area-aroeira")).toHaveValue("");
-    fireEvent.change(within(janela).getByTestId("registro-areas-hectares-area-aroeira"), { target: { value: "2" } });
-    fireEvent.change(within(janela).getByTestId("registro-de-campo-data"), { target: { value: "2026-12-05" } });
-    fireEvent.change(within(janela).getByTestId("registro-de-campo-data-termino"), { target: { value: "2026-12-06" } });
-    // O formulário novo (depois do "Salvar e novo") é outro: relê a escolha.
-    const situacao2 = () => within(janela).getByTestId("registro-de-campo-situacao");
-    await waitFor(() => expect(within(situacao2()).getByRole("radio", { name: "Concluída" })).toHaveAttribute("aria-checked", "true"));
-    fireEvent.click(within(situacao2()).getByRole("radio", { name: "Em andamento" }));
-    expect(within(situacao2()).getByRole("radio", { name: "Em andamento" })).toHaveAttribute("aria-checked", "true");
-    fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
-    await waitFor(() => expect(registros()).toHaveLength(2));
-    expect(registros()[1].body).toMatchObject({ data_operacional: "2026-12-05", data_termino: "2026-12-06" });
-    expect(registros()[1].body).not.toHaveProperty("concluir");
   });
 });
 
@@ -540,7 +543,7 @@ describe("ajustes do teste de ponta a ponta (D-PROD-274): o capim, o serviço se
     r1.unmount();
     const concluida = { ...CERCA, status: "CONCLUIDA", data_conclusao: "2026-11-20", andamento: { ...CERCA.andamento, situacao: "CONCLUIDA" } };
     const r2 = render(<BlocoDoServico item={concluida} tipos={OPERACOES} comAcoes podeLancar podeConcluir {...a} />);
-    expect([...r2.container.querySelectorAll(".b1-servico-bloco__linha")].map((el) => el.textContent)).toEqual(["REFORMA DE CERCA · DIVISA NORTE", "19/11 a 20/11 · Concluída · 2,5 km"]);
+    expect([...r2.container.querySelectorAll(".b1-servico-bloco__linha")].map((el) => el.textContent)).toEqual(["REFORMA DE CERCA · DIVISA NORTE", "19/11 a 20/11 · Finalizada · 2,5 km"]);
   });
 
   it("a célula Operação (computador) traz o capim embaixo; sem plantio, só a operação", async () => {
@@ -555,26 +558,26 @@ describe("ajustes do teste de ponta a ponta (D-PROD-274): o capim, o serviço se
 
   it("o diálogo Concluir: o título com o capim; sem área, o local no título e a quantidade no lugar dos hectares", () => {
     const { unmount } = render(<DialogoConcluirServico item={MOMBACA} hoje={HOJE} onFechar={vi.fn()} onConcluir={vi.fn()} />);
-    expect(screen.getByTestId("dialogo-concluir-servico-titulo")).toHaveTextContent("Concluir SEMEADURA DE CAPIM · PASTO DA AROEIRA · capim PANICUM CV. MOMBAÇA");
+    expect(screen.getByTestId("dialogo-concluir-servico-nome")).toHaveTextContent("SEMEADURA DE CAPIM · PASTO DA AROEIRA · capim PANICUM CV. MOMBAÇA");
     unmount();
     render(<DialogoConcluirServico item={CERCA} hoje={HOJE} onFechar={vi.fn()} onConcluir={vi.fn()} />);
-    expect(screen.getByTestId("dialogo-concluir-servico-titulo")).toHaveTextContent("Concluir REFORMA DE CERCA · DIVISA NORTE");
+    expect(screen.getByTestId("dialogo-concluir-servico-nome")).toHaveTextContent("REFORMA DE CERCA · DIVISA NORTE");
     expect(screen.getByTestId("dialogo-concluir-servico-hectares")).toHaveTextContent(/^2,5 km$/);
   });
 
-  it("sem a permissão de editar: 'Concluída' fica desligada (\"Só quem pode editar conclui.\"), o término não a marca e o corpo vai SEM concluir", async () => {
+  it("sem a permissão de editar: 'Sim, finalizei' fica desligado (\"Só quem pode editar finaliza.\"), o término não a marca e o corpo vai SEM concluir", async () => {
     sessao.editar = false;
     const { janela } = await montar({ continuar: SERVICO });
-    await within(janela).findByTestId("registro-de-campo-form");
+    await abrirTudo(janela);
     fireEvent.change(within(janela).getByTestId("registro-de-campo-data"), { target: { value: "2026-12-05" } });
     fireEvent.change(within(janela).getByTestId("registro-de-campo-data-termino"), { target: { value: HOJE } });
     await preencherODia(janela);
     const situacao = within(janela).getByTestId("registro-de-campo-situacao");
-    const concluida = within(situacao).getByRole("radio", { name: "Concluída" });
+    const concluida = within(situacao).getByRole("radio", { name: "Sim, finalizei" });
     expect(concluida).toBeDisabled();
     expect(concluida).toHaveAttribute("aria-checked", "false");
-    expect(within(situacao).getByRole("radio", { name: "Em andamento" })).toHaveAttribute("aria-checked", "true");
-    expect(within(janela).getByTestId("registro-de-campo-situacao-sem-permissao")).toHaveTextContent("Só quem pode editar conclui.");
+    expect(within(situacao).getByRole("radio", { name: "Não, continua" })).toHaveAttribute("aria-checked", "true");
+    expect(within(janela).getByTestId("registro-de-campo-situacao-sem-permissao")).toHaveTextContent("Só quem pode editar finaliza.");
     fireEvent.click(concluida);
     expect(concluida).toHaveAttribute("aria-checked", "false");
     expect(within(janela).getByTestId("registro-de-campo-resumo")).toHaveTextContent("Vai ficar EM ANDAMENTO");
@@ -584,10 +587,148 @@ describe("ajustes do teste de ponta a ponta (D-PROD-274): o capim, o serviço se
     expect(registros()[0].body).not.toHaveProperty("concluir");
   });
 
-  it("com a permissão de editar, 'Concluída' é oferecida e a nota não aparece", async () => {
+  it("com a permissão de editar, 'Sim, finalizei' é oferecido e a nota não aparece", async () => {
     const { janela } = await montar({ continuar: SERVICO });
-    await within(janela).findByTestId("registro-de-campo-form");
-    expect(within(within(janela).getByTestId("registro-de-campo-situacao")).getByRole("radio", { name: "Concluída" })).not.toBeDisabled();
+    await within(janela).findByTestId("registro-de-campo-curto");
+    expect(within(within(janela).getByTestId("registro-de-campo-situacao")).getByRole("radio", { name: "Sim, finalizei" })).not.toBeDisabled();
     expect(within(janela).queryByTestId("registro-de-campo-situacao-sem-permissao")).toBeNull();
+  });
+});
+
+// ─── D-PROD-281 (MAIKE-ENTREGA-A): o "Novo lançamento" curto, o horímetro e o bloco "Atividades em andamento" ─────
+describe("D-PROD-281 — o Novo lançamento curto", () => {
+  const curto = async () => {
+    const { janela, onFechar } = await montar({ continuar: SERVICO });
+    const form = await within(janela).findByTestId("registro-de-campo-curto");
+    await waitFor(() => expect(within(form).getByTestId("registro-de-campo-vai-junto")).toHaveTextContent("JOÃO · 1 diária"));
+    return { janela, form, onFechar };
+  };
+  const escolher = (/** @type {HTMLElement} */ janela, /** @type {string} */ nome) =>
+    fireEvent.click(within(within(janela).getByTestId("registro-de-campo-situacao")).getByRole("radio", { name: nome }));
+
+  it("regras: 'Já feito 12 de 40 ha · falta 28'; a dica dos hectares de hoje; o card '12 de 40 ha · falta 28 · último dia ontem'", () => {
+    expect(regras.textoJaFeito(SERVICO)).toBe("Já feito 12 de 40 ha · falta 28");
+    expect(regras.dicaDosHectaresDeHoje(SERVICO, null)).toBe("pode deixar em branco e informar quando finalizar");
+    expect(regras.dicaDosHectaresDeHoje(SERVICO, "4.0000")).toBe("Com isso fica 16 de 40 ha");
+    expect(regras.textoDoCardEmAndamento({ ...SERVICO, andamento: andamento({ ultimo_dia: "2026-12-06" }) }, HOJE)).toEqual({ forte: "12 de 40 ha", resto: "falta 28 · último dia ontem" });
+    const cerca = { ...SERVICO, area_id: null, area: null, areas: [], local: "DIVISA NORTE", quantidade_produzida: "1.2000", unidade_producao_sigla: "KM", andamento: andamento({ hectares_feitos: null, hectares_area: null, percentual: null }) };
+    expect(regras.textoJaFeito(cerca)).toBe("Já feito 1,2 km");
+    expect(regras.textoDoCardEmAndamento(cerca, HOJE)).toEqual({ forte: "1,2 km", resto: "DIVISA NORTE · último dia 02/12" });
+    expect(regras.atividadesEmAndamento([SERVICO, { ...SERVICO, id: "x", andamento: andamento({ situacao: "CONCLUIDA" }) }]).map((a) => a.id)).toEqual(["at-14"]);
+  });
+
+  it("de cima para baixo: o contexto, 'Quantos hectares fez hoje?' (opcional), o Dia, o horímetro, 'Vai junto', 'Mudar', 'Finalizou a atividade hoje?' sem nada marcado", async () => {
+    const { janela, form } = await curto();
+    expect(within(janela).getByTestId("registro-de-campo-titulo")).toHaveTextContent(/^Novo lançamento$/);
+    expect(within(form).getByTestId("registro-de-campo-ja-feito")).toHaveTextContent("Já feito 12 de 40 ha · falta 28");
+    const hectares = within(form).getByTestId("registro-de-campo-hectares-hoje");
+    expect(hectares).toHaveValue("");
+    expect(within(form).getByTestId("registro-de-campo-hectares-dica")).toHaveTextContent("pode deixar em branco e informar quando finalizar");
+    fireEvent.change(hectares, { target: { value: "4" } });
+    expect(within(form).getByTestId("registro-de-campo-hectares-dica")).toHaveTextContent("Com isso fica 16 de 40 ha");
+    expect(within(form).getByTestId("registro-de-campo-data")).toHaveValue(HOJE);
+    expect(within(form).getByTestId("registro-de-campo-vai-junto")).toHaveTextContent("TR-02");
+    expect(within(form).getByTestId("registro-maquina-curto-nome")).toHaveTextContent("TR-02");
+    for (const r of within(form).getAllByRole("radio")) expect(r).toHaveAttribute("aria-checked", "false");
+    // O formulário inteiro (Operação, Planejamento, Salvar e novo) não aparece.
+    expect(within(janela).queryByTestId("registro-de-campo-form")).toBeNull();
+    expect(within(janela).queryByRole("button", { name: "Salvar e novo" })).toBeNull();
+  });
+
+  it("sem escolher 'Finalizou a atividade hoje?' nada sai; com 'Não, continua', vai: os hectares, o horímetro (inicial = última leitura) e a pessoa do último dia", async () => {
+    const { janela, form, onFechar } = await curto();
+    fireEvent.change(within(form).getByTestId("registro-de-campo-hectares-hoje"), { target: { value: "4" } });
+    await waitFor(() => expect(within(form).getByTestId("registro-maquina-horimetro-dica")).toHaveTextContent("última hora lançada: 1.244"));
+    fireEvent.change(within(form).getByTestId("registro-maquina-leitura-final"), { target: { value: "1252" } });
+    expect(within(form).getByTestId("registro-maquina-horimetro-dica")).toHaveTextContent("última hora lançada: 1.244 · hoje dá 8 horas");
+    fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
+    expect(await within(form).findByTestId("registro-de-campo-situacao-erro")).toHaveTextContent("Escolha se finalizou a atividade hoje.");
+    expect(registros()).toHaveLength(0);
+    escolher(janela, "Não, continua");
+    fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(registros()).toHaveLength(1));
+    expect(registros()[0].body).toMatchObject({
+      areas: [{ area_id: "area-aroeira", hectares: "4" }],
+      maquinas: [{ bem_id: "b-tr", sem_medidor: false, leitura_inicial: "1244", leitura_final: "1252" }],
+      mao_obra: [{ parceiro_id: "f-joao", tipo_medida: "DIARIA", quantidade: "1" }],
+    });
+    expect(registros()[0].body).not.toHaveProperty("concluir");
+    await waitFor(() => expect(onFechar).toHaveBeenCalled());
+  });
+
+  it("hectares em branco: vai com area_id e sem hectares; 'Sim, finalizei' manda concluir: true", async () => {
+    const { janela, form } = await curto();
+    await waitFor(() => expect(within(form).getByTestId("registro-maquina-horimetro-dica")).toHaveTextContent("1.244"));
+    fireEvent.change(within(form).getByTestId("registro-maquina-leitura-final"), { target: { value: "1250" } });
+    escolher(janela, "Sim, finalizei");
+    fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(registros()).toHaveLength(1));
+    const corpo = registros()[0].body;
+    expect(corpo).toMatchObject({ area_id: "area-aroeira", concluir: true });
+    expect(corpo).not.toHaveProperty("areas");
+    expect(corpo).not.toHaveProperty("area_executada_dia");
+  });
+
+  it("horímetro quebrado: 'Horas corridas de trabalho' (o sem_medidor de sempre); 'Voltar a usar o horímetro' volta", async () => {
+    const { janela, form } = await curto();
+    await waitFor(() => expect(within(form).getByTestId("registro-maquina-horimetro-quebrado-link")).toBeTruthy());
+    expect(within(form).getByText("Horímetro agora")).toBeTruthy();
+    fireEvent.click(within(form).getByTestId("registro-maquina-horimetro-quebrado-link"));
+    expect(within(form).getByTestId("registro-maquina-horimetro-quebrado")).toHaveTextContent("horímetro quebrado");
+    expect(within(form).getByText("Horas corridas de trabalho")).toBeTruthy();
+    expect(within(form).queryByTestId("registro-maquina-leitura-final")).toBeNull();
+    fireEvent.click(within(form).getByTestId("registro-maquina-voltar-horimetro"));
+    expect(within(form).getByTestId("registro-maquina-leitura-final")).toBeTruthy();
+    fireEvent.click(within(form).getByTestId("registro-maquina-horimetro-quebrado-link"));
+    fireEvent.change(within(form).getByTestId("registro-maquina-quantidade-uso"), { target: { value: "8" } });
+    escolher(janela, "Não, continua");
+    fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(registros()).toHaveLength(1));
+    expect(registros()[0].body.maquinas).toEqual([expect.objectContaining({ bem_id: "b-tr", sem_medidor: true, quantidade_uso: "8" })]);
+  });
+
+  it("'Mudar' mostra o formulário inteiro (as tabelas e os editores), sem perder o que foi digitado", async () => {
+    const { janela, form } = await curto();
+    fireEvent.change(within(form).getByTestId("registro-de-campo-hectares-hoje"), { target: { value: "3" } });
+    escolher(janela, "Não, continua");
+    fireEvent.click(within(form).getByTestId("registro-de-campo-mudar"));
+    const inteiro = await within(janela).findByTestId("registro-de-campo-form");
+    expect(within(inteiro).getByTestId("registro-areas-hectares-area-aroeira")).toHaveValue("3");
+    expect(within(inteiro).getByTestId("registro-maquina-editor")).toBeTruthy();
+    expect(within(inteiro).getByTestId("registro-incluir-insumo")).toBeTruthy();
+    expect(within(within(inteiro).getByTestId("registro-de-campo-situacao")).getByRole("radio", { name: "Não, continua" })).toHaveAttribute("aria-checked", "true");
+  });
+});
+
+describe("D-PROD-281 — o bloco 'Atividades em andamento'", () => {
+  it("um card por atividade em andamento, com '+ Lançamento' e 'Finalizar' pelas permissões da linha", async () => {
+    const { default: AtividadesEmAndamento } = await import("@/components/lancamento-atividades/AtividadesEmAndamento");
+    const onLancar = vi.fn();
+    const onFinalizar = vi.fn();
+    const finalizada = { ...SERVICO, id: "at-15", andamento: andamento({ situacao: "CONCLUIDA" }) };
+    const plantio = { ...SERVICO, id: "at-31", tipo_atividade_nome: "SEMEADURA DE CAPIM", areas: [SERVICO.areas[0]], plantio: { cultura: { nome: "MOMBAÇA" } }, andamento: andamento({ ultimo_dia: "2026-12-06" }) };
+    const { unmount } = render(
+      <AtividadesEmAndamento itens={[SERVICO, finalizada, plantio]} hoje={HOJE} podeLancar={() => true} podeFinalizar={(i) => i.id === "at-14"} onLancar={onLancar} onFinalizar={onFinalizar} />,
+    );
+    const bloco = screen.getByTestId("atividades-em-andamento");
+    expect(bloco).toHaveTextContent("Atividades em andamento (2)");
+    expect(screen.queryByTestId("em-andamento-at-15")).toBeNull();
+    const card = screen.getByTestId("em-andamento-at-31");
+    expect(card).toHaveTextContent("SEMEADURA DE CAPIM");
+    expect(card).toHaveTextContent("PASTO DA AROEIRA · capim MOMBAÇA");
+    expect(screen.getByTestId("em-andamento-texto-at-31")).toHaveTextContent("12 de 40 ha · falta 28 · último dia ontem");
+    expect(within(card).getAllByRole("button").map((b) => b.textContent)).toEqual(["Lançamento"]);
+    expect(within(screen.getByTestId("em-andamento-at-14")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Lançamento", "Finalizar"]);
+    fireEvent.click(screen.getByTestId("em-andamento-lancar-at-14"));
+    fireEvent.click(screen.getByTestId("em-andamento-finalizar-at-14"));
+    expect(onLancar).toHaveBeenCalledWith(SERVICO);
+    expect(onFinalizar).toHaveBeenCalledWith(SERVICO);
+    unmount();
+    // Sem permissão: os cards sem botões; sem nenhuma em andamento, nada.
+    const r = render(<AtividadesEmAndamento itens={[SERVICO]} hoje={HOJE} podeLancar={() => false} podeFinalizar={() => false} onLancar={onLancar} onFinalizar={onFinalizar} />);
+    expect(within(screen.getByTestId("em-andamento-at-14")).queryAllByRole("button")).toEqual([]);
+    r.unmount();
+    const vazio = render(<AtividadesEmAndamento itens={[finalizada]} hoje={HOJE} podeLancar={() => true} podeFinalizar={() => true} onLancar={onLancar} onFinalizar={onFinalizar} />);
+    expect(vazio.container.textContent).toBe("");
   });
 });

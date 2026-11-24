@@ -187,7 +187,8 @@ const preencherMaquina = async (/** @type {HTMLElement} */ janela, /** @type {Re
   const editor = editorDe(janela, "maquina");
   await escolherNoSeletor(editor, "registro-maquina-bem", bem);
   if (implemento) await escolherNoSeletor(editor, "registro-maquina-implemento", implemento);
-  await waitFor(() => expect(within(editor).getByTestId("registro-maquina-leitura-inicial")).toHaveValue(inicialSugerida));
+  // D-PROD-281: no horímetro, a inicial é a última leitura (só mostrada na dica) e a pessoa digita "Horímetro agora".
+  await waitFor(() => expect(within(editor).getByTestId("registro-maquina-horimetro-dica")).toHaveTextContent(`última hora lançada: ${inicialSugerida}`));
   fireEvent.change(within(editor).getByTestId("registro-maquina-leitura-final"), { target: { value: final } });
   return editor;
 };
@@ -529,7 +530,7 @@ describe("RV-REGRAS — exige máquina, Salvar e novo, celular e o limite do ser
     expect(await within(editor).findByText("Escolha a máquina.")).toBeTruthy();
     expect(registros()).toHaveLength(0);
     await escolherNoSeletor(editor, "registro-maquina-bem", /TP-02/);
-    await waitFor(() => expect(within(editor).getByTestId("registro-maquina-leitura-inicial")).toHaveValue("1.550"));
+    await waitFor(() => expect(within(editor).getByTestId("registro-maquina-horimetro-dica")).toHaveTextContent("última hora lançada: 1.550"));
     fireEvent.change(within(editor).getByTestId("registro-maquina-leitura-final"), { target: { value: "1552" } });
     salvar(janela);
     await waitFor(() => expect(registros()).toHaveLength(1));

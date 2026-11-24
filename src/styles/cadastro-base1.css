@@ -3453,3 +3453,113 @@ body.b1-tela .mk-sheet .b1-fr-periodo .b1-fr-periodo__in:not(#mk-a):not(#mk-b) {
   padding-left: 18px;
   font-size: 13px;
 }
+
+/* D-PROD-281 (MAIKE-ENTREGA-A): "Atividades em andamento" no topo do Lançamento de Atividades — 1 card por linha no
+   celular, 2 no tablet (≥768px), 3 no computador (≥1200px). */
+.b1-em-andamento {
+  margin: 0 0 12px;
+  min-width: 0;
+}
+.b1-em-andamento__titulo {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3d3d3a;
+}
+.b1-em-andamento__grade {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 768px) {
+  .b1-em-andamento__grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1200px) {
+  .b1-em-andamento__grade { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.b1-em-andamento__card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e7e5df;
+  border-radius: 12px;
+  background: #fff;
+}
+.b1-em-andamento__nome {
+  font-size: 14px;
+  font-weight: 600;
+  color: #141413;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.b1-em-andamento__onde,
+.b1-em-andamento__texto {
+  font-size: 12.5px;
+  color: #73726c;
+  overflow-wrap: anywhere;
+}
+.b1-em-andamento__texto strong {
+  color: #141413;
+}
+.b1-em-andamento__botoes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+.b1-em-andamento__botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px solid #e7e5df;
+  border-radius: 999px;
+  background: #fff;
+  color: #141413;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.b1-em-andamento__botao--verde {
+  border-color: #16a34a;
+  background: #22c55e;
+  color: #fff;
+}
+.b1-em-andamento__botao:focus-visible {
+  outline: 2px solid #15803d;
+  outline-offset: 2px;
+}
+/* D-PROD-281: o "Novo lançamento" curto — o número grande dos hectares e o resumo "Vai junto, igual ao último dia". */
+.b1-lancamento-curto__contexto {
+  font-size: 13px;
+  color: #73726c;
+}
+.b1-lancamento-curto__contexto strong {
+  color: #141413;
+}
+.b1-lancamento-curto__resumo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #e7e5df;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 13px;
+  color: #3d3d3a;
+}
+.b1-lancamento-curto__resumo span {
+  overflow-wrap: anywhere;
+}
+.b1-lancamento-curto__grande input {
+  font-size: 22px;
+  font-weight: 600;
+}

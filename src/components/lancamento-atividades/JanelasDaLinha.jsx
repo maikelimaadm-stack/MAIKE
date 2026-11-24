@@ -433,6 +433,95 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
 
 // ─── Campos da linha de MÁQUINA (janela e "Repetir") ─────────────────────
 
+/** "100" / "1.550,5": a leitura para a frase (sem casas a mais). @param {string|null|undefined} v */
+const leituraCurta = (v) => (v ? formatarDecimalLinha(v) : "");
+
+/**
+ * D-PROD-281 — o HORÍMETRO simples (maquete "Continuar com horímetro"): só "Horímetro agora" (a leitura final), com
+ * "última hora lançada: 100 · hoje dá 8 horas"; a inicial é a última leitura do medidor (sugerida por
+ * `useMedidorDaLinha`, como sempre). "Horímetro quebrado?" passa às "Horas corridas de trabalho" (o `sem_medidor` de
+ * sempre) e "Voltar a usar o horímetro" volta. Sem leitura anterior, a inicial ainda é pedida. As regras do salto não
+ * mudam (a justificativa segue logo abaixo, quando pedida).
+ * @param {{ form: any, mudar: (m: Record<string, any>, c: string[]) => void, erros: Record<string, string>, medidor: any,
+ *   uso: string|null, bloqueado: boolean, prefixo: string }} props
+ */
+function HorimetroSimples({ form, mudar, erros, medidor, uso, bloqueado, prefixo }) {
+  const LINK = "col-span-12 justify-self-start text-left text-[13px] font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-800 disabled:opacity-50";
+  const ultima = medidor?.vigente?.leitura ?? null;
+  if (form.sem_medidor) {
+    return (
+      <>
+        <p className={NOTA} data-testid={`${prefixo}-horimetro-quebrado`}>horímetro quebrado</p>
+        <CampoNumero
+          label="Horas corridas de trabalho"
+          value={form.quantidade_uso}
+          onChange={(v) => mudar({ quantidade_uso: v }, ["quantidade_uso", "justificativa_salto"])}
+          locale={LOCALE_ATIVIDADE}
+          limites={LIMITES_LINHA}
+          readOnly={bloqueado}
+          required
+          span={12}
+          error={erros.quantidade_uso}
+          testId={`${prefixo}-quantidade-uso`}
+        />
+        <p className={NOTA}>quantas horas a máquina trabalhou neste serviço hoje</p>
+        <button
+          type="button"
+          className={LINK}
+          disabled={bloqueado}
+          onClick={() => mudar({ sem_medidor: false, quantidade_uso: "" }, ["leitura_inicial", "leitura_final", "quantidade_uso"])}
+          data-testid={`${prefixo}-voltar-horimetro`}
+        >
+          Voltar a usar o horímetro
+        </button>
+      </>
+    );
+  }
+  return (
+    <>
+      {ultima ? null : (
+        <CampoNumero
+          label="Horímetro no começo"
+          value={form.leitura_inicial}
+          onChange={(v) => mudar({ leitura_inicial: v }, ["leitura_inicial", "leitura_final", "justificativa_salto"])}
+          locale={LOCALE_ATIVIDADE}
+          limites={LIMITES_LINHA}
+          readOnly={bloqueado}
+          required
+          span={12}
+          error={erros.leitura_inicial}
+          testId={`${prefixo}-leitura-inicial`}
+        />
+      )}
+      <CampoNumero
+        label="Horímetro agora"
+        value={form.leitura_final}
+        onChange={(v) => mudar({ leitura_final: v }, ["leitura_final", "justificativa_salto"])}
+        locale={LOCALE_ATIVIDADE}
+        limites={LIMITES_LINHA}
+        readOnly={bloqueado}
+        required
+        span={12}
+        error={erros.leitura_final ?? (ultima ? erros.leitura_inicial : undefined)}
+        testId={`${prefixo}-leitura-final`}
+      />
+      <p className={NOTA} data-testid={`${prefixo}-horimetro-dica`}>
+        {ultima ? <>última hora lançada: <strong>{leituraCurta(ultima)}</strong></> : "sem leitura anterior: informe o horímetro no começo"}
+        {uso ? <> · hoje dá <strong>{leituraCurta(uso)} {uso === "1.0000" || uso === "1" ? "hora" : "horas"}</strong></> : null}
+      </p>
+      <button
+        type="button"
+        className={LINK}
+        disabled={bloqueado}
+        onClick={() => mudar({ sem_medidor: true, leitura_final: "" }, ["leitura_inicial", "leitura_final", "quantidade_uso"])}
+        data-testid={`${prefixo}-horimetro-quebrado-link`}
+      >
+        Horímetro quebrado?
+      </button>
+    </>
+  );
+}
+
 /**
  * Medidor do bem escolhido na data do apontamento (tipo e unidade do bem, leitura vigente, teto). A leitura inicial
  * VAZIA é sugerida pela vigente até a pessoa mexer nela; trocar de bem limpa as leituras.
@@ -482,9 +571,11 @@ export function useMedidorDaLinha(empresaId, form, setForm, dia, leituraJaInform
  *   prefixo: string,
  *   comObservacao?: boolean,
  *   tituloGrupo?: string|null,
+ *   soUso?: boolean,
+ *   horimetroSimples?: boolean,
  * }} props
  */
-export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permiteImplemento, pedeJustificativa, bloqueado, prefixo, comObservacao = true, tituloGrupo = "Lançamento" }) {
+export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permiteImplemento, pedeJustificativa, bloqueado, prefixo, comObservacao = true, tituloGrupo = "Lançamento", soUso = false, horimetroSimples = false }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const secoes = useContext(SecoesDoFormularioContext);
   const comTopo = Boolean(secoes?.topo);
@@ -494,6 +585,9 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
   const unidade = medidor?.unidade ?? "";
   const semMedidor = medidor ? usaSemMedidor(form, medidor) : false;
   const uso = medidor ? usoDaLinha(form, medidor) : null;
+  // D-PROD-281: na janela do registro (`horimetroSimples`), o HORÍMETRO pergunta só "Horímetro agora" (a inicial vem da última leitura) ou, quebrado,
+  // as horas corridas (o caminho "sem medidor" de sempre).
+  const horimetro = horimetroSimples && medidor?.tipo === "HORIMETRO" && medidor.contador;
 
   let blocoMedidor = null;
   if (form.bem?.id) {
@@ -523,7 +617,10 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
               <ValorCalculado label="Uso" valor={uso ? formatarUso(uso, medidor.tipo, unidade) : "—"} span={6} testId={`${prefixo}-uso`} />
             </>
           )}
-          {medidor.contador ? (
+          {compacto && horimetro ? (
+            <HorimetroSimples form={form} mudar={mudar} erros={erros} medidor={medidor} uso={uso} bloqueado={bloqueado} prefixo={prefixo} />
+          ) : null}
+          {compacto && horimetro ? null : medidor.contador ? (
             <>
               {compacto ? null : (
                 <p className={NOTA} data-testid={`${prefixo}-leitura-vigente`}>
@@ -547,7 +644,7 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
               Este bem não tem medidor que conte: informe o uso direto.
             </p>
           )}
-          {semMedidor ? (
+          {compacto && horimetro ? null : semMedidor ? (
             <CampoNumero
               label={unidade ? `Uso (${unidade})` : "Uso (horas ou km)"}
               value={form.quantidade_uso}
@@ -615,6 +712,8 @@ export function CamposDaLinhaMaquina({ form, mudar, erros, medidorDaLinha, permi
     }
   }
 
+  // D-PROD-281: no "Novo lançamento" curto, só o uso (a máquina vem do último dia; trocar é no "Mudar").
+  if (soUso) return <>{blocoMedidor}</>;
   return (
     <>
       {tituloGrupo === null ? null : <Grupo titulo={tituloGrupo} comTopo />}

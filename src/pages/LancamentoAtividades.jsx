@@ -25,6 +25,7 @@ import JanelaPlanejar from "@/components/lancamento-atividades/JanelaPlanejar";
 import { rotuloDaReformaNoFiltro } from "@/lib/reformaRegras";
 import { QUERY_ATIVIDADES_DA_AREA } from "@/lib/registroDeCampoRegras";
 import { BlocoDoServico, OperacaoDoServico, SituacaoDoServico } from "@/components/lancamento-atividades/ServicoNaLista";
+import AtividadesEmAndamento from "@/components/lancamento-atividades/AtividadesEmAndamento";
 import FormularioAtividade from "@/components/lancamento-atividades/FormularioAtividade";
 import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDeCampo";
 import JanelaLancamentoPorTipo, { lancamentoDoTipo } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
@@ -374,7 +375,7 @@ export default function LancamentoAtividades() {
     exportFileName: "lancamento-atividades.csv",
     exportColumns: ATIVIDADES_COLUNAS,
     getExportFieldValue: valorDoCampoAtividade,
-    getRecordTitle: (/** @type {any} */ item) => (item?.id ? `Atividade ${textoDoNumero(item)}${item.nome ? ` — ${item.nome}` : ""}` : "Abrir atividade"),
+    getRecordTitle: (/** @type {any} */ item) => (item?.id ? `Atividade ${textoDoNumero(item)}${item.nome ? ` — ${item.nome}` : ""}` : "Planejar atividade"),
     getRecordCode: (/** @type {any} */ item) => (item?.id && item?.numero != null ? String(item.numero) : undefined),
     getSearchHaystack: (/** @type {any} */ a) =>
       [a.numero, a.nome, a.tipo_atividade_nome, rotuloDoTipoDoServico(a), rotuloDaArea(a.area), ...areasDaAtividade(a).map(rotuloDaAreaDaAtividade)].filter((v) => v != null && v !== "").join(" "),
@@ -570,7 +571,7 @@ export default function LancamentoAtividades() {
         setErroDataConclusao(erroDaData);
         if (erroDaData) return;
         const r = await concluirAtividade(id, { versao: atividade.versao, data_conclusao: dataConclusao });
-        concluirAcao(r, `Atividade ${textoDoNumero(r)} concluída`, emp);
+        concluirAcao(r, `Atividade ${textoDoNumero(r)} finalizada`, emp);
       } else if (tipo === "reabrir") {
         const r = await reabrirAtividade(id, { versao: atividade.versao, motivo });
         concluirAcao(r, `Atividade ${textoDoNumero(r)} reaberta`, emp);
@@ -596,7 +597,7 @@ export default function LancamentoAtividades() {
       const lida = /** @type {any} */ (await obterAtividade(String(atual.atividade.id)));
       const gravou = lida?.status === STATUS_DEPOIS[atual.tipo] && Number(lida?.versao ?? 0) > Number(atual.atividade.versao ?? 0);
       if (gravou) {
-        const nomes = /** @type {Record<string, string>} */ ({ concluir: "concluída", reabrir: "reaberta", cancelar: "cancelada" });
+        const nomes = /** @type {Record<string, string>} */ ({ concluir: "finalizada", reabrir: "reaberta", cancelar: "cancelada" });
         concluirAcao(lida, `Atividade ${textoDoNumero(lida)} ${nomes[atual.tipo]}`, emp);
       } else {
         notifyInfo("Ainda não gravado", "A ação não aparece gravada na atividade. Repita o envio: a atividade só muda uma vez.");
@@ -664,12 +665,12 @@ export default function LancamentoAtividades() {
       if (r?.id) queryClient.setQueryData(chaveDetalhe(emp, String(r.id)), r);
       if (daEmpresaAtual(emp)) {
         setConcluindoServico(null);
-        notifySuccess("Sucesso", `Serviço ${textoDoNumero(r ?? alvoDaLinha)} concluído.`);
+        notifySuccess("Sucesso", `Atividade ${textoDoNumero(r ?? alvoDaLinha)} finalizada.`);
       } else {
-        notifyInfo("Gravação concluída", "O serviço foi concluído na fazenda anterior.");
+        notifyInfo("Gravação concluída", "A atividade foi finalizada na fazenda anterior.");
       }
     } catch (erro) {
-      reagirAoErro(erro, "Não foi possível concluir. Nada foi alterado.", emp);
+      reagirAoErro(erro, "Não foi possível finalizar. Nada foi alterado.", emp);
       throw erro;
     }
   };
@@ -730,7 +731,7 @@ export default function LancamentoAtividades() {
   const acoesDoMenu = [];
   if (alvo && podeGravar && versaoValida) {
     acoesDoMenu.push(
-      { key: "concluir", label: "Concluir atividade", hidden: !acoesDoAlvo.concluir || concluirNaBarra, onSelect: () => abrirDialogo("concluir", alvo) },
+      { key: "concluir", label: "Finalizar atividade", hidden: !acoesDoAlvo.concluir || concluirNaBarra, onSelect: () => abrirDialogo("concluir", alvo) },
       { key: "reabrir", label: "Reabrir atividade", hidden: !acoesDoAlvo.reabrir, onSelect: () => abrirDialogo("reabrir", alvo) },
       { key: "cancelar", label: "Cancelar atividade", hidden: !acoesDoAlvo.cancelar, onSelect: () => abrirDialogo("cancelar", alvo) },
       { key: "duplicar", label: "Duplicar atividade", hidden: !acoesDoAlvo.duplicar, disabled: duplicando, onSelect: () => void duplicar(alvo) },
@@ -777,7 +778,7 @@ export default function LancamentoAtividades() {
     const gerir = gravar
       ? [
           ac.editar ? { key: "alterar", label: "Alterar atividade", icon: <Pencil size={16} strokeWidth={1.75} />, onSelect: () => alterarAtividade(a) } : null,
-          ac.concluir ? { key: "concluir", label: "Concluir atividade", icon: <CircleCheck size={16} strokeWidth={1.75} />, onSelect: () => abrirDialogo("concluir", a) } : null,
+          ac.concluir ? { key: "concluir", label: "Finalizar atividade", icon: <CircleCheck size={16} strokeWidth={1.75} />, onSelect: () => abrirDialogo("concluir", a) } : null,
           ac.reabrir ? { key: "reabrir", label: "Reabrir atividade", icon: <RotateCcw size={16} strokeWidth={1.75} />, onSelect: () => abrirDialogo("reabrir", a) } : null,
           ac.duplicar
             ? { key: "duplicar", label: "Duplicar atividade", icon: <Copy size={16} strokeWidth={1.75} />, disabled: duplicando, onSelect: () => void duplicar(a) }
@@ -854,6 +855,17 @@ export default function LancamentoAtividades() {
           onCancelar={(r) => void cancelarAReforma(r)}
         />
       ) : null}
+      {/* D-PROD-281: "Atividades em andamento" no topo (cards com "+ Lançamento" e "Finalizar"); a grade segue embaixo. */}
+      {empresaId && acoes.ver && !controller.showForm ? (
+        <AtividadesEmAndamento
+          itens={controller.visibleRows}
+          hoje={hoje}
+          podeLancar={podeLancarDia}
+          podeFinalizar={podeConcluirServico}
+          onLancar={setLancandoDia}
+          onFinalizar={setConcluindoServico}
+        />
+      ) : null}
       {listaVazia ? <AvisoGestao testId="atividades-lista-vazia">Nenhuma atividade encontrada com estes filtros.</AvisoGestao> : null}
     </>
   );
@@ -924,7 +936,7 @@ export default function LancamentoAtividades() {
       {a?.status === STATUS_CONCLUIDA ? (
         <div>
           <AvisoGestao tone="blue" testId="atividade-concluida">
-            Atividade concluída
+            Atividade finalizada
             {a.data_conclusao ? ` em ${formatarDiaAtividade(a.data_conclusao)}` : ""}
             {rotuloDoUsuario(a.concluida_por) ? ` por ${rotuloDoUsuario(a.concluida_por)}` : ""}. Ela fica só leitura; para mudar algo, reabra-a.
           </AvisoGestao>
@@ -1108,13 +1120,13 @@ export default function LancamentoAtividades() {
         type="button"
         tone="outline"
         onClick={() => abrirDialogo("concluir", registroAberto)}
-        aria-label="Concluir"
-        title="Concluir atividade"
+        aria-label="Finalizar"
+        title="Finalizar atividade"
         className="mg-act-concluir"
         data-testid="atividade-concluir"
       >
         <CircleCheck className="h-4 w-4" aria-hidden />
-        <span>Concluir</span>
+        <span>Finalizar</span>
       </PillBtn>
     ) : null;
 
@@ -1152,8 +1164,8 @@ export default function LancamentoAtividades() {
           permissaoExplicita
           workspaceTitle="Lançamento de Atividades"
           searchPlaceholder="Buscar nº, nome, tipo ou área…"
-          createLabel="Nova realização"
-          createText="Nova realização"
+          createLabel="Nova atividade"
+          createText="Nova atividade"
           columnsForCardsToolbar={ATIVIDADES_COLUNAS}
           controller={controller}
           listErrorMessage={listErrorMessage}
