@@ -9,9 +9,9 @@ import { lerErroGestao } from "@/lib/gestaoErros";
 import { ehConflitoDeVersaoPatrimonio, ehNaoEncontradoPatrimonio, mensagemErroPatrimonio } from "@/lib/patrimonioErros";
 import { NATUREZAS_PATRIMONIO, ROTULO_NATUREZA, ehNatureza } from "@/lib/patrimonioDominio";
 import { FiltroOpcoes } from "@/components/patrimonio/PatrimonioFormParts";
-import FormularioTipo from "@/components/patrimonio/FormularioTipo";
+import FormularioTipo, { CAPACIDADE_MAXIMA, LIMITES_CAPACIDADE, OPCOES_FORMA_PRODUTO, OPCOES_UNIDADE_CAPACIDADE, OPCOES_USA_PRODUTO } from "@/components/patrimonio/FormularioTipo";
 import { CHAVE_OPCOES_PATRIMONIO, LIMITES_BEM, LOCALE_BEM, lerDecimal, textoDecimal, usaCustoDeUso } from "@/components/patrimonio/bemFormulario";
-import { CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
+import { CampoNumero, EscolhaSegmentada } from "@/components/financeiroGestao/CamposLancamento";
 import { comparar, formatarNumero } from "@/lib/dinheiroDecimal";
 import {
   RECURSOS_CATALOGO,
@@ -115,7 +115,10 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
   const [natureza, setNatureza] = useState("TODAS");
   const [novo, setNovo] = useState(false);
   // D-PROD-202: a edição na linha também troca o teto de salto do medidor (tipos de máquina, veículo e equipamento).
-  const [renomeando, setRenomeando] = useState(/** @type {{ id: string, nome: string, salto: string } | null} */ (null));
+  // D-PROD-290: e, no tipo de implemento, o produto (usa? por jato, capacidade e unidade).
+  const [renomeando, setRenomeando] = useState(
+    /** @type {{ id: string, nome: string, salto: string, usa?: string, forma?: string, capacidade?: string, unidade?: string } | null} */ (null),
+  );
   const [erroRenomear, setErroRenomear] = useState(/** @type {string|null} */ (null));
   const [emUso, setEmUso] = useState(/** @type {Record<string, string>} */ ({}));
   const [salvando, setSalvando] = useState(false);
@@ -219,9 +222,33 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
     }
     const saltoGravado = typeof registro.salto_maximo_medidor === "string" ? registro.salto_maximo_medidor : null;
     const saltoMudou = (salto.valor === null) !== (saltoGravado === null) || (salto.valor !== null && saltoGravado !== null && comparar(salto.valor, saltoGravado) !== 0);
+    // D-PROD-290: o produto do implemento, conferido como na criação (o servidor confere de novo).
+    /** @type {Record<string, unknown>} */
+    let produto = {};
+    if (naturezaDoTipo(registro) === "IMPLEMENTO" && renomeando.usa) {
+      if (renomeando.usa === "SIM") {
+        const cap = lerDecimal(renomeando.capacidade ?? "", LIMITES_CAPACIDADE);
+        if (!cap.ok || cap.valor === null || comparar(cap.valor, "0") <= 0 || comparar(cap.valor, CAPACIDADE_MAXIMA) > 0) {
+          setErroRenomear("Capacidade do jato: maior que zero, até 100.000, até 4 casas decimais.");
+          return;
+        }
+        const gravada = typeof registro.capacidade === "string" && registro.capacidade ? registro.capacidade : null;
+        produto = {
+          usa_produto: true,
+          forma_produto: renomeando.forma || "JATO",
+          // A mesma capacidade escrita de outro jeito ("2000" × "2000.0000") não conta como mudança.
+          capacidade: gravada && comparar(cap.valor, gravada) === 0 ? gravada : cap.valor,
+          capacidade_unidade: renomeando.unidade || "L",
+        };
+      } else if (registro.usa_produto === true) {
+        produto = { usa_produto: false, forma_produto: null, capacidade: null, capacidade_unidade: null };
+      } else if (registro.usa_produto !== false) {
+        produto = { usa_produto: false };
+      }
+    }
     setSalvando(true);
     try {
-      const { alterado } = await atualizarCatalogo(RECURSO, registro, saltoMudou ? { nome, salto_maximo_medidor: salto.valor } : { nome });
+      const { alterado } = await atualizarCatalogo(RECURSO, registro, { ...(saltoMudou ? { nome, salto_maximo_medidor: salto.valor } : { nome }), ...produto });
       if (!alterado) notifySuccess("Sem alterações", "Nada foi alterado.");
       else notifySuccess("Sucesso", nome !== String(registro.nome ?? "") ? "Tipo renomeado" : "Tipo atualizado");
       invalidar();
@@ -396,7 +423,7 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
                           value={renomeando.nome}
                           onChange={(e) => {
                             const valor = e.target.value;
-                            setRenomeando((atual) => ({ id, nome: valor, salto: atual?.salto ?? "" }));
+                            setRenomeando((atual) => ({ ...(atual ?? {}), id, nome: valor, salto: atual?.salto ?? "" }));
                             setErroRenomear(null);
                           }}
                           maxLength={120}
@@ -408,7 +435,7 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
                             label="Teto de salto do medidor"
                             value={renomeando.salto}
                             onChange={(v) => {
-                              setRenomeando((atual) => ({ id, nome: atual?.nome ?? nome, salto: v }));
+                              setRenomeando((atual) => ({ ...(atual ?? {}), id, nome: atual?.nome ?? nome, salto: v }));
                               setErroRenomear(null);
                             }}
                             locale={LOCALE_BEM}
@@ -416,6 +443,51 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
                             span={12}
                             testId={`gerenciar-tipos-${id}-salto`}
                           />
+                        ) : null}
+                        {n === "IMPLEMENTO" ? (
+                          <div className="b1-gerenciar__produto" data-testid={`gerenciar-tipos-${id}-produto`}>
+                            <EscolhaSegmentada
+                              rotulo="Usa produto?"
+                              opcoes={OPCOES_USA_PRODUTO}
+                              value={renomeando.usa ?? "NAO"}
+                              onChange={(v) => {
+                                setRenomeando((atual) => (atual ? { ...atual, usa: v } : atual));
+                                setErroRenomear(null);
+                              }}
+                              testId={`gerenciar-tipos-${id}-usa-produto`}
+                            />
+                            {renomeando.usa === "SIM" ? (
+                              <>
+                                <EscolhaSegmentada
+                                  rotulo="Como conta"
+                                  opcoes={OPCOES_FORMA_PRODUTO}
+                                  value={renomeando.forma ?? "JATO"}
+                                  onChange={(v) => setRenomeando((atual) => (atual ? { ...atual, forma: v } : atual))}
+                                  testId={`gerenciar-tipos-${id}-forma`}
+                                />
+                                <CampoNumero
+                                  label="Capacidade do jato"
+                                  value={renomeando.capacidade ?? ""}
+                                  onChange={(v) => {
+                                    setRenomeando((atual) => (atual ? { ...atual, capacidade: v } : atual));
+                                    setErroRenomear(null);
+                                  }}
+                                  locale={LOCALE_BEM}
+                                  limites={LIMITES_CAPACIDADE}
+                                  span={6}
+                                  testId={`gerenciar-tipos-${id}-capacidade`}
+                                />
+                                <EscolhaSegmentada
+                                  rotulo="Unidade"
+                                  opcoes={OPCOES_UNIDADE_CAPACIDADE}
+                                  value={renomeando.unidade ?? "L"}
+                                  onChange={(v) => setRenomeando((atual) => (atual ? { ...atual, unidade: v } : atual))}
+                                  span={6}
+                                  testId={`gerenciar-tipos-${id}-unidade`}
+                                />
+                              </>
+                            ) : null}
+                          </div>
                         ) : null}
                         <span className="b1-gerenciar__acoes">
                           <button type="submit" className="tb-btn tb-btn-green" disabled={salvando}>
@@ -454,13 +526,25 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
                             type="button"
                             className="tb-btn"
                             onClick={() => {
-                              setRenomeando({ id, nome, salto: textoDecimal(teto) });
+                              setRenomeando({
+                                id,
+                                nome,
+                                salto: textoDecimal(teto),
+                                ...(n === "IMPLEMENTO"
+                                  ? {
+                                      usa: r.usa_produto === true ? "SIM" : "NAO",
+                                      forma: r.forma_produto || "JATO",
+                                      capacidade: typeof r.capacidade === "string" && r.capacidade ? textoDecimal(r.capacidade) : "",
+                                      unidade: r.capacidade_unidade || "L",
+                                    }
+                                  : {}),
+                              });
                               setErroRenomear(null);
                             }}
                             disabled={salvando}
-                            aria-label={`Renomear ${nome || "tipo"}`}
+                            aria-label={`${n === "IMPLEMENTO" ? "Editar" : "Renomear"} ${nome || "tipo"}`}
                           >
-                            Renomear
+                            {n === "IMPLEMENTO" ? "Editar" : "Renomear"}
                           </button>
                         ) : null}
                         {acoes.inativarCatalogo && inativo && comVersao ? (
