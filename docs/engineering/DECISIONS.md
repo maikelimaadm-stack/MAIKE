@@ -9363,7 +9363,7 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` deu D-PROD-290; o marcador passa a D-PROD-291.
 
-- **Decisão:** a partir de 1024 px, as janelas de detalhes do Mapa (as que usam a casca `mk-dp` dentro do diálogo largo: lote, área, cocho, depósito, bebedouro) têm 720 px de largura (a do tablet, antes até 880 px) e no máximo 820 px de altura. Sai o arranjo de duas colunas só do computador na aba Detalhes do lote; fica o do tablet. Letras e componentes não mudam (já são os mesmos do tablet).
+- **Decisão:** a partir de 1024 px, as janelas de detalhes do Mapa (as que usam a casca `mk-dp` dentro do diálogo largo: lote, área, cocho, depósito, bebedouro) têm 600 px de largura (antes até 880 px; 720 px na primeira versão, ainda grande para o proprietário) e no máximo 780 px de altura; gráficos e réguas em SVG ficam com no máximo 120 px de altura (as letras do SVG cresciam com a largura). Sai o arranjo de duas colunas só do computador na aba Detalhes do lote; fica o do tablet. Letras e componentes não mudam (já são os mesmos do tablet).
 - **Fora:** diálogos de lançamento e telas de cadastro. Sem servidor, sem migration.
 
 <!-- Próxima decisão: D-PROD-291 -->

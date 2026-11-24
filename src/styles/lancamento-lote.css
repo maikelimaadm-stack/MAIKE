@@ -83,8 +83,14 @@
    do tablet — a mesma largura e a mesma altura máxima —, não esticados até 880 px. */
 @media (min-width: 1024px) {
   .mk-ll-dlg--largo.is-desktop:has(.mk-dp):not(#mk-padrao) {
-    width: 720px;
-    max-height: min(820px, calc(100vh - 64px));
+    width: 600px;
+    max-height: min(780px, calc(100vh - 64px));
+  }
+  /* Gráficos e réguas (SVG com viewBox) crescem com a largura, letras junto: no computador
+     ficam na altura do celular, centralizados. Ícones (24 px) não são afetados. */
+  .mk-ll-dlg.is-desktop .mk-dp :is(figure, .mk-dp-cartao) > svg[viewBox],
+  .mk-ll-dlg.is-desktop .mk-dp .mk-dp-cartao svg[viewBox][width="100%"] {
+    max-height: 120px;
   }
 }
 
