@@ -59,6 +59,16 @@ const CHAVE_TOKEN = 'maike_native_access_token';
  */
 let tokenEmMemoria = null;
 
+/**
+ * Geração da sessão: muda a cada gravação ou descarte do token. Uma renovação
+ * iniciada numa geração só grava se a geração ainda for a mesma (D-PROD-294):
+ * sair da conta durante a renovação não traz o login de volta.
+ */
+let geracao = 0;
+
+/** @returns {number} */
+export const geracaoDoToken = () => geracao;
+
 const temWindow = () => typeof window !== 'undefined';
 
 /**
@@ -133,6 +143,7 @@ export const setNativeToken = (token, opcoes = {}) => {
     return;
   }
   tokenEmMemoria = valor;
+  geracao += 1;
   const lembrar = opcoes?.lembrar === true;
   try {
     if (lembrar === true) {
@@ -151,6 +162,7 @@ export const setNativeToken = (token, opcoes = {}) => {
 /** Descarta o token da memória, do `sessionStorage` e do armazenamento persistente. */
 export const clearNativeToken = () => {
   tokenEmMemoria = null;
+  geracao += 1;
   try {
     storage()?.removeItem(CHAVE_TOKEN);
   } catch {

@@ -128,7 +128,7 @@ export const registrarAuthRoutes = async (app) => {
   // sessão renovada. Tenant e conta vêm do token, nunca do corpo.
   app.post('/auth/renovar', { schema: RENOVAR_SCHEMA, onRequest: [app.autenticar] }, async (request, reply) => {
     const auth = exigirAuthContext(request.contexto.auth);
-    const epocas = lerEpocasDaSessao(/** @type {any} */ (request.user));
+    const epocas = lerEpocasDaSessao(request.user);
     const { lembrar = false } = /** @type {{ lembrar?: boolean }} */ (request.body ?? {});
     const token = await reply.jwtSign(
       montarPayloadDeSessao({

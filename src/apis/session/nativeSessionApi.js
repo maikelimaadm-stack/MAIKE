@@ -35,6 +35,7 @@ import {
   descartarTokenRecusado,
   tokenLembrado,
   validadeLocalDoToken,
+  geracaoDoToken,
 } from '@/lib/auth/nativeTokenStorage';
 import { setOfflineTenant, clearOfflineTenant, getOfflineTenant } from '@/lib/offline/offlineTenant';
 import { lembrarSessaoOffline, lerSessaoOffline, esquecerSessaoOffline } from '@/lib/auth/sessaoOfflineLocal';
@@ -394,9 +395,13 @@ const sessaoOfflineUtilizavel = () => {
  */
 export const renovar = async () => {
   if (!tokenLembrado()) return false;
+  // A sessão que pediu a renovação: se ela sair (logout) ou mudar (outra conta)
+  // antes da resposta, a resposta é descartada.
+  const geracaoDoPedido = geracaoDoToken();
   try {
     const corpo = await nativeRequest('/auth/renovar', { method: 'POST', body: { lembrar: true }, autenticado: true }, ctx('renovar'));
     if (!ehObjeto(corpo) || texto(corpo.token) === '') return false;
+    if (geracaoDoToken() !== geracaoDoPedido || !tokenLembrado()) return false;
     setNativeToken(corpo.token, { lembrar: true });
     return true;
   } catch {

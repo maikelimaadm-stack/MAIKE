@@ -149,6 +149,20 @@ describe('D-PROD-294 — renovação', () => {
   });
 });
 
+describe('D-PROD-294 — renovação × sair da conta', () => {
+  it('SR-04 sair enquanto a renovação está no ar: a resposta é descartada, o login não volta', async () => {
+    const { renovar, logout } = await entrarEDerrubarARede({ lembrar: true });
+    let responder;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise((r) => { responder = r; })));
+    const pendente = renovar();
+    await new Promise((r) => setTimeout(r, 0));
+    logout();
+    responder(respostaJson(200, { token: jwtQueVence(30 * DIA) }));
+    expect(await pendente).toBe(false);
+    expect(window.localStorage.getItem(CHAVE)).toBeNull();
+  });
+});
+
 describe('D-PROD-294 — validade local do token', () => {
   it('SV-01 lê o exp do token guardado; token ilegível = null', async () => {
     const { setNativeToken, validadeLocalDoToken } = await carregar();
