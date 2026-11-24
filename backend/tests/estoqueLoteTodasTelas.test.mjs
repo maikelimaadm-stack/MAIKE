@@ -12,6 +12,9 @@
  *     prévia diz, por efeito de estoque, se o produto controla lote/validade (a tela decide os campos por ela). Venda:
  *     escolha manual pelo custo do lote; soma errada e produto sem lote com a lista → 422; vencido → aviso com o item;
  *     o cancelamento devolve ao lote escolhido; replay = gravado.
+ *  T3 atividade (linha de produto): aceita `lotes` na linha (lançar, editar e os `produtos[]` do lançamento, que é o
+ *     caminho dos "Jatos de hoje"); soma, produto sem lote, vencido como nas outras; editar sem mandar `lotes` (só a
+ *     observação) mantém os lotes da linha; cancelar devolve aos lotes escolhidos; replay = gravado.
  */
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -67,7 +70,9 @@ const montar = async () => {
   const compra = motivosEntrada.find((m) => m.nome === 'Compra').id;
   ok(await H.req('PUT', '/perfis-financeiros-empresa', s.token, { empresa_id: s.e1.id, pais: 'BR', moeda: 'BRL', locale: 'pt-BR' }));
   ok(await H.req('PATCH', `/produtos/${sal.id}`, s.token, { controla_lote: true, controla_validade: true }));
-  return { ...s, sal, semLote, compra };
+  const grupo = await p.grupoAtividade.create({ data: { cliente_id: s.c, nome_grupo: `GRUPO ${suf}` } });
+  const tipo = await p.tipoAtividade.create({ data: { cliente_id: s.c, nome_tipo: `ADUBAÇÃO ${suf}`, grupo_atividade_id: grupo.id, grupo_atividade_nome: grupo.nome_grupo, permite_produto: true } });
+  return { ...s, sal, semLote, compra, tipo };
 };
 
 const entrar = async (x, produto, local, kg, custo, lote = null, validade = null) =>
@@ -233,6 +238,87 @@ describe('T2 — financeiro: lote na compra e escolha na venda', () => {
     assert.deepEqual(await porLote(x.sal), { VELHO: ['10.0000', '3.0000'], B: ['50.0000', '6.0000'], A: ['100.0000', '4.0000'] });
     const c = ok(await confirmarCom(x, r, [{ item_ordem: 1, lotes: [{ estoque_lote_nota_id: L.V, quantidade: '10' }, { estoque_lote_nota_id: L.A, quantidade: '10' }] }]));
     assert.deepEqual(semId(c.avisos), [{ tipo: 'lote_vencido', lote: 'VELHO', validade: '2027-01-10', item_ordem: 1 }]);
+  });
+});
+
+// ── Atividade ───────────────────────────────────────────────────────────────
+let seq = 0;
+/** Atividade aberta + apontamento do dia 10/06/2027; lançar, editar e cancelar linha de produto. */
+const atividade = async (x) => {
+  const a = ok(await H.req('POST', '/atividades', x.token, {
+    empresa_id: x.e1.id, nome: `Adubação ${++seq}`, tipo_atividade_id: x.tipo.id, data_inicio: '2027-06-01', data_prevista_fim: '2027-06-30',
+  }), 201);
+  const base = `/atividades/${a.id}/apontamentos`;
+  let ap = ok(await H.req('POST', base, x.token, { empresa_id: a.empresa_id, data_operacional: '2027-06-10', area_executada_dia: '10' }), 201).apontamento;
+  const guardar = (r) => {
+    if (r.statusCode < 300) ap = r.json().apontamento;
+    return r;
+  };
+  return {
+    lancar: async (produto, kg, lotes) => guardar(await H.req('POST', `${base}/${ap.id}/produtos`, x.token, {
+      empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), produto_id: produto.id, local_estoque_id: x.local.id, quantidade: kg, ...(lotes ? { lotes } : {}),
+    })),
+    editar: async (linha, campos) => guardar(await H.req('PATCH', `${base}/${ap.id}/produtos/${linha.id}`, x.token, { empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), ...campos })),
+    cancelar: async (linha) => guardar(await H.req('POST', `${base}/${ap.id}/produtos/${linha.id}/cancelar`, x.token, { empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), motivo: 'lançado errado' })),
+    /** Lançamento novo (outro apontamento) com `produtos[]`: o caminho do registro e dos "Jatos de hoje". */
+    lancamento: (produtos) => H.req('POST', base, x.token, { empresa_id: a.empresa_id, data_operacional: '2027-06-11', area_executada_dia: '5', operation_id: opId(), produtos }),
+  };
+};
+
+describe('T3 — atividade: escolha do lote na linha de produto', () => {
+  test('lançar 12 do A + 8 do B → 96,0000; editar só a observação mantém A e B; editar com outros lotes troca; cancelar devolve; replay = gravado', async () => {
+    const x = await montar();
+    const L = await tresLotes(x);
+    const at = await atividade(x);
+    const r = ok(await at.lancar(x.sal, '20', [{ estoque_lote_nota_id: L.A, quantidade: '12' }, { estoque_lote_nota_id: L.B, quantidade: '8' }]), 201);
+    assert.equal(r.avisos, undefined);
+    assert.equal(v4(r.linha.custo_total), '96.0000');
+    assert.deepEqual(await porLote(x.sal), { VELHO: ['10.0000', '3.0000'], B: ['42.0000', '6.0000'], A: ['88.0000', '4.0000'] });
+    // Editar só a observação: estorno exato + nova saída NOS MESMOS lotes (sem `lotes`, a escolha da linha vale).
+    const e1 = ok(await at.editar(r.linha, { observacao: 'conferido' }));
+    assert.equal(v4(e1.linha.custo_total), '96.0000');
+    assert.deepEqual(await porLote(x.sal), { VELHO: ['10.0000', '3.0000'], B: ['42.0000', '6.0000'], A: ['88.0000', '4.0000'] });
+    await provarReplay(x, x.sal);
+    // Editar com outra escolha: 20 do A = 80,0000.
+    const e2 = ok(await at.editar(e1.linha, { lotes: [{ estoque_lote_nota_id: L.A, quantidade: '20' }] }));
+    assert.equal(v4(e2.linha.custo_total), '80.0000');
+    assert.deepEqual(await porLote(x.sal), { VELHO: ['10.0000', '3.0000'], B: ['50.0000', '6.0000'], A: ['80.0000', '4.0000'] });
+    // Editar a quantidade sem lotes: a escolha antiga não cabe → FEFO (VELHO 10 + B 5).
+    const e3 = ok(await at.editar(e2.linha, { quantidade: '15' }));
+    assert.equal(v4(e3.linha.custo_total), '60.0000');
+    assert.deepEqual(semId(e3.avisos), [{ tipo: 'lote_vencido', lote: 'VELHO', validade: '2027-01-10' }]);
+    await provarReplay(x, x.sal);
+    ok(await at.cancelar(e3.linha));
+    assert.deepEqual(await porLote(x.sal), { VELHO: ['10.0000', '3.0000'], B: ['50.0000', '6.0000'], A: ['100.0000', '4.0000'] });
+    await provarReplay(x, x.sal);
+  });
+
+  test('recusas: soma diferente → 422; produto sem lote com a lista → 422; nada gravado; vencido escolhido → aviso', async () => {
+    const x = await montar();
+    const L = await tresLotes(x);
+    await entrar(x, x.semLote, x.local, '10', '2');
+    const at = await atividade(x);
+    erro(await at.lancar(x.sal, '20', [{ estoque_lote_nota_id: L.A, quantidade: '12' }]), 422, 'ESTOQUE_LOTE_INVALIDO', 'lotes_nao_somam');
+    erro(await at.lancar(x.semLote, '5', [{ estoque_lote_nota_id: L.A, quantidade: '5' }]), 422, 'ESTOQUE_LOTE_INVALIDO', 'produto_sem_controle_de_lote');
+    assert.deepEqual(await porLote(x.sal), { VELHO: ['10.0000', '3.0000'], B: ['50.0000', '6.0000'], A: ['100.0000', '4.0000'] });
+    // Produto sem lote, sem a lista: como hoje.
+    assert.equal(v4(ok(await at.lancar(x.semLote, '5'), 201).linha.custo_total), '10.0000');
+    const r = ok(await at.lancar(x.sal, '4', [{ estoque_lote_nota_id: L.V, quantidade: '4' }]), 201);
+    assert.deepEqual(semId(r.avisos), [{ tipo: 'lote_vencido', lote: 'VELHO', validade: '2027-01-10' }]);
+  });
+
+  test('lançamento com produtos[] (registro e "Jatos de hoje") leva a escolha por linha', async () => {
+    const x = await montar();
+    const L = await tresLotes(x);
+    const at = await atividade(x);
+    const r = ok(await at.lancamento([
+      { produto_id: x.sal.id, local_estoque_id: x.local.id, quantidade: '10', jato: '1', lotes: [{ estoque_lote_nota_id: L.A, quantidade: '10' }] },
+      { produto_id: x.sal.id, local_estoque_id: x.local.id, quantidade: '10', jato: '2' },
+    ]), 201);
+    const linhas = r.apontamento.produtos.map((l) => [l.jato, v4(l.custo_total)]);
+    // Jato 1: 10 do A (40,0000); jato 2 pelo FEFO: VELHO 10 (30,0000).
+    assert.deepEqual(linhas, [[1, '40.0000'], [2, '30.0000']]);
+    await provarReplay(x, x.sal);
   });
 });
 

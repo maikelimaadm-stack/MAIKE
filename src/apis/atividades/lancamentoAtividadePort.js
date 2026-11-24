@@ -155,7 +155,8 @@ export const CAMPOS_DO_APONTAMENTO = Object.freeze([
  * Linha de PRODUTO: produto, local de onde sai e a quantidade na unidade do estoque do produto. A unidade, o custo
  * (FIFO) e a dose/ha são do servidor e nunca vão.
  */
-export const CAMPOS_DA_LINHA_PRODUTO = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao']);
+// D-PROD-282 em todas as telas: `lotes` (a escolha manual dos lotes de produto que controla lote; sem ela, FEFO).
+export const CAMPOS_DA_LINHA_PRODUTO = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao', 'lotes']);
 /**
  * D-PROD-274 — a linha de insumo DENTRO do lançamento (`produtos[]` do apontamento, do duplicar e do registro de campo):
  * a de sempre e o VC (%) da semente, só quando preenchido. As rotas de UMA linha continuam com `CAMPOS_DA_LINHA_PRODUTO`.

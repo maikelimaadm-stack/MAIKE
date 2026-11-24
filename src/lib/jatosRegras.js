@@ -71,7 +71,9 @@ export const repetirUltimoJato = (produtos, novaChave) => {
   const ultimo = jatos.at(-1);
   if (!ultimo) return [];
   const numero = ultimo.numero + 1;
-  return ultimo.itens.map((i) => ({ ...i, chave: novaChave(), form: { ...i.form, jato: numero } }));
+  // D-PROD-282: a escolha manual de lotes não é copiada (o jato novo sai pela sugestão; os lotes já usados mudaram).
+  const semEscolha = (/** @type {any} */ f) => (f?.produto?.controla_lote ? { lotes: null, confirmaVencido: false } : {});
+  return ultimo.itens.map((i) => ({ ...i, chave: novaChave(), form: { ...i.form, jato: numero, ...semEscolha(i.form) } }));
 };
 
 /**

@@ -601,7 +601,7 @@ describe('seletores', () => {
     await s.lancarLinhaOk(a, ap, { produto_id: s.adubo.id, quantidade: '1' });
     const r = await H.ok(H.req('GET', `/atividades-opcoes/produtos?empresa_id=${s.e1.id}&atividade_id=${a.id}`, s.token));
     assert.deepEqual(Object.keys(r), ['itens', 'has_more', 'next_cursor']);
-    assert.deepEqual(r.itens[0], { id: s.adubo.id, numero: s.adubo.numero_produto, nome: 'Adubo NPK (saco)', unidade: 'KG', unidade_principal_estoque: 'SACO', estoque_atual: '199.0000', carencia_dias: null, favorito: true });
+    assert.deepEqual(r.itens[0], { id: s.adubo.id, numero: s.adubo.numero_produto, nome: 'Adubo NPK (saco)', unidade: 'KG', unidade_principal_estoque: 'SACO', estoque_atual: '199.0000', carencia_dias: null, controla_lote: false, favorito: true });
     const ids = r.itens.map((x) => x.id);
     assert.equal(ids.filter((id) => id === s.adubo.id).length, 1, 'o favorito não se repete');
     assert.ok(ids.includes(s.herbicida.id));

@@ -22,10 +22,13 @@ const fmt = (/** @type {unknown} */ v) => {
  *   empresaId: string|null|undefined, produto: any, localId: string|null|undefined, quantidade: number,
  *   lotes: Array<{ id: string, quantidade: string }>|null|undefined, confirmaVencido?: boolean,
  *   loteVencido?: boolean, erroLote?: string, onMudar: (patch: Record<string, unknown>) => void,
- *   testId: string, className?: string, desabilitado?: boolean,
+ *   testId: string, className?: string, desabilitado?: boolean, mantidos?: string|null,
  * }} props
+ * `mantidos` (edição de uma saída gravada): sem escolha manual, a saída continua nos lotes gravados — o texto aparece no
+ * lugar da sugestão, e não há aviso de vencido nem erro de soma (o servidor reaproveita as fatias). "Escolher lotes"
+ * continua disponível.
  */
-export default function CampoLotes({ empresaId, produto, localId, quantidade, lotes: escolha, confirmaVencido, loteVencido, erroLote, onMudar, testId, className = "col-span-12", desabilitado = false }) {
+export default function CampoLotes({ empresaId, produto, localId, quantidade, lotes: escolha, confirmaVencido, loteVencido, erroLote, onMudar, testId, className = "col-span-12", desabilitado = false, mantidos = null }) {
   const produtoId = produto?.id;
   const ativo = Boolean(produto?.controla_lote && produtoId && localId && empresaId);
   const { data, isLoading } = useQuery({
@@ -36,8 +39,9 @@ export default function CampoLotes({ empresaId, produto, localId, quantidade, lo
   });
   const lotes = /** @type {any[]} */ (data?.lotes ?? []);
   const total = Number.isFinite(Number(quantidade)) ? Number(quantidade) : 0;
-  const vencidoAgora = ativo && usaLoteVencidoNaEscolha(escolha, total, lotes);
-  const erroAgora = ativo && !isLoading ? erroDaEscolha(escolha, total, lotes) : "";
+  const mantem = Boolean(mantidos) && !Array.isArray(escolha);
+  const vencidoAgora = ativo && !mantem && usaLoteVencidoNaEscolha(escolha, total, lotes);
+  const erroAgora = ativo && !mantem && !isLoading ? erroDaEscolha(escolha, total, lotes) : "";
   // A validação de quem usa é pura: o campo devolve o que só ele sabe (vencido, erro dos lotes).
   useEffect(() => {
     if (!produto?.controla_lote) return;
@@ -52,8 +56,8 @@ export default function CampoLotes({ empresaId, produto, localId, quantidade, lo
   const unidade = data?.unidade === "L" ? "L" : "kg";
   const manual = Array.isArray(escolha);
   const sugestao = sugestaoFefo(lotes, total);
-  const erro = erroDaEscolha(escolha, total, lotes);
-  const vencido = usaLoteVencidoNaEscolha(escolha, total, lotes);
+  const erro = mantem ? "" : erroDaEscolha(escolha, total, lotes);
+  const vencido = !mantem && usaLoteVencidoNaEscolha(escolha, total, lotes);
   const rotulo = (/** @type {any} */ l) => `${l?.lote_fabricante ?? "Sem lote"}${l?.data_validade ? ` · vence ${diaMes(l.data_validade)}` : ""}`;
   const qtdManual = (/** @type {string} */ id) => escolha?.find((f) => f.id === id)?.quantidade ?? "";
   const mudarQtd = (/** @type {string} */ id, /** @type {string} */ valor) => {
@@ -77,7 +81,10 @@ export default function CampoLotes({ empresaId, produto, localId, quantidade, lo
       </div>
       {isLoading ? <p className="mt-1 text-[12px]">Carregando lotes…</p> : null}
       {!isLoading && !lotes.length ? <p className="mt-1 text-[12px]" data-testid={`${testId}-vazio`}>Nenhum lote com saldo neste depósito.</p> : null}
-      {!manual && lotes.length ? (
+      {mantem ? (
+        <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid={`${testId}-mantidos`}>{mantidos}</p>
+      ) : null}
+      {!manual && !mantem && lotes.length ? (
         <ul className="mt-1 space-y-1" data-testid={`${testId}-sugestao`}>
           {sugestao.fatias.length ? sugestao.fatias.map((f) => (
             <li key={f.id} className="flex flex-wrap justify-between gap-x-2">

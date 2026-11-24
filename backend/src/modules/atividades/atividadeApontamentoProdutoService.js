@@ -65,6 +65,7 @@ import {
   ORIGEM_APONTAMENTO,
   aplicarSaida,
   estornarEmLote,
+  normalizarLotesEscolhidos,
   numerarMovimentos,
   numeroMovimentoProvisorio,
   travarProdutosEstoque,
@@ -151,7 +152,13 @@ export const aceiteDeCombustivelQueVale = (clienteId, produtoId) => ({
 
 // ─── normalização do corpo (400 antes da transação) ─────────────────────────
 
-/** @typedef {{ produto_id: string, local_estoque_id: string, quantidade: string, observacao: string|null, vc_percentual?: string, jato?: number }} DadosDaLinha */
+/**
+ * `lotes` (D-PROD-282 em todas as telas): a escolha manual dos lotes de produto que controla lote (sem ela, FEFO).
+ * `lotesDaLinhaAnterior`: só na EDIÇÃO sem `lotes` e sem trocar produto, local nem quantidade — as fatias da linha
+ * editada, para a nova saída sair dos MESMOS lotes (nunca entra no fingerprint nem na resposta).
+ * @typedef {{ produto_id: string, local_estoque_id: string, quantidade: string, observacao: string|null, vc_percentual?: string, jato?: number,
+ *   lotes?: Array<{ estoque_lote_nota_id: string, quantidade: string }>, lotesDaLinhaAnterior?: Array<{ estoque_lote_nota_id: string, quantidade: string }> }} DadosDaLinha
+ */
 
 /** MAIKE-ENTREGA2 (D-PROD-274) — o VC (%) da semente: texto decimal com até 2 casas, maior que 0 e até 100. */
 const PADRAO_VC = /^\d{1,3}(\.\d{1,2})?$/;
@@ -221,7 +228,18 @@ export const normalizarDadosDaLinha = (c, prefixo = '') => ({
   ...(c.vc_percentual !== undefined && c.vc_percentual !== null ? { vc_percentual: vcDoCorpo(c.vc_percentual, `${prefixo}vc_percentual`) } : {}),
   // D-PROD-283: o jato também só existe quando vem (sem ele, a linha e o fingerprint de antes).
   ...(c.jato !== undefined && c.jato !== null ? { jato: jatoDoCorpo(c.jato, `${prefixo}jato`) } : {}),
+  // D-PROD-282 em todas as telas: a escolha dos lotes também só existe quando vem (o fingerprint de antes continua).
+  ...lotesDoCorpo(c.lotes),
 });
+
+/**
+ * `{ lotes }` da linha quando a escolha vem; `{}` sem ela (ausente ou nula). Fora do formato → 422 do motor.
+ * @param {unknown} bruto @returns {{ lotes?: Array<{ estoque_lote_nota_id: string, quantidade: string }> }}
+ */
+const lotesDoCorpo = (bruto) => {
+  const lotes = normalizarLotesEscolhidos(bruto);
+  return lotes ? { lotes } : {};
+};
 
 /** Linha gravada na forma dos dados do corpo (base da edição). @param {any} r @returns {DadosDaLinha} */
 const dadosGravados = (r) => ({
@@ -336,6 +354,9 @@ const baixarProduto = async (tx, contexto, { clienteId, empresaId, atividade, ap
   }
   const quantidade = dec(dados.quantidade);
   const dia = /** @type {string} */ (diaDe(apontamento.data_operacional));
+  // D-PROD-282 em todas as telas: a escolha da linha; na edição sem escolha, as fatias da linha editada (só produto
+  // que controla lote: nos demais a lista seria recusada e o custo médio não depende de lote).
+  const lotes = dados.lotes ?? (produto.controla_lote === true ? dados.lotesDaLinhaAnterior ?? null : null);
   let saida;
   try {
     saida = await aplicarSaida(tx, contexto, {
@@ -348,6 +369,7 @@ const baixarProduto = async (tx, contexto, { clienteId, empresaId, atividade, ap
       origem: { sistema: ORIGEM_APONTAMENTO, operacaoId: atividade.id, tipoDetalhado: TIPO_DETALHADO_SAIDA, motivo: MOTIVO_SAIDA },
       numeroMovimento: numeroMovimentoProvisorio(),
       contextoErro: { field: 'quantidade', unidade, ...contextoErro },
+      lotes,
     });
   } catch (erro) {
     throw explicarSaldo(erro, unidade);
@@ -806,8 +828,8 @@ export const lancarLinhaProduto = async (contexto, atividadeId, apontamentoId, c
   });
 };
 
-/** Campos que a edição troca (o resto vem da linha gravada). */
-const CAMPOS_EDITAVEIS = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao']);
+/** Campos que a edição troca (o resto vem da linha gravada). D-PROD-282: `lotes`, a escolha nova dos lotes. */
+const CAMPOS_EDITAVEIS = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao', 'lotes']);
 
 /**
  * `PATCH …/produtos/:linhaId` — EDITAR = estorno EXATO da linha (CANCELADO,
@@ -828,6 +850,7 @@ export const editarLinhaProduto = async (contexto, atividadeId, apontamentoId, l
   if (temCampo(corpo, 'local_estoque_id')) campos.local_estoque_id = idObrigatorio(corpo.local_estoque_id, 'local_estoque_id');
   if (temCampo(corpo, 'quantidade')) campos.quantidade = quantidadeDoCorpo(corpo.quantidade);
   if (temCampo(corpo, 'observacao')) campos.observacao = textoDoCorpo(corpo.observacao, 'observacao') ?? null;
+  if (temCampo(corpo, 'lotes')) Object.assign(campos, lotesDoCorpo(corpo.lotes));
   if (!CAMPOS_EDITAVEIS.some((c) => temCampo(campos, c))) throw invalido('informe ao menos um campo da linha para alterar', { field: 'corpo', reason: 'sem_alteracao' });
   const fingerprint = fingerprintDePayload({ v: 1, atividade_id: atividadeId, apontamento_id: apontamentoId, linha_id: linhaId, empresa_id: corpo.empresa_id, versao: corpo.versao, ...campos });
   return comRecibo(contexto, {
@@ -842,6 +865,12 @@ export const editarLinhaProduto = async (contexto, atividadeId, apontamentoId, l
       const anterior = await lerLinhaConfirmada(tx, cli, empresaId, apontamentoId, linhaId, 'editar_linha');
       /** @type {DadosDaLinha} */
       const dados = { ...dadosGravados(anterior), ...campos };
+      // D-PROD-282 em todas as telas: sem escolha nova e com o mesmo produto, local e quantidade, a nova saída sai dos
+      // MESMOS lotes da linha editada (o estorno exato acabou de devolvê-los); trocou algum dos três → FEFO.
+      const mesmaSaida = dados.produto_id === anterior.produto_id && dados.local_estoque_id === anterior.local_estoque_id && dec(dados.quantidade).eq(dec(anterior.quantidade));
+      if (!dados.lotes && mesmaSaida && anterior.consumos?.length) {
+        dados.lotesDaLinhaAnterior = anterior.consumos.map((/** @type {any} */ f) => ({ estoque_lote_nota_id: f.estoque_lote_nota_id, quantidade: dec(f.quantidade).toFixed(CASAS_QUANTIDADE) }));
+      }
       await exigirPermiteProduto(tx, cli, atividade);
       // Travas da troca: o local novo (KEY SHARE) e os produtos antigo e novo de UMA vez, em ordem.
       await tx.$queryRaw`SELECT id FROM "LocalEstoque" WHERE cliente_id = ${cli} AND id = ${dados.local_estoque_id} FOR KEY SHARE`;

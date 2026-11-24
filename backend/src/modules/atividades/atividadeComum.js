@@ -862,11 +862,12 @@ export const recusarCoercaoNasListas = (corpo, listas) => {
 export const DECIMAIS_DA_LINHA_PRODUTO = Object.freeze(['quantidade', 'vc_percentual', 'jato']);
 
 /** Resumos das linhas (só exibição), no formato do `select` do Prisma. */
-export const PRODUTO_RESUMO = Object.freeze({ select: { id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true, carencia_dias: true } });
+export const PRODUTO_RESUMO = Object.freeze({ select: { id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true, carencia_dias: true, controla_lote: true } });
 export const LOCAL_RESUMO = Object.freeze({ select: { id: true, numero_local: true, nome: true } });
 
 /** @param {any} p */
-export const produtoPublico = (p) => (p ? { id: p.id, numero: p.numero_produto, nome: p.nome_produto } : null);
+// D-PROD-282 em todas as telas: `controla_lote` para a edição da linha mostrar o campo "Lote".
+export const produtoPublico = (p) => (p ? { id: p.id, numero: p.numero_produto, nome: p.nome_produto, controla_lote: p.controla_lote === true } : null);
 /** @param {any} l */
 export const localPublico = (l) => (l ? { id: l.id, numero: l.numero_local, nome: l.nome } : null);
 
