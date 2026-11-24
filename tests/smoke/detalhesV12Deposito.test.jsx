@@ -10,8 +10,12 @@
  *  DV-2. seções na ordem do v12: Nível do depósito (bloco do nível + grade com
  *        o medidor), Saldo por produto, Pastos atendidos, Informações do
  *        depósito e Histórico do depósito.
- *  DV-3. aviso do v12 quando o saldo chega ao mínimo (abaixo / no mínimo);
- *        acima do mínimo, sem aviso.
+ *  DV-3. estado do estoque mínimo na caixa "Estoque mínimo" (abaixo / no mínimo /
+ *        acima), sem faixa de aviso repetida.
+ *  DV-10. v13: topo com o saldo sozinho ao lado do ícone, régua 0 → limite com o
+ *        mínimo e o saldo, duas caixas (necessidade e mínimo); saldo por produto com
+ *        a barra da participação; pastos atendidos com etiqueta da leitura e barra de
+ *        nível; histórico com cartões curtos (+/− kg e sacos).
  *  DV-4. rodapé Entrada · Saída · Histórico com as permissões de hoje (sem a
  *        permissão a pílula não aparece); as pílulas abrem a transferência e o
  *        histórico completo nos diálogos de hoje.
@@ -197,30 +201,29 @@ describe('DV-2 — abas e seções na ordem do v12', () => {
     ]);
     expect(corpo().parentElement.classList.contains('mk-dp-deposito')).toBe(true);
     const filhos = Array.from(corpo().children);
-    expect(filhos[0].classList.contains('mk-dp-deposito__nivel')).toBe(true);
+    expect(filhos[0].classList.contains('mk-dp-dep13')).toBe(true);
     expect(filhos.filter((f) => f.classList.contains('mk-dp-secao')).map((t) => t.querySelector('h3')?.textContent)).toEqual([
       'Saldo por produto',
     ]);
-    // Bloco do nível: porcentagem dentro da figura do ícone e saldo + necessidade de reposição ao lado.
+    // Topo (v13): porcentagem dentro da figura do ícone e SÓ o saldo atual ao lado.
     const nivel = within(secao()).getByTestId('nivel-do-deposito');
-    expect(nivel.classList.contains('mk-dp-nivel')).toBe(true);
     expect(within(nivel).getByText('70%')).toBeTruthy();
     expect(within(nivel).queryByText(/Limite operacional:/)).toBeNull();
-    expect(within(nivel).getByText('Saldo atual kg').nextElementSibling?.textContent).toBe('1.400 kg');
+    expect(within(nivel).getByText('Saldo atual').nextElementSibling?.textContent).toBe('1.400 kg');
     expect(within(nivel).getByText('56,00 sacos')).toBeTruthy();
-    expect(within(nivel).getByText('Necessidade reposição kg').nextElementSibling?.textContent).toBe('600 kg');
-    expect(within(nivel).getByText('24,00 sacos')).toBeTruthy();
+    expect(within(nivel).queryByText(/Necessidade/)).toBeNull();
     expect(nivel.querySelector('img[data-deposito-icone]')).toBeTruthy();
-    // Grade da região do nível: o medidor e o estoque mínimo.
-    const rotulos = Array.from(secao().querySelectorAll('.mk-dp-grade > .mk-dp-cel > dt')).map((dt) => dt.textContent);
-    expect(rotulos).toEqual(['Ocupação do limite operacional', 'Estoque mínimo']);
+    // Régua e as duas caixas: necessidade de reposição e estoque mínimo.
     expect(within(secao()).getByRole('meter', { name: 'Ocupação do limite operacional' }).getAttribute('aria-valuenow')).toBe('70');
-    expect(within(screen.getByRole('group', { name: 'Estoque mínimo' })).getByText('Mínimo 500 kg · 900 kg acima do mínimo')).toBeTruthy();
-    // Saldo por produto: uma linha por produto (sacos embaixo, kg à direita).
+    const caixas = Array.from(secao().querySelectorAll('.mk-dp-dep13__caixa')).map((c) => c.textContent);
+    expect(caixas).toEqual(['Necessidade de reposição600 kg24,00 sacos · até o limite', 'Acima do mínimo900 kgmínimo de 500 kg']);
+    // Saldo por produto: uma linha por produto (sacos embaixo, kg à direita) e a barra da participação.
     const linha = screen.getByText('SAL MINERAL 80', { selector: '.mk-dp-linha__rot' }).closest('[data-unidade-confirmada]');
     expect(linha.getAttribute('data-unidade-confirmada')).toBe('true');
     expect(linha.querySelector('.mk-dp-linha__sub')?.textContent).toBe('56,00 sacos');
     expect(linha.querySelector('.mk-dp-linha__val')?.textContent).toBe('1.400 kg');
+    expect(linha.querySelector('.mk-dp-dep13__part')?.getAttribute('data-participacao')).toBe('100.0');
+    expect(screen.getByText('Abaixo do mínimo o mapa avisa para repor.')).toBeTruthy();
   });
 
   it('sem limite operacional: o rótulo neutro no lugar do número, a mensagem e o que fazer só no bloco do nível', async () => {
@@ -229,10 +232,10 @@ describe('DV-2 — abas e seções na ordem do v12', () => {
     expect(nivel.querySelector('[data-deposito-rotulo-neutro]')?.textContent).toBe('Sem limite');
     expect(within(nivel).getByText('Limite operacional não configurado; não há percentual.')).toBeTruthy();
     expect(within(nivel).getByText('Configure o limite operacional no cadastro do ponto.')).toBeTruthy();
-    // A célula do medidor fica neutra ("—", trilha tracejada), sem repetir a mensagem.
-    const medidor = secao().querySelector('.mk-dp-medidor');
-    expect(medidor.querySelector('dd')?.textContent).toBe('—');
-    expect(medidor.querySelector('[data-medidor-trilha="neutra"]')).toBeTruthy();
+    // Sem limite: régua neutra (só desenho, sem medidor) e a necessidade sem número.
+    expect(within(secao()).queryByRole('meter')).toBeNull();
+    expect(secao().querySelector('.mk-dp-dep13__trilho')?.getAttribute('data-variante')).toBe('neutro');
+    expect(secao().querySelector('[data-caixa="necessidade"]')?.textContent).toBe('Necessidade de reposição—sem limite operacional');
     expect(within(secao()).getAllByText('Limite operacional não configurado; não há percentual.')).toHaveLength(1);
     expect(secao().textContent).not.toMatch(/\d%/);
   });
@@ -250,12 +253,14 @@ describe('DV-3 — estado do estoque mínimo sem aviso redundante', () => {
   it('abaixo do mínimo, no mínimo e acima: estado exibido no cartão Estoque mínimo, sem faixa de aviso duplicada', async () => {
     dados.lotesNota = [loteNota(400)];
     await montar();
-    await waitFor(() => expect(within(screen.getByRole('group', { name: 'Estoque mínimo' })).getByText('Mínimo 500 kg · abaixo do mínimo (faltam 100 kg)')).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('group', { name: 'Estoque mínimo' }).getAttribute('data-estado-minimo')).toBe('abaixo'));
+    expect(within(screen.getByRole('group', { name: 'Estoque mínimo' })).getByText('100 kg')).toBeTruthy();
+    expect(screen.queryByText('Abaixo do mínimo o mapa avisa para repor.')).toBeNull();
     expect(secao().querySelector('.mk-dp-aviso--atencao')).toBeNull();
     cleanup();
     dados.lotesNota = [loteNota(500)];
     await montar();
-    await waitFor(() => expect(within(screen.getByRole('group', { name: 'Estoque mínimo' })).getByText('Mínimo 500 kg · no mínimo')).toBeTruthy());
+    await waitFor(() => expect(within(screen.getByRole('group', { name: 'Estoque mínimo' })).getByText('No mínimo')).toBeTruthy());
     expect(secao().querySelector('.mk-dp-aviso--atencao')).toBeNull();
     cleanup();
     dados.lotesNota = [loteNota(1400)];
@@ -377,6 +382,46 @@ describe('DV-7 — histórico na aba superior', () => {
     await montar({ permissions: { visualizar_historico_cocho: false } });
     expect(screen.queryByRole('tab', { name: 'Histórico' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Histórico' })).toBeNull();
+  });
+});
+
+describe('DV-10 — v13: pastos atendidos e histórico em cartões curtos', () => {
+  it('pastos atendidos: título com a contagem, etiqueta da leitura (cor e texto curto) e barra de nível do cocho', async () => {
+    await montar();
+    await tocar(screen.getByRole('tab', { name: 'Informações' }));
+    expect(screen.getByRole('heading', { name: 'Pastos atendidos · 2 cochos' })).toBeTruthy();
+    const itens = within(screen.getByRole('list', { name: 'Pastos atendidos' })).getAllByRole('listitem');
+    await waitFor(() => expect(itens[0].querySelector('.mk-dp-dep13__leitura')?.textContent).toBe('Adequado'));
+    expect(itens[0].querySelector('.mk-dp-dep13__leitura')?.getAttribute('data-cor')).toBe('verde');
+    expect(itens[1].querySelector('.mk-dp-dep13__leitura')?.textContent).toBe('Vazio');
+    expect(itens[1].querySelector('.mk-dp-dep13__leitura')?.getAttribute('data-cor')).toBe('vermelho');
+    // Nível do SSOT: o Cocho 02 com o percentual do ciclo; o Cocho 05 sem lançamento.
+    const n02 = calcularNivelCocho({ ponto: C02, eventos: [EVENTO_C02], hoje: HOJE, pontos: PONTOS });
+    await waitFor(() => expect(itens[0].querySelector('.mk-dp-dep13__nivel-txt')?.textContent).toBe(`nível ${n02.rotuloCurto}`));
+    expect(itens[0].querySelector('.mk-dp-dep13__nivel-barra > span')?.style.width).toBe(`${Math.round(n02.fracaoParaSvg * 100)}%`);
+    expect(itens[1].querySelector('.mk-dp-dep13__nivel-txt')?.textContent).toBe('Sem lançamento');
+    expect(itens[1].querySelector('.mk-dp-dep13__nivel-barra > span')?.style.width).toBe('0%');
+  });
+
+  it('histórico: entrada "+1.000 kg" (verde) e saída "−400 kg" (vermelho) com os sacos; produto e origem/destino embaixo do título', async () => {
+    await montar();
+    await tocar(screen.getByRole('tab', { name: 'Histórico' }));
+    const lista = screen.getByRole('list', { name: 'Histórico do depósito' });
+    expect(lista.classList.contains('mk-dp-tl--curto')).toBe(true);
+    const cartoes = Array.from(lista.querySelectorAll('.mk-dp-tl__card--curto'));
+    const resumo = (c) => ({
+      titulo: c.querySelector('.mk-dp-tl__titulo')?.textContent,
+      sub: c.querySelector('.mk-dp-tl__lote')?.textContent,
+      qtd: c.querySelector('.mk-dp-tl__qtd > span[aria-hidden]')?.textContent,
+      sacos: c.querySelector('.mk-dp-dep13__qtd-sub')?.textContent ?? null,
+      tom: c.querySelector('.mk-dp-tl__qtd')?.getAttribute('data-tom'),
+      sr: c.querySelector('.mk-dp-tl__qtd .mk-dp-tl__sr')?.textContent,
+    });
+    expect(cartoes.map(resumo)).toEqual([
+      { titulo: 'Entrada no depósito', sub: 'ÓLEO', qtd: '+20 L', sacos: null, tom: 'entrada', sr: 'Entraram 20,00 L' },
+      { titulo: 'Saída do depósito', sub: 'SAL MINERAL 80 · Suplementação · Cocho 02', qtd: '−400 kg', sacos: '16,00 sacos', tom: 'saida', sr: 'Saíram 400,00 kg, 16,00 sacos' },
+      { titulo: 'Entrada no depósito', sub: 'SAL MINERAL 80 · de Galpão Central', qtd: '+1.000 kg', sacos: '40,00 sacos', tom: 'entrada', sr: 'Entraram 1.000,00 kg, 40,00 sacos' },
+    ]);
   });
 });
 
