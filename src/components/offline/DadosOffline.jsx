@@ -8,6 +8,8 @@ import { useEmpresaSelecionadaId } from '@/hooks/useEmpresaSelecionadaId';
 import { isAppNativo } from '@/config/runtimeConfig';
 import { useBootSplash } from '@/lib/bootSplashContext';
 import { baixarDadosParaOffline, estaSemInternet, ultimaBaixaDosDados } from '@/services/dadosOfflineService';
+import { ligarEnvioDaSessao } from '@/services/sincronizacaoService';
+import FilaDeEnvio from '@/components/offline/FilaDeEnvio';
 
 /** @type {React.ComponentType<any>} */ const DialogContent = DialogContentUi;
 
@@ -39,7 +41,7 @@ const formatarQuando = (ms) =>
  *   na hora e ver quando foi a última vez.
  */
 export default function DadosOffline() {
-  const { isAuthenticated, clienteId } = useAuth();
+  const { isAuthenticated, clienteId, user } = useAuth();
   const empresaId = useEmpresaSelecionadaId();
   // Só pergunta depois que a tela de abertura sai (senão a janela fica por baixo dela).
   const { layoutBootReady } = useBootSplash();
@@ -53,6 +55,13 @@ export default function DadosOffline() {
   useEffect(() => {
     setUltima(isAuthenticated ? ultimaBaixaDosDados() : null);
   }, [isAuthenticated, clienteId]);
+
+  // D-PROD-295: a fila de envio é desta conta nesta fazenda; sem sessão, nada vai ao servidor.
+  const usuarioId = user?.id ? String(user.id) : null;
+  useEffect(() => {
+    ligarEnvioDaSessao(isAuthenticated && clienteId ? { clienteId, usuarioId } : null);
+    return () => ligarEnvioDaSessao(null);
+  }, [isAuthenticated, clienteId, usuarioId]);
 
   const baixar = useCallback(
     async ({ silencioso = false } = {}) => {
@@ -156,6 +165,11 @@ export default function DadosOffline() {
             Sem internet agora. Conecte para baixar.
           </p>
         )}
+
+        <div className="space-y-1.5 border-t border-slate-100 pt-3">
+          <p className="text-sm font-semibold text-slate-800">Envio</p>
+          <FilaDeEnvio />
+        </div>
 
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="outline" disabled={baixando} onClick={() => setAberto(false)}>

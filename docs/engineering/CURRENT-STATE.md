@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-24 (missão ativa D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-24 (missão ativa D-PROD-295; antes D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-24) — MAIKE-JATOS-FECHAMENTO: tipo "por jato" editável, "Fez o pasto todo?", várias máquinas e jato na linha avulsa (D-PROD-291 a 293)
+## Missão ativa (2026-11-24) — MAIKE-SINCRONIZACAO-MOTOR: motor genérico de gravação sem internet (D-PROD-295)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-295**: motor por contrato (cada tipo declara `offline`), código único por registro, ordem por recurso, "precisa de atenção", fila antiga passa a ser enviada |
+| Banco | sem migration (deduplicação já existe: `OperacaoIdempotente`) |
+| Próxima | cochos e depósitos no motor |
+| Relatório | [`SINCRONIZACAO-MOTOR-D295-REPORT.md`](./SINCRONIZACAO-MOTOR-D295-REPORT.md) · inventário [`OFFLINE-INVENTARIO.md`](./OFFLINE-INVENTARIO.md) |
+
+## Missão anterior (2026-11-24) — MAIKE-JATOS-FECHAMENTO: tipo "por jato" editável, "Fez o pasto todo?", várias máquinas e jato na linha avulsa (D-PROD-291 a 293)
 
 | Item | Estado |
 |---|---|
