@@ -17,7 +17,13 @@
  *   - `enviar`   como mandar ao servidor, recebendo o `operationId`;
  *   - `rotulo`   texto curto para a pessoa reconhecer o registro na lista;
  *   - `atualiza` (opcional) o que as telas releem depois que um registro deste
- *                tipo chega ao servidor (ex.: ['leiturasCocho']).
+ *                tipo chega ao servidor (ex.: ['leiturasCocho']);
+ *   - `reajustar` (opcional) no "Tentar de novo" de um item recusado, devolve o
+ *                payload corrigido com o que o servidor tem agora (o código
+ *                continua o mesmo: o que já foi gravado não é gravado de novo).
+ *
+ * `enviar` recebe `registrarProgresso`: um tipo com vários passos grava o que
+ * já foi confirmado (ex.: a baixa do estoque), e a tela sabe o que não volta.
  *
  * Os manejos de hoje se registram assim, e uma aplicação criada no futuro
  * dentro do sistema também: basta declarar o tipo e se usa offline. O motor
@@ -62,9 +68,11 @@ import { criarFilaIndexedDB, filaDeEnvioDisponivel } from './filaDeEnvio.js';
  *   offline: boolean,
  *   recursos?: (payload: any) => string[],
  *   rotulo?: (payload: any) => string,
- *   enviar: (payload: any, contexto: {operationId: string, empresaId: string|null}) => Promise<unknown>,
+ *   enviar: (payload: any, contexto: {operationId: string, empresaId: string|null,
+ *            registrarProgresso: (progresso: Record<string, unknown>) => Promise<void>}) => Promise<unknown>,
  *   migrar?: (payload: any, versaoAntiga: number) => any,
  *   atualiza?: string[],
+ *   reajustar?: (payload: any, contexto: {ultimoErro: ItemDaFila['ultimo_erro'], progresso: Record<string, unknown>}) => Promise<any>,
  * }} TipoDeEnvio
  *
  * @typedef {{cliente_id: string, usuario_id: string|null}} SessaoDaFila
@@ -79,7 +87,7 @@ import { criarFilaIndexedDB, filaDeEnvioDisponivel } from './filaDeEnvio.js';
  *   atualizar?: string[],
  *   itens: Array<{id: string, tipo: string, rotulo: string, estado: string, criado_em: string,
  *                 tentativas: number, ultimo_erro: ItemDaFila['ultimo_erro'], esperando: boolean,
- *                 confirmando: boolean}>,
+ *                 confirmando: boolean, progresso: Record<string, any>}>,
  * }} ResumoDaFila
  */
 
@@ -403,7 +411,7 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
    * @param {unknown} [resultado]
    * @param {boolean} [tentado] já houve tentativa de envio (a rede caiu no meio)
    */
-  const guardar = async (estado = 'pendente', resultado = undefined, tentado = false) => {
+  const guardar = async (estado = 'pendente', resultado = undefined, tentado = false, progresso = undefined) => {
     if (!podeGuardar || !fila || !sessao) throw erroSemInternet(tipo);
     const enviado = estado === 'enviado';
     /** @type {ItemDaFila} */
@@ -428,6 +436,7 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
       ultimo_erro: null,
       enviado_em: enviado ? new Date(agora()).toISOString() : null,
       ...(enviado ? { resultado: JSON.parse(JSON.stringify(resultado ?? null)) } : {}),
+      ...(progresso && Object.keys(progresso).length ? { progresso: JSON.parse(JSON.stringify(progresso)) } : {}),
     };
     await fila.gravar(item);
     emitir();
@@ -438,8 +447,16 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
   if (!online() || temQueEsperar) return guardar();
 
   const resultados = new Map(itens.filter((i) => i.estado === 'enviado').map((i) => [i.id, i.resultado]));
+  /** @type {Record<string, unknown>} */
+  const progressoDoEnvio = {};
   try {
-    const resultado = await def.enviar(resolverReferencias(payload, resultados), { operationId, empresaId });
+    const resultado = await def.enviar(resolverReferencias(payload, resultados), {
+      operationId,
+      empresaId,
+      registrarProgresso: async (p) => {
+        Object.assign(progressoDoEnvio, p);
+      },
+    });
     // O resultado fica guardado (como no envio pela fila): um registro seguinte
     // pode citar o id que o servidor deu a este.
     if (podeGuardar) {
@@ -453,7 +470,7 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
   } catch (erro) {
     // A rede caiu no meio: o servidor pode ter gravado ou não. Na fila, com o
     // MESMO código, o reenvio é deduplicado — nunca duas vezes.
-    if (classificarFalhaDeEnvio(erro) === 'rede' && podeGuardar) return guardar('pendente', undefined, true);
+    if (classificarFalhaDeEnvio(erro) === 'rede' && podeGuardar) return guardar('pendente', undefined, true, progressoDoEnvio);
     throw erro;
   }
 };
@@ -583,7 +600,14 @@ const passada = async () => {
       await fila.gravar(item);
     }
     try {
-      const resultado = await def.enviar(payload, { operationId: item.id, empresaId: item.empresa_id });
+      const resultado = await def.enviar(payload, {
+        operationId: item.id,
+        empresaId: item.empresa_id,
+        registrarProgresso: async (p) => {
+          item.progresso = { ...(item.progresso ?? {}), ...p };
+          await fila.gravar(item);
+        },
+      });
       await fila.gravar({
         ...item,
         estado: 'enviado',
@@ -651,6 +675,7 @@ export const resumoDaFila = async () => {
       ultimo_erro: i.ultimo_erro,
       esperando: i.estado === 'pendente' && i.proxima_tentativa_em > agora(),
       confirmando: i.estado === 'pendente' && Boolean(i.tentado),
+      progresso: i.progresso ?? {},
     })),
   };
 };
@@ -660,7 +685,8 @@ export const resumoDaFila = async () => {
  * mostrar na hora o que foi feito sem internet.
  *
  * @param {string} tipo
- * @returns {Promise<Array<{operationId: string, payload: unknown, estado: string, criado_em: string}>>}
+ * @returns {Promise<Array<{operationId: string, payload: unknown, estado: string, criado_em: string,
+ *   tentado: boolean, progresso: Record<string, any>}>>}
  */
 export const registrosAguardandoDoTipo = async (tipo) => {
   const fila = portaDaFila();
@@ -668,7 +694,15 @@ export const registrosAguardandoDoTipo = async (tipo) => {
   return (await fila.listar())
     .filter((i) => eDaSessao(i) && i.tipo === tipo && i.estado !== 'enviado')
     .sort(emOrdem)
-    .map((i) => ({ operationId: i.id, payload: i.payload, estado: i.estado, criado_em: i.criado_em }));
+    .map((i) => ({
+      operationId: i.id,
+      payload: i.payload,
+      estado: i.estado,
+      criado_em: i.criado_em,
+      // Já tentou subir: o servidor pode ter gravado (ou gravado parte, ver `progresso`).
+      tentado: Boolean(i.tentado),
+      progresso: i.progresso ?? {},
+    }));
 };
 
 /**
@@ -704,7 +738,26 @@ export const tentarDeNovo = async (id) => {
   const fila = portaDaFila();
   const item = fila ? await fila.ler(id) : undefined;
   if (!fila || !item || !eDaSessao(item) || item.estado === 'enviado') return false;
-  await fila.gravar({ ...item, estado: 'pendente', tentativas: 0, proxima_tentativa_em: 0 });
+  const def = TIPOS.get(item.tipo);
+  let payload = item.payload;
+  if (item.estado === 'atencao' && typeof def?.reajustar === 'function') {
+    try {
+      payload = await def.reajustar(item.payload, { ultimoErro: item.ultimo_erro, progresso: item.progresso ?? {} });
+    } catch (erro) {
+      // Sem conseguir reajustar (sem rede, por exemplo): continua em atenção, com o motivo.
+      await fila.gravar({ ...item, ultimo_erro: resumoDoErro(erro) });
+      emitir();
+      return false;
+    }
+  }
+  await fila.gravar({
+    ...item,
+    payload: JSON.parse(JSON.stringify(payload ?? null)),
+    referencias: [...referenciasNoPayload(payload)],
+    estado: 'pendente',
+    tentativas: 0,
+    proxima_tentativa_em: 0,
+  });
   emitir();
   agendarSincronizacao(0);
   return true;

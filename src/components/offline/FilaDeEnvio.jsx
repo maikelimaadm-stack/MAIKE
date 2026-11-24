@@ -37,7 +37,9 @@ export default function FilaDeEnvio() {
   const descartar = async (item) => {
     const ok = await confirmar({
       titulo: 'Descartar este registro?',
-      descricao: `"${item.rotulo}" não vai chegar ao sistema. Isso não pode ser desfeito.`,
+      descricao: item.progresso?.saida_feita
+        ? `"${item.rotulo}" não vai chegar ao sistema. A baixa de ${item.progresso.saida_feita.quantidade} kg no estoque JÁ FOI FEITA e não será desfeita: depois, ajuste o estoque. Prefira "Tentar de novo". Isso não pode ser desfeito.`
+        : `"${item.rotulo}" não vai chegar ao sistema. Isso não pode ser desfeito.`,
       textoConfirmar: 'Descartar',
       perigo: true,
     });

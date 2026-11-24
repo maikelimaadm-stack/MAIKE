@@ -93,7 +93,7 @@ describe('D-PROD-295 — com e sem internet', () => {
     temRede = true;
     await sincronizar();
     expect(s.enviar).toHaveBeenCalledTimes(1);
-    expect(s.enviar.mock.calls[0][1]).toEqual({ operationId: r.operationId, empresaId: 'emp_1' });
+    expect(s.enviar.mock.calls[0][1]).toMatchObject({ operationId: r.operationId, empresaId: 'emp_1' });
     expect((await resumoDaFila()).aguardando).toBe(0);
   });
 
@@ -388,6 +388,42 @@ describe('D-PROD-296 — recusa de negócio x erro passageiro do servidor', () =
       relogio += 700_000;
     }
     expect((await sincronizar()).aguardando).toBe(0);
+  });
+});
+
+describe('D-PROD-296 — progresso e reajuste (revisão)', () => {
+  it('MS-24 o progresso que o tipo registra fica no item e aparece na lista', async () => {
+    registrarTipoDeEnvio({
+      tipo: 'cocho.lancamento', versao: 1, offline: true,
+      enviar: async (_p, { registrarProgresso }) => {
+        await registrarProgresso({ passo1: true });
+        throw recusa('X_RECUSADO');
+      },
+    });
+    temRede = false;
+    await enviarOuGuardar('cocho.lancamento', {});
+    temRede = true;
+    const resumo = await sincronizar();
+    expect(resumo.itens[0]).toMatchObject({ estado: 'atencao', progresso: { passo1: true } });
+  });
+
+  it('MS-25 "Tentar de novo" chama o reajuste do tipo e envia o payload corrigido com o MESMO código', async () => {
+    const enviados = [];
+    let recusar = true;
+    registrarTipoDeEnvio({
+      tipo: 'cocho.lancamento', versao: 1, offline: true,
+      enviar: async (p, { operationId }) => { enviados.push({ p, operationId }); if (recusar) throw recusa('LANCAMENTO_DESATUALIZADO'); return {}; },
+      reajustar: async (p, { ultimoErro }) => ({ ...p, anterior: ultimoErro.codigo === 'LANCAMENTO_DESATUALIZADO' ? 'novo' : p.anterior }),
+    });
+    temRede = false;
+    const r = await enviarOuGuardar('cocho.lancamento', { anterior: 'velho' });
+    temRede = true;
+    await sincronizar();
+    recusar = false;
+    await tentarDeNovo(r.operationId);
+    await sincronizar();
+    expect(enviados.map((e) => e.p.anterior)).toEqual(['velho', 'novo']);
+    expect(enviados.every((e) => e.operationId === r.operationId)).toBe(true);
   });
 });
 

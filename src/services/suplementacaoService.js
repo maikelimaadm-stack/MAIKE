@@ -28,6 +28,7 @@ import {
   calcularFechamentoDePeriodo,
   PATCH_REABERTURA_EVENTO,
   PATCH_REABERTURA_LOTE,
+  calcularDiasPeriodo,
 } from '@/components/utils/consumoUtils';
 import { comandoLancamentoComLotes } from '@/apis/suplementacao-eventos';
 import { listarPosicoesRebanhoServidor } from '@/apis/lotes';
@@ -442,13 +443,17 @@ const custoDaSaida = (movimento) => {
  * `mensagemDaFila` (o que fazer, na lista de envio).
  *
  * @param {any} p payload do lançamento
- * @param {{ operationId: string }} ctx
+ * @param {{ operationId: string, registrarProgresso?: (progresso: Record<string, unknown>) => Promise<void> }} ctx
  */
-const executarLancamentoDoCocho = async (p, { operationId }) => {
+const executarLancamentoDoCocho = async (p, { operationId, registrarProgresso }) => {
   let movimentacao = null;
   if (p.saida) {
     const r = await comandoSaidaSuplementacao({ ...p.saida, operation_id: operationId });
     movimentacao = r?.movimentacao ?? null;
+    // A baixa está no servidor: daqui em diante ela não volta sozinha (descartar não a desfaz).
+    await registrarProgresso?.({
+      saida_feita: { movimentacao_id: movimentacao?.id ?? null, quantidade: p.saida.quantidade, produto_id: p.saida.produto_id, local_origem_id: p.saida.local_origem_id },
+    });
   }
   const evento = { ...p.evento, movimentacao_estoque_id: movimentacao?.id ?? null, custo_unitario_kg: custoDaSaida(movimentacao) };
   let novoEvento;
@@ -463,7 +468,7 @@ const executarLancamentoDoCocho = async (p, { operationId }) => {
   } catch (erro) {
     if (movimentacao) {
       /** @type {any} */ (erro).saidaFeita = movimentacao;
-      /** @type {any} */ (erro).mensagemDaFila = 'A baixa no estoque já foi feita: depois de corrigir, toque em "Tentar de novo" (o estoque não baixa outra vez).';
+      /** @type {any} */ (erro).mensagemDaFila = 'A baixa no estoque já foi feita: toque em "Tentar de novo" — o lançamento é refeito com o que o cocho tem agora, e o estoque não baixa outra vez.';
     }
     throw erro;
   }
@@ -474,7 +479,8 @@ const executarLancamentoDoCocho = async (p, { operationId }) => {
       const anterior = (await listEventos()).find((e) => e?.id === p.evento_anterior_id) || null;
       const aberto = anterior && (anterior.dias_periodo === null || anterior.dias_periodo === undefined || anterior.fechado_por_evento_id === novoEvento?.id);
       if (aberto) {
-        await fecharPeriodoSuplementacao({ evento: anterior, ...p.fechamento, fechadoPorEventoId: novoEvento.id });
+        const { dataFim: _dataFim, ...paraFechar } = p.fechamento;
+        await fecharPeriodoSuplementacao({ evento: anterior, ...paraFechar, fechadoPorEventoId: novoEvento.id });
         fechamento = 'feito';
       } else {
         fechamento = 'ja_fechado';
@@ -487,6 +493,46 @@ const executarLancamentoDoCocho = async (p, { operationId }) => {
   return { evento: novoEvento, movimentacao, fechamento };
 };
 
+/**
+ * "Tentar de novo" de um lançamento recusado porque o cocho mudou
+ * (`LANCAMENTO_DESATUALIZADO`: outra pessoa lançou ou cancelou nesse meio
+ * tempo). Busca no servidor o último lançamento ATIVO do cocho, liga a ele e
+ * refaz o fechamento do período dele (dias até a data de fim deste, sobra
+ * inicial dele, a sobra medida por quem lançou). A baixa já feita continua: o
+ * código não muda, e o servidor devolve a mesma baixa. Outra recusa: payload
+ * sem mudança.
+ * @param {any} p
+ * @param {{ ultimoErro: any }} ctx
+ */
+const reajustarLancamentoDoCocho = async (p, { ultimoErro }) => {
+  if (ultimoErro?.codigo !== 'LANCAMENTO_DESATUALIZADO') return p;
+  const pontoId = p?.evento?.ponto_suplementacao_id;
+  const eventos = (await listEventos()).filter(
+    (e) => e && e.ponto_suplementacao_id === pontoId && e.empresa_id === p.evento.empresa_id && e.situacao !== 'cancelado'
+  );
+  const ordem = (/** @type {any} */ e) => `${String(e.data_lancamento ?? '').slice(0, 10)}|${String(e.createdAt ?? e.created_date ?? '')}`;
+  const ultimo = eventos.reduce((/** @type {any} */ a, /** @type {any} */ b) => (!a || ordem(b) > ordem(a) ? b : a), null);
+  if (!ultimo) return { ...p, evento_anterior_id: null, fechamento: null };
+  const aberto = ultimo.dias_periodo === null || ultimo.dias_periodo === undefined;
+  const dataFim = p.fechamento?.dataFim ?? p.evento?.data_lancamento;
+  const dias = aberto ? calcularDiasPeriodo(ultimo.data_lancamento, dataFim) : 0;
+  return {
+    ...p,
+    evento_anterior_id: ultimo.id,
+    fechamento:
+      aberto && dias > 0
+        ? {
+            diasPeriodo: dias,
+            sobraInicial: ultimo.sobra_kg || 0,
+            sobraFinal: p.fechamento?.sobraFinal ?? 0,
+            sobraInformada: p.fechamento?.sobraInformada ?? null,
+            compartilhado: p.fechamento?.compartilhado,
+            dataFim,
+          }
+        : null,
+  };
+};
+
 registrarTipoDeEnvio({
   tipo: TIPO_LANCAMENTO_COCHO,
   versao: 1,
@@ -495,6 +541,7 @@ registrarTipoDeEnvio({
   rotulo: (p) => `Lançamento · ${p?.evento?.ponto_nome ?? 'cocho'}`,
   atualiza: ['eventosSuplementacao', 'suplementacaoLote', 'movimentacaoEstoque', 'estoqueLotes'],
   enviar: executarLancamentoDoCocho,
+  reajustar: reajustarLancamentoDoCocho,
 });
 
 /**
@@ -514,7 +561,7 @@ const idOuReferenciaDoEvento = (evento) => {
  *
  * @param {{ saida: Record<string, unknown>|null, evento: Record<string, any>, lotes: Array<Record<string, unknown>>,
  *   eventoAnterior: any, fechamento: null | { diasPeriodo: number, sobraInicial: number, sobraFinal: number,
- *   sobraInformada: boolean|null, compartilhado?: boolean } }} dados
+ *   sobraInformada: boolean|null, compartilhado?: boolean, dataFim?: string } }} dados
  * @param {{ operationId: string, rotulo?: string }} opcoes
  * @returns {Promise<{ aguardandoEnvio: boolean, evento: any, fechamento: string }>}
  */

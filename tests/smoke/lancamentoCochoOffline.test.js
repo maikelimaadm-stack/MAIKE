@@ -198,4 +198,53 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
     expect(resumo.itens[0].ultimo_erro.codigo).toBe('LANCAMENTO_DESATUALIZADO');
     expect(resumo.itens[0].ultimo_erro.mensagem).toMatch(/baixa no estoque já foi feita/);
   });
+
+  it('LCO-06 o cocho mudou (outra pessoa lançou): "Tentar de novo" liga ao lançamento atual e conclui SEM baixar de novo', async () => {
+    const srv = servidor();
+    vi.stubGlobal('fetch', srv.fetch);
+    const { sup, motor } = await carregar();
+    online = false;
+    const { evento: _e } = await sup.registrarLancamentoDoCocho(
+      { saida: saidaCorpo(), evento: evento({ data_lancamento: '2026-11-14' }), lotes: [], eventoAnterior: srv.eventos[0], fechamento: { ...fechamento(), dataFim: '2026-11-14' } },
+      { operationId: 'op-lanc-0007' }
+    );
+    // Outra pessoa lançou no mesmo cocho (ev-2, dia 12) e o servidor passa a recusar o anterior antigo.
+    srv.eventos.push({ id: 'ev-2', empresa_id: EMP, ponto_suplementacao_id: 'c1', data_lancamento: '2026-11-12', quantidade_total_kg: 60, sobra_kg: 3, dias_periodo: null, createdAt: '2026-11-12T10:00:00Z' });
+    srv.falharLancamento = 'LANCAMENTO_DESATUALIZADO';
+    online = true;
+    let resumo = await motor.sincronizar();
+    expect(resumo.atencao).toBe(1);
+    expect(resumo.itens[0].progresso.saida_feita.quantidade).toBe(80);
+    expect(srv.baixas.size).toBe(1);
+
+    srv.falharLancamento = null;
+    expect(await motor.tentarDeNovo('op-lanc-0007')).toBe(true);
+    resumo = await motor.sincronizar();
+    expect(resumo).toMatchObject({ aguardando: 0, atencao: 0 });
+    expect(srv.baixas.size).toBe(1); // a mesma baixa, não uma segunda
+    const lancado = srv.chamadas.filter((c) => c.caminho === '/suplementacao-eventos/comandos/lancamento-com-lotes').pop();
+    expect(lancado.corpo.evento_anterior_id).toBe('ev-2');
+    const patch = srv.chamadas.find((c) => c.metodo === 'PATCH' && c.caminho === '/suplementacao-eventos/ev-2');
+    expect(patch.corpo).toMatchObject({ fechado_por_tipo: 'lancamento', dias_periodo: 2 });
+  });
+
+  it('LCO-07 o que já tentou subir não é descontado de novo no saldo do aparelho (o servidor já pode ter)', async () => {
+    const srv = servidor();
+    vi.stubGlobal('fetch', srv.fetch);
+    const { sup, motor, estoque } = await carregar();
+    online = false;
+    await sup.registrarLancamentoDoCocho(
+      { saida: saidaCorpo(), evento: evento(), lotes: [], eventoAnterior: null, fechamento: null },
+      { operationId: 'op-lanc-0008' }
+    );
+    online = true;
+    srv.falharLancamento = 'LANCAMENTO_DESATUALIZADO';
+    await motor.sincronizar(); // baixa gravada no servidor, lançamento recusado
+    // O servidor já mostra 20 kg (100 - 80): o aparelho NÃO tira os 80 de novo.
+    const lotes = await estoque.comEstoqueAguardandoEnvio([
+      { id: 'nf1', empresa_id: EMP, produto_id: 'prod-1', local_estoque_id: 'galpao', status: 'Disponivel', quantidade_disponivel: 20, data_documento: '2026-01-01' },
+    ]);
+    expect(lotes[0].quantidade_disponivel).toBe(20);
+  });
 });
+

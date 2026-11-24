@@ -23,6 +23,10 @@ depósito e o fechamento do período anterior) e transferência entre depósitos
   período anterior fechado), `estoqueAguardandoEnvioService` (lotes com a saída
   e a entrada do que espera envio), ligados ao cache do mapa e às listas da
   suplementação.
+- **Revisão (Codex):** o saldo do aparelho só aplica o que nunca tentou subir
+  (sem contar duas vezes a baixa já gravada); o "Tentar de novo" do
+  lançamento recusado porque o cocho mudou religa ao lançamento atual e refaz
+  o fechamento, sem baixar de novo; descartar com a baixa feita avisa.
 - **Telas:** formulários da leitura, do lançamento e da transferência usam o
   motor; a leitura que espera envio aparece com "aguardando envio" e pode ser
   excluída; o lançamento que espera envio não mostra "Excluir lançamento".
@@ -39,8 +43,8 @@ depósito e o fechamento do período anterior) e transferência entre depósitos
 - Backend (PostgreSQL real): `leituraCochoNativo.test.mjs` — 15 casos, 5 novos
   (LC-ID-01..05).
 - Frontend: `leituraCochoOffline` (LO-01..05), `depositoTransferenciaOffline`
-  (ET-01..05), `lancamentoCochoOffline` (LCO-01..05), `motorSincronizacao`
-  (MS-01..23). Os testes antigos do formulário de lançamento passam por um
+  (ET-01..05), `lancamentoCochoOffline` (LCO-01..07), `motorSincronizacao`
+  (MS-01..25). Os testes antigos do formulário de lançamento passam por um
   adaptador de teste (`tests/smoke/helpers/shimLancamentoCocho.js`) que faz a
   mesma sequência do serviço com as simulações de antes.
 - Gates: `gate:types`, `gate:api-boundary`, `gate:source-closure`,

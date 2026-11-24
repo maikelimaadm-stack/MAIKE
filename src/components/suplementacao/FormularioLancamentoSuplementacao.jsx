@@ -630,7 +630,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       // D-PROD-296: um registro só (motor de sincronização) com a baixa, o lançamento e o fechamento
       // do período anterior. D-PROD-268: o último lançamento ATIVO que esta tela viu vai junto — o
       // servidor recusa (409 LANCAMENTO_DESATUALIZADO) se o cocho mudou entre a leitura e o envio.
-      /** @type {null | { diasPeriodo: number, sobraInicial: number, sobraFinal: number, sobraInformada: boolean, compartilhado: boolean | undefined }} */
+      /** @type {null | { diasPeriodo: number, sobraInicial: number, sobraFinal: number, sobraInformada: boolean, compartilhado: boolean | undefined, dataFim: string }} */
       let fechamento = null;
       if (ultimoEvento && ultimoEvento.dias_periodo == null) {
         const diasPeriodoCalculado = calcularDiasPeriodo(ultimoEvento.data_lancamento, closingDateForPreviousPeriod);
@@ -641,6 +641,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
             sobraFinal: parseNumber(formData.sobra_kg || 0),
             sobraInformada: sobraFoiInformada,
             compartilhado: cicloCompartilhado,
+            // A data de fim do período anterior: o "Tentar de novo" refaz o fechamento com ela
+            // se o cocho mudar antes de o lançamento subir (D-PROD-296).
+            dataFim: closingDateForPreviousPeriod,
           };
         } else {
           toast.warning("Datas inconsistentes — período anterior não foi fechado.");

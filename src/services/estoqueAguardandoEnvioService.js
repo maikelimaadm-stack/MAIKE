@@ -68,7 +68,12 @@ export const registrarEfeitoNoEstoque = (tipo, movimento) => {
 export const movimentosDeEstoqueAguardando = async () => {
   const porTipo = await Promise.all(
     EFEITOS.map(async ({ tipo, movimento }) =>
-      (await registrosAguardandoDoTipo(tipo)).map((r) => ({ criado_em: r.criado_em, mov: movimento(r.payload, r.operationId) }))
+      (await registrosAguardandoDoTipo(tipo))
+        // Já tentou subir: o servidor pode ter gravado (a resposta pode ter se perdido), e
+        // os lotes lidos do servidor já mostrariam. Aplicar de novo contaria duas vezes.
+        // Só o que nunca saiu do aparelho é certamente "ainda não aplicado".
+        .filter((r) => !r.tentado)
+        .map((r) => ({ criado_em: r.criado_em, mov: movimento(r.payload, r.operationId) }))
     )
   );
   return porTipo
