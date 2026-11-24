@@ -130,7 +130,7 @@ const carenciaDoFormulario = (valor) => {
 };
 
 /**
- * D-PROD-285 — linhas de "Unidades" do formulário → `unidades_conversao` (ausente: não vai; linhas vazias saem).
+ * D-PROD-286 — linhas de "Unidades" do formulário → `unidades_conversao` (ausente: não vai; linhas vazias saem).
  * @param {unknown} linhas @returns {{ unidades_conversao?: any[] }}
  */
 export const conversoesDoFormulario = (linhas) => {
@@ -157,7 +157,7 @@ export const normalizarProduto = (formData, opcoes = {}) => {
   const payload = {
     nome_produto: maiusculoOuIndefinido(formData.nome_produto),
     tipo_uso: formData.tipo_uso || undefined,
-    // D-PROD-285: código interno automático (= número do cadastro), preços, local de estoque, consumo e peso por saco
+    // D-PROD-286: código interno automático (= número do cadastro), preços, local de estoque, consumo e peso por saco
     // saíram da tela: não vão no payload (o servidor ignoraria). O consumo fica nas Formulações; o saco vira conversão.
     codigo_barras: formData.codigo_barras || undefined,
     categoria: maiusculoOuIndefinido(formData.categoria),
@@ -166,7 +166,7 @@ export const normalizarProduto = (formData, opcoes = {}) => {
     unidade_medida: maiusculoOuIndefinido(formData.unidade_medida),
     estoque_minimo: parseDecimalPtBR(formData.estoque_minimo) ?? 0,
     unidade_principal_estoque: unidadePrincipal,
-    // D-PROD-285: as unidades de conversão (sigla, multiplica/divide, fator, compra/saída).
+    // D-PROD-286: as unidades de conversão (sigla, multiplica/divide, fator, compra/saída).
     ...conversoesDoFormulario(formData.unidades_conversao),
     // D-PROD-274: a carência da bula em dias (vazio = sem carência: null limpa na edição; ausente fica como estava).
     ...carenciaDoFormulario(formData.carencia_dias),

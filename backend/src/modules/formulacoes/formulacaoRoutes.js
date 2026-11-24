@@ -44,7 +44,7 @@ const CAMPOS = Object.freeze({
   percentual_pv_padrao: DECIMAL_OU_NULO,
   consumo_objetivo_g_cab_dia: DECIMAL_OU_NULO,
   faixa_tolerancia_percentual: DECIMAL_OU_NULO,
-  // D-PROD-285: consumo mínimo e máximo (%PV), vindos do cadastro do produto.
+  // D-PROD-286: consumo mínimo e máximo (%PV), vindos do cadastro do produto.
   consumo_minimo_pv: DECIMAL_OU_NULO,
   consumo_maximo_pv: DECIMAL_OU_NULO,
   observacoes: { type: ['string', 'null'], maxLength: 2000 },

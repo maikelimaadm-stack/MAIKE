@@ -45,8 +45,13 @@ import {
   formatarPercentualNivel,
   formatarTaxaNivel,
 } from "@/domain/suplementacao/nivelSuplementacao";
+import { GraficoEsperadoReal, ReguaDoDesvio } from "@/components/mapa/detalhes-lote/AbaSuplementacao";
+import { reguaDoDesvio, serieEsperadoReal } from "@/components/mapa/detalhes-lote/suplementacaoDoPasto";
+import { barraDoCiclo, larguraDaBarra, reguaDoConsumoPorCabeca } from "./cochoV13";
 import "@/styles/mk-dp-cocho.css";
 import "@/styles/mk-dp-historico.css";
+// v13 (redesenho aprovado pelo dono): grades em colunas, barras e réguas; carregado por último.
+import "@/styles/mk-dp-cocho-v13.css";
 
 const FILTROS_COCHO = [
   { valor: "todos", rotulo: "Todos os registros" },
@@ -307,12 +312,12 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
       const qtdKg = Number(ev?.quantidade_total_kg || 0);
       const sacos = pesoPorSaco > 0 ? kgParaSacos(qtdKg, pesoPorSaco) : 0;
       const fechado = Number(ev?.dias_periodo) > 0;
-      const linhas = [
-        { rotulo: "Produto", valor: ev?.produto || VAZIO },
-        { rotulo: "Quantidade (kg)", valor: fmtNumero(qtdKg, 2) },
-        { rotulo: "Sacos", valor: pesoPorSaco > 0 ? fmtNumero(sacos, 2) : VAZIO },
-        { rotulo: "Tipo", valor: fechado ? `Período fechado (${ev.dias_periodo} dia(s))` : "Abastecimento" },
-      ];
+      // v13: o cartão curto leva o produto e o tipo embaixo do título e a quantidade
+      // (kg e sacos) em destaque à direita; ficam como linha só a sobra e as observações.
+      const tipo = fechado ? `Período fechado (${ev.dias_periodo} dia(s))` : "Abastecimento";
+      const textoSacos = pesoPorSaco > 0 ? `${fmtNumero(sacos, 2)} sacos` : null;
+      /** @type {Array<{ rotulo: string, valor: string }>} */
+      const linhas = [];
       if (Number(ev?.sobra_kg) > 0) {
         linhas.push({ rotulo: "Sobra (kg)", valor: fmtNumero(ev.sobra_kg, 2) });
       }
@@ -323,6 +328,13 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
         dia,
         Icone: IconeLancarSuplementacao,
         titulo: fechado ? "Fechamento de período" : "Suplementação",
+        sub: `${ev?.produto || VAZIO} · ${tipo}`,
+        destaque: {
+          texto: formatarKgNivel(qtdKg),
+          sub: textoSacos,
+          tom: /** @type {const} */ ("neutro"),
+          rotulo: `Quantidade: ${formatarKgNivel(qtdKg)}${textoSacos ? `, ${textoSacos}` : ""}`,
+        },
         linhas,
         ...(ev?.id && ev.id === ultimoId ? { acoes: <CancelarLancamentoCocho evento={ev} /> } : {}),
       };
@@ -437,7 +449,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
             <section aria-labelledby={idNivel} className="mk-dp-cocho__regiao">
               <h3 id={idNivel} className="mk-dp-cocho__oculto">Nível do cocho</h3>
               <BlocoNivel nivel={nivel} saldoSacos={saldoSacos} consumoSacosDia={consumoSacosDia} />
-              <CartaoDoNivel nivel={nivel} duracaoCicloDias={duracaoCicloDias} proximaReposicao={proximaReposicao} />
+              <CartaoDoNivel nivel={nivel} duracaoCicloDias={duracaoCicloDias} proximaReposicao={proximaReposicao} hoje={hoje} />
             </section>
 
             <section aria-labelledby={idLeitura} className="mk-dp-cocho__regiao mk-dp-secao mk-dp-cocho__leitura">
@@ -447,50 +459,21 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
           </>
         ) : aba === "fechamentos" ? (
           fechamentos.length ? (
-            <ul className="mk-dp-cocho__fechamentos" aria-label="Fechamentos do cocho">
-              {fechamentos.map((evento) => (
-                <li key={evento.id}>
-                  <CartaoPeriodoFechado evento={evento} resumo={resumoDoFechamento(evento)} />
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="mk-dp-cocho__fechamentos" aria-label="Fechamentos do cocho">
+                {fechamentos.map((evento) => (
+                  <li key={evento.id}>
+                    <CartaoPeriodoFechado evento={evento} resumo={resumoDoFechamento(evento)} />
+                  </li>
+                ))}
+              </ul>
+              <GraficoEsperadoReal serie={serieEsperadoReal(eventosDoPonto, ponto)} />
+            </>
           ) : (
             <Vazio icone={CalendarCheck}>Nenhum período fechado ainda.</Vazio>
           )
         ) : aba === "informacoes" ? (
-          <SecaoDetalhe titulo="Informações do cocho">
-            <Cartao>
-              <Grade>
-                <Celula rotulo="Número" valor={ponto.numero_ponto || "-"} />
-                <Celula rotulo="Sigla" valor={ponto.sigla || "-"} />
-                <Celula rotulo="Tipo" valor={ponto.tipo || "-"} />
-                <Celula rotulo="Depósito vinculado" valor={ponto.deposito_origem_nome || "-"} />
-                <Celula rotulo="Áreas vinculadas" valor={areaNomesRelacionadas.join(", ") || "-"} />
-                <Celula rotulo="Produto padrão" valor={ponto.produto_padrao || "-"} />
-                {ponto.metragem_cocho_m ? <Celula rotulo="Metragem" valor={`${formatDecimal(ponto.metragem_cocho_m)} m`} /> : null}
-                {ponto.cobertura_cocho ? <Celula rotulo="Cobertura" valor={ponto.cobertura_cocho} /> : null}
-                <Celula rotulo="Limite operacional" valor={nivel.limiteOperacionalKg != null ? formatarKgNivel(nivel.limiteOperacionalKg) : "-"} />
-                {nivel.ocupacaoAtualPercentual != null && nivel.saldoKg != null && nivel.limiteOperacionalKg != null ? (
-                  <Celula
-                    rotulo="Uso do limite"
-                    valor={`${formatarPercentualNivel(nivel.ocupacaoAtualPercentual)}${nivel.excessoAtualKg ? ` (${formatarKgNivel(nivel.excessoAtualKg)} acima)` : ""}`}
-                  />
-                ) : null}
-                {nivel.ocupacaoNoLancamentoPercentual != null ? (
-                  <Celula
-                    rotulo="No lançamento"
-                    valor={`${formatarPercentualNivel(nivel.ocupacaoNoLancamentoPercentual)}${nivel.excessoNoLancamentoKg ? ` (${formatarKgNivel(nivel.excessoNoLancamentoKg)} acima)` : ""}`}
-                  />
-                ) : null}
-                <Celula rotulo="Consumo ideal/cab" valor={ponto.consumo_ideal_por_cabeca_kg ? `${formatDecimal(ponto.consumo_ideal_por_cabeca_kg, 3)} kg` : "-"} />
-                <Celula rotulo="Consumo mín./cab/dia" valor={ponto.limite_minimo_consumo ? `${formatDecimal(ponto.limite_minimo_consumo, 3)} kg` : "-"} />
-                <Celula rotulo="Consumo máx./cab/dia" valor={ponto.limite_maximo_consumo ? `${formatDecimal(ponto.limite_maximo_consumo, 3)} kg` : "-"} />
-                <Celula rotulo="Dias alerta reposição" valor={ponto.dias_alerta_reposicao ? `${formatDecimal(ponto.dias_alerta_reposicao, 0, true)} dia(s)` : "-"} />
-                <Celula rotulo="Alerta sem lançamento" valor={ponto.alerta_sem_lancamento_dias ? `${formatDecimal(ponto.alerta_sem_lancamento_dias, 0, true)} dia(s)` : "-"} />
-              </Grade>
-              <Linha rotulo="Observações" valor={ponto.observacoes || "-"} quebra />
-            </Cartao>
-          </SecaoDetalhe>
+          <InformacoesDoCocho ponto={ponto} nivel={nivel} areaNomes={areaNomesRelacionadas} />
         ) : (
           <div className="mk-dp-hist">
             <FiltroHistorico opcoes={FILTROS_COCHO} valor={filtroHistorico} onMudar={setFiltroHistorico} />
@@ -504,15 +487,21 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
                       resumoProdutos.map((item) => (
                         <Linha
                           key={item.produto ?? ""}
+                          className="mk-dp-c13-total"
                           rotulo={item.produto || "-"}
-                          valor={`${item.sacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos · ${formatarKgNivel(item.kg)}`}
+                          valor={
+                            <span className="mk-dp-c13-qtd">
+                              <b>{formatarKgNivel(item.kg)}</b>
+                              <small>{`${item.sacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos`}</small>
+                            </span>
+                          }
                         />
                       ))
                     )}
                   </Cartao>
                 </SecaoDetalhe>
                 {diasEventosCocho.length > 0 ? (
-                  <LinhaDoTempo dias={diasEventosCocho} rotulo="Lançamentos do cocho" />
+                  <LinhaDoTempo dias={diasEventosCocho} rotulo="Lançamentos do cocho" compacto />
                 ) : (
                   <Vazio icone={History}>Nenhum lançamento registrado neste cocho.</Vazio>
                 )}
@@ -559,9 +548,29 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
 }
 
 /**
- * Bloco do nível do ciclo: subícone ampliado do cocho à esquerda com o
- * percentual centralizado em cinza claro (`#9ca3af`) e, ao lado, os números
- * principais do ciclo (Saldo estimado e dias restantes) ou o estado neutro.
+ * Barra simples do v13 (rótulo à esquerda, valor à direita, trilho embaixo) com nome
+ * acessível próprio. `tom` "atencao" pinta de âmbar (ex.: acima do limite operacional).
+ * @param {{ rotulo: string, valor: string, pct: number | null, tom?: "normal" | "atencao", className?: string }} props
+ */
+function BarraC13({ rotulo, valor, pct, tom = "normal", className }) {
+  const largura = larguraDaBarra(pct);
+  return (
+    <div className={className ? `mk-dp-c13-barra ${className}` : "mk-dp-c13-barra"} data-tom={tom}>
+      <div className="mk-dp-c13-barra__cab">
+        <span>{rotulo}</span>
+        <b>{valor}</b>
+      </div>
+      <div className="mk-dp-c13-barra__trilho" role="img" aria-label={`${rotulo}: ${valor}`}>
+        {largura != null ? <span style={{ width: `${largura.toFixed(1)}%` }} /> : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Bloco do nível do ciclo (v13): subícone ampliado do cocho com o percentual dentro e,
+ * ao lado, o saldo estimado em destaque (uma linha) com os sacos embaixo; abaixo, a barra
+ * "Uso do limite operacional" e o consumo estimado/dia em grade. Neutro: o estado.
  * @param {{ nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho, saldoSacos?: number | null, consumoSacosDia?: number | null }} props
  */
 function BlocoNivel({ nivel, saldoSacos = null, consumoSacosDia = null }) {
@@ -586,58 +595,71 @@ function BlocoNivel({ nivel, saldoSacos = null, consumoSacosDia = null }) {
     `No início do ciclo: ${formatarKgNivel(/** @type {number} */ (nivel.baseCicloKg))} fornecidos` :
     null,
   ];
+  const usoDoLimite =
+    estimado && nivel.ocupacaoAtualPercentual != null && nivel.limiteOperacionalKg != null
+      ? {
+          pct: nivel.ocupacaoAtualPercentual,
+          valor: `${formatarKgNivel(/** @type {number} */ (nivel.saldoKg))} de ${formatarKgNivel(nivel.limiteOperacionalKg)} · ${formatarPercentualNivel(nivel.ocupacaoAtualPercentual)}`,
+        }
+      : null;
 
   return (
-    <div className={nivel.neutro ? "mk-dp-nivel mk-dp-cocho__nivel mk-dp-cocho__painel-nivel mk-dp-cocho__nivel--neutro" : "mk-dp-nivel mk-dp-cocho__nivel mk-dp-cocho__painel-nivel"}>
-      <span className="mk-dp-nivel__fig mk-dp-cocho__fig mk-dp-cocho__fig--painel">
-        <CochoNivel percent={nivel.fracaoParaSvg} neutro={nivel.neutro} rotuloNeutro={nivel.rotuloCurto} label={ROTULO_RESTANTE_CICLO} />
-        <strong aria-hidden="true" className={nivel.neutro ? "mk-dp-cocho__pct mk-dp-cocho__pct--neutro" : "mk-dp-cocho__pct"}>
-          {nivel.rotuloCurto}
-        </strong>
-      </span>
-      <div className="mk-dp-nivel__txt mk-dp-cocho__resumo">
-        {estimado ? (
-          <div className="mk-dp-cocho__metricas">
-            <div className="mk-dp-cocho__metrica">
+    <div className="mk-dp-cocho__nivel mk-dp-c13-nivel">
+      <div className={nivel.neutro ? "mk-dp-nivel mk-dp-cocho__painel-nivel mk-dp-cocho__nivel--neutro" : "mk-dp-nivel mk-dp-cocho__painel-nivel"}>
+        <span className="mk-dp-nivel__fig mk-dp-cocho__fig mk-dp-cocho__fig--painel">
+          <CochoNivel percent={nivel.fracaoParaSvg} neutro={nivel.neutro} rotuloNeutro={nivel.rotuloCurto} label={ROTULO_RESTANTE_CICLO} />
+          <strong aria-hidden="true" className={nivel.neutro ? "mk-dp-cocho__pct mk-dp-cocho__pct--neutro" : "mk-dp-cocho__pct"}>
+            {nivel.rotuloCurto}
+          </strong>
+        </span>
+        <div className="mk-dp-nivel__txt mk-dp-cocho__resumo">
+          {estimado ? (
+            <div className="mk-dp-cocho__metrica mk-dp-c13-saldo">
               <span className="mk-dp-cocho__metrica-rot">Saldo estimado do cocho</span>
               <strong className="mk-dp-cocho__metrica-val">{formatarKgNivel(/** @type {number} */ (nivel.saldoKg))}</strong>
-              {saldoSacos != null ? (
-                <small className="mk-dp-cocho__metrica-sub">{`${formatDecimal(saldoSacos)} sacos`}</small>
-              ) : null}
+              {saldoSacos != null ? <small className="mk-dp-cocho__metrica-sub">{`${formatDecimal(saldoSacos)} sacos`}</small> : null}
             </div>
-            <div className="mk-dp-cocho__metrica">
-              <span className="mk-dp-cocho__metrica-rot">Consumo estimado/dia</span>
-              <strong className="mk-dp-cocho__metrica-val">{formatarTaxaNivel(/** @type {number} */ (nivel.taxaConsumoKgDia))}</strong>
-              {consumoSacosDia != null ? (
-                <small className="mk-dp-cocho__metrica-sub">{`${formatDecimal(consumoSacosDia)} sacos/dia`}</small>
-              ) : null}
-            </div>
-          </div>
-        ) : (
-          linhasNeutras.filter(Boolean).map((linha, i) => (
-            <small key={i} className="mk-dp-nivel__linha">{linha}</small>
-          ))
-        )}
+          ) : (
+            linhasNeutras.filter(Boolean).map((linha, i) => (
+              <small key={i} className="mk-dp-nivel__linha">{linha}</small>
+            ))
+          )}
+        </div>
       </div>
+      {usoDoLimite ? (
+        <BarraC13
+          rotulo="Uso do limite operacional"
+          valor={usoDoLimite.valor}
+          pct={usoDoLimite.pct}
+          tom={usoDoLimite.pct > 100 ? "atencao" : "normal"}
+        />
+      ) : null}
+      {estimado ? (
+        <Grade className="mk-dp-c13-grade">
+          <Celula rotulo="Consumo estimado/dia" valor={formatarTaxaNivel(/** @type {number} */ (nivel.taxaConsumoKgDia))} />
+          {consumoSacosDia != null ? <Celula rotulo="Em sacos" valor={`${formatDecimal(consumoSacosDia)} sacos/dia`} /> : null}
+        </Grade>
+      ) : null}
     </div>
   );
 }
 
 /**
- * Cartão de estimativas de consumo abaixo do nível (consumo estimado/dia,
- * duração estimada, próxima reposição ou sobra informada no fechamento).
- * Quando não há nenhum desses dados (ex.: sem lançamento), não renderiza.
- * @param {{ nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho, duracaoCicloDias: number|null, proximaReposicao: string|null }} props
+ * Cartão de estimativas de consumo (v13): duração estimada e próxima reposição em
+ * destaque e, embaixo, a barra do lançamento até o dia em que o cocho acaba, com hoje
+ * marcado. Sobra informada (período fechado) entra na grade. Sem nenhum dado, não renderiza.
+ * @param {{ nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho, duracaoCicloDias: number|null, proximaReposicao: string|null, hoje?: string | null }} props
  */
-function CartaoDoNivel({ nivel, duracaoCicloDias, proximaReposicao }) {
+function CartaoDoNivel({ nivel, duracaoCicloDias, proximaReposicao, hoje = null }) {
   const temSobra = nivel.saldoKg != null && nivel.saldoTipo === "informado";
   if (!temSobra && duracaoCicloDias == null && !proximaReposicao) return null;
+  const ciclo = proximaReposicao ? barraDoCiclo({ inicio: nivel.evento?.data_lancamento, hoje, fim: nivel.dataEsgotamentoEstimada }) : null;
 
   return (
     <div className="mk-dp-secao mk-dp-cocho__cartao-nivel">
       <TituloBloco>Estimativas de consumo</TituloBloco>
       <Cartao>
-        <Grade>
+        <Grade className="mk-dp-c13-grade mk-dp-c13-grade--2 mk-dp-c13-destaque">
           {temSobra ? (
             <Celula
               rotulo="Sobra informada"
@@ -647,16 +669,108 @@ function CartaoDoNivel({ nivel, duracaoCicloDias, proximaReposicao }) {
           {duracaoCicloDias != null ? <Celula rotulo="Duração estimada" valor={`${formatarDias(duracaoCicloDias)} dia(s)`} /> : null}
           {proximaReposicao ? <Celula rotulo="Próxima reposição" valor={proximaReposicao} /> : null}
         </Grade>
+        {ciclo ? (
+          <div className="mk-dp-c13-ciclo">
+            <div className="mk-dp-c13-ciclo__trilho" role="img" aria-label={ciclo.texto}>
+              <span style={{ width: `${ciclo.decorrido.toFixed(1)}%` }} />
+              <i style={{ left: `${ciclo.decorrido.toFixed(1)}%` }} />
+            </div>
+            <div className="mk-dp-c13-ciclo__escala" aria-hidden="true">
+              <span>{`lançado ${ciclo.inicio}`}</span>
+              <span>hoje</span>
+              <span>{`acaba ${ciclo.fim}`}</span>
+            </div>
+          </div>
+        ) : null}
       </Cartao>
     </div>
   );
 }
 
 /**
- * D-PROD-205 — leitura do cocho como no v12: a primeira linha é o farol da
- * última leitura (cor + rótulo, escore · acesso · estrutura, data e quem leu);
- * no Histórico, a lista completa (mais recente primeiro), cada uma com o
- * "Excluir"; os avisos de acesso/estrutura da última leitura vêm abaixo do cartão.
+ * Aba Informações (v13): cadastro em grade; limite operacional com as barras de uso
+ * (hoje e no lançamento); consumo por cabeça como régua mín · ideal · máx com os três
+ * valores em grade; alertas em grade; observações em linha.
+ * @param {{ ponto: any, nivel: import("@/domain/suplementacao/nivelSuplementacao").NivelCocho, areaNomes: string[] }} props
+ */
+function InformacoesDoCocho({ ponto, nivel, areaNomes }) {
+  const limite = nivel.limiteOperacionalKg;
+  const usoAtual = nivel.ocupacaoAtualPercentual != null && nivel.saldoKg != null && limite != null ? nivel.ocupacaoAtualPercentual : null;
+  const usoNoLancamento = nivel.ocupacaoNoLancamentoPercentual;
+  const regua = reguaDoConsumoPorCabeca({ minimo: ponto.limite_minimo_consumo, ideal: ponto.consumo_ideal_por_cabeca_kg, maximo: ponto.limite_maximo_consumo });
+  const kgCab = (/** @type {unknown} */ v) => (v ? `${formatDecimal(v, 3)} kg` : "-");
+  return (
+    <SecaoDetalhe titulo="Informações do cocho" className="mk-dp-c13-info">
+      <Cartao>
+        <Grade className="mk-dp-c13-grade">
+          <Celula rotulo="Número" valor={ponto.numero_ponto || "-"} />
+          <Celula rotulo="Sigla" valor={ponto.sigla || "-"} />
+          <Celula rotulo="Tipo" valor={ponto.tipo || "-"} />
+          <Celula rotulo="Depósito vinculado" valor={ponto.deposito_origem_nome || "-"} />
+          <Celula rotulo="Áreas vinculadas" valor={areaNomes.join(", ") || "-"} />
+          {ponto.metragem_cocho_m ? <Celula rotulo="Metragem" valor={`${formatDecimal(ponto.metragem_cocho_m)} m`} /> : null}
+          {ponto.cobertura_cocho ? <Celula rotulo="Cobertura" valor={ponto.cobertura_cocho} /> : null}
+          <Celula rotulo="Produto padrão" valor={ponto.produto_padrao || "-"} className="mk-dp-c13-larga" />
+        </Grade>
+        <Linha rotulo="Observações" valor={ponto.observacoes || "-"} quebra />
+      </Cartao>
+
+      <TituloBloco>{`Limite operacional · ${limite != null ? formatarKgNivel(limite) : "sem cadastro"}`}</TituloBloco>
+      <Cartao>
+        <Grade className="mk-dp-c13-grade">
+          <Celula rotulo="Limite operacional" valor={limite != null ? formatarKgNivel(limite) : "-"} />
+          {usoAtual != null ? (
+            <Celula
+              rotulo="Uso do limite"
+              valor={`${formatarPercentualNivel(usoAtual)}${nivel.excessoAtualKg ? ` (${formatarKgNivel(nivel.excessoAtualKg)} acima)` : ""}`}
+              barra={usoAtual}
+              corBarra={usoAtual > 100 ? "#d97706" : "#3db5c9"}
+            />
+          ) : null}
+          {usoNoLancamento != null ? (
+            <Celula
+              rotulo="No lançamento"
+              valor={`${formatarPercentualNivel(usoNoLancamento)}${nivel.excessoNoLancamentoKg ? ` (${formatarKgNivel(nivel.excessoNoLancamentoKg)} acima)` : ""}`}
+              barra={usoNoLancamento}
+              corBarra={usoNoLancamento > 100 ? "#d97706" : "#94a3b8"}
+            />
+          ) : null}
+        </Grade>
+      </Cartao>
+
+      <TituloBloco>Consumo por cabeça (kg/dia)</TituloBloco>
+      <Cartao>
+        {regua ? (
+          <div className="mk-dp-c13-consumo" role="img" aria-label={regua.texto}>
+            <div className="mk-dp-c13-consumo__trilho" aria-hidden="true">
+              {regua.zona ? <span className="mk-dp-c13-consumo__zona" style={{ left: `${regua.zona.inicio.toFixed(1)}%`, width: `${(regua.zona.fim - regua.zona.inicio).toFixed(1)}%` }} /> : null}
+              {regua.ideal ? <span className="mk-dp-c13-consumo__marca" style={{ left: `${regua.ideal.pos.toFixed(1)}%` }} /> : null}
+            </div>
+            <div className="mk-dp-c13-consumo__escala" aria-hidden="true">
+              {regua.minimo ? <span style={{ left: `${regua.minimo.pos.toFixed(1)}%` }}>mín.</span> : null}
+              {regua.ideal ? <span data-ideal="" style={{ left: `${regua.ideal.pos.toFixed(1)}%` }}>ideal</span> : null}
+              {regua.maximo ? <span style={{ left: `${regua.maximo.pos.toFixed(1)}%` }}>máx.</span> : null}
+            </div>
+          </div>
+        ) : null}
+        <Grade className="mk-dp-c13-grade">
+          <Celula rotulo="Consumo mín./cab/dia" valor={kgCab(ponto.limite_minimo_consumo)} />
+          <Celula rotulo="Consumo ideal/cab" valor={kgCab(ponto.consumo_ideal_por_cabeca_kg)} />
+          <Celula rotulo="Consumo máx./cab/dia" valor={kgCab(ponto.limite_maximo_consumo)} />
+          <Celula rotulo="Dias alerta reposição" valor={ponto.dias_alerta_reposicao ? `${formatDecimal(ponto.dias_alerta_reposicao, 0, true)} dia(s)` : "-"} />
+          <Celula rotulo="Alerta sem lançamento" valor={ponto.alerta_sem_lancamento_dias ? `${formatDecimal(ponto.alerta_sem_lancamento_dias, 0, true)} dia(s)` : "-"} />
+        </Grade>
+      </Cartao>
+    </SecaoDetalhe>
+  );
+}
+
+/**
+ * D-PROD-205 — leitura do cocho. Resumo (aba Detalhes, v13): o título é a situação da
+ * última leitura, a etiqueta à direita leva o farol, a data e quem leu, e escore · acesso ·
+ * estrutura ficam em grade de 3. Histórico: a lista completa (mais recente primeiro), cada
+ * uma com a data, escore · acesso · estrutura embaixo, a etiqueta da situação (cor do
+ * escore), a observação e o "Excluir".
  * @param {{ farol: import("@/domain/suplementacao/leituraCocho").FarolCocho, ultimas: any[], podeExcluir: boolean, onExcluir: (l: any) => void, mostrarResumo?: boolean }} props
  */
 function PainelLeitura({ farol, ultimas, podeExcluir, onExcluir, mostrarResumo = true }) {
@@ -666,26 +780,33 @@ function PainelLeitura({ farol, ultimas, podeExcluir, onExcluir, mostrarResumo =
     <>
       <Cartao data-testid="painel-leitura-cocho">
         {mostrarResumo ? <Linha
+          className="mk-dp-c13-leitura-cab"
           rotulo={<span data-testid="farol-cocho" data-cor={farol.cor}>{farol.rotulo}</span>}
-          sub={l ?
-          `Escore ${minusculo(ROTULO_ESCORE[l.escore] ?? l.escore)} · acesso ${minusculo(ROTULO_ACESSO[l.acesso] ?? l.acesso)} · estrutura ${minusculo(ROTULO_ESTRUTURA[l.estrutura] ?? l.estrutura)}` :
-          "Nenhuma leitura registrada."}
+          sub={l ? null : "Nenhuma leitura registrada."}
           bolinha={COR_FAROL[farol.cor]}
           valor={l ? `${diaDaUltima}${l.registrado_por_nome ? ` · ${l.registrado_por_nome}` : ""}` : "—"} /> : null}
+        {mostrarResumo && l ? (
+          <Grade className="mk-dp-c13-grade" data-testid="leitura-cocho-grade">
+            <Celula rotulo="Escore" valor={ROTULO_ESCORE[l.escore] ?? l.escore ?? "—"} />
+            <Celula rotulo="Acesso" valor={ROTULO_ACESSO[l.acesso] ?? l.acesso ?? "—"} />
+            <Celula rotulo="Estrutura" valor={ROTULO_ESTRUTURA[l.estrutura] ?? l.estrutura ?? "—"} />
+          </Grade>
+        ) : null}
         {ultimas.length > 0 ?
         <ul className="mk-dp-cocho__leituras" aria-label="Últimas leituras">
             {ultimas.map((u) => {
             const dia = diaBR(u.data_leitura);
             return (
               <li key={u.id}>
-                  {/* A bolinha vai junto do texto (não na `bolinha` da Linha): sem espaço, só o "Excluir" desce.
-                      A observação (texto livre, às vezes longo) fica embaixo, na largura toda. */}
+                  {/* A etiqueta da situação vai junto do "Excluir" à direita; escore · acesso · estrutura
+                      por extenso embaixo da data. A observação (texto livre, às vezes longa) fica na largura toda. */}
                   <Linha
                   className={u.observacoes ? "mk-dp-cocho__linha--fraca mk-dp-cocho__linha--com-obs" : "mk-dp-cocho__linha--fraca"}
                   rotulo={dia}
+                  sub={`${ROTULO_ESCORE[u.escore] ?? u.escore ?? "—"} · acesso ${minusculo(ROTULO_ACESSO[u.acesso] ?? u.acesso)} · estrutura ${minusculo(ROTULO_ESTRUTURA[u.estrutura] ?? u.estrutura)}`}
                   valor={
                   <>
-                        <span className="mk-dp-cocho__escore">
+                        <span className="mk-dp-cocho__escore mk-dp-c13-chip">
                           <span className="mk-dp-bolinha" style={{ background: corDoEscore(u) }} aria-hidden="true" />
                           {[u.escore, u.acesso, u.estrutura].map((v) => String(v ?? "—").toUpperCase()).join(" · ")}
                         </span>
@@ -724,10 +845,10 @@ const formatarConsumoCabDia = (gramas) => {
 };
 
 /**
- * D-PROD-206 — cartão de período FECHADO do cocho: produto, lançamento e dias,
- * consumo real e consumo esperado separados (em g ou kg/cab/dia), desvio com
- * o farol junto, peso médio, custo por cab/dia antes do custo do período,
- * sobra antiga e aviso de sobra não informada.
+ * D-PROD-206 — cartão de período FECHADO do cocho (v13): consumo real, consumo esperado e
+ * desvio (com o farol) em destaque; a régua do desvio de −faixa a +faixa; embaixo, em
+ * grade, produto, lançamento e dias, peso médio, custo por cab/dia, custo do período,
+ * custo por kg e a sobra antiga; aviso de sobra não informada.
  * @param {{ evento: any, resumo: ReturnType<typeof resumoDoFechamento> }} props
  */
 function CartaoPeriodoFechado({ evento, resumo }) {
@@ -767,18 +888,24 @@ function CartaoPeriodoFechado({ evento, resumo }) {
     </span>
   );
   const subFarol = semReferencia ? motivo : faixa ? `Faixa ±${faixa}%` : null;
+  const regua = !semReferencia && relacaoPct !== null ? reguaDoDesvio(relacaoPct - 100, resumo.faixa_tolerancia_aplicada) : null;
 
   const motivoPeso = resumo.peso_medio_periodo_motivo ? MOTIVO_PESO[resumo.peso_medio_periodo_motivo] : null;
   const sobraHerdada = typeof resumo.sobra_herdada_kg === "number" && resumo.sobra_herdada_kg > 0 && typeof resumo.custo_sobra_herdada_kg === "number";
+  const custoPeriodo = reais(resumo.custo_total_periodo);
+  const custoKg = reais(resumo.custo_unitario_kg);
 
   return (
-    <Cartao data-testid="ultimo-periodo-fechado">
-      <Grade>
-        <Celula rotulo="Produto" valor={evento.produto || "-"} />
-        <Celula rotulo="Lançamento" valor={`${diaBR(evento.data_lancamento)} · ${evento.dias_periodo} dia(s)`} />
+    <Cartao data-testid="ultimo-periodo-fechado" className="mk-dp-c13-fech">
+      <Grade className="mk-dp-c13-grade mk-dp-c13-destaque">
         <Celula rotulo="Consumo real" valor={formatarConsumoCabDia(gReal) ?? "-"} />
         <Celula rotulo="Consumo esperado" valor={formatarConsumoCabDia(gMeta) ?? "-"} />
         <Celula rotulo="Desvio" valor={valorFarol} bolinha={corFarol} sub={subFarol} />
+      </Grade>
+      {regua ? <ReguaDoDesvio regua={regua} /> : null}
+      <Grade className="mk-dp-c13-grade">
+        <Celula rotulo="Produto" valor={evento.produto || "-"} className="mk-dp-c13-larga2" />
+        <Celula rotulo="Lançamento" valor={`${diaBR(evento.data_lancamento)} · ${evento.dias_periodo} dia(s)`} className="mk-dp-c13-larga2" />
         {typeof resumo.peso_medio_periodo_kg === "number" ?
         <Celula
           rotulo="Peso médio do período"
@@ -787,14 +914,14 @@ function CartaoPeriodoFechado({ evento, resumo }) {
           data-testid="peso-medio-periodo" /> :
         null}
         <Celula rotulo="Custo por cab/dia (R$)" valor={numero(resumo.custo_cab_dia, 2) ?? "Sem custo"} />
-        <Celula
-          rotulo="Custo do período"
-          valor={reais(resumo.custo_total_periodo) ? `${reais(resumo.custo_total_periodo)} · ${reais(resumo.custo_unitario_kg)}/kg` : "Sem custo"} />
+        <Celula rotulo="Custo do período" valor={custoPeriodo ?? "Sem custo"} />
+        {custoPeriodo && custoKg ? <Celula rotulo="Custo por kg" valor={`${custoKg}/kg`} /> : null}
         {sobraHerdada ?
         <Celula
           rotulo="Sobra antiga primeiro"
           valor={`${numero(resumo.sobra_herdada_kg, 2)} kg a ${reais(resumo.custo_sobra_herdada_kg)}/kg`}
           sub={resumo.custo_sobra_aproximado ? <span className="mk-dp-cocho__atencao">custo da sobra aproximado</span> : null}
+          className="mk-dp-c13-larga"
           data-testid="custo-sobra-herdada" /> :
         null}
       </Grade>

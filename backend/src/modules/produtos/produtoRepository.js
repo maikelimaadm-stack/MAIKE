@@ -36,7 +36,7 @@ const SELECAO = Object.freeze({
   ativo: true,
   createdAt: true,
   updatedAt: true,
-  // D-PROD-285: as unidades de conversão vigentes (não excluídas), na ordem do cadastro.
+  // D-PROD-286: as unidades de conversão vigentes (não excluídas), na ordem do cadastro.
   unidadesConversao: SELECT_CONVERSOES,
 });
 

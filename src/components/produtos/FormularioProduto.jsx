@@ -32,7 +32,7 @@ const TIPOS_USO = [
   "Produção Animal",
 ];
 
-/** D-PROD-162: rótulo da unidade principal de estoque (L = litros; o resto, como antes). D-PROD-285: SACO é legado (guarda kg). */
+/** D-PROD-162: rótulo da unidade principal de estoque (L = litros; o resto, como antes). D-PROD-286: SACO é legado (guarda kg). */
 const ROTULO_UNIDADE_ESTOQUE = Object.freeze({ KG: "QUILOGRAMAS (KG)", SACO: "SACOS (LEGADO, EM KG)", L: "LITROS (L)" });
 const rotuloUnidadeEstoque = (u) => (u === "SACO" || u === "L" ? ROTULO_UNIDADE_ESTOQUE[u] : ROTULO_UNIDADE_ESTOQUE.KG);
 
@@ -53,7 +53,7 @@ const parseNumero = (val) => {
 };
 
 /**
- * Campos com máscara numérica no formulário. D-PROD-285: preço de custo, preço de venda, local de estoque, consumo
+ * Campos com máscara numérica no formulário. D-PROD-286: preço de custo, preço de venda, local de estoque, consumo
  * (%PV) e peso por saco saíram da tela: o consumo fica nas Formulações e o saco vira uma unidade de conversão.
  */
 const CAMPOS_MASCARADOS = ["estoque_minimo"];
@@ -142,7 +142,7 @@ export default function FormularioProduto({
 
   const [invalidFields, setInvalidFields] = useState([]);
   const nomeProdutoRef = useRef(null);
-  // D-PROD-285: as unidades de conversão do produto ("1 SACO = 25 KG"), editadas no próprio cadastro.
+  // D-PROD-286: as unidades de conversão do produto ("1 SACO = 25 KG"), editadas no próprio cadastro.
   const [conversoes, setConversoes] = useState(() => linhasIniciaisConversao(initialData));
   const [mostrarErrosConversao, setMostrarErrosConversao] = useState(false);
 
@@ -225,7 +225,7 @@ export default function FormularioProduto({
     if (!formData.nome_produto?.trim()) missingFields.push("nome_produto");
     if (!formData.unidade_medida?.trim()) missingFields.push("unidade_medida");
     if (!formData.categoria?.trim()) missingFields.push("categoria");
-    // D-PROD-285: as unidades de conversão (sigla, fator > 0, uso, nunca a unidade de estoque).
+    // D-PROD-286: as unidades de conversão (sigla, fator > 0, uso, nunca a unidade de estoque).
     if (Object.keys(errosDasConversoes(conversoes, unidadeEstoque)).length > 0) {
       missingFields.push("unidades_conversao");
       setMostrarErrosConversao(true);
@@ -311,7 +311,7 @@ export default function FormularioProduto({
                       className={B1_FIELD_CTL_CLS}
                     >
                       <option value="KG">{ROTULO_UNIDADE_ESTOQUE.KG}</option>
-                      {/* D-PROD-285: SACO só aparece no produto legado; o saco agora é uma unidade de conversão. */}
+                      {/* D-PROD-286: SACO só aparece no produto legado; o saco agora é uma unidade de conversão. */}
                       {initialData?.unidade_principal_estoque === "SACO" ? <option value="SACO">{ROTULO_UNIDADE_ESTOQUE.SACO}</option> : null}
                       <option value="L">{ROTULO_UNIDADE_ESTOQUE.L}</option>
                     </B1Select>
@@ -444,7 +444,7 @@ export default function FormularioProduto({
         )}
       </B1Field>
 
-      {/* D-PROD-285: código interno automático, igual ao número do cadastro; só leitura. */}
+      {/* D-PROD-286: código interno automático, igual ao número do cadastro; só leitura. */}
       <B1Field label="Código Interno" span={3} hasValue locked disabled>
         <input
           type="text"

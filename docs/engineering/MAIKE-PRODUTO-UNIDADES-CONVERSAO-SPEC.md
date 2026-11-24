@@ -1,6 +1,6 @@
-# MAIKE — Produto: unidades de conversão (SPEC, D-PROD-285)
+# MAIKE — Produto: unidades de conversão (SPEC, D-PROD-286)
 
-Decisão: [D-PROD-285](./DECISIONS.md) · Runbook: [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md) ·
+Decisão: [D-PROD-286](./DECISIONS.md) · Runbook: [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md) ·
 Relatório: [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md)
 
 ## 1. Modelo
@@ -95,7 +95,7 @@ máximo) e mostra um aviso apontando para a Formulação. As colunas do Produto 
   (D-PROD-159/162/193) manda baixar "exatamente a quantidade digitada, na unidade de estoque do Produto" e o `07` proíbe
   "converter a quantidade entre unidades … por fator" no abastecimento. **Emenda proposta (não aplicada)**, se o dono
   quiser: "Na linha de produto da atividade, no cocho e na transferência, a quantidade pode ser digitada numa unidade de
-  conversão do cadastro do produto (D-PROD-285); o servidor converte para a unidade de estoque pelo fator cadastrado e
+  conversão do cadastro do produto (D-PROD-286); o servidor converte para a unidade de estoque pelo fator cadastrado e
   grava a unidade, a quantidade e o fator. O abastecimento continua sem conversão." Fica para decisão do proprietário.
 - `UN` como unidade de estoque (o motor e os CHECKs de atividade e abastecimento só têm KG e L).
 - Migrar o cocho e o farol para lerem o consumo da Formulação em vez do produto.

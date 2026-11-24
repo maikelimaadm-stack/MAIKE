@@ -167,7 +167,7 @@ model Cliente {
   servicos                          Servico[]
   atividadeApontamentoMaoObras      AtividadeApontamentoMaoObra[]
   atividadeApontamentoServicos      AtividadeApontamentoServico[]
-  // D-PROD-285 — unidades de conversão dos produtos.
+  // D-PROD-286 — unidades de conversão dos produtos.
   produtoUnidadesConversao          ProdutoUnidadeConversao[]
 
   @@index([nome])
@@ -802,7 +802,7 @@ model Formulacao {
   consumo_objetivo_g_cab_dia Decimal? @db.Decimal(10, 2)
   // D-PROD-206: faixa de tolerância do farol de consumo (% do esperado); null = padrão de 15%.
   faixa_tolerancia_percentual Decimal? @db.Decimal(5, 2)
-  // D-PROD-285: consumo mínimo e máximo (%PV) do cocho — saíram da tela do produto (copiados dele na migration).
+  // D-PROD-286: consumo mínimo e máximo (%PV) do cocho — saíram da tela do produto (copiados dele na migration).
   consumo_minimo_pv          Decimal? @db.Decimal(14, 6)
   consumo_maximo_pv          Decimal? @db.Decimal(14, 6)
   observacoes                String?  @db.VarChar(2000)
@@ -1226,7 +1226,7 @@ model LocalEstoque {
 // Produto — cadastro de produtos e insumos (P5.2, D-PROD-48).
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
-// ProdutoUnidadeConversao — D-PROD-285. Unidade alternativa do produto, convertida
+// ProdutoUnidadeConversao — D-PROD-286. Unidade alternativa do produto, convertida
 // para a unidade de estoque (KG ou L): MULTIPLICA → 1 sigla = fator; DIVIDE → 1 sigla
 // = 1/fator (fator <= 10000). A sigla nunca é KG, L ou UN (CHECK) nem a unidade de
 // estoque (serviço). Usada em lançamento → só desativa; sem uso → exclusão lógica
@@ -1307,7 +1307,7 @@ model Produto {
   ingredientesFormulacao FormulacaoIngrediente[]
   // D-PROD-202 — linhas de produto do lançamento de atividades.
   atividadeApontamentoProdutos AtividadeApontamentoProduto[]
-  // D-PROD-285 — unidades de conversão (sigla × fator) da unidade de estoque.
+  // D-PROD-286 — unidades de conversão (sigla × fator) da unidade de estoque.
   unidadesConversao ProdutoUnidadeConversao[]
 
   @@unique([cliente_id, numero_produto])
@@ -3662,6 +3662,9 @@ model AtividadeApontamentoProduto {
   /// MAIKE-ENTREGA2 — o VC (valor cultural, %) do rótulo do saco de semente, opcional. A API confere (0 < VC <= 100,
   /// até 2 casas): a allowlist EXPAND recusa CHECK em tabela antiga, como na D-PROD-265.
   vc_percentual            Decimal?  @db.Decimal(5, 2)
+  /// MAIKE-INSUMO-POR-JATO — o número do jato no dia (1..999) quando o insumo foi lançado por jato; nulo = sem jato.
+  /// Sem CHECK (allowlist EXPAND): a API confere a faixa.
+  jato                     Int?
   custo_unitario           Decimal   @db.Decimal(14, 4)
   custo_total              Decimal   @db.Decimal(14, 4)
   operation_id             String    @db.VarChar(128)

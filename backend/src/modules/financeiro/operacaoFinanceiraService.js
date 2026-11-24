@@ -261,7 +261,7 @@ export const carregarReferencias = async (tx, clienteId, empresaId, doc) => {
         estoque_atual: true, codigo_interno: true, codigo_barras: true, categoria: true,
         // D-PROD-282 (revisão): sem estas colunas o `comLote` da prévia ficava vazio (prévia no médio, gravado no lote).
         controla_lote: true, controla_validade: true,
-        // D-PROD-285: as unidades de conversão (compra e venda escolhem a unidade).
+        // D-PROD-286: as unidades de conversão (compra e venda escolhem a unidade).
         unidadesConversao: SELECT_CONVERSOES,
       },
     })
@@ -278,7 +278,7 @@ export const carregarReferencias = async (tx, clienteId, empresaId, doc) => {
   };
 };
 
-/** D-PROD-285: a unidade (não KG/L) existe no produto — conversão ativa com o uso da direção, ou o SACO legado. */
+/** D-PROD-286: a unidade (não KG/L) existe no produto — conversão ativa com o uso da direção, ou o SACO legado. */
 const unidadeDoProdutoValida = (prod, unidade, direcao) => {
   try {
     resolverUnidade(prod, unidade, { uso: direcao === 'RECEBER' ? 'venda' : 'compra', erro: (reason) => new Error(reason) });
@@ -340,7 +340,7 @@ export const problemasDeReferencia = (doc, refs, perfil) => {
     if (!prod || prod.empresa_id !== doc.empresa_id) add('produto_id', 'produto_nao_encontrado', extra);
     else if (!prod.ativo) add('produto_id', 'produto_inativo', extra);
     else if (it.unidade !== 'KG' && it.unidade !== 'L' && !unidadeDoProdutoValida(prod, it.unidade, doc.direcao)) {
-      // D-PROD-285: SACO e as siglas de conversão só com a unidade cadastrada (ativa, com o uso) no produto.
+      // D-PROD-286: SACO e as siglas de conversão só com a unidade cadastrada (ativa, com o uso) no produto.
       add('unidade', 'unidade_invalida', extra);
     } else if ((it.unidade === 'L') !== (prod.unidade_principal_estoque === 'L')) {
       // D-PROD-162 (§4.7): item L só com Produto em L, e Produto em L só com item L.
@@ -2431,7 +2431,7 @@ const exigirDocumentoUnico = async (tx, cli, empresaId, doc, ignorar) => {
 const comPesoGravado = (refs, mercadorias) => {
   /** @type {Map<string, any>} */
   const gravado = new Map();
-  /** D-PROD-285: as outras siglas de conversão também ficam com o fator GRAVADO (editar o fator não muda o passado). */
+  /** D-PROD-286: as outras siglas de conversão também ficam com o fator GRAVADO (editar o fator não muda o passado). */
   const siglas = new Map();
   for (const i of mercadorias) {
     if (i.unidade === 'SACO' && i.produto_id && i.fator_kg != null && !gravado.has(i.produto_id)) gravado.set(i.produto_id, i.fator_kg);

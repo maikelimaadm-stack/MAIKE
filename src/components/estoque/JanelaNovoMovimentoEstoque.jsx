@@ -120,7 +120,7 @@ const totalDasLinhas = (itens) => {
  */
 function LinhaDeProduto({ linha, indice, empresaId, erros, podeRemover, onMudar, onRemover }) {
   const e = (/** @type {string} */ campo) => erros[`itens.${indice}.${campo}`] || undefined;
-  // D-PROD-285: a de estoque e as unidades de conversão com uso em compra/entrada.
+  // D-PROD-286: a de estoque e as unidades de conversão com uso em compra/entrada.
   const unidades = unidadesDoProduto(linha.produto, "compra");
   const por = linha.unidade === "SACO" ? "saco" : linha.unidade === "L" ? "litro" : linha.unidade && linha.unidade !== "KG" ? linha.unidade : "kg";
   const equivalencia = equivalenciaDaLinha(linha);
@@ -234,7 +234,7 @@ function LinhaDeProduto({ linha, indice, empresaId, erros, podeRemover, onMudar,
  */
 function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, onRemover }) {
   const e = (/** @type {string} */ campo) => erros[`itens.${indice}.${campo}`] || undefined;
-  // D-PROD-285: a de estoque e as unidades de conversão com uso em saída.
+  // D-PROD-286: a de estoque e as unidades de conversão com uso em saída.
   const unidades = unidadesDoProduto(linha.produto, "venda");
   const equivalencia = equivalenciaDaLinha(linha);
   return (

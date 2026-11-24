@@ -112,7 +112,7 @@ export const opcoesProdutos = async (contexto, query = {}) => {
         unidade_principal_estoque: p.unidade_principal_estoque,
         peso_por_saco_kg: texto(p.peso_por_saco_kg, CASAS_QUANTIDADE),
         estoque_atual: texto(p.estoque_atual, CASAS_QUANTIDADE),
-        // D-PROD-285: unidades de conversão ativas (compra e venda escolhem a unidade; o servidor converte).
+        // D-PROD-286: unidades de conversão ativas (compra e venda escolhem a unidade; o servidor converte).
         unidades_conversao: listarConversoesPublicas(p).filter((c) => c.ativa),
       })),
   });

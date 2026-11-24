@@ -210,7 +210,7 @@ const normalizarItem = (it, indice) => {
   if (it.tipo_item === 'MERCADORIA') {
     if (!presente(it.produto_id)) throw invalido('produto_id é obrigatório para mercadoria', { field: 'produto_id', reason: 'obrigatorio', ...extra });
     if (!presente(it.local_estoque_id)) throw invalido('local_estoque_id é obrigatório para mercadoria', { field: 'local_estoque_id', reason: 'obrigatorio', ...extra });
-    // D-PROD-285: a de estoque (KG/L), SACO ou a sigla de uma conversão do produto (conferida no plano); nunca UN.
+    // D-PROD-286: a de estoque (KG/L), SACO ou a sigla de uma conversão do produto (conferida no plano); nunca UN.
     if (typeof it.unidade !== 'string' || !it.unidade.trim() || it.unidade === 'UN') throw invalido('mercadoria usa a unidade de estoque (KG ou L) ou uma unidade de conversão do produto', { field: 'unidade', reason: 'unidade_invalida', ...extra });
     return { ...base, produto_id: it.produto_id, local_estoque_id: it.local_estoque_id, descricao: textoLinha(it.descricao, 'descricao', {}, extra) };
   }
@@ -306,7 +306,7 @@ export const exigirEscopoDoRateio = (doc) => {
  */
 export const planejarOperacao = (doc, referencias) => {
   const casas = referencias.casas;
-  // D-PROD-285: compra (PAGAR) usa as conversões de compra; venda (RECEBER), as de saída.
+  // D-PROD-286: compra (PAGAR) usa as conversões de compra; venda (RECEBER), as de saída.
   const uso = /** @type {'compra'|'venda'} */ (doc.direcao === 'RECEBER' ? 'venda' : 'compra');
   const brutos = doc.itens.map((it, indice) => planejarItem(it, indice, referencias, casas, uso));
   const valorBruto = doc.conteudo === 'COM_PRODUTOS' ? somar(brutos.map((i) => i.valor_total)) : dec(doc.valor_bruto);
@@ -403,7 +403,7 @@ const planejarItem = (it, indice, referencias, casas, uso = 'compra') => {
   if (it.tipo_item !== 'MERCADORIA') return { ...it, valor_total: valorTotal, fator_kg: null, quantidade_estoque: null };
   const produto = referencias.produtos.get(it.produto_id);
   // D-PROD-162: item em L (só de Produto em L) tem fator 1, como o KG; a quantidade em estoque fica em litros.
-  // D-PROD-285: as outras unidades (SACO e as de conversão) pelo motor de conversão (`resolverUnidade`).
+  // D-PROD-286: as outras unidades (SACO e as de conversão) pelo motor de conversão (`resolverUnidade`).
   const conv = produto ? exigirUnidadeCompativel(it, produto, extra, uso) : null;
   const fator = conv ? conv.fator : it.unidade === 'KG' || it.unidade === 'L' ? UM : dec(produto?.peso_por_saco_kg ?? 0);
   // kg UMA vez, 4 casas: o mesmo valor no item, lote, movimento, estoque_atual, consumo e estorno.
@@ -436,7 +436,7 @@ const exigirUnidadeCompativel = (it, produto, extra, uso = 'compra') => {
       field: 'unidade', reason: 'unidade_produto_invalida', ...extra, unidade_produto: unidadeProduto, permitidos: [...UNIDADES_ESTOQUE_PRODUTO],
     });
   }
-  // D-PROD-285: o item KG de produto SACO (legado) continua fator 1; o resto pelo motor de conversão.
+  // D-PROD-286: o item KG de produto SACO (legado) continua fator 1; o resto pelo motor de conversão.
   const aceitas = PRODUTO_ACEITA_ITEM[/** @type {'KG'|'SACO'|'L'} */ (it.unidade)] ?? [];
   const temConversao = (produto.unidadesConversao ?? []).some((c) => c.sigla === it.unidade && c.excluido_em == null);
   // SACO sem a conversão SACO cadastrada: o caminho de antes (produto SACO com o peso), byte a byte.

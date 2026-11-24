@@ -107,7 +107,7 @@ export const comoFormulacaoPublica = (registro) => {
     consumo_objetivo_g_cab_dia: numeroDe(registro.consumo_objetivo_g_cab_dia, 2),
     // D-PROD-206: null = o padrão de 15% (quem lê aplica o padrão; o banco não inventa valor).
     faixa_tolerancia_percentual: numeroDe(registro.faixa_tolerancia_percentual, 2),
-    // D-PROD-285: consumo mínimo e máximo (%PV) — saíram do cadastro do produto e ficam só aqui.
+    // D-PROD-286: consumo mínimo e máximo (%PV) — saíram do cadastro do produto e ficam só aqui.
     consumo_minimo_pv: numeroDe(registro.consumo_minimo_pv, 4),
     consumo_maximo_pv: numeroDe(registro.consumo_maximo_pv, 4),
     observacoes: registro.observacoes ?? null,
@@ -218,7 +218,7 @@ const camposDe = (entrada) => {
       ? null
       : decimalDoCorpo(entrada.faixa_tolerancia_percentual, 'faixa_tolerancia_percentual', { casas: 2, maximo: FAIXA_MAXIMA, motivo: 'faixa_tolerancia', rotulo: '% de tolerância' });
   }
-  // D-PROD-285: consumo mínimo e máximo do cocho (%PV, 0 < x ≤ 5, até 4 casas); vazio/null limpa.
+  // D-PROD-286: consumo mínimo e máximo do cocho (%PV, 0 < x ≤ 5, até 4 casas); vazio/null limpa.
   for (const campo of ['consumo_minimo_pv', 'consumo_maximo_pv']) {
     if (entrada[campo] !== undefined) campos[campo] = vazio(entrada[campo]) ? null : pvDoCorpo(entrada[campo], campo);
   }

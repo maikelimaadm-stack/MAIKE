@@ -185,7 +185,7 @@ describe('FU — mapa, detalhes e alertas na mesma fonte (D-PROD-178)', () => {
     const medidor = within(secao).getByRole('meter', { name: 'Ocupação do limite operacional' });
     await waitFor(() => expect(medidor.getAttribute('aria-valuenow')).toBe(String(nivelMapa.ocupacaoPercentual)));
     // D-PROD-220: a célula do v12 mostra o kg no formato do SSOT ("150 kg").
-    expect(within(secao).getByText('Saldo atual kg').nextElementSibling?.textContent).toBe(formatarKgNivel(nivelMapa.saldoKg));
+    expect(within(secao).getByText('Saldo atual').nextElementSibling?.textContent).toBe(formatarKgNivel(nivelMapa.saldoKg));
     expect(within(secao).queryByText(nivelMapa.mensagemUnidade ?? '— sem aviso de unidade —')).toBeNull();
     expect(screen.queryByText(/Unidade de alguns produtos não confirmada/)).toBeNull();
   });

@@ -101,7 +101,9 @@ const COLUNAS_OK = [
   { table_name: 'Produto', column_name: 'controla_validade' },
   { table_name: 'EstoqueLoteNota', column_name: 'lote_fabricante' },
   { table_name: 'EstoqueLoteNota', column_name: 'data_validade' },
-  // D-PROD-285: as unidades de conversão do produto e o consumo da formulação.
+  // D-PROD-283: o número do jato na linha de insumo.
+  { table_name: 'AtividadeApontamentoProduto', column_name: 'jato' },
+  // D-PROD-286: as unidades de conversão do produto e o consumo da formulação.
   { table_name: 'ProdutoUnidadeConversao', column_name: 'fator' },
   { table_name: 'CADFORMULACAO', column_name: 'consumo_minimo_pv' },
 ];
@@ -220,7 +222,7 @@ test('B12 (D-PROD-162): a consulta de colunas é MONTADA de COLUNAS_EXIGIDAS —
   const pares = [...CONSULTAS.colunas.matchAll(/\('([A-Za-z_]+)','([A-Za-z_]+)'\)/g)].map((x) => `${x[1]}.${x[2]}`);
   assert.deepEqual(pares, COLUNAS_EXIGIDAS.map(([t, c]) => `${t}.${c}`), 'nada a mais nem a menos na consulta');
   // D-PROD-276: sem a migration da reforma, o preflight para (a lista, o registro e o resumo da área leem as colunas).
-  for (const k of ['AbastecimentoBem.quantidade', 'AbastecimentoBem.unidade', 'TanqueBemProduto.produto_id', 'Planejamento.status', 'PlanejamentoArea.hectares', 'Atividade.planejamento_id', 'TipoPatrimonial.usa_produto', 'TipoPatrimonial.forma_produto', 'TipoPatrimonial.capacidade', 'TipoPatrimonial.capacidade_unidade', 'Produto.controla_lote', 'EstoqueLoteNota.data_validade', 'ProdutoUnidadeConversao.fator', 'CADFORMULACAO.consumo_minimo_pv']) {
+  for (const k of ['AbastecimentoBem.quantidade', 'AbastecimentoBem.unidade', 'TanqueBemProduto.produto_id', 'Planejamento.status', 'PlanejamentoArea.hectares', 'Atividade.planejamento_id', 'TipoPatrimonial.usa_produto', 'TipoPatrimonial.forma_produto', 'TipoPatrimonial.capacidade', 'TipoPatrimonial.capacidade_unidade', 'Produto.controla_lote', 'EstoqueLoteNota.data_validade', 'AtividadeApontamentoProduto.jato', 'ProdutoUnidadeConversao.fator', 'CADFORMULACAO.consumo_minimo_pv']) {
     assert.ok(pares.includes(k), k);
     const r = avaliarPreflight(pronto({ colunas: COLUNAS_OK.filter((c) => `${c.table_name}.${c.column_name}` !== k) }));
     assert.equal(r.ok, false, k);

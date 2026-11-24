@@ -101,7 +101,7 @@ describe('LIT-2 — validação da unidade do item', () => {
     expect(erroUnidade(PRODUTO_SACO, 'SACO')).toBeUndefined();
     expect(erroUnidade(PRODUTO_SACO, 'KG')).toBeUndefined();
     expect(erroUnidade(PRODUTO_KG, 'SACO')).toBe('Este produto não é controlado em sacos');
-    // D-PROD-285: fora de KG/SACO/L só as unidades de conversão do cadastro do produto.
+    // D-PROD-286: fora de KG/SACO/L só as unidades de conversão do cadastro do produto.
     expect(erroUnidade(PRODUTO_KG, 'UN')).toBe('Use KG ou uma unidade do cadastro do produto');
   });
 

@@ -41,7 +41,7 @@ export const formularioDoRegistro = (r) => ({
   percentual_pv_padrao: textoDe(r?.percentual_pv_padrao),
   consumo_objetivo_g_cab_dia: textoDe(r?.consumo_objetivo_g_cab_dia),
   faixa_tolerancia_percentual: textoDe(r?.faixa_tolerancia_percentual),
-  // D-PROD-285: consumo mínimo e máximo (%PV), que saíram do cadastro do produto.
+  // D-PROD-286: consumo mínimo e máximo (%PV), que saíram do cadastro do produto.
   consumo_minimo_pv: textoDe(r?.consumo_minimo_pv),
   consumo_maximo_pv: textoDe(r?.consumo_maximo_pv),
   observacoes: r?.observacoes || "",
@@ -345,7 +345,7 @@ export default function FormularioFormulacao({
         />
       </B1Field>
 
-      {/* D-PROD-285: consumo mínimo e máximo do cocho (%PV); vieram do cadastro do produto. */}
+      {/* D-PROD-286: consumo mínimo e máximo do cocho (%PV); vieram do cadastro do produto. */}
       {/** @type {Array<["consumo_minimo_pv" | "consumo_maximo_pv", string]>} */ ([["consumo_minimo_pv", "%PV mínimo"], ["consumo_maximo_pv", "%PV máximo"]]).map(([campo, rotulo]) => (
         <B1Field
           key={campo}

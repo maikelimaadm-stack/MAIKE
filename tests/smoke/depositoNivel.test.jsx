@@ -12,6 +12,10 @@
  * grande do bloco do nível. D-PROD-227: aparece uma vez na tela; o medidor
  * mantém o percentual e a descrição acessíveis, sem repetir o número.
  *
+ * v13 (desenho aprovado do depósito): o saldo fica sozinho ao lado do ícone; a régua 0 → limite
+ * (role="meter", o mesmo valor acessível) traz o mínimo e o saldo; o mínimo vira a caixa "Estoque
+ * mínimo" (Acima do mínimo / No mínimo / Abaixo do mínimo / não configurado).
+ *
  * D-PROD-225: no detalhe, o ícone é o SUBÍCONE do depósito (o desenho dos
  * detalhes, sem o pino do mapa, nas cores configuradas para o subícone); o
  * marcador (pino + silo) fica só no mapa.
@@ -19,7 +23,7 @@
 import React from 'react';
 import { render, screen, cleanup, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import DepositoNivel from '@/components/mapa/DepositoNivel';
+import DepositoNivel, { reguaDoDeposito } from '@/components/mapa/DepositoNivel';
 import { resolverIconeSuplementacao } from '@/lib/maplibre/mapaGeralRender';
 import { criarSvgDeposito } from '@/assets/icones/deposito-sal';
 import { calcularNivelDeposito } from '@/domain/suplementacao/nivelSuplementacao';
@@ -54,7 +58,8 @@ describe('Depósito com nível pelo limite operacional', () => {
     const { container } = render(<DepositoNivel nivel={nivelDe({ saldo: 500, limite: 1000, minimo: 1000 })} />);
     expect(medidorLimite().getAttribute('aria-valuenow')).toBe('50');
     expect(medidorLimite().getAttribute('aria-valuetext')).toBe('50% do limite operacional: 500 kg de 1.000 kg, dentro do limite');
-    expect(screen.getByText('500 kg de 1.000 kg · dentro do limite')).toBeTruthy();
+    // Dentro do limite, sem a linha de excesso embaixo da régua.
+    expect(container.querySelector('.mk-dp-dep13__excesso')).toBeNull();
     percentualVisivel('50%');
     const sub = iconeDe(container);
     expect(sub.querySelector('[data-deposito-nivel]').getAttribute('data-deposito-nivel')).toBe('50');
@@ -95,23 +100,28 @@ describe('Depósito com nível pelo limite operacional', () => {
   it('estoque mínimo é limiar independente: acima/abaixo com margem em kg, sem mudar o percentual', () => {
     const { rerender } = render(<DepositoNivel nivel={nivelDe({ saldo: 150, limite: 300, minimo: 100 })} />);
     expect(medidorLimite().getAttribute('aria-valuenow')).toBe('50');
-    expect(within(painelMinimo()).getByText('Mínimo 100 kg · 50 kg acima do mínimo')).toBeTruthy();
+    expect(within(painelMinimo()).getByText('Acima do mínimo')).toBeTruthy();
+    expect(within(painelMinimo()).getByText('50 kg')).toBeTruthy();
+    expect(within(painelMinimo()).getByText('mínimo de 100 kg')).toBeTruthy();
     expect(painelMinimo().getAttribute('data-estado-minimo')).toBe('acima');
 
     rerender(<DepositoNivel nivel={nivelDe({ saldo: 90, limite: 300, minimo: 100 })} />);
     expect(medidorLimite().getAttribute('aria-valuenow')).toBe('30');
-    expect(within(painelMinimo()).getByText('Mínimo 100 kg · abaixo do mínimo (faltam 10 kg)')).toBeTruthy();
-    expect(within(painelMinimo()).getByText('Reposição recomendada.')).toBeTruthy();
+    expect(within(painelMinimo()).getByText('Abaixo do mínimo')).toBeTruthy();
+    expect(within(painelMinimo()).getByText('10 kg')).toBeTruthy();
+    expect(within(painelMinimo()).getByText('mínimo de 100 kg · Reposição recomendada.')).toBeTruthy();
     expect(painelMinimo().getAttribute('data-estado-minimo')).toBe('abaixo');
 
     rerender(<DepositoNivel nivel={nivelDe({ saldo: 100, limite: 300, minimo: 100 })} />);
-    expect(within(painelMinimo()).getByText('Mínimo 100 kg · no mínimo')).toBeTruthy();
+    expect(within(painelMinimo()).getByText('No mínimo')).toBeTruthy();
+    expect(within(painelMinimo()).getByText('Reposição recomendada.')).toBeTruthy();
     expect(painelMinimo().getAttribute('data-estado-minimo')).toBe('no_minimo');
 
     // Mínimo acima do limite não vira teto nem divisor: o percentual é o mesmo.
     rerender(<DepositoNivel nivel={nivelDe({ saldo: 150, limite: 300, minimo: 1000 })} />);
     expect(medidorLimite().getAttribute('aria-valuenow')).toBe('50');
-    expect(within(painelMinimo()).getByText('Mínimo 1.000 kg · abaixo do mínimo (faltam 850 kg)')).toBeTruthy();
+    expect(within(painelMinimo()).getByText('850 kg')).toBeTruthy();
+    expect(painelMinimo().getAttribute('data-estado-minimo')).toBe('abaixo');
   });
 
   it('avisa quando a unidade de algum lote não está confirmada e quando há produto em litros fora do kg', () => {
@@ -142,5 +152,83 @@ describe('Depósito com nível pelo limite operacional', () => {
     expect(vazio.getElementById('cintas')).toBeNull();
     expect(cheio.querySelectorAll('circle, image, script')).toHaveLength(0);
     expect(cheio.getElementById('corpo').getAttribute('stroke-width')).toBe('5.5');
+  });
+});
+
+describe('v13 — régua 0 → limite e as duas caixas', () => {
+  it('posições: saldo e mínimo em % do limite; acima do limite o saldo prende no fim', () => {
+    const r = reguaDoDeposito(nivelDe({ saldo: 1400, limite: 2000, minimo: 500 }));
+    expect([r.escalaKg, r.posSaldo, r.posMinimo, r.temLimite, r.excesso]).toEqual([2000, 70, 25, true, false]);
+    const cheio = reguaDoDeposito(nivelDe({ saldo: 3000, limite: 2000 }));
+    expect([cheio.posSaldo, cheio.excesso, cheio.posMinimo]).toEqual([100, true, null]);
+  });
+
+  it('o rótulo do saldo sobe quando encostaria no do mínimo ou no "limite" do fim; longe dos dois, fica embaixo', () => {
+    // 1.400 de 2.000 (70%): perto do "limite 2.000 kg" do fim.
+    expect(reguaDoDeposito(nivelDe({ saldo: 1400, limite: 2000, minimo: 500 })).saldoAcima).toBe(true);
+    // 600 de 2.000 (30%) com mínimo 500 (25%): perto do mínimo.
+    expect(reguaDoDeposito(nivelDe({ saldo: 600, limite: 2000, minimo: 500 })).saldoAcima).toBe(true);
+    // 1.000 de 2.000 (50%) com mínimo 200 (10%): longe dos dois.
+    expect(reguaDoDeposito(nivelDe({ saldo: 1000, limite: 2000, minimo: 200 })).saldoAcima).toBe(false);
+    // Mínimo perto do fim: o rótulo dele sobe; o do saldo, longe, fica embaixo.
+    const r = reguaDoDeposito(nivelDe({ saldo: 400, limite: 2000, minimo: 1800 }));
+    expect([r.minimoAcima, r.saldoAcima]).toEqual([true, false]);
+  });
+
+  it('no DOM: o rótulo do saldo vai para a linha de cima quando sobe; a marca do mínimo e o "limite" ficam embaixo', () => {
+    const { container } = render(<DepositoNivel nivel={nivelDe({ saldo: 1400, limite: 2000, minimo: 500 })} />);
+    const regua = container.querySelector('.mk-dp-dep13__regua');
+    expect(regua.getAttribute('data-saldo-acima')).toBe('true');
+    expect(regua.querySelector('.mk-dp-dep13__rotulos--cima').textContent).toBe('1.400 kg');
+    const baixo = [...regua.querySelectorAll('.mk-dp-dep13__rotulos:not(.mk-dp-dep13__rotulos--cima) > span')].map((e) => e.textContent);
+    expect(baixo).toEqual(['mínimo 500 kg', 'limite 2.000 kg']);
+    expect(regua.querySelector('[data-regua-minimo]').style.left).toBe('25%');
+    expect(regua.querySelector('[data-regua-saldo]').style.left).toBe('70%');
+    expect(medidorLimite().getAttribute('aria-valuenow')).toBe('70');
+    expect(medidorLimite().getAttribute('aria-valuetext')).toBe('70% do limite operacional: 1.400 kg de 2.000 kg, dentro do limite');
+  });
+
+  it('sem limite: a régua vai até max(saldo, mínimo) × 1,25, sem percentual e com texto; sem saldo e sem mínimo, não há régua', () => {
+    const r = reguaDoDeposito(nivelDe({ saldo: 400, limite: null, minimo: 800 }));
+    expect([r.escalaKg, r.posSaldo, r.posMinimo, r.temLimite]).toEqual([1000, 40, 80, false]);
+    const { container, unmount } = render(<DepositoNivel nivel={nivelDe({ saldo: 400, limite: null, minimo: 800 })} />);
+    expect(screen.queryByRole('meter')).toBeNull();
+    expect(screen.getByRole('img', { name: 'Saldo de 400 kg, mínimo de 800 kg; limite operacional não configurado.' })).toBeTruthy();
+    expect(container.textContent).not.toMatch(/limite \d/);
+    unmount();
+    expect(reguaDoDeposito(nivelDe({ saldo: 0, limite: null, minimo: null }))).toBeNull();
+    const vazio = render(<DepositoNivel nivel={nivelDe({ saldo: 0, limite: null, minimo: null })} />);
+    expect(vazio.container.querySelector('.mk-dp-dep13__regua')).toBeNull();
+  });
+
+  it('caixas: necessidade até o limite (com sacos), acima do limite e sem limite; mínimo acima, no mínimo e abaixo com o tom', () => {
+    const caixa = (c, nome) => c.querySelector(`[data-caixa="${nome}"]`)?.textContent;
+    const { container, rerender } = render(<DepositoNivel nivel={nivelDe({ saldo: 1400, limite: 2000, minimo: 500 })} necessidadeSacos={24} />);
+    expect(caixa(container, 'necessidade')).toBe('Necessidade de reposição600 kg24,00 sacos · até o limite');
+    expect(painelMinimo().textContent).toBe('Acima do mínimo900 kgmínimo de 500 kg');
+    expect(painelMinimo().getAttribute('data-tom')).toBe('ok');
+
+    rerender(<DepositoNivel nivel={nivelDe({ saldo: 2500, limite: 2000, minimo: 500 })} />);
+    expect(caixa(container, 'necessidade')).toBe('Necessidade de reposição0 kg500 kg acima do limite');
+
+    rerender(<DepositoNivel nivel={nivelDe({ saldo: 500, limite: 2000, minimo: 500 })} />);
+    expect(painelMinimo().textContent).toBe('No mínimo500 kgReposição recomendada.');
+    expect(painelMinimo().getAttribute('data-tom')).toBe('atencao');
+
+    rerender(<DepositoNivel nivel={nivelDe({ saldo: 300, limite: 2000, minimo: 500 })} />);
+    expect(painelMinimo().textContent).toBe('Abaixo do mínimo200 kgmínimo de 500 kg · Reposição recomendada.');
+    expect(painelMinimo().getAttribute('data-tom')).toBe('perigo');
+
+    rerender(<DepositoNivel nivel={nivelDe({ saldo: 300, limite: null, minimo: null })} />);
+    expect(caixa(container, 'necessidade')).toBe('Necessidade de reposição—sem limite operacional');
+    expect(painelMinimo().getAttribute('data-estado-minimo')).toBe('nao_configurado');
+  });
+
+  it('o saldo é o único número do topo, numa linha (nowrap no CSS), sem a necessidade ao lado', () => {
+    render(<DepositoNivel nivel={nivelDe({ saldo: 1400, limite: 2000, minimo: 500 })} saldoSacos={56} />);
+    const topo = screen.getByTestId('nivel-do-deposito');
+    expect(within(topo).getByText('Saldo atual').nextElementSibling?.textContent).toBe('1.400 kg');
+    expect(within(topo).getByText('56,00 sacos')).toBeTruthy();
+    expect(topo.textContent).not.toMatch(/Necessidade/);
   });
 });

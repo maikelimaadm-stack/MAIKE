@@ -82,7 +82,7 @@ export const formularioVazioEntrada = (hoje) => ({
 export const ehImplantacao = (form) => form?.motivo?.natureza === MOTIVO_IMPLANTACAO;
 
 /**
- * Unidades que o produto aceita: a de estoque (litros ou quilo) e, D-PROD-285, as unidades de conversão ATIVAS do
+ * Unidades que o produto aceita: a de estoque (litros ou quilo) e, D-PROD-286, as unidades de conversão ATIVAS do
  * cadastro com o uso pedido ('compra' na entrada, 'venda' na saída; sem uso, todas — o ajuste). O SACO legado (peso
  * por saco sem a conversão SACO) continua oferecido.
  * @param {{ unidade_estoque?: string, peso_por_saco_kg?: string|null, unidades_conversao?: any[] }|null} produto
@@ -103,7 +103,7 @@ export const unidadesDoProduto = (produto, uso = null) => {
   return unidades;
 };
 
-/** D-PROD-285: as conversões ativas do produto (o servidor manda só as ativas nas opções). @param {any} produto */
+/** D-PROD-286: as conversões ativas do produto (o servidor manda só as ativas nas opções). @param {any} produto */
 export const conversoesDoProduto = (produto) => (Array.isArray(produto?.unidades_conversao) ? produto.unidades_conversao.filter((c) => c && c.ativa !== false) : []);
 
 /** "1 SACO = 25 KG" a partir da operação e do fator. @param {any} c @param {string} estoque */
@@ -115,7 +115,7 @@ export const equivalenciaDaConversao = (c, estoque) => {
 };
 
 /**
- * D-PROD-285: a quantidade da linha na unidade de ESTOQUE (texto canônico, 4 casas), pela mesma conta do servidor
+ * D-PROD-286: a quantidade da linha na unidade de ESTOQUE (texto canônico, 4 casas), pela mesma conta do servidor
  * (multiplica ou divide, arredondado uma vez); `null` se ainda não dá para saber.
  * @param {any} produto @param {string} unidade @param {string} quantidadeCanonica
  */
@@ -133,7 +133,7 @@ export const emUnidadeDeEstoque = (produto, unidade, quantidadeCanonica) => {
   return null;
 };
 
-/** D-PROD-285: "10 SACO = 250 kg" (vazio quando a unidade já é a de estoque ou falta dado). @param {any} linha */
+/** D-PROD-286: "10 SACO = 250 kg" (vazio quando a unidade já é a de estoque ou falta dado). @param {any} linha */
 export const equivalenciaDaLinha = (linha) => {
   const q = lerDecimal(linha?.quantidade ?? linha?.contado ?? '');
   const estoque = linha?.produto?.unidade_estoque === 'L' ? 'L' : 'KG';

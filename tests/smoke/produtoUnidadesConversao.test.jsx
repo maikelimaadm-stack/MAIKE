@@ -1,5 +1,5 @@
 /**
- * D-PROD-285 — telas das unidades de conversão do produto:
+ * D-PROD-286 — telas das unidades de conversão do produto:
  *  UC-1. o formulário do produto não mostra preço de custo, preço de venda, local de estoque nem o bloco de consumo;
  *        o código interno é só leitura;
  *  UC-2. a aba "Unidades" lista as conversões com a prévia ("1 SACO = 25 KG", "1 G = 0,001 KG") e envia a lista;

@@ -1,5 +1,5 @@
 /**
- * D-PROD-285 — unidades de conversão no cadastro do produto (MULTIPLICA/DIVIDE), a conversão nos lançamentos (entrada
+ * D-PROD-286 — unidades de conversão no cadastro do produto (MULTIPLICA/DIVIDE), a conversão nos lançamentos (entrada
  * documentada, saída manual, ajuste, compra e venda do financeiro), o passado intocado ao editar/desativar, a cópia
  * da migration (peso_por_saco_kg → SACO e consumo → formulação) e os campos que saíram da tela do produto. Tudo
  * contra PostgreSQL real e HTTP autenticado; o tenant vem sempre do auth_context.
@@ -66,7 +66,7 @@ const sair = (x, p, unidade, quantidade) => chamar('POST', '/estoque/saidas', x.
 });
 const estoqueAtual = async (p) => (await prisma().produto.findUnique({ where: { id: p.id } })).estoque_atual.toFixed(4);
 
-describe('D-PROD-285 — o motor da conversão (puro)', () => {
+describe('D-PROD-286 — o motor da conversão (puro)', () => {
   test('MULTIPLICA e DIVIDE, 4 casas, fator efetivo e a frase da equivalência', () => {
     const saco = { sigla: 'SACO', operacao: 'MULTIPLICA', fator: '25' };
     const g = { sigla: 'G', operacao: 'DIVIDE', fator: '1000' };
@@ -89,7 +89,7 @@ describe('D-PROD-285 — o motor da conversão (puro)', () => {
   });
 });
 
-describe('D-PROD-285 — cadastro: unidades de conversão dentro do POST/PATCH do produto', () => {
+describe('D-PROD-286 — cadastro: unidades de conversão dentro do POST/PATCH do produto', () => {
   test('POST com SACO ×25 e G ÷1000: devolve as unidades com a equivalência; código interno = número; preços e local ignorados', async () => {
     const x = await cenario();
     const p = await criarProduto(x, {
@@ -135,7 +135,7 @@ describe('D-PROD-285 — cadastro: unidades de conversão dentro do POST/PATCH d
   });
 });
 
-describe('D-PROD-285 — lançamentos convertem para a unidade de estoque; o passado não muda', () => {
+describe('D-PROD-286 — lançamentos convertem para a unidade de estoque; o passado não muda', () => {
   test('entrada em SACO e em G, saída em SACO, ajuste em SACO: quantidade de estoque em 4 casas, custo por kg; reconciliação limpa', async () => {
     const x = await cenario();
     const p = await criarProduto(x, { nome_produto: 'Sal', unidades_conversao: [SACO25, GRAMA] });
@@ -221,7 +221,7 @@ describe('D-PROD-285 — lançamentos convertem para a unidade de estoque; o pas
   });
 });
 
-describe('D-PROD-285 — a cópia da migration (texto pinado) e a Formulação com o consumo', () => {
+describe('D-PROD-286 — a cópia da migration (texto pinado) e a Formulação com o consumo', () => {
   test('INSERT do peso_por_saco_kg → SACO multiplica (fora os de litros) e UPDATE do consumo mínimo/máximo na formulação', async () => {
     const x = await cenario();
     const base = { cliente_id: x.c, empresa_id: x.e.id };
@@ -229,8 +229,8 @@ describe('D-PROD-285 — a cópia da migration (texto pinado) e a Formulação c
     const semPeso = await prisma().produto.create({ data: { ...base, numero_produto: '902', nome_produto: 'UREIA' } });
     const litros = await prisma().produto.create({ data: { ...base, numero_produto: '903', nome_produto: 'OLEO', unidade_principal_estoque: 'L', peso_por_saco_kg: '5' } });
     const f = await prisma().formulacao.create({ data: { ...base, nome: 'F1', tipo: 'PRONTO', produto_id: comPeso.id, base_consumo: 'PV', percentual_pv_padrao: '0.1' } });
-    const k = MIGRATIONS_CONTRACT_APROVADAS['20261124300000_produto_unidades_conversao'];
-    const sql = readFileSync(new URL('../prisma/migrations/20261124300000_produto_unidades_conversao/migration.sql', import.meta.url), 'utf8');
+    const k = MIGRATIONS_CONTRACT_APROVADAS['20261125200000_produto_unidades_conversao'];
+    const sql = readFileSync(new URL('../prisma/migrations/20261125200000_produto_unidades_conversao/migration.sql', import.meta.url), 'utf8');
     for (const instr of k.conversao) {
       assert.ok(sql.replace(/\s+/g, ' ').includes(instr), 'o texto pinado é o do arquivo');
       await prisma().$executeRawUnsafe(instr);

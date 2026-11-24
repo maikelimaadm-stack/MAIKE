@@ -114,8 +114,8 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
       { migration_name: '20261120200000_apontamento_data_termino', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       // D-PROD-282: a décima sétima CONTRACT (aditiva: o controle de lote), B29 em migrations.test.mjs.
       { migration_name: '20261124200000_estoque_controle_lote', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
-      // D-PROD-285: a décima oitava CONTRACT (as unidades de conversão do produto), B30 em migrations.test.mjs.
-      { migration_name: '20261124300000_produto_unidades_conversao', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      // D-PROD-286: a décima oitava CONTRACT (as unidades de conversão do produto), B30 em migrations.test.mjs.
+      { migration_name: '20261125200000_produto_unidades_conversao', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
     ],
     log: () => {},
     erro: () => {},

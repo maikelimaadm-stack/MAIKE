@@ -53,7 +53,7 @@ const tamanho = (/** @type {string} */ t) => [...String(t ?? '').trim()].length;
 export const contadoEmEstoque = (linha) => {
   const q = lerDecimal(linha?.contado);
   if (!q.ok || !linha?.unidade) return null;
-  // D-PROD-285: SACO e as unidades de conversão pela mesma conta do servidor (multiplica ou divide, 4 casas).
+  // D-PROD-286: SACO e as unidades de conversão pela mesma conta do servidor (multiplica ou divide, 4 casas).
   const estoque = linha.produto?.unidade_estoque === 'L' ? 'L' : 'KG';
   if (linha.unidade === estoque) return q.valor;
   return emUnidadeDeEstoque(linha.produto, linha.unidade, q.valor);

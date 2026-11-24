@@ -13,7 +13,7 @@
  * do medidor é derivada em `patrimonio/abastecimentoMedidor.js`).
  */
 
-import { BEM_RESUMO, STATUS_APONTAMENTO, USUARIO_RESUMO } from './atividadeComum.js';
+import { BEM_RESUMO, IMPLEMENTO_RESUMO, STATUS_APONTAMENTO, USUARIO_RESUMO } from './atividadeComum.js';
 
 /** Status da linha (CHECK `AtividadeApontamentoMaquina_status_check`). */
 export const STATUS_LINHA = Object.freeze({ CONFIRMADO: 'CONFIRMADO', CANCELADO: 'CANCELADO' });
@@ -24,7 +24,7 @@ export const ORIGENS_CANCELAMENTO = Object.freeze({ LINHA: 'LINHA', EDICAO: 'EDI
 /** `include` da linha: o resumo ao lado de cada id da forma pública. */
 export const INCLUIR_LINHA_MAQUINA = Object.freeze({
   bem: BEM_RESUMO,
-  implemento: BEM_RESUMO,
+  implemento: IMPLEMENTO_RESUMO, // D-PROD-283: com o produto do tipo (o jato)
   criadoPor: USUARIO_RESUMO,
   canceladoPor: USUARIO_RESUMO,
 });

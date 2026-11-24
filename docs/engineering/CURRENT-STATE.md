@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-24 (missão ativa D-PROD-285; antes D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-24 (missão ativa D-PROD-286; antes D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,27 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-18) — MAIKE-P2002-SEM-ALVO: nenhuma tradução de unique depende só do `meta.target` (D-PROD-253)
+## Missão ativa (2026-11-24) — MAIKE-COCHO-DEPOSITO-V13: detalhe do cocho e do depósito no desenho v13 (D-PROD-284)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-284**, pedido e aprovação do proprietário, aba a aba (atual × proposto) |
+| Branch / PR | `claude/kind-knuth-tztu1v` · PR **#371** |
+| Mudança | Só apresentação: cocho (Detalhes, Fechamentos, Informações, Histórico) e depósito (Detalhes, Informações, Histórico) com grade, barras, réguas e cartões curtos, como o Detalhes do Lote v13 |
+| Migration | Nenhuma |
+| Relatório | [`MAIKE-COCHO-DEPOSITO-V13-REPORT.md`](./MAIKE-COCHO-DEPOSITO-V13-REPORT.md) |
+| Próximas | Forragem dentro do Detalhes do Lote; acabamento do Mapa Geral (em avaliação pelo proprietário) |
+
+## Missão anterior (2026-11-24) — MAIKE-INSUMO-POR-JATO: "Jatos de hoje", o insumo do implemento de tanque por jato (D-PROD-283)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-283**, maquetes aprovadas pelo proprietário (2026-11-24): com implemento "por jato", Insumos vira "Jatos de hoje" (Editar, Repetir o jato anterior, Jato diferente, total do dia); sem cadastro de mistura |
+| Servidor | cada produto de cada jato é uma linha de insumo de sempre com `jato` (1..999, texto no corpo); opções de implemento e linha de máquina dizem o tanque (`jato`) |
+| Migration | `20261125100000_insumo_por_jato`, **EXPAND** (1 coluna anulável `AtividadeApontamentoProduto.jato`), sha256 `725a8c5a…3551`, depois da `20261124200000_estoque_controle_lote`. **Aplicada em produção em 2026-11-24** (78/0) |
+| Relatório / runbook | [`MAIKE-INSUMO-POR-JATO-REPORT.md`](./MAIKE-INSUMO-POR-JATO-REPORT.md) · [`MAIKE-INSUMO-POR-JATO-RUNBOOK-RELEASE.md`](./MAIKE-INSUMO-POR-JATO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-18) — MAIKE-P2002-SEM-ALVO: nenhuma tradução de unique depende só do `meta.target` (D-PROD-253)
 
 | Campo | Valor |
 |---|---|
@@ -23,18 +43,19 @@ rollout pausado **D-PROD-41**)
 | Validação | `npm run verify:all` local **verde** no `946b5965` (39 etapas; backend 2364/2370 com 6 `todo` antigos, smoke 3682/3682, gates 1038/1038), com banco recriado; **CI da PR verde** no mesmo head (o GitHub Actions voltou) ([relatório](./MAIKE-P2002-SEM-ALVO-REPORT.md) §6) |
 | Documentos | [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md) |
 
-## Missão ativa (2026-11-24) — MAIKE-PRODUTO-UNIDADES-CONVERSAO: unidades de conversão no cadastro do produto (D-PROD-285)
+## Missão ativa (2026-11-24) — MAIKE-PRODUTO-UNIDADES-CONVERSAO: unidades de conversão no cadastro do produto (D-PROD-286)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-285** (nasceu D-PROD-284; a PR #371 reservou a 284), escolhas do proprietário (2026-11-24) e o alinhamento ao CONTROLE-DE-ESTOQUE (`uso_compra`/`uso_venda`, código de barras, exclusão lógica, único parcial) |
+| Decisão | **D-PROD-286** (nasceu D-PROD-284; a PR #371 reservou a 284), escolhas do proprietário (2026-11-24) e o alinhamento ao CONTROLE-DE-ESTOQUE (`uso_compra`/`uso_venda`, código de barras, exclusão lógica, único parcial) |
 | Branch / PR | `claude/produto-unidades-conversao`, da `main` `4e9b4445` · sem push. **A `main` andou** (PR #370, `20261125100000_insumo_por_jato`, aplicada em produção): integrar e renomear a migration antes da PR (relatório §8) |
 | Mudança | tabela `ProdutoUnidadeConversao` (MULTIPLICA/DIVIDE, fator, uso, código de barras, ativa, `excluido_em`); conversão no servidor em entrada, saída manual, ajuste, compra e venda; CRUD dentro do POST/PATCH do produto; consumo mínimo/máximo na Formulação; preços, local e código interno fora da tela (ignorados no corpo; código = número) |
-| Migration | `20261124300000_produto_unidades_conversao`, **CONTRACT condicionado (CONVERSÃO sem DROP)**, `--contract D-PROD-285`, sha256 `779347bf…863b`. **Não aplicada em produção**; ensaiada localmente com o envelope do runbook |
+| Migration | `20261125200000_produto_unidades_conversao`, **CONTRACT condicionado (CONVERSÃO sem DROP)**, `--contract D-PROD-286`, sha256 `779347bf…863b`. **Não aplicada em produção**; ensaiada localmente com o envelope do runbook |
 | Relatório | [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md) · SPEC [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md) · Runbook [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md) |
 | Próximas | conversão na atividade, no cocho e na transferência (exige emenda, SPEC §7); cocho e farol lendo o consumo da Formulação; UN como unidade de estoque |
 
 ## Missão ativa (2026-11-23) — MAIKE-ESTOQUE-CONTROLE-LOTE: controle de lote (e de validade) por produto (D-PROD-282)
+## Missão anterior (2026-11-23) — MAIKE-ESTOQUE-CONTROLE-LOTE: controle de lote (e de validade) por produto (D-PROD-282)
 
 | Campo | Valor |
 |---|---|

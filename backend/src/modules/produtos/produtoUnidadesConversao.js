@@ -1,5 +1,5 @@
 /**
- * D-PROD-285 — unidades de conversão do produto (o "motor" da conversão de unidade).
+ * D-PROD-286 — unidades de conversão do produto (o "motor" da conversão de unidade).
  *
  * O produto tem UMA unidade de estoque efetiva: L (litros) ou KG (KG e o SACO legado, que guarda kg). Saldo, custo
  * médio, lote e recálculo ficam sempre nela (D-PROD-256/273/282 não mudam). Uma conversão diz quanto vale 1 unidade
