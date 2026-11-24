@@ -9,7 +9,7 @@
  *         percentual e alertas são IDÊNTICOS aos da chamada antiga; só muda a
  *         confirmação de unidade (sem a lista de produtos, a unidade dos lotes
  *         não é confirmada — D-PROD-178);
- *  DEP-3. o detalhe do depósito: "Saldo atual kg" e "Necessidade reposição kg"
+ *  DEP-3. o detalhe do depósito: "Saldo atual" e "Necessidade de reposição"
  *         só com o KG; o diesel aparece no saldo por produto com "L" e sem
  *         sacos; o último registro não é o do diesel. Sem Produto em L, o
  *         detalhe é idêntico ao renderizado com a lista de produtos sem L.
@@ -155,8 +155,8 @@ describe('DEP-3 — detalhe do depósito', () => {
     dados.movimentacoes = MOVS;
     await renderizar();
     await waitFor(() => expect(screen.getByTestId('saldo-litros-pr-diesel')).toBeTruthy());
-    expect(valorDe('Saldo atual kg')).toBe('250 kg');
-    expect(valorDe('Necessidade reposição kg')).toBe('750 kg');
+    expect(valorDe('Saldo atual')).toBe('250 kg');
+    expect(valorDe('Necessidade de reposição')).toBe('750 kg');
     expect(document.querySelector('.mk-dp-linha__sub')?.textContent).toBe('10,00 sacos');
     expect(screen.getByTestId('saldo-litros-pr-diesel').textContent).toBe('5.000,00 L');
     // Sacos do produto em litros: "—" (o sub da linha dele).
@@ -173,7 +173,7 @@ describe('DEP-3 — detalhe do depósito', () => {
     dados.produtos = [RACAO];
     dados.movimentacoes = [mov('m1', RACAO, '2026-11-01', 'KG')];
     const { container } = await renderizar();
-    await waitFor(() => expect(valorDe('Saldo atual kg')).toBe('250 kg'));
+    await waitFor(() => expect(valorDe('Saldo atual')).toBe('250 kg'));
     expect(document.querySelector('.mk-dp-linha__sub')?.textContent).toBe('10,00 sacos');
     expect(screen.queryByTestId(/^saldo-litros-/)).toBeNull();
     expect(container.textContent).not.toMatch(/\d L\b/);

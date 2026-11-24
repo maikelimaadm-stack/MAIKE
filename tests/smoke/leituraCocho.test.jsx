@@ -208,10 +208,13 @@ describe('D-PROD-205 — detalhe do cocho', () => {
     await waitFor(() => expect(within(secao()).getByTestId('farol-cocho')).toHaveAttribute('data-cor', 'vermelho'));
     expect(within(secao()).getByText('Cocho vazio')).toBeTruthy();
     expect(within(secao()).getByText(/JOÃO/)).toBeTruthy();
-    // Detalhe compacto: acesso e estrutura da última leitura aparecem na linha do farol (sem faixas repetidas).
+    // v13: a situação é o título, a etiqueta leva data · quem leu e escore · acesso · estrutura vão em grade (sem faixas repetidas).
     const linhaFarol = within(secao()).getByTestId('farol-cocho').closest('.mk-dp-linha');
-    expect(linhaFarol.querySelector('.mk-dp-linha__sub')?.textContent).toBe('Escore vazio · acesso ruim · estrutura quebrada');
+    expect(linhaFarol.querySelector('.mk-dp-linha__sub')).toBeNull();
     expect(linhaFarol.querySelector('.mk-dp-linha__val')?.textContent).toBe('12/11/2026 · JOÃO');
+    const grade = within(secao()).getByTestId('leitura-cocho-grade');
+    expect([...grade.querySelectorAll('.mk-dp-cel')].map((c) => `${c.querySelector('dt')?.textContent}=${c.querySelector('dd')?.textContent}`))
+      .toEqual(['Escore=Vazio', 'Acesso=Ruim', 'Estrutura=Quebrada']);
     expect(within(secao()).queryAllByTestId('aviso-leitura-cocho')).toHaveLength(0);
     expect(within(secao()).queryByRole('list')).toBeNull();
     await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Histórico' })); });

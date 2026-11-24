@@ -9269,6 +9269,19 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** cadastro de mistura; cálculo por hectare ao finalizar; jato nas janelas "Só insumo" do mapa.
 - **Testes:** `backend/tests/insumoPorJato.test.mjs`, B43o/B43p/B43q, `tests/smoke/jatosDoDia.test.jsx` e os casos D-PROD-283 de `tests/smoke/servicoVariosDias.test.jsx`.
 
+## D-PROD-284 — Detalhe do cocho e do depósito no desenho v13
+
+**Data:** 2026-11-24 · **Origem:** proprietário: pediu "o estilo de cocho e depósitos os detalhes com as mesmas personalizações de modelo de lotes", comparou atual × proposto aba a aba, pediu o ajuste do topo do depósito no celular ("fica meio quebrado") e aprovou ("perfeito pode fazer as implementações") · **Relatório:** [`MAIKE-COCHO-DEPOSITO-V13-REPORT.md`](./MAIKE-COCHO-DEPOSITO-V13-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` deu D-PROD-284 (o marcador); o marcador passa a D-PROD-285.
+
+- **Contexto:** a D-PROD-280 redesenhou o Detalhes do Lote; o cocho e o depósito continuavam com uma linha por campo, e no depósito o saldo dividia o topo com a necessidade de reposição, quebrando os números no celular.
+- **Decisão (só apresentação; mesmos dados e mesmas ações):** as regras da D-PROD-280 valem para os dois detalhes: campos em grade, barra ou régua onde há um número para comparar, cartões curtos no histórico, valores em peso 500 e títulos em 600. Abas, botão de fechar, desenhos do cocho e do depósito e ícones do rodapé não mudam.
+  - **Cocho:** saldo em destaque com a barra de uso do limite operacional; duração e próxima reposição com a barra do ciclo (lançamento → hoje → acaba); leitura com Escore, Acesso e Estrutura em grade; Fechamentos com a régua do desvio e o gráfico esperado × real (os da D-PROD-280); Informações com as barras do limite e a régua mín · ideal · máx do consumo por cabeça; Histórico em cartões curtos.
+  - **Depósito:** saldo sozinho ao lado do desenho, numa linha só; régua única de 0 ao limite, com a marca do mínimo e o marcador do saldo (o rótulo sobe quando encostaria em outro); duas caixas lado a lado, "Necessidade de reposição" e a situação do mínimo (acima, no mínimo, abaixo); barra de participação por produto; pastos atendidos com a etiqueta da leitura e a barra de nível; Histórico com "+N kg" em verde e "−N kg" em vermelho.
+- **Fora:** "Consumido (kg)" no cartão de fechamento (o evento não tem um campo próprio do cocho; ficou a Sobra); "% do lançamento" ao lado do saldo (o percentual já aparece uma vez, no desenho); desenho próprio de tablet e computador. Nenhuma mudança no servidor; nenhuma migration.
+- **Testes:** `tests/smoke/detalhesCochoV13.test.jsx` (novo) e os smoke do cocho e do depósito ajustados (`detalhesV12Cocho`, `leituraCocho`, `depositoNivel`, `detalhesV12Deposito`, `detalhesDepositoNiveis`, `detalhesCompactos`, `mapaDepositoLitros`, `mapaNiveisFonteUnica`).
+
 ## D-PROD-285 — "Novo movimento" do Estoque em tela cheia Base1, com os produtos na tabela das Áreas
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `19ca524e` disse D-PROD-284, mas outra missão em paralelo pode tomar a D-PROD-284; esta fica com a D-PROD-285. O marcador não é mexido aqui (quem fizer merge por último ajusta).
@@ -9279,4 +9292,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Sem mudança:** chamadas ao servidor, `operation_id`, validações, motivos (e o "Motivos…" na mesma tela), custo, lote/validade, permissões (ações `entrada`/`saida`/`ajuste`).
 - **Testes:** `tests/smoke/estoqueNovoMovimento.test.jsx`. **Relatório:** [`MAIKE-ESTOQUE-LANCAMENTO-TELA-BASE1-REPORT.md`](./MAIKE-ESTOQUE-LANCAMENTO-TELA-BASE1-REPORT.md)
 
-<!-- Próxima decisão: D-PROD-284 -->
+<!-- Próxima decisão: D-PROD-286 -->

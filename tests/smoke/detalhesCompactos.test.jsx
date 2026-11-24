@@ -12,9 +12,9 @@
  *        de toque, com áreas invisíveis no link, no "Excluir" e no ✕); teal AA;
  *        texto livre com o rótulo numa coluna e o valor logo depois, em todas as
  *        larguras; sem palavra sozinha na última linha do valor;
- *  DC-3. popup (a partir de 768 px): o nível do cocho e o do depósito ao lado do
- *        cartão dos números; em todos os modos, o cartão do limite do cocho em
- *        três e o dos números do depósito em 2 + 3, com os valores alinhados;
+ *  DC-3. popup (a partir de 768 px): o nível do cocho ao lado do cartão dos
+ *        números; em todos os modos, o cartão do limite do cocho em três; o
+ *        depósito (v13) num cartão em coluna, com as duas caixas lado a lado;
  *  DC-4. linha do tempo: as linhas do cartão em grade, com a divisória entre as
  *        fileiras; texto livre ou longo de ponta a ponta;
  *  DC-5. popup: pares lado a lado (Lotação | Categorias, Fornecimento | Consumo,
@@ -195,26 +195,18 @@ describe("DC-3 — o nível e os cartões dos números do cocho e do depósito",
     for (const b of blocosMedia(cocho, POPUP)) expect(b.dentro).not.toMatch(/mk-dp-cocho__cartao-nivel/);
   });
 
-  it("depósito: no popup, nível na 1ª coluna, cartão na 2ª e os avisos embaixo, de ponta a ponta; fora do popup, em coluna", () => {
-    const popup = regrasDoBloco(deposito, POPUP);
-    expect(regraCom(popup, ".mk-dp .mk-dp-deposito__nivel")).toMatch(/display: grid;\s*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\);/);
-    expect(regraCom(popup, ".mk-dp .mk-dp-deposito__nivel > .mk-dp-nivel")).toMatch(/grid-column: 1;\s*grid-row: 1;/);
-    expect(regraCom(popup, ".mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao")).toMatch(/grid-column: 2;\s*grid-row: 1;/);
-    expect(regraCom(popup, ".mk-dp .mk-dp-deposito__nivel > .mk-dp-aviso")).toMatch(/grid-column: 1 \/ -1;/);
-    expect(semMedia(deposito, POPUP)).not.toMatch(/mk-dp-deposito__nivel > \.mk-dp-(nivel|cartao|aviso) \{/);
+  it("depósito (v13): a região do nível em coluna em todos os modos; o saldo numa linha; as duas caixas lado a lado com o número sem quebrar", () => {
+    const v13 = ler("src/styles/mk-dp-deposito-v13.css");
+    expect(regra(v13, ".mk-dp .mk-dp-dep13")).toMatch(/display: flex;\s*flex-direction: column;/);
+    expect(regra(v13, ".mk-dp .mk-dp-dep13__grande")).toMatch(/white-space: nowrap;/);
+    expect(regra(v13, ".mk-dp .mk-dp-dep13__caixas")).toMatch(/grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(regra(v13, ".mk-dp .mk-dp-dep13__val")).toMatch(/white-space: nowrap;/);
+    expect(v13).not.toMatch(/@media/);
+    // O desenho antigo (grade de 6 trilhos e o par lado a lado no popup) saiu do mk-dp-deposito.css.
+    expect(deposito).not.toMatch(/mk-dp-deposito__nivel/);
   });
 
-  it("depósito, em todos os modos: Ocupação | Estoque mínimo; Saldo | Sacos | Necessidade (6 trilhos), com os valores da 2ª fileira na mesma linha (subgrid)", () => {
-    const base = regrasDe(semMedia(deposito, POPUP));
-    const g = ".mk-dp .mk-dp-deposito__nivel > .mk-dp-cartao .mk-dp-grade";
-    expect(regraCom(base, g)).toMatch(/grid-template-columns:\s*repeat\(6, minmax\(0, 1fr\)\);/);
-    expect(regraCom(base, `${g} > .mk-dp-cel`)).toMatch(/grid-column:\s*span 2;/);
-    expect(regraCom(base, `${g} > .mk-dp-cel:nth-child(-n + 2)`, `${g} > .mk-dp-cel:nth-child(3):nth-last-child(2)`, `${g} > .mk-dp-cel:nth-child(4):last-child`)).toMatch(/grid-column:\s*span 3;/);
-    expect(regraCom(base, `${g} > .mk-dp-cel:nth-child(n + 3)`)).toMatch(/display: grid;\s*grid-row: span 3;\s*grid-template-rows: subgrid;\s*row-gap: 1px;/);
-    for (const b of blocosMedia(deposito, POPUP)) expect(b.dentro).not.toMatch(/\.mk-dp-grade/);
-  });
-
-  it("depósito: a região tem como filhos diretos o nível, os avisos e o cartão (o que a grade do popup posiciona)", () => {
+  it("depósito (v13): a região tem o título oculto, o cartão e os avisos depois dele", () => {
     const RACAO = { id: "pr-racao", unidade_principal_estoque: "KG" };
     const nivel = calcularNivelDeposito({
       deposito: { id: "dep", local_estoque_id: "loc", capacidade_cocho_kg: 1000, estoque_minimo_kg: 600 },
@@ -226,13 +218,9 @@ describe("DC-3 — o nível e os cartões dos números do cocho e do depósito",
         <DepositoNivel nivel={nivel} />
       </div>,
     );
-    const regiao = /** @type {HTMLElement} */ (container.querySelector("section.mk-dp-deposito__nivel"));
+    const regiao = /** @type {HTMLElement} */ (container.querySelector("section.mk-dp-dep13"));
     const filhos = [...regiao.children].map((f) => f.classList[0]);
-    expect(filhos[0]).toBe("mk-dp-deposito__oculto");
-    expect(filhos[1]).toBe("mk-dp-nivel");
-    expect(filhos.at(-1)).toBe("mk-dp-cartao");
-    // Com aviso de unidade: o aviso fica entre os dois no DOM.
-    expect(filhos.slice(2, -1)).toEqual(["mk-dp-aviso"]);
+    expect(filhos).toEqual(["mk-dp-deposito__oculto", "mk-dp-cartao", "mk-dp-aviso"]);
   });
 });
 

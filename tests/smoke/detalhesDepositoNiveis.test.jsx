@@ -23,6 +23,11 @@
  * "Estoque mínimo:" viraram células (`dt` → `dd`) do cartão "Informações do
  * depósito", com "—" quando falta; e os sacos do produto em litros ("—") são o
  * sub da linha dele.
+ *
+ * v13: o saldo sozinho ao lado do ícone, a régua 0 → limite (o medidor) e duas
+ * caixas — "Necessidade de reposição" ("—" sem limite) e "Estoque mínimo"
+ * (Acima do mínimo / No mínimo / Abaixo do mínimo, com o valor em kg). A linha de
+ * excesso embaixo da régua só aparece acima do limite.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -105,8 +110,8 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     expect(medidor().getAttribute('data-variante')).toBe('excesso');
     expect(nivelIcone()).toBe('100');
     expect(secao().querySelector('[data-medidor-preenchimento]').style.width).toBe('100%');
-    expect(valorDe('Saldo atual kg')).toBe('600 kg');
-    expect(valorDe('Necessidade reposição kg')).toBe('0 kg');
+    expect(valorDe('Saldo atual')).toBe('600 kg');
+    expect(valorDe('Necessidade de reposição')).toBe('0 kg');
     expect(screen.queryByText('Limite operacional')).toBeNull();
     expect(screen.queryByText('Capacidade:')).toBeNull();
     expect(screen.queryByText('Capacidade')).toBeNull();
@@ -119,11 +124,12 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     await renderizar(deposito({ estoque_minimo_kg: 100 }));
     await waitFor(() => expect(medidor().getAttribute('aria-valuenow')).toBe('50'));
     percentualNaSecao('50%');
-    expect(within(secao()).getByText('150 kg de 300 kg · dentro do limite')).toBeTruthy();
+    expect(secao().querySelector('.mk-dp-dep13__excesso')).toBeNull();
     expect(nivelIcone()).toBe('50');
-    expect(within(painelMinimo()).getByText('Mínimo 100 kg · 50 kg acima do mínimo')).toBeTruthy();
+    expect(within(painelMinimo()).getByText('Acima do mínimo')).toBeTruthy();
+    expect(within(painelMinimo()).getByText('50 kg')).toBeTruthy();
     expect(painelMinimo().getAttribute('data-estado-minimo')).toBe('acima');
-    expect(valorDe('Necessidade reposição kg')).toBe('150 kg');
+    expect(valorDe('Necessidade de reposição')).toBe('150 kg');
     expect(screen.getAllByRole('group', { name: 'Estoque mínimo' })).toHaveLength(1);
   });
 
@@ -133,21 +139,22 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     await waitFor(() => expect(medidor().getAttribute('aria-valuenow')).toBe('30'));
     percentualNaSecao('30%');
     expect(nivelIcone()).toBe('30');
-    expect(within(painelMinimo()).getByText('Mínimo 100 kg · abaixo do mínimo (faltam 10 kg)')).toBeTruthy();
-    expect(within(painelMinimo()).getByText('Reposição recomendada.')).toBeTruthy();
+    expect(within(painelMinimo()).getByText('Abaixo do mínimo')).toBeTruthy();
+    expect(within(painelMinimo()).getByText('10 kg')).toBeTruthy();
+    expect(within(painelMinimo()).getByText('mínimo de 100 kg · Reposição recomendada.')).toBeTruthy();
     expect(painelMinimo().getAttribute('data-estado-minimo')).toBe('abaixo');
   });
 
   it.each([[0], [null]])('DD-4 — sem limite operacional (%s): sem percentual, mensagem do limite e do mínimo', async (limite) => {
     dados.lotesNota = [lote('l1', RACAO, 150)];
     await renderizar(deposito({ capacidade_cocho_kg: limite, estoque_minimo_kg: null }));
-    await waitFor(() => expect(valorDe('Saldo atual kg')).toBe('150 kg'));
+    await waitFor(() => expect(valorDe('Saldo atual')).toBe('150 kg'));
     expect(within(secao()).queryByRole('meter')).toBeNull();
     expect(within(secao()).getByText('Limite operacional não configurado; não há percentual.')).toBeTruthy();
     expect(secao().textContent).not.toMatch(/\d%/);
     expect(nivelIcone()).toBeNull();
     expect(within(painelMinimo()).getByText('Estoque mínimo não configurado.')).toBeTruthy();
-    expect(valorDe('Necessidade reposição kg')).toBe('0 kg');
+    expect(valorDe('Necessidade de reposição')).toBe('—');
     expect(screen.queryByText('Limite operacional')).toBeNull();
   });
 
@@ -156,7 +163,7 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     await renderizar(deposito());
     await waitFor(() => expect(screen.getByTestId('saldo-litros-pr-diesel')).toBeTruthy());
     await waitFor(() => expect(medidor().getAttribute('aria-valuenow')).toBe('50'));
-    expect(valorDe('Saldo atual kg')).toBe('150 kg');
+    expect(valorDe('Saldo atual')).toBe('150 kg');
     expect(secao().textContent).not.toContain('5.000');
     expect(within(secao()).getByText('Produtos em litros ficam fora do saldo em kg e do percentual.')).toBeTruthy();
     expect(within(secao()).queryByText(/Unidade de alguns produtos não confirmada/)).toBeNull();
@@ -176,7 +183,7 @@ describe('DD — detalhe do depósito pelo limite operacional (D-PROD-178)', () 
     dados.lotesNota = [lote('l1', RACAO, 100), lote('l2', SEM_CADASTRO, 50)];
     await renderizar(deposito());
     await waitFor(() => expect(medidor().getAttribute('aria-valuenow')).toBe('50'));
-    expect(valorDe('Saldo atual kg')).toBe('150 kg');
+    expect(valorDe('Saldo atual')).toBe('150 kg');
     expect(within(secao()).getByText('Unidade de alguns produtos não confirmada; o saldo em kg pode incluir itens de outra unidade.')).toBeTruthy();
     expect(screen.getByText('SAL ANTIGO').closest('[data-unidade-confirmada]')?.getAttribute('data-unidade-confirmada')).toBe('false');
     expect(screen.getByText('unidade não confirmada')).toBeTruthy();
