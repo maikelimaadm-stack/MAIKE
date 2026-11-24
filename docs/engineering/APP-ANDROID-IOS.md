@@ -57,9 +57,11 @@ O APK sai em `android/app/build/outputs/apk/release/app-release.apk` e instala p
 - Com internet, o app troca o login por um novo de 30 dias (`POST /auth/renovar`). Quem abre o app ao menos uma vez a cada 30 dias com internet não precisa entrar de novo.
 - Suspender a conta, trocar a senha ou o papel derruba a sessão do app na próxima vez que ele falar com o servidor.
 
-## Sem internet
+## Sem internet (D-PROD-288)
 
-- Abre: telas, código e ícones estão dentro do app, e o login guardado vale (aviso "Sem internet — mostrando dados salvos").
-- Mostra: os dados do mapa já guardados no aparelho (`mapaCacheService`, IndexedDB).
-- Quando a rede volta, o app confere o login no servidor sozinho.
-- Precisa de internet: o primeiro login, satélite de áreas nunca abertas e gravar no servidor.
+- **Baixar dados:** depois do primeiro login no app aparece "Dados para usar sem internet" → "Baixar agora". Baixa mapa, áreas, lotes, cadastros e as telas já abertas. Com internet, o app atualiza sozinho a cada 6 h; o menu do usuário → "Dados sem internet" baixa ou atualiza quando quiser.
+- **Abre:** telas, código e ícones estão dentro do app, e o login guardado vale (aviso "Sem internet — mostrando dados salvos").
+- **Mapa:** sem internet, fundo liso local com áreas, pontos e lotes por cima. Satélite sem internet não existe (licença do Google).
+- **Mostra:** tudo o que foi baixado ou visto com internet (leituras guardadas no aparelho, por fazenda).
+- **Quando a rede volta:** o app confere o login no servidor sozinho.
+- **Ainda precisa de internet:** o primeiro login e **gravar** (lançar, editar, excluir). Registrar sem internet e enviar depois é a próxima etapa.

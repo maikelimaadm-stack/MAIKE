@@ -156,6 +156,32 @@ export const resetOfflineEntityRuntime = () => {
 /** Nomes registrados no catálogo offline. */
 export const getOfflineEntityNames = () => [...CATALOGO.keys()];
 
+/**
+ * D-PROD-288 — "Baixar dados para usar sem internet": lê do servidor TODAS as
+ * entidades registradas que sabem listar, pelo próprio adaptador (que guarda o
+ * resultado no cache do aparelho, por empresa/tenant, como qualquer leitura).
+ * Uma falha isolada não para as demais. Sem internet não faz nada.
+ *
+ * @param {(p: {feitas: number, total: number, entidade: string}) => void} [aoAvancar]
+ * @returns {Promise<{total: number, ok: number, falhas: string[]}>}
+ */
+export const baixarEntidadesParaOffline = async (aoAvancar) => {
+  const alvos = [...CATALOGO.entries()].filter(([, e]) => typeof e.adapter?.list === "function");
+  const falhas = [];
+  if (!estaOnline()) return { total: alvos.length, ok: 0, falhas: alvos.map(([nome]) => nome) };
+  let feitas = 0;
+  for (const [nome, entrada] of alvos) {
+    try {
+      await entrada.adapter.list();
+    } catch {
+      falhas.push(nome);
+    }
+    feitas += 1;
+    aoAvancar?.({ feitas, total: alvos.length, entidade: nome });
+  }
+  return { total: alvos.length, ok: alvos.length - falhas.length, falhas };
+};
+
 const emitirMudancaDeFila = () => {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(OFFLINE_SYNC_EVENT));
@@ -779,6 +805,8 @@ export const createOfflineEntityAdapter = ({
     };
   }
 
+  const entrada = CATALOGO.get(entityName);
+  if (entrada) entrada.adapter = adapter;
   return adapter;
 };
 

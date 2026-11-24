@@ -17,6 +17,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import NativeLoginForm from '@/components/auth/NativeLoginForm';
 import NativeSessionUnavailable from '@/components/auth/NativeSessionUnavailable';
 import AvisoSessaoOffline from '@/components/auth/AvisoSessaoOffline';
+import DadosOffline from '@/components/offline/DadosOffline';
 import SplashScreen from '@/components/common/SplashScreen';
 import { BootSplashProvider, useBootSplash } from '@/lib/bootSplashContext';
 import { normalizeAppPathname } from '@/lib/navigation/normalizeAppPathname';
@@ -130,6 +131,7 @@ const AuthenticatedApp = () => {
     <>
       <SplashScreen visible={showBootSplash} />
       {showMainApp && sessaoOffline && <AvisoSessaoOffline />}
+      {showMainApp && <DadosOffline />}
       {showMainApp && (
         <Routes>
           <Route path="/" element={<Navigate to={createPageUrl(mainPage)} replace />} />

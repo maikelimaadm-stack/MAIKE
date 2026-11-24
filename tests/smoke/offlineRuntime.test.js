@@ -17,6 +17,7 @@ const {
   getOfflineSyncEventName,
   offlineStorageDisponivel,
   instalarSincronizacaoAoVoltarOnline,
+  baixarEntidadesParaOffline,
 } = await import('@/lib/offline/offlineEntityRuntime');
 const { API_ERROR_CODES } = await import('@/apis/_core/ApiError');
 
@@ -544,5 +545,37 @@ describe('OFF21–OFF29 — dono da fila e do cache', () => {
 
     expect(r.success).toBe(true);
     expect(operacoes.create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('D-PROD-288 — baixar tudo para usar sem internet', () => {
+  it('OFF-B1 lista cada entidade registrada pelo adaptador (vai para o cache); falha isolada não para as outras', async () => {
+    const storage = criarArmazenamentoEmMemoria();
+    const lotes = criarOperacoes();
+    lotes.list.mockResolvedValue([{ id: 'l1' }]);
+    const setores = criarOperacoes();
+    setores.list.mockRejectedValue(new Error('rede'));
+    const marcas = criarOperacoes();
+    marcas.list.mockResolvedValue([{ id: 'm1' }, { id: 'm2' }]);
+    createOfflineEntityAdapter({ entityName: 'Lote', operations: lotes, storage });
+    createOfflineEntityAdapter({ entityName: 'Setor', operations: setores, storage });
+    createOfflineEntityAdapter({ entityName: 'Marca', operations: marcas, storage });
+
+    const passos = [];
+    const r = await baixarEntidadesParaOffline((p) => passos.push(p.feitas));
+    expect(r).toEqual({ total: 3, ok: 2, falhas: ['Setor'] });
+    expect(passos).toEqual([1, 2, 3]);
+    expect(storage.cache.get('Lote::emp-1')).toHaveLength(1);
+    expect(storage.cache.get('Marca::emp-1')).toHaveLength(2);
+  });
+
+  it('OFF-B2 sem internet não chama a rede', async () => {
+    const storage = criarArmazenamentoEmMemoria();
+    const lotes = criarOperacoes();
+    createOfflineEntityAdapter({ entityName: 'Lote', operations: lotes, storage });
+    ficarOffline();
+    const r = await baixarEntidadesParaOffline();
+    expect(r).toEqual({ total: 1, ok: 0, falhas: ['Lote'] });
+    expect(lotes.list).not.toHaveBeenCalled();
   });
 });

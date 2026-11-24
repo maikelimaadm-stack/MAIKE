@@ -11,7 +11,7 @@ import {
   persistirEmpresaSelecionada as gravarEmpresaSelecionada,
 } from "@/hooks/useEmpresaSelecionadaId";
 import {
-  LogOut, Map, ChevronDown, ChevronLeft, Search, X, EyeOff, Eye,
+  LogOut, CloudDownload, Map, ChevronDown, ChevronLeft, Search, X, EyeOff, Eye,
   Building2, Check, Droplet, Folder, LayoutGrid, Loader2 } from
 "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -24,6 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger } from
 "@/components/ui/dropdown-menu";
+import { abrirDadosOffline } from "@/components/offline/DadosOffline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -65,6 +66,9 @@ const FIXED_MOBILE_NAV_ITEMS = [
 { id: "pec-bebedouros", url: "Bebedouros", label: "Bebedouros", full: "Bebedouros", Icon: Droplet }];
 
 
+
+/** D-PROD-288: item do menu tipado (o DropdownMenuItem do ui não declara props). */
+/** @type {React.ComponentType<any>} */ const ItemDoMenu = DropdownMenuItem;
 export default function Layout(props) {
   return (
     <MobileShellProvider>
@@ -475,6 +479,10 @@ function LayoutShell({ children, currentPageName }) {
           <Link to={createPageUrl("ConfiguracoesGerais")}>Configurações Gerais</Link>
         </DropdownMenuItem>
       }
+        <ItemDoMenu onClick={abrirDadosOffline} className="text-xs">
+          <CloudDownload className="w-3 h-3 mr-2" />
+          Dados sem internet
+        </ItemDoMenu>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="text-xs text-red-600">
           <LogOut className="w-3 h-3 mr-2" />
