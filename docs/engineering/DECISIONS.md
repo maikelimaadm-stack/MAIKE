@@ -9292,4 +9292,19 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Sem mudança:** chamadas ao servidor, `operation_id`, validações, motivos (e o "Motivos…" na mesma tela), custo, lote/validade, permissões (ações `entrada`/`saida`/`ajuste`).
 - **Testes:** `tests/smoke/estoqueNovoMovimento.test.jsx`. **Relatório:** [`MAIKE-ESTOQUE-LANCAMENTO-TELA-BASE1-REPORT.md`](./MAIKE-ESTOQUE-LANCAMENTO-TELA-BASE1-REPORT.md)
 
-<!-- Próxima decisão: D-PROD-286 -->
+## D-PROD-286 — Controles do Mapa Geral numa faixa acima do mapa
+
+**Data:** 2026-11-24 · **Origem:** proprietário: "o mapa é a tela principal e abre com coisa demais em cima"; comparou atual × proposto em celular, tablet e computador, escolheu o estilo dos botões pelo exemplo "Chat | Work" e aprovou ("perfeito, pode começar a implementação"; "faça o merge quando ficar pronto") · **Relatório:** [`MAIKE-MAPA-CONTROLES-V13-REPORT.md`](./MAIKE-MAPA-CONTROLES-V13-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` deu D-PROD-286 (o marcador); o marcador passa a D-PROD-287.
+
+- **Contexto:** no celular, uma barra escura flutuava no meio do topo do mapa; no computador e no tablet, botões soltos ficavam por cima do terreno. Quem usa o mapa no campo tem pouca leitura e não deve precisar procurar.
+- **Decisão (só arrumação; nenhuma função removida):**
+  - **Faixa branca fixa acima do mapa**, fora da área do mapa, nos três tamanhos: um trilho segmentado (cinza claro, totalmente arredondado, selecionado em pílula branca) com [Filtro] · Lotes · Pontos · [Visualização]; Filtro e Visualização só com ícone e rótulo acessível. No celular o trilho ocupa a largura; no computador e no tablet fica à esquerda, mais estreito.
+  - **Resumo dos animais** (animais · peso médio · áreas, e a setinha do Resumo) embaixo à esquerda, no mesmo estilo de trilho, com milhar em pt-BR.
+  - **Atualizar · Minha localização · Ativar arrasto** numa pílula em pé embaixo à direita, no mesmo estilo; no celular as três peças têm a mesma altura.
+  - Os painéis de Filtro e de Visualização, o cabeçalho, o menu e a barra de baixo do celular não mudam.
+- **Fora:** aparência dos pastos e marcadores (preenchimento transparente, nomes em branco), "Colorir por"/"Mostrar" como botões próprios, busca e modo campo. Nenhuma mudança no servidor; nenhuma migration.
+- **Testes:** `tests/smoke/mapaControlesV13.test.jsx` (novo); os testes do mapa existentes passam sem alteração.
+
+<!-- Próxima decisão: D-PROD-287 -->

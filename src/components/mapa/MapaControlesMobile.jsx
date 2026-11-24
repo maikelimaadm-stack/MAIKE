@@ -1,16 +1,17 @@
 /*
  * GUIA DE EDIÇÃO — BOTÕES DO MAPA: ordem, ícones e ações.
- * - Barra do topo (D-PROD-218): filtro (abre o painel Filtros de sempre) · Lotes · Pastos · Tarefas.
+ * - Faixa branca acima do mapa (D-PROD-285): trilho filtro (ícone) · Lotes · Pontos · Visualização (ícone).
  *   Os segmentos e o que cada foco mostra vêm de src/lib/mapaFoco.js.
  * - Visualização fica no fim da barra escura (D-PROD-235).
- * - Coluna da direita: Atualizar, Minha localização e Mover.
- * Posição e espaçamento ficam em mapa-geral.css (.mk-mapa-barra, .mk-mapa-dir) e mk-mapa-superficie.css.
+ * - Pílula em pé no canto de baixo à direita: Atualizar, Minha localização e Mover.
+ * Posição e espaçamento: mapa-controles-v13.css (por cima de mapa-geral.css e mk-mapa-superficie.css).
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
 import React from "react";
 import MapaFiltrosPainel from "./MapaFiltrosPainel";
 import { Filter, Map, Move, RefreshCw, Target } from "lucide-react";
 import { FOCOS_MAPA } from "@/lib/mapaFoco";
+import "@/styles/mapa-controles-v13.css";
 
 const CAMADAS = [
   { id: "roadmap", label: "Mapa" },
@@ -86,6 +87,9 @@ export default function MapaControlesMobile({
 
   return (
     <>
+      {/* D-PROD-285: faixa branca fixa acima do mapa (fora da área do mapa) com o trilho
+          Filtro · Lotes · Pontos · Visualização no estilo segmentado. */}
+      <div className="mk-mapa-faixa">
       <div
         className={`mk-mapa-barra${showFiltrosButton ? "" : " mk-mapa-barra--sem-cfg"}`}
         role="toolbar"
@@ -93,7 +97,7 @@ export default function MapaControlesMobile({
         onKeyDown={andarNaBarra}>
         {showFiltrosButton ? (
           <button type="button" className="mk-mapa-barra__cfg" onClick={onOpenFiltros} aria-label="Filtros" title="Filtros">
-            <Filter size={22} aria-hidden />
+            <Filter size={19} aria-hidden />
           </button>
         ) : null}
         {segmentos.map((f) => (
@@ -117,29 +121,30 @@ export default function MapaControlesMobile({
           aria-haspopup="true"
           aria-label={`Visualização do mapa: ${camadaAtual.label}`}
           title="Visualização">
-          <Map size={22} aria-hidden />
+          <Map size={19} aria-hidden />
         </button>
+      </div>
       </div>
 
       <div className="mk-mapa-dir">
-        <div className="mk-mapa-card mk-mapa-pilha">
-          <button type="button" className="mk-mapa-btn" onClick={onRefresh} aria-label="Atualizar mapa" title="Atualizar mapa">
-            <RefreshCw size={17} aria-hidden />
+        <div className="mk-mapa-pilha mk13-pilha">
+          <button type="button" className="mk13-btn" onClick={onRefresh} aria-label="Atualizar mapa" title="Atualizar mapa">
+            <RefreshCw size={19} aria-hidden />
           </button>
           {showLocalizarButton ? (
-            <button type="button" className="mk-mapa-btn" onClick={onLocate} aria-label="Minha localização" title="Minha localização">
-              <Target size={17} aria-hidden />
+            <button type="button" className="mk13-btn" onClick={onLocate} aria-label="Minha localização" title="Minha localização">
+              <Target size={19} aria-hidden />
             </button>
           ) : null}
           {showMoverButton ? (
             <button
               type="button"
-              className={`mk-mapa-btn${dragEnabled ? " is-on" : ""}`}
+              className={`mk13-btn${dragEnabled ? " is-on" : ""}`}
               onClick={onToggleDrag}
               aria-pressed={dragEnabled}
               aria-label={dragEnabled ? "Arrasto ativo" : "Ativar arrasto"}
               title={dragEnabled ? "Arrasto ativo" : "Ativar arrasto"}>
-              <Move size={17} aria-hidden />
+              <Move size={19} aria-hidden />
             </button>
           ) : null}
         </div>
