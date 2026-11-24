@@ -102,7 +102,7 @@ export const linhasDoJato = (itens) =>
   });
 
 /**
- * D-PROD-291 — o dia já salvo: "3 jatos de 2.000 L · herbicida folha larga 34 L · adubo foliar 24 kg" a partir das linhas
+ * D-PROD-292 — o dia já salvo: "3 jatos de 2.000 L · herbicida folha larga 34 L · adubo foliar 24 kg" a partir das linhas
  * de insumo gravadas (só as CONFIRMADAS com `jato`); o tanque vem do implemento das máquinas do dia (pode faltar). Sem
  * jato, null.
  * @param {any[]} linhasProduto @param {any[]} [linhasMaquina]
@@ -130,7 +130,7 @@ export const textoDosJatosSalvos = (linhasProduto, linhasMaquina = []) => {
 };
 
 /**
- * D-PROD-292 — o tanque e o jato sugerido para a linha avulsa: o tanque do implemento das máquinas (do dia ou, sem ele, do
+ * D-PROD-293 — o tanque e o jato sugerido para a linha avulsa: o tanque do implemento das máquinas (do dia ou, sem ele, do
  * último lançamento da atividade) e o MAIOR jato já lançado no dia (sem nenhum, 1).
  * @param {any} apontamento @param {any[]} [outros]  os lançamentos da atividade (o último com máquina dá o tanque)
  * @returns {{ tanque: { capacidade: string, unidade: string|null } | null, jatoSugerido: number }}

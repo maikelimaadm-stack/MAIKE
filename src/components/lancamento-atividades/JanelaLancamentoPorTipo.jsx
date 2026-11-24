@@ -345,7 +345,7 @@ export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, 
   let formulario = null;
   if (podeLancar && dia && consulta.isSuccess) {
     if (tipo === LINHA_PRODUTO) {
-      // D-PROD-292: com implemento "por jato" (no dia ou no último lançamento da atividade), o "Jato nº" na linha.
+      // D-PROD-293: com implemento "por jato" (no dia ou no último lançamento da atividade), o "Jato nº" na linha.
       const jato = tanqueEJatoDoDia(apontamento, todosOsItens);
       formulario = <JanelaLinhaProduto key={chaveDoFormulario} {...propsDoFormulario} atividadeAreaId={comAreas ? areaId : null} tanque={jato.tanque} jatoSugerido={jato.jatoSugerido} />;
     }

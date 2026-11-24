@@ -1,5 +1,5 @@
 /**
- * D-PROD-291 (MAIKE-FECHAMENTO-AREA) — o "Finalizar" com "Fez o pasto todo?" e o resumo "Como ficou".
+ * D-PROD-292 (MAIKE-FECHAMENTO-AREA) — o "Finalizar" com "Fez o pasto todo?" e o resumo "Como ficou".
  *
  * As contas usam os lançamentos CONFIRMADOS da atividade (`GET /atividades/:id/apontamentos`) e só as linhas
  * CONFIRMADAS: jatos (o par lançamento × número do jato), dias com jato, horas de máquina (o uso das linhas que não são

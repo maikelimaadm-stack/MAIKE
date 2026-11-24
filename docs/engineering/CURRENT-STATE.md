@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-24 (missão ativa D-PROD-292; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-24 (missão ativa D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,11 +9,11 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-24) — MAIKE-JATOS-FECHAMENTO: tipo "por jato" editável, "Fez o pasto todo?", várias máquinas e jato na linha avulsa (D-PROD-290 a 292)
+## Missão ativa (2026-11-24) — MAIKE-JATOS-FECHAMENTO: tipo "por jato" editável, "Fez o pasto todo?", várias máquinas e jato na linha avulsa (D-PROD-291 a 293)
 
 | Item | Estado |
 |---|---|
-| Decisões | **D-PROD-290** (editar "por jato" no tipo existente), **D-PROD-291** (Finalizar com hectares e resumo por hectare; jatos no dia salvo), **D-PROD-292** (várias máquinas no curto; jato na linha avulsa) |
+| Decisões | **D-PROD-291** (editar "por jato" no tipo existente), **D-PROD-292** (Finalizar com hectares e resumo por hectare; jatos no dia salvo), **D-PROD-293** (várias máquinas no curto; jato na linha avulsa) |
 | Banco | sem migration (o fechamento é um lançamento só com hectares) |
 | Relatório | [`MAIKE-JATOS-FECHAMENTO-REPORT.md`](./MAIKE-JATOS-FECHAMENTO-REPORT.md) |
 

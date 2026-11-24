@@ -251,7 +251,7 @@ describe("o diálogo Concluir (V3)", () => {
     expect(screen.getByTestId("dialogo-concluir-servico-sugerido")).toHaveTextContent("sugerido: último dia lançado");
     expect(screen.getByTestId("dialogo-concluir-servico-hectares")).toHaveTextContent("40 de 40 ha (100%)");
     // Antes do último dia lançado: o erro no campo, nada enviado.
-    // D-PROD-291: o diálogo lê as áreas e os lançamentos antes de liberar o envio.
+    // D-PROD-292: o diálogo lê as áreas e os lançamentos antes de liberar o envio.
     await waitFor(() => expect(screen.getByTestId("dialogo-concluir-servico-enviar")).not.toBeDisabled());
     fireEvent.change(campo, { target: { value: "2026-12-01" } });
     fireEvent.click(screen.getByTestId("dialogo-concluir-servico-enviar"));
@@ -287,7 +287,7 @@ const PULVERIZADOR = { id: "i-pv", numero: "9", codigo_frota: "PV-01", nome: "PU
 const GLIFOSATO = { id: "p-gli", nome: "GLIFOSATO", unidade: "L", unidade_principal_estoque: "L" };
 /** O implemento da máquina do último dia (troca por teste). */
 let implementoDoUltimoDia = ROCADEIRA;
-/** D-PROD-292: o último dia com duas máquinas (troca por teste). */
+/** D-PROD-293: o último dia com duas máquinas (troca por teste). */
 let duasMaquinas = false;
 const TRATOR3 = { id: "b-tr3", numero: "3", codigo_frota: "TR-03", nome: "TRATOR VALTRA", natureza: "MAQUINA" };
 const MEDIDORES = /** @type {Record<string, any>} */ ({
@@ -376,7 +376,7 @@ const montar = async (props = {}) => {
   const janela = await screen.findByTestId("janela-registro-de-campo");
   return { janela, onFechar };
 };
-/** D-PROD-291: o diálogo Finalizar lê o detalhe e os lançamentos da atividade (react-query). @param {React.ReactElement} el */
+/** D-PROD-292: o diálogo Finalizar lê o detalhe e os lançamentos da atividade (react-query). @param {React.ReactElement} el */
 const comQuery = (el) => <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{el}</QueryClientProvider>;
 const registros = () => backend.chamadas.filter((c) => c.method === "POST" && c.path === "/atividades/registrar");
 const editorDe = (/** @type {HTMLElement} */ janela, /** @type {string} */ secao) => within(janela).getByTestId(`registro-${secao}-editor`);
@@ -786,7 +786,7 @@ describe("D-PROD-283: jatos de hoje no Novo lançamento", () => {
     expect(within(janela).getByTestId("jatos-total")).toHaveTextContent("Hoje: 2 jatos · glifosato 20 L");
     // Os insumos não se repetem no "Vai junto".
     expect(within(janela).getByTestId("registro-de-campo-vai-junto")).not.toHaveTextContent("GLIFOSATO");
-    // D-PROD-291: com jato, os hectares não são perguntados no dia (só ao finalizar).
+    // D-PROD-292: com jato, os hectares não são perguntados no dia (só ao finalizar).
     expect(within(janela).queryByTestId("registro-de-campo-hectares-hoje")).toBeNull();
     expect(within(janela).getByTestId("registro-de-campo-hectares-no-fim")).toHaveTextContent("Os hectares são perguntados quando finalizar a área.");
     // O resto do dia, como sempre: horímetro e a situação.
@@ -835,7 +835,7 @@ describe("D-PROD-283: jatos de hoje no Novo lançamento", () => {
   });
 });
 
-describe("D-PROD-292: várias máquinas no Novo lançamento curto", () => {
+describe("D-PROD-293: várias máquinas no Novo lançamento curto", () => {
   it("o horímetro de cada máquina do último dia, uma depois da outra ('Próxima máquina'); as duas vão no corpo", async () => {
     duasMaquinas = true;
     const { janela } = await montar({ continuar: SERVICO });

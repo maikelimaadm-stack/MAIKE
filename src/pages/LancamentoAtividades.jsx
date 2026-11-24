@@ -652,7 +652,7 @@ export default function LancamentoAtividades() {
   /**
    * "Concluir" da linha: `POST /atividades/:id/concluir` com o último dia (as áreas em andamento e a atividade, numa
    * transação). A recusa fica no diálogo (ele mostra a frase); a lista e o detalhe se releem.
-   * @param {string} dia @param {Array<{ atividade_area_id: string, hectares: string }>} [areas]  D-PROD-291
+   * @param {string} dia @param {Array<{ atividade_area_id: string, hectares: string }>} [areas]  D-PROD-292
    */
   const concluirServico = async (dia, areas = undefined) => {
     const alvoDaLinha = concluindoServico;

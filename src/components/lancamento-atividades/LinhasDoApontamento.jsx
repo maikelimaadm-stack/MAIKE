@@ -493,7 +493,7 @@ export default function LinhasDoApontamento({
       {mostrarProdutos ? (
         <div className="min-w-0" data-testid={`apontamento-${apId}-produtos`}>
           <p className={TITULO_BLOCO}>Produtos</p>
-          {/* D-PROD-291: o dia com jatos mostra o resumo dos jatos antes das linhas (cada linha diz o jato dela). */}
+          {/* D-PROD-292: o dia com jatos mostra o resumo dos jatos antes das linhas (cada linha diz o jato dela). */}
           {textoDosJatosSalvos(produtos, maquinas) ? (
             <p className="mb-1 text-[13px] font-semibold text-[#141413]" data-testid={`apontamento-${apId}-jatos`}>
               {textoDosJatosSalvos(produtos, maquinas)}

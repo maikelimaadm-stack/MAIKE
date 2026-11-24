@@ -22,7 +22,7 @@ import { RAIZ_CONSULTAS_ATIVIDADES } from "@/lib/atividadeApontamentoRegras";
  * D-PROD-274 (ajustes do teste de ponta a ponta): o título diz o capim do Plantio de pastagem; o serviço sem área mostra a
  * quantidade feita no lugar dos hectares (o local já está no título).
  *
- * D-PROD-291: "Fez o pasto todo?" por área em andamento ("Sim, os 25 ha" / "Não, fiz só uma parte" + os hectares) e o
+ * D-PROD-292: "Fez o pasto todo?" por área em andamento ("Sim, os 25 ha" / "Não, fiz só uma parte" + os hectares) e o
  * resumo "Como ficou": jatos, horas de máquina, cada produto por hectare, custo total e por hectare. Os hectares vão no
  * concluir (`areas[]`); o servidor lança o que falta num fechamento.
  *
@@ -40,7 +40,7 @@ export default function DialogoConcluirServico({ item, hoje, onFechar, onConclui
   const hectares = feitoNoConcluir(item);
   const barra = barraDoAndamento(item);
 
-  // D-PROD-291: o detalhe (as áreas com o tamanho) e os lançamentos (o resumo).
+  // D-PROD-292: o detalhe (as áreas com o tamanho) e os lançamentos (o resumo).
   const atividadeId = String(item?.id ?? item?.atividade_id ?? "");
   const detalhe = useQuery({
     queryKey: [RAIZ_CONSULTAS_ATIVIDADES, "fechamento-detalhe", atividadeId],
@@ -98,7 +98,7 @@ export default function DialogoConcluirServico({ item, hoje, onFechar, onConclui
     if (enviando) return;
     const e = erroDoUltimoDia(dia, { hoje, dataInicio: item?.data_inicio ?? null, ultimoDia: a.ultimo_dia ?? null });
     setErro(e);
-    // D-PROD-291: cada área em andamento precisa da resposta do "Fez o pasto todo?".
+    // D-PROD-292: cada área em andamento precisa da resposta do "Fez o pasto todo?".
     /** @type {Record<string, string>} */
     const ea = {};
     areas.forEach((ar, i) => {
@@ -184,7 +184,7 @@ export default function DialogoConcluirServico({ item, hoje, onFechar, onConclui
             ) : null}
           </div>
         ) : null}
-        {/* D-PROD-291: "Fez o pasto todo?" por área em andamento. */}
+        {/* D-PROD-292: "Fez o pasto todo?" por área em andamento. */}
         {areas.map((ar) => {
           const id = String(ar.id);
           const t = tamanhoDa(ar);
@@ -232,7 +232,7 @@ export default function DialogoConcluirServico({ item, hoje, onFechar, onConclui
           );
         })}
 
-        {/* D-PROD-291: "Como ficou" (os lançamentos confirmados; por hectare com os hectares informados). */}
+        {/* D-PROD-292: "Como ficou" (os lançamentos confirmados; por hectare com os hectares informados). */}
         {linhas.jatos || linhas.horas || linhas.porHectare.length || linhas.custoTotal ? (
           <>
             <SecaoForm titulo="Como ficou" />

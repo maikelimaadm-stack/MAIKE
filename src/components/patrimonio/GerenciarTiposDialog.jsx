@@ -115,7 +115,7 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
   const [natureza, setNatureza] = useState("TODAS");
   const [novo, setNovo] = useState(false);
   // D-PROD-202: a edição na linha também troca o teto de salto do medidor (tipos de máquina, veículo e equipamento).
-  // D-PROD-290: e, no tipo de implemento, o produto (usa? por jato, capacidade e unidade).
+  // D-PROD-291: e, no tipo de implemento, o produto (usa? por jato, capacidade e unidade).
   const [renomeando, setRenomeando] = useState(
     /** @type {{ id: string, nome: string, salto: string, usa?: string, forma?: string, capacidade?: string, unidade?: string } | null} */ (null),
   );
@@ -222,7 +222,7 @@ export default function GerenciarTiposDialog({ aberto, onFechar, acoes }) {
     }
     const saltoGravado = typeof registro.salto_maximo_medidor === "string" ? registro.salto_maximo_medidor : null;
     const saltoMudou = (salto.valor === null) !== (saltoGravado === null) || (salto.valor !== null && saltoGravado !== null && comparar(salto.valor, saltoGravado) !== 0);
-    // D-PROD-290: o produto do implemento, conferido como na criação (o servidor confere de novo).
+    // D-PROD-291: o produto do implemento, conferido como na criação (o servidor confere de novo).
     /** @type {Record<string, unknown>} */
     let produto = {};
     if (naturezaDoTipo(registro) === "IMPLEMENTO" && renomeando.usa) {

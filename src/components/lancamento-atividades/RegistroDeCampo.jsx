@@ -1493,7 +1493,7 @@ export default function JanelaRegistroDeCampo({
             </>
           ) : null
         ) : umaArea && tanque ? (
-          // D-PROD-291: com implemento "por jato", os hectares não são perguntados no dia: só ao finalizar a área.
+          // D-PROD-292: com implemento "por jato", os hectares não são perguntados no dia: só ao finalizar a área.
           <p className={`col-span-12 min-w-0 ${NOTA_DO_CAMPO}`} data-testid="registro-de-campo-hectares-no-fim">
             Os hectares são perguntados quando finalizar a área.
           </p>
@@ -1563,7 +1563,7 @@ export default function JanelaRegistroDeCampo({
             bloqueado={enviando}
           />
         ) : null}
-        {/* D-PROD-292: várias máquinas no último dia — o horímetro de cada uma aqui mesmo, uma depois da outra. */}
+        {/* D-PROD-293: várias máquinas no último dia — o horímetro de cada uma aqui mesmo, uma depois da outra. */}
         {edMaquina?.form?.bem && maisMaquinas > 0 ? (
           <div className="col-span-12 flex min-w-0 flex-wrap items-center gap-2" data-testid="registro-de-campo-proxima-maquina">
             <span className="text-[12.5px] text-[var(--mg-text-2,#475569)]">

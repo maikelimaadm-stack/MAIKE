@@ -959,11 +959,11 @@ export const atualizar = async (contexto, id, corpo) => {
  * CONFIRMADO tem de ser > 0 (lida SOB a trava da atividade).
  * @param {Contexto} contexto @param {string} id @param {Record<string, any>} corpo
  */
-/** D-PROD-291 — a observação do lançamento de fechamento (o dia que só leva os hectares informados ao finalizar). */
+/** D-PROD-292 — a observação do lançamento de fechamento (o dia que só leva os hectares informados ao finalizar). */
 export const OBSERVACAO_FECHAMENTO = 'Fechamento: hectares informados ao finalizar';
 
 /**
- * D-PROD-291 — `areas[]` do concluir: `{ atividade_area_id, hectares }` (os hectares TOTAIS feitos na área, texto decimal
+ * D-PROD-292 — `areas[]` do concluir: `{ atividade_area_id, hectares }` (os hectares TOTAIS feitos na área, texto decimal
  * ≥ 0). Área repetida → 400. Ausente → nenhum fechamento (o concluir de sempre).
  * @param {unknown} v @returns {Array<{ atividade_area_id: string, hectares: string }>}
  */
@@ -983,7 +983,7 @@ const hectaresFinaisDoCorpo = (v) => {
 };
 
 /**
- * D-PROD-291 — para cada área informada (EM_ANDAMENTO, desta atividade): o que falta entre os hectares já lançados (Σ
+ * D-PROD-292 — para cada área informada (EM_ANDAMENTO, desta atividade): o que falta entre os hectares já lançados (Σ
  * `area_executada_dia` dos CONFIRMADO) e os informados entra num lançamento de fechamento no dia da conclusão, sem
  * linhas, só com os hectares (o caminho ÚNICO de lançar: `lancarNaTransacao`). Informado menor que o lançado → 400
  * `menor_que_lancado` (para menos, corrija os dias). Igual: nada. Chame SOB a trava da atividade, na transação do concluir.
@@ -1044,7 +1044,7 @@ export const concluir = async (contexto, id, corpo) => {
         const { quantidade_produzida: producao } = await somarApontamentosConfirmados(tx, cli, empresaId, id);
         if (producao === null || !dec(producao).gt(0)) throw atividadeExigidaPeloTipo('quantidade_produzida', { details: { quantidade_produzida: producao } });
       }
-      // D-PROD-291: "Fez o pasto todo?" — o que falta dos hectares informados entra num lançamento de fechamento.
+      // D-PROD-292: "Fez o pasto todo?" — o que falta dos hectares informados entra num lançamento de fechamento.
       const fechamentos = await lancarFechamentos(tx, contexto, { clienteId: cli, empresaId, tempo, atividadeId: id, dia, areas: hectaresFinais });
       // D-PROD-249: as áreas EM ANDAMENTO concluem junto, com a mesma data; as PLANEJADAS ficam "não iniciadas".
       const areasConcluidas = await concluirAreasEmAndamento(tx, { clienteId: cli, empresaId, atividadeId: id, dia });

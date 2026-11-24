@@ -1,5 +1,5 @@
 /**
- * D-PROD-291 — "Fez o pasto todo?" no Finalizar, contra PostgreSQL real e HTTP autenticado.
+ * D-PROD-292 — "Fez o pasto todo?" no Finalizar, contra PostgreSQL real e HTTP autenticado.
  *
  * - Dias de jato sem hectares + concluir com `areas: [{ atividade_area_id, hectares: "25" }]` → um lançamento de
  *   fechamento no dia da conclusão, sem linhas, com os 25 ha e a observação; a atividade fica CONCLUIDA.
@@ -47,7 +47,7 @@ const montar = async () => {
   return { ...s, p, registrar, atividadeDe, areaDe, concluir };
 };
 
-describe('Finalizar com "Fez o pasto todo?" (D-PROD-291)', () => {
+describe('Finalizar com "Fez o pasto todo?" (D-PROD-292)', () => {
   test('dias sem hectares + 25 ha informados: o fechamento leva os 25 ha e a atividade conclui', async () => {
     const s = await montar();
     const r = await s.registrar({});

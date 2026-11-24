@@ -1,4 +1,4 @@
-MAIKE-JATOS-FECHAMENTO (D-PROD-290, D-PROD-291, D-PROD-292) · `claude/tipo-tarefa-drop-colunas-1aznvv` · PR (a abrir)
+MAIKE-JATOS-FECHAMENTO (D-PROD-291, D-PROD-292, D-PROD-293) · `claude/tipo-tarefa-drop-colunas-1aznvv` · PR (a abrir)
 
 # Relatório — o que faltava dos jatos: tipo existente, fechamento da área, várias máquinas e a linha avulsa
 
@@ -6,14 +6,14 @@ Pedido do proprietário (2026-11-24): "analise toda nossa conversa de ontem e ve
 começar a fazer tudo". A mistura fica manual (decisão do proprietário). Três decisões, um commit cada, uma PR só (uma
 branch de trabalho; menos rodadas de CI). **Nenhuma migration.**
 
-## D-PROD-290 — marcar "por jato" num tipo de implemento que já existe
+## D-PROD-291 — marcar "por jato" num tipo de implemento que já existe
 
 Em produção nenhum tipo estava marcado "por jato" (só dava para marcar ao criar o tipo). Agora, em Bens › ⋯ ›
 Gerenciar tipos, o tipo de **Implemento** tem **"Editar"** (os outros continuam "Renomear") com Usa produto?, Como
 conta (Por jato), Capacidade do jato e Unidade. "Não" limpa a forma, a capacidade e a unidade. O servidor já aceitava
 e conferia (D-PROD-279); a tela passou a mandar os campos no PATCH.
 
-## D-PROD-291 — "Fez o pasto todo?" ao finalizar, o resumo por hectare e os jatos no dia salvo
+## D-PROD-292 — "Fez o pasto todo?" ao finalizar, o resumo por hectare e os jatos no dia salvo
 
 - **Finalizar** (lista e mapa): por área em andamento, **"Sim, os 25 ha"** / **"Não, fiz só uma parte"** (+ "Quantos
   hectares fez?"); sem resposta, "Escolha se fez o pasto todo." e nada vai. Embaixo, **"Como ficou"**: jatos ("7 jatos
@@ -29,7 +29,7 @@ e conferia (D-PROD-279); a tela passou a mandar os campos no PATCH.
   quando finalizar a área.").
 - **Dia salvo:** o bloco Produtos mostra "3 jatos de 2.000 L · herbicida 34 L · adubo 24 kg" e cada linha "Jato N ·".
 
-## D-PROD-292 — várias máquinas no Novo lançamento curto e o jato na linha avulsa
+## D-PROD-293 — várias máquinas no Novo lançamento curto e o jato na linha avulsa
 
 - **Várias máquinas:** com mais de uma máquina no último dia, "Máquina 1 de 2" e **"Próxima máquina"**: o horímetro
   de cada uma ali mesmo, uma depois da outra (antes, as outras só apareciam no "Mudar").

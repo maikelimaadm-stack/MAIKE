@@ -212,7 +212,7 @@ describe('Bens — "⋯ › Gerenciar tipos" (D-PROD-169)', () => {
     await waitFor(() => expect(within(dialogo).getByTestId('gerenciar-tipos-t1')).toHaveTextContent('Curral de manejo'));
   });
 
-  it('D-PROD-290: "Editar" num tipo de implemento já existente marca "usa produto · por jato" com a capacidade; e desmarca', async () => {
+  it('D-PROD-291: "Editar" num tipo de implemento já existente marca "usa produto · por jato" com a capacidade; e desmarca', async () => {
     tipos.push({ id: 't7', codigo: 'PULV', nome: 'Pulverizador', natureza: 'IMPLEMENTO', familia_id: 'f7', familia: { id: 'f7', nome: 'Implementos', natureza: 'IMPLEMENTO' }, ativo: true, versao: 2, bens_em_uso: 1, usa_produto: null, forma_produto: null, capacidade: null, capacidade_unidade: null });
     await montar();
     const dialogo = await abrirGerenciar();

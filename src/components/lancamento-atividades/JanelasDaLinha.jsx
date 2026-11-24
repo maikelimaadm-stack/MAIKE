@@ -1139,7 +1139,7 @@ const lerEfeitoDoEnvio = async ({ tipo, atividadeId, apontamento, novoDia, gravo
  * Janela da linha de PRODUTO (adicionar ou editar). A baixa sai do estoque pelo MESMO motor (custo médio) do abastecimento, no
  * servidor; editar = estorno exato + nova saída. Toda escrita leva a `versao` do apontamento e o `operation_id`
  * persistente.
- * D-PROD-292: `tanque` (o implemento "por jato" do dia ou da atividade) mostra o "Jato nº"; `jatoSugerido`, o número da linha nova.
+ * D-PROD-293: `tanque` (o implemento "por jato" do dia ou da atividade) mostra o "Jato nº"; `jatoSugerido`, o número da linha nova.
  * @param {PropsDaJanela & { tanque?: { capacidade: string, unidade: string|null } | null, jatoSugerido?: number|null }} props
  */
 export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escopo, onSalvo, onCancelar, onMudou = null, novoDia = null, atividadeAreaId = null, Casca = Janela, tanque = null, jatoSugerido = null }) {
@@ -1155,7 +1155,7 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
     refetchOnWindowFocus: false,
   });
   const hectaresDaDose = hectaresParaDose({ atividade, totais: totaisQuery.data ?? null, areaId: atividadeAreaId ?? apontamento?.atividade_area_id ?? null });
-  // D-PROD-292: com implemento "por jato", a linha avulsa também diz o jato (a nova já vem com o jato sugerido).
+  // D-PROD-293: com implemento "por jato", a linha avulsa também diz o jato (a nova já vem com o jato sugerido).
   const [form, setForm] = useState(() =>
     editando ? formularioDaLinhaProduto(linha) : { ...formularioProdutoVazio(), ...(tanque && Number.isInteger(jatoSugerido) && jatoSugerido > 0 ? { jato: jatoSugerido } : {}) },
   );
@@ -1192,7 +1192,7 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
     let dados = corpoDaLinhaProduto(form);
     if (editando) {
       dados = camposAlteradosDaLinha(linha, dados);
-      // D-PROD-292: tirar o jato da linha que tinha um.
+      // D-PROD-293: tirar o jato da linha que tinha um.
       if (Number.isInteger(linha?.jato) && !Number.isInteger(form.jato)) dados.jato = null;
       if (!Object.keys(dados).length) {
         notifyInfo("Sem alterações", "Nada foi alterado.");

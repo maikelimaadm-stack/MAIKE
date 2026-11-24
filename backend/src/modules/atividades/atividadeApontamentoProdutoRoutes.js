@@ -63,7 +63,7 @@ export const ESQUEMA_ITEM_PRODUTO = Object.freeze({
   type: 'object',
   required: ['produto_id', 'local_estoque_id', 'quantidade'],
   additionalProperties: false,
-  // D-PROD-292: o número do jato (texto "1".."999") também na linha avulsa (lançar e editar).
+  // D-PROD-293: o número do jato (texto "1".."999") também na linha avulsa (lançar e editar).
   properties: { produto_id: ID, local_estoque_id: ID, quantidade: DECIMAL, observacao: OBSERVACAO, jato: JATO },
 });
 

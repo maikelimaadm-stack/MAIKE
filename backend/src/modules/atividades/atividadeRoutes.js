@@ -139,7 +139,7 @@ const ATUALIZAR = {
   },
 };
 /**
- * D-PROD-291: "Fez o pasto todo?" — os hectares TOTAIS feitos em cada área (texto decimal); o que falta para eles entra
+ * D-PROD-292: "Fez o pasto todo?" — os hectares TOTAIS feitos em cada área (texto decimal); o que falta para eles entra
  * num lançamento de fechamento, só com os hectares, no dia da conclusão.
  */
 const HECTARES_FINAIS = {

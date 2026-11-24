@@ -78,7 +78,7 @@ export const CAMPOS_DE_EDICAO_AREA = Object.freeze(['empresa_id', 'versao', 'are
 export const ACOES_DA_AREA = Object.freeze(
   /** @type {Record<string, readonly string[]>} */ ({
     iniciar: Object.freeze(['empresa_id', 'versao', 'data_inicio']),
-    // D-PROD-291: e os hectares finais de cada área ("Fez o pasto todo?").
+    // D-PROD-292: e os hectares finais de cada área ("Fez o pasto todo?").
     concluir: Object.freeze(['empresa_id', 'versao', 'data_conclusao', 'areas']),
     reabrir: Object.freeze(['empresa_id', 'versao']),
     remover: Object.freeze(['empresa_id', 'versao']),
@@ -156,7 +156,7 @@ export const CAMPOS_DO_APONTAMENTO = Object.freeze([
  * Linha de PRODUTO: produto, local de onde sai e a quantidade na unidade do estoque do produto. A unidade, o custo
  * (FIFO) e a dose/ha são do servidor e nunca vão.
  */
-// D-PROD-292: e o número do jato (texto), também na linha avulsa.
+// D-PROD-293: e o número do jato (texto), também na linha avulsa.
 export const CAMPOS_DA_LINHA_PRODUTO = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao', 'jato']);
 /**
  * D-PROD-274 — a linha de insumo DENTRO do lançamento (`produtos[]` do apontamento, do duplicar e do registro de campo):

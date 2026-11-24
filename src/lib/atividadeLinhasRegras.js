@@ -421,7 +421,7 @@ export const corpoDaLinhaProduto = (form) => ({
   local_estoque_id: form.local_estoque_id ?? null,
   quantidade: lerDecimal(form.quantidade, '').valor,
   observacao: texto(form.observacao) || null,
-  // D-PROD-292: o número do jato, em texto, só na linha de um jato.
+  // D-PROD-293: o número do jato, em texto, só na linha de um jato.
   ...(Number.isInteger(form.jato) && form.jato > 0 ? { jato: String(form.jato) } : {}),
 });
 

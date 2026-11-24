@@ -116,7 +116,7 @@ describe('implemento da linha de máquina', () => {
   });
 });
 
-describe('D-PROD-292: o jato na linha avulsa (lançar e editar)', () => {
+describe('D-PROD-293: o jato na linha avulsa (lançar e editar)', () => {
   test('lançar um produto num dia já salvo com jato "2"; editar troca para "3" e null tira', async () => {
     const s = await montar();
     const r = await s.registrar({ operation_id: opId('base'), produtos: [s.insumo('5', '1')] });

@@ -61,7 +61,7 @@ describe("regras dos jatos", () => {
   });
 });
 
-describe("D-PROD-291: o dia já salvo com jatos", () => {
+describe("D-PROD-292: o dia já salvo com jatos", () => {
   it("'3 jatos de 2.000 L' e o total de cada produto; cancelada e linha sem jato não contam; sem jato, nada", () => {
     const linhas = [
       { status: "CONFIRMADO", jato: 1, produto_id: "p1", produto: { nome: "HERBICIDA FOLHA LARGA" }, quantidade: "10.0000", unidade: "L" },
@@ -77,7 +77,7 @@ describe("D-PROD-291: o dia já salvo com jatos", () => {
   });
 });
 
-describe("D-PROD-292: o jato na linha avulsa", () => {
+describe("D-PROD-293: o jato na linha avulsa", () => {
   it("o tanque vem da máquina do dia ou, sem ela, do último lançamento com implemento por jato; o jato sugerido é o maior do dia", () => {
     const pv = { implemento: { id: "i1", jato: { capacidade: "2000", unidade: "L" } } };
     const dia = { maquinas: [pv], produtos: [{ status: "CONFIRMADO", jato: 1 }, { status: "CONFIRMADO", jato: 3 }, { status: "CANCELADO", jato: 9 }] };
