@@ -15,7 +15,7 @@ rollout pausado **D-PROD-41**)
 |---|---|
 | Decisão | **D-PROD-283**, maquetes aprovadas pelo proprietário (2026-11-24): com implemento "por jato", Insumos vira "Jatos de hoje" (Editar, Repetir o jato anterior, Jato diferente, total do dia); sem cadastro de mistura |
 | Servidor | cada produto de cada jato é uma linha de insumo de sempre com `jato` (1..999, texto no corpo); opções de implemento e linha de máquina dizem o tanque (`jato`) |
-| Migration | `20261125100000_insumo_por_jato`, **EXPAND** (1 coluna anulável `AtividadeApontamentoProduto.jato`), sha256 `725a8c5a…3551`, depois da `20261124200000_estoque_controle_lote`. **Não aplicada em produção** |
+| Migration | `20261125100000_insumo_por_jato`, **EXPAND** (1 coluna anulável `AtividadeApontamentoProduto.jato`), sha256 `725a8c5a…3551`, depois da `20261124200000_estoque_controle_lote`. **Aplicada em produção em 2026-11-24** (78/0) |
 | Relatório / runbook | [`MAIKE-INSUMO-POR-JATO-REPORT.md`](./MAIKE-INSUMO-POR-JATO-REPORT.md) · [`MAIKE-INSUMO-POR-JATO-RUNBOOK-RELEASE.md`](./MAIKE-INSUMO-POR-JATO-RUNBOOK-RELEASE.md) |
 
 ## Missão anterior (2026-11-18) — MAIKE-P2002-SEM-ALVO: nenhuma tradução de unique depende só do `meta.target` (D-PROD-253)

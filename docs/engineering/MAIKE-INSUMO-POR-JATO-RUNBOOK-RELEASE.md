@@ -1,7 +1,6 @@
 # MAIKE — Insumo por jato: runbook de release expand-only (D-PROD-283)
 
-> **Estado: PLANO. `SCHEMA_APPLIED_PROD: NÃO`.** A migration foi testada só no PostgreSQL local. Nada foi aplicado
-> em produção.
+> **Estado: `SCHEMA_APPLIED_PROD: SIM` (2026-11-24, caminho B, GO do proprietário).** Pós-checagem do §4 conferida.
 >
 > Cada passo exige o GO do proprietário ("aplica") e para no primeiro desvio com **`RELEASE_BLOCKED`**. Valores
 > entre `<…>` são preenchidos na hora, a partir de leituras reais, nunca copiados deste texto.
@@ -143,4 +142,5 @@ linhas de insumo, o estoque e o custo ficam.
 
 | Data | Quem | O quê |
 |---|---|---|
-| 2026-11-24 | Claude (sessão D-PROD-283) | plano preparado; migration aplicada e testada só no PostgreSQL local; **nada aplicado em produção** |
+| 2026-11-24 | Claude (sessão D-PROD-283) | plano preparado; migration aplicada e testada no PostgreSQL local |
+| 2026-11-24 | Claude, com o GO do proprietário ("me manda a autorização para você aplicar a migração") | **aplicada em produção pelo caminho B** (desvio da D-PROD-74 autorizado): preflight 77/0, anterior `estoque_controle_lote` com o checksum, coluna ausente, 111 tabelas; depois 78/0, a nova com `725a8c5a…3551` e 1 passo, `jato` integer anulável sem DEFAULT, 0 linhas preenchidas, 111 tabelas |
