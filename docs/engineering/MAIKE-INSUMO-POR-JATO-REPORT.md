@@ -60,3 +60,12 @@ tela é a de sempre.
 - Cadastro de mistura ("Começar de uma mistura" entra depois como mais um botão, sem refazer nada).
 - Cálculo por hectare ao finalizar a área (as quantidades por jato já ficam gravadas para isso).
 - Escolher o jato nas janelas "Só insumo" do mapa (continuam lançando insumo sem jato).
+
+## Junto nesta PR (pedido do proprietário, 2026-11-24): a rolagem dos formulários de cadastro
+
+"Na tela de frota não consigo rolar para baixo" (computador e celular). Causa: abaixo de 1024 px (celular, tablet e
+janela menor ou com zoom no computador) as seções do formulário ficam empilhadas, e uma regra de `base1-design.css`
+(D-PROD-161, feita para o formulário de Lote, que tem rolagem própria) punha `overflow: hidden` na área de rolagem de
+TODOS os formulários. Agora a regra só vale quando o formulário tem a rolagem própria (`:has(.b1-form-rolagem)`); os
+demais (Bens e os outros cadastros) voltam a rolar. Conferido no navegador real (tela + servidor + PostgreSQL local, 25
+bens): 390 e 900 px rolam até "Aquisição e depreciação"; 1024 e 1280 px, cada guia cabe na tela; a lista já rolava.
