@@ -200,13 +200,51 @@ export const schemaSemControleLote = (schema) => {
   return linhas.filter((_, i) => !sai[i]).join('\n');
 };
 
+/**
+ * D-PROD-285 — o `schema.prisma` de hoje sem as unidades de conversão do produto: o model `ProdutoUnidadeConversao`
+ * (com o quadro de comentário acima dele), as relações dele em `Cliente` e `Produto` e as colunas
+ * `consumo_minimo_pv`/`consumo_maximo_pv` da Formulação, com as linhas `// D-PROD-285` logo acima. A CONTRACT
+ * `20261124300000_produto_unidades_conversao` é posterior a todos os "dias" destes espelhos e tem a prova própria em
+ * `premerge-migrate.test.mjs` (B44) e em `produtoUnidadesConversao.test.mjs`.
+ * @param {string} schema
+ */
+export const schemaSemUnidadesConversao = (schema) => {
+  const linhas = schema.split('\n');
+  const sai = new Array(linhas.length).fill(false);
+  let modelo = '';
+  for (let i = 0; i < linhas.length; i += 1) {
+    const m = linhas[i].match(/^model (\w+) \{/);
+    if (m) modelo = m[1];
+    if (modelo === 'ProdutoUnidadeConversao') {
+      sai[i] = true;
+      if (/^\}/.test(linhas[i])) {
+        modelo = '';
+        if (linhas[i + 1] === '') sai[i + 1] = true;
+      }
+      continue;
+    }
+    if (/ProdutoUnidadeConversao\[\]/.test(linhas[i])) sai[i] = true;
+    if (modelo === 'Formulacao' && /^\s+(consumo_minimo_pv|consumo_maximo_pv)\s/.test(linhas[i])) sai[i] = true;
+  }
+  // O quadro "// ---" + "// ProdutoUnidadeConversao — D-PROD-285 …" acima do model.
+  const inicio = linhas.findIndex((l) => /^\/\/ ProdutoUnidadeConversao — D-PROD-285/.test(l));
+  if (inicio > 0) {
+    let j = inicio - 1;
+    while (j < linhas.length && /^\/\//.test(linhas[j])) sai[j++] = true;
+  }
+  for (let i = linhas.length - 1; i > 0; i -= 1) {
+    if (sai[i] && /^\s*\/\/ D-PROD-285/.test(linhas[i - 1])) sai[i - 1] = true;
+  }
+  return linhas.filter((_, i) => !sai[i]).join('\n');
+};
+
 let espelho = null;
 /** O diretório do espelho do runner até a D-PROD-223, com o schema do dia dela. */
 export const espelhoDoDiaD223 = () => {
   if (espelho) return espelho;
   espelho = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D223 }).dir;
   const destino = join(espelho, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')))))))));
+  writeFileSync(destino, schemaSemUnidadesConversao(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))))))))));
   const dir = espelho;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho;
@@ -227,7 +265,7 @@ export const espelhoDoDiaD249 = () => {
   if (espelho249) return espelho249;
   espelho249 = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D249 }).dir;
   const destino = join(espelho249, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))))))));
+  writeFileSync(destino, schemaSemUnidadesConversao(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')))))))));
   const dir = espelho249;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho249;

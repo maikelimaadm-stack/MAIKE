@@ -142,6 +142,10 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['Produto', 'controla_validade'],
   ['EstoqueLoteNota', 'lote_fabricante'],
   ['EstoqueLoteNota', 'data_validade'],
+  // D-PROD-285: os lançamentos e o cadastro do produto leem as unidades de conversão; sem a migration
+  // `20261124300000_produto_unidades_conversao`, o cadastro de produto e toda entrada/saída de estoque respondem 500.
+  ['ProdutoUnidadeConversao', 'fator'],
+  ['CADFORMULACAO', 'consumo_minimo_pv'],
 ]);
 
 /**
