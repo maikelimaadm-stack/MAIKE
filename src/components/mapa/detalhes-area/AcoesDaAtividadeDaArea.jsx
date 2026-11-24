@@ -130,11 +130,11 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
     return grupos.some((g) => g.length) ? grupos : null;
   };
 
-  /** "Concluir": `POST /atividades/:id/concluir` com o último dia; a recusa volta ao diálogo (ele mostra a frase). @param {string} dia */
-  const concluir = async (dia) => {
+  /** "Concluir": `POST /atividades/:id/concluir` com o último dia; a recusa volta ao diálogo (ele mostra a frase). @param {string} dia @param {Array<{ atividade_area_id: string, hectares: string }>} [areas] */
+  const concluir = async (dia, areas = undefined) => {
     const alvo = aberta?.atividade;
     if (!alvo) return;
-    const r = /** @type {any} */ (await concluirAtividade(String(alvo.id), { versao: alvo.versao, data_conclusao: dia }));
+    const r = /** @type {any} */ (await concluirAtividade(String(alvo.id), { versao: alvo.versao, data_conclusao: dia, ...(areas ? { areas } : {}) }));
     reler();
     setAberta(null);
     const numero = (r ?? alvo)?.numero;

@@ -39,7 +39,8 @@ const CAMPOS = Object.freeze({
     // D-PROD-202: `salto_maximo_medidor` = teto do salto do medidor por lançamento (texto decimal; null limpa).
     // D-PROD-279: o produto do implemento (`usa_produto`, `forma_produto`, `capacidade` em texto decimal, `capacidade_unidade`).
     criacao: Object.freeze(['natureza', 'codigo', 'nome', 'descricao', 'vida_util_meses_sugerida', 'salto_maximo_medidor', 'usa_produto', 'forma_produto', 'capacidade', 'capacidade_unidade']),
-    edicao: Object.freeze(['nome', 'descricao', 'vida_util_meses_sugerida', 'salto_maximo_medidor']),
+    // D-PROD-291: o produto do implemento também se edita no tipo que já existe (o servidor confere como na criação).
+    edicao: Object.freeze(['nome', 'descricao', 'vida_util_meses_sugerida', 'salto_maximo_medidor', 'usa_produto', 'forma_produto', 'capacidade', 'capacidade_unidade']),
   }),
 });
 

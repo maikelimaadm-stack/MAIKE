@@ -1492,6 +1492,11 @@ export default function JanelaRegistroDeCampo({
               )}
             </>
           ) : null
+        ) : umaArea && tanque ? (
+          // D-PROD-292: com implemento "por jato", os hectares não são perguntados no dia: só ao finalizar a área.
+          <p className={`col-span-12 min-w-0 ${NOTA_DO_CAMPO}`} data-testid="registro-de-campo-hectares-no-fim">
+            Os hectares são perguntados quando finalizar a área.
+          </p>
         ) : umaArea ? (
           <div className="col-span-12 min-w-0 b1-lancamento-curto__grande">
             <CampoTexto
@@ -1558,12 +1563,29 @@ export default function JanelaRegistroDeCampo({
             bloqueado={enviando}
           />
         ) : null}
+        {/* D-PROD-293: várias máquinas no último dia — o horímetro de cada uma aqui mesmo, uma depois da outra. */}
+        {edMaquina?.form?.bem && maisMaquinas > 0 ? (
+          <div className="col-span-12 flex min-w-0 flex-wrap items-center gap-2" data-testid="registro-de-campo-proxima-maquina">
+            <span className="text-[12.5px] text-[var(--mg-text-2,#475569)]">
+              Máquina {itens.maquinas.length + 1} de {itens.maquinas.length + 1 + maisMaquinas}
+            </span>
+            <button
+              type="button"
+              className={BOTAO_SECUNDARIO}
+              onClick={() => incluirDoEditor("maquinas")}
+              disabled={enviando}
+              data-testid="registro-de-campo-proxima-maquina-botao"
+            >
+              Próxima máquina
+            </button>
+          </div>
+        ) : null}
         {/* D-PROD-283: com implemento "por jato", os jatos de hoje aparecem já no curto. */}
         {tanque ? blocoDosJatos() : null}
         <SecaoForm titulo="Vai junto, igual ao último dia" />
         <div className="col-span-12 min-w-0 b1-lancamento-curto__resumo" data-testid="registro-de-campo-vai-junto">
           {doServico.isLoading ? <span>Lendo o último dia…</span> : vaiJunto.length ? vaiJunto.map((l, i) => <span key={i}>{l}</span>) : <span>Nada do último dia.</span>}
-          {maisMaquinas > 0 ? <span>e mais {maisMaquinas === 1 ? "1 máquina" : `${maisMaquinas} máquinas`} (toque em Mudar)</span> : null}
+          {maisMaquinas > 0 ? <span>e mais {maisMaquinas === 1 ? "1 máquina" : `${maisMaquinas} máquinas`} (toque em Próxima máquina)</span> : null}
         </div>
         <div className="col-span-12 min-w-0">
           <button type="button" className={BOTAO_SECUNDARIO} onClick={() => setTudo(true)} disabled={enviando} data-testid="registro-de-campo-mudar">

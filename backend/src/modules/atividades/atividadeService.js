@@ -113,7 +113,8 @@ import {
   tempoDaFazenda,
   travarAtividade,
 } from './atividadeComum.js';
-import { cancelarApontamentosDaAtividade, recalcularTotaisDaAtividade } from './atividadeApontamentoService.js';
+import { VAZIO, cancelarApontamentosDaAtividade, lancarNaTransacao, recalcularTotaisDaAtividade } from './atividadeApontamentoService.js';
+import { ORIGEM_PADRAO } from './atividadeComum.js';
 import { totaisDasMaquinasDaAtividade } from './atividadeApontamentoMaquinaService.js';
 import { totaisDaMaoObraDaAtividade } from './atividadeApontamentoMaoObraService.js';
 import { totaisDosServicosDaAtividade } from './atividadeApontamentoServicoService.js';
@@ -958,11 +959,75 @@ export const atualizar = async (contexto, id, corpo) => {
  * CONFIRMADO tem de ser > 0 (lida SOB a trava da atividade).
  * @param {Contexto} contexto @param {string} id @param {Record<string, any>} corpo
  */
+/** D-PROD-292 — a observação do lançamento de fechamento (o dia que só leva os hectares informados ao finalizar). */
+export const OBSERVACAO_FECHAMENTO = 'Fechamento: hectares informados ao finalizar';
+
+/**
+ * D-PROD-292 — `areas[]` do concluir: `{ atividade_area_id, hectares }` (os hectares TOTAIS feitos na área, texto decimal
+ * ≥ 0). Área repetida → 400. Ausente → nenhum fechamento (o concluir de sempre).
+ * @param {unknown} v @returns {Array<{ atividade_area_id: string, hectares: string }>}
+ */
+const hectaresFinaisDoCorpo = (v) => {
+  if (v === undefined || v === null) return [];
+  if (!Array.isArray(v)) throw invalido('areas deve ser uma lista', { field: 'areas', reason: 'formato' });
+  const vistos = new Set();
+  return v.map((a, i) => {
+    const areaId = idOuNulo(a?.atividade_area_id, `areas[${i}].atividade_area_id`);
+    if (!areaId) throw invalido(`areas[${i}].atividade_area_id é obrigatório`, { field: `areas[${i}].atividade_area_id`, reason: 'obrigatorio' });
+    if (vistos.has(areaId)) throw invalido('a mesma área veio duas vezes', { field: `areas[${i}].atividade_area_id`, reason: 'repetida' });
+    vistos.add(areaId);
+    const h = decimalDoCorpo(a?.hectares, `areas[${i}].hectares`);
+    if (h === null || h === undefined) throw invalido(`areas[${i}].hectares é obrigatório`, { field: `areas[${i}].hectares`, reason: 'obrigatorio' });
+    return { atividade_area_id: areaId, hectares: h };
+  });
+};
+
+/**
+ * D-PROD-292 — para cada área informada (EM_ANDAMENTO, desta atividade): o que falta entre os hectares já lançados (Σ
+ * `area_executada_dia` dos CONFIRMADO) e os informados entra num lançamento de fechamento no dia da conclusão, sem
+ * linhas, só com os hectares (o caminho ÚNICO de lançar: `lancarNaTransacao`). Informado menor que o lançado → 400
+ * `menor_que_lancado` (para menos, corrija os dias). Igual: nada. Chame SOB a trava da atividade, na transação do concluir.
+ * @param {any} tx @param {any} contexto
+ * @param {{ clienteId: string, empresaId: string, tempo: any, atividadeId: string, dia: string, areas: Array<{ atividade_area_id: string, hectares: string }> }} p
+ * @returns {Promise<Array<{ atividade_area_id: string, hectares: string, apontamento_id: string }>>}
+ */
+const lancarFechamentos = async (tx, contexto, { clienteId, empresaId, tempo, atividadeId, dia, areas }) => {
+  /** @type {Array<{ atividade_area_id: string, hectares: string, apontamento_id: string }>} */
+  const feitos = [];
+  for (const [i, a] of areas.entries()) {
+    const soma = await tx.atividadeApontamento.aggregate({
+      where: { cliente_id: clienteId, empresa_id: empresaId, atividade_id: atividadeId, atividade_area_id: a.atividade_area_id, status: STATUS_APONTAMENTO.CONFIRMADO },
+      _sum: { area_executada_dia: true },
+    });
+    const lancado = dec(soma._sum.area_executada_dia ?? 0);
+    const informado = dec(a.hectares);
+    if (informado.lt(lancado)) {
+      throw invalido(`já foram lançados ${t4(lancado)} ha nesta área: para menos, corrija os lançamentos; nada foi alterado`, {
+        field: `areas[${i}].hectares`, reason: 'menor_que_lancado', lancado: t4(lancado),
+      });
+    }
+    const falta = informado.minus(lancado);
+    if (!falta.gt(0)) continue;
+    const r = await lancarNaTransacao(tx, contexto, {
+      clienteId,
+      empresaId,
+      tempo,
+      atividadeId,
+      estado: { ...VAZIO, data_operacional: dia, atividade_area_id: a.atividade_area_id, area_executada_dia: t4(falta), observacao: OBSERVACAO_FECHAMENTO },
+      origem: ORIGEM_PADRAO,
+      linhas: { maquinas: [], produtos: [], maoObra: [], servicos: [], operationId: null },
+    });
+    feitos.push({ atividade_area_id: a.atividade_area_id, hectares: /** @type {string} */ (t4(falta)), apontamento_id: r?.apontamento?.id ?? null });
+  }
+  return feitos;
+};
+
 export const concluir = async (contexto, id, corpo) => {
   const auth = exigirAuthContext(contexto?.auth);
   const cli = auth.clienteId;
   const dataInformada = diaDoCorpo(corpo.data_conclusao, 'data_conclusao');
   const versao = corpo.versao;
+  const hectaresFinais = hectaresFinaisDoCorpo(corpo.areas);
 
   return emTransacao(
     TRANSACAO_CURTA,
@@ -979,6 +1044,8 @@ export const concluir = async (contexto, id, corpo) => {
         const { quantidade_produzida: producao } = await somarApontamentosConfirmados(tx, cli, empresaId, id);
         if (producao === null || !dec(producao).gt(0)) throw atividadeExigidaPeloTipo('quantidade_produzida', { details: { quantidade_produzida: producao } });
       }
+      // D-PROD-292: "Fez o pasto todo?" — o que falta dos hectares informados entra num lançamento de fechamento.
+      const fechamentos = await lancarFechamentos(tx, contexto, { clienteId: cli, empresaId, tempo, atividadeId: id, dia, areas: hectaresFinais });
       // D-PROD-249: as áreas EM ANDAMENTO concluem junto, com a mesma data; as PLANEJADAS ficam "não iniciadas".
       const areasConcluidas = await concluirAreasEmAndamento(tx, { clienteId: cli, empresaId, atividadeId: id, dia });
       await gravarComVersao(tx, {
@@ -1003,7 +1070,7 @@ export const concluir = async (contexto, id, corpo) => {
           entidade: ENTIDADE_ATIVIDADE,
           entidadeId: id,
           dadosAnteriores: paraAuditoria(anterior),
-          dadosNovos: { ...paraAuditoria(registro), areas_concluidas: areasConcluidas },
+          dadosNovos: { ...paraAuditoria(registro), areas_concluidas: areasConcluidas, ...(fechamentos.length ? { fechamentos } : {}) },
         },
         tx
       );

@@ -138,13 +138,27 @@ const ATUALIZAR = {
     properties: { empresa_id: ID, versao: VERSAO, ...CAMPOS },
   },
 };
+/**
+ * D-PROD-292: "Fez o pasto todo?" — os hectares TOTAIS feitos em cada área (texto decimal); o que falta para eles entra
+ * num lançamento de fechamento, só com os hectares, no dia da conclusão.
+ */
+const HECTARES_FINAIS = {
+  type: 'array',
+  maxItems: 50,
+  items: {
+    type: 'object',
+    required: ['atividade_area_id', 'hectares'],
+    additionalProperties: false,
+    properties: { atividade_area_id: ID, hectares: { type: 'string', pattern: PADRAO_DECIMAL.source } },
+  },
+};
 const CONCLUIR = {
   params: PARAMS,
   body: {
     type: 'object',
     required: ['empresa_id', 'versao'],
     additionalProperties: false,
-    properties: { empresa_id: ID, versao: VERSAO, data_conclusao: DIA },
+    properties: { empresa_id: ID, versao: VERSAO, data_conclusao: DIA, areas: HECTARES_FINAIS },
   },
 };
 /** Reabrir e cancelar: o motivo é conferido no serviço (422). */
@@ -197,7 +211,7 @@ export const registrarAtividadeRoutes = async (app) => {
   const autenticado = { onRequest: [app.autenticar] };
   app.addHook('preValidation', async (request) => {
     recusarCoercao(request.body, DECIMAIS_DA_ATIVIDADE);
-    recusarCoercaoNasListas(request.body, { areas: ['area_planejada'] });
+    recusarCoercaoNasListas(request.body, { areas: ['area_planejada', 'hectares'] });
   });
 
   app.get('/atividades', { ...autenticado, preHandler: [g.ver], schema: LISTAR }, async (request) => listar(ctx(request), consulta(request)));

@@ -57,11 +57,14 @@ const PARAMS_LINHA = {
  * apontamento usa este schema): os dados de uma linha nova, sem chave própria
  * (a do lançamento vale para tudo) e sem versão (o apontamento nasce junto).
  */
+/** D-PROD-283/292: o número do jato no dia (texto; o serviço confere "1".."999"). */
+const JATO = { type: ['string', 'null'], maxLength: 3 };
 export const ESQUEMA_ITEM_PRODUTO = Object.freeze({
   type: 'object',
   required: ['produto_id', 'local_estoque_id', 'quantidade'],
   additionalProperties: false,
-  properties: { produto_id: ID, local_estoque_id: ID, quantidade: DECIMAL, observacao: OBSERVACAO },
+  // D-PROD-293: o número do jato (texto "1".."999") também na linha avulsa (lançar e editar).
+  properties: { produto_id: ID, local_estoque_id: ID, quantidade: DECIMAL, observacao: OBSERVACAO, jato: JATO },
 });
 
 /**
@@ -72,7 +75,7 @@ export const ESQUEMA_ITEM_PRODUTO = Object.freeze({
  */
 export const ESQUEMA_ITEM_PRODUTO_DO_LANCAMENTO = Object.freeze({
   ...ESQUEMA_ITEM_PRODUTO,
-  properties: { ...ESQUEMA_ITEM_PRODUTO.properties, vc_percentual: { type: ['string', 'null'], maxLength: 8 }, jato: { type: ['string', 'null'], maxLength: 3 } },
+  properties: { ...ESQUEMA_ITEM_PRODUTO.properties, vc_percentual: { type: ['string', 'null'], maxLength: 8 } },
 });
 
 const LANCAR = {
