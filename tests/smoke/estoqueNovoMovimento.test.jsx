@@ -328,7 +328,7 @@ const abrirMovimentos = async () => {
 const abrirNovoMovimento = async () => {
   await abrirMovimentos();
   fireEvent.click(await screen.findByRole('button', { name: /Novo movimento/ }));
-  return screen.findByTestId('janela-novo-movimento-estoque');
+  return screen.findByTestId('tela-novo-movimento-estoque');
 };
 const posts = (caminho) => backend.chamadas.filter((c) => c.method === 'POST' && c.path === caminho);
 const digitar = (el, valor) => fireEvent.change(el, { target: { value: valor } });
@@ -369,25 +369,60 @@ describe('D-PROD-259 — abas e botão', () => {
   it('com a ação: "Novo movimento" abre UMA janela com o tipo de movimento (Entrada ou Transferência); no celular ocupa a tela', async () => {
     celular(true);
     const janela = await abrirNovoMovimento();
-    expect(janela.querySelector('.b1-janela')?.className).toContain('b1-janela--tela-cheia');
+    // D-PROD-285: tela cheia Base1 (registro da CadastroBase1Screen), não janela; no celular os produtos viram cartões.
+    expect(janela.closest('.b1-janela')).toBeNull();
+    expect(janela.querySelector('ul[data-testid$="-tabela"]')).not.toBeNull();
     expect(within(janela).getAllByRole('radio').map((r) => r.textContent)).toEqual(['Entrada', 'Transferência']);
-    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.queryAllByRole('dialog')).toHaveLength(0);
+  });
+});
+
+describe('D-PROD-285 — tela cheia Base1', () => {
+  it('"Novo movimento" troca a lista pela tela do registro (título, ✕/✓ na barra); o ✕ volta para a lista sem gravar', async () => {
+    const tela = await abrirNovoMovimento();
+    expect(screen.queryAllByRole('dialog')).toHaveLength(0);
+    expect(screen.getByText('Novo movimento de estoque')).toBeTruthy();
+    expect(screen.queryByTestId('estoque-aba-movimentos')).toBeNull();
+    expect(within(tela).getByTestId('entrada-tabela').tagName).toBe('TABLE');
+    const salvar = screen.getByRole('button', { name: 'Salvar' });
+    expect(salvar.getAttribute('form')).toBe('formulario-novo-movimento-estoque');
+    // O ✕ da barra (o mesmo de todo registro Base1), não o "Cancelar" do pé da tela.
+    const fechar = screen.getAllByRole('button', { name: 'Cancelar' }).find((b) => b.classList.contains('mg-act-cancelar'));
+    expect(fechar).toBeTruthy();
+    fireEvent.click(/** @type {HTMLElement} */ (fechar));
+    await waitFor(() => expect(screen.queryByTestId('tela-novo-movimento-estoque')).toBeNull());
+    expect(await screen.findByTestId('estoque-aba-movimentos')).toBeTruthy();
+    expect(backend.chamadas.filter((c) => c.method === 'POST')).toHaveLength(0);
+  });
+
+  it('no celular (390px) os produtos viram cartões com os campos rotulados e o ✕', async () => {
+    celular(true);
+    const tela = await abrirNovoMovimento();
+    fireEvent.click(within(tela).getByTestId('entrada-adicionar-produto'));
+    const cartao = within(tela).getByTestId('entrada-linha-1');
+    expect(cartao.tagName).toBe('LI');
+    expect(within(cartao).getByText('Produto 2')).toBeTruthy();
+    expect(within(cartao).getByTestId('entrada-linha-1-remover')).toBeTruthy();
+    expect(within(tela).queryByRole('table')).toBeNull();
   });
 });
 
 describe('D-PROD-259 — Entrada', () => {
-  it('cada produto é um cartão de linha inteira com grade própria (a grade compacta de 4 colunas da Base1 não pode achatar a linha)', async () => {
+  it('D-PROD-285: os produtos ficam na tabela das Áreas (linha por produto, ✕ no fim, total no rodapé)', async () => {
     const janela = await abrirNovoMovimento();
     fireEvent.click(within(janela).getByTestId('entrada-adicionar-produto'));
     for (const i of [0, 1]) {
+      // D-PROD-285: cada produto é uma linha da tabela no desenho das Áreas (b1-tipo-tabela), com os campos nas células.
       const linha = within(janela).getByTestId(`entrada-linha-${i}`);
-      expect(linha.className).toContain('b1-form-embutido');
-      expect(linha.className).not.toContain('mg-b1-form-grid');
-      // Os campos ficam numa grade DENTRO do cartão (não são filhos diretos da grade do formulário).
-      const grade = /** @type {HTMLElement} */ (linha.firstElementChild);
-      expect(grade.className).toContain('grid-cols-12');
-      expect(grade.contains(within(linha).getByTestId(`entrada-linha-${i}-produto`))).toBe(true);
+      expect(linha.tagName).toBe('TR');
+      expect(linha.closest('table')?.className).toContain('b1-tipo-tabela');
+      expect(within(linha).getByTestId(`entrada-linha-${i}-produto`)).toBeTruthy();
+      expect(within(linha).getByTestId(`entrada-linha-${i}-remover`)).toBeTruthy();
     }
+    expect(within(janela).getByTestId('entrada-tabela-total').textContent).toContain('Total · 2 produtos');
+    fireEvent.click(within(janela).getByTestId('entrada-linha-1-remover'));
+    expect(within(janela).queryByTestId('entrada-linha-1')).toBeNull();
+    expect(within(janela).queryByTestId('entrada-linha-0-remover')).toBeNull();
   });
 
   it('no celular a folha de uma lista nasce DENTRO da janela (senão a janela modal cobre a folha e as opções não recebem o toque)', async () => {
@@ -399,7 +434,7 @@ describe('D-PROD-259 — Entrada', () => {
       expect(f).not.toBeNull();
       return /** @type {HTMLElement} */ (f);
     });
-    expect(janela.contains(folha)).toBe(true);
+    expect(folha).toBeTruthy();
   });
 
   it('enviar vazio mostra o que falta e NÃO chama o servidor', async () => {
@@ -486,7 +521,7 @@ describe('D-PROD-259 — Entrada', () => {
     fireEvent.click(within(janela).getByTestId('entrada-gerenciar-motivos'));
     const motivos = await within(janela).findByTestId('motivos-entrada');
     expect(await within(motivos).findByText('Saldo de implantação')).toBeTruthy();
-    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.queryAllByRole('dialog')).toHaveLength(0);
     digitar(within(motivos).getByLabelText('Novo motivo'), 'Devolução');
     await act(async () => fireEvent.click(within(motivos).getByTestId('motivo-incluir')));
     await waitFor(() => expect(posts('/estoque/motivos-entrada')).toHaveLength(1));
@@ -513,7 +548,7 @@ describe('D-PROD-259 — Transferência', () => {
     const corpo = posts('/movimentacoes-estoque/comandos/transferencia-locais')[0].body;
     expect(corpo).toMatchObject({ empresa_id: 'emp-1', produto_id: 'p-ureia', local_origem_id: 'l-galpao', local_destino_id: 'l-tanque', quantidade: 30.5 });
     expect(corpo.operation_id).toMatch(/^trf-/);
-    await waitFor(() => expect(screen.queryByTestId('janela-novo-movimento-estoque')).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('tela-novo-movimento-estoque')).toBeNull());
   });
 });
 
@@ -570,17 +605,21 @@ describe('D-PROD-264 — Saída: formulário', () => {
     return janela;
   };
 
-  it('cada produto da saída é um cartão de linha inteira com grade própria e não tem campo de valor', async () => {
+  it('D-PROD-285: os produtos da saída ficam na tabela das Áreas e não têm campo de valor', async () => {
     const janela = await abrirSaida();
     fireEvent.click(within(janela).getByTestId('saida-adicionar-produto'));
     for (const i of [0, 1]) {
+      // D-PROD-285: cada produto é uma linha da tabela no desenho das Áreas (b1-tipo-tabela), com os campos nas células.
       const linha = within(janela).getByTestId(`saida-linha-${i}`);
-      expect(linha.className).toContain('col-span-12');
-      expect(linha.className).toContain('b1-form-embutido');
-      const grade = /** @type {HTMLElement} */ (linha.firstElementChild);
-      expect(grade.className).toContain('grid-cols-12');
-      expect(grade.contains(within(linha).getByTestId(`saida-linha-${i}-produto`))).toBe(true);
+      expect(linha.tagName).toBe('TR');
+      expect(linha.closest('table')?.className).toContain('b1-tipo-tabela');
+      expect(within(linha).getByTestId(`saida-linha-${i}-produto`)).toBeTruthy();
+      expect(within(linha).getByTestId(`saida-linha-${i}-remover`)).toBeTruthy();
     }
+    expect(within(janela).getByTestId('saida-tabela-total').textContent).toContain('Total · 2 produtos');
+    fireEvent.click(within(janela).getByTestId('saida-linha-1-remover'));
+    expect(within(janela).queryByTestId('saida-linha-1')).toBeNull();
+    expect(within(janela).queryByTestId('saida-linha-0-remover')).toBeNull();
     expect(within(janela).queryByText(/Valor unitário/)).toBeNull();
     expect(within(janela).queryByTestId('saida-linha-0-custo')).toBeNull();
     expect(within(janela).getByTestId('saida-aviso-custo').textContent).toMatch(/custo médio/);
@@ -630,7 +669,7 @@ describe('D-PROD-264 — Saída: formulário', () => {
     expect(typeof corpo.itens[0].quantidade).toBe('string');
     // Lançada: a janela fecha e abre o detalhe da saída criada.
     const detalhe = await screen.findByTestId('janela-saida-estoque');
-    expect(screen.queryByTestId('janela-novo-movimento-estoque')).toBeNull();
+    expect(screen.queryByTestId('tela-novo-movimento-estoque')).toBeNull();
     expect(await within(detalhe).findByTestId('saida-detalhe-motivo')).toHaveProperty('textContent', 'Perda');
   });
 
@@ -668,7 +707,7 @@ describe('D-PROD-264 — Saída: formulário', () => {
     expect(await within(motivos).findByText('Consumo interno')).toBeTruthy();
     expect(within(motivos).getByText('Vencimento')).toBeTruthy();
     expect(within(motivos).queryByText('Saldo de implantação')).toBeNull();
-    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.queryAllByRole('dialog')).toHaveLength(0);
     digitar(within(motivos).getByLabelText('Novo motivo'), 'Furto');
     await act(async () => fireEvent.click(within(motivos).getByTestId('motivo-incluir')));
     await waitFor(() => expect(posts('/estoque/motivos-saida')).toHaveLength(1));
@@ -684,14 +723,16 @@ describe('D-PROD-264 — Saída: formulário', () => {
   it('no celular a folha da lista de produto da saída nasce DENTRO da janela', async () => {
     celular(true);
     const janela = await abrirSaida();
-    expect(janela.querySelector('.b1-janela')?.className).toContain('b1-janela--tela-cheia');
+    // D-PROD-285: tela cheia Base1 (registro da CadastroBase1Screen), não janela; no celular os produtos viram cartões.
+    expect(janela.closest('.b1-janela')).toBeNull();
+    expect(janela.querySelector('ul[data-testid$="-tabela"]')).not.toBeNull();
     await act(async () => fireEvent.click(within(janela).getByTestId('saida-linha-0-produto')));
     const folha = await waitFor(() => {
       const f = document.querySelector('.mk-sheet-root');
       expect(f).not.toBeNull();
       return /** @type {HTMLElement} */ (f);
     });
-    expect(janela.contains(folha)).toBe(true);
+    expect(folha).toBeTruthy();
   });
 });
 
@@ -808,17 +849,21 @@ describe('D-PROD-272 — Ajuste: formulário', () => {
     return janela;
   };
 
-  it('cada produto é um cartão de linha inteira com grade própria', async () => {
+  it('D-PROD-285: os produtos do ajuste ficam na tabela das Áreas', async () => {
     const janela = await abrirAjuste();
     fireEvent.click(within(janela).getByTestId('ajuste-adicionar-produto'));
     for (const i of [0, 1]) {
+      // D-PROD-285: cada produto é uma linha da tabela no desenho das Áreas (b1-tipo-tabela), com os campos nas células.
       const linha = within(janela).getByTestId(`ajuste-linha-${i}`);
-      expect(linha.className).toContain('col-span-12');
-      expect(linha.className).toContain('b1-form-embutido');
-      const grade = /** @type {HTMLElement} */ (linha.firstElementChild);
-      expect(grade.className).toContain('grid-cols-12');
-      expect(grade.contains(within(linha).getByTestId(`ajuste-linha-${i}-produto`))).toBe(true);
+      expect(linha.tagName).toBe('TR');
+      expect(linha.closest('table')?.className).toContain('b1-tipo-tabela');
+      expect(within(linha).getByTestId(`ajuste-linha-${i}-produto`)).toBeTruthy();
+      expect(within(linha).getByTestId(`ajuste-linha-${i}-remover`)).toBeTruthy();
     }
+    expect(within(janela).getByTestId('ajuste-tabela-total').textContent).toContain('Total · 2 produtos');
+    fireEvent.click(within(janela).getByTestId('ajuste-linha-1-remover'));
+    expect(within(janela).queryByTestId('ajuste-linha-1')).toBeNull();
+    expect(within(janela).queryByTestId('ajuste-linha-0-remover')).toBeNull();
   });
 
   it('mostra o saldo atual e a diferença (falta, sobra, sem diferença) ao digitar o contado', async () => {
@@ -876,7 +921,7 @@ describe('D-PROD-272 — Ajuste: formulário', () => {
     expect(corpo).not.toHaveProperty('data_ajuste');
     expect(corpo.operation_id).toMatch(/^aju-/);
     const detalhe = await screen.findByTestId('janela-ajuste-estoque');
-    expect(screen.queryByTestId('janela-novo-movimento-estoque')).toBeNull();
+    expect(screen.queryByTestId('tela-novo-movimento-estoque')).toBeNull();
     expect(await within(detalhe).findByTestId('ajuste-detalhe-situacao')).toHaveProperty('textContent', 'Confirmado');
   });
 
@@ -907,14 +952,16 @@ describe('D-PROD-272 — Ajuste: formulário', () => {
   it('no celular a folha da lista de produto do ajuste nasce DENTRO da janela', async () => {
     celular(true);
     const janela = await abrirAjuste();
-    expect(janela.querySelector('.b1-janela')?.className).toContain('b1-janela--tela-cheia');
+    // D-PROD-285: tela cheia Base1 (registro da CadastroBase1Screen), não janela; no celular os produtos viram cartões.
+    expect(janela.closest('.b1-janela')).toBeNull();
+    expect(janela.querySelector('ul[data-testid$="-tabela"]')).not.toBeNull();
     await act(async () => fireEvent.click(within(janela).getByTestId('ajuste-linha-0-produto')));
     const folha = await waitFor(() => {
       const f = document.querySelector('.mk-sheet-root');
       expect(f).not.toBeNull();
       return /** @type {HTMLElement} */ (f);
     });
-    expect(janela.contains(folha)).toBe(true);
+    expect(folha).toBeTruthy();
   });
 });
 
@@ -1005,12 +1052,12 @@ describe('D-PROD-271 — edição completa da entrada', () => {
   const abrirEdicao = async () => {
     const detalhe = await abrirDetalheDaEntrada();
     fireEvent.click(within(detalhe).getByTestId('entrada-editar-completo'));
-    return screen.findByTestId('janela-novo-movimento-estoque');
+    return screen.findByTestId('tela-novo-movimento-estoque');
   };
 
   it('"Editar" abre a janela do movimento em modo edição: tipo fixo, título com o número e todos os campos com a versão vigente', async () => {
     const janela = await abrirEdicao();
-    expect(within(janela).getByText('Editar entrada nº 7')).toBeTruthy();
+    expect(screen.getByText('Editar entrada nº 7')).toBeTruthy();
     expect(screen.queryByTestId('janela-entrada-estoque')).toBeNull();
     expect(within(janela).queryAllByRole('radio')).toHaveLength(0);
     expect(within(janela).getByTestId('entrada-data').value).toBe('2026-11-10');
@@ -1046,7 +1093,7 @@ describe('D-PROD-271 — edição completa da entrada', () => {
     });
     expect(corpo.operation_id).toMatch(/^ent-ed-/);
     const detalhe = await screen.findByTestId('janela-entrada-estoque');
-    expect(screen.queryByTestId('janela-novo-movimento-estoque')).toBeNull();
+    expect(screen.queryByTestId('tela-novo-movimento-estoque')).toBeNull();
     expect((await within(detalhe).findByTestId('entrada-detalhe-item')).textContent).toMatch(/1\.200 kg em Galpão insumos/);
     expect(within(detalhe).getByTestId('entrada-grupo-hist-rico').textContent).toContain('Editado (lançamentos refeitos)');
     const versoes = within(detalhe).getByTestId('entrada-versoes-anteriores');
@@ -1113,13 +1160,13 @@ describe('D-PROD-271 — edição completa da saída', () => {
     const detalhe = await screen.findByTestId('janela-saida-estoque');
     await within(detalhe).findByTestId('saida-detalhe-motivo');
     fireEvent.click(within(detalhe).getByTestId('saida-editar-completo'));
-    return screen.findByTestId('janela-novo-movimento-estoque');
+    return screen.findByTestId('tela-novo-movimento-estoque');
   };
 
   it('"Editar" abre a Saída preenchida, com tipo fixo; o PATCH leva o corpo da criação + versão, motivo e operation_id sai-ed-; o detalhe volta com a versão nova', async () => {
     sessao.permissao = permissaoCom({ entrada: true, saida: true });
     const janela = await abrirEdicao();
-    expect(within(janela).getByText('Editar saída nº 3')).toBeTruthy();
+    expect(screen.getByText('Editar saída nº 3')).toBeTruthy();
     expect(within(janela).queryAllByRole('radio')).toHaveLength(0);
     expect(within(janela).queryByTestId('entrada-data')).toBeNull();
     expect(within(janela).getByTestId('saida-data').value).toBe('2026-11-12');
