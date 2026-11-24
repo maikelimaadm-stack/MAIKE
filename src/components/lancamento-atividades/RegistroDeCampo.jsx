@@ -1492,6 +1492,11 @@ export default function JanelaRegistroDeCampo({
               )}
             </>
           ) : null
+        ) : umaArea && tanque ? (
+          // D-PROD-291: com implemento "por jato", os hectares não são perguntados no dia: só ao finalizar a área.
+          <p className={`col-span-12 min-w-0 ${NOTA_DO_CAMPO}`} data-testid="registro-de-campo-hectares-no-fim">
+            Os hectares são perguntados quando finalizar a área.
+          </p>
         ) : umaArea ? (
           <div className="col-span-12 min-w-0 b1-lancamento-curto__grande">
             <CampoTexto

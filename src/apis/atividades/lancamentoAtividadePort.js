@@ -78,7 +78,8 @@ export const CAMPOS_DE_EDICAO_AREA = Object.freeze(['empresa_id', 'versao', 'are
 export const ACOES_DA_AREA = Object.freeze(
   /** @type {Record<string, readonly string[]>} */ ({
     iniciar: Object.freeze(['empresa_id', 'versao', 'data_inicio']),
-    concluir: Object.freeze(['empresa_id', 'versao', 'data_conclusao']),
+    // D-PROD-291: e os hectares finais de cada área ("Fez o pasto todo?").
+    concluir: Object.freeze(['empresa_id', 'versao', 'data_conclusao', 'areas']),
     reabrir: Object.freeze(['empresa_id', 'versao']),
     remover: Object.freeze(['empresa_id', 'versao']),
   }),
@@ -86,7 +87,7 @@ export const ACOES_DA_AREA = Object.freeze(
 /** PATCH /atividades/:id (§10): os dados de abertura menos empresa e tipo (o tipo é imutável), mais a `versao` (CAS). */
 export const CAMPOS_DE_EDICAO = Object.freeze(['versao', ...CAMPOS_DA_ATIVIDADE]);
 /** POST /atividades/:id/concluir. */
-export const CAMPOS_DE_CONCLUSAO = Object.freeze(['empresa_id', 'versao', 'data_conclusao']);
+export const CAMPOS_DE_CONCLUSAO = Object.freeze(['empresa_id', 'versao', 'data_conclusao', 'areas']);
 /** POST /atividades/:id/reabrir. */
 export const CAMPOS_DE_REABERTURA = Object.freeze(['empresa_id', 'versao', 'motivo']);
 /** POST /atividades/:id/cancelar (cancela também os apontamentos confirmados). */

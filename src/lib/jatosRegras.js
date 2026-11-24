@@ -100,3 +100,31 @@ export const linhasDoJato = (itens) =>
     const c = corpoDaLinhaProduto(i.form);
     return { chave: i.chave, rotulo: String(i.form?.produto?.rotulo ?? ''), texto: formatarQuantidadeLinha(c.quantidade, unidadeDoProduto(i.form?.produto)) };
   });
+
+/**
+ * D-PROD-291 — o dia já salvo: "3 jatos de 2.000 L · herbicida folha larga 34 L · adubo foliar 24 kg" a partir das linhas
+ * de insumo gravadas (só as CONFIRMADAS com `jato`); o tanque vem do implemento das máquinas do dia (pode faltar). Sem
+ * jato, null.
+ * @param {any[]} linhasProduto @param {any[]} [linhasMaquina]
+ * @returns {string|null}
+ */
+export const textoDosJatosSalvos = (linhasProduto, linhasMaquina = []) => {
+  const ativas = (Array.isArray(linhasProduto) ? linhasProduto : []).filter((l) => l && l.status !== 'CANCELADO' && Number.isInteger(l.jato) && l.jato > 0);
+  if (!ativas.length) return null;
+  const numeros = new Set(ativas.map((l) => l.jato));
+  const tanque = (Array.isArray(linhasMaquina) ? linhasMaquina : []).map((m) => jatoDoImplemento(m?.implemento)).find(Boolean) ?? null;
+  /** @type {Map<string, { rotulo: string, soma: number, unidade: any }>} */
+  const porProduto = new Map();
+  for (const l of ativas) {
+    const q = Number(l.quantidade);
+    if (!Number.isFinite(q)) continue;
+    const id = String(l.produto_id ?? l.produto?.id ?? '');
+    const atual = porProduto.get(id) ?? { rotulo: String(l.produto?.nome ?? ''), soma: 0, unidade: l.unidade };
+    atual.soma = Math.round((atual.soma + q) * 10000) / 10000;
+    porProduto.set(id, atual);
+  }
+  const n = numeros.size;
+  const cabeca = `${n} ${n === 1 ? 'jato' : 'jatos'}${tanque ? ` de ${rotuloDoTanque(tanque)}` : ''}`;
+  const totais = [...porProduto.values()].map((t) => `${t.rotulo.toLowerCase()} ${formatarQuantidadeLinha(String(t.soma), t.unidade)}`.trim());
+  return [cabeca, ...totais].join(' · ');
+};

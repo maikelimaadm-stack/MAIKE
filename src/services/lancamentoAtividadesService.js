@@ -168,7 +168,9 @@ export const editarAtividade = async (id, dados) => updateAtividade(String(id ??
 /**
  * Concluir (só ABERTA): `{ versao, data_conclusao? }` — sem data, o servidor
  * usa hoje na fazenda. Devolve o detalhe.
- * @param {string} id @param {{ versao: number, data_conclusao?: string|null }} dados
+ * D-PROD-291: `areas` (opcional) — `[{ atividade_area_id, hectares }]`, os hectares TOTAIS feitos em cada área ("Fez o
+ * pasto todo?"); o servidor lança o que falta num fechamento.
+ * @param {string} id @param {{ versao: number, data_conclusao?: string|null, areas?: Array<{ atividade_area_id: string, hectares: string }> }} dados
  */
 export const concluirAtividade = async (id, dados) => {
   const d = comoObjeto(dados);
@@ -176,6 +178,7 @@ export const concluirAtividade = async (id, dados) => {
     empresa_id: fazenda('concluirAtividade'),
     versao: d.versao,
     ...soOsInformados(d, ['data_conclusao']),
+    ...(Array.isArray(d.areas) && d.areas.length ? { areas: d.areas.map((a) => ({ atividade_area_id: String(a.atividade_area_id), hectares: String(a.hectares) })) } : {}),
   });
 };
 

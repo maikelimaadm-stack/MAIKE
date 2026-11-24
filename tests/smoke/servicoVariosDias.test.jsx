@@ -243,7 +243,7 @@ describe("o diálogo Concluir (V3)", () => {
     const item = { ...SERVICO, andamento: andamento({ hectares_feitos: "40.0000", percentual: "100.00", ultimo_dia: "2026-12-07" }) };
     const onConcluir = vi.fn(async () => ({}));
     const onFechar = vi.fn();
-    render(<DialogoConcluirServico item={item} hoje={HOJE} onFechar={onFechar} onConcluir={onConcluir} />);
+    render(comQuery(<DialogoConcluirServico item={item} hoje={HOJE} onFechar={onFechar} onConcluir={onConcluir} />));
     expect(screen.getByTestId("dialogo-concluir-servico-titulo")).toHaveTextContent("Finalizar atividade");
     expect(screen.getByTestId("dialogo-concluir-servico-nome")).toHaveTextContent("ROÇADA MECÂNICA · PASTO DA AROEIRA +1");
     const campo = screen.getByTestId("dialogo-concluir-servico-dia");
@@ -251,13 +251,15 @@ describe("o diálogo Concluir (V3)", () => {
     expect(screen.getByTestId("dialogo-concluir-servico-sugerido")).toHaveTextContent("sugerido: último dia lançado");
     expect(screen.getByTestId("dialogo-concluir-servico-hectares")).toHaveTextContent("40 de 40 ha (100%)");
     // Antes do último dia lançado: o erro no campo, nada enviado.
+    // D-PROD-291: o diálogo lê as áreas e os lançamentos antes de liberar o envio.
+    await waitFor(() => expect(screen.getByTestId("dialogo-concluir-servico-enviar")).not.toBeDisabled());
     fireEvent.change(campo, { target: { value: "2026-12-01" } });
     fireEvent.click(screen.getByTestId("dialogo-concluir-servico-enviar"));
     expect(await screen.findByText("O último dia não pode ser antes do último dia lançado (07/12/2026).")).toBeTruthy();
     expect(onConcluir).not.toHaveBeenCalled();
     fireEvent.change(campo, { target: { value: "2026-12-07" } });
     fireEvent.click(screen.getByTestId("dialogo-concluir-servico-enviar"));
-    await waitFor(() => expect(onConcluir).toHaveBeenCalledWith("2026-12-07"));
+    await waitFor(() => expect(onConcluir).toHaveBeenCalledWith("2026-12-07", undefined));
     fireEvent.click(screen.getByTestId("dialogo-concluir-servico-cancelar"));
     expect(onFechar).toHaveBeenCalled();
   });
@@ -267,10 +269,11 @@ describe("o diálogo Concluir (V3)", () => {
     const onConcluir = vi.fn(async () => {
       throw new ApiError("ATIVIDADE_DATA_INVALIDA", { details: { field: "data_conclusao", reason: "antes_do_ultimo_dia", ultimo_dia: "2026-12-03" } });
     });
-    render(<DialogoConcluirServico item={{ ...SERVICO, andamento: andamento({ ultimo_dia: null }) }} hoje={HOJE} onFechar={vi.fn()} onConcluir={onConcluir} />);
+    render(comQuery(<DialogoConcluirServico item={{ ...SERVICO, andamento: andamento({ ultimo_dia: null }) }} hoje={HOJE} onFechar={vi.fn()} onConcluir={onConcluir} />));
     // Sem último dia lançado: sugere hoje, sem a nota.
     expect(screen.getByTestId("dialogo-concluir-servico-dia")).toHaveValue(HOJE);
     expect(screen.queryByTestId("dialogo-concluir-servico-sugerido")).toBeNull();
+    await waitFor(() => expect(screen.getByTestId("dialogo-concluir-servico-enviar")).not.toBeDisabled());
     fireEvent.click(screen.getByTestId("dialogo-concluir-servico-enviar"));
     expect(await screen.findByTestId("dialogo-concluir-servico-erro")).toHaveTextContent("A data de conclusão não pode ser antes do último dia lançado (03/12/2026). Nada foi gravado.");
   });
@@ -364,6 +367,8 @@ const montar = async (props = {}) => {
   const janela = await screen.findByTestId("janela-registro-de-campo");
   return { janela, onFechar };
 };
+/** D-PROD-291: o diálogo Finalizar lê o detalhe e os lançamentos da atividade (react-query). @param {React.ReactElement} el */
+const comQuery = (el) => <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{el}</QueryClientProvider>;
 const registros = () => backend.chamadas.filter((c) => c.method === "POST" && c.path === "/atividades/registrar");
 const editorDe = (/** @type {HTMLElement} */ janela, /** @type {string} */ secao) => within(janela).getByTestId(`registro-${secao}-editor`);
 /** D-PROD-281: o "Novo lançamento" abre curto; "Mudar" mostra o formulário inteiro. */
@@ -568,10 +573,10 @@ describe("ajustes do teste de ponta a ponta (D-PROD-274): o capim, o serviço se
   });
 
   it("o diálogo Concluir: o título com o capim; sem área, o local no título e a quantidade no lugar dos hectares", () => {
-    const { unmount } = render(<DialogoConcluirServico item={MOMBACA} hoje={HOJE} onFechar={vi.fn()} onConcluir={vi.fn()} />);
+    const { unmount } = render(comQuery(<DialogoConcluirServico item={MOMBACA} hoje={HOJE} onFechar={vi.fn()} onConcluir={vi.fn()} />));
     expect(screen.getByTestId("dialogo-concluir-servico-nome")).toHaveTextContent("SEMEADURA DE CAPIM · PASTO DA AROEIRA · capim PANICUM CV. MOMBAÇA");
     unmount();
-    render(<DialogoConcluirServico item={CERCA} hoje={HOJE} onFechar={vi.fn()} onConcluir={vi.fn()} />);
+    render(comQuery(<DialogoConcluirServico item={CERCA} hoje={HOJE} onFechar={vi.fn()} onConcluir={vi.fn()} />));
     expect(screen.getByTestId("dialogo-concluir-servico-nome")).toHaveTextContent("REFORMA DE CERCA · DIVISA NORTE");
     expect(screen.getByTestId("dialogo-concluir-servico-hectares")).toHaveTextContent(/^2,5 km$/);
   });
@@ -772,8 +777,10 @@ describe("D-PROD-283: jatos de hoje no Novo lançamento", () => {
     expect(within(janela).getByTestId("jatos-total")).toHaveTextContent("Hoje: 2 jatos · glifosato 20 L");
     // Os insumos não se repetem no "Vai junto".
     expect(within(janela).getByTestId("registro-de-campo-vai-junto")).not.toHaveTextContent("GLIFOSATO");
-    // O resto do dia, como sempre: hectares, horímetro e a situação.
-    fireEvent.change(within(janela).getByTestId("registro-de-campo-hectares-hoje"), { target: { value: "4" } });
+    // D-PROD-291: com jato, os hectares não são perguntados no dia (só ao finalizar).
+    expect(within(janela).queryByTestId("registro-de-campo-hectares-hoje")).toBeNull();
+    expect(within(janela).getByTestId("registro-de-campo-hectares-no-fim")).toHaveTextContent("Os hectares são perguntados quando finalizar a área.");
+    // O resto do dia, como sempre: horímetro e a situação.
     await waitFor(() => expect(within(janela).getByTestId("registro-maquina-horimetro-dica")).toHaveTextContent("última hora lançada: 1.244"));
     fireEvent.change(within(janela).getByTestId("registro-maquina-leitura-final"), { target: { value: "1251" } });
     fireEvent.click(within(within(janela).getByTestId("registro-de-campo-situacao")).getByRole("radio", { name: "Não, continua" }));
