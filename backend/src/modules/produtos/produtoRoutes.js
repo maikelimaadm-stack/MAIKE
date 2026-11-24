@@ -38,6 +38,27 @@ const CAMPOS = Object.freeze({
   controla_validade: { type: 'boolean' },
   observacoes: { type: ['string', 'null'], maxLength: 2000 },
   ativo: { type: 'boolean' },
+  // D-PROD-288: unidades de conversão (a lista substitui a vigente; o serviço confere sigla, operação e fator).
+  unidades_conversao: {
+    type: 'array',
+    maxItems: 30,
+    items: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['sigla', 'operacao', 'fator'],
+      properties: {
+        id: { type: ['string', 'null'], maxLength: 64 },
+        sigla: { type: 'string', minLength: 1, maxLength: 16 },
+        operacao: { type: 'string', enum: ['MULTIPLICA', 'DIVIDE'] },
+        fator: { type: ['number', 'string'] },
+        uso_compra: { type: 'boolean' },
+        uso_venda: { type: 'boolean' },
+        codigo_barras: { type: ['string', 'null'], maxLength: 64 },
+        ativa: { type: 'boolean' },
+        ordem: { type: 'integer', minimum: 0 },
+      },
+    },
+  },
 });
 
 const CRIAR_SCHEMA = {

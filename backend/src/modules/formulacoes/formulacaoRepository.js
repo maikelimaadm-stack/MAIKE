@@ -24,6 +24,8 @@ const SELECAO = Object.freeze({
   percentual_pv_padrao: true,
   consumo_objetivo_g_cab_dia: true,
   faixa_tolerancia_percentual: true,
+  consumo_minimo_pv: true,
+  consumo_maximo_pv: true,
   observacoes: true,
   ativo: true,
   createdAt: true,

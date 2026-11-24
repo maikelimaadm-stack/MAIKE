@@ -82,7 +82,7 @@ tenant(nome) AS (
     'Categoria','CADCATEGORIA','CADCURVAGANHO','ConfiguracaoIcone','EntidadeCodigoSequencia','EstoqueLoteNota',
     'EventoSanitario','Fornecedor','LinhaGeografica','LocalEstoque',
     'ManejoTecnicoRebanho','Marca','MovimentacaoEstoque','MovimentacaoMapa','MovimentacaoPecuaria',
-    'OperacaoIdempotente','Permissao','PontoReferencia','PontoSuplementacao','Produto','RegistroAnexo',
+    'OperacaoIdempotente','Permissao','PontoReferencia','PontoSuplementacao','ProdutoUnidadeConversao','Produto','RegistroAnexo',
     'SuplementacaoEvento','SuplementacaoLote','UnidadeMedida','Usuario','Lote',
     'TipoTarefa','AreaPastagem','CADCULTURAS','GrupoAtividade','Setor','Empresa'
   ]::text[])

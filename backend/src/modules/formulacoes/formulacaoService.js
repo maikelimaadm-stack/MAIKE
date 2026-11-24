@@ -107,6 +107,9 @@ export const comoFormulacaoPublica = (registro) => {
     consumo_objetivo_g_cab_dia: numeroDe(registro.consumo_objetivo_g_cab_dia, 2),
     // D-PROD-206: null = o padrão de 15% (quem lê aplica o padrão; o banco não inventa valor).
     faixa_tolerancia_percentual: numeroDe(registro.faixa_tolerancia_percentual, 2),
+    // D-PROD-288: consumo mínimo e máximo (%PV) — saíram do cadastro do produto e ficam só aqui.
+    consumo_minimo_pv: numeroDe(registro.consumo_minimo_pv, 4),
+    consumo_maximo_pv: numeroDe(registro.consumo_maximo_pv, 4),
     observacoes: registro.observacoes ?? null,
     ativo: registro.ativo,
     total_batida_kg: total,
@@ -214,6 +217,10 @@ const camposDe = (entrada) => {
     campos.faixa_tolerancia_percentual = entrada.faixa_tolerancia_percentual === null || entrada.faixa_tolerancia_percentual === ''
       ? null
       : decimalDoCorpo(entrada.faixa_tolerancia_percentual, 'faixa_tolerancia_percentual', { casas: 2, maximo: FAIXA_MAXIMA, motivo: 'faixa_tolerancia', rotulo: '% de tolerância' });
+  }
+  // D-PROD-288: consumo mínimo e máximo do cocho (%PV, 0 < x ≤ 5, até 4 casas); vazio/null limpa.
+  for (const campo of ['consumo_minimo_pv', 'consumo_maximo_pv']) {
+    if (entrada[campo] !== undefined) campos[campo] = vazio(entrada[campo]) ? null : pvDoCorpo(entrada[campo], campo);
   }
   const observacoes = caberNaColuna(textoDoCorpo(entrada.observacoes, 'observacoes', { maiusculas: true }), 'observacoes');
   if (observacoes !== undefined) campos.observacoes = observacoes;
@@ -416,6 +423,8 @@ export const opcoesLancamento = async (contexto, consulta) => {
       percentual_pv_padrao: f.percentual_pv_padrao,
       consumo_objetivo_g_cab_dia: f.consumo_objetivo_g_cab_dia,
       faixa_tolerancia_percentual: f.faixa_tolerancia_percentual,
+      consumo_minimo_pv: f.consumo_minimo_pv,
+      consumo_maximo_pv: f.consumo_maximo_pv,
       regras: f.regras.map(({ categoria_manejo_id, categoria_manejo_nome, consome, percentual_pv, g_cab_dia }) => ({ categoria_manejo_id, categoria_manejo_nome, consome, percentual_pv, g_cab_dia })),
     };
   });

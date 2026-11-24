@@ -217,6 +217,11 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // MAIKE-INSUMO-POR-JATO (D-PROD-283): EXPAND — o número do jato na linha de insumo: 1 coluna anulável sem DEFAULT em
   // tabela antiga (AtividadeApontamentoProduto.jato); sem CHECK (a API confere 1..999).
   '20261125100000_insumo_por_jato': '725a8c5ac873ad19d0c191cd7c2f303dc84ef97170b74c0bb2133479c76d3551',
+  // MAIKE-PRODUTO-UNIDADES-CONVERSAO (D-PROD-288): CONTRACT condicionado, formato CONVERSÃO sem DROP — tabela nova
+  // ProdutoUnidadeConversao (sigla, MULTIPLICA|DIVIDE, fator, uso compra/venda, código de barras, exclusão lógica), os 5
+  // CHECKs de unidade das linhas de lançamento alargados, 2 colunas anuláveis na Formulação e a cópia pinada do
+  // peso_por_saco_kg (conversão SACO) e do consumo mínimo/máximo do produto para a formulação.
+  '20261125200000_produto_unidades_conversao': '779347bf9780ecb391dc76e64048601e6adcad449b5b868a44811def12be863b',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -276,6 +281,8 @@ export const DO_RLS_APROVADOS = Object.freeze([
   'e47bfde02699052ca52f4c6c750e9f28aec247d1fcaf5c2c308a05e006799765',
   // D-PROD-276: RLS/REVOKE do Planejamento e da PlanejamentoArea (mesmo corpo, lista nova).
   '3dd03bb8d852888ae7f058ec6eb8c6304f93d3dcdb3f4e946d03413a5565c654',
+  // D-PROD-288: RLS/REVOKE da ProdutoUnidadeConversao (mesmo corpo, lista nova).
+  '6518df2877f62ef12dac0f111dbe514254272d7086e8c3d252be96fd66a683af',
 ]);
 
 /**
@@ -725,6 +732,37 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "Produto" ADD CONSTRAINT "Produto_controla_validade_check" CHECK ("controla_validade" = false OR "controla_lote" = true)',
       'ALTER TABLE "EstoqueLoteNota" ADD COLUMN "lote_fabricante" VARCHAR(64)',
       'ALTER TABLE "EstoqueLoteNota" ADD COLUMN "data_validade" DATE',
+    ]),
+  }),
+  // D-PROD-288: as unidades de conversão do produto. Formato CONVERSÃO sem DROP (como a D-PROD-249): depois da guarda
+  // (hash pinado; confere que as 6 tabelas existem, que a tabela e as 2 colunas novas não existem e que os 5 CHECKs de
+  // unidade existem; trava as 6 tabelas em ACCESS EXCLUSIVE), EXATAMENTE as 10 instruções abaixo, nesta ordem (texto
+  // pinado): os 5 CHECKs de unidade apagados e recriados mais largos (o descritor os declara em `constraints_alargadas`;
+  // a unidade passa a ser texto não vazio, menos UN fora do serviço). O resto, pela allowlist EXPAND: a tabela nova
+  // "ProdutoUnidadeConversao" (índices, o único parcial entre as não excluídas, CHECKs, FKs e o RLS de corpo aprovado) e as
+  // 2 colunas anuláveis de "CADFORMULACAO". E, por ÚLTIMO, EXATAMENTE as 2 instruções `conversao`: o INSERT … SELECT do
+  // peso por saco (conversão SACO multiplica) e o UPDATE do consumo mínimo/máximo da formulação. A guarda só cita as 6
+  // tabelas antigas e a criada no resto.
+  '20261125200000_produto_unidades_conversao': Object.freeze({
+    decisao: 'D-PROD-288',
+    guarda_sha256: '86df7d20db22e4ae2596dba4c29788fa60537d41e6e4cfa35d68171266fd0ff8',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['Produto', 'CADFORMULACAO', 'EntradaEstoqueItem', 'SaidaEstoqueItem', 'AjusteEstoqueItem', 'OperacaoFinanceiraItem']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "EntradaEstoqueItem" DROP CONSTRAINT "EntradaEstoqueItem_unidade_check"',
+      'ALTER TABLE "EntradaEstoqueItem" ADD CONSTRAINT "EntradaEstoqueItem_unidade_check" CHECK (char_length(btrim("unidade")) > 0 AND "unidade" <> \'UN\')',
+      'ALTER TABLE "SaidaEstoqueItem" DROP CONSTRAINT "SaidaEstoqueItem_unidade_check"',
+      'ALTER TABLE "SaidaEstoqueItem" ADD CONSTRAINT "SaidaEstoqueItem_unidade_check" CHECK (char_length(btrim("unidade")) > 0 AND "unidade" <> \'UN\')',
+      'ALTER TABLE "AjusteEstoqueItem" DROP CONSTRAINT "AjusteEstoqueItem_unidade_check"',
+      'ALTER TABLE "AjusteEstoqueItem" ADD CONSTRAINT "AjusteEstoqueItem_unidade_check" CHECK (char_length(btrim("unidade")) > 0 AND "unidade" <> \'UN\')',
+      'ALTER TABLE "OperacaoFinanceiraItem" DROP CONSTRAINT "OperacaoFinanceiraItem_unidade_check"',
+      'ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_unidade_check" CHECK (char_length(btrim("unidade")) > 0)',
+      'ALTER TABLE "OperacaoFinanceiraItem" DROP CONSTRAINT "OperacaoFinanceiraItem_forma_check"',
+      'ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_forma_check" CHECK (("tipo_item" = \'MERCADORIA\' AND "produto_id" IS NOT NULL AND "local_estoque_id" IS NOT NULL AND "unidade" <> \'UN\' AND "fator_kg" IS NOT NULL AND "fator_kg" > 0 AND "quantidade_estoque" IS NOT NULL AND "quantidade_estoque" > 0) OR ("tipo_item" = \'SERVICO\' AND "produto_id" IS NULL AND "local_estoque_id" IS NULL AND "descricao" IS NOT NULL AND "unidade" = \'UN\' AND "fator_kg" IS NULL AND "quantidade_estoque" IS NULL AND "movimentacao_estoque_id" IS NULL AND "estoque_lote_nota_id" IS NULL AND "movimentacao_estorno_id" IS NULL))',
+    ]),
+    conversao: Object.freeze([
+      'INSERT INTO "ProdutoUnidadeConversao" ("id", "cliente_id", "produto_id", "sigla", "operacao", "fator", "uso_compra", "uso_venda", "ativa", "ordem", "createdAt", "updatedAt") SELECT \'puc_\' || p."id", p."cliente_id", p."id", \'SACO\', \'MULTIPLICA\', p."peso_por_saco_kg", true, true, true, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM "Produto" AS p WHERE p."peso_por_saco_kg" IS NOT NULL AND p."peso_por_saco_kg" > 0 AND p."unidade_principal_estoque" <> \'L\'',
+      'UPDATE "CADFORMULACAO" AS f SET "consumo_minimo_pv" = p."consumo_minimo_pv", "consumo_maximo_pv" = p."consumo_maximo_pv" FROM "Produto" AS p WHERE p."cliente_id" = f."cliente_id" AND p."id" = f."produto_id" AND (p."consumo_minimo_pv" IS NOT NULL OR p."consumo_maximo_pv" IS NOT NULL)',
     ]),
   }),
 });
