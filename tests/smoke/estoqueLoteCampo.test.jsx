@@ -24,7 +24,7 @@ vi.mock('@/services/estoqueConsultaService', () => {
   return { listarLotesDisponiveis: fn };
 });
 
-import CampoLotes from '@/components/estoque/CampoLotes';
+import CampoLotes, { comDevolvidos } from '@/components/estoque/CampoLotes';
 import { corpoDaEscolha, erroDaEscolha, usaLoteVencidoNaEscolha } from '@/lib/estoqueLotesRegras';
 
 afterEach(() => cleanup());
@@ -33,7 +33,7 @@ const comQuery = (ui) => render(<QueryClientProvider client={new QueryClient({ d
 const PRODUTO = { id: 'p1', controla_lote: true, controla_validade: true };
 
 /** Estado controlado pelo pai, como nas telas (cocho, financeiro, atividade, abastecimento). */
-function Campo({ produto = PRODUTO, localId = 'l1', quantidade = 20, aoMudar }) {
+function Campo({ produto = PRODUTO, localId = 'l1', quantidade = 20, aoMudar, devolvidos = null }) {
   const [estado, setEstado] = useState({ lotes: null, confirmaVencido: false, loteVencido: false, erroLote: '' });
   return (
     <CampoLotes
@@ -51,6 +51,7 @@ function Campo({ produto = PRODUTO, localId = 'l1', quantidade = 20, aoMudar }) 
         return novo;
       })}
       testId="campo"
+      devolvidos={devolvidos}
     />
   );
 }
@@ -110,5 +111,31 @@ describe('CampoLotes — o campo "Lote" de qualquer tela que tira produto do est
     expect(usaLoteVencidoNaEscolha([{ id: 'cA', quantidade: '3' }], 3, LOTES.lotes)).toBe(false);
     expect(corpoDaEscolha([{ id: 'cA', quantidade: '0' }, { id: 'cB', quantidade: '3' }])).toEqual([{ estoque_lote_nota_id: 'cB', quantidade: '3' }]);
     expect(corpoDaEscolha(undefined)).toBeNull();
+  });
+  it('sem a lista dos lotes (sem internet ou leitura com erro): não acusa saldo, avisa que sai do que vence primeiro', async () => {
+    leitura.listarLotesDisponiveis.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    let ultimo = null;
+    comQuery(<Campo produto={{ id: 'p-off', controla_lote: true }} aoMudar={(e) => { ultimo = e; }} />);
+    expect((await screen.findByTestId('campo-sem-lista')).textContent).toContain('vence primeiro');
+    expect(screen.queryByTestId('campo-erro')).toBeNull();
+    expect(screen.queryByTestId('campo-vazio')).toBeNull();
+    expect(ultimo?.erroLote ?? '').toBe('');
+    expect(screen.getByTestId('campo-alternar').hasAttribute('disabled')).toBe(true);
+  });
+
+  it('edição: o que a própria linha baixou volta ao saldo de cada lote (o servidor estorna antes); lote esgotado volta à lista', async () => {
+    const lista = [{ id: 'cA', lote_fabricante: 'A', data_validade: null, quantidade_disponivel: '2.0000', vencido: false }];
+    const r = comDevolvidos(lista, [{ lote_id: 'cA', quantidade: '3.0000' }, { lote_id: 'cX', quantidade: '7.0000' }]);
+    expect(r[0].quantidade_disponivel).toBe('5.0000');
+    expect(r[1]).toMatchObject({ id: 'cX', quantidade_disponivel: '7.0000', _daLinha: true });
+    expect(comDevolvidos(lista, null)).toBe(lista);
+    // A linha gravou 10 do lote esgotado cX; reduzir para 9 não acusa saldo.
+    leitura.listarLotesDisponiveis.mockResolvedValueOnce({ ...LOTES, lotes: [] });
+    let ultimo = null;
+    comQuery(<Campo produto={{ id: 'p-ed', controla_lote: true }} quantidade={9} devolvidos={[{ lote_id: 'cX', quantidade: '10.0000' }]} aoMudar={(e) => { ultimo = e; }} />);
+    const sugestao = await screen.findByTestId('campo-sugestao');
+    expect(sugestao.textContent).toContain('Lote já usado nesta linha');
+    expect(screen.queryByTestId('campo-erro')).toBeNull();
+    expect(ultimo?.erroLote ?? '').toBe('');
   });
 });

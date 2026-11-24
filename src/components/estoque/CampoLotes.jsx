@@ -10,6 +10,27 @@ const fmt = (/** @type {unknown} */ v) => {
 };
 
 /**
+ * Soma ao saldo de cada lote o que a saída gravada já baixou dele (edição: o servidor estorna antes de baixar de novo).
+ * Lote que a linha esgotou (fora da lista) volta com o que ela usou, sem fabricante nem validade conhecidos.
+ * @param {any[]} lotes @param {Array<{ lote_id?: string, quantidade?: string }>|null|undefined} devolvidos
+ */
+export const comDevolvidos = (lotes, devolvidos) => {
+  if (!Array.isArray(devolvidos) || !devolvidos.length) return lotes;
+  const porId = new Map();
+  for (const f of devolvidos) {
+    const id = String(f?.lote_id ?? "");
+    const q = Number(f?.quantidade);
+    if (!id || !Number.isFinite(q) || q <= 0) continue;
+    porId.set(id, (porId.get(id) ?? 0) + q);
+  }
+  if (!porId.size) return lotes;
+  const q4 = (/** @type {number} */ n) => (Math.round(n * 10000) / 10000).toFixed(4);
+  const somados = lotes.map((l) => (porId.has(String(l.id)) ? { ...l, quantidade_disponivel: q4(Number(l.quantidade_disponivel) + porId.get(String(l.id))) } : l));
+  const faltam = [...porId.entries()].filter(([id]) => !lotes.some((l) => String(l.id) === id));
+  return [...somados, ...faltam.map(([id, q]) => ({ id, lote_fabricante: null, data_validade: null, quantidade_disponivel: q4(q), vencido: false, _daLinha: true }))];
+};
+
+/**
  * D-PROD-282 — campo "Lote" de QUALQUER tela que tira produto com lote do estoque (Saída e transferência do Estoque,
  * cocho, venda do financeiro, linha de produto da atividade, abastecimento). Mostra a sugestão FEFO (o lote que vence
  * primeiro; o servidor aplica a mesma sem a lista), deixa trocar e dividir entre lotes ("Escolher lotes") e avisa
@@ -27,8 +48,13 @@ const fmt = (/** @type {unknown} */ v) => {
  * `mantidos` (edição de uma saída gravada): sem escolha manual, a saída continua nos lotes gravados — o texto aparece no
  * lugar da sugestão, e não há aviso de vencido nem erro de soma (o servidor reaproveita as fatias). "Escolher lotes"
  * continua disponível.
+ * `devolvidos` (edição, mesmo produto e local): as fatias que a própria saída gravada já baixou (`[{ lote_id,
+ * quantidade }]`). O servidor estorna a saída antes de baixar de novo, então essas quantidades voltam ao saldo de cada
+ * lote para conferir e escolher (um lote que a linha esgotou volta à lista).
+ * Sem a lista dos lotes (sem internet, ou a leitura falhou), o campo não acusa saldo: diz que o lote que vence primeiro
+ * é aplicado no envio e deixa a conferência para o servidor (o registro sem internet vai para a fila).
  */
-export default function CampoLotes({ empresaId, produto, localId, quantidade, lotes: escolha, confirmaVencido, loteVencido, erroLote, onMudar, testId, className = "col-span-12", desabilitado = false, mantidos = null }) {
+export default function CampoLotes({ empresaId, produto, localId, quantidade, lotes: escolha, confirmaVencido, loteVencido, erroLote, onMudar, testId, className = "col-span-12", desabilitado = false, mantidos = null, devolvidos = null }) {
   const produtoId = produto?.id;
   const ativo = Boolean(produto?.controla_lote && produtoId && localId && empresaId);
   const { data, isLoading } = useQuery({
@@ -37,11 +63,13 @@ export default function CampoLotes({ empresaId, produto, localId, quantidade, lo
     enabled: ativo,
     staleTime: 15_000,
   });
-  const lotes = /** @type {any[]} */ (data?.lotes ?? []);
+  const lotes = comDevolvidos(/** @type {any[]} */ (data?.lotes ?? []), devolvidos);
+  // Sem a lista (consulta parada sem internet, ou com erro): nada a conferir aqui; o servidor aplica o FEFO no envio.
+  const semLista = ativo && !isLoading && data === undefined;
   const total = Number.isFinite(Number(quantidade)) ? Number(quantidade) : 0;
   const mantem = Boolean(mantidos) && !Array.isArray(escolha);
-  const vencidoAgora = ativo && !mantem && usaLoteVencidoNaEscolha(escolha, total, lotes);
-  const erroAgora = ativo && !mantem && !isLoading ? erroDaEscolha(escolha, total, lotes) : "";
+  const vencidoAgora = ativo && !mantem && !semLista && usaLoteVencidoNaEscolha(escolha, total, lotes);
+  const erroAgora = ativo && !mantem && !isLoading && !semLista ? erroDaEscolha(escolha, total, lotes) : "";
   // A validação de quem usa é pura: o campo devolve o que só ele sabe (vencido, erro dos lotes).
   useEffect(() => {
     if (!produto?.controla_lote) return;
@@ -56,9 +84,9 @@ export default function CampoLotes({ empresaId, produto, localId, quantidade, lo
   const unidade = data?.unidade === "L" ? "L" : "kg";
   const manual = Array.isArray(escolha);
   const sugestao = sugestaoFefo(lotes, total);
-  const erro = mantem ? "" : erroDaEscolha(escolha, total, lotes);
-  const vencido = !mantem && usaLoteVencidoNaEscolha(escolha, total, lotes);
-  const rotulo = (/** @type {any} */ l) => `${l?.lote_fabricante ?? "Sem lote"}${l?.data_validade ? ` · vence ${diaMes(l.data_validade)}` : ""}`;
+  const erro = mantem || semLista ? "" : erroDaEscolha(escolha, total, lotes);
+  const vencido = !mantem && !semLista && usaLoteVencidoNaEscolha(escolha, total, lotes);
+  const rotulo = (/** @type {any} */ l) => `${l?.lote_fabricante ?? (l?._daLinha ? "Lote já usado nesta linha" : "Sem lote")}${l?.data_validade ? ` · vence ${diaMes(l.data_validade)}` : ""}`;
   const qtdManual = (/** @type {string} */ id) => escolha?.find((f) => f.id === id)?.quantidade ?? "";
   const mudarQtd = (/** @type {string} */ id, /** @type {string} */ valor) => {
     const outros = (escolha ?? []).filter((f) => f.id !== id);
@@ -72,7 +100,7 @@ export default function CampoLotes({ empresaId, produto, localId, quantidade, lo
         <button
           type="button"
           className="tb-btn"
-          disabled={desabilitado}
+          disabled={desabilitado || (semLista && !manual)}
           onClick={() => onMudar({ lotes: manual ? null : sugestao.fatias.map((f) => ({ id: f.id, quantidade: String(f.quantidade).replace(".", ",") })), confirmaVencido: false })}
           data-testid={`${testId}-alternar`}
         >
@@ -80,7 +108,10 @@ export default function CampoLotes({ empresaId, produto, localId, quantidade, lo
         </button>
       </div>
       {isLoading ? <p className="mt-1 text-[12px]">Carregando lotes…</p> : null}
-      {!isLoading && !lotes.length ? <p className="mt-1 text-[12px]" data-testid={`${testId}-vazio`}>Nenhum lote com saldo neste depósito.</p> : null}
+      {semLista ? (
+        <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid={`${testId}-sem-lista`}>Lista de lotes indisponível agora (sem internet). Ao enviar, sai do lote que vence primeiro.</p>
+      ) : null}
+      {!isLoading && !semLista && !lotes.length ? <p className="mt-1 text-[12px]" data-testid={`${testId}-vazio`}>Nenhum lote com saldo neste depósito.</p> : null}
       {mantem ? (
         <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid={`${testId}-mantidos`}>{mantidos}</p>
       ) : null}

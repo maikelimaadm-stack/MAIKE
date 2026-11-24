@@ -73,6 +73,7 @@ import {
   chaveTotais,
   formularioDaLinhaProduto,
   mantemLotesDaLinha,
+  lotesDevolvidosNaEdicao,
   formularioMaquinaVazio,
   formularioProdutoVazio,
   linhasDoApontamento,
@@ -443,6 +444,7 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
             loteVencido={form.loteVencido}
             erroLote={form.erroLote}
             mantidos={mantemLotesDaLinha(form) ? "Sem escolher, a linha continua nos mesmos lotes (o produto, o local e a quantidade não mudaram)." : null}
+            devolvidos={lotesDevolvidosNaEdicao(form)}
             onMudar={(patch) => {
               const daPessoa = "lotes" in patch || "confirmaVencido" in patch;
               if (daPessoa || !marcar) mudar(patch, ["lotes"]);

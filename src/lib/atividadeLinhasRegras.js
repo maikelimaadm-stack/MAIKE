@@ -353,7 +353,7 @@ export const textoDaLeituraVigente = (medidor) => {
  * @typedef {{ id: string, rotulo: string, unidade_principal_estoque: string|null, carencia_dias?: number|null, controla_lote?: boolean } | null} ProdutoEscolhido
  * @typedef {{ produto: ProdutoEscolhido, local_estoque_id: string|null, quantidade: string, observacao: string, vc?: string, jato?: number|null,
  *   lotes?: Array<{ id: string, quantidade: string }>|null, confirmaVencido?: boolean, loteVencido?: boolean, erroLote?: string,
- *   saidaGravada?: { produto_id: string, local_estoque_id: string|null, quantidade: string|null } }} FormularioLinhaProduto
+ *   saidaGravada?: { produto_id: string, local_estoque_id: string|null, quantidade: string|null, fatias?: Array<{ lote_id: string, quantidade: string }> } }} FormularioLinhaProduto
  *   D-PROD-274: `carencia_dias` (a carência da bula, para o "Pasto liberado em") e `vc` (o VC % digitado, Plantio).
  *   D-PROD-282 em todas as telas: `controla_lote` do produto e a escolha do lote (`lotes`, `confirmaVencido`; o campo
  *   devolve `loteVencido` e `erroLote`); `saidaGravada` na edição (mantém os lotes da linha).
@@ -393,7 +393,7 @@ export const formularioDaLinhaProduto = (l) => ({
   // D-PROD-298: a saída gravada da linha de produto com lote — editar sem escolher lotes e sem trocar produto, local nem
   // quantidade mantém os mesmos lotes (o servidor reaproveita as fatias da linha).
   ...(l?.produto?.controla_lote === true && l?.id
-    ? { saidaGravada: { produto_id: String(l.produto_id), local_estoque_id: texto(l?.local_estoque_id) || null, quantidade: texto(l?.quantidade) || null } }
+    ? { saidaGravada: { produto_id: String(l.produto_id), local_estoque_id: texto(l?.local_estoque_id) || null, quantidade: texto(l?.quantidade) || null, fatias: Array.isArray(l?.fatias) ? l.fatias.map((/** @type {any} */ f) => ({ lote_id: String(f?.lote_id ?? ''), quantidade: texto(f?.quantidade) })) : [] } }
     : {}),
 });
 
@@ -402,6 +402,17 @@ export const formularioDaLinhaProduto = (l) => ({
  * com o mesmo produto, local e quantidade da saída gravada (`saidaGravada` de `formularioDaLinhaProduto`).
  * @param {any} form
  */
+/**
+ * D-PROD-298 — as fatias da saída gravada que voltam ao saldo na edição (mesmo produto e mesmo local: o servidor estorna
+ * a linha antes de baixar de novo); null fora disso.
+ * @param {any} form
+ */
+export const lotesDevolvidosNaEdicao = (form) => {
+  const g = form?.saidaGravada;
+  if (!g || !Array.isArray(g.fatias) || !g.fatias.length) return null;
+  return String(form?.produto?.id ?? '') === g.produto_id && (form?.local_estoque_id ?? null) === g.local_estoque_id ? g.fatias : null;
+};
+
 export const mantemLotesDaLinha = (form) => {
   const g = form?.saidaGravada;
   if (!g || Array.isArray(form?.lotes)) return false;

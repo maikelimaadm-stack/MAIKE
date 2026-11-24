@@ -23,7 +23,7 @@ vi.mock('@/services/estoqueConsultaService', () => ({ listarLotesDisponiveis: le
 vi.mock('@/hooks/useLancamentoAtividadesSessao', async (importOriginal) => ({ ...(await importOriginal()), useEmpresaRealSelecionadaId: () => 'emp-1' }));
 
 import { CamposDaLinhaProduto } from '@/components/lancamento-atividades/JanelasDaLinha';
-import { camposAlteradosDaLinha, corpoDaLinhaProduto, formularioDaLinhaProduto, produtoEscolhido, validarLinhaProduto } from '@/lib/atividadeLinhasRegras';
+import { camposAlteradosDaLinha, corpoDaLinhaProduto, formularioDaLinhaProduto, lotesDevolvidosNaEdicao, produtoEscolhido, validarLinhaProduto } from '@/lib/atividadeLinhasRegras';
 import { repetirUltimoJato } from '@/lib/jatosRegras';
 import { CAMPOS_DA_LINHA_PRODUTO, CAMPOS_DA_LINHA_PRODUTO_DO_LANCAMENTO } from '@/apis/atividades/lancamentoAtividadePort';
 
@@ -110,5 +110,14 @@ describe('D-PROD-282 — lote na linha de produto da atividade', () => {
     expect(jatos[0].form).toMatchObject({ jato: 2, lotes: null, confirmaVencido: false });
     expect(CAMPOS_DA_LINHA_PRODUTO).toContain('lotes');
     expect(CAMPOS_DA_LINHA_PRODUTO_DO_LANCAMENTO).toContain('lotes');
+  });
+  it('edição: as fatias da linha voltam ao saldo só com o mesmo produto e o mesmo local', () => {
+    const linha = { id: 'ln1', produto_id: 'p1', produto: { controla_lote: true }, local_estoque_id: 'l1', quantidade: '10.0000', fatias: [{ lote_id: 'cX', quantidade: '10.0000' }] };
+    const form = formularioDaLinhaProduto(linha);
+    expect(lotesDevolvidosNaEdicao(form)).toEqual([{ lote_id: 'cX', quantidade: '10.0000' }]);
+    expect(lotesDevolvidosNaEdicao({ ...form, quantidade: '9' })).toEqual([{ lote_id: 'cX', quantidade: '10.0000' }]);
+    expect(lotesDevolvidosNaEdicao({ ...form, local_estoque_id: 'l2' })).toBeNull();
+    expect(lotesDevolvidosNaEdicao({ ...form, produto: { id: 'p9', controla_lote: true } })).toBeNull();
+    expect(lotesDevolvidosNaEdicao(formularioDaLinhaProduto({ ...linha, id: undefined }))).toBeNull();
   });
 });
