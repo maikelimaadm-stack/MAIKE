@@ -80,11 +80,11 @@ const recusa400 = async (s, pedido, rotulo) => {
 
 /** Chaves FIXAS do detalhe (A13). */
 const CHAVES_DETALHE = [
-  'ano_conclusao', 'ano_fabricacao', 'ano_modelo', 'aquisicao', 'area', 'ativo', 'centro_custo', 'chassi', 'codigo_frota', 'compatibilidade', 'consumo',
-  'created_date', 'custo_uso_unitario', 'depreciacao', 'empresa_id', 'especificacoes', 'familia', 'id', 'localizacao_descricao', 'marca', 'material', 'medidor',
+  'ano_conclusao', 'ano_fabricacao', 'ano_modelo', 'aquisicao', 'area', 'ativo', 'capacidade', 'capacidade_unidade', 'centro_custo', 'chassi', 'codigo_frota', 'compatibilidade', 'consumo',
+  'created_date', 'custo_uso_unitario', 'depreciacao', 'empresa_id', 'especificacoes', 'familia', 'forma_produto', 'id', 'localizacao_descricao', 'marca', 'material', 'medidor',
   'medidor_operacional', 'modelo', 'natureza', 'nome', 'numero', 'numero_serie', 'observacoes', 'placa', 'placa_uf', 'potencia_cv', 'propriedade', 'proprietario', 'renavam',
-  'responsavel', 'tanques', 'tipo', 'updated_date', 'versao',
-];
+  'responsavel', 'tanques', 'tipo', 'updated_date', 'usa_produto', 'versao',
+]; // D-PROD-297: + usa_produto, forma_produto, capacidade, capacidade_unidade (o produto do implemento no bem).
 const AQUISICAO_VAZIA = { data_aquisicao: null, data_disponibilidade: null, valor_aquisicao: null, custo_incorporacao: null, fornecedor: null, documento_referencia: null, garantia_ate: null };
 const DEPRECIACAO_VAZIA = {
   depreciavel: false, metodo: null, vida_util_meses: null, residual_modo: null, valor_residual: null, residual_percentual: null, data_inicio_depreciacao: null, previa: null,

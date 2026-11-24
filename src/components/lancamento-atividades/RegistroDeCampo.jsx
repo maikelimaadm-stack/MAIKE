@@ -307,6 +307,9 @@ export default function JanelaRegistroDeCampo({
   // D-PROD-283: com implemento "por jato", os insumos vão por jato; `jatoAberto` é o jato que a pessoa está montando.
   const [jatoAberto, setJatoAberto] = useState(/** @type {number|null} */ (null));
   const tanque = tanqueDoRegistro(itens.maquinas, editores.maquinas);
+  // D-PROD-297: com implemento "por jato" numa área só que continua em andamento, o dia não grava hectares (nem os 100% da
+  // área nova): eles são informados ao finalizar ("Fez o pasto todo?"). O corpo leva só `area_id`.
+  const hectaresNoFim = Boolean(tanque) && areasDoRegistro.length === 1 && situacaoDepois === "EM_ANDAMENTO";
   /** O insumo incluído com um jato aberto entra nele. @param {any} form */
   const comJatoAberto = (form) => (tanque && jatoAberto !== null && !Number.isInteger(form?.jato) ? { ...form, jato: jatoAberto } : form);
   // A dose/ha dos insumos: os hectares TOTAIS do registro (sem nenhum válido, o tamanho somado das áreas).
@@ -658,7 +661,7 @@ export default function JanelaRegistroDeCampo({
     const semArea = campos.areaOpcional && !areasDoRegistro.length;
     // D-PROD-281: no "Novo lançamento", os hectares de hoje de UMA área podem ficar em branco (informados ao finalizar):
     // o corpo leva `area_id` sem hectares (o servidor aceita, como sempre aceitou no `area_id`).
-    const semHectares = Boolean(continuar) && areasDoRegistro.length === 1 && !String(areasDoRegistro[0].hectares ?? "").trim();
+    const semHectares = hectaresNoFim || (Boolean(continuar) && areasDoRegistro.length === 1 && !String(areasDoRegistro[0].hectares ?? "").trim());
     if (semArea) {
       if (!localDoTexto(local)) e.local = "Sem área, informe o local do serviço.";
     } else if (!semHectares) Object.assign(e, errosDasAreasDoRegistro(areasDoRegistro));
@@ -944,7 +947,7 @@ export default function JanelaRegistroDeCampo({
     });
     return { feitos: feitos.length ? somar(feitos, 4) : null, area: areasTotal.length ? somar(areasTotal, 4) : null };
   })();
-  const depois = hectaresDepoisDoRegistro({ jaFeitos: jaTem.feitos, areaTotal: jaTem.area, hoje: totaisDasAreas.hectares });
+  const depois = hectaresDepoisDoRegistro({ jaFeitos: jaTem.feitos, areaTotal: jaTem.area, hoje: hectaresNoFim ? null : totaisDasAreas.hectares });
   const medida = (/** @type {any} */ f) => {
     const q = String(f?.quantidade ?? "").trim();
     if (!q) return "";
@@ -963,7 +966,7 @@ export default function JanelaRegistroDeCampo({
     operacao: campos.plantio && capim ? `Plantio de ${String(capim.nome ?? "")}` : String(tipo?.nome_tipo ?? ""),
     areas: semAreaAgora ? [localDoTexto(local)].filter(Boolean) : areasDoRegistro.map((l) => String(areaDe(l.area_id)?.nome ?? "")).filter(Boolean),
     quando: textoDoDiaDoRegistro(dia, termino, hoje),
-    hectares: totaisDasAreas.hectares,
+    hectares: hectaresNoFim ? null : totaisDasAreas.hectares,
     maquinas: [feitaNoResumo, ...maquinasDoResumo].filter(Boolean),
     equipe: equipeDoResumo,
     situacao: situacaoDepois,
@@ -1001,6 +1004,11 @@ export default function JanelaRegistroDeCampo({
           carregando={!areasDoPai.length && areasLidas.isLoading}
           opcional={campos.areaOpcional}
         />
+        {hectaresNoFim ? (
+          <p className={`col-span-12 min-w-0 ${NOTA_DO_CAMPO}`} data-testid="registro-de-campo-area-hectares-no-fim">
+            Com jato, os hectares não contam hoje: são perguntados quando finalizar a área.
+          </p>
+        ) : null}
         {/* D-PROD-274: Manutenção e Outros sem área — o Local (obrigatório sem área). */}
         {campos.areaOpcional && !areasDoRegistro.length ? (
           <CampoTexto

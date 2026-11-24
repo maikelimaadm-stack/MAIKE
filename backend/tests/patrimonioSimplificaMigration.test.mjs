@@ -66,7 +66,7 @@ import { PrismaClient } from '@prisma/client';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { encerrar } from './helpers.mjs';
 import {
-  CENARIOS_RED, DECISAO, MIGRATIONS_DEPOIS_DO_CONTRACT, MIGRATIONS_PARTIDA, NOME_ATIVIDADE_CABECALHO, NOME_CONTRACT, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, PAPEL_OUTRO,
+  CENARIOS_RED, DECISAO, MIGRATIONS_DEPOIS_DO_CONTRACT, MIGRATIONS_PARTIDA, NOME_ATIVIDADE_CABECALHO, NOME_CONTRACT, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, PAPEL_OUTRO,
   TOTAL_MIGRATIONS, TABELAS_APAGADAS, TABELAS_DEPOIS_DO_CONTRACT, TABELAS_ESTOQUE, TABELAS_FINAIS_DEPOIS_DO_CONTRACT, TABELAS_NOVAS,
   aplicarMigrationsDaMain, aplicarPeloRunner, checksOperacaoItem, comBanco, comImpressao, contarTabelas, donoEAcl,
   estoqueCoerente, estruturaNovas, exigirUrlLocal, fingerprintV2, historico, impressao, itemEmLitros, migrateDiff,
@@ -112,7 +112,8 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
   test('SM-01 partida: todas as migrations menos a CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216 e a D-PROD-217, 88 tabelas, as 13 com linhas de 2 clientes; um item P3 em L é RECUSADO pelo CHECK antigo (achado B1)', async () => {
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
-    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 29, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216, a D-PROD-217, a D-PROD-219, a D-PROD-223, a D-PROD-249, a D-PROD-257, a D-PROD-259, a D-PROD-264, a D-PROD-265, a D-PROD-272, a D-PROD-274, a D-PROD-276, a D-PROD-279 e a D-PROD-283');
+    // D-PROD-297: a EXPAND do produto do implemento no bem, também: agora 30.
+    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 30, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216, a D-PROD-217, a D-PROD-219, a D-PROD-223, a D-PROD-249, a D-PROD-257, a D-PROD-259, a D-PROD-264, a D-PROD-265, a D-PROD-272, a D-PROD-274, a D-PROD-276, a D-PROD-279 e a D-PROD-283');
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabelas, 88);
     // D-PROD-190/191/198: as migrations que dependem do formato novo não estão na partida (nem as tabelas delas).
@@ -121,7 +122,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     // consumo nas Formulações), a D-PROD-211 (o abastecimento ligado à atividade: muda a AbastecimentoBem que esta recria),
     // a EXPAND do Cadastro de Culturas (D-PROD-215, CADCULTURAS), a Área ligada à Cultura (D-PROD-216, que depende dela)
     // e, por último, a D-PROD-217 (o reforço: a FK do apontamento de AbastecimentoBem com a atividade) — a ordem de produção.
-    assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, '20261115900000_atividade_mao_obra_servico', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', '20261116200000_formulacao_base_consumo', '20261116300000_abastecimento_atividade', '20261116500000_cadculturas', '20261117000000_area_cultura', '20261117100000_abastecimento_fk_apontamento_atividade', '20261117200000_medicao_forragem', '20261117300000_descanso_e_alturas_por_area', '20261118100000_atividade_areas', NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO]);
+    assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, '20261115900000_atividade_mao_obra_servico', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', '20261116200000_formulacao_base_consumo', '20261116300000_abastecimento_atividade', '20261116500000_cadculturas', '20261117000000_area_cultura', '20261117100000_abastecimento_fk_apontamento_atividade', '20261117200000_medicao_forragem', '20261117300000_descanso_e_alturas_por_area', '20261118100000_atividade_areas', NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO]);
     const depoisNaPartida = await db.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[])`, [...MIGRATIONS_DEPOIS_DO_CONTRACT]);
     assert.equal(depoisNaPartida[0].n, 0);
     assert.deepEqual(await donoEAcl(db, TABELAS_DEPOIS_DO_CONTRACT), []);
@@ -260,7 +261,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.deepEqual({ pk: e.pk, fk: e.fk, check: e.check, indices: e.indices }, { pk: 7, fk: 31 + 3, check: 32 + 3, indices: 55 + 3 });
     // D-PROD-202: + BemPatrimonial.custo_uso_unitario e TipoPatrimonial.salto_maximo_medidor (anuláveis), aplicadas depois.
     // D-PROD-211: + as 7 colunas de AbastecimentoBem, aplicadas depois.
-    assert.deepEqual(e.colunas, { AbastecimentoBem: 31 + 7, AbastecimentoBemConsumoLote: 10, BemPatrimonial: 55, FamiliaPatrimonial: 12, TanqueBem: 9, TanqueBemProduto: 7, TipoPatrimonial: 12 + 4 }); // D-PROD-279: + as 4 do produto do implemento
+    assert.deepEqual(e.colunas, { AbastecimentoBem: 31 + 7, AbastecimentoBemConsumoLote: 10, BemPatrimonial: 55 + 4, FamiliaPatrimonial: 12, TanqueBem: 9, TanqueBemProduto: 7, TipoPatrimonial: 12 + 4 }); // D-PROD-279: + as 4 do produto do implemento no tipo; D-PROD-297: + as 4 no bem
 
     assert.deepEqual(await fingerprintV2(db), fpAntes, 'as 75 tabelas que ficam não mudaram (fora os 2 CHECKs alargados)');
     const k = await checksOperacaoItem(db);

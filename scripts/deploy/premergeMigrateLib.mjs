@@ -222,6 +222,10 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // CHECKs de unidade das linhas de lançamento alargados, 2 colunas anuláveis na Formulação e a cópia pinada do
   // peso_por_saco_kg (conversão SACO) e do consumo mínimo/máximo do produto para a formulação.
   '20261125200000_produto_unidades_conversao': '779347bf9780ecb391dc76e64048601e6adcad449b5b868a44811def12be863b',
+  // MAIKE-BEM-IMPLEMENTO-PRODUTO (D-PROD-297): EXPAND — o produto do implemento no próprio bem: 4 colunas anuláveis sem
+  // DEFAULT em tabela antiga (BemPatrimonial.usa_produto, forma_produto, capacidade e capacidade_unidade); sem CHECK (a API
+  // confere: só implemento, por jato, capacidade > 0 e até 100.000, L | KG).
+  '20261126100000_bem_implemento_produto': '330d9318d1658720ffd0871eff4577d7367e5fca58d765fb50b7ab0dde6defbe',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([

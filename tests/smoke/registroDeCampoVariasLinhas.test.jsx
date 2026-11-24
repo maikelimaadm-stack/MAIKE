@@ -49,6 +49,8 @@ const PASTO = { id: "area-A", nome: "PASTO 01", tamanho_hectares: 22 };
 const TRATOR = { id: "b1", numero: "2", codigo_frota: "TP-02", nome: "Trator", natureza: "MAQUINA" };
 const PULVERIZADOR = { id: "b3", numero: "4", codigo_frota: "PL-01", nome: "Pulverizador", natureza: "MAQUINA" };
 const GRADE = { id: "i1", numero: "9", codigo_frota: "GR-01", nome: "Grade", natureza: "IMPLEMENTO" };
+/** D-PROD-297: o implemento marcado no próprio cadastro como "por jato" (tanque de 600 L). */
+const BARRA = { id: "i2", numero: "10", codigo_frota: "PV-02", nome: "Barra", natureza: "IMPLEMENTO", jato: { capacidade: "600", unidade: "L" } };
 const MEDIDORES = /** @type {Record<string, any>} */ ({
   b1: { medidor_tipo: "HORIMETRO", medidor_unidade: "h", sem_medidor: false, leitura_vigente: { leitura: "1550.0000", data: "2026-11-12", origem: "ATIVIDADE" }, salto_maximo_medidor: null },
   b3: { medidor_tipo: "HORIMETRO", medidor_unidade: "h", sem_medidor: false, leitura_vigente: { leitura: "300.0000", data: "2026-11-10", origem: "CADASTRO" }, salto_maximo_medidor: null },
@@ -90,7 +92,7 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
     if (recurso === "locais") return { status: 200, body: { itens: LOCAIS[String(query.get("produto_id"))] ?? [] } };
     const porRecurso = /** @type {Record<string, any[]>} */ ({
       bens: [TRATOR, PULVERIZADOR],
-      implementos: [GRADE],
+      implementos: [GRADE, BARRA],
       produtos: PRODUTOS,
       "mao-obra": MAO_OBRA,
       servicos: SERVICOS,
@@ -222,6 +224,29 @@ const linhasDaTabela = (janela, plural) => [...within(janela).getByTestId(`regis
 const salvar = (/** @type {HTMLElement} */ janela) => fireEvent.click(within(janela).getByTestId("registro-de-campo-salvar"));
 
 // ═════════════════════════════════════════════════════════════════════════
+describe("D-PROD-297 — implemento por jato no formulário inteiro", () => {
+  it("área em andamento: o dia não grava hectares (vai só a área, sem os 100%); 'Sim, finalizei' manda os hectares", async () => {
+    const { janela } = await montar();
+    await incluirMaquina(janela, /TP-02/, "1.550", "1556,5", /PV-02/);
+    expect(await within(janela).findByTestId("jatos-vazio")).toHaveTextContent("Tanque de 600 L");
+    expect(within(janela).getByTestId("registro-de-campo-area-hectares-no-fim")).toHaveTextContent("são perguntados quando finalizar a área");
+    salvar(janela);
+    await waitFor(() => expect(registros()).toHaveLength(1));
+    expect(registros()[0].body.area_id).toBe("area-A");
+    expect(registros()[0].body).not.toHaveProperty("areas");
+    expect(registros()[0].body).not.toHaveProperty("concluir");
+  });
+
+  it("sem implemento por jato (a grade), nada muda: a área vai com os hectares", async () => {
+    const { janela } = await montar();
+    await incluirMaquina(janela, /TP-02/, "1.550", "1556,5", /GR-01/);
+    expect(within(janela).queryByTestId("registro-de-campo-area-hectares-no-fim")).toBeNull();
+    salvar(janela);
+    await waitFor(() => expect(registros()).toHaveLength(1));
+    expect(registros()[0].body.areas).toEqual([{ area_id: "area-A", hectares: "22" }]);
+  });
+});
+
 describe("RV-ENVIO — várias linhas num envio só", () => {
   it("RV-ENVIO-1 — 2 insumos + 2 máquinas + 2 pessoas + 2 serviços: as tabelas mostram os itens e vai UM POST com arrays de 2, na ordem das tabelas", async () => {
     const { janela, onFechar } = await montar();

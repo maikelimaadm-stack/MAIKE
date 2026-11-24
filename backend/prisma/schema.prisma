@@ -3087,6 +3087,13 @@ model BemPatrimonial {
   material                 String?   @db.VarChar(80)
   ano_conclusao            Int?
   compatibilidade          String?   @db.VarChar(255)
+  // MAIKE-BEM-IMPLEMENTO-PRODUTO
+  /// D-PROD-297: o produto do IMPLEMENTO no próprio bem (usa produto? por jato, capacidade do tanque e unidade). Só
+  /// implemento; a API confere (sem CHECK). Anuláveis: nulo = não informado.
+  usa_produto              Boolean?
+  forma_produto            String?   @db.VarChar(16)
+  capacidade               Decimal?  @db.Decimal(14, 4)
+  capacidade_unidade       String?   @db.VarChar(8)
   especificacoes           String?   @db.VarChar(1000)
   observacoes              String?   @db.VarChar(2000)
   medidor_tipo             String?   @db.VarChar(16)

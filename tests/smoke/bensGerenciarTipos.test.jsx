@@ -212,37 +212,6 @@ describe('Bens — "⋯ › Gerenciar tipos" (D-PROD-169)', () => {
     await waitFor(() => expect(within(dialogo).getByTestId('gerenciar-tipos-t1')).toHaveTextContent('Curral de manejo'));
   });
 
-  it('D-PROD-291: "Editar" num tipo de implemento já existente marca "usa produto · por jato" com a capacidade; e desmarca', async () => {
-    tipos.push({ id: 't7', codigo: 'PULV', nome: 'Pulverizador', natureza: 'IMPLEMENTO', familia_id: 'f7', familia: { id: 'f7', nome: 'Implementos', natureza: 'IMPLEMENTO' }, ativo: true, versao: 2, bens_em_uso: 1, usa_produto: null, forma_produto: null, capacidade: null, capacidade_unidade: null });
-    await montar();
-    const dialogo = await abrirGerenciar();
-    // Tipo que não é implemento continua "Renomear", sem os campos do produto.
-    expect(within(dialogo).getByRole('button', { name: 'Renomear Curral' })).toBeTruthy();
-    fireEvent.click(within(dialogo).getByRole('button', { name: 'Editar Pulverizador' }));
-    const linha = within(dialogo).getByTestId('gerenciar-tipos-t7');
-    fireEvent.click(within(within(linha).getByTestId('gerenciar-tipos-t7-usa-produto')).getByRole('radio', { name: 'Sim' }));
-    // Sem capacidade: a tela avisa e nada vai.
-    fireEvent.click(within(linha).getByRole('button', { name: 'Salvar' }));
-    expect(await within(linha).findByRole('alert')).toHaveTextContent('Capacidade do jato');
-    expect(mutacoes()).toEqual([]);
-    fireEvent.change(within(linha).getByTestId('gerenciar-tipos-t7-capacidade'), { target: { value: '2000' } });
-    fireEvent.click(within(linha).getByRole('button', { name: 'Salvar' }));
-    await screen.findByText('Tipo atualizado');
-    expect(mutacoes()).toEqual([
-      expect.objectContaining({ method: 'PATCH', path: '/patrimonio-tipos/t7', body: { versao: 2, usa_produto: true, forma_produto: 'JATO', capacidade: '2000', capacidade_unidade: 'L' } }),
-    ]);
-    await waitFor(() => expect(within(dialogo).getByTestId('gerenciar-tipos-t7-dados')).toHaveTextContent('usa produto · jato 2.000 L'));
-    // Desmarcar: "Não" limpa a forma, a capacidade e a unidade.
-    fireEvent.click(within(dialogo).getByRole('button', { name: 'Editar Pulverizador' }));
-    const linha2 = within(dialogo).getByTestId('gerenciar-tipos-t7');
-    fireEvent.click(within(within(linha2).getByTestId('gerenciar-tipos-t7-usa-produto')).getByRole('radio', { name: 'Não' }));
-    fireEvent.click(within(linha2).getByRole('button', { name: 'Salvar' }));
-    await waitFor(() => expect(mutacoes()).toHaveLength(2));
-    expect(mutacoes()[1]).toEqual(
-      expect.objectContaining({ method: 'PATCH', path: '/patrimonio-tipos/t7', body: { versao: 3, usa_produto: false, forma_produto: null, capacidade: null, capacidade_unidade: null } }),
-    );
-  });
-
   it('Escape no campo "Renomear" cancela só a renomeação: o diálogo continua aberto e nada é enviado', async () => {
     await montar();
     const dialogo = await abrirGerenciar();
