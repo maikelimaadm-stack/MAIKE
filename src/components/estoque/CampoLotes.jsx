@@ -44,6 +44,7 @@ export const comDevolvidos = (lotes, devolvidos) => {
  *   lotes: Array<{ id: string, quantidade: string }>|null|undefined, confirmaVencido?: boolean,
  *   loteVencido?: boolean, erroLote?: string, onMudar: (patch: Record<string, unknown>) => void,
  *   testId: string, className?: string, desabilitado?: boolean, mantidos?: string|null,
+ *   devolvidos?: Array<{ lote_id?: string, quantidade?: string }>|null,
  * }} props
  * `mantidos` (edição de uma saída gravada): sem escolha manual, a saída continua nos lotes gravados — o texto aparece no
  * lugar da sugestão, e não há aviso de vencido nem erro de soma (o servidor reaproveita as fatias). "Escolher lotes"
