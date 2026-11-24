@@ -359,7 +359,7 @@ const semInternetAgora = () => typeof navigator !== 'undefined' && navigator.onL
 /**
  * Requisição ao backend nativo (contrato acima).
  *
- * D-PROD-288 — leitura autenticada (`GET`) funciona sem internet: a resposta
+ * D-PROD-289 — leitura autenticada (`GET`) funciona sem internet: a resposta
  * que o servidor deu fica guardada no aparelho (por tenant e caminho) e volta
  * quando a rede falha ou o aparelho está sem sinal. Gravações (POST/PUT/PATCH/
  * DELETE) nunca usam o guardado. Sem resposta guardada, a falha de rede segue

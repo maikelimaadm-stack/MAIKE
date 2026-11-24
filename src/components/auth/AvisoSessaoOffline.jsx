@@ -2,7 +2,7 @@ import React from 'react';
 import { WifiOff } from 'lucide-react';
 
 /**
- * Aviso de que o app abriu sem confirmar a sessão no servidor (D-PROD-288):
+ * Aviso de que o app abriu sem confirmar a sessão no servidor (D-PROD-289):
  * sem internet, mostrando os dados salvos no aparelho. Some sozinho quando a
  * rede volta e o servidor confirma.
  */

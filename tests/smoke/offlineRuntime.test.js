@@ -548,7 +548,7 @@ describe('OFF21–OFF29 — dono da fila e do cache', () => {
   });
 });
 
-describe('D-PROD-288 — baixar tudo para usar sem internet', () => {
+describe('D-PROD-289 — baixar tudo para usar sem internet', () => {
   it('OFF-B1 lista cada entidade registrada pelo adaptador (vai para o cache); falha isolada não para as outras', async () => {
     const storage = criarArmazenamentoEmMemoria();
     const lotes = criarOperacoes();

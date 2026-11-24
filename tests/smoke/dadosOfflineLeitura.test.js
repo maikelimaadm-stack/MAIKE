@@ -1,5 +1,5 @@
 /**
- * D-PROD-288 — leituras guardadas para usar sem internet.
+ * D-PROD-289 — leituras guardadas para usar sem internet.
  *
  * Cadeia real `nativeHttpClient → respostasOffline (IndexedDB)`, com `fetch`
  * substituído e IndexedDB em memória (fake-indexeddb).
@@ -47,7 +47,7 @@ const carregar = async ({ tenant = 'cli_1' } = {}) => {
   return { ...http, ...respostas, ...tenantMod };
 };
 
-describe('D-PROD-288 — leitura sem internet', () => {
+describe('D-PROD-289 — leitura sem internet', () => {
   it('DO-01 leitura que deu certo fica guardada e volta quando a rede cai', async () => {
     const { nativeRequest } = await carregar();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(respostaJson(200, [{ id: 'a1', nome: 'Pasto 1' }])));
@@ -117,7 +117,7 @@ describe('D-PROD-288 — leitura sem internet', () => {
   });
 });
 
-describe('D-PROD-288 — baixar dados', () => {
+describe('D-PROD-289 — baixar dados', () => {
   it('DB-01 baixa as leituras de todas as telas (com a empresa) e refaz as já guardadas', async () => {
     const { guardarResposta, listarCaminhosGuardados } = await carregar();
     await guardarResposta('cli_1', '/tela-aberta-antes', [{ id: 'velho' }]);

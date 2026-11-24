@@ -1,5 +1,5 @@
 /**
- * Dados para usar sem internet (D-PROD-288).
+ * Dados para usar sem internet (D-PROD-289).
  *
  * Duas leituras em lote, as duas só de leitura:
  *  - `baixarEntidadesParaOffline`: todas as entidades com adaptador offline

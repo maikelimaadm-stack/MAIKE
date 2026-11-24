@@ -1,5 +1,5 @@
 /**
- * Respostas guardadas para usar sem internet (D-PROD-288).
+ * Respostas guardadas para usar sem internet (D-PROD-289).
  *
  * Toda leitura autenticada (`GET`) que o servidor respondeu fica guardada no
  * aparelho, por tenant e por caminho. Sem internet, a mesma leitura devolve a

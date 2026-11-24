@@ -1,10 +1,9 @@
 import React, { useRef, useState, useMemo } from "react";
 import { carregarFontesDoFormulario, normalizarProduto } from "@/services/produtoService";
 import { useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { sugerirPercentualPV } from "../suplementacao/suplementacaoRules";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import { formatarMoedaInput, parseMoedaInput } from "@/components/financeiro/moedaUtils";
+import UnidadesConversaoProduto, { linhasIniciaisConversao, errosDasConversoes } from "./UnidadesConversaoProduto";
 import { parseDecimalPtBR } from "@/domain/numeroPtBR";
 import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
@@ -33,8 +32,8 @@ const TIPOS_USO = [
   "Produção Animal",
 ];
 
-/** D-PROD-162: rótulo da unidade principal de estoque (L = litros; o resto, como antes). */
-const ROTULO_UNIDADE_ESTOQUE = Object.freeze({ KG: "QUILOGRAMAS (KG)", SACO: "SACOS", L: "LITROS (L)" });
+/** D-PROD-162: rótulo da unidade principal de estoque (L = litros; o resto, como antes). D-PROD-288: SACO é legado (guarda kg). */
+const ROTULO_UNIDADE_ESTOQUE = Object.freeze({ KG: "QUILOGRAMAS (KG)", SACO: "SACOS (LEGADO, EM KG)", L: "LITROS (L)" });
 const rotuloUnidadeEstoque = (u) => (u === "SACO" || u === "L" ? ROTULO_UNIDADE_ESTOQUE[u] : ROTULO_UNIDADE_ESTOQUE.KG);
 
 /** Sigla ou descrição de unidade de medida que é de litros (L, LT, LTS, LITRO, LITROS...). */
@@ -53,16 +52,11 @@ const parseNumero = (val) => {
   return parseMoedaInput(val);
 };
 
-/** Campos com máscara numérica no formulário. */
-const CAMPOS_MASCARADOS = [
-  "preco_custo",
-  "preco_venda",
-  "estoque_minimo",
-  "percentual_consumo_pv",
-  "consumo_minimo_pv",
-  "consumo_maximo_pv",
-  "peso_por_saco_kg",
-];
+/**
+ * Campos com máscara numérica no formulário. D-PROD-288: preço de custo, preço de venda, local de estoque, consumo
+ * (%PV) e peso por saco saíram da tela: o consumo fica nas Formulações e o saco vira uma unidade de conversão.
+ */
+const CAMPOS_MASCARADOS = ["estoque_minimo"];
 
 /**
  * Valor lido do servidor ainda não é texto de máscara: decimal canônico
@@ -148,8 +142,9 @@ export default function FormularioProduto({
 
   const [invalidFields, setInvalidFields] = useState([]);
   const nomeProdutoRef = useRef(null);
-  const codigoInternoRef = useRef(null);
-  const pesoSacoRef = useRef(null);
+  // D-PROD-288: as unidades de conversão do produto ("1 SACO = 25 KG"), editadas no próprio cadastro.
+  const [conversoes, setConversoes] = useState(() => linhasIniciaisConversao(initialData));
+  const [mostrarErrosConversao, setMostrarErrosConversao] = useState(false);
 
   const { data: fontes = { categorias: [], unidades: [], locais: [], marcas: [] } } = useQuery({
     queryKey: ["produto-form-fontes", empresaId],
@@ -157,7 +152,7 @@ export default function FormularioProduto({
     initialData: { categorias: [], unidades: [], locais: [], marcas: [] },
   });
 
-  const { categorias, unidades, locais, marcas } = fontes;
+  const { categorias, unidades, marcas } = fontes;
 
   const categoriasItems = useMemo(() => {
     const ativas = categorias.filter((c) => c.ativo !== false);
@@ -193,11 +188,6 @@ export default function FormularioProduto({
     [unidades],
   );
 
-  const locaisItems = useMemo(
-    () => locais.filter((l) => l.ativo !== false).map((l) => ({ id: l.nome, nome: l.nome })),
-    [locais],
-  );
-
   const marcasItems = useMemo(() => marcas.map((m) => ({ id: m.nome, nome: m.nome })), [marcas]);
 
   // D-PROD-162 (achado D5): estoque em LITROS com uma unidade de medida que não é de
@@ -213,13 +203,8 @@ export default function FormularioProduto({
     setInvalidFields((prev) => prev.filter((f) => f !== field));
   };
 
-  const precoCustoNum = useMemo(() => parseNumero(formData.preco_custo), [formData.preco_custo]);
-  const precoVendaNum = useMemo(() => parseNumero(formData.preco_venda), [formData.preco_venda]);
   const estoqueMinNum = useMemo(() => parseNumero(formData.estoque_minimo), [formData.estoque_minimo]);
-  const percentualPVNum = useMemo(() => parseNumero(formData.percentual_consumo_pv), [formData.percentual_consumo_pv]);
-  const consumoMinPVNum = useMemo(() => parseNumero(formData.consumo_minimo_pv), [formData.consumo_minimo_pv]);
-  const consumoMaxPVNum = useMemo(() => parseNumero(formData.consumo_maximo_pv), [formData.consumo_maximo_pv]);
-  const pesoSacoNum = useMemo(() => parseNumero(formData.peso_por_saco_kg), [formData.peso_por_saco_kg]);
+  const unidadeEstoque = formData.unidade_principal_estoque === "L" ? "L" : "KG";
 
   const findItemId = (items, value) => {
     if (!value) return "";
@@ -238,12 +223,12 @@ export default function FormularioProduto({
     if (readOnly) return;
     const missingFields = [];
     if (!formData.nome_produto?.trim()) missingFields.push("nome_produto");
-    if (!formData.codigo_interno?.trim()) missingFields.push("codigo_interno");
     if (!formData.unidade_medida?.trim()) missingFields.push("unidade_medida");
     if (!formData.categoria?.trim()) missingFields.push("categoria");
-    if (!formData.local_estoque?.trim()) missingFields.push("local_estoque");
-    if (formData.unidade_principal_estoque === "SACO" && !pesoSacoNum) {
-      missingFields.push("peso_por_saco_kg");
+    // D-PROD-288: as unidades de conversão (sigla, fator > 0, uso, nunca a unidade de estoque).
+    if (Object.keys(errosDasConversoes(conversoes, unidadeEstoque)).length > 0) {
+      missingFields.push("unidades_conversao");
+      setMostrarErrosConversao(true);
     }
     // D-PROD-274: a carência, quando informada, é um número inteiro de dias de 0 a 365.
     if (erroDaCarencia(formData.carencia_dias)) missingFields.push("carencia_dias");
@@ -252,14 +237,13 @@ export default function FormularioProduto({
       setInvalidFields(missingFields);
       notifyWarning("Atenção", "Preencha os campos obrigatórios.");
       if (missingFields[0] === "nome_produto") scrollToField(nomeProdutoRef.current);
-      if (missingFields[0] === "codigo_interno") scrollToField(codigoInternoRef.current);
-      if (missingFields[0] === "peso_por_saco_kg") scrollToField(pesoSacoRef.current);
+      if (missingFields[0] === "unidades_conversao") setAbaAtiva("unidades");
       return;
     }
 
     // Envia o número EXIBIDO de cada campo com máscara (mesma leitura da tela).
     const exibidos = Object.fromEntries(CAMPOS_MASCARADOS.map((campo) => [campo, parseNumero(formData[campo])]));
-    onSubmit(normalizarProduto({ ...formData, ...exibidos }, { isEditing }));
+    onSubmit(normalizarProduto({ ...formData, ...exibidos, unidades_conversao: conversoes }, { isEditing }));
   };
 
   const acCls = `${B1_FIELD_CTL_CLS} w-full min-w-0`;
@@ -268,6 +252,7 @@ export default function FormularioProduto({
     () => [
       { id: "principal", label: "Principal" },
       { id: "estoque", label: "Unidade de Estoque" },
+      { id: "unidades", label: "Unidades" },
     ],
     [],
   );
@@ -288,6 +273,20 @@ export default function FormularioProduto({
         animate={!readOnly}
         animationKey={initialData?.id ?? "novo"}
         renderPanel={(panelId) => {
+          if (panelId === "unidades") {
+            return (
+              <div className="mg-b1-form-grid w-full min-h-0">
+                <UnidadesConversaoProduto
+                  linhas={conversoes}
+                  onChange={setConversoes}
+                  unidadeEstoque={unidadeEstoque}
+                  readOnly={readOnly}
+                  disabled={locked}
+                  mostrarErros={mostrarErrosConversao}
+                />
+              </div>
+            );
+          }
           if (panelId === "estoque") {
             return (
               <div className="mg-b1-form-grid w-full min-h-0">
@@ -312,7 +311,8 @@ export default function FormularioProduto({
                       className={B1_FIELD_CTL_CLS}
                     >
                       <option value="KG">{ROTULO_UNIDADE_ESTOQUE.KG}</option>
-                      <option value="SACO">{ROTULO_UNIDADE_ESTOQUE.SACO}</option>
+                      {/* D-PROD-288: SACO só aparece no produto legado; o saco agora é uma unidade de conversão. */}
+                      {initialData?.unidade_principal_estoque === "SACO" ? <option value="SACO">{ROTULO_UNIDADE_ESTOQUE.SACO}</option> : null}
                       <option value="L">{ROTULO_UNIDADE_ESTOQUE.L}</option>
                     </B1Select>
                   )}
@@ -324,29 +324,16 @@ export default function FormularioProduto({
                   </p>
                 ) : null}
 
-                {formData.unidade_principal_estoque === "SACO" ? (
-                  <B1Field
-                    label="Peso por saco (kg)"
-                    required
-                    span={6}
-                    hasValue={pesoSacoNum > 0}
-                    locked={readOnly}
-                    disabled={locked}
-                    error={invalidFields.includes("peso_por_saco_kg") ? "Obrigatório" : undefined}
-                  >
-                    <input
-                      ref={pesoSacoRef}
-                      type="text"
-                      inputMode="decimal"
-                      value={formatarMoedaInput(pesoSacoNum)}
-                      onChange={(e) => handleChange("peso_por_saco_kg", e.target.value)}
-                      placeholder="0,00"
-                      className={`${B1_FIELD_CTL_CLS} text-right font-mono`}
-                      readOnly={readOnly}
-                      aria-invalid={invalidFields.includes("peso_por_saco_kg")}
-                    />
-                  </B1Field>
-                ) : null}
+                {/* D-PROD-161/284: o estoque atual é só leitura (cache do motor físico), na unidade de estoque. */}
+                <B1Field label="Estoque atual" span={6} hasValue locked disabled>
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${Number(initialData?.estoque_atual ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 4 })} ${unidadeEstoque === "L" ? "L" : "kg"}`}
+                    className={`${B1_FIELD_CTL_CLS} text-right tabular-nums`}
+                    data-testid="produto-estoque-atual"
+                  />
+                </B1Field>
 
                 {/* D-PROD-274: a carência da bula (dias sem gado no pasto depois da aplicação), para o "Pasto liberado em". */}
                 <B1Field
@@ -457,24 +444,14 @@ export default function FormularioProduto({
         )}
       </B1Field>
 
-      <B1Field
-        label="Código Interno"
-        required
-        span={3}
-        hasValue={Boolean(formData.codigo_interno?.trim())}
-        locked={readOnly}
-        disabled={locked}
-        error={invalidFields.includes("codigo_interno") ? "Obrigatório" : undefined}
-      >
+      {/* D-PROD-288: código interno automático, igual ao número do cadastro; só leitura. */}
+      <B1Field label="Código Interno" span={3} hasValue locked disabled>
         <input
-          ref={codigoInternoRef}
           type="text"
-          value={formData.codigo_interno}
-          onChange={(e) => handleChange("codigo_interno", e.target.value)}
-          placeholder="CÓDIGO INTERNO"
+          readOnly
+          value={initialData?.codigo_interno || initialData?.numero_produto || "AUTOMÁTICO"}
           className={`${B1_FIELD_CTL_CLS} uppercase`}
-          readOnly={readOnly}
-          aria-invalid={invalidFields.includes("codigo_interno")}
+          data-testid="produto-codigo-interno"
         />
       </B1Field>
 
@@ -540,28 +517,6 @@ export default function FormularioProduto({
         />
       </B1Field>
 
-      <B1Field
-        label="Local de Estoque"
-        required
-        span={3}
-        hasValue={Boolean(formData.local_estoque?.trim())}
-        locked={readOnly}
-        disabled={locked}
-        error={invalidFields.includes("local_estoque") ? "Obrigatório" : undefined}
-      >
-        <AutocompleteGenerico
-          items={locaisItems}
-          value={findItemId(locaisItems, formData.local_estoque)}
-          onChange={(id) => handleChange("local_estoque", id || "")}
-          placeholder="BUSCAR LOCAL..."
-          displayField="nome"
-          searchFields={["nome"]}
-          className="w-full"
-          inputClassName={acCls}
-          disabled={locked}
-          readOnly={readOnly}
-        />
-      </B1Field>
 
       <B1Field label="Marca" span={3} hasValue={Boolean(formData.marca?.trim())} locked={readOnly} disabled={locked}>
         <AutocompleteGenerico
@@ -578,31 +533,9 @@ export default function FormularioProduto({
         />
       </B1Field>
 
-      <B1Field label="Preço de Custo" span={4} hasValue={precoCustoNum > 0} locked={readOnly} disabled={locked}>
-        <input
-          type="text"
-          inputMode="decimal"
-          value={formatarMoedaInput(precoCustoNum)}
-          onChange={(e) => handleChange("preco_custo", e.target.value)}
-          placeholder="0,00"
-          className={`${B1_FIELD_CTL_CLS} text-right font-mono`}
-          readOnly={readOnly}
-        />
-      </B1Field>
 
-      <B1Field label="Preço de Venda" span={4} hasValue={precoVendaNum > 0} locked={readOnly} disabled={locked}>
-        <input
-          type="text"
-          inputMode="decimal"
-          value={formatarMoedaInput(precoVendaNum)}
-          onChange={(e) => handleChange("preco_venda", e.target.value)}
-          placeholder="0,00"
-          className={`${B1_FIELD_CTL_CLS} text-right font-mono`}
-          readOnly={readOnly}
-        />
-      </B1Field>
 
-      <B1Field label="Estoque Mínimo" span={4} hasValue={estoqueMinNum > 0} locked={readOnly} disabled={locked}>
+      <B1Field label="Estoque Mínimo" span={6} hasValue={estoqueMinNum > 0} locked={readOnly} disabled={locked}>
         <input
           type="text"
           inputMode="decimal"
@@ -635,88 +568,9 @@ export default function FormularioProduto({
       </B1Field>
 
       {formData.tipo_uso === "Nutrição Animal" ? (
-        <>
-          <div className="col-span-12 flex flex-wrap items-center justify-between gap-2 border border-indigo-200 bg-indigo-50/50 rounded-md px-2 py-1">
-            <span className="font-semibold text-xs text-slate-700">Configuração de Suplementação</span>
-            {!readOnly && !formData.percentual_consumo_pv && formData.nome_produto ? (
-              <button
-                type="button"
-                className="tb-btn tb-btn-gray text-indigo-700 border-indigo-300"
-                disabled={isSubmitting}
-                onClick={() => {
-                  const sugestao = sugerirPercentualPV(formData.nome_produto);
-                  if (sugestao) {
-                    setFormData((prev) => ({
-                      ...prev,
-                      percentual_consumo_pv: sugestao.percentual_consumo_pv,
-                      consumo_minimo_pv: sugestao.consumo_minimo_pv,
-                      consumo_maximo_pv: sugestao.consumo_maximo_pv,
-                      tipo_consumo: sugestao.tipo_consumo,
-                    }));
-                    toast.success(`Valores sugeridos para "${sugestao.label}" aplicados.`);
-                  } else {
-                    toast.info("Não há sugestão para este produto. Preencha manualmente.");
-                  }
-                }}
-              >
-                Sugerir valores
-              </button>
-            ) : null}
-          </div>
-
-          <B1Field label="Tipo de consumo" span={3} hasValue={Boolean(formData.tipo_consumo)} locked={readOnly} disabled={locked}>
-            {readOnly ? (
-              <input type="text" readOnly value={formData.tipo_consumo || "—"} className={B1_FIELD_CTL_CLS} />
-            ) : (
-              <B1Select
-                value={formData.tipo_consumo || ""}
-                onChange={(e) => handleChange("tipo_consumo", e.target.value)}
-                className={B1_FIELD_CTL_CLS}
-              >
-                <option value="">SELECIONE</option>
-                <option value="CONSUMO_DIARIO">CONSUMO DIÁRIO</option>
-                <option value="CONSUMO_LIVRE">CONSUMO LIVRE</option>
-              </B1Select>
-            )}
-          </B1Field>
-
-          <B1Field label="%PV consumo padrão" span={3} hasValue={percentualPVNum > 0} locked={readOnly} disabled={locked}>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={formatarMoedaInput(percentualPVNum)}
-              onChange={(e) => handleChange("percentual_consumo_pv", e.target.value)}
-              className={`${B1_FIELD_CTL_CLS} text-right font-mono`}
-              readOnly={readOnly}
-            />
-          </B1Field>
-
-          <B1Field label="%PV mínimo" span={3} hasValue={consumoMinPVNum > 0} locked={readOnly} disabled={locked}>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={formatarMoedaInput(consumoMinPVNum)}
-              onChange={(e) => handleChange("consumo_minimo_pv", e.target.value)}
-              className={`${B1_FIELD_CTL_CLS} text-right font-mono`}
-              readOnly={readOnly}
-            />
-          </B1Field>
-
-          <B1Field label="%PV máximo" span={3} hasValue={consumoMaxPVNum > 0} locked={readOnly} disabled={locked}>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={formatarMoedaInput(consumoMaxPVNum)}
-              onChange={(e) => handleChange("consumo_maximo_pv", e.target.value)}
-              className={`${B1_FIELD_CTL_CLS} text-right font-mono`}
-              readOnly={readOnly}
-            />
-          </B1Field>
-
-          <p className="col-span-12 text-[10px] text-indigo-700 bg-indigo-100 rounded px-2 py-1">
-            Fórmula: consumo esperado (kg/dia) = peso vivo médio × (%PV ÷ 100) × nº cabeças.
-          </p>
-        </>
+        <p role="note" className="col-span-12 text-xs text-slate-700 bg-slate-100 rounded px-2 py-1" data-testid="aviso-consumo-formulacao">
+          O consumo (%PV padrão, mínimo e máximo) fica na Formulação do produto, não no cadastro.
+        </p>
       ) : null}
             </div>
           );

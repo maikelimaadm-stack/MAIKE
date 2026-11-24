@@ -47,7 +47,7 @@ const acoes = (v) => ({ visualizar: v, novo: v, salvar: v, editar: v, excluir: v
 const linha = (tela, a) => ({ modulo_id: 'manejo', tela_id: tela, ...acoes(false), ...a });
 
 const CAMPOS_PUBLICOS = [
-  'ativo', 'base_consumo', 'consumo_objetivo_g_cab_dia', 'created_date', 'empresa_id', 'faixa_tolerancia_percentual', 'id', 'ingredientes', 'nome', 'observacoes', 'percentual_pv_padrao',
+  'ativo', 'base_consumo', 'consumo_maximo_pv', 'consumo_minimo_pv', 'consumo_objetivo_g_cab_dia', 'created_date', 'empresa_id', 'faixa_tolerancia_percentual', 'id', 'ingredientes', 'nome', 'observacoes', 'percentual_pv_padrao',
   'produto_ativo', 'produto_id', 'produto_nome', 'regras', 'tipo', 'total_batida_kg', 'updated_date',
 ].sort();
 
@@ -199,6 +199,7 @@ describe('D-PROD-203 — Formulações: criação, leitura e formato público', 
     assert.deepEqual(r.json(), [{
       id: ativa.id, empresa_id: cen.e1.id, nome: 'PROTEINADO SECA', tipo: 'BATELADA', produto_id: cen.p.mistura.id, produto_nome: 'PROTEINADO DA FAZENDA',
       produto_ativo: true, base_consumo: 'PV', percentual_pv_padrao: 0.2, consumo_objetivo_g_cab_dia: 800, faixa_tolerancia_percentual: null,
+      consumo_minimo_pv: null, consumo_maximo_pv: null,
       regras: [
         { categoria_manejo_id: cen.cat.bezerro.id, categoria_manejo_nome: 'BEZERRO MAMANDO', consome: false, percentual_pv: null, g_cab_dia: null },
         { categoria_manejo_id: cen.cat.vaca.id, categoria_manejo_nome: 'VACA LEITEIRA', consome: true, percentual_pv: 0.15, g_cab_dia: null },

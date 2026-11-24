@@ -38,6 +38,7 @@ import {
   montarCorpoEntrada,
   tiposPermitidos,
   unidadesDoProduto,
+  equivalenciaDaLinha,
   validarFormularioEntrada,
   validarTransferencia,
 } from "@/lib/estoqueEntradasRegras";
@@ -87,7 +88,7 @@ function Observacao({ label, value, onChange, testId = undefined, required = fal
 
 /** @param {any} o */
 // D-PROD-282: o produto leva o controle de lote/validade (a entrada exige; a saída oferece a escolha de lote).
-const opcaoProduto = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? ""), unidade_estoque: o.unidade_estoque, peso_por_saco_kg: o.peso_por_saco_kg ?? null, controla_lote: o.controla_lote === true, controla_validade: o.controla_validade === true } : null);
+const opcaoProduto = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? ""), unidade_estoque: o.unidade_estoque, peso_por_saco_kg: o.peso_por_saco_kg ?? null, unidades_conversao: Array.isArray(o.unidades_conversao) ? o.unidades_conversao : [], controla_lote: o.controla_lote === true, controla_validade: o.controla_validade === true } : null);
 /** @param {any} o */
 const opcaoSimples = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? "") } : null);
 
@@ -139,8 +140,9 @@ const COLUNAS_ENTRADA = [
  */
 function celulaDeEntrada({ linha, indice, empresaId, erros, onMudar }, coluna) {
   const e = (/** @type {string} */ campo) => erros[`itens.${indice}.${campo}`] || undefined;
-  const unidades = unidadesDoProduto(linha.produto);
-  const por = linha.unidade === "SACO" ? "saco" : linha.unidade === "L" ? "litro" : "kg";
+  // D-PROD-288: a de estoque e as unidades de conversão com uso em compra/entrada.
+  const unidades = unidadesDoProduto(linha.produto, "compra");
+  const por = linha.unidade === "SACO" ? "saco" : linha.unidade === "L" ? "litro" : linha.unidade && linha.unidade !== "KG" ? linha.unidade : "kg";
   switch (coluna) {
     case "produto":
       return (
@@ -150,7 +152,7 @@ function celulaDeEntrada({ linha, indice, empresaId, erros, onMudar }, coluna) {
           chave={["estoque", "entrada-produtos", empresaId]}
           buscar={({ q, cursor, limit }) => listarProdutosDaEntrada(empresaId, { q, cursor, limit })}
           value={linha.produto ? { id: linha.produto.id, rotulo: linha.produto.rotulo } : null}
-          onChange={(o) => onMudar(comProduto(linha, opcaoProduto(o)))}
+          onChange={(o) => onMudar(comProduto(linha, opcaoProduto(o), "compra"))}
           detalheDaOpcao={(o) => (o?.codigo ? String(o.codigo) : null)}
           obrigatorio
           erro={e("produto")}
@@ -187,6 +189,7 @@ function celulaDeEntrada({ linha, indice, empresaId, erros, onMudar }, coluna) {
       );
     case "quantidade":
       return (
+        <>
         <CampoNumero
           label="Quantidade"
           value={linha.quantidade}
@@ -198,6 +201,11 @@ function celulaDeEntrada({ linha, indice, empresaId, erros, onMudar }, coluna) {
           span={4}
           testId={`entrada-linha-${indice}-quantidade`}
         />
+        {/* D-PROD-288: "10 SACO = 250 kg". */}
+        {equivalenciaDaLinha(linha) ? (
+          <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`entrada-linha-${indice}-equivalencia`}>{equivalenciaDaLinha(linha)}</p>
+        ) : null}
+        </>
       );
     case "custo":
       return (
@@ -275,7 +283,8 @@ const COLUNAS_SAIDA = [
  */
 function celulaDeSaida({ linha, indice, empresaId, erros, onMudar }, coluna) {
   const e = (/** @type {string} */ campo) => erros[`itens.${indice}.${campo}`] || undefined;
-  const unidades = unidadesDoProduto(linha.produto);
+  // D-PROD-288: a de estoque e as unidades de conversão com uso em saída.
+  const unidades = unidadesDoProduto(linha.produto, "venda");
   switch (coluna) {
     case "produto":
       return (
@@ -285,7 +294,7 @@ function celulaDeSaida({ linha, indice, empresaId, erros, onMudar }, coluna) {
           chave={["estoque", "entrada-produtos", empresaId]}
           buscar={({ q, cursor, limit }) => listarProdutosDaEntrada(empresaId, { q, cursor, limit })}
           value={linha.produto ? { id: linha.produto.id, rotulo: linha.produto.rotulo } : null}
-          onChange={(o) => onMudar({ ...comProduto(linha, opcaoProduto(o)), lotes: null, confirmaVencido: false })}
+          onChange={(o) => onMudar({ ...comProduto(linha, opcaoProduto(o), "venda"), lotes: null, confirmaVencido: false })}
           detalheDaOpcao={(o) => (o?.codigo ? String(o.codigo) : null)}
           obrigatorio
           erro={e("produto")}
@@ -322,6 +331,7 @@ function celulaDeSaida({ linha, indice, empresaId, erros, onMudar }, coluna) {
       );
     case "quantidade":
       return (
+        <>
         <CampoNumero
           label="Quantidade"
           value={linha.quantidade}
@@ -333,6 +343,11 @@ function celulaDeSaida({ linha, indice, empresaId, erros, onMudar }, coluna) {
           span={12}
           testId={`saida-linha-${indice}-quantidade`}
         />
+        {/* D-PROD-288: "10 SACO = 250 kg". */}
+        {equivalenciaDaLinha(linha) ? (
+          <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`saida-linha-${indice}-equivalencia`}>{equivalenciaDaLinha(linha)}</p>
+        ) : null}
+        </>
       );
     default:
       return null;

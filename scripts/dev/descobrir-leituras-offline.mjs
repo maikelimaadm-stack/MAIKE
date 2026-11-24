@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * D-PROD-288 — descobre as leituras (GET) que cada tela faz ao abrir, para a
+ * D-PROD-289 — descobre as leituras (GET) que cada tela faz ao abrir, para a
  * lista do "Baixar dados para usar sem internet" (`src/config/leiturasParaOffline.js`).
  *
  * Abre cada página de `src/pages` com os COMPONENTES REAIS (Vite dev) e um

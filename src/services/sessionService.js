@@ -181,7 +181,7 @@ export const descartarTrocaSenhaPendente = () => descartarTrocaSenhaPendenteNati
 export const restaurarSessaoNativaAtual = () => restaurarSessaoNativa();
 
 /**
- * Renova a sessão guardada no aparelho (D-PROD-288). Nunca lança.
+ * Renova a sessão guardada no aparelho (D-PROD-289). Nunca lança.
  *
  * @returns {Promise<boolean>}
  */
@@ -207,7 +207,7 @@ export const sairDaSessaoNativa = () => {
   }
   // IndexedDB é assíncrono e pode faltar: o logout não espera nem falha por isso.
   esquecerCacheDoTenant(tenantQueSai).catch(() => {});
-  // D-PROD-288: as leituras guardadas para usar sem internet saem junto.
+  // D-PROD-289: as leituras guardadas para usar sem internet saem junto.
   esquecerRespostasDoTenant(tenantQueSai).catch(() => {});
   try {
     if (tenantQueSai) localStorage.removeItem(`maike_dados_offline_em:${tenantQueSai}`);

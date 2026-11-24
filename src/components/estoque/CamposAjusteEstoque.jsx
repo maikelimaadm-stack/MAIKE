@@ -7,12 +7,12 @@ import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginado
 import { useCelular } from "@/components/common/MobileSheet";
 import TabelaProdutosMovimento from "@/components/estoque/TabelaProdutosMovimento";
 import { formatarCustoUnitario, formatarDia, formatarQtd } from "@/lib/estoqueConsultaRegras";
-import { LIMITES_ENTRADA, LOCALE_ENTRADA, comProduto, unidadesDoProduto } from "@/lib/estoqueEntradasRegras";
+import { LIMITES_ENTRADA, LOCALE_ENTRADA, comProduto, equivalenciaDaLinha, unidadesDoProduto } from "@/lib/estoqueEntradasRegras";
 import { FALTA, MAX_ITENS_AJUSTE, ROTULO_TIPO_AJUSTE, SEM_DIFERENCA, SOBRA, diferencaDaLinha, formatarDiferenca, linhaVaziaAjuste, precisaCusto } from "@/lib/estoqueAjustesRegras";
 import { listarCentrosDaEntrada, listarDepositosDaEntrada, listarProdutosDaEntrada } from "@/services/estoqueEntradasService";
 
 /** @param {any} o */
-const opcaoProduto = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? ""), unidade_estoque: o.unidade_estoque, peso_por_saco_kg: o.peso_por_saco_kg ?? null } : null);
+const opcaoProduto = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? ""), unidade_estoque: o.unidade_estoque, peso_por_saco_kg: o.peso_por_saco_kg ?? null, unidades_conversao: Array.isArray(o.unidades_conversao) ? o.unidades_conversao : [] } : null);
 /** @param {any} o */
 const opcaoSimples = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? "") } : null);
 
@@ -98,6 +98,7 @@ function celulaDeAjuste({ linha, indice, empresaId, erros, saldo, onMudar }, col
       );
     case "contado":
       return (
+        <>
         <CampoNumero
           label="Contado"
           value={linha.contado}
@@ -109,6 +110,11 @@ function celulaDeAjuste({ linha, indice, empresaId, erros, saldo, onMudar }, col
           span={4}
           testId={`ajuste-linha-${indice}-contado`}
         />
+        {/* D-PROD-288: a contagem em outra unidade mostra a equivalência ("8 SACO = 200 kg"). */}
+        {equivalenciaDaLinha({ ...linha, quantidade: linha.contado }) ? (
+          <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`ajuste-linha-${indice}-equivalencia`}>{equivalenciaDaLinha({ ...linha, quantidade: linha.contado })}</p>
+        ) : null}
+        </>
       );
     case "saldo": {
       const textoSaldo = !linha.produto || !linha.deposito ? "—" : saldo?.isLoading ? "Carregando…" : saldo?.isError ? "Não foi possível ler" : info ? formatarQtd(info.saldo, unidadeEstoque) : "—";

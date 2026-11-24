@@ -1,6 +1,6 @@
 /**
  * Último contexto de sessão confirmado pelo servidor, guardado no aparelho
- * (D-PROD-288).
+ * (D-PROD-289).
  *
  * Existe para o app abrir sem internet: quando a sessão foi guardada com
  * "Manter conectado" e o servidor não responde, a tela entra com este contexto

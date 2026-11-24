@@ -9318,7 +9318,29 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** excluir tipo continua no "Gerenciar tipos" (D-PROD-169); nenhuma migration.
 - **Testes:** `backend/tests/bemPatrimonialExcluir.test.mjs`; smoke de permissões do Patrimônio.
 
-## D-PROD-288 — App Android/iOS: conectado até sair, renovação da sessão e abertura sem internet
+## D-PROD-288 — Produto: unidades de conversão no cadastro; consumo só na Formulação; preços, local e código interno fora da tela
+
+**Data:** 2026-11-24 · **Origem:** escolhas do proprietário (2026-11-24), com o alinhamento ao outro repositório do dono (CONTROLE-DE-ESTOQUE, `erp.produto_unidades`, migration 0029) pedido pela coordenação · **Branch:** `claude/produto-unidades-conversao` (da `main` `4e9b4445`) · **Migration:** `20261125200000_produto_unidades_conversao` (CONTRACT condicionado, formato CONVERSÃO sem DROP) · **Especificação:** [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md) · **Runbook:** [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md) · **Relatório:** [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md)
+
+> **Numeração:** nasceu D-PROD-284 (o script, no início da missão). A PR #371 reservou a D-PROD-284 e passou-se a D-PROD-285; depois do merge da `main` (PR #370 e #371), a PR #372 levou a D-PROD-285, e antes do merge a `main` deu a D-PROD-286 (controles do Mapa, PR #373/#374) e a D-PROD-287 (Bens Patrimoniais, PR #375); `node scripts/dev/proxima-decisao.mjs` mandou usar a **D-PROD-288**, que é esta (D-PROD-277). O marcador passa a D-PROD-289. O número não está no `migration.sql` (checksum inalterado). Conferir de novo antes do merge (regra A5).
+
+**Escolhas do proprietário (2026-11-24).**
+1. **Unidades de conversão no cadastro do produto.** O produto continua com **uma** unidade de estoque (KG ou L; o SACO legado guarda kg); saldo, custo médio, lote e recálculo ficam sempre nela. Na seção "Unidades" do cadastro, uma lista: unidade (sigla, até 8 caracteres), **Multiplica** ou **Divide**, fator e uso (compra/entrada e saída/venda), com a prévia "1 SACO = 25 KG". MULTIPLICA: 1 sigla = fator; DIVIDE: 1 sigla = 1/fator (fator ≤ 10.000).
+2. **Lançamentos:** entrada documentada, saída manual, ajuste de inventário, compra e venda do financeiro aceitam a unidade de estoque ou uma conversão **ativa** com o uso certo; o servidor converte para a unidade de estoque em 4 casas (ROUND_HALF_UP uma vez, pela operação exata) e grava a unidade, a quantidade digitada e o fator efetivo (`fator_kg`, nome legado; no DIVIDE, 1/fator em 4 casas). O SACO pelo `peso_por_saco_kg` vira a conversão SACO (cópia na migration); sem a conversão, o caminho antigo continua (byte a byte no plano do financeiro).
+3. **Consumo e nutrição saem do produto:** a tela deixa de mostrar e de exigir `tipo_consumo`, `percentual_consumo_pv`, `consumo_minimo_pv` e `consumo_maximo_pv` (o produto não tinha outros nutricionais). A Formulação ganha `consumo_minimo_pv` e `consumo_maximo_pv` (o %PV padrão já era dela, D-PROD-203/210), copiados do produto que ela leva ao cocho. As colunas do Produto ficam no banco.
+4. **Saem da tela do produto:** preço de custo, preço de venda e local de estoque — o servidor **ignora** o que vier no corpo (cliente antigo não quebra); o código interno passa a ser **automático** (= `numero_produto`) e só leitura; o estoque atual é só leitura.
+
+**Alinhamento (coordenação, 2026-11-24).** `uso_compra` e `uso_venda` (padrão Sim, CHECK um dos dois), `codigo_barras` opcional, exclusão **lógica** (`excluido_em`) e o único **parcial** (`cliente_id`, `produto_id`, `sigla`) `WHERE excluido_em IS NULL`. A unidade alternativa **nunca** é a unidade de estoque (servidor e teste); KG, L e UN nunca são conversão (CHECK).
+
+**Regras do cadastro.** A lista enviada no POST/PATCH substitui a vigente: sigla nova → cria; existente (id ou sigla) → altera (o passado não muda: as linhas gravaram o fator efetivo e a quantidade de estoque); ausente da lista e **usada** em lançamento → desativada (some do seletor, o histórico fica legível); ausente e nunca usada → exclusão lógica. A sigla de uma unidade já usada não muda. Tenant sempre do `auth_context`; FK composta (`cliente_id`, `produto_id`) → Produto (R9/R10).
+
+**Fora do escopo, ditos.** (a) **Atividade (linha de produto), abastecimento, cocho e transferência** não ganham seletor de unidade: não têm campo de unidade digitada no servidor (gravam a unidade de estoque), e a Constituição (D-PROD-159/162/193) manda baixar "exatamente a quantidade digitada, na unidade de estoque" e proíbe "converter por fator" no abastecimento. Levar a conversão a eles exige **emenda** (não proposta aqui; ver SPEC §7). (b) **UN como unidade de estoque** não entra: o motor e os CHECKs de atividade/abastecimento só conhecem KG e L. (c) O cocho e o farol continuam lendo `percentual_consumo_pv`/`consumo_*` do produto onde já liam (legado); a fonte nova é a Formulação.
+
+**Migration.** `20261125200000_produto_unidades_conversao`: guarda pinada (6 tabelas travadas), os 5 CHECKs de unidade recriados mais largos (`EntradaEstoqueItem`, `SaidaEstoqueItem`, `AjusteEstoqueItem`, `OperacaoFinanceiraItem` unidade e forma: texto não vazio, menos UN fora do serviço), a tabela nova com CHECKs, FKs e RLS, 2 colunas anuláveis em `CADFORMULACAO` e, na cauda, a cópia pinada: `INSERT … SELECT` da conversão SACO (produtos com `peso_por_saco_kg` > 0 que não são de litros) e `UPDATE` do consumo mínimo/máximo da formulação. **Não aplicada em produção**; ensaiada localmente.
+
+**Constituição.** Nenhuma regra tocada: abastecimento, atividade e cocho ficam como estão; o custo médio, o lote e o recálculo não mudam. Sem emenda.
+
+## D-PROD-289 — App Android/iOS: conectado até sair, renovação da sessão e abertura sem internet
 
 - **Contexto:** no app (Capacitor, `docs/engineering/APP-ANDROID-IOS.md`), sem internet a abertura caía em "Não foi possível validar sua sessão" (restauração fail-closed, P4.0-R1), e o login durava no máximo 30 dias. O dono pediu que o login valha "direto até eu sair" e que o app abra sem internet.
 - **Decisão:**
@@ -9334,4 +9356,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Limite aceito:** quem estiver com o app sem internet por mais de 30 dias seguidos precisa entrar de novo. Satélite sem internet não existe: a licença do Google Map Tiles não permite baixar imagens para uso sem rede. Abrir sem internet não dá autorização nenhuma: toda gravação passa pelo servidor.
 - **Testes:** `backend/tests/authRenovarSessao.test.mjs` (RN-01..06), `tests/smoke/sessaoOfflineApp.test.js`, `tests/smoke/sessaoShell.test.jsx` (AUTH-OFF1..4), `tests/smoke/dadosOfflineLeitura.test.js` (DO-01..08, DB-01..02), `tests/smoke/offlineRuntime.test.js` (OFF-B1..2).
 
-<!-- Próxima decisão: D-PROD-289 -->
+<!-- Próxima decisão: D-PROD-290 -->

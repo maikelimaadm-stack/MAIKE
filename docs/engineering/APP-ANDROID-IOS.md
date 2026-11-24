@@ -51,13 +51,13 @@ O APK sai em `android/app/build/outputs/apk/release/app-release.apk` e instala p
 - iOS (`Info.plist`): textos de localização, câmera e fotos.
 - Permissão nova é mudança nativa: exige APK novo (não vai pela atualização automática).
 
-## Login (D-PROD-288)
+## Login (D-PROD-289)
 
 - No app o login fica guardado no aparelho até a pessoa tocar em "Sair" (a opção "Manter conectado" não aparece: vale sempre).
 - Com internet, o app troca o login por um novo de 30 dias (`POST /auth/renovar`). Quem abre o app ao menos uma vez a cada 30 dias com internet não precisa entrar de novo.
 - Suspender a conta, trocar a senha ou o papel derruba a sessão do app na próxima vez que ele falar com o servidor.
 
-## Sem internet (D-PROD-288)
+## Sem internet (D-PROD-289)
 
 - **Baixar dados:** depois do primeiro login no app aparece "Dados para usar sem internet" → "Baixar agora". Baixa mapa, áreas, lotes, cadastros e as telas já abertas. Com internet, o app atualiza sozinho a cada 6 h; o menu do usuário → "Dados sem internet" baixa ou atualiza quando quiser.
 - **Abre:** telas, código e ícones estão dentro do app, e o login guardado vale (aviso "Sem internet — mostrando dados salvos").

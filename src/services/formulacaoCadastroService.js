@@ -116,7 +116,8 @@ export const resumoDaBatida = (ingredientes) => {
  * @typedef {{ categoria_manejo_id: string, consome: boolean, percentual_pv: string, g_cab_dia?: string }} RegraForm
  * @typedef {{
  *   nome: string, tipo: string, produto_id: string, base_consumo?: string, percentual_pv_padrao: string,
- *   consumo_objetivo_g_cab_dia: string, faixa_tolerancia_percentual?: string, observacoes: string, ativo: boolean,
+ *   consumo_objetivo_g_cab_dia: string, faixa_tolerancia_percentual?: string, consumo_minimo_pv?: string,
+ *   consumo_maximo_pv?: string, observacoes: string, ativo: boolean,
  *   ingredientes: IngredienteForm[], regras: RegraForm[],
  * }} FormulacaoForm
  */
@@ -146,6 +147,13 @@ export const validarFormulacao = (f) => {
   else if (gramas === null) erros.consumo_objetivo_g_cab_dia = `Maior que 0, até ${G_MAXIMO.toLocaleString('pt-BR')} g, até 2 casas`;
   const faixa = lerFaixa(f.faixa_tolerancia_percentual);
   if (faixa === null) erros.faixa_tolerancia_percentual = `De 0 a ${FAIXA_MAXIMA}%, até 2 casas`;
+  // D-PROD-288: consumo mínimo e máximo (%PV), opcionais — saíram do cadastro do produto e ficam só aqui.
+  const temConsumo = f.consumo_minimo_pv !== undefined || f.consumo_maximo_pv !== undefined;
+  const pvMin = lerPercentualPV(f.consumo_minimo_pv ?? '');
+  const pvMax = lerPercentualPV(f.consumo_maximo_pv ?? '');
+  if (pvMin === null) erros.consumo_minimo_pv = `De 0 a ${PV_MAXIMO}%, até 4 casas`;
+  if (pvMax === null) erros.consumo_maximo_pv = `De 0 a ${PV_MAXIMO}%, até 4 casas`;
+  if (typeof pvMin === 'number' && typeof pvMax === 'number' && pvMin > pvMax) erros.consumo_maximo_pv = 'O máximo não pode ser menor que o mínimo';
 
   const batelada = f.tipo === 'BATELADA';
   const ingredientes = batelada ? f.ingredientes || [] : [];
@@ -189,6 +197,7 @@ export const validarFormulacao = (f) => {
       percentual_pv_padrao: emGramas ? null : pv,
       consumo_objetivo_g_cab_dia: gramas ?? null,
       faixa_tolerancia_percentual: faixa ?? null,
+      ...(temConsumo ? { consumo_minimo_pv: pvMin ?? null, consumo_maximo_pv: pvMax ?? null } : {}),
       observacoes: observacoes || null,
       ativo: f.ativo !== false,
       ingredientes: corpoIngredientes,

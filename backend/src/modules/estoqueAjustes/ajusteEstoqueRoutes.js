@@ -47,7 +47,7 @@ const DETALHE = { params: PARAMS, querystring: EMPRESA };
 const ITEM = {
   type: 'object', required: ['produto_id', 'local_estoque_id', 'unidade', 'quantidade_contada'], additionalProperties: false,
   properties: {
-    produto_id: ID, local_estoque_id: ID, unidade: { type: 'string', enum: ['KG', 'SACO', 'L'] }, quantidade_contada: DECIMAL,
+    produto_id: ID, local_estoque_id: ID, unidade: { type: 'string', minLength: 1, maxLength: 8 }, quantidade_contada: DECIMAL,
     custo_unitario: { anyOf: [DECIMAL, { type: 'null' }] },
     // D-PROD-282: sobra de produto com lote (lote e validade da camada nova) e falta (lotes escolhidos; sem eles, FEFO).
     lote_fabricante: LOTE_FABRICANTE, data_validade: DATA_VALIDADE, lotes: LOTES_ESCOLHIDOS,
