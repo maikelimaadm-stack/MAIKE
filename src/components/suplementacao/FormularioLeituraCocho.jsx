@@ -12,8 +12,9 @@ const opcoes = (valores, rotulos) => valores.map((v) => ({ value: v, label: rotu
 
 /**
  * D-PROD-205 — Leitura de cocho: o que se viu no cocho num dia (escore, acesso e
- * estrutura). NÃO movimenta estoque. Funciona sem rede: a leitura entra na fila
- * offline e vai ao servidor quando a conexão voltar.
+ * estrutura). NÃO movimenta estoque. Funciona sem rede: a leitura fica no
+ * aparelho ("aguardando envio") e vai ao servidor quando a conexão voltar
+ * (motor de sincronização, D-PROD-296).
  *
  * @param {{ ponto: any, hoje: string, onCancel: () => void, onSaved?: (leitura: any) => void }} props
  *   `hoje`: dia civil da fazenda (AAAA-MM-DD), padrão e teto da data.
@@ -45,13 +46,16 @@ export default function FormularioLeituraCocho({ ponto, hoje, onCancel, onSaved 
         estrutura: form.estrutura,
         observacoes: form.observacoes.trim() || null,
       };
-      const leitura = await registrarLeituraCocho(corpo);
+      // D-PROD-296: pelo motor de sincronização — sem internet fica no aparelho
+      // ("aguardando envio") e sobe sozinha depois, sem duplicar.
+      const { leitura, aguardandoEnvio } = await registrarLeituraCocho(corpo, { rotulo: `Leitura · ${ponto.nome_ponto ?? "cocho"}` });
+      /** @type {Record<string, any>} */
       const registro = { ...corpo, ...(leitura || {}) };
       await updateMapaCachedData("leiturasCocho", ponto.empresa_id, (itens) => [registro, ...(itens || []).filter((i) => i.id !== registro.id)]);
-      if (typeof navigator === "undefined" || navigator.onLine !== false) {
+      if (!aguardandoEnvio) {
         refreshMapaCacheEntry("leiturasCocho", ponto.empresa_id, { force: true }).catch(() => {});
       }
-      notifySuccess("Leitura registrada", registro._isOffline ? "Sem conexão: a leitura vai ao servidor quando a rede voltar." : undefined);
+      notifySuccess("Leitura registrada");
       onSaved?.(registro);
     } catch (erro) {
       notifyError("Erro ao registrar a leitura", getApiErrorMessage(erro));

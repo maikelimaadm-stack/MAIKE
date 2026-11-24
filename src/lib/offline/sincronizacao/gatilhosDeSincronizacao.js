@@ -17,7 +17,7 @@
 import { App } from '@capacitor/app';
 import { isAppNativo } from '@/config/runtimeConfig';
 import { syncOfflineEntityQueue, contarPendenciasDaFilaDeEntidades } from '@/lib/offline/offlineEntityRuntime';
-import { sincronizar, resumoDaFila } from './motorDeSincronizacao.js';
+import { sincronizar, resumoDaFila, EVENTO_FILA_DE_ENVIO } from './motorDeSincronizacao.js';
 
 const INTERVALO_MS = 60_000;
 
@@ -66,6 +66,14 @@ export const iniciarSincronizacaoAutomatica = () => {
   if (iniciado || typeof window === 'undefined') return;
   iniciado = true;
 
+  // Registro que chegou ao servidor: as telas releem o que o tipo declarou em
+  // `atualiza` (o mapa escuta "atualizar-mapa").
+  window.addEventListener(EVENTO_FILA_DE_ENVIO, (evento) => {
+    const atualizar = /** @type {any} */ (evento)?.detail?.atualizar;
+    if (Array.isArray(atualizar) && atualizar.length) {
+      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: atualizar } }));
+    }
+  });
   window.addEventListener('online', () => {
     setTimeout(() => void sincronizarTudo(), 1000);
   });

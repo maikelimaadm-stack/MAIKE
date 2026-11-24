@@ -243,3 +243,55 @@ describe('D-PROD-205 — leitura de cocho', () => {
     );
   });
 });
+
+describe('D-PROD-296 — leitura de cocho com código único (app sem internet)', () => {
+  test('LC-ID-01 o mesmo operation_id duas vezes devolve a MESMA leitura e grava uma só', async () => {
+    const cen = await cenario();
+    const corpo = leitura(cen, { operation_id: randomUUID() });
+    const r1 = await req('POST', '/leituras-cocho', cen.token, corpo);
+    const r2 = await req('POST', '/leituras-cocho', cen.token, corpo);
+    assert.equal(r1.statusCode, 201, r1.body);
+    assert.equal(r2.statusCode, 201, r2.body);
+    assert.deepEqual(r2.json(), r1.json());
+    assert.equal(await prisma().leituraCocho.count({ where: { cliente_id: cen.clienteId } }), 1);
+  });
+
+  test('LC-ID-02 o mesmo operation_id com outro conteúdo é 409 e não grava', async () => {
+    const cen = await cenario();
+    const id = randomUUID();
+    assert.equal((await req('POST', '/leituras-cocho', cen.token, leitura(cen, { operation_id: id }))).statusCode, 201);
+    const outra = await req('POST', '/leituras-cocho', cen.token, leitura(cen, { operation_id: id, escore: 'CHEIO' }));
+    assert.equal(outra.statusCode, 409, outra.body);
+    assert.equal(outra.json().code, 'IDEMPOTENCY_CONFLICT');
+    assert.equal(await prisma().leituraCocho.count({ where: { cliente_id: cen.clienteId } }), 1);
+  });
+
+  test('LC-ID-03 sem operation_id cria como antes (duas chamadas, duas leituras); código curto é 400', async () => {
+    const cen = await cenario();
+    await req('POST', '/leituras-cocho', cen.token, leitura(cen));
+    await req('POST', '/leituras-cocho', cen.token, leitura(cen));
+    assert.equal(await prisma().leituraCocho.count({ where: { cliente_id: cen.clienteId } }), 2);
+    const curto = await req('POST', '/leituras-cocho', cen.token, leitura(cen, { operation_id: 'abc' }));
+    assert.equal(curto.statusCode, 400, curto.body);
+  });
+
+  test('LC-ID-04 o código é por tenant: o mesmo operation_id em outro tenant é outra leitura', async () => {
+    const cen = await cenario();
+    const outro = await cenario();
+    const id = randomUUID();
+    const a = await req('POST', '/leituras-cocho', cen.token, leitura(cen, { operation_id: id }));
+    const b = await req('POST', '/leituras-cocho', outro.token, leitura(outro, { operation_id: id }));
+    assert.equal(a.statusCode, 201, a.body);
+    assert.equal(b.statusCode, 201, b.body);
+    assert.notEqual(a.json().id, b.json().id);
+  });
+
+  test('LC-ID-05 recusa de validação com operation_id não deixa o código preso: corrigido, o mesmo código grava', async () => {
+    const cen = await cenario();
+    const id = randomUUID();
+    const futura = await req('POST', '/leituras-cocho', cen.token, leitura(cen, { operation_id: id, data_leitura: '2027-06-16' }));
+    assert.equal(futura.statusCode, 400, futura.body);
+    const ok = await req('POST', '/leituras-cocho', cen.token, leitura(cen, { operation_id: id }));
+    assert.equal(ok.statusCode, 201, ok.body);
+  });
+});
