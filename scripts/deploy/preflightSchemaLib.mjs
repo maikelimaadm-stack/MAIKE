@@ -142,6 +142,9 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['Produto', 'controla_validade'],
   ['EstoqueLoteNota', 'lote_fabricante'],
   ['EstoqueLoteNota', 'data_validade'],
+  // D-PROD-283 (MAIKE-INSUMO-POR-JATO): toda leitura do apontamento lê o jato da linha de insumo; sem a migration
+  // `20261125100000_insumo_por_jato`, o lançamento de atividades responde 500.
+  ['AtividadeApontamentoProduto', 'jato'],
 ]);
 
 /**

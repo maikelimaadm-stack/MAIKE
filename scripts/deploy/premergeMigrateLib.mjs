@@ -214,6 +214,9 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // Produto.controla_validade (BOOLEAN NOT NULL DEFAULT false, CHECK "validade só com lote"), EstoqueLoteNota.lote_fabricante
   // e EstoqueLoteNota.data_validade (anuláveis, sem DEFAULT) e o índice tenant-first do FEFO. Sem DROP, sem DML.
   '20261124200000_estoque_controle_lote': 'b6b33b0ebb35f44d91d7b3766525a51e839d68348aca78388fd26ab2645948fc',
+  // MAIKE-INSUMO-POR-JATO (D-PROD-283): EXPAND — o número do jato na linha de insumo: 1 coluna anulável sem DEFAULT em
+  // tabela antiga (AtividadeApontamentoProduto.jato); sem CHECK (a API confere 1..999).
+  '20261125100000_insumo_por_jato': '725a8c5ac873ad19d0c191cd7c2f303dc84ef97170b74c0bb2133479c76d3551',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([

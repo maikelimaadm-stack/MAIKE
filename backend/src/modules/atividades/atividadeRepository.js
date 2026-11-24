@@ -175,16 +175,16 @@ export const lerLancamentoTarefa = (tx, clienteId, id) =>
  * Página das máquinas ATIVAS da empresa para o seletor da tela, keyset (nome,
  * id) crescente; `naturezas` filtra (uma ou várias); `q` (literal, já
  * escapado) em nome, número ou código de frota. Envelope `{ itens, has_more,
- * next_cursor }`.
+ * next_cursor }`. D-PROD-283: `select` troca o resumo (o implemento lê o produto do tipo).
  * @param {{ clienteId: string, empresaId: string, naturezas: string[], q: string, limit: number,
- *   cursor: { nome: string, id: string } | null, mapear: (linhas: any[]) => any[] }} pedido
+ *   cursor: { nome: string, id: string } | null, mapear: (linhas: any[]) => any[], select?: Record<string, any> }} pedido
  */
-export const paginarBensAtivos = ({ clienteId, empresaId, naturezas, q, limit, cursor, mapear }) => {
+export const paginarBensAtivos = ({ clienteId, empresaId, naturezas, q, limit, cursor, mapear, select = BEM_RESUMO.select }) => {
   /** @type {any[]} */
   const filtros = [{ cliente_id: clienteId, empresa_id: empresaId, ativo: true }];
   if (naturezas.length) filtros.push({ natureza: { in: naturezas } });
   if (q) {
     filtros.push({ OR: [{ nome: { contains: q, mode: 'insensitive' } }, { numero: { contains: q } }, { codigo_frota: { contains: q, mode: 'insensitive' } }] });
   }
-  return paginarPorNome(getPrismaClient().bemPatrimonial, { where: { AND: filtros }, select: BEM_RESUMO.select, limit, cursor, mapear });
+  return paginarPorNome(getPrismaClient().bemPatrimonial, { where: { AND: filtros }, select, limit, cursor, mapear });
 };

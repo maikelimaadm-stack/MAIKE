@@ -3623,6 +3623,9 @@ model AtividadeApontamentoProduto {
   /// MAIKE-ENTREGA2 — o VC (valor cultural, %) do rótulo do saco de semente, opcional. A API confere (0 < VC <= 100,
   /// até 2 casas): a allowlist EXPAND recusa CHECK em tabela antiga, como na D-PROD-265.
   vc_percentual            Decimal?  @db.Decimal(5, 2)
+  /// MAIKE-INSUMO-POR-JATO — o número do jato no dia (1..999) quando o insumo foi lançado por jato; nulo = sem jato.
+  /// Sem CHECK (allowlist EXPAND): a API confere a faixa.
+  jato                     Int?
   custo_unitario           Decimal   @db.Decimal(14, 4)
   custo_total              Decimal   @db.Decimal(14, 4)
   operation_id             String    @db.VarChar(128)
