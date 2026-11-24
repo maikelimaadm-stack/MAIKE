@@ -40,6 +40,7 @@ import { opcoesBens, opcoesLocais, opcoesProdutosDoBem, opcoesProdutosFiltro, op
 import { ORIGENS_ABASTECIMENTO, PADRAO_CUSTO_TOTAL, PADRAO_LEITURA, PADRAO_QUANTIDADE, recusarCoercaoAbastecimento } from './abastecimentoPlano.js';
 import { cancelar, confirmar, detalhar, listar, previa } from './abastecimentoService.js';
 import { LIMITE_OPCOES_MAXIMO, LIMITE_OPCOES_PADRAO } from './patrimonioComum.js';
+import { LOTES_ESCOLHIDOS } from '../estoqueFisico/loteEscolhaSchema.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 const VERSAO = { type: 'integer', minimum: 1 };
@@ -82,6 +83,8 @@ const CORPO_BASE = {
   origem: { type: 'string', enum: [...ORIGENS_ABASTECIMENTO] },
   apontamento_id: { ...ID, type: ['string', 'null'] },
   custo_total: { type: ['string', 'null'], pattern: PADRAO_CUSTO_TOTAL.source },
+  // D-PROD-282 em todas as telas: a escolha dos lotes do produto com lote (sem ela, FEFO).
+  lotes: LOTES_ESCOLHIDOS,
 };
 const REQUERIDOS_PREVIA = ['empresa_id', 'bem_id', 'tanque_id', 'produto_id', 'data_operacional', 'quantidade'];
 

@@ -15,6 +15,9 @@
  *  T3 atividade (linha de produto): aceita `lotes` na linha (lançar, editar e os `produtos[]` do lançamento, que é o
  *     caminho dos "Jatos de hoje"); soma, produto sem lote, vencido como nas outras; editar sem mandar `lotes` (só a
  *     observação) mantém os lotes da linha; cancelar devolve aos lotes escolhidos; replay = gravado.
+ *  T4 abastecimento: aceita `lotes` na prévia e na confirmação; a prévia mostra as fatias da escolha (o custo do
+ *     lote); soma errada → bloqueio/422; produto sem lote com a lista → bloqueio/422; posto externo com a lista → 400;
+ *     vencido escolhido → aviso; cancelar devolve aos lotes escolhidos; replay = gravado; sem a lista, FEFO.
  */
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,7 +25,7 @@ import { randomUUID } from 'node:crypto';
 
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
 import { http, prisma } from './patrimonioP1Cenario.mjs';
-import { montarAbastecimento } from './patrimonioP1AbastecimentoCenario.mjs';
+import { acoesAbastecimento, corpoAbastecimento, corpoPrevia, montarAbastecimento } from './patrimonioP1AbastecimentoCenario.mjs';
 import { auditarReplayDoProduto } from '../src/modules/estoqueRecalculo/estoqueRecalculoService.js';
 import { emLeituraSomente } from '../src/modules/estoqueRecalculo/estoqueRecalculoLeitor.js';
 
@@ -319,6 +322,60 @@ describe('T3 — atividade: escolha do lote na linha de produto', () => {
     // Jato 1: 10 do A (40,0000); jato 2 pelo FEFO: VELHO 10 (30,0000).
     assert.deepEqual(linhas, [[1, '40.0000'], [2, '30.0000']]);
     await provarReplay(x, x.sal);
+  });
+});
+
+// ── Abastecimento ───────────────────────────────────────────────────────────
+describe('T4 — abastecimento: escolha do lote do combustível', () => {
+  /** Diesel com lote: VELHO (vencido) 100 L a 4, NOVO 200 L a 6 (vence depois). */
+  const dieselComLotes = async (x) => {
+    ok(await H.req('PATCH', `/produtos/${x.diesel.id}`, x.token, { controla_lote: true }));
+    await entrar(x, x.diesel, x.local, '100', '4', 'VELHO', '2027-01-10');
+    await entrar(x, x.diesel, x.local, '200', '6', 'NOVO', '2027-12-31');
+    return { V: await idDoLote(x.diesel, 'VELHO'), N: await idDoLote(x.diesel, 'NOVO') };
+  };
+
+  test('prévia e confirmação com 30 do NOVO + 20 do VELHO → 6 × 30 + 4 × 20 = 260,0000 (aviso do vencido); cancelar devolve; replay = gravado', async () => {
+    const x = await montar();
+    const L = await dieselComLotes(x);
+    const AB = acoesAbastecimento(app);
+    const lotes = [{ estoque_lote_nota_id: L.N, quantidade: '30' }, { estoque_lote_nota_id: L.V, quantidade: '20' }];
+    const pv = ok(await AB.previa(x.token, corpoPrevia(x, { quantidade: '50', lotes })));
+    assert.deepEqual(pv.bloqueios, []);
+    assert.equal(pv.plano.custo_total, '260.0000');
+    assert.deepEqual(pv.plano.fifo.fatias.map((f) => [f.lote_id, f.quantidade]), [[L.N, '30.0000'], [L.V, '20.0000']]);
+    const r = await AB.confirmarOk(x.token, corpoAbastecimento(x, { quantidade: '50', lotes }));
+    assert.equal(v4(r.custo_total), '260.0000');
+    assert.deepEqual(semId(r.avisos), [{ tipo: 'lote_vencido', lote: 'VELHO', validade: '2027-01-10' }]);
+    assert.deepEqual(await porLote(x.diesel), { VELHO: ['80.0000', '4.0000'], NOVO: ['170.0000', '6.0000'] });
+    await provarReplay(x, x.diesel);
+    ok(await AB.cancelar(x.token, r.id, { empresa_id: x.e1.id, versao: r.versao, motivo: 'lançado errado', operation_id: opId() }));
+    assert.deepEqual(await porLote(x.diesel), { VELHO: ['100.0000', '4.0000'], NOVO: ['200.0000', '6.0000'] });
+    await provarReplay(x, x.diesel);
+    // Sem a lista: FEFO (o VELHO vence primeiro), como antes.
+    const f = await AB.confirmarOk(x.token, corpoAbastecimento(x, { quantidade: '10', medidor_leitura: '1560' }));
+    assert.equal(v4(f.custo_total), '40.0000');
+  });
+
+  test('recusas: soma errada e produto sem lote com a lista → bloqueio na prévia e 422 na confirmação; externo com a lista → 400; nada gravado', async () => {
+    const x = await montar();
+    const L = await dieselComLotes(x);
+    const AB = acoesAbastecimento(app);
+    const soma = [{ estoque_lote_nota_id: L.N, quantidade: '30' }];
+    const pv = ok(await AB.previa(x.token, corpoPrevia(x, { quantidade: '50', lotes: soma })));
+    assert.deepEqual(pv.bloqueios.map((b) => [b.code, b.reason]), [['ESTOQUE_LOTE_INVALIDO', 'lotes_nao_somam']]);
+    erro(await AB.confirmar(x.token, corpoAbastecimento(x, { quantidade: '50', lotes: soma })), 422, 'ESTOQUE_LOTE_INVALIDO', 'lotes_nao_somam');
+    // Diesel em kg (sem lote) com a lista.
+    await entrar(x, x.dieselKg, x.local, '100', '5');
+    const semLote = { produto_id: x.dieselKg.id, quantidade: '10', lotes: [{ estoque_lote_nota_id: L.N, quantidade: '10' }] };
+    const pv2 = ok(await AB.previa(x.token, corpoPrevia(x, semLote)));
+    assert.deepEqual(pv2.bloqueios.map((b) => [b.code, b.reason]), [['ESTOQUE_LOTE_INVALIDO', 'produto_sem_controle_de_lote']]);
+    erro(await AB.confirmar(x.token, corpoAbastecimento(x, semLote)), 422, 'ESTOQUE_LOTE_INVALIDO', 'produto_sem_controle_de_lote');
+    const externo = corpoAbastecimento(x, { origem: 'EXTERNO', custo_total: '100.00', lotes: soma });
+    delete externo.local_estoque_id;
+    erro(await AB.confirmar(x.token, externo), 400, 'REQUEST_VALIDATION_FAILED', 'nao_se_aplica_externo');
+    assert.deepEqual(await porLote(x.diesel), { VELHO: ['100.0000', '4.0000'], NOVO: ['200.0000', '6.0000'] });
+    assert.equal(await prisma().abastecimentoBem.count({ where: { cliente_id: x.c } }), 0, 'nada gravado');
   });
 });
 

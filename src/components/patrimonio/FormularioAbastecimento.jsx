@@ -38,6 +38,8 @@ import {
   unidadeDoFormulario,
 } from "@/lib/abastecimentoRegras";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
+import CampoLotes from "@/components/estoque/CampoLotes";
+import { lerNumeroLocal } from "@/lib/dinheiroDecimal";
 
 export const FORMULARIO_ABASTECIMENTO_ID = "formulario-abastecimento";
 
@@ -81,6 +83,12 @@ const rotuloDoTanque = (t) => {
 /** O que da opção a tela reflete no formulário (unidade, tanques): mudou → reaplica. @param {any} p */
 const assinaturaDaOpcao = (p) =>
   JSON.stringify([p?.unidade_principal_estoque ?? null, (Array.isArray(p?.tanques) ? p.tanques : []).map((/** @type {any} */ t) => [t.id, t.capacidade_litros])]);
+
+/** A quantidade digitada como número (na unidade de estoque do Produto), 0 quando inválida. @param {unknown} v */
+const quantidadeDoEstoque = (v) => {
+  const r = lerNumeroLocal(v, LOCALE_ABASTECIMENTO, LIMITES_ABASTECIMENTO.QUANTIDADE);
+  return r.ok ? Number(r.valor) : 0;
+};
 
 /** @param {{ texto: string|undefined }} props */
 function ErroDoCampo({ texto }) {
@@ -215,6 +223,11 @@ export default function FormularioAbastecimento({
       setForm((f) => (String(f.produto?.id ?? "") === produtoId && !f.local_estoque_id ? { ...f, local_estoque_id: local } : f));
     }
   }, [produtoId, externo, form.local_estoque_id, locais, locaisQuery.isSuccess, setForm]);
+
+  // D-PROD-282 em todas as telas: trocar o Produto, o local ou a origem volta a escolha dos lotes para a sugestão.
+  useEffect(() => {
+    setForm((f) => (f.lotes == null && !f.confirmaVencido ? f : { ...f, lotes: null, confirmaVencido: false }));
+  }, [produtoId, form.local_estoque_id, externo, setForm]);
 
   const tipoMedidor = medidorDoFormulario(form);
   const contador = medidorExigeLeitura(tipoMedidor);
@@ -481,6 +494,28 @@ export default function FormularioAbastecimento({
                     }`
                   : null}
               </div>
+            </>
+          ) : null}
+          {/* D-PROD-282 em todas as telas: combustível com lote — sugestão FEFO, escolher e dividir, aviso de vencido. */}
+          {!externo && produto?.controla_lote && form.local_estoque_id ? (
+            <>
+              <CampoLotes
+                empresaId={empresaId}
+                produto={produto}
+                localId={String(form.local_estoque_id)}
+                quantidade={quantidadeDoEstoque(form.quantidade)}
+                lotes={form.lotes}
+                confirmaVencido={form.confirmaVencido}
+                loteVencido={form.loteVencido}
+                erroLote={form.erroLote}
+                onMudar={(patch) => {
+                  // O que a pessoa escolhe passa pelo `mudar` (limpa o erro); o que o campo devolve só marca o formulário.
+                  if ("lotes" in patch || "confirmaVencido" in patch) mudar(patch, ["lotes"]);
+                  else setForm((f) => ({ ...f, ...patch }));
+                }}
+                testId="abastecimento-lotes"
+              />
+              <ErroDoCampo texto={erros.lotes} />
             </>
           ) : null}
           <EscolhaSegmentada

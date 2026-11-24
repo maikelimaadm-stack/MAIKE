@@ -211,7 +211,7 @@ export const opcoesProdutosDoBem = async (contexto, query = {}) => {
     const pagina = await paginarPorNome(tx.produto, {
       where: busca ? { AND: [elegivel, busca] } : elegivel,
       campoNome: 'nome_produto',
-      select: { id: true, nome_produto: true, codigo_interno: true, unidade_principal_estoque: true },
+      select: { id: true, nome_produto: true, codigo_interno: true, unidade_principal_estoque: true, controla_lote: true },
       limit,
       cursor,
       mapear: (linhas) =>
@@ -223,6 +223,8 @@ export const opcoesProdutosDoBem = async (contexto, query = {}) => {
             codigo_interno: p.codigo_interno ?? null,
             unidade_principal_estoque: p.unidade_principal_estoque,
             unidade_abastecimento: unidadeEfetivaDoEstoque(p.unidade_principal_estoque),
+            // D-PROD-282 em todas as telas: combustível com lote mostra o campo "Lote" no abastecimento.
+            controla_lote: p.controla_lote === true,
           },
           tanques: (tanquesPorProduto.get(p.id) ?? []).map((t) => ({ ...t })),
           pronto: true,

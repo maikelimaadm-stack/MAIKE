@@ -3,8 +3,13 @@
  * que já devolve os lotes nessa ordem), a divisão entre lotes, o aviso de vencido e o corpo `lotes` da linha.
  * Sem cálculo de custo: o servidor valoriza cada fatia pelo custo da camada.
  */
-import { LIMITES_ENTRADA, LOCALE_ENTRADA } from './estoqueEntradasRegras.js';
-import { lerNumeroLocal } from '@/lib/dinheiroDecimal';
+// Só imports relativos e sem efeitos de tela: as regras de abastecimento e de atividade (que o backend também carrega,
+// nos testes de contrato da tela) importam este módulo direto pelo Node, sem o alias `@/`.
+import { lerNumeroLocal } from './dinheiroDecimal.js';
+
+/** Locale e limites das quantidades de lote: os mesmos da Entrada (`estoqueEntradasRegras`: pt-BR, 10 inteiros e 4 casas). */
+const LOCALE_ENTRADA = 'pt-BR';
+const LIMITES_ENTRADA = Object.freeze({ inteiros: 10, casas: 4 });
 
 /** Dias de antecedência do aviso "vence em N dias" (o mesmo do servidor). */
 export const DIAS_AVISO_VENCIMENTO = 30;
