@@ -41,6 +41,7 @@ import {
   buscarLinha,
   cancelarLinhas,
   contarConfirmadasDoApontamento,
+  existeLinhaComChave,
   inserirLinha,
   lerParceiroDaLinha,
   lerServicoDaLinha,
@@ -402,6 +403,7 @@ const escrever = (/** @type {any} */ contexto, /** @type {any} */ pedido) =>
     entidade: ENTIDADE_LINHA_SERVICO,
     acaoConflito: ACOES_LINHA_SERVICO.reenvio_conflitante,
     chave: 'servico',
+    existeChave: existeLinhaComChave,
     publica: comoLinhaServicoPublica,
   });
 

@@ -84,7 +84,7 @@ import {
   concurrencyConflict,
 } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
-import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
+import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao, soPeloAlvo } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { exigirEmpresaDoTenant, invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import {
@@ -185,8 +185,36 @@ export const TIPOS_OPERACAO_APONTAMENTO = Object.freeze({
  * A unique (atividade, dia, turno, sequência) é a rede do banco: um escritor
  * fora da trava da atividade que levasse a mesma sequência vira 409, nunca 500
  * (o trecho casa tanto a lista de colunas do P2002 quanto o nome do índice).
+ * D-PROD-253: só pelo alvo; a sequência nasce sob a trava da atividade e, sem
+ * o alvo, o caminho genérico responde o mesmo 409 transitório.
  */
-const UNICOS = Object.freeze({ sequencia: () => concurrencyConflict(MENSAGEM_CONFLITO_SEM_CHAVE) });
+const UNICOS = Object.freeze({
+  sequencia: soPeloAlvo(
+    () => concurrencyConflict(MENSAGEM_CONFLITO_SEM_CHAVE),
+    'a sequência do apontamento nasce sob a trava da atividade (FOR UPDATE) e o erro é o mesmo 409 transitório do caminho genérico'
+  ),
+});
+
+/**
+ * Alguma linha de produto, de mão de obra ou de serviço já usa uma das chaves
+ * derivadas destas chaves de lançamento (`<base>:p1…`, `:o1…`, `:s1…`, comparadas
+ * EXATAS)? `bases` = a chave do corpo ou, no registro de várias áreas
+ * (D-PROD-263), uma por área (`<chave>`, `<chave>:a2`, …). A linha de máquina do
+ * lançamento deriva a chave do id do apontamento (`criarLinhasMaquina`), novo a
+ * cada lançamento, e não colide. A pré-conferência do lançamento com chave e a
+ * conferência sem o alvo do P2002 (D-PROD-253), com as MESMAS bases.
+ * @param {any} tx @param {string} clienteId @param {string[]} bases
+ * @returns {Promise<boolean>}
+ */
+const chaveDoLancamentoOcupada = async (tx, clienteId, bases) => {
+  /** @param {'produto'|'mao_obra'|'servico'} tipo */
+  const derivadas = (tipo) => bases.flatMap((b) => chavesDerivadasDasLinhas(b, tipo));
+  return (
+    (await existeLinhaComChave(tx, clienteId, derivadas('produto'))) ||
+    (await existeLinhaMaoObraComChave(tx, clienteId, derivadas('mao_obra'))) ||
+    (await existeLinhaServicoComChave(tx, clienteId, derivadas('servico')))
+  );
+};
 
 // ─── normalização do corpo ──────────────────────────────────────────────────
 
@@ -666,8 +694,7 @@ export const comReciboOpcional = async (contexto, { operationId, tipoOperacao, f
   if (!operationId) return emTransacao(TRANSACAO_CURTA, executar, UNICOS, MENSAGEM_CONFLITO_SEM_CHAVE);
   const chave = operationId;
   const conflito = () => new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente', { details: { operation_id: chave } });
-  /** @param {'produto'|'mao_obra'|'servico'} tipo */
-  const derivadas = (tipo) => (bases ?? [chave]).flatMap((b) => chavesDerivadasDasLinhas(b, tipo));
+  const basesDaChave = bases ?? [chave];
   try {
     const r = await emTransacao(
       TRANSACAO_CURTA,
@@ -678,15 +705,14 @@ export const comReciboOpcional = async (contexto, { operationId, tipoOperacao, f
           tipoOperacao,
           fingerprint: fingerprint(),
           executar: async () => {
-            // As chaves derivadas EXATAS (`<chave>:p1…p20`, nunca um prefixo com curinga de LIKE).
-            if (await existeLinhaComChave(tx, cli, derivadas('produto'))) throw conflito();
-            // D-PROD-207: idem para as chaves derivadas das linhas de mão de obra (`:o`) e de serviço (`:s`).
-            if (await existeLinhaMaoObraComChave(tx, cli, derivadas('mao_obra'))) throw conflito();
-            if (await existeLinhaServicoComChave(tx, cli, derivadas('servico'))) throw conflito();
+            // As chaves derivadas EXATAS (`<base>:p1…p20`, nunca um prefixo com curinga de LIKE), das linhas de
+            // produto e, desde a D-PROD-207, de mão de obra (`:o`) e de serviço (`:s`), de cada base (D-PROD-263).
+            if (await chaveDoLancamentoOcupada(tx, cli, basesDaChave)) throw conflito();
             return { httpStatus: 201, body: await executar(tx) };
           },
         }),
-      { ...UNICOS, operation_id: conflito }
+      // D-PROD-253: sem o alvo do P2002 (produção: papel não dono + RLS), a mesma conferência depois do rollback.
+      { ...UNICOS, operation_id: { erro: conflito, conferir: (tx) => chaveDoLancamentoOcupada(tx, cli, basesDaChave) } }
     );
     return { ...r.body, replay: r.replay };
   } catch (e) {

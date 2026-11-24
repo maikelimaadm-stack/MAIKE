@@ -58,7 +58,7 @@ import {
   concurrencyConflict,
 } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
-import { MENSAGEM_CONFLITO_IDEMPOTENTE, TRANSACAO_CURTA, TRANSACAO_LONGA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
+import { MENSAGEM_CONFLITO_IDEMPOTENTE, TRANSACAO_CURTA, TRANSACAO_LONGA, emTransacao, soPeloAlvo } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import {
   EFEITO_SAIDA,
@@ -664,12 +664,25 @@ const respostaDaEscrita = async (tx, clienteId, empresaId, atividadeId, apontame
 const conflitoDeChave = (/** @type {string} */ operationId) => () =>
   new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente', { details: { operation_id: operationId } });
 
-/** Redes de unique das escritas de linha. @param {string} operationId */
-const unicosDaLinha = (operationId) => ({
-  // Última rede (o alvo do P2002 só existe quando o runtime é dono da tabela; ver a conferência no início).
-  operation_id: conflitoDeChave(operationId),
-  // A unique (cliente_id, apontamento_id, ordem) é a rede da trava da atividade.
-  ordem: () => concurrencyConflict('outra linha entrou neste apontamento ao mesmo tempo; nada foi gravado, tente de novo com a mesma operation_id'),
+/**
+ * A unique (cliente_id, apontamento_id, ordem) é a rede da trava da atividade (a ordem nasce sob o FOR UPDATE
+ * dela). Só pelo alvo: sem ele, o caminho genérico responde o mesmo 409 transitório (D-PROD-253).
+ */
+const ORDEM_DA_LINHA = soPeloAlvo(
+  () => concurrencyConflict('outra linha entrou neste apontamento ao mesmo tempo; nada foi gravado, tente de novo com a mesma operation_id'),
+  'a ordem da linha de produto nasce sob a trava da atividade (FOR UPDATE) e o erro é o mesmo 409 transitório do caminho genérico'
+);
+
+/**
+ * Redes de unique das escritas de linha. A `operation_id` é conferida no início de cada escrita (a linha JÁ
+ * gravada é conflito mesmo sem o recibo) e, sem o alvo do P2002 (produção: papel não dono + RLS), de novo depois do
+ * rollback (D-PROD-253).
+ * @param {string} clienteId @param {string} operationId
+ * @returns {Record<string, import('../../shared/prisma/transacaoConcorrente.js').UniqueDeNegocio>}
+ */
+const unicosDaLinha = (clienteId, operationId) => ({
+  operation_id: { erro: conflitoDeChave(operationId), conferir: (tx) => buscarLinhaPorOperacao(tx, clienteId, operationId) },
+  ordem: ORDEM_DA_LINHA,
 });
 
 /**
@@ -727,7 +740,7 @@ const comRecibo = async (contexto, { operationId, tipoOperacao, fingerprint, exe
     const r = await emTransacao(
       transacao,
       (tx) => executarComIdempotencia(tx, { clienteId, operationKey: operationId, tipoOperacao, fingerprint, executar: () => executar(tx) }),
-      unicosDaLinha(operationId),
+      unicosDaLinha(clienteId, operationId),
       MENSAGEM_CONFLITO_IDEMPOTENTE
     );
     return { status: r.replay ? 200 : r.httpStatus, body: { ...r.body, replay: r.replay } };
@@ -756,7 +769,7 @@ export const lancarLinhaProduto = async (contexto, atividadeId, apontamentoId, c
     fingerprint,
     executar: async (tx) => {
       // A chave de uma linha JÁ gravada é conflito mesmo sem o recibo (apagado ou expurgado), conferida ANTES de
-      // tudo: em produção o P2002 chega sem `meta.target` (RLS), e a unique fica como última rede.
+      // tudo: em produção o P2002 chega sem o alvo (RLS), e a unique fica como última rede (D-PROD-253).
       if (await buscarLinhaPorOperacao(tx, cli, operationId)) throw conflitoDeChave(operationId)();
       const { empresaId, atividade, apontamento } = await abrirEscritaDeLinha(tx, cli, {
         empresaDoCorpo: corpo.empresa_id, atividadeId, apontamentoId, versao: corpo.versao, acao: 'lancar_linha',

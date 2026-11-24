@@ -65,7 +65,7 @@ import {
   concurrencyConflict,
 } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
-import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
+import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao, soPeloAlvo } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { CASAS_CUSTO, Dec, arredondar, dec } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant, invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
@@ -101,6 +101,7 @@ import {
   ORIGENS_CANCELAMENTO,
   STATUS_LINHA,
   buscarLinha,
+  buscarLinhaPorOperacao,
   cancelarLinhas,
   contarConfirmadasDoApontamento,
   inserirLinha,
@@ -156,14 +157,30 @@ const ENTIDADE_ERRO = Object.freeze({ entidade: 'linha_maquina' });
  */
 const recusa = (field, reason, extra = {}, opcoes = undefined) => atividadeLinhaInvalida(field, reason, { ...ENTIDADE_ERRO, ...extra }, opcoes);
 
+const conflitoDeChave = () => new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente');
+
+/**
+ * A unique `(apontamento, ordem)` é a rede da trava da atividade (a ordem nasce sob o FOR UPDATE dela). Só pelo
+ * alvo: sem ele, o caminho genérico responde o mesmo 409 transitório (D-PROD-253).
+ */
+const ORDEM_DA_LINHA = soPeloAlvo(
+  () => concurrencyConflict(MENSAGEM_CONFLITO_SEM_CHAVE),
+  'a ordem da linha de máquina nasce sob a trava da atividade (FOR UPDATE) e o erro é o mesmo 409 transitório do caminho genérico'
+);
+
 /**
  * A unique `(cliente_id, operation_id)` da linha é a rede do banco: a mesma
  * chave já usada por OUTRA operação de linha → 409 de idempotência; a unique
  * `(apontamento, ordem)` fora da trava → 409 de concorrência (nunca 500).
+ * D-PROD-253: em produção o P2002 chega sem o alvo (papel não dono + RLS); a
+ * chave é conferida no início da escrita que grava linha (lançar, editar) e,
+ * sem o alvo, de novo depois do rollback.
+ * @param {string} clienteId @param {string} operationId
+ * @returns {Record<string, import('../../shared/prisma/transacaoConcorrente.js').UniqueDeNegocio>}
  */
-const UNICOS = Object.freeze({
-  operation_id: () => new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente'),
-  apontamento_ordem: () => concurrencyConflict(MENSAGEM_CONFLITO_SEM_CHAVE),
+const unicosDaLinha = (clienteId, operationId) => ({
+  operation_id: { erro: conflitoDeChave, conferir: (tx) => buscarLinhaPorOperacao(tx, clienteId, operationId) },
+  apontamento_ordem: ORDEM_DA_LINHA,
 });
 
 // ─── normalização do corpo ──────────────────────────────────────────────────
@@ -709,6 +726,9 @@ const escreverLinha = async (contexto, { atividadeId, apontamentoId, corpo, tipo
         tipoOperacao,
         fingerprint: fingerprintDePayload({ atividade_id: atividadeId, apontamento_id: apontamentoId, empresa_id: corpo.empresa_id, versao, ...fingerprint }),
         executar: async () => {
+          // D-PROD-253: a chave de uma linha JÁ gravada é conflito mesmo sem o recibo (apagado, expurgado ou de
+          // outro tipo), conferida ANTES de tudo nas escritas que gravam linha com ela (lançar, editar).
+          if (acao !== 'cancelar_linha' && (await buscarLinhaPorOperacao(tx, cli, corpo.operation_id))) throw conflitoDeChave();
           const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
           const { agora } = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE
           if (!(await travarAtividade(tx, cli, empresaId, atividadeId))) throw atividadeNotFound(); // Atividade FOR UPDATE
@@ -729,7 +749,7 @@ const escreverLinha = async (contexto, { atividadeId, apontamentoId, corpo, tipo
           return { httpStatus, body: await respostaDaLinha(tx, cli, empresaId, atividadeId, apontamentoId, linha) };
         },
       }),
-    UNICOS,
+    unicosDaLinha(cli, corpo.operation_id),
     MENSAGEM_CONFLITO_SEM_CHAVE
   ));
   return { status: r.httpStatus, body: r.body };

@@ -30,6 +30,7 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import { culturaNotFound, culturaNomeConflito, culturaCodigoConflito, culturaEmUso } from '../../shared/errors/AppError.js';
 import { registrarPropagacao } from '../referencias/syncEntityReferencesService.js';
 import { exigirEmpresaDoTenant, invalido, textoDoCorpo, travarEscopo, ehViolacaoDeUnique } from '../gestao/gestaoComum.js';
+import { alvoDaUnique } from '../../shared/prisma/transacaoConcorrente.js';
 import {
   listarCulturas,
   buscarCultura,
@@ -266,6 +267,16 @@ export const proximoCodigo = (usados) => {
 const travarFazenda = (tx, clienteId, empresaId) => travarEscopo(tx, `culturas:${clienteId}:${empresaId}`);
 
 /**
+ * Corrida perdida contra um unique (código ou nome) → 409 estável, nunca 500,
+ * pelo alvo do P2002 (o código, se o alvo o cita; senão, o nome).
+ *
+ * D-PROD-253: sem o alvo (produção: papel não dono + RLS) nada casa aqui e o
+ * P2002 segue o caminho genérico (409 CONCURRENCY_CONFLICT), nunca "nome" por
+ * palpite (antes, todo P2002 sem alvo virava `CULTURA_NAME_CONFLICT`, mesmo o
+ * do código). Não depende disso: todo escritor (criar, atualizar, lista de
+ * referência) confere o código e o nome SOB a trava da fazenda
+ * (`travarFazenda`) antes de gravar, e o reenvio cai nessa pré-conferência,
+ * com o código certo; o unique é só a rede.
  * @template T
  * @param {() => Promise<T>} executar
  * @returns {Promise<T>}
@@ -274,10 +285,9 @@ const comConflitoEstavel = async (executar) => {
   try {
     return await executar();
   } catch (erro) {
-    // Corrida perdida contra um unique (código ou nome): 409, nunca 500.
     if (ehViolacaoDeUnique(erro)) {
-      const alvo = JSON.stringify(/** @type {any} */ (erro)?.meta ?? '');
-      throw alvo.includes('codigo') ? culturaCodigoConflito() : culturaNomeConflito();
+      const alvo = alvoDaUnique(erro);
+      if (alvo !== null) throw JSON.stringify(alvo).includes('codigo') ? culturaCodigoConflito() : culturaNomeConflito();
     }
     throw erro;
   }
