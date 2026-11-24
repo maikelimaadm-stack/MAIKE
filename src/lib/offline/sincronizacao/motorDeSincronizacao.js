@@ -270,8 +270,32 @@ const resumoDoErro = (erro) => ({
 /** @param {number} tentativas */
 const esperaDepoisDe = (tentativas) => ESPERAS_MS[Math.min(Math.max(tentativas - 1, 0), ESPERAS_MS.length - 1)];
 
-/** @param {ItemDaFila} a @param {ItemDaFila} b */
-const emOrdem = (a, b) => (a.criado_em === b.criado_em ? (a.id < b.id ? -1 : 1) : a.criado_em < b.criado_em ? -1 : 1);
+/**
+ * Ordem de criação. A `sequencia` (monotônica, gravada no item) decide; o
+ * horário só desempata itens sem ela. Dois registros no mesmo milissegundo
+ * nunca trocam de lugar.
+ * @param {ItemDaFila} a @param {ItemDaFila} b
+ */
+const emOrdem = (a, b) => {
+  const sa = Number.isFinite(a.sequencia) ? /** @type {number} */ (a.sequencia) : null;
+  const sb = Number.isFinite(b.sequencia) ? /** @type {number} */ (b.sequencia) : null;
+  if (sa !== null && sb !== null && sa !== sb) return sa - sb;
+  if (a.criado_em !== b.criado_em) return a.criado_em < b.criado_em ? -1 : 1;
+  return a.id < b.id ? -1 : 1;
+};
+
+/** Última sequência dada nesta carga do app (junta com a maior já gravada). */
+let ultimaSequencia = 0;
+/** @param {ItemDaFila[]} itens */
+const proximaSequencia = (itens) => {
+  const maiorGravada = itens.reduce((m, i) => (Number.isFinite(i.sequencia) ? Math.max(m, /** @type {number} */ (i.sequencia)) : m), 0);
+  ultimaSequencia = Math.max(ultimaSequencia, maiorGravada) + 1;
+  return ultimaSequencia;
+};
+
+/** A sessão ainda é a mesma de quando a passada começou? */
+const mesmaSessao = (/** @type {SessaoDaFila} */ dono) =>
+  Boolean(sessao) && sessao?.cliente_id === dono.cliente_id && (sessao?.usuario_id ?? null) === (dono.usuario_id ?? null);
 
 /** @param {TipoDeEnvio} def @param {unknown} payload */
 const recursosDe = (def, payload) => {
@@ -329,8 +353,15 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
     referencias.some(naoConfirmado) ||
     itens.some((i) => i.estado !== 'enviado' && i.recursos.some((r) => recursos.includes(r)));
 
-  const guardar = async () => {
+  /**
+   * Grava o item. 'pendente' espera envio; 'enviado' guarda o resultado de um
+   * envio direto, para quem citar este registro depois (referência).
+   * @param {'pendente'|'enviado'} [estado]
+   * @param {unknown} [resultado]
+   */
+  const guardar = async (estado = 'pendente', resultado = undefined) => {
     if (!podeGuardar || !fila || !sessao) throw erroSemInternet(tipo);
+    const enviado = estado === 'enviado';
     /** @type {ItemDaFila} */
     const item = {
       id: operationId,
@@ -345,15 +376,17 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
       referencias,
       rotulo: rotuloDe(def, payload),
       criado_em: new Date(agora()).toISOString(),
-      estado: 'pendente',
+      sequencia: proximaSequencia(itens),
+      estado,
       tentativas: 0,
       proxima_tentativa_em: 0,
       ultimo_erro: null,
-      enviado_em: null,
+      enviado_em: enviado ? new Date(agora()).toISOString() : null,
+      ...(enviado ? { resultado: JSON.parse(JSON.stringify(resultado ?? null)) } : {}),
     };
     await fila.gravar(item);
     emitir();
-    agendarSincronizacao();
+    if (!enviado) agendarSincronizacao();
     return /** @type {ResultadoDoEnvio} */ ({ estado: 'aguardando', operationId });
   };
 
@@ -362,6 +395,15 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
   const resultados = new Map(itens.filter((i) => i.estado === 'enviado').map((i) => [i.id, i.resultado]));
   try {
     const resultado = await def.enviar(resolverReferencias(payload, resultados), { operationId, empresaId });
+    // O resultado fica guardado (como no envio pela fila): um registro seguinte
+    // pode citar o id que o servidor deu a este.
+    if (podeGuardar) {
+      try {
+        await guardar('enviado', resultado);
+      } catch {
+        // o registro já está no servidor; só a referência futura fica sem ele
+      }
+    }
     return { estado: 'enviado', operationId, resultado };
   } catch (erro) {
     // A rede caiu no meio: o servidor pode ter gravado ou não. Na fila, com o
@@ -403,6 +445,9 @@ export const sincronizar = () => {
 const passada = async () => {
   const fila = portaDaFila();
   if (!fila || !sessao || !online()) return resumoDaFila();
+  // Dono desta passada. Se a sessão mudar no meio (saiu e outra conta entrou),
+  // a passada para antes do próximo envio: o token já seria o da outra conta.
+  const dono = { ...sessao };
 
   const todos = (await fila.listar()).filter(eDaSessao).sort(emOrdem);
   /** @type {Map<string, unknown>} */
@@ -430,10 +475,14 @@ const passada = async () => {
       parar(item);
       continue;
     }
+    if (!mesmaSessao(dono)) return resumoDaFila();
     const def = TIPOS.get(item.tipo);
-    // Formato ou versão que este app não conhece, ou tipo ainda não carregado:
-    // fica intocado e segura quem vem atrás no mesmo recurso.
-    if (item.formato !== FORMATO_DA_FILA || !def || item.versao > def.versao) {
+    // Formato ou versão que este app não conhece, tipo ainda não carregado, ou
+    // versão antiga sem migração declarada: fica intocado e segura quem vem
+    // atrás no mesmo recurso (enviar o payload antigo como se fosse o novo
+    // gravaria errado).
+    const versaoSemMigracao = Boolean(def) && item.versao < /** @type {TipoDeEnvio} */ (def).versao && typeof def?.migrar !== 'function';
+    if (item.formato !== FORMATO_DA_FILA || !def || item.versao > def.versao || versaoSemMigracao) {
       parar(item);
       continue;
     }
@@ -472,6 +521,7 @@ const passada = async () => {
       continue;
     }
 
+    if (!mesmaSessao(dono)) return resumoDaFila();
     try {
       const resultado = await def.enviar(payload, { operationId: item.id, empresaId: item.empresa_id });
       await fila.gravar({

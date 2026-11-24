@@ -33,6 +33,7 @@ const VERSAO_DO_BANCO = 1;
  *   referencias: string[],
  *   rotulo: string,
  *   criado_em: string,
+ *   sequencia?: number,
  *   estado: EstadoDoItem,
  *   tentativas: number,
  *   proxima_tentativa_em: number,

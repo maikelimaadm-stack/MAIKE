@@ -66,12 +66,14 @@ describe('D-PROD-295 — contrato do tipo', () => {
 });
 
 describe('D-PROD-295 — com e sem internet', () => {
-  it('MS-02 com internet vai direto, sem passar pela fila', async () => {
+  it('MS-02 com internet vai direto: nada fica esperando (só o resultado guardado, para referência)', async () => {
     const s = servidorFalso();
     registrarTipoDeEnvio({ tipo: 'cocho.leitura', versao: 1, offline: true, enviar: s.enviar });
     const r = await enviarOuGuardar('cocho.leitura', { escore: 2 });
     expect(r.estado).toBe('enviado');
-    expect(await fila.listar()).toEqual([]);
+    expect(s.enviar).toHaveBeenCalledTimes(1);
+    expect((await resumoDaFila()).itens).toEqual([]);
+    expect((await fila.listar()).map((i) => i.estado)).toEqual(['enviado']);
   });
 
   it('MS-03 sem internet guarda; ao voltar, envia com o MESMO código', async () => {
@@ -290,5 +292,68 @@ describe('D-PROD-295 — dono da fila', () => {
     temRede = false;
     await expect(enviarOuGuardar('cocho.leitura', {})).rejects.toMatchObject({ code: API_ERROR_CODES.PROVIDER_UNAVAILABLE });
     expect(await fila.listar()).toEqual([]);
+  });
+});
+
+describe('D-PROD-295 — revisão (Codex)', () => {
+  it('MS-18 trocou de conta no meio da passada: para antes do próximo envio', async () => {
+    const enviar = vi.fn(async () => {
+      // durante o 1º envio, a pessoa sai e outra conta entra
+      definirSessaoDaFila({ cliente_id: 'cli_2', usuario_id: 'usr_9' });
+      return {};
+    });
+    registrarTipoDeEnvio({ tipo: 'cocho.leitura', versao: 1, offline: true, enviar });
+    temRede = false;
+    await enviarOuGuardar('cocho.leitura', { n: 1 });
+    relogio += 1000;
+    await enviarOuGuardar('cocho.leitura', { n: 2 });
+    temRede = true;
+    await sincronizar();
+    expect(enviar).toHaveBeenCalledTimes(1);
+    definirSessaoDaFila({ cliente_id: 'cli_1', usuario_id: 'usr_1' });
+    expect((await resumoDaFila()).aguardando).toBe(1);
+  });
+
+  it('MS-19 o 1º foi direto (com internet) e o 2º cita o resultado dele: a referência funciona', async () => {
+    const s = servidorFalso();
+    registrarTipoDeEnvio({ tipo: 'cocho.lancamento', versao: 1, offline: true, enviar: s.enviar });
+    const primeiro = await enviarOuGuardar('cocho.lancamento', { n: 1 });
+    expect(primeiro.estado).toBe('enviado');
+    temRede = false;
+    await enviarOuGuardar('cocho.lancamento', { n: 2, anterior_id: referenciaAoResultado(primeiro.operationId, 'registro.id') });
+    temRede = true;
+    const resumo = await sincronizar();
+    expect(resumo.atencao).toBe(0);
+    expect(s.enviar.mock.calls[1][0]).toEqual({ n: 2, anterior_id: 'srv_1' });
+  });
+
+  it('MS-20 dois registros no mesmo milissegundo saem na ordem em que foram feitos', async () => {
+    const ordem = [];
+    registrarTipoDeEnvio({
+      tipo: 'cocho.lancamento', versao: 1, offline: true, recursos: () => ['cocho:A'],
+      enviar: async (p) => { ordem.push(p.n); return {}; },
+    });
+    temRede = false;
+    for (let n = 1; n <= 8; n += 1) await enviarOuGuardar('cocho.lancamento', { n }); // relógio parado
+    temRede = true;
+    await sincronizar();
+    expect(ordem).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+  });
+
+  it('MS-21 versão antiga sem migração declarada fica intocada (não é enviada como a nova)', async () => {
+    const enviarV1 = vi.fn(async () => ({}));
+    registrarTipoDeEnvio({ tipo: 'cocho.leitura', versao: 1, offline: true, enviar: enviarV1 });
+    temRede = false;
+    await enviarOuGuardar('cocho.leitura', { escore: 2 });
+    // o app atualizou: agora o tipo é versão 2, sem migrar()
+    const enviarV2 = vi.fn(async () => ({}));
+    registrarTipoDeEnvio({ tipo: 'cocho.leitura', versao: 2, offline: true, enviar: enviarV2 });
+    temRede = true;
+    expect((await sincronizar()).aguardando).toBe(1);
+    expect(enviarV2).not.toHaveBeenCalled();
+    // com migração declarada, sai convertido
+    registrarTipoDeEnvio({ tipo: 'cocho.leitura', versao: 2, offline: true, enviar: enviarV2, migrar: (p) => ({ ...p, v: 2 }) });
+    await sincronizar();
+    expect(enviarV2).toHaveBeenCalledWith({ escore: 2, v: 2 }, expect.any(Object));
   });
 });

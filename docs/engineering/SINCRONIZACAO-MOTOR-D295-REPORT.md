@@ -34,7 +34,7 @@ depósitos (próxima missão).
 
 ## Verificação
 
-- `tests/smoke/motorSincronizacao.test.js`: 17 casos (contrato, com/sem
+- `tests/smoke/motorSincronizacao.test.js`: 21 casos (contrato, com/sem
   internet, queda no meio sem duplicar, ordem por recurso, referência ao id do
   servidor, descarte, espera, 401, tipo desconhecido, dono).
 - Gates: `gate:types`, `gate:api-boundary`, `gate:source-closure`,
