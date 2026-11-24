@@ -126,6 +126,9 @@ export default function FormularioProduto({
       peso_por_saco_kg: "",
       // D-PROD-274: a carência da bula, em dias (texto do campo; vazio = sem carência).
       carencia_dias: "",
+      // D-PROD-282: controle de lote e de validade (Sim/Não; padrão Não).
+      controla_lote: false,
+      controla_validade: false,
       observacoes: "",
       ativo: true,
     };
@@ -135,6 +138,8 @@ export default function FormularioProduto({
         ...initialData,
         ...valoresIniciaisMascarados(initialData),
         carencia_dias: Number.isInteger(initialData.carencia_dias) ? String(initialData.carencia_dias) : "",
+        controla_lote: initialData.controla_lote === true,
+        controla_validade: initialData.controla_validade === true,
         ativo: initialData.ativo !== false,
       };
     }
@@ -377,6 +382,26 @@ export default function FormularioProduto({
                   />
                 </B1Field>
 
+                {/* D-PROD-282: lote e validade. Trocar só com saldo zero (o servidor recusa com a mensagem). */}
+                <B1ChaveRow
+                  label="Controla lote"
+                  span={6}
+                  checked={formData.controla_lote === true}
+                  onChange={readOnly ? undefined : (v) => {
+                    handleChange("controla_lote", v);
+                    if (!v) handleChange("controla_validade", false);
+                  }}
+                  disabled={readOnly || isSubmitting}
+                  ariaLabel="Controla lote"
+                />
+                <B1ChaveRow
+                  label="Controla validade"
+                  span={6}
+                  checked={formData.controla_validade === true}
+                  onChange={readOnly || formData.controla_lote !== true ? undefined : (v) => handleChange("controla_validade", v)}
+                  disabled={readOnly || isSubmitting || formData.controla_lote !== true}
+                  ariaLabel="Controla validade"
+                />
                 <B1ChaveRow
                   label="Ativo"
                   span={6}

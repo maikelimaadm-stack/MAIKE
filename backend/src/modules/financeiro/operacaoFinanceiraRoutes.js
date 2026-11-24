@@ -39,6 +39,7 @@ import {
   excluirConfirmado, listar, previa, registrarLiquidacao, retificar, substituirRascunho,
 } from './operacaoFinanceiraService.js';
 import { definirPerfil, obterPerfil } from './perfilFinanceiroService.js';
+import { DATA_VALIDADE, LOTES_ESCOLHIDOS, LOTE_FABRICANTE } from '../estoqueFisico/loteEscolhaSchema.js';
 import {
   LIMITE_OPCOES_MAXIMO, LIMITE_OPCOES_PADRAO, opcoesCentros, opcoesLocais, opcoesNaturezas, opcoesParceiros, opcoesProdutos, opcoesSaldos,
 } from './operacaoFinanceiraOpcoesService.js';
@@ -138,6 +139,14 @@ const CONFIRMAR = {
         required: ['metodo', 'data'],
         additionalProperties: false,
         properties: { metodo: ENUM(METODOS), data: DIA, referencia: TEXTO_NULO(120) },
+      },
+      // D-PROD-282: por item de produto com lote — lote e validade (compra) ou lotes escolhidos (venda; sem eles, FEFO).
+      lotes_por_item: {
+        type: 'array', maxItems: 200,
+        items: {
+          type: 'object', required: ['item_ordem'], additionalProperties: false,
+          properties: { item_ordem: { type: 'integer', minimum: 1 }, lote_fabricante: LOTE_FABRICANTE, data_validade: DATA_VALIDADE, lotes: LOTES_ESCOLHIDOS },
+        },
       },
     },
   },

@@ -204,12 +204,14 @@ export const opcoesProdutos = async (contexto, query = {}) => {
   return paginarPorNome(prisma.produto, {
     where: { AND: filtros },
     campoNome: 'nome_produto',
-    select: { id: true, nome_produto: true, codigo_interno: true, unidade_principal_estoque: true, peso_por_saco_kg: true },
+    select: { id: true, nome_produto: true, codigo_interno: true, unidade_principal_estoque: true, peso_por_saco_kg: true, controla_lote: true, controla_validade: true },
     limit,
     cursor,
     mapear: (linhas) => linhas.map((p) => ({
       id: p.id, nome: p.nome_produto, codigo: p.codigo_interno ?? null,
       unidade_estoque: p.unidade_principal_estoque === 'L' ? 'L' : 'KG', peso_por_saco_kg: p.peso_por_saco_kg === null ? null : d4(p.peso_por_saco_kg),
+      // D-PROD-282: a tela exige lote/validade na entrada e oferece a escolha de lote na saída.
+      controla_lote: p.controla_lote === true, controla_validade: p.controla_validade === true,
     })),
   });
 };
@@ -385,6 +387,7 @@ export const criar = async (contexto, corpo) => {
               origem: { operacaoId: id, motivo: rotulo.texto },
               numeroMovimento: numeroMovimentoProvisorio(),
               contextoErro: { field: 'itens', indice },
+              lote: { fabricante: item.lote_fabricante ?? null, validade: item.data_validade ?? null }, // D-PROD-282
             });
             movimentosIds.push(r.movimento.id);
             linhas.push(await tx.entradaEstoqueItem.create({
@@ -690,6 +693,7 @@ const substituir = async (tx, contexto, e) => {
       origem: { operacaoId: e.id, motivo: rotulo.texto },
       numeroMovimento: numeroMovimentoProvisorio(),
       contextoErro: { field: 'itens', indice },
+      lote: { fabricante: item.lote_fabricante ?? null, validade: item.data_validade ?? null }, // D-PROD-282
     });
     novosMovimentos.push(r.movimento.id);
     linhas.push(await tx.entradaEstoqueItem.create({

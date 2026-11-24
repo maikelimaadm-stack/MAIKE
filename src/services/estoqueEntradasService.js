@@ -112,7 +112,7 @@ export const editarMotivoEntrada = async (id, dados) => updateMotivoEntrada(id, 
  * Transferência entre depósitos pelo "Novo movimento" (o mesmo comando do Mapa; o servidor confere saldo, locais e a
  * permissão). `quantidade` na unidade de estoque do produto (kg ou L), como número do corpo do comando.
  * @param {string|null} empresaId
- * @param {{ operationId: string, produtoId: string, origemId: string, destinoId: string, quantidade: number, data: string|null, observacao: string|null }} dados
+ * @param {{ operationId: string, produtoId: string, origemId: string, destinoId: string, quantidade: number, data: string|null, observacao: string|null, lotes?: Array<{ estoque_lote_nota_id: string, quantidade: string }> }} dados `lotes` (D-PROD-282): só com escolha manual
  */
 export const transferirEntreDepositos = async (empresaId, dados) =>
   comandoTransferenciaEntreLocais({
@@ -124,4 +124,5 @@ export const transferirEntreDepositos = async (empresaId, dados) =>
     quantidade: dados.quantidade,
     data_movimentacao: dados.data,
     observacoes: dados.observacao,
+    ...(dados.lotes ? { lotes: dados.lotes } : {}), // D-PROD-282
   });

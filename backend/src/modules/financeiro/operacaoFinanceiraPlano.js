@@ -44,7 +44,7 @@
 
 import { AppError } from '../../shared/errors/AppError.js';
 import { invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
-import { consumirCustoMedio } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { consumirCustoMedio, consumirPorLote } from '../estoqueFisico/estoqueFisicoMotor.js';
 import {
   CASAS_CUSTO, CASAS_PERCENTUAL, CASAS_QUANTIDADE, CASAS_RESIDUO, CEM, Dec, LIMITE_DINHEIRO, LIMITE_ESTOQUE, LIMITE_RESIDUO_RELATIVO, UM, ZERO,
   arredondar, casasDecimais, dec, somar, texto, unidadeMinima,
@@ -710,7 +710,7 @@ const planejarParcelas = (doc, total, casas) => {
  * Bloqueios de ESTADO da prévia, simulando os efeitos EM SEQUÊNCIA (itens
  * repetidos do mesmo produto/local consomem o saldo que o anterior deixou).
  * @param {any} plano
- * @param {{ estoqueAtual: Map<string, any>, lotes: Map<string, any[]> }} estado
+ * @param {{ estoqueAtual: Map<string, any>, lotes: Map<string, any[]>, comLote?: Set<string> }} estado `comLote` (D-PROD-282): produtos que controlam lote (saem pelo custo da camada, FEFO)
  *   `lotes` por chave `${produto_id}|${local_estoque_id}` (lotes elegíveis ao FIFO)
  */
 export const simularEfeitosEstoque = (plano, estado) => {
@@ -731,7 +731,8 @@ export const simularEfeitosEstoque = (plano, estado) => {
   for (const s of plano.efeitos_estoque.saidas) {
     const chave = `${s.produto_id}|${s.local_estoque_id}`;
     const ls = lotes.get(chave) ?? [];
-    const fifo = consumirCustoMedio(ls, s.kg);
+    // D-PROD-282: produto com lote sai pelo custo da camada (FEFO), sem reavaliar (como o motor).
+    const fifo = estado.comLote?.has(s.produto_id) ? consumirPorLote(ls, s.kg) : consumirCustoMedio(ls, s.kg);
     if (!fifo.suficiente) {
       bloqueio('ESTOQUE_SALDO_INSUFICIENTE', 'quantidade', 'saldo_lote_insuficiente', {
         ...linha(s), disponivel: fifo.disponivel.toFixed(CASAS_QUANTIDADE), solicitado: s.kg.toFixed(CASAS_QUANTIDADE),

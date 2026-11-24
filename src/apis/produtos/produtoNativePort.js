@@ -41,6 +41,9 @@ const CAMPOS_DE_CRIACAO = Object.freeze([
   'peso_por_saco_kg',
   // D-PROD-274: a carência da bula, em dias (0..365; vazio limpa).
   'carencia_dias',
+  // D-PROD-282: controle de lote e de validade.
+  'controla_lote',
+  'controla_validade',
   'observacoes',
   'ativo',
 ]);

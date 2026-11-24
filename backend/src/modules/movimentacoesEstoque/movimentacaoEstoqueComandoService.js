@@ -33,6 +33,7 @@ import {
   aplicarTransferenciaEstoque,
   exigirLocaisEstoque,
   kgDeEntrada,
+  normalizarLotesEscolhidos,
   numerarMovimentos,
   numeroMovimentoProvisorio,
   travarProdutosEstoque,
@@ -152,6 +153,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
   const produtoId = String(entrada.produto_id || '').trim();
   const localOrigemId = String(entrada.local_origem_id || '').trim();
   const quantidade = parseNumero(entrada.quantidade);
+  const lotesEscolhidos = normalizarLotesEscolhidos(entrada.lotes);
 
   const payloadCanonico = {
     empresa_id: empresaId,
@@ -163,6 +165,8 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
     ponto_suplementacao_id: entrada.ponto_suplementacao_id ?? null,
     data_movimentacao: entrada.data_movimentacao ?? null,
     observacoes: entrada.observacoes ?? null,
+    // D-PROD-282: a escolha de lotes só entra no fingerprint quando vem (o reenvio de antes continua casando).
+    ...(lotesEscolhidos ? { lotes: lotesEscolhidos } : {}),
   };
   const fingerprint = fingerprintDePayload(payloadCanonico);
 
@@ -199,6 +203,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
           numeroMovimento: numeroMovimentoProvisorio(),
           procedencia: true,
           contextoErro: { field: 'quantidade' },
+          lotes: lotesEscolhidos,
           complemento: (plano) => ({
             area_vinculada_id: entrada.area_id ?? null,
             area_vinculada_nome: entrada.area_nome ?? null,
@@ -231,6 +236,8 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
           replay: false,
           movimentacao: publico,
           rateio: rateioLegado(/** @type {any[]} */ (saida.fatias)),
+          // D-PROD-282 (revisão): lote vencido consumido pelo FEFO (ou escolhido) — aviso, nunca recusa.
+          ...(saida.avisos?.length ? { avisos: saida.avisos } : {}),
         };
         return { httpStatus: 201, body };
       },
@@ -289,6 +296,7 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
   const localOrigemId = String(entrada.local_origem_id || '').trim();
   const localDestinoId = String(entrada.local_destino_id || '').trim();
   const quantidade = parseNumero(entrada.quantidade);
+  const lotesEscolhidos = normalizarLotesEscolhidos(entrada.lotes);
 
   if (localOrigemId === localDestinoId) {
     throw new AppError('REQUEST_VALIDATION_FAILED', 'Origem e destino devem ser distintos', {
@@ -304,6 +312,8 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
     quantidade,
     data_movimentacao: entrada.data_movimentacao ?? null,
     observacoes: entrada.observacoes ?? null,
+    // D-PROD-282: a escolha de lotes só entra no fingerprint quando vem (o reenvio de antes continua casando).
+    ...(lotesEscolhidos ? { lotes: lotesEscolhidos } : {}),
   };
   const fingerprint = fingerprintDePayload(payloadCanonico);
 
@@ -342,6 +352,7 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
           instante,
           numeros: { saida: numeroMovimentoProvisorio(), entrada: numeroMovimentoProvisorio() },
           contextoErro: { field: 'quantidade' },
+          lotes: lotesEscolhidos,
           complemento: (plano) => ({
             observacoes: comporObservacoes(entrada.observacoes, plano.fatias),
             custo_medio_antes: paraBanco(plano.custoMedioAntes, CASAS_CUSTO),

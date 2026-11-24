@@ -103,6 +103,9 @@ export const comoProdutoPublico = (registro) => ({
   peso_por_saco_kg: comoNumero(registro.peso_por_saco_kg),
   // MAIKE-ENTREGA2 (D-PROD-274): a carência da bula, em dias (nulo = sem carência cadastrada).
   carencia_dias: registro.carencia_dias ?? null,
+  // D-PROD-282: controle de lote e de validade.
+  controla_lote: registro.controla_lote === true,
+  controla_validade: registro.controla_validade === true,
   observacoes: registro.observacoes ?? null,
   ativo: registro.ativo,
   created_date:
@@ -157,6 +160,8 @@ const CAMPOS_EDITAVEIS = Object.freeze({
   unidade_principal_estoque: (v) => textoOuNulo(v) ?? undefined,
   peso_por_saco_kg: (v) => decimalOuNulo(v),
   carencia_dias: (v) => carenciaDoCorpo(v),
+  controla_lote: (v) => (typeof v === 'boolean' ? v : undefined),
+  controla_validade: (v) => (typeof v === 'boolean' ? v : undefined),
   observacoes: (v) => textoOuNulo(v),
   ativo: (v) => (v === undefined ? undefined : Boolean(v)),
 });
@@ -192,6 +197,34 @@ const UNIDADES_DO_TANQUE = Object.freeze(['L', 'KG', 'SACO']);
  * Comparação exata, depois de aparar espaços (`camposDe`): 'kg' não é 'KG'.
  */
 export const UNIDADES_ESTOQUE = Object.freeze(['KG', 'SACO', 'L']);
+
+/** D-PROD-282: "Controla validade" só com "Controla lote" (o CHECK do banco; aqui vira 422 antes de gravar). */
+const exigirValidadeSoComLote = (lote, validade) => {
+  if (validade && !lote) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'para controlar a validade, o produto precisa controlar lote; nada foi gravado', {
+      details: { field: 'controla_validade', reason: 'validade_sem_lote' },
+    });
+  }
+};
+
+/**
+ * D-PROD-282: trocar "Controla lote" ou "Controla validade" só com o saldo do produto ZERO em todos os depósitos (Σ das
+ * camadas disponíveis e o `estoque_atual`). Chamar sob a trava do produto. Senão 409, com o saldo.
+ */
+const exigirSaldoZeroParaTrocarLote = async (tx, clienteId, produto) => {
+  const r = await tx.estoqueLoteNota.aggregate({
+    _sum: { quantidade_disponivel: true },
+    where: { cliente_id: clienteId, produto_id: produto.id, status: 'Disponivel' },
+  });
+  const camadas = Number(r._sum.quantidade_disponivel ?? 0);
+  const atual = Number(produto.estoque_atual ?? 0);
+  if (camadas !== 0 || atual !== 0) {
+    throw new AppError('PRODUTO_LOTE_TROCA_COM_SALDO',
+      'só dá para mudar "Controla lote" ou "Controla validade" com o saldo do produto zerado em todos os depósitos; zere o saldo (saída, transferência ou ajuste) e tente de novo; nada foi gravado', {
+        details: { field: 'controla_lote', reason: 'saldo_nao_zero', saldo: String(Math.max(camadas, atual)) },
+      });
+  }
+};
 
 /** Recusa a unidade fora do domínio ANTES de qualquer escrita (nada foi gravado). @param {unknown} unidade */
 const exigirUnidadeDoDominio = (unidade) => {
@@ -386,6 +419,7 @@ export const criar = async (contexto, entrada) => {
   const campos = camposDe(entrada);
   // D-PROD-177 (P1-02): ausente → 'KG' (abaixo, como antes); informada, só KG, SACO ou L.
   if (campos.unidade_principal_estoque !== undefined) exigirUnidadeDoDominio(campos.unidade_principal_estoque);
+  exigirValidadeSoComLote(campos.controla_lote === true, campos.controla_validade === true);
 
   const criado = await prisma.$transaction(async (tx) => {
     const empresaId = String(campos.empresa_id);
@@ -437,9 +471,16 @@ export const atualizar = async (contexto, id, entrada) => {
     // ordem: sem deadlock com confirmação/cancelamento/abastecimento) ANTES de
     // qualquer outra trava do Produto. A unidade é lida sem trava só para saber
     // se há troca; sob a trava ela é relida e, se mudou no meio, 409.
-    const lida = campos.unidade_principal_estoque !== undefined ? await buscarProduto(auth.clienteId, id, tx) : null;
-    if (campos.unidade_principal_estoque !== undefined && !lida) throw produtoNotFound();
-    const trocaUnidade = Boolean(lida) && campos.unidade_principal_estoque !== (lida.unidade_principal_estoque ?? 'KG');
+    // D-PROD-282: a troca do controle de lote/validade também toma a trava dos escritores de estoque (mesma ordem).
+    const pedeLote = campos.controla_lote !== undefined || campos.controla_validade !== undefined;
+    const lida = campos.unidade_principal_estoque !== undefined || pedeLote ? await buscarProduto(auth.clienteId, id, tx) : null;
+    if ((campos.unidade_principal_estoque !== undefined || pedeLote) && !lida) throw produtoNotFound();
+    const trocaUnidade = Boolean(lida) && campos.unidade_principal_estoque !== undefined && campos.unidade_principal_estoque !== (lida.unidade_principal_estoque ?? 'KG');
+    const loteNovo = Boolean(lida) && (campos.controla_lote ?? lida.controla_lote) === true;
+    const validadeNova = Boolean(lida) && (campos.controla_validade ?? lida.controla_validade) === true;
+    const trocaLote = Boolean(lida) && (loteNovo !== (lida.controla_lote === true) || validadeNova !== (lida.controla_validade === true));
+    if (pedeLote) exigirValidadeSoComLote(loteNovo, validadeNova);
+    if (trocaLote && !trocaUnidade) await travarProdutosEstoque(tx, auth.clienteId, lida.empresa_id, [id]);
     // D-PROD-177 (P1-02): a unidade NOVA tem de ser KG, SACO ou L — antes de
     // travar e de qualquer escrita. Reenviar a MESMA unidade legada (fora do
     // domínio) não é troca e passa: o produto legado segue editável nos outros
@@ -476,6 +517,12 @@ export const atualizar = async (contexto, id, entrada) => {
       });
     }
     exigirEstoqueIgualAoAtual(entrada, anterior);
+    if (trocaLote) {
+      if ((anterior.controla_lote === true) !== (lida.controla_lote === true) || (anterior.controla_validade === true) !== (lida.controla_validade === true)) {
+        throw new AppError('CONCURRENCY_CONFLICT', 'o controle de lote do produto mudou durante a gravação; recarregue e tente de novo; nada foi gravado', { details: { id } });
+      }
+      await exigirSaldoZeroParaTrocarLote(tx, auth.clienteId, anterior);
+    }
 
     if (campos.empresa_id !== undefined && campos.empresa_id !== anterior.empresa_id) {
       await tx.$queryRaw`SELECT id FROM "Produto" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;

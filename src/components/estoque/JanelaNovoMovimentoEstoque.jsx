@@ -5,6 +5,7 @@ import B1Field from "@/components/cadastro/base1/B1Field";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import CadastroMotivosEstoque from "@/components/estoque/CadastroMotivosEstoque";
 import CamposAjusteEstoque from "@/components/estoque/CamposAjusteEstoque";
+import CampoLotesSaida from "@/components/estoque/CampoLotesSaida";
 import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { CampoDia, CampoNumero, EscolhaSegmentada, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
@@ -80,7 +81,8 @@ function Observacao({ label, value, onChange, testId = undefined, required = fal
 }
 
 /** @param {any} o */
-const opcaoProduto = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? ""), unidade_estoque: o.unidade_estoque, peso_por_saco_kg: o.peso_por_saco_kg ?? null } : null);
+// D-PROD-282: o produto leva o controle de lote/validade (a entrada exige; a saída oferece a escolha de lote).
+const opcaoProduto = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? ""), unidade_estoque: o.unidade_estoque, peso_por_saco_kg: o.peso_por_saco_kg ?? null, controla_lote: o.controla_lote === true, controla_validade: o.controla_validade === true } : null);
 /** @param {any} o */
 const opcaoSimples = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? "") } : null);
 
@@ -211,8 +213,8 @@ function LinhaDeProduto({ linha, indice, empresaId, erros, podeRemover, onMudar,
         />
         Sem custo
       </label>
-      <CampoTexto label="Lote" value={linha.lote} onChange={(v) => onMudar({ ...linha, lote: v })} maxLength={64} span={6} error={e("lote")} keepCase />
-      <CampoDia label="Data de validade" value={linha.validade} onChange={(v) => onMudar({ ...linha, validade: v })} error={e("validade")} span={6} testId={`entrada-linha-${indice}-validade`} />
+      <CampoTexto label="Lote" value={linha.lote} onChange={(v) => onMudar({ ...linha, lote: v })} maxLength={64} span={6} error={e("lote")} required={linha.produto?.controla_lote === true} keepCase />
+      <CampoDia label="Data de validade" value={linha.validade} onChange={(v) => onMudar({ ...linha, validade: v })} error={e("validade")} required={linha.produto?.controla_validade === true} span={6} testId={`entrada-linha-${indice}-validade`} />
       </div>
     </div>
   );
@@ -244,7 +246,7 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
           chave={["estoque", "entrada-produtos", empresaId]}
           buscar={({ q, cursor, limit }) => listarProdutosDaEntrada(empresaId, { q, cursor, limit })}
           value={linha.produto ? { id: linha.produto.id, rotulo: linha.produto.rotulo } : null}
-          onChange={(o) => onMudar(comProduto(linha, opcaoProduto(o)))}
+          onChange={(o) => onMudar({ ...comProduto(linha, opcaoProduto(o)), lotes: null, confirmaVencido: false })}
           detalheDaOpcao={(o) => (o?.codigo ? String(o.codigo) : null)}
           obrigatorio
           erro={e("produto")}
@@ -267,7 +269,7 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
           chave={["estoque", "entrada-depositos"]}
           buscar={({ q, cursor, limit }) => listarDepositosDaEntrada({ q, cursor, limit })}
           value={linha.deposito}
-          onChange={(o) => onMudar({ ...linha, deposito: opcaoSimples(o) })}
+          onChange={(o) => onMudar({ ...linha, deposito: opcaoSimples(o), lotes: null, confirmaVencido: false })}
           obrigatorio
           erro={e("deposito")}
           span={4}
@@ -283,6 +285,9 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
           span={4}
           testId={`saida-linha-${indice}-quantidade`}
         />
+        {/* D-PROD-282: produto com lote — sugestão FEFO, troca, divisão e aviso de vencido. */}
+        <CampoLotesSaida empresaId={empresaId} linha={linha} onMudar={(patch) => onMudar({ ...linha, ...patch })} testId={`saida-linha-${indice}-lotes`} />
+        {e("lotes") ? <p className="col-span-12 text-[12px] text-red-700" role="alert">{e("lotes")}</p> : null}
       </div>
     </div>
   );
@@ -702,7 +707,7 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
                 chave={["estoque", "entrada-produtos", empresaId]}
                 buscar={({ q, cursor, limit }) => listarProdutosDaEntrada(empresaId, { q, cursor, limit })}
                 value={transf.produto ? { id: transf.produto.id, rotulo: transf.produto.rotulo } : null}
-                onChange={(o) => mudarTransf({ produto: opcaoProduto(o) })}
+                onChange={(o) => mudarTransf({ produto: opcaoProduto(o), lotes: null, confirmaVencido: false })}
                 obrigatorio
                 erro={erros.produto || undefined}
                 span={8}
@@ -713,7 +718,7 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
                 chave={["estoque", "entrada-depositos"]}
                 buscar={({ q, cursor, limit }) => listarDepositosDaEntrada({ q, cursor, limit })}
                 value={transf.origem}
-                onChange={(o) => mudarTransf({ origem: opcaoSimples(o) })}
+                onChange={(o) => mudarTransf({ origem: opcaoSimples(o), lotes: null, confirmaVencido: false })}
                 obrigatorio
                 erro={erros.origem || undefined}
                 span={6}
@@ -740,6 +745,14 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
                 span={6}
                 testId="transferencia-quantidade"
               />
+              {/* D-PROD-282: a transferência leva o lote (e a validade) para o destino. */}
+              <CampoLotesSaida
+                empresaId={empresaId}
+                linha={{ ...transf, deposito: transf.origem, unidade: "KG" }}
+                onMudar={(patch) => mudarTransf(patch)}
+                testId="transferencia-lotes"
+              />
+              {erros.lotes ? <p className="col-span-12 text-[12px] text-red-700" role="alert">{erros.lotes}</p> : null}
               <Observacao label="Observação" value={transf.observacao} onChange={(v) => mudarTransf({ observacao: v })} testId="transferencia-observacao" />
               <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]">
                 O saldo sai do local de origem e entra no de destino com o mesmo custo médio. O servidor confere se há saldo suficiente.

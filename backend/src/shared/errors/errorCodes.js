@@ -240,7 +240,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   LANCAMENTO_DESATUALIZADO: { http: 409, meaning: 'o cocho recebeu outro lançamento ou cancelamento enquanto a tela estava aberta (details.evento_anterior_id); recarregue; nada foi gravado' },
   // D-PROD-273 (fatia 3) — exclusão com recálculo do custo médio (prévia sem escrita; a exclusão vem nas fatias 4 e 5).
   ESTOQUE_EXCLUSAO_SALDO_NEGATIVO: { http: 409, meaning: 'refeita a sequência do produto sem o movimento, o saldo de um depósito ficaria negativo (details.local_estoque_id/movimento_id/movimento_numero/saldo); nada foi alterado' },
-  ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL: { http: 409, meaning: 'a exclusão com recálculo não é segura para este movimento (details.reason: movimento_ja_excluido | movimento_e_estorno | origem_nao_suportada | par_de_transferencia_incoerente | historico_nao_reproduzivel | replay_diverge_do_gravado | movimento_fora_do_historico | reatribuicao_de_camada | camada_nova_sem_origem | camada_fora_da_sequencia | cocho_fechamento_nao_reproduzivel | cocho_custo_divergente_do_movimento | recalculo_nao_confere); nada foi alterado' },
+  ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL: { http: 409, meaning: 'a exclusão com recálculo não é segura para este movimento (details.reason: movimento_ja_excluido | movimento_e_estorno | origem_nao_suportada | par_de_transferencia_incoerente | historico_nao_reproduzivel | replay_diverge_do_gravado | movimento_fora_do_historico | reatribuicao_de_camada | camada_nova_sem_origem | camada_fora_da_sequencia | cocho_fechamento_nao_reproduzivel | cocho_custo_divergente_do_movimento | recalculo_nao_confere | lote_consumido); nada foi alterado' },
   ESTOQUE_RECALCULO_VOLUME_EXCEDIDO: { http: 422, meaning: 'o produto tem movimentos demais para recalcular de uma vez (details.movimentos|afetados e details.teto); nada foi processado nem gravado' },
   TRANSFERENCIA_CANCELAMENTO_BLOQUEADO: { http: 409, meaning: 'a transferência entre depósitos não pode ser cancelada com segurança agora (details.reason); nada foi alterado' },
   ABASTECIMENTO_CANCELAMENTO_BLOQUEADO: { http: 409, meaning: 'o estorno exato não é seguro agora (details.reason: produto_mudou_de_fazenda | movimento_inexistente | movimento_estornado | fatias_inconsistentes | lote_indisponivel_para_devolucao | devolucao_excede_entrada | estoque_excede_limite | unidade_mudou | vinculo_divergente | camada_divergente); nada foi alterado' },
@@ -541,6 +541,23 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   ESTOQUE_SALDO_INSUFICIENTE: {
     http: 422,
     meaning: 'saldo ou FIFO insuficiente para a operação',
+  },
+  // D-PROD-282 — controle de lote por produto.
+  ESTOQUE_LOTE_OBRIGATORIO: {
+    http: 422,
+    meaning: 'o produto controla lote (ou validade): a entrada exige o lote (e a validade); nada foi gravado (details.reason: lote_obrigatorio | validade_obrigatoria)',
+  },
+  ESTOQUE_LOTE_INVALIDO: {
+    http: 422,
+    meaning: 'a escolha de lotes da linha não serve (details.reason: lotes_formato | lote_repetido | lote_indisponivel | lote_sem_saldo | lotes_nao_somam | produto_sem_controle_de_lote); nada foi gravado',
+  },
+  ESTOQUE_ESTORNO_MODO_LOTE_DIVERGENTE: {
+    http: 409,
+    meaning: 'o movimento foi gravado com o produto em outro controle de lote (o cadastro mudou depois): estorno e exclusão recusados (details.reason: movimento_sem_lote | movimento_com_lote); nada foi alterado',
+  },
+  PRODUTO_LOTE_TROCA_COM_SALDO: {
+    http: 409,
+    meaning: 'controla lote/validade só muda com o saldo do produto zero em todos os depósitos; nada foi gravado',
   },
   // D-PROD-90 — importação de áreas por arquivo. 422: o pedido é bem formado,
   // mas ao menos uma área tem pendência; NADA foi gravado (details.itens).

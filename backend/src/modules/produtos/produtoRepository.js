@@ -29,6 +29,8 @@ const SELECAO = Object.freeze({
   unidade_principal_estoque: true,
   peso_por_saco_kg: true,
   carencia_dias: true,
+  controla_lote: true,
+  controla_validade: true,
   observacoes: true,
   ativo: true,
   createdAt: true,

@@ -52,6 +52,8 @@ const NOME_CAMPOS_POR_TIPO = '20261121100000_atividade_campos_por_tipo';
 const NOME_REFORMA = '20261122100000_reforma_planejamento';
 /** D-PROD-279: a EXPAND do produto do implemento, também posterior (fora da partida). */
 const NOME_PRODUTO_IMPLEMENTO = '20261124100000_tipo_implemento_produto';
+/** D-PROD-282: a CONTRACT aditiva do controle de lote, também posterior (fora da partida). */
+const NOME_CONTROLE_LOTE = '20261124200000_estoque_controle_lote';
 const BANCO = 'maike_eem_teste';
 const PAPEL_BACKEND = 'maike_vercel';
 
@@ -140,8 +142,8 @@ after(async () => {
 describe('D-PROD-259 — migration CONTRACT dos motivos das Entradas (PostgreSQL real)', () => {
   test('EEM-01 partida: todas as pastas anteriores a esta concluídas (as 69 de produção no dia dela); a tabela dos motivos, as colunas novas e a saída manual (D-PROD-264, posterior) não existem', async () => {
     const h = await historico();
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_SAIDAS, NOME_DATA_TERMINO, NOME_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO], 'D-PROD-264, D-PROD-265, D-PROD-272, D-PROD-274, D-PROD-276 e D-PROD-279: as pastas posteriores a esta são a saída manual do Estoque, a data de término do apontamento, o ajuste de inventário, os campos por tipo e a reforma');
-    assert.equal(PARTIDA.length, PASTAS.length - 7);
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_SAIDAS, NOME_DATA_TERMINO, NOME_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_CONTROLE_LOTE], 'D-PROD-264, D-PROD-265, D-PROD-272, D-PROD-274, D-PROD-276, D-PROD-282 e D-PROD-282: as pastas posteriores a esta são a saída manual do Estoque, a data de término do apontamento, o ajuste de inventário, os campos por tipo a reforma, o produto do implemento e o controle de lote');
+    assert.equal(PARTIDA.length, PASTAS.length - 8);
     assert.equal(PARTIDA.length, 69);
     assert.equal(h.concluidas, PARTIDA.length);
     assert.equal(h.esta, 0);
