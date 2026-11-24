@@ -401,7 +401,35 @@ describe('Bens — criação (corpo exato)', () => {
     await screen.findByText('Bem patrimonial criado');
     expect(mutacoes()[0].body).toEqual({
       empresa_id: 'emp-1', nome: 'Roçadeira R1', natureza: 'IMPLEMENTO', tipo_id: 't4', propriedade: 'PROPRIO', numero_serie: 'RC-77', compatibilidade: 'Tratores acima de 75 cv',
+      // D-PROD-297: o implemento novo começa em "Leva produto? Não".
+      usa_produto: false,
     });
+  });
+
+  it('D-PROD-297: implemento "Leva produto? Sim" pede quanto cabe no tanque e manda por jato, a capacidade e a medida', async () => {
+    await montar();
+    const form = await novoDoTipoDeBem('Pulverizador PV-01', 'Implemento', /Roçadeira/);
+    const bloco = within(form).getByTestId('bem-produto');
+    expect(within(bloco).queryByTestId('bem-capacidade')).toBeNull();
+    fireEvent.click(within(within(bloco).getByTestId('bem-usa-produto')).getByRole('radio', { name: 'Sim' }));
+    expect(within(within(bloco).getByTestId('bem-capacidade-unidade')).getAllByRole('radio').map((b) => b.textContent)).toEqual(['Litros', 'Quilos']);
+    // Sem capacidade: o aviso e nada vai.
+    salvar();
+    expect(await within(form).findByText('Quanto cabe no tanque (maior que zero, até 100.000)')).toBeTruthy();
+    expect(mutacoes()).toHaveLength(0);
+    fireEvent.change(within(bloco).getByTestId('bem-capacidade'), { target: { value: '2.000' } });
+    salvar();
+    await screen.findByText('Bem patrimonial criado');
+    expect(mutacoes()[0].body).toEqual({
+      empresa_id: 'emp-1', nome: 'Pulverizador PV-01', natureza: 'IMPLEMENTO', tipo_id: 't4', propriedade: 'PROPRIO',
+      usa_produto: true, forma_produto: 'JATO', capacidade: '2000', capacidade_unidade: 'L',
+    });
+  });
+
+  it('D-PROD-297: o bloco do produto só aparece no implemento', async () => {
+    await montar();
+    const form = await novoDoTipoDeBem('Balsa do açude', 'Outro', /Balsa/);
+    expect(within(form).queryByTestId('bem-produto')).toBeNull();
   });
 
   it('outro bem: "Sem medidor" vai como {tipo: SEM_MEDIDOR} e não pede leitura', async () => {

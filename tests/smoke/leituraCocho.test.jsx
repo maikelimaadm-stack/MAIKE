@@ -151,7 +151,7 @@ describe('D-PROD-205 — formulário de leitura', () => {
   });
 
   it('envia a leitura (sem estoque), grava no cache do mapa e avisa', async () => {
-    servico.registrar.mockImplementation(async (corpo) => ({ ...corpo, id: 'l-1', registrado_por_nome: 'JOÃO' }));
+    servico.registrar.mockImplementation(async (corpo) => ({ leitura: { ...corpo, id: 'l-1', registrado_por_nome: 'JOÃO' }, aguardandoEnvio: false }));
     const onSaved = await montar();
     fireEvent.click(screen.getByRole('radio', { name: 'Cheio' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Ruim' }));
@@ -160,18 +160,19 @@ describe('D-PROD-205 — formulário de leitura', () => {
     await enviar();
     expect(servico.registrar).toHaveBeenCalledWith({
       empresa_id: EMP, ponto_suplementacao_id: 'c1', data_leitura: '2026-11-12', escore: 'CHEIO', acesso: 'RUIM', estrutura: 'REPARO', observacoes: 'cocho rachado',
-    });
+    }, { rotulo: expect.stringMatching(/^Leitura · /) });
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ id: 'l-1' })));
     expect(dados.cache.leiturasCocho.map((l) => l.id)).toEqual(['l-1']);
-    expect(avisos.success).toHaveBeenCalledWith('Leitura registrada', undefined);
+    expect(avisos.success).toHaveBeenCalledWith('Leitura registrada');
   });
 
-  it('sem conexão (registro offline): avisa que vai ao servidor depois', async () => {
-    servico.registrar.mockImplementation(async (corpo) => ({ ...corpo, id: 'offline_LeituraCocho_1', _isOffline: true }));
+  it('D-PROD-296 sem internet: a leitura fica no aparelho ("aguardando envio"), entra no cache e nenhum aviso de "sem conexão"', async () => {
+    servico.registrar.mockImplementation(async (corpo) => ({ leitura: { ...corpo, id: 'aguardando:op-1', _aguardandoEnvio: true, _operationId: 'op-1' }, aguardandoEnvio: true }));
     await montar();
     fireEvent.click(screen.getByRole('radio', { name: 'Adequado' }));
     await enviar();
-    await waitFor(() => expect(avisos.success).toHaveBeenCalledWith('Leitura registrada', expect.stringMatching(/Sem conexão/)));
+    await waitFor(() => expect(avisos.success).toHaveBeenCalledWith('Leitura registrada'));
+    expect(dados.cache.leiturasCocho.map((l) => l.id)).toEqual(['aguardando:op-1']);
   });
 });
 
@@ -238,7 +239,7 @@ describe('D-PROD-205 — detalhe do cocho', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Excluir a leitura de 12/11/2026' }));
     });
-    expect(servico.excluir).toHaveBeenCalledWith('l-2');
+    expect(servico.excluir).toHaveBeenCalledWith(expect.objectContaining({ id: 'l-2' }));
     // O farol fica na aba Detalhes: volta a ela e confere a nova última leitura (11/11, CHEIO).
     await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'Detalhes' })); });
     await waitFor(() => expect(within(secao()).getByTestId('farol-cocho')).toHaveAttribute('data-cor', 'azul'));

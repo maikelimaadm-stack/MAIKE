@@ -368,12 +368,12 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
     const ok = await confirmarExclusao(`Excluir a leitura de ${formatarDia(String(leitura.data_leitura).slice(0, 10))} (${ROTULO_ESCORE[leitura.escore] ?? leitura.escore})?`);
     if (!ok) return;
     try {
-      await excluirLeituraCocho(leitura.id);
+      await excluirLeituraCocho(leitura);
       const lista = await updateMapaCachedData("leiturasCocho", empresaSelecionadaId, (itens) => (itens || []).filter((i) => i.id !== leitura.id));
       leiturasAtualizadas(lista);
       notifySuccess("Leitura excluída");
     } catch (erro) {
-      notifyError("Erro ao excluir a leitura", getApiErrorMessage(erro));
+      notifyError("Erro ao excluir a leitura", getApiErrorMessage(erro, erro?.message));
     }
   };
 
@@ -803,7 +803,7 @@ function PainelLeitura({ farol, ultimas, podeExcluir, onExcluir, mostrarResumo =
                   <Linha
                   className={u.observacoes ? "mk-dp-cocho__linha--fraca mk-dp-cocho__linha--com-obs" : "mk-dp-cocho__linha--fraca"}
                   rotulo={dia}
-                  sub={`${ROTULO_ESCORE[u.escore] ?? u.escore ?? "—"} · acesso ${minusculo(ROTULO_ACESSO[u.acesso] ?? u.acesso)} · estrutura ${minusculo(ROTULO_ESTRUTURA[u.estrutura] ?? u.estrutura)}`}
+                  sub={`${ROTULO_ESCORE[u.escore] ?? u.escore ?? "—"} · acesso ${minusculo(ROTULO_ACESSO[u.acesso] ?? u.acesso)} · estrutura ${minusculo(ROTULO_ESTRUTURA[u.estrutura] ?? u.estrutura)}${u._aguardandoEnvio ? " · aguardando envio" : ""}`}
                   valor={
                   <>
                         <span className="mk-dp-cocho__escore mk-dp-c13-chip">

@@ -411,8 +411,26 @@ export const tarefaPublica = (t) => (t ? { id: t.id, titulo: t.titulo, status: t
 export const BEM_RESUMO = Object.freeze({ select: { id: true, numero: true, codigo_frota: true, nome: true, natureza: true } });
 /** D-PROD-283 — o implemento com o produto do seu tipo (D-PROD-279), para a tela saber se o insumo vai por jato. */
 export const IMPLEMENTO_RESUMO = Object.freeze({
-  select: { ...BEM_RESUMO.select, tipo: { select: { usa_produto: true, forma_produto: true, capacidade: true, capacidade_unidade: true } } },
+  select: {
+    ...BEM_RESUMO.select,
+    // D-PROD-297: o produto marcado no próprio bem vale primeiro; o do tipo (D-PROD-279) fica de reserva.
+    usa_produto: true,
+    forma_produto: true,
+    capacidade: true,
+    capacidade_unidade: true,
+    tipo: { select: { usa_produto: true, forma_produto: true, capacidade: true, capacidade_unidade: true } },
+  },
 });
+
+/**
+ * D-PROD-297 — o tanque do implemento: o marcado no PRÓPRIO bem (quando ele diz Sim ou Não); sem marca no bem, o do tipo.
+ * @param {any} b
+ */
+export const jatoDoBem = (b) => {
+  if (!b) return null;
+  if (b.usa_produto === true || b.usa_produto === false) return jatoDoTipo(b);
+  return jatoDoTipo(b.tipo);
+};
 
 /**
  * D-PROD-283 — `{ capacidade, unidade }` quando o tipo do implemento usa produto POR JATO (capacidade em texto, sem os
@@ -430,7 +448,7 @@ export const jatoDoTipo = (t) => {
  */
 export const implementoPublico = (b) => {
   if (!b) return null;
-  const jato = jatoDoTipo(b.tipo);
+  const jato = jatoDoBem(b);
   return { ...bemPublico(b), ...(jato ? { jato } : {}) };
 };
 export const USUARIO_RESUMO = Object.freeze({ select: { id: true, nome: true } });

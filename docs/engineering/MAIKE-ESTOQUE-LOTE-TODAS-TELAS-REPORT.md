@@ -1,6 +1,6 @@
 # MAIKE-ESTOQUE-LOTE-TODAS-TELAS — relatório
 
-**Decisão:** [D-PROD-297](./DECISIONS.md) · **Data:** 2026-11-24 · **Branch:** `claude/estoque-lote-todas-telas` · **Migration:** nenhuma · base: [D-PROD-282](./DECISIONS.md) (controle de lote por produto)
+**Decisão:** [D-PROD-298](./DECISIONS.md) · **Data:** 2026-11-24 · **Branch:** `claude/estoque-lote-todas-telas` · **Migration:** nenhuma · base: [D-PROD-282](./DECISIONS.md) (controle de lote por produto)
 
 ## O que mudou, tela por tela
 
@@ -22,6 +22,7 @@ Produto **sem** controle de lote: nenhum campo aparece, nada é lido e o corpo �
 - Atividade: `lotes` (`LOTES_ESCOLHIDOS`) no item de produto; `aplicarSaida` recebe a escolha; na edição sem `lotes`, as fatias da linha editada; opções de produto e a linha pública dizem `controla_lote`.
 - Abastecimento: `lotes` no corpo; a prévia usa `consumirPorLote(…, escolhidos)` e converte as recusas em bloqueio `ESTOQUE_LOTE_INVALIDO`; fingerprint com `lotes` só quando vem; opções de produto do bem dizem `controla_lote`.
 - Cocho e venda: o servidor já aceitava a escolha (D-PROD-282); só a tela mudou.
+- Cocho pelo motor de sincronização (D-PROD-296, integrada antes do merge): a escolha vai em `saida.lotes` do registro único; `executarLancamentoDoCocho` devolve os `avisos` da baixa e `registrarLancamentoDoCocho` os repassa quando o envio é na hora (na fila, `avisos: []`). O campo é aditivo no payload guardado: o formato da fila não muda. Teste: `lancamentoCochoOffline` LCO-08.
 
 ## Testes
 

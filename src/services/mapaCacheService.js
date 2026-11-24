@@ -47,6 +47,9 @@ import { listLotesNota, listMovimentacoes as listMovimentacoesEstoque, listProdu
 import { listLancamentos, listHistorico } from '@/apis/tarefas';
 import { listPermissoes } from '@/apis/session';
 import { listLeiturasCocho } from '@/apis/leituras-cocho';
+import { leiturasAguardandoEnvio } from '@/services/leituraCochoService';
+import { comEstoqueAguardandoEnvio } from '@/services/estoqueAguardandoEnvioService';
+import { comLancamentosAguardandoEnvio } from '@/services/lancamentoCochoAguardandoService';
 import { listMedicoesForragem, listDescansoPastos } from '@/apis/medicoes-forragem';
 import {
   listAplicacoesMedicamento,
@@ -100,16 +103,23 @@ const CAPACIDADES = {
   // Manejo; ela fica no cache para o ícone sair certo também sem rede. Inclui as
   // inativas: uma posição antiga pode apontar para uma delas.
   categoriasManejo: async (empresaId) => daEmpresa(await listCategoriasManejo(), empresaId),
-  eventosSuplementacao: async (empresaId) => daEmpresa(await listSuplementacaoEventos(), empresaId),
+  // D-PROD-296: + os lançamentos feitos sem internet que ainda não subiram.
+  eventosSuplementacao: async (empresaId) =>
+    comLancamentosAguardandoEnvio(daEmpresa(await listSuplementacaoEventos(), empresaId), empresaId),
   // D-PROD-205: leituras de cocho (escore, acesso, estrutura) — o farol do cocho no mapa, também sem rede.
-  leiturasCocho: async (empresaId) => daEmpresa(await listLeiturasCocho(), empresaId),
+  // D-PROD-296: + as feitas sem internet que ainda não subiram ("aguardando envio").
+  leiturasCocho: async (empresaId) => [
+    ...(await leiturasAguardandoEnvio(empresaId)),
+    ...daEmpresa(await listLeiturasCocho(), empresaId),
+  ],
   // D-PROD-219: medições de forragem dos pastos (régua, no olho, amostra de MS), também sem rede.
   medicoesForragem: async (empresaId) => daEmpresa(await listMedicoesForragem(), empresaId),
   // D-PROD-223: por pasto, lote dentro agora e o dia da última saída (ledger), para o farol estimado.
   // Sem fazenda não há o que pedir: lista vazia.
   descansoPastos: async (empresaId) => (empresaId ? listDescansoPastos(empresaId) : []),
   estoqueLotes: async (empresaId) =>
-    daEmpresa(await listLotesNota(), empresaId).filter((item) => item.status === 'Disponivel'),
+    // D-PROD-296: + o efeito do que foi lançado sem internet e espera envio.
+    daEmpresa(await comEstoqueAguardandoEnvio(await listLotesNota()), empresaId).filter((item) => item.status === 'Disponivel'),
   tarefas: async (empresaId) =>
     daEmpresa(await listLancamentos(), empresaId).filter(
       (t) => t.coordenadas && (t.status === 'Pendente' || t.status === 'Em Andamento')

@@ -150,6 +150,11 @@ const CAMPOS_DO_BEM = {
   material: TEXTO(80),
   ano_conclusao: INTEIRO_NULO,
   compatibilidade: TEXTO(255),
+  // D-PROD-297: o produto do implemento no próprio bem (forma, faixa e natureza conferidas no service).
+  usa_produto: { type: ['boolean', 'null'] },
+  forma_produto: { type: ['string', 'null'], maxLength: 16 },
+  capacidade: { type: ['string', 'null'], maxLength: 32 },
+  capacidade_unidade: { type: ['string', 'null'], maxLength: 8 },
   especificacoes: TEXTO(1000),
   observacoes: TEXTO(2000),
   aquisicao: AQUISICAO,

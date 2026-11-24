@@ -48,6 +48,8 @@ vi.mock("@/services/suplementacaoService", async (importOriginal) => ({
   listarEventosDoPonto: vi.fn(async () => []),
   ultimoEventoDoPonto: vi.fn(async () => estado.ultimoEvento),
   registrarLancamento: lancar,
+  // D-PROD-296: o formulário chama o registro único; o adaptador passa pelas simulações de antes.
+  registrarLancamentoDoCocho: (await import("./helpers/shimLancamentoCocho.js")).criarShimLancamentoDoCocho({ saida: saida, lancar: lancar, fechar: fechar }),
   fecharPeriodoSuplementacao: fechar,
 }));
 vi.mock("@/services/suplementacaoEstoqueService", async (importOriginal) => ({ ...(await importOriginal()), registrarSaidaSuplementacao: saida }));

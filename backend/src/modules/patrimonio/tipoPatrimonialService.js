@@ -136,7 +136,7 @@ export const produtoDoCorpo = (entrada, natureza, atual = null) => {
   const veio = CAMPOS_PRODUTO.filter((c) => entrada[c] !== undefined);
   if (!veio.length) return null;
   if (natureza !== 'IMPLEMENTO') {
-    throw invalido('só o tipo de implemento diz se usa produto; nada foi gravado', { field: veio[0], reason: 'so_implemento' });
+    throw invalido('só implemento diz se usa produto; nada foi gravado', { field: veio[0], reason: 'so_implemento' });
   }
   const valor = (c) => (entrada[c] !== undefined ? entrada[c] : (atual?.[c] ?? null));
   const usa = valor('usa_produto');

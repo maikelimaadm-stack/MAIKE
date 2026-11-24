@@ -4,7 +4,8 @@
  * escolher e dividir, aviso de vencido com confirmação) aparece abaixo do saldo do depósito; a baixa leva `lotes` só
  * com a escolha manual; o vencido sem confirmação não grava; o aviso `lote_vencido` da resposta vira um alerta.
  * Produto sem lote: nada muda (sem campo, sem leitura dos lotes, a baixa sem `lotes`). Formulário REAL; só a rede é
- * de mentira (os services).
+ * de mentira (os services). Desde a D-PROD-296 a baixa vai no corpo `saida` do registro único do motor
+ * (`registrarLancamentoDoCocho`), e os `avisos` da baixa voltam no resultado dele.
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -29,8 +30,7 @@ const LOTES = {
 };
 
 const estado = vi.hoisted(() => ({ produtos: /** @type {any[]} */ ([]) }));
-const saida = vi.hoisted(() => vi.fn());
-const lancar = vi.hoisted(() => vi.fn());
+const lancCocho = vi.hoisted(() => vi.fn());
 const lerLotes = vi.hoisted(() => vi.fn());
 
 vi.mock("@/services/suplementacaoService", async (importOriginal) => ({
@@ -45,10 +45,9 @@ vi.mock("@/services/suplementacaoService", async (importOriginal) => ({
   listarMovimentacoesPecuariasDaEmpresa: vi.fn(async () => []),
   listarEventosDoPonto: vi.fn(async () => []),
   ultimoEventoDoPonto: vi.fn(async () => null),
-  registrarLancamento: lancar,
+  registrarLancamentoDoCocho: lancCocho,
   fecharPeriodoSuplementacao: vi.fn(async () => ({})),
 }));
-vi.mock("@/services/suplementacaoEstoqueService", async (importOriginal) => ({ ...(await importOriginal()), registrarSaidaSuplementacao: saida }));
 const comando = vi.hoisted(() => vi.fn());
 vi.mock("@/apis/movimentacoes-estoque", async (importOriginal) => ({ ...(await importOriginal()), comandoSaidaSuplementacao: comando }));
 vi.mock("@/services/estoqueConsultaService", async (importOriginal) => ({ ...(await importOriginal()), listarLotesDisponiveis: lerLotes }));
@@ -90,12 +89,10 @@ beforeEach(() => {
   localStorage.clear();
   localStorage.setItem("empresa_selecionada_id", "emp-1");
   for (const f of Object.values(toast)) if (typeof f === "function" && "mockReset" in f) f.mockReset();
-  saida.mockReset();
-  lancar.mockReset();
+  lancCocho.mockReset();
   lerLotes.mockReset();
   estado.produtos = [PRODUTO];
-  saida.mockImplementation(async () => ({ movimentacao: { id: "mov-1" }, avisos: [] }));
-  lancar.mockImplementation(async ({ evento }) => ({ id: "ev-novo", ...evento }));
+  lancCocho.mockImplementation(async ({ evento }) => ({ aguardandoEnvio: false, evento: { id: "ev-novo", ...evento }, fechamento: "nenhum", avisos: [] }));
   lerLotes.mockImplementation(async () => LOTES);
 });
 afterEach(() => cleanup());
@@ -107,8 +104,10 @@ describe("D-PROD-282 — lote no lançamento do cocho", () => {
     expect(within(form).queryByTestId("suplementacao-lotes")).toBeNull();
     await salvar();
     expect(lerLotes).not.toHaveBeenCalled();
-    expect(saida).toHaveBeenCalledTimes(1);
-    expect("lotes" in saida.mock.calls[0][0]).toBe(false);
+    expect(lancCocho).toHaveBeenCalledTimes(1);
+    expect(lancCocho.mock.calls[0][0].saida).toBeTruthy();
+    expect("lotes" in lancCocho.mock.calls[0][0].saida).toBe(false);
+    expect(lancCocho.mock.calls[0][0].saida.observacoes).toContain("[RATEIO_FIFO]");
   });
 
   it("produto com lote: sugere FEFO; o vencido sem confirmação não grava; escolher A + B manda `lotes`", async () => {
@@ -119,7 +118,7 @@ describe("D-PROD-282 — lote no lançamento do cocho", () => {
     expect((await within(campo).findByTestId("suplementacao-lotes-sugestao")).textContent).toContain("VELHO");
     expect(within(campo).getByTestId("suplementacao-lotes-vencido").textContent).toContain("Lote vencido em 01/11");
     await salvar();
-    expect(saida).not.toHaveBeenCalled();
+    expect(lancCocho).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("Confirme o uso do lote vencido.");
 
     // Escolher lotes: 12 do A + 8 do B (sem o vencido).
@@ -132,8 +131,9 @@ describe("D-PROD-282 — lote no lançamento do cocho", () => {
     await assentar();
     expect(within(campo).queryByTestId("suplementacao-lotes-vencido")).toBeNull();
     await salvar();
-    expect(saida).toHaveBeenCalledTimes(1);
-    expect(saida.mock.calls[0][0].lotes).toEqual([{ estoque_lote_nota_id: "cB", quantidade: "8" }, { estoque_lote_nota_id: "cA", quantidade: "12" }]);
+    expect(lancCocho).toHaveBeenCalledTimes(1);
+    expect(lancCocho.mock.calls[0][0].saida.observacoes).not.toContain("[RATEIO_FIFO]");
+    expect(lancCocho.mock.calls[0][0].saida.lotes).toEqual([{ estoque_lote_nota_id: "cB", quantidade: "8" }, { estoque_lote_nota_id: "cA", quantidade: "12" }]);
   });
 
   it("soma dos lotes diferente da quantidade: não grava e diz o porquê", async () => {
@@ -149,21 +149,21 @@ describe("D-PROD-282 — lote no lançamento do cocho", () => {
     });
     await assentar();
     await salvar();
-    expect(saida).not.toHaveBeenCalled();
+    expect(lancCocho).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("A soma dos lotes tem de ser a quantidade da linha.");
   });
 
   it("vencido confirmado: grava pelo FEFO (sem `lotes`) e o aviso da resposta vira alerta", async () => {
     estado.produtos = [{ ...PRODUTO, controla_lote: true }];
-    saida.mockImplementation(async () => ({ movimentacao: { id: "mov-1" }, avisos: [{ tipo: "lote_vencido", lote_id: "cV", lote: "VELHO", validade: "2026-11-01" }] }));
+    lancCocho.mockImplementation(async ({ evento }) => ({ aguardandoEnvio: false, evento: { id: "ev-novo", ...evento }, fechamento: "nenhum", avisos: [{ tipo: "lote_vencido", lote_id: "cV", lote: "VELHO", validade: "2026-11-01" }] }));
     const form = await montar();
     await digitarKg(form, "20");
     const campo = await within(form).findByTestId("suplementacao-lotes");
     await within(campo).findByTestId("suplementacao-lotes-vencido");
     await act(async () => { fireEvent.click(within(campo).getByTestId("suplementacao-lotes-confirma-vencido")); });
     await salvar();
-    expect(saida).toHaveBeenCalledTimes(1);
-    expect("lotes" in saida.mock.calls[0][0]).toBe(false);
+    expect(lancCocho).toHaveBeenCalledTimes(1);
+    expect("lotes" in lancCocho.mock.calls[0][0].saida).toBe(false);
     expect(toast.warning).toHaveBeenCalledWith("Saiu de lote vencido: VELHO (venceu em 01/11/2026).");
   });
 
@@ -178,5 +178,19 @@ describe("D-PROD-282 — lote no lançamento do cocho", () => {
     await registrarSaidaSuplementacao({ ...base, produto: { ...PRODUTO, estoque_atual: 160 }, lotes });
     expect("lotes" in comando.mock.calls[1][0]).toBe(false);
     expect(comando.mock.calls[1][0].observacoes).toContain("[RATEIO_FIFO]");
+  });
+
+  it("corpo da baixa do motor (D-PROD-296): `lotes` só com produto que controla lote e escolha manual", async () => {
+    const { montarCorpoDaSaidaSuplementacao } = await vi.importActual("@/services/suplementacaoEstoqueService");
+    const base = { empresaId: "emp-1", quantidade: 20, localOrigemId: "loc-1", observacoes: "Saída automática", lotesNota: [SALDO] };
+    const lotes = [{ estoque_lote_nota_id: "cA", quantidade: "20" }];
+    const comLote = montarCorpoDaSaidaSuplementacao({ ...base, produto: { ...PRODUTO, controla_lote: true, estoque_atual: 160 }, lotes });
+    expect(comLote).toMatchObject({ lotes, observacoes: "Saída automática" });
+    expect("operation_id" in comLote).toBe(false);
+    const fefo = montarCorpoDaSaidaSuplementacao({ ...base, produto: { ...PRODUTO, controla_lote: true, estoque_atual: 160 }, lotes: null });
+    expect("lotes" in fefo).toBe(false);
+    const semLote = montarCorpoDaSaidaSuplementacao({ ...base, produto: { ...PRODUTO, estoque_atual: 160 }, lotes });
+    expect("lotes" in semLote).toBe(false);
+    expect(semLote.observacoes).toContain("[RATEIO_FIFO]");
   });
 });

@@ -47,6 +47,7 @@ import { ehContador, pisoOperacional } from './abastecimentoMedidor.js';
 import { revalidarAceitesDoBem, sincronizarTanques, validarTanques } from './bemPatrimonialFilhos.js';
 import { simularDepreciacaoLinear } from './depreciacaoLinear.js';
 import { garantirCatalogoPadrao } from './patrimonioCatalogoPadrao.js';
+import { produtoDoCorpo } from './tipoPatrimonialService.js';
 import { atualizarComVersao, comUnicosEstaveis, exigirVersao, lerAtivo, listarKeyset, termoDeBusca } from './patrimonioComum.js';
 import { CAPACIDADES_POR_NATUREZA, ROTULO_NATUREZA } from './patrimonioDominio.js';
 
@@ -160,6 +161,11 @@ export const comoBemPublico = (r, operacional = null) => {
     material: e.material,
     ano_conclusao: e.ano_conclusao,
     compatibilidade: e.compatibilidade,
+    // D-PROD-297: o produto do implemento no próprio bem (nulos fora do implemento).
+    usa_produto: r.usa_produto ?? null,
+    forma_produto: r.forma_produto ?? null,
+    capacidade: texto(r.capacidade, 4),
+    capacidade_unidade: r.capacidade_unidade ?? null,
     especificacoes: e.especificacoes,
     observacoes: e.observacoes,
     medidor: medidorDoEstado(e),
@@ -501,8 +507,10 @@ export const criar = async (contexto, entrada) => {
     validarAquisicaoEDepreciacao(estado);
     await exigirCodigoFrotaLivre(tx, cli, empresaId, estado.codigo_frota, null);
     const numero = String(await reservarNumero(tx, { clienteId: cli, entidade: ENTIDADE, escopoTipo: ESCOPO_TENANT }));
+    // D-PROD-297: o produto do implemento (só IMPLEMENTO; a mesma conferência do tipo, D-PROD-279).
+    const produto = produtoDoCorpo(entrada, natureza, null);
     const { id } = await tx.bemPatrimonial.create({
-      data: { cliente_id: cli, empresa_id: empresaId, numero, natureza, ...paraGravacao(estado) },
+      data: { cliente_id: cli, empresa_id: empresaId, numero, natureza, ...paraGravacao(estado), ...(produto ?? {}) },
       select: { id: true },
     });
     if (tanques?.desejados.length) await sincronizarTanques(tx, cli, id, tanques.desejados, []);
@@ -574,10 +582,20 @@ export const atualizar = async (contexto, id, entrada) => {
 
     const dados = diferencas(antes, estado);
     const mudouTanques = tanques?.mudou === true;
-    if (!Object.keys(dados).length && !mudouTanques) return comoBemPublico(atual, piso);
+    // D-PROD-297: o produto do implemento (só os campos que mudaram).
+    const produto = produtoDoCorpo(entrada, natureza, { usa_produto: atual.usa_produto ?? null, forma_produto: atual.forma_produto ?? null, capacidade: texto(atual.capacidade, 4), capacidade_unidade: atual.capacidade_unidade ?? null });
+    /** @type {Record<string, any>} */
+    const produtoMudou = {};
+    if (produto) {
+      if ((produto.usa_produto ?? null) !== (atual.usa_produto ?? null)) produtoMudou.usa_produto = produto.usa_produto;
+      if ((produto.forma_produto ?? null) !== (atual.forma_produto ?? null)) produtoMudou.forma_produto = produto.forma_produto;
+      if ((produto.capacidade ?? null) !== (texto(atual.capacidade, 4) ?? null)) produtoMudou.capacidade = produto.capacidade;
+      if ((produto.capacidade_unidade ?? null) !== (atual.capacidade_unidade ?? null)) produtoMudou.capacidade_unidade = produto.capacidade_unidade;
+    }
+    if (!Object.keys(dados).length && !mudouTanques && !Object.keys(produtoMudou).length) return comoBemPublico(atual, piso);
     if ('codigo_frota' in dados) await exigirCodigoFrotaLivre(tx, cli, empresaId, dados.codigo_frota, id);
     if (mudouTanques) await sincronizarTanques(tx, cli, id, tanques.desejados, gravados);
-    await atualizarComVersao(tx.bemPatrimonial, { clienteId: cli, id, versao: entrada.versao, data: paraGravacao(dados) });
+    await atualizarComVersao(tx.bemPatrimonial, { clienteId: cli, id, versao: entrada.versao, data: { ...paraGravacao(dados), ...produtoMudou } });
     const depois = await buscar(tx, cli, empresaId, id);
     /** @type {Array<{ acao: string, entidade: string, entidadeId: string, dadosAnteriores: unknown, dadosNovos: unknown }>} */
     const eventos = [
@@ -586,7 +604,7 @@ export const atualizar = async (contexto, id, entrada) => {
         entidade: ENTIDADE,
         entidadeId: id,
         dadosAnteriores: paraAuditoria(atual),
-        dadosNovos: { ...paraAuditoria(depois), campos_alterados: nomesAlterados(dados, mudouTanques) },
+        dadosNovos: { ...paraAuditoria(depois), campos_alterados: [...nomesAlterados(dados, mudouTanques), ...Object.keys(produtoMudou)].sort() },
       },
     ];
     if (medidor.correcao) {

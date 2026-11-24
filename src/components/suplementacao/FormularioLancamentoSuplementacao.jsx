@@ -27,14 +27,13 @@ import {
   listarMovimentacoesPecuariasDaEmpresa,
   listarEventosDoPonto,
   ultimoEventoDoPonto,
-  registrarLancamento,
-  fecharPeriodoSuplementacao,
+  registrarLancamentoDoCocho,
 } from "@/services/suplementacaoService";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { updateMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { normalizeText, obterSaldoProdutoLocal, parseNumber, validarBaixaFIFO } from "./estoqueSuplementacaoUtils";
-import { registrarSaidaSuplementacao } from "@/services/suplementacaoEstoqueService";
+import { montarCorpoDaSaidaSuplementacao } from "@/services/suplementacaoEstoqueService";
 import { formatDecimal } from "./formatters";
 import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { buildTimeWeightedLoteAllocations } from "./timeWeightedAllocation";
@@ -198,7 +197,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   // D-PROD-201: uma operação por LANÇAMENTO, não por clique. Salvar de novo
   // depois de uma falha reaproveita o mesmo `operation_id` (o servidor devolve o
   // que já gravou) e a baixa de estoque já feita — nunca baixa duas vezes.
-  const operacaoRef = useRef(/** @type {null | { id: string, saida: any, chaveSaida: string | null }} */ (null));
+  const operacaoRef = useRef(/** @type {null | { id: string, saida: null | { movimentacao: any, corpo: any, resumo: string }, chaveSaida: string | null }} */ (null));
 
   const { data: ultimoEvento, isLoading: loadingUltimoEvento } = useQuery({
     queryKey: ["ultimo-evento-ponto", empresaSelecionadaId, ponto?.id],
@@ -507,7 +506,10 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       let passoAtual = 0;
       setProgresso({ show: true, atual: 0, total: totalPassos, mensagem: "Iniciando lançamento..." });
 
-      let movimentoEstoque = null;
+      // D-PROD-296: a baixa vai junto do lançamento, num registro só do motor de sincronização
+      // (com internet, na hora; sem internet, sobe depois sem duplicar). Aqui só se monta o corpo.
+      let saidaCorpo = null;
+      // D-PROD-282 em todas as telas: a escolha manual dos lotes (produto com lote) vai no corpo da baixa.
       const lotesEscolhidos = produtoSelecionado?.controla_lote ? corpoDaEscolha(escolhaLote.lotes) : null;
       const chaveSaidaAtual = deveBaixarDeposito
         ? chaveDaSaida({ produtoId: produtoSelecionado?.id, quantidadeKg, data: formData.data_lancamento, localId: depositoVinculado?.local_estoque_id, lotes: lotesEscolhidos })
@@ -519,13 +521,13 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         return;
       }
       if (deveBaixarDeposito && operacao.saida) {
-        movimentoEstoque = operacao.saida.movimentacao;
+        // A MESMA baixa da tentativa anterior (mesmo corpo): o servidor devolve a que já gravou.
+        saidaCorpo = operacao.saida.corpo;
         passoAtual += 1;
       } else if (deveBaixarDeposito) {
         // A validação é pura e roda **antes** de qualquer escrita: é ela que
         // produz a frase específica ("Saldo insuficiente neste local.
-        // Disponível: …"). O service revalida e recusa com código estável — a
-        // mensagem do catálogo é o fallback, não a primeira linha de defesa.
+        // Disponível: …"). O servidor revalida e recusa com código estável.
         const validacao = validarBaixaFIFO({
           lotesNota,
           produto: produtoSelecionado,
@@ -539,7 +541,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         }
 
         setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: "Baixando saldo do depósito..." });
-        const saidaRegistrada = await registrarSaidaSuplementacao({
+        saidaCorpo = montarCorpoDaSaidaSuplementacao({
           empresaId: empresaSelecionadaId,
           produto: produtoSelecionado,
           quantidade: quantidadeKg,
@@ -554,19 +556,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           depositoId: depositoVinculado.id,
           pontoSuplementacaoId: ponto.id,
           dataMovimentacao: formData.data_lancamento,
-          operationId,
           ...(lotesEscolhidos ? { lotes: lotesEscolhidos } : {}),
         });
-        movimentoEstoque = saidaRegistrada.movimentacao;
-        // D-PROD-282: o servidor nunca recusa lote vencido; quando a baixa saiu de um, avisa.
-        const alertaVencido = mensagemDeLoteVencido(saidaRegistrada.avisos);
-        if (alertaVencido) toast.warning(alertaVencido);
-        operacao.saida = {
-          movimentacao: saidaRegistrada.movimentacao,
-          resumo: `${formatDecimal(quantidadeKg, 2)} kg de ${nomeProduto} em ${formatDateBR(formData.data_lancamento)}`,
-        };
-        operacao.chaveSaida = chaveSaidaAtual;
-        baixaFeitaNestaTentativa = true;
       }
 
       setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: "Criando evento de suplementação..." });
@@ -609,10 +600,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         consumo_esperado_g_cab_dia: baseEmGramas && consumoPV.gCabDiaEsperado ? Number(consumoPV.gCabDiaEsperado.toFixed(2)) : null,
         // Cabeças cuja categoria NÃO consome a formulação (fora do consumo esperado; contam em total_cabecas_afetadas).
         cabecas_nao_consomem: consumoPV.cabecasNaoConsomem,
-        movimentacao_estoque_id: movimentoEstoque?.id || null,
+        // movimentacao_estoque_id e custo_unitario_kg: preenchidos com a baixa no envio (D-PROD-296).
         // D-PROD-206: o fechamento do consumo usa o custo REAL da saída (FIFO), a faixa da formulação vigente no
         // lançamento (null = 15%) e o peso vivo de quem consome (base do %PV real e do esperado).
-        custo_unitario_kg: custoUnitarioDaSaida(movimentoEstoque),
         faixa_tolerancia_percentual: typeof formulacaoSelecionada?.faixa_tolerancia_percentual === "number" ? formulacaoSelecionada.faixa_tolerancia_percentual : null,
         peso_vivo_consumo_kg: pesoVivoDeQuemConsome(consumoPV.porLote),
         observacoes: formData.observacoes || null,
@@ -654,46 +644,66 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         };
       });
 
-      // O service cria o evento e, com o id dele, grava os lotes em bloco.
-      // D-PROD-268: o último lançamento ATIVO que esta tela viu — o servidor recusa (409
-      // LANCAMENTO_DESATUALIZADO) se o cocho mudou entre a leitura e o salvar.
-      const novoEvento = await registrarLancamento({ evento: eventoPayload, lotes: lotesPayload, operationId, eventoAnteriorId: ultimoEvento?.id ?? null });
-
-      try {
-        if (ultimoEvento && ultimoEvento.dias_periodo == null) {
-          const diasPeriodoCalculado = calcularDiasPeriodo(
-            ultimoEvento.data_lancamento,
-            closingDateForPreviousPeriod
-          );
-
-          if (diasPeriodoCalculado > 0) {
-            await fecharPeriodoSuplementacao({
-              evento: ultimoEvento,
-              diasPeriodo: diasPeriodoCalculado,
-              sobraInicial: ultimoEvento.sobra_kg || 0,
-              sobraFinal: parseNumber(formData.sobra_kg || 0),
-              sobraInformada: sobraFoiInformada,
-              compartilhado: cicloCompartilhado,
-              // D-PROD-268: a prova de QUEM fechou o período (o cancelamento deste lançamento o reabre).
-              fechadoPorEventoId: novoEvento.id,
-            });
-          } else {
-            toast.warning("Datas inconsistentes — período anterior não foi fechado.");
-          }
+      // D-PROD-296: um registro só (motor de sincronização) com a baixa, o lançamento e o fechamento
+      // do período anterior. D-PROD-268: o último lançamento ATIVO que esta tela viu vai junto — o
+      // servidor recusa (409 LANCAMENTO_DESATUALIZADO) se o cocho mudou entre a leitura e o envio.
+      /** @type {null | { diasPeriodo: number, sobraInicial: number, sobraFinal: number, sobraInformada: boolean, compartilhado: boolean | undefined, dataFim: string }} */
+      let fechamento = null;
+      if (ultimoEvento && ultimoEvento.dias_periodo == null) {
+        const diasPeriodoCalculado = calcularDiasPeriodo(ultimoEvento.data_lancamento, closingDateForPreviousPeriod);
+        if (diasPeriodoCalculado > 0) {
+          fechamento = {
+            diasPeriodo: diasPeriodoCalculado,
+            sobraInicial: ultimoEvento.sobra_kg || 0,
+            sobraFinal: parseNumber(formData.sobra_kg || 0),
+            sobraInformada: sobraFoiInformada,
+            compartilhado: cicloCompartilhado,
+            // A data de fim do período anterior: o "Tentar de novo" refaz o fechamento com ela
+            // se o cocho mudar antes de o lançamento subir (D-PROD-296).
+            dataFim: closingDateForPreviousPeriod,
+          };
+        } else {
+          toast.warning("Datas inconsistentes — período anterior não foi fechado.");
         }
-      } catch {
-        // `toast.warn` não existe no sonner: o TypeError caía no catch de fora e a tela
-        // dizia "Não foi possível registrar" com o lançamento JÁ gravado (D-PROD-201).
+      }
+      let resultado;
+      try {
+        resultado = await registrarLancamentoDoCocho(
+          { saida: saidaCorpo, evento: eventoPayload, lotes: lotesPayload, eventoAnterior: ultimoEvento ?? null, fechamento },
+          { operationId, rotulo: `Lançamento · ${ponto.nome_ponto ?? "cocho"}` },
+        );
+      } catch (erroDoLancamento) {
+        // A baixa foi gravada e o lançamento não: a próxima tentativa reusa o MESMO corpo da baixa.
+        const feita = /** @type {any} */ (erroDoLancamento)?.saidaFeita;
+        if (feita && !operacao.saida) {
+          operacao.saida = {
+            movimentacao: feita,
+            corpo: saidaCorpo,
+            resumo: `${formatDecimal(quantidadeKg, 2)} kg de ${nomeProduto} em ${formatDateBR(formData.data_lancamento)}`,
+          };
+          operacao.chaveSaida = chaveSaidaAtual;
+          baixaFeitaNestaTentativa = true;
+        }
+        throw erroDoLancamento;
+      }
+      const novoEvento = resultado.evento;
+      // D-PROD-282: o servidor nunca recusa lote vencido; quando a baixa saiu de um, avisa.
+      const alertaVencido = mensagemDeLoteVencido(resultado.avisos);
+      if (alertaVencido) toast.warning(alertaVencido);
+      if (resultado.fechamento === "falhou") {
+        // `toast.warn` não existe no sonner (D-PROD-201): o lançamento JÁ está gravado.
         toast.warning("Falha ao fechar o período anterior, mas o lançamento foi salvo.");
       }
       operacaoRef.current = null;
 
-      await updateMapaCachedData('eventosSuplementacao', empresaSelecionadaId, (items) => [novoEvento, ...(items || [])]);
-      await Promise.all([
-        refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId, { force: true }),
-        refreshMapaCacheEntry('movimentacaoEstoque', empresaSelecionadaId, { force: true }),
-        refreshMapaCacheEntry('estoqueLotes', empresaSelecionadaId, { force: true }),
-      ]);
+      await updateMapaCachedData('eventosSuplementacao', empresaSelecionadaId, (items) => [novoEvento, ...(items || []).filter((i) => i?.id !== novoEvento?.id)]);
+      if (!resultado.aguardandoEnvio) {
+        await Promise.all([
+          refreshMapaCacheEntry('eventosSuplementacao', empresaSelecionadaId, { force: true }),
+          refreshMapaCacheEntry('movimentacaoEstoque', empresaSelecionadaId, { force: true }),
+          refreshMapaCacheEntry('estoqueLotes', empresaSelecionadaId, { force: true }),
+        ]);
+      }
 
       queryClient.setQueryData(["ultimo-evento-ponto", empresaSelecionadaId, ponto?.id], novoEvento);
       queryClient.setQueryData(["eventos-recentes-ponto", empresaSelecionadaId, ponto?.id], (current = []) => [novoEvento, ...current].slice(0, 12));
