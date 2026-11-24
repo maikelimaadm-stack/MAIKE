@@ -132,4 +132,25 @@ describe('D-PROD-296 — transferência entre depósitos sem internet', () => {
     expect([a.aguardandoEnvio, b.aguardandoEnvio]).toEqual([true, true]);
     expect((await motor.resumoDaFila()).aguardando).toBe(1);
   });
+
+  it('ET-06 D-PROD-297: a transferência que não subiu aparece no depósito, edita (mesmo código) e exclui', async () => {
+    const { estoque, motor } = await carregar();
+    motor.definirSessaoDaFila({ cliente_id: 'cli_et06', usuario_id: 'usr_et06' });
+    online = false;
+    vi.stubGlobal('fetch', vi.fn());
+    const r = await transferir(estoque, { operationId: 'transf-et06-0001', observacoes: 'levei de caminhonete' });
+    const [item] = await estoque.transferenciasAguardandoDoLocal('deposito-2');
+    expect(item).toMatchObject({ operationId: 'transf-et06-0001', direcao: 'entrada', quantidade: 70, observacoes: 'levei de caminhonete' });
+    expect((await estoque.transferenciasAguardandoDoLocal('galpao'))[0].direcao).toBe('saida');
+
+    await estoque.transferenciaAguardandoPodeEditar(r.operation_id);
+    await transferir(estoque, { quantidade: 40, operationId: r.operation_id, edicao: r.operation_id });
+    const [editado] = await estoque.transferenciasAguardandoDoLocal('deposito-2');
+    expect(editado).toMatchObject({ operationId: 'transf-et06-0001', quantidade: 40 });
+    expect((await motor.resumoDaFila()).aguardando).toBe(1);
+
+    await estoque.descartarTransferenciaAguardando(r.operation_id);
+    expect(await estoque.transferenciasAguardandoDoLocal('deposito-2')).toEqual([]);
+  });
 });
+

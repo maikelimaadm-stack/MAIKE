@@ -18,6 +18,9 @@ import {
   temRegistrosNaoEnviados,
   registrosAguardandoDoTipo,
   tiposDeEnvioRegistrados,
+  alterarNaFila,
+  dependentesNaFila,
+  registroNaFila,
   FORMATO_DA_FILA,
 } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { criarFilaEmMemoria } from '@/lib/offline/sincronizacao/filaDeEnvio';
@@ -424,6 +427,47 @@ describe('D-PROD-296 — progresso e reajuste (revisão)', () => {
     await sincronizar();
     expect(enviados.map((e) => e.p.anterior)).toEqual(['velho', 'novo']);
     expect(enviados.every((e) => e.operationId === r.operationId)).toBe(true);
+  });
+});
+
+describe('D-PROD-297 — corrigir na fila', () => {
+  it('MS-26 alterar troca o payload na MESMA posição e com o mesmo código; quem cita continua citando', async () => {
+    const ordem = [];
+    registrarTipoDeEnvio({ tipo: 'cocho.lancamento', versao: 1, offline: true, recursos: () => ['cocho:A'], enviar: async (p, { operationId }) => { ordem.push([p.n, operationId]); return { registro: { id: `srv-${p.n}` } }; } });
+    temRede = false;
+    const a = await enviarOuGuardar('cocho.lancamento', { n: 1 });
+    relogio += 1000;
+    const b = await enviarOuGuardar('cocho.lancamento', { n: 2, anterior: referenciaAoResultado(a.operationId, 'registro.id') });
+    expect(await dependentesNaFila(a.operationId)).toEqual([{ id: b.operationId, rotulo: 'cocho.lancamento' }]);
+    expect(await alterarNaFila(a.operationId, { n: 10 })).toBe(true);
+    temRede = true;
+    await sincronizar();
+    expect(ordem).toEqual([[10, a.operationId], [2, b.operationId]]);
+  });
+
+  it('MS-27 não altera o que já tentou subir, nem o recusado com passo já confirmado; altera o recusado sem passo', async () => {
+    let modo = 'rede';
+    registrarTipoDeEnvio({
+      tipo: 'cocho.lancamento', versao: 1, offline: true,
+      enviar: async (_p, { registrarProgresso }) => {
+        if (modo === 'rede') throw semRede();
+        if (modo === 'passo') { await registrarProgresso({ saida_feita: { quantidade: 1 } }); throw recusa('X'); }
+        throw recusa('Y');
+      },
+    });
+    temRede = false;
+    const r = await enviarOuGuardar('cocho.lancamento', { n: 1 });
+    temRede = true;
+    await sincronizar(); // tentou, sem rede → confirmando
+    expect((await registroNaFila(r.operationId)).podeAlterar).toBe(false);
+    expect(await alterarNaFila(r.operationId, { n: 2 })).toBe(false);
+
+    const outro = await (async () => { temRede = false; const x = await enviarOuGuardar('cocho.lancamento', { n: 3 }, { operationId: 'op-sem-passo-1' }); temRede = true; return x; })();
+    modo = 'recusa';
+    relogio += 700_000;
+    await sincronizar();
+    expect((await registroNaFila(outro.operationId)).estado).toBe('atencao');
+    expect(await alterarNaFila(outro.operationId, { n: 4 })).toBe(true);
   });
 });
 

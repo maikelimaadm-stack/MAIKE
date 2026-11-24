@@ -6,6 +6,7 @@ import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import CascaDetalhe from "@/components/mapa/detalhes-lote/CascaDetalhe";
 import FiltroHistorico from "@/components/mapa/detalhes-lote/FiltroHistorico";
 import CancelarLancamentoCocho, { usePermissaoCancelarCocho } from "@/components/suplementacao/CancelarLancamentoCocho";
+import AcoesDoLancamentoAguardando from "@/components/suplementacao/AcoesDoLancamentoAguardando";
 import LinhaDoTempo from "@/components/mapa/detalhes-lote/LinhaDoTempo";
 import { Abas, Acao, Aviso, Cartao, Celula, Grade, Linha, RodapePilulas, SecaoDetalhe, TituloBloco, Vazio, idsDaAba } from "@/components/mapa/detalhes-lote/blocos";
 import { VAZIO, fmtNumero, rotuloDoDia } from "@/components/mapa/detalhes-lote/historicoDoPasto";
@@ -197,6 +198,8 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
   const [animAba, setAnimAba] = useState(/** @type {"aba-dir" | "aba-esq" | null} */ (null));
   const [filtroHistorico, setFiltroHistorico] = useState("todos");
   const [showLancamento, setShowLancamento] = useState(false);
+  // D-PROD-297: o lançamento que ainda não subiu, aberto para correção.
+  const [edicaoLancamento, setEdicaoLancamento] = useState(/** @type {null | { operationId: string, payload: any }} */ (null));
   const [showLeitura, setShowLeitura] = useState(false);
 
   // Fuso da FAZENDA: o mesmo resumo de empresas do Layout (`['empresas']`).
@@ -336,7 +339,22 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
           rotulo: `Quantidade: ${formatarKgNivel(qtdKg)}${textoSacos ? `, ${textoSacos}` : ""}`,
         },
         linhas,
-        ...(ev?.id && ev.id === ultimoId ? { acoes: <CancelarLancamentoCocho evento={ev} /> } : {}),
+        // D-PROD-297: o que ainda não subiu tem Editar/Excluir (só no aparelho); o que está no servidor, o cancelamento.
+        ...(ev?._aguardandoEnvio
+          ? {
+              acoes: (
+                <AcoesDoLancamentoAguardando
+                  evento={ev}
+                  onEditar={(edicao) => {
+                    setEdicaoLancamento(edicao);
+                    setShowLancamento(true);
+                  }}
+                />
+              ),
+            }
+          : ev?.id && ev.id === ultimoId
+            ? { acoes: <CancelarLancamentoCocho evento={ev} /> }
+            : {}),
       };
       let grupo = dias[dias.length - 1];
       if (!grupo || grupo.dia !== dia) {
@@ -517,13 +535,25 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
       </CascaDetalhe>
 
       {/* Lançar no desenho do lançamento de manejo (D-PROD-222): título = a ação, subtítulo = o cocho; o ✓ do cabeçalho envia. */}
-      <LancLoteDialogo open={showLancamento} onOpenChange={setShowLancamento} titulo="Lançar Suplementação" lotes={[{ nome: ponto.nome_ponto }]} largo>
+      <LancLoteDialogo
+        open={showLancamento}
+        onOpenChange={(aberto) => {
+          setShowLancamento(aberto);
+          if (!aberto) setEdicaoLancamento(null);
+        }}
+        titulo={edicaoLancamento ? "Editar Lançamento" : "Lançar Suplementação"}
+        lotes={[{ nome: ponto.nome_ponto }]}
+        largo
+      >
         {showLancamento ? (
           <FormularioLancamentoSuplementacao
+            key={edicaoLancamento?.operationId ?? "novo"}
             ponto={ponto}
             cicloCompartilhado={nivel.confiabilidade === "compartilhada"}
+            edicao={edicaoLancamento}
             onCancel={() => {
               setShowLancamento(false);
+              setEdicaoLancamento(null);
               handleSaved();
             }}
           />

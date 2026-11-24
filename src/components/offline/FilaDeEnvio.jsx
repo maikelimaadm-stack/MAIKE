@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CloudUpload, AlertTriangle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useFilaDeEnvio } from '@/hooks/useFilaDeEnvio';
-import { enviarAgora, tentarEnviarDeNovo, descartarRegistroNaoEnviado } from '@/services/sincronizacaoService';
+import { enviarAgora, tentarEnviarDeNovo, descartarRegistroNaoEnviado, dependentesDoRegistro } from '@/services/sincronizacaoService';
 import { confirmar } from '@/lib/maikeConfirmar';
 
 const quando = (iso) =>
@@ -35,11 +35,15 @@ export default function FilaDeEnvio() {
   };
 
   const descartar = async (item) => {
+    const dependentes = await dependentesDoRegistro(item.id);
+    const avisoDependentes = dependentes.length
+      ? ` ${dependentes.length === 1 ? 'Outro registro depende dele e vai' : `${dependentes.length} registros dependem dele e vão`} para "precisa de atenção".`
+      : '';
     const ok = await confirmar({
-      titulo: 'Descartar este registro?',
-      descricao: item.progresso?.saida_feita
+      titulo: item.estado === 'atencao' ? 'Descartar este registro?' : 'Excluir este registro?',
+      descricao: (item.progresso?.saida_feita
         ? `"${item.rotulo}" não vai chegar ao sistema. A baixa de ${item.progresso.saida_feita.quantidade} kg no estoque JÁ FOI FEITA e não será desfeita: depois, ajuste o estoque. Prefira "Tentar de novo". Isso não pode ser desfeito.`
-        : `"${item.rotulo}" não vai chegar ao sistema. Isso não pode ser desfeito.`,
+        : `"${item.rotulo}" não vai chegar ao sistema. Isso não pode ser desfeito.`) + avisoDependentes,
       textoConfirmar: 'Descartar',
       perigo: true,
     });
@@ -78,6 +82,14 @@ export default function FilaDeEnvio() {
                   )}
                 </div>
               </div>
+              {item.estado === 'pendente' && !item.confirmando && (
+                <div className="mt-1.5 flex justify-end gap-1.5">
+                  <Button type="button" size="sm" variant="ghost" disabled={ocupado} onClick={() => descartar(item)}>
+                    Excluir
+                  </Button>
+                </div>
+              )}
+              {item.estado === 'pendente' && item.confirmando && <p className="mt-0.5 text-xs text-slate-500">Confirmando envio…</p>}
               {item.estado === 'atencao' && (
                 <div className="mt-1.5 flex justify-end gap-1.5">
                   <Button type="button" size="sm" variant="ghost" disabled={ocupado} onClick={() => descartar(item)}>

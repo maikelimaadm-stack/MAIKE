@@ -8,6 +8,7 @@ import { listEmpresas } from "@/services/empresaService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { urlIconeCocho } from "@/assets/icones/cocho-descoberto";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
+import TransferenciasAguardandoDeposito from "./deposito/TransferenciasAguardandoDeposito";
 import { movimentacoesDoHistoricoDeposito } from "../suplementacao/HistoricoDepositoSuplementacao";
 import CancelarTransferenciaDeposito from "./deposito/CancelarTransferenciaDeposito";
 import { usePodeCancelarLancamentosEstoque } from "./deposito/usePodeCancelarLancamentosEstoque";
@@ -103,6 +104,8 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const queryClient = useQueryClient();
   const [showTransferencia, setShowTransferencia] = useState(false);
   const [transferDirection, setTransferDirection] = useState("entrada");
+  // D-PROD-297: a transferência que ainda não subiu, aberta para correção.
+  const [edicaoTransferencia, setEdicaoTransferencia] = useState(/** @type {any} */ (null));
   const [abaAtiva, setAbaAtiva] = useState(/** @type {"detalhes" | "informacoes" | "historico"} */ ("detalhes"));
   const [animAba, setAnimAba] = useState(/** @type {"aba-dir" | "aba-esq" | null} */ (null));
   const [filtroHistorico, setFiltroHistorico] = useState("todos");
@@ -350,6 +353,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
 
   /** @param {"entrada" | "saida"} direcao */
   const abrirTransferencia = (direcao) => {
+    setEdicaoTransferencia(null);
     setTransferDirection(direcao);
     setShowTransferencia(true);
   };
@@ -397,6 +401,16 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
         ) : aba === "detalhes" ? (
           <>
             <DepositoNivel nivel={nivel} saldoSacos={totalSaldoSacos} necessidadeSacos={totalNecessidadeSacos} />
+
+            <TransferenciasAguardandoDeposito
+              deposito={deposito}
+              produtos={produtos}
+              onEditar={(item) => {
+                setEdicaoTransferencia(item);
+                setTransferDirection(item.direcao);
+                setShowTransferencia(true);
+              }}
+            />
 
             <SecaoDetalhe id={idTituloSaldo} titulo="Saldo por produto" className="mk-dp-deposito__saldo">
               <Cartao role="group" aria-labelledby={idTituloSaldo}>
@@ -522,12 +536,30 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
       */}
       <LancLoteDialogo
         open={showTransferencia}
-        onOpenChange={setShowTransferencia}
-        titulo={transferDirection === "entrada" ? "Entrada no Depósito" : "Saída do Depósito"}
+        onOpenChange={(aberto) => {
+          setShowTransferencia(aberto);
+          if (!aberto) setEdicaoTransferencia(null);
+        }}
+        titulo={`${edicaoTransferencia ? "Editar " : ""}${transferDirection === "entrada" ? "Entrada no Depósito" : "Saída do Depósito"}`}
         lotes={[{ nome: deposito.nome_ponto }]}
         largo
       >
-        <FormularioTransferenciaDeposito deposito={deposito} initialDirection={transferDirection} onSuccess={() => {setShowTransferencia(false);handleSaved();}} onCancel={() => setShowTransferencia(false)} />
+        <FormularioTransferenciaDeposito
+          key={edicaoTransferencia?.operationId ?? `novo-${transferDirection}`}
+          deposito={deposito}
+          initialDirection={transferDirection}
+          edicao={edicaoTransferencia}
+          onSuccess={() => {
+            setShowTransferencia(false);
+            setEdicaoTransferencia(null);
+            handleSaved();
+            queryClient.invalidateQueries({ queryKey: ["transferencias-aguardando", deposito.local_estoque_id] });
+          }}
+          onCancel={() => {
+            setShowTransferencia(false);
+            setEdicaoTransferencia(null);
+          }}
+        />
       </LancLoteDialogo>
     </>
   );

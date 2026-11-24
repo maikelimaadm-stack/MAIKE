@@ -776,7 +776,81 @@ export const descartarDaFila = async (id) => {
   // Já tentou subir e o servidor não respondeu: pode ter gravado. Só depois da
   // resposta (enviado, ou recusado → atenção) dá para decidir.
   if (item.estado === 'pendente' && item.tentado) return false;
+  // Lá vai "precisa de atenção" quem citava este (próxima passada): avisar antes é da tela.
   await fila.remover(id);
   emitir();
   return true;
+};
+
+/**
+ * D-PROD-297 — dá para editar este registro na fila? Só quando o servidor
+ * certamente não tem nada dele:
+ *  - esperando e nunca tentou subir; ou
+ *  - recusado ("precisa de atenção") sem nenhum passo confirmado (`progresso`
+ *    vazio) — a recusa não gravou nada.
+ * @param {ItemDaFila} item
+ */
+const podeAlterar = (item) =>
+  (item.estado === 'pendente' && !item.tentado) ||
+  (item.estado === 'atencao' && Object.keys(item.progresso ?? {}).length === 0);
+
+/**
+ * Corrige o registro na fila: o payload novo toma o lugar do antigo, na MESMA
+ * posição (sequência) e com o MESMO código. Quem cita este registro continua
+ * citando. Devolve false quando não dá mais (subindo, já enviado, passo já
+ * confirmado no servidor).
+ *
+ * @param {string} id
+ * @param {unknown} payload
+ * @param {{ rotulo?: string }} [opcoes]
+ */
+export const alterarNaFila = async (id, payload, opcoes = {}) => {
+  const fila = portaDaFila();
+  const item = fila ? await fila.ler(id) : undefined;
+  if (!fila || !item || !eDaSessao(item) || !podeAlterar(item)) return false;
+  const def = TIPOS.get(item.tipo);
+  if (!def) return false;
+  const referencias = [...referenciasNoPayload(payload)];
+  if (referencias.includes(id)) return false;
+  await fila.gravar({
+    ...item,
+    payload: JSON.parse(JSON.stringify(payload ?? null)),
+    versao: def.versao,
+    recursos: recursosDe(def, payload),
+    referencias,
+    rotulo: typeof opcoes.rotulo === 'string' && opcoes.rotulo.trim() ? opcoes.rotulo.trim().slice(0, 160) : rotuloDe(def, payload),
+    estado: 'pendente',
+    tentativas: 0,
+    proxima_tentativa_em: 0,
+    ultimo_erro: null,
+  });
+  emitir();
+  agendarSincronizacao();
+  return true;
+};
+
+/**
+ * Registros desta sessão, ainda não enviados, que citam este (o 2º lançamento
+ * do cocho cita o 1º). Para a tela avisar antes de excluir.
+ * @param {string} id
+ * @returns {Promise<Array<{id: string, rotulo: string}>>}
+ */
+export const dependentesNaFila = async (id) => {
+  const fila = portaDaFila();
+  if (!fila || !sessao) return [];
+  return (await fila.listar())
+    .filter((i) => eDaSessao(i) && i.estado !== 'enviado' && (i.referencias ?? []).includes(id))
+    .sort(emOrdem)
+    .map((i) => ({ id: i.id, rotulo: i.rotulo }));
+};
+
+/**
+ * O registro da fila desta sessão (para a tela abrir o formulário de edição).
+ * @param {string} id
+ */
+export const registroNaFila = async (id) => {
+  const fila = portaDaFila();
+  const item = fila && id ? await fila.ler(id) : undefined;
+  if (!item || !eDaSessao(item) || item.estado === 'enviado') return null;
+  return { operationId: item.id, tipo: item.tipo, payload: item.payload, estado: item.estado, podeAlterar: podeAlterar(item), progresso: item.progresso ?? {} };
 };

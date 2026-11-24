@@ -246,5 +246,43 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
     ]);
     expect(lotes[0].quantidade_disponivel).toBe(20);
   });
+
+  it('LCO-08 D-PROD-297: editar o lançamento que não subiu troca na fila (mesmo código); o saldo do formulário não desconta ele mesmo; excluir tira do aparelho', async () => {
+    const srv = servidor();
+    vi.stubGlobal('fetch', srv.fetch);
+    const { sup, motor, estoque } = await carregar();
+    online = false;
+    const r = await sup.registrarLancamentoDoCocho(
+      { saida: saidaCorpo(), evento: evento(), lotes: [], eventoAnterior: srv.eventos[0], fechamento: fechamento() },
+      { operationId: 'op-lanc-0009' }
+    );
+    const edicao = await sup.lancamentoAguardandoParaEditar(r.evento);
+    expect(edicao.payload.saida.quantidade).toBe(80);
+    const lote = [{ id: 'nf1', empresa_id: EMP, produto_id: 'prod-1', local_estoque_id: 'galpao', status: 'Disponivel', quantidade_disponivel: 100, data_documento: '2026-01-01' }];
+    expect((await estoque.comEstoqueAguardandoEnvio(lote))[0].quantidade_disponivel).toBe(20);
+    expect((await estoque.comEstoqueAguardandoEnvio(lote, { ignorar: 'op-lanc-0009' }))[0].quantidade_disponivel).toBe(100);
+
+    await sup.alterarLancamentoDoCocho('op-lanc-0009', { saida: { ...saidaCorpo(), quantidade: 50 }, evento: evento({ quantidade_total_kg: 50 }), lotes: [], eventoAnterior: srv.eventos[0], fechamento: fechamento() });
+    expect((await estoque.comEstoqueAguardandoEnvio(lote))[0].quantidade_disponivel).toBe(50);
+    expect((await motor.resumoDaFila()).aguardando).toBe(1);
+
+    await sup.excluirLancamentoAguardando(r.evento);
+    expect((await motor.resumoDaFila()).aguardando).toBe(0);
+    expect(srv.fetch).not.toHaveBeenCalled();
+  });
+
+  it('LCO-09 D-PROD-297: o que já tentou subir não abre para edição nem se exclui', async () => {
+    const srv = servidor();
+    vi.stubGlobal('fetch', srv.fetch);
+    const { sup } = await carregar();
+    srv.falharLancamento = 'rede';
+    const r = await sup.registrarLancamentoDoCocho(
+      { saida: saidaCorpo(), evento: evento(), lotes: [], eventoAnterior: null, fechamento: null },
+      { operationId: 'op-lanc-0010' }
+    );
+    expect(r.aguardandoEnvio).toBe(true);
+    await expect(sup.lancamentoAguardandoParaEditar(r.evento)).rejects.toThrow(/baixa deste lançamento já foi feita|sendo enviado/);
+    await expect(sup.excluirLancamentoAguardando(r.evento)).rejects.toThrow(/sendo enviado/);
+  });
 });
 

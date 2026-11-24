@@ -50,11 +50,11 @@ export const comLancamentosAguardandoEnvio = async (eventos, empresaId, pontoId)
     const p = /** @type {any} */ (r.payload);
     if (!p?.fechamento || !p.evento_anterior_id) continue;
     const ref = operacaoDaReferencia(p.evento_anterior_id);
-    fechadosLocalmente.set(ref ? `aguardando:${ref}` : p.evento_anterior_id, p.fechamento.diasPeriodo);
+    fechadosLocalmente.set(ref ? `aguardando:${ref}` : p.evento_anterior_id, { dias: p.fechamento.diasPeriodo, por: r.operationId });
   }
   const fechar = (/** @type {any} */ e) =>
     fechadosLocalmente.has(e.id) && (e.dias_periodo === null || e.dias_periodo === undefined)
-      ? { ...e, dias_periodo: fechadosLocalmente.get(e.id), _fechamentoAguardando: true }
+      ? { ...e, dias_periodo: fechadosLocalmente.get(e.id).dias, _fechamentoAguardando: true, _fechadoPorAguardando: fechadosLocalmente.get(e.id).por }
       : e;
   const novos = aguardando.map((r) => lancamentoAguardandoComoEvento(r.payload, r.operationId, r.criado_em));
   const todos = [...novos, ...eventos].map(fechar);

@@ -39,7 +39,8 @@ export const atualizarLocal = (id, dados) => updateLocal(id, dados);
 
 // D-PROD-296: com o efeito do que foi lançado sem internet e espera envio (saldo certo no aparelho).
 export const listarLotesNotaDaEmpresa = async (empresaId) => daEmpresa(await comEstoqueAguardandoEnvio(await listLotesNota()), empresaId);
-export const listarTodosLotesNota = async () => comEstoqueAguardandoEnvio(await listLotesNota());
+/** @param {{ ignorar?: string|null }} [opcoes] o registro em edição não desconta a si mesmo (D-PROD-297) */
+export const listarTodosLotesNota = async (opcoes = {}) => comEstoqueAguardandoEnvio(await listLotesNota(), opcoes);
 export const buscarLotesNotaPorCriterio = (criterio) => filterLotesNota(criterio);
 export const atualizarLoteNota = (id, dados) => updateLoteNota(id, dados);
 
