@@ -246,6 +246,27 @@ describe('D-PROD-295 — nada some', () => {
   });
 });
 
+describe('D-PROD-295 — operação ainda em processamento no servidor', () => {
+  it('MS-17 IDEMPOTENCY_IN_PROGRESS não é recusa: espera e tenta de novo com o mesmo código', async () => {
+    let emProcessamento = true;
+    const enviar = vi.fn(async () => {
+      if (emProcessamento) throw recusa('IDEMPOTENCY_IN_PROGRESS');
+      return { ok: true };
+    });
+    registrarTipoDeEnvio({ tipo: 'cocho.lancamento', versao: 1, offline: true, enviar });
+    temRede = false;
+    const r = await enviarOuGuardar('cocho.lancamento', {});
+    temRede = true;
+    let resumo = await sincronizar();
+    expect(resumo).toMatchObject({ aguardando: 1, atencao: 0 });
+    emProcessamento = false;
+    relogio += 10_000;
+    resumo = await sincronizar();
+    expect(resumo).toMatchObject({ aguardando: 0, atencao: 0 });
+    expect(enviar.mock.calls.every((c) => c[1].operationId === r.operationId)).toBe(true);
+  });
+});
+
 describe('D-PROD-295 — dono da fila', () => {
   it('MS-15 registro de outra fazenda ou de outro usuário nunca vai com esta sessão', async () => {
     const s = servidorFalso();

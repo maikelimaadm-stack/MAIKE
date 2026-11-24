@@ -242,7 +242,8 @@ class ErroDeReferencia extends Error {
  * Como tratar uma falha de envio.
  *  - 'rede'     sem resposta do servidor: tenta de novo mais tarde, sem limite;
  *  - 'sessao'   o servidor não reconheceu a sessão: espera a pessoa entrar de novo;
- *  - 'servidor' erro do servidor sem motivo de negócio: tenta algumas vezes;
+ *  - 'servidor' erro do servidor sem motivo de negócio, ou a mesma operação
+ *               ainda em processamento: tenta algumas vezes;
  *  - 'recusado' o servidor respondeu "não": precisa de atenção da pessoa.
  *
  * @param {unknown} erro
@@ -253,6 +254,9 @@ export const classificarFalhaDeEnvio = (erro) => {
   if (codigo === API_ERROR_CODES.PROVIDER_UNAVAILABLE) return 'rede';
   if (codigo === API_ERROR_CODES.TENANT_CONTEXT_REQUIRED) return 'sessao';
   if (codigo === API_ERROR_CODES.OPERATION_FAILED) return 'servidor';
+  // A mesma operação ainda está sendo gravada no servidor (outra tentativa
+  // chegou antes): não é recusa, é esperar e perguntar de novo.
+  if (/** @type {any} */ (erro)?.cause?.code === 'IDEMPOTENCY_IN_PROGRESS') return 'servidor';
   return 'recusado';
 };
 
