@@ -9,8 +9,11 @@
  *   restrição de referrer + API no Google Cloud). Nunca registrada em log.
  * - A chave precisa ter a **Map Tiles API** habilitada; ter Maps JavaScript API
  *   não basta. Falha 403 é reportada como tal — sem fingir satélite.
- * - Sessão só em memória (expira pelo campo `expiry`); nenhum tile/sessão é
- *   persistido (política: sem pre-fetch, cache ou storage).
+ * - Sessão em memória e, no app Android/iOS (D-PROD-294), também guardada no
+ *   aparelho até o `expiry` — só a autorização, nunca imagem. Sem internet o
+ *   app reaproveita a sessão e o cache HTTP normal do aparelho, que segue o
+ *   `Cache-Control: max-age=86400` do Google (até 24 h), mostra o satélite já
+ *   visto. Nenhum tile é guardado por conta própria (sem pre-fetch).
  * - Atribuição: "Google Maps" + `copyright` do endpoint de viewport.
  */
 import { getGoogleMapsApiKey } from "@/config/runtimeConfig";
@@ -25,6 +28,32 @@ const MARGEM_RENOVACAO_MS = 5 * 60 * 1000;
 
 /** @type {Map<string, { session: string, expiresAt: number, tileSize: number }>} */
 const sessoes = new Map();
+
+const CHAVE_SESSAO_GUARDADA = "maike_maptiles_sessao";
+const appNativo = () => {
+  try {
+    return typeof window !== "undefined" && /** @type {any} */ (window).Capacitor?.isNativePlatform?.() === true;
+  } catch {
+    return false;
+  }
+};
+const lerSessaoGuardada = (cacheKey) => {
+  if (!appNativo()) return null;
+  try {
+    const s = JSON.parse(localStorage.getItem(CHAVE_SESSAO_GUARDADA) || "null");
+    return s && s.cacheKey === cacheKey && typeof s.session === "string" ? s : null;
+  } catch {
+    return null;
+  }
+};
+const guardarSessao = (cacheKey, valor) => {
+  if (!appNativo()) return;
+  try {
+    localStorage.setItem(CHAVE_SESSAO_GUARDADA, JSON.stringify({ cacheKey, ...valor }));
+  } catch {
+    /* ignora */
+  }
+};
 /** @type {Map<string, Promise<SessaoResultado>>} */
 const pendentes = new Map();
 
@@ -85,6 +114,10 @@ export async function obterSessaoMapTiles(opts = {}) {
     return { ok: false, codigo: "MAP_TILES_SEM_CHAVE", status: null, mensagem: "Satélite não configurado: defina VITE_GOOGLE_MAPS_API_KEY com acesso à Map Tiles API." };
   }
   const cacheKey = `${mapType}|${key}`;
+  if (!sessoes.has(cacheKey)) {
+    const guardada = lerSessaoGuardada(cacheKey);
+    if (guardada) sessoes.set(cacheKey, { session: guardada.session, expiresAt: guardada.expiresAt, tileSize: guardada.tileSize });
+  }
   const atual = sessoes.get(cacheKey);
   if (!opts.forcar && atual && atual.expiresAt - MARGEM_RENOVACAO_MS > agora()) {
     return { ok: true, session: atual.session, key, tileSize: atual.tileSize, expiresAt: atual.expiresAt };
@@ -120,6 +153,7 @@ export async function obterSessaoMapTiles(opts = {}) {
     const tileSize = Number(json.tileWidth) > 0 ? Number(json.tileWidth) : 256;
     const expiresAt = expiryParaMs(json.expiry, agora());
     sessoes.set(cacheKey, { session: json.session, expiresAt, tileSize });
+    guardarSessao(cacheKey, { session: json.session, expiresAt, tileSize });
     return { ok: true, session: json.session, key, tileSize, expiresAt };
   })();
   pendentes.set(cacheKey, run);
@@ -133,6 +167,11 @@ export async function obterSessaoMapTiles(opts = {}) {
 /** Descarta sessões em memória (ex.: após 401/403 de tile). Exposto para testes. */
 export function descartarSessoesMapTiles() {
   sessoes.clear();
+  try {
+    localStorage.removeItem(CHAVE_SESSAO_GUARDADA);
+  } catch {
+    /* ignora */
+  }
   pendentes.clear();
 }
 

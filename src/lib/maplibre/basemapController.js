@@ -306,6 +306,8 @@ export function createBasemapController(map, opts = {}) {
       provaTimer = setTimeout(() => {
         provaTimer = null;
         if (disposed || meu !== pedido || prova.ok > 0) return;
+        // Sem internet: mantém a camada; as imagens ainda no cache aparecem.
+        if (typeof navigator !== "undefined" && navigator.onLine === false) return;
         falhar("Satélite indisponível: as imagens não chegaram a tempo (rede ou provedor).");
       }, opts.timeoutProvaMs ?? 15000);
     } catch (err) {
