@@ -14,7 +14,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-286**, pedido e aprovação do proprietário, em celular, tablet e computador |
-| Branch / PR | `claude/kind-knuth-tztu1v` · PR (a abrir) |
+| Branch / PR | `claude/kind-knuth-tztu1v` · PR **#373** |
 | Mudança | Faixa branca acima do mapa com [Filtro] · Lotes · Pontos · [Visualização]; resumo dos animais embaixo à esquerda; atualizar, localização e arrasto numa pílula em pé embaixo à direita |
 | Migration | Nenhuma |
 | Relatório | [`MAIKE-MAPA-CONTROLES-V13-REPORT.md`](./MAIKE-MAPA-CONTROLES-V13-REPORT.md) |
