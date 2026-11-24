@@ -137,7 +137,7 @@ export const TABELAS_DA_FORMULACAO = Object.freeze(['CADFORMULACAO', 'CADFORMULA
 export const NOME_LEITURA = '20261115100000_leitura_cocho';
 /** As tabelas criadas no GREEN depois desta CONTRACT: as 3 das Formulações (D-PROD-203), a LEITURACOCHO (D-PROD-205) e a CADCULTURAS (D-PROD-215). */
 // D-PROD-249: e a AtividadeArea (as áreas da atividade), da última CONTRACT.
-export const TABELAS_CRIADAS_NO_GREEN = Object.freeze([...TABELAS_DA_FORMULACAO, 'LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM', 'AtividadeArea', 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio', 'Planejamento', 'PlanejamentoArea']);
+export const TABELAS_CRIADAS_NO_GREEN = Object.freeze([...TABELAS_DA_FORMULACAO, 'LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM', 'AtividadeArea', 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio', 'Planejamento', 'PlanejamentoArea', 'ProdutoUnidadeConversao']);
 /**
  * D-PROD-206: a EXPAND da faixa de tolerância (1 coluna anulável em CADFORMULACAO, que só existe depois da D-PROD-203),
  * de nome ainda posterior: fora da partida, sobe no GREEN por último. Nenhuma tabela nova.
