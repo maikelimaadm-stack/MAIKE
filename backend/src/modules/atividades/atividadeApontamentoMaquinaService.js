@@ -82,7 +82,7 @@ import {
   IMPLEMENTO_RESUMO,
   bemPublico,
   implementoPublico,
-  jatoDoTipo,
+  jatoDoBem,
   carregarAtividadeDetalhe,
   decimalDoCorpo,
   diaDe,
@@ -901,7 +901,7 @@ export const opcoesImplementos = async (contexto, query = {}) => {
     limit,
     cursor,
     select: IMPLEMENTO_RESUMO.select,
-    mapear: (linhas) => linhas.map((b) => ({ ...bemPublico(b), jato: jatoDoTipo(b.tipo) })),
+    mapear: (linhas) => linhas.map((b) => ({ ...bemPublico(b), jato: jatoDoBem(b) })),
   });
 };
 

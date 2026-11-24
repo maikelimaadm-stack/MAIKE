@@ -29,6 +29,12 @@ export const LIMITES_BEM = Object.freeze({
 
 export const LIMITE_TANQUES_ATIVOS = 10;
 
+/** D-PROD-297 — o produto do implemento (no cadastro do bem): opções e limites (o servidor confere de novo). */
+export const OPCOES_USA_PRODUTO = [{ value: 'SIM', label: 'Sim' }, { value: 'NAO', label: 'Não' }];
+export const OPCOES_UNIDADE_CAPACIDADE = [{ value: 'L', label: 'Litros' }, { value: 'KG', label: 'Quilos' }];
+export const LIMITES_CAPACIDADE = Object.freeze({ casas: 4, inteiros: 6 });
+export const CAPACIDADE_MAXIMA = '100000';
+
 /**
  * D-PROD-202: tipos de bem que entram como máquina no Lançamento de Atividades
  * e por isso têm "Custo por hora/km" (snapshot na linha de máquina).
@@ -69,6 +75,7 @@ const PADRAO_RENAVAM = /^\d{9,11}$/;
  *   marca: string, modelo: string, ano_fabricacao: string, ano_modelo: string,
  *   numero_serie: string, chassi: string, placa: string, placa_uf: string, renavam: string, potencia_cv: string, custo_uso_unitario: string,
  *   material: string, ano_conclusao: string, compatibilidade: string, especificacoes: string, observacoes: string,
+ *   usa_produto: ''|'SIM'|'NAO', capacidade: string, capacidade_unidade: string,
  *   medidor: MedidorForm, tanques: TanqueForm[], aquisicao: AquisicaoForm, depreciacao: DepreciacaoForm,
  * }} EstadoBem
  * @typedef {{ editando: boolean, medidorOriginal: any, hoje: string, medidorOperacional?: { leitura: string, data: string, abastecimento_id?: string|null, origem?: string, linha_maquina_id?: string } | null }} ContextoBem
@@ -171,6 +178,10 @@ export const estadoInicialDoBem = (detalhe, { duplicar = false } = {}) => {
     material: texto(d.material),
     ano_conclusao: textoDoInteiro(d.ano_conclusao),
     compatibilidade: texto(d.compatibilidade),
+    // D-PROD-297: o produto do implemento no próprio bem (nulo = não informado; bem novo começa em "Não").
+    usa_produto: d.usa_produto === true ? 'SIM' : d.usa_produto === false || !detalhe ? 'NAO' : '',
+    capacidade: textoDecimal(d.capacidade),
+    capacidade_unidade: texto(d.capacidade_unidade) || 'L',
     especificacoes: texto(d.especificacoes),
     observacoes: texto(d.observacoes),
     medidor: {
@@ -358,6 +369,12 @@ export const validarBem = (e, ctx) => {
     if (!pot.ok || (pot.valor !== null && comparar(pot.valor, '0') <= 0)) erros.potencia_cv = 'Número maior que zero, até 4 casas decimais';
   }
   if (usaCustoDeUso(natureza) && !lerDecimal(e.custo_uso_unitario, LIMITES_BEM.MEDIDA).ok) erros.custo_uso_unitario = 'Zero ou mais, até 4 casas decimais';
+  if (natureza === 'IMPLEMENTO' && e.usa_produto === 'SIM') {
+    const capTanque = lerDecimal(e.capacidade, LIMITES_CAPACIDADE);
+    if (!capTanque.ok || capTanque.valor === null || comparar(capTanque.valor, '0') <= 0 || comparar(capTanque.valor, CAPACIDADE_MAXIMA) > 0) {
+      erros.capacidade = 'Quanto cabe no tanque (maior que zero, até 100.000)';
+    }
+  }
 
   if (cap && cap.medidor !== 'PROIBIDO') {
     const tipo = e.medidor.tipo;
@@ -454,6 +471,22 @@ export const parametrosDaPrevia = (e) => {
 const ouNulo = (t) => (t.trim() ? t.trim() : null);
 
 /**
+ * D-PROD-297 — o produto do implemento no corpo: só o IMPLEMENTO manda (os outros não levam as chaves). "Sim" = por
+ * jato, com a capacidade do tanque e a unidade; "Não" = `usa_produto:false` e o resto vazio; sem escolha = nulo.
+ * @param {EstadoBem} e @param {string|null} natureza
+ * @returns {{ usa_produto?: boolean|null, forma_produto?: string|null, capacidade?: string|null, capacidade_unidade?: string|null }}
+ */
+export const produtoDoImplemento = (e, natureza) => {
+  if (natureza !== 'IMPLEMENTO') return {};
+  if (e.usa_produto === 'SIM') {
+    const cap = lerDecimal(e.capacidade, LIMITES_CAPACIDADE);
+    return { usa_produto: true, forma_produto: 'JATO', capacidade: cap.ok ? cap.valor : null, capacidade_unidade: e.capacidade_unidade || 'L' };
+  }
+  if (e.usa_produto === 'NAO') return { usa_produto: false, forma_produto: null, capacidade: null, capacidade_unidade: null };
+  return { usa_produto: null, forma_produto: null, capacidade: null, capacidade_unidade: null };
+};
+
+/**
  * Estado (já validado) → forma do corpo (`formaDeEdicaoDoBem`). Campos e blocos
  * que a natureza não admite saem vazios. D-PROD-169: `natureza` + `tipo_id`
  * (sem `familia_id`, `area_id` nem `localizacao_descricao`); a `natureza` só
@@ -514,6 +547,7 @@ export const formaDoEstado = (e, ctx) => {
     material: seAplica('material', ouNulo(e.material)),
     ano_conclusao: seAplica('ano_conclusao', inteiro(e.ano_conclusao)),
     compatibilidade: seAplica('compatibilidade', ouNulo(e.compatibilidade)),
+    ...produtoDoImplemento(e, natureza),
     especificacoes: ouNulo(e.especificacoes),
     observacoes: ouNulo(e.observacoes),
     medidor,

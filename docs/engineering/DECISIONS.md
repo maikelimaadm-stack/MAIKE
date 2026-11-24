@@ -9428,4 +9428,14 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Limite aceito:** a fila antiga de entidades continua com o replay dela (sem código único no servidor); um `create` cuja resposta se perca pode repetir. Some quando a entidade passar para o motor.
 - **Testes:** `tests/smoke/motorSincronizacao.test.js` (MS-01..21).
 
-<!-- Próxima decisão: D-PROD-296 -->
+## D-PROD-297 — O produto do implemento no cadastro do próprio bem (não no tipo)
+
+**Data:** 2026-11-24 · **Origem:** proprietário ("tinha que ficar dentro do cadastro mesmo") · **Relatório:** [`MAIKE-BEM-IMPLEMENTO-PRODUTO-REPORT.md`](./MAIKE-BEM-IMPLEMENTO-PRODUTO-REPORT.md) · **Runbook:** [`MAIKE-BEM-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md`](./MAIKE-BEM-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md)
+
+- **Contexto:** a marcação "usa produto · por jato · capacidade" ficava no tipo de implemento (D-PROD-279/291) e ninguém a achava: em produção nenhum tipo estava marcado e o "Jatos de hoje" nunca aparecia.
+- **Decisão:** a marcação passa para o cadastro do BEM implemento (primeira aba: "Leva produto (veneno, adubo)?" Sim/Não, "Quanto cabe no tanque", Litros/Quilos). Migration EXPAND `20261126100000_bem_implemento_produto` (4 colunas anuláveis em `BemPatrimonial`, sem CHECK; a API confere como no tipo). O tanque vem do bem; sem marcação no bem, do tipo (os dados antigos seguem valendo). O "Usa produto?" sai das telas do tipo (as colunas e a API do tipo ficam, sem tela).
+- **Correção junto:** com implemento por jato e a área em andamento, o formulário inteiro não grava mais os 100% da área no dia; os hectares vêm no "Fez o pasto todo?" do Finalizar (D-PROD-292).
+- **Testes:** `bemImplementoProduto.test.mjs`, `patrimonioP1Bens.test.mjs`, `premerge-migrate.test.mjs` (B45), `preflight-schema.test.mjs`, `bensPatrimoniais.test.jsx`, `registroDeCampoVariasLinhas.test.jsx`, `bensGerenciarTipos.test.jsx`; ensaio no navegador real.
+
+<!-- Numeração: a D-PROD-296 está reservada pela PR #384. -->
+<!-- Próxima decisão: D-PROD-298 -->

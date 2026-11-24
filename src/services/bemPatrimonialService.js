@@ -73,6 +73,11 @@ export const CAMPOS_ESCALARES_BEM = Object.freeze([
   'material',
   'ano_conclusao',
   'compatibilidade',
+  // D-PROD-297: o produto do implemento (usa? por jato, capacidade do tanque em texto decimal e a unidade).
+  'usa_produto',
+  'forma_produto',
+  'capacidade',
+  'capacidade_unidade',
   'especificacoes',
   'observacoes',
 ]);
@@ -90,6 +95,7 @@ const CHAVES_DECIMAIS = new Set([
   'leitura_inicial',
   'leitura_atual',
   'capacidade_litros',
+  'capacidade',
   'valor_aquisicao',
   'custo_incorporacao',
   'valor_residual',

@@ -149,6 +149,12 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // `20261125200000_produto_unidades_conversao`, o cadastro de produto e toda entrada/saída de estoque respondem 500.
   ['ProdutoUnidadeConversao', 'fator'],
   ['CADFORMULACAO', 'consumo_minimo_pv'],
+  // D-PROD-297 (MAIKE-BEM-IMPLEMENTO-PRODUTO): toda leitura do bem e a lista de implementos leem o produto do bem; sem a
+  // migration `20261126100000_bem_implemento_produto`, o cadastro de bens e o lançamento de atividades respondem 500.
+  ['BemPatrimonial', 'usa_produto'],
+  ['BemPatrimonial', 'forma_produto'],
+  ['BemPatrimonial', 'capacidade'],
+  ['BemPatrimonial', 'capacidade_unidade'],
 ]);
 
 /**

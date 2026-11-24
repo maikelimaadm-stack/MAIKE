@@ -286,7 +286,8 @@ export const paginarPorNome = async (delegado, { where, campoNome = 'nome', sele
 
 /** Decimais do corpo do bem (POST/PATCH), por caminho. */
 const DECIMAIS_DO_BEM = Object.freeze({
-  topo: Object.freeze(['potencia_cv', 'custo_uso_unitario']),
+  // D-PROD-297: a capacidade do tanque do implemento também chega em texto.
+  topo: Object.freeze(['potencia_cv', 'custo_uso_unitario', 'capacidade']),
   blocos: Object.freeze({
     medidor: Object.freeze(['leitura_inicial', 'leitura_atual']),
     aquisicao: Object.freeze(['valor_aquisicao', 'custo_incorporacao']),
@@ -320,6 +321,10 @@ export const recusarCoercaoPatrimonio = (corpo) => {
   if (!ehObjeto(corpo)) return;
   const c = /** @type {Record<string, any>} */ (corpo);
   for (const chave of DECIMAIS_DO_BEM.topo) recusarNaoTexto(c, chave, chave);
+  // D-PROD-297: `usa_produto` só booleano (o AJV coagiria "true"/"1").
+  if (Object.prototype.hasOwnProperty.call(c, 'usa_produto') && c.usa_produto !== null && typeof c.usa_produto !== 'boolean') {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'usa_produto deve ser true, false ou null', { details: { field: 'usa_produto', reason: 'formato', campo: 'usa_produto' } });
+  }
   for (const chave of DECIMAIS_DA_PREVIA) recusarNaoTexto(c, chave, chave);
   for (const [bloco, chaves] of Object.entries(DECIMAIS_DO_BEM.blocos)) {
     if (!ehObjeto(c[bloco])) continue;
