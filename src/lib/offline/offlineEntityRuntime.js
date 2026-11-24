@@ -1094,6 +1094,29 @@ export const syncOfflineEntityQueue = async (onProgress) => {
   return { success: true, pendentes: pulados, pulados, descartados, quarentenados, retidos };
 };
 
+/**
+ * D-PROD-295 — quantas operações da fila de entidades (a fila antiga, por
+ * entidade) desta sessão ainda não chegaram ao servidor. Entram no contador
+ * "aguardando envio" junto com a fila de envio do motor.
+ * @returns {Promise<number>}
+ */
+export const contarPendenciasDaFilaDeEntidades = async () => {
+  if (CATALOGO.size === 0) return 0;
+  const porta = [...CATALOGO.values()][0].storage;
+  const tenantAtual = getOfflineTenant();
+  let fila = [];
+  try {
+    fila = await porta.listarFila();
+  } catch {
+    return 0;
+  }
+  return fila.filter((item) => {
+    const entrada = CATALOGO.get(item.entity_name);
+    if (!entrada?.tenantScoped) return true;
+    return "cliente_id" in item && (item.cliente_id ?? null) === tenantAtual;
+  }).length;
+};
+
 let listenerInstalado = false;
 
 /**
