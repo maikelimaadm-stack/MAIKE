@@ -1,0 +1,131 @@
+name: app-android
+
+# Gera o APK do app Android já ASSINADO com a chave fixa e publica numa Release
+# do GitHub (`app-vX.Y.Z`), pronto para baixar e instalar. Ver
+# docs/engineering/APP-ANDROID-IOS.md.
+#
+# Roda quando `app-version.json` muda na main (versão nova) ou à mão
+# (Actions → app-android → Run workflow). Uma versão publicada nunca é
+# sobrescrita: para gerar outro APK, suba `versionName` e `versionCode`.
+#
+# Segredos do repositório (Settings → Secrets and variables → Actions):
+#   MAKGESTAO_KEYSTORE_BASE64    a chave makgestao-release.jks em base64
+#   MAKGESTAO_KEYSTORE_PASSWORD  a senha da chave
+#   VITE_GOOGLE_MAPS_API_KEY     a chave do Google Maps do site (satélite)
+# A chave e a senha nunca entram no repositório nem no log.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [app-version.json]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: app-android
+  cancel-in-progress: false
+
+env:
+  # Impressão digital (pública) do certificado da chave fixa. O APK só é
+  # publicado se estiver assinado exatamente com ela.
+  CERTIFICADO_SHA256: '398555929f591f786bade04e70cd90d659b0d860d86aa9e8ab8d1708c9820889'
+
+jobs:
+  apk:
+    name: apk assinado
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versão
+        id: versao
+        run: |
+          nome=$(node -p "require('./app-version.json').versionName")
+          codigo=$(node -p "require('./app-version.json').versionCode")
+          echo "nome=$nome" >> "$GITHUB_OUTPUT"
+          echo "codigo=$codigo" >> "$GITHUB_OUTPUT"
+          echo "tag=app-v$nome" >> "$GITHUB_OUTPUT"
+          echo "Versão $nome (código $codigo)"
+
+      - name: A versão ainda não foi publicada
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.versao.outputs.tag }}" >/dev/null 2>&1; then
+            echo "::error::A versão ${{ steps.versao.outputs.nome }} já foi publicada. Suba versionName e versionCode em app-version.json."
+            exit 1
+          fi
+
+      - name: Segredos configurados
+        env:
+          KS: ${{ secrets.MAKGESTAO_KEYSTORE_BASE64 }}
+          KP: ${{ secrets.MAKGESTAO_KEYSTORE_PASSWORD }}
+          MAPS: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+        run: |
+          falta=0
+          [ -n "$KS" ] || { echo "::error::Falta o segredo MAKGESTAO_KEYSTORE_BASE64"; falta=1; }
+          [ -n "$KP" ] || { echo "::error::Falta o segredo MAKGESTAO_KEYSTORE_PASSWORD"; falta=1; }
+          [ -n "$MAPS" ] || { echo "::error::Falta o segredo VITE_GOOGLE_MAPS_API_KEY"; falta=1; }
+          exit $falta
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Dependências
+        run: npm ci
+
+      - name: Frontend do app
+        env:
+          NODE_ENV: production
+          VITE_MAIKE_API_URL: https://www.makgestao.com
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+        run: |
+          npx vite build
+          npx cap sync android
+
+      - name: Chave de assinatura
+        env:
+          KS: ${{ secrets.MAKGESTAO_KEYSTORE_BASE64 }}
+        run: echo "$KS" | base64 -d > "$RUNNER_TEMP/makgestao-release.jks"
+
+      - name: APK assinado
+        working-directory: android
+        env:
+          MAKGESTAO_KEYSTORE: ${{ runner.temp }}/makgestao-release.jks
+          MAKGESTAO_KEYSTORE_PASSWORD: ${{ secrets.MAKGESTAO_KEYSTORE_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Conferir assinatura
+        id: apk
+        run: |
+          rm -f "$RUNNER_TEMP/makgestao-release.jks"
+          origem=android/app/build/outputs/apk/release/app-release.apk
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$apksigner" verify --print-certs "$origem" > certs.txt
+          digital=$(grep -m1 'certificate SHA-256 digest' certs.txt | awk '{print $NF}')
+          if [ "$digital" != "$CERTIFICADO_SHA256" ]; then
+            echo "::error::O APK não está assinado com a chave fixa do app."
+            exit 1
+          fi
+          destino="MAK-Gestao-${{ steps.versao.outputs.nome }}.apk"
+          cp "$origem" "$destino"
+          echo "arquivo=$destino" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar a versão
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.versao.outputs.tag }}" "${{ steps.apk.outputs.arquivo }}" \
+            --target "${{ github.sha }}" \
+            --title "MAK Gestão ${{ steps.versao.outputs.nome }}" \
+            --notes "APK de teste do app Android (versão ${{ steps.versao.outputs.nome }}, código ${{ steps.versao.outputs.codigo }}), assinado com a chave fixa. Instala por cima da versão anterior."

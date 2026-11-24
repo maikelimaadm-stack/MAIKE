@@ -8,7 +8,16 @@ O MAIKE roda como app nativo pelo Capacitor 8: o mesmo frontend (`dist/`) vai em
 - Projetos nativos: `android/` e `ios/` (gerados por `npx cap add`). O que é gerado em build (`android/app/src/main/assets/public`, `android/**/build`, `ios/App/App/public`, `ios/App/Pods`) fica fora do Git.
 - Origens do app no backend: `https://localhost` (Android) e `capacitor://localhost` (iOS) precisam estar em `FRONTEND_ORIGINS` na Vercel. Sem isso, o CORS responde 404 e o app não loga.
 
-## Gerar o APK de teste (Android)
+## APK assinado pelo GitHub (caminho normal)
+
+O workflow `.github/workflows/app-android.yml` gera o APK já assinado com a chave fixa e publica numa Release `app-vX.Y.Z` do GitHub. Para baixar: aba **Releases** do repositório → a versão mais nova → `MAK-Gestao-X.Y.Z.apk`.
+
+- Roda sozinho quando `app-version.json` muda na `main`, ou à mão em Actions → app-android → Run workflow.
+- Nunca sobrescreve uma versão publicada: versão nova = subir `versionName` e `versionCode`.
+- Só publica se o APK estiver assinado com o certificado da chave fixa (impressão digital SHA-256 no próprio workflow).
+- Segredos do repositório (Settings → Secrets and variables → Actions): `MAKGESTAO_KEYSTORE_BASE64` (o `.jks` em base64), `MAKGESTAO_KEYSTORE_PASSWORD` e `VITE_GOOGLE_MAPS_API_KEY`.
+
+## Gerar o APK de teste à mão (Android)
 
 Pré-requisitos: Node 22+, JDK 21 e Android SDK (plataforma 36, build-tools 36) com `ANDROID_HOME` apontando para ele.
 
