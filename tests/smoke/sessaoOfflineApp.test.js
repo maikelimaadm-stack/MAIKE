@@ -1,5 +1,5 @@
 /**
- * D-PROD-287 — o app fica conectado até a pessoa sair, e abre sem internet.
+ * D-PROD-288 — o app fica conectado até a pessoa sair, e abre sem internet.
  *
  * Cadeia real `nativeSessionApi → nativeHttpClient`, com `fetch` substituído.
  */
@@ -56,7 +56,7 @@ const entrarEDerrubarARede = async ({ lembrar, token = jwtQueVence(30 * DIA) }) 
   return m;
 };
 
-describe('D-PROD-287 — abrir sem internet', () => {
+describe('D-PROD-288 — abrir sem internet', () => {
   it('SO-01 sessão lembrada, sem rede: abre com o último contexto confirmado e marca offline', async () => {
     const { restaurarSessao } = await entrarEDerrubarARede({ lembrar: true });
     const veredito = await restaurarSessao();
@@ -110,7 +110,7 @@ describe('D-PROD-287 — abrir sem internet', () => {
   });
 });
 
-describe('D-PROD-287 — renovação', () => {
+describe('D-PROD-288 — renovação', () => {
   it('SR-01 sessão lembrada: POST /auth/renovar autenticado, só com lembrar; troca o token no aparelho', async () => {
     const antigo = jwtQueVence(2 * DIA);
     const novo = jwtQueVence(30 * DIA);
@@ -149,7 +149,7 @@ describe('D-PROD-287 — renovação', () => {
   });
 });
 
-describe('D-PROD-287 — validade local do token', () => {
+describe('D-PROD-288 — validade local do token', () => {
   it('SV-01 lê o exp do token guardado; token ilegível = null', async () => {
     const { setNativeToken, validadeLocalDoToken } = await carregar();
     const token = jwtQueVence(DIA);

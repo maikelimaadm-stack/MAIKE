@@ -279,11 +279,11 @@ describe('PAT-M1 — SSOT de menu, páginas, escopo e ícones', () => {
 describe('PAT-M2 — regra de ações igual à do servidor; padrão negado', () => {
   it('visualizar só vê; novo|salvar cria; editar|salvar edita; inativar só pela ação extra', () => {
     const T = TELAS_PATRIMONIO.BENS;
-    expect(acoesDaTelaPatrimonio(comAcoes(T, {}), T)).toEqual({ ver: true, criar: false, editar: false, inativar: false });
-    expect(acoesDaTelaPatrimonio(comAcoes(T, { novo: true }), T)).toEqual({ ver: true, criar: true, editar: false, inativar: false });
-    expect(acoesDaTelaPatrimonio(comAcoes(T, { editar: true }), T)).toEqual({ ver: true, criar: false, editar: true, inativar: false });
-    expect(acoesDaTelaPatrimonio(comAcoes(T, { salvar: true }), T)).toEqual({ ver: true, criar: true, editar: true, inativar: false });
-    expect(acoesDaTelaPatrimonio(comAcoes(T, { inativar: true }), T)).toEqual({ ver: true, criar: false, editar: false, inativar: true });
+    expect(acoesDaTelaPatrimonio(comAcoes(T, {}), T)).toEqual({ ver: true, criar: false, editar: false, inativar: false, excluir: false });
+    expect(acoesDaTelaPatrimonio(comAcoes(T, { novo: true }), T)).toEqual({ ver: true, criar: true, editar: false, inativar: false, excluir: false });
+    expect(acoesDaTelaPatrimonio(comAcoes(T, { editar: true }), T)).toEqual({ ver: true, criar: false, editar: true, inativar: false, excluir: false });
+    expect(acoesDaTelaPatrimonio(comAcoes(T, { salvar: true }), T)).toEqual({ ver: true, criar: true, editar: true, inativar: false, excluir: false });
+    expect(acoesDaTelaPatrimonio(comAcoes(T, { inativar: true }), T)).toEqual({ ver: true, criar: false, editar: false, inativar: true, excluir: false });
     // Sem atalho: excluir, editar e salvar não dão inativar (o servidor não tem DELETE).
     expect(acoesDaTelaPatrimonio(comAcoes(T, { excluir: true, editar: true, salvar: true }), T).inativar).toBe(false);
   });
@@ -292,7 +292,7 @@ describe('PAT-M2 — regra de ações igual à do servidor; padrão negado', () 
     const perm = comAcoes(TELAS_PATRIMONIO.BENS, { novo: true, editar: true, inativar: true, cancelar: true, configurar_conversao: true });
     expect(acoesDaTelaAbastecimento(perm)).toEqual({ ver: false, criar: false, cancelar: false });
     const soAbastecimento = comAcoes(TELA_ABASTECIMENTO, { novo: true, editar: true, salvar: true, inativar: true, cancelar: true });
-    expect(acoesDaTelaPatrimonio(soAbastecimento, TELAS_PATRIMONIO.BENS)).toEqual({ ver: false, criar: false, editar: false, inativar: false });
+    expect(acoesDaTelaPatrimonio(soAbastecimento, TELAS_PATRIMONIO.BENS)).toEqual({ ver: false, criar: false, editar: false, inativar: false, excluir: false });
     expect(acoesDeCatalogoNoBem(soAbastecimento)).toEqual({ criarCatalogo: false, editarCatalogo: false, excluirCatalogo: false, inativarCatalogo: false, produtosDoTanque: false });
   });
 
@@ -332,12 +332,12 @@ describe('PAT-M2 — regra de ações igual à do servidor; padrão negado', () 
 
   it('sem registro / sem módulo / sem linha → nada; ação ligada sem visualizar → nada; is_admin → tudo', () => {
     const T = TELAS_PATRIMONIO.BENS;
-    const nada = { ver: false, criar: false, editar: false, inativar: false };
+    const nada = { ver: false, criar: false, editar: false, inativar: false, excluir: false };
     expect(acoesDaTelaPatrimonio(null, T)).toEqual(nada);
     expect(acoesDaTelaPatrimonio(registro([], [tela(MODULO_PATRIMONIO, T, { visualizar: true, inativar: true })]), T)).toEqual(nada);
     expect(acoesDaTelaPatrimonio(registro([MODULO_PATRIMONIO], []), T)).toEqual(nada);
     expect(acoesDaTelaPatrimonio(registro([MODULO_PATRIMONIO], [tela(MODULO_PATRIMONIO, T, { novo: true, inativar: true })]), T)).toEqual(nada);
-    expect(acoesDaTelaPatrimonio({ user_email: 'x', is_admin: true }, T)).toEqual({ ver: true, criar: true, editar: true, inativar: true });
+    expect(acoesDaTelaPatrimonio({ user_email: 'x', is_admin: true }, T)).toEqual({ ver: true, criar: true, editar: true, inativar: true, excluir: true });
   });
 
   it('permissão restrita criada pelo gerenciador vem toda desligada: "inativar" em Bens, "cancelar" em Abastecimentos', () => {

@@ -303,6 +303,8 @@ export const GUARDAS = Object.freeze({
     opcoesCatalogo: porTela(T.PATRIMONIO_BENS, 'visualizar'),
     // "Produtos aceitos" do tanque: quem cadastra OU edita bem; ver sozinho não lista produtos da fazenda.
     opcoesProdutos: porQualquer(...BENS_CRIAR_OU_EDITAR),
+    // D-PROD-287: excluir de vez o bem nunca usado = a ação padrão "excluir" da tela de Bens.
+    excluir: porTela(T.PATRIMONIO_BENS, 'excluir'),
   },
   // D-PROD-162: famílias e tipos vivem no cadastro de Bens; quem cadastra OU edita bem cria tipo pelo "+".
   // Renomear/descrever = Bens editar|salvar; inativar/reativar = Bens `inativar` (`edicaoPatrimonio`).

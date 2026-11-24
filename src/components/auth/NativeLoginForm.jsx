@@ -280,7 +280,7 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
                 ) : null}
               </div>
 
-              {/* No app Android/iOS a sessão sempre fica no aparelho (D-PROD-287): sem a opção. */}
+              {/* No app Android/iOS a sessão sempre fica no aparelho (D-PROD-288): sem a opção. */}
               {!isAppNativo() && (
               <div
                 onClick={(evento) => {

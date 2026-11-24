@@ -193,7 +193,7 @@ describe('AUTH — estados do AuthContext', () => {
     expect(screen.getByTestId('usuario')).toHaveTextContent('maria');
   });
 
-  it('AUTH-OFF1 (D-PROD-287) — sem internet com sessão lembrada: entra com os dados salvos, sem renovar', async () => {
+  it('AUTH-OFF1 (D-PROD-288) — sem internet com sessão lembrada: entra com os dados salvos, sem renovar', async () => {
     sessionService.restaurarSessaoNativaAtual.mockResolvedValue({
       autenticado: true,
       offline: true,
@@ -207,7 +207,7 @@ describe('AUTH — estados do AuthContext', () => {
     expect(sessionService.renovarSessaoNativaAtual).not.toHaveBeenCalled();
   });
 
-  it('AUTH-OFF2 (D-PROD-287) — a rede volta: revalida em segundo plano, sai do offline e renova', async () => {
+  it('AUTH-OFF2 (D-PROD-288) — a rede volta: revalida em segundo plano, sai do offline e renova', async () => {
     sessionService.restaurarSessaoNativaAtual.mockResolvedValueOnce({
       autenticado: true,
       offline: true,
@@ -224,7 +224,7 @@ describe('AUTH — estados do AuthContext', () => {
     expect(sessionService.renovarSessaoNativaAtual).toHaveBeenCalledTimes(1);
   });
 
-  it('AUTH-OFF3 (D-PROD-287) — a rede volta e o servidor recusa: vai para o login', async () => {
+  it('AUTH-OFF3 (D-PROD-288) — a rede volta e o servidor recusa: vai para o login', async () => {
     sessionService.restaurarSessaoNativaAtual.mockResolvedValueOnce({
       autenticado: true,
       offline: true,
@@ -237,7 +237,7 @@ describe('AUTH — estados do AuthContext', () => {
     expect(screen.getByTestId('estado')).toHaveTextContent('nao_autenticada');
   });
 
-  it('AUTH-OFF4 (D-PROD-287) — online, a restauração validada renova a sessão guardada', async () => {
+  it('AUTH-OFF4 (D-PROD-288) — online, a restauração validada renova a sessão guardada', async () => {
     sessionService.restaurarSessaoNativaAtual.mockResolvedValue({
       autenticado: true,
       contexto: { cliente_id: 'cli_9', usuario_id: 'usr_9', login: 'maria' },

@@ -180,7 +180,7 @@ export const descartarTrocaSenhaPendente = () => descartarTrocaSenhaPendenteNati
 export const restaurarSessaoNativaAtual = () => restaurarSessaoNativa();
 
 /**
- * Renova a sessão guardada no aparelho (D-PROD-287). Nunca lança.
+ * Renova a sessão guardada no aparelho (D-PROD-288). Nunca lança.
  *
  * @returns {Promise<boolean>}
  */

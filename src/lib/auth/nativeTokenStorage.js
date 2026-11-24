@@ -188,7 +188,7 @@ export const descartarTokenRecusado = () => {
 
 /**
  * O token atual foi guardado com "Manter conectado" (no aparelho)? Só esses
- * renovam sozinhos e abrem sem internet (D-PROD-287).
+ * renovam sozinhos e abrem sem internet (D-PROD-288).
  *
  * @returns {boolean}
  */

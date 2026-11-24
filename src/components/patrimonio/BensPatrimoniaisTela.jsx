@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { alterarSituacaoBem, atualizarBem, criarBem, detalharBem, listarBensPagina } from "@/services/bemPatrimonialService";
+import { alterarSituacaoBem, atualizarBem, criarBem, detalharBem, excluirBem, listarBensPagina } from "@/services/bemPatrimonialService";
 import { listEmpresas } from "@/services/empresaService";
 import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { confirmar } from "@/lib/maikeConfirmar";
@@ -88,6 +88,37 @@ export default function BensPatrimoniaisTela() {
     [empresaId, situacao, natureza],
   );
 
+  /** As linhas visíveis (a versão de cada bem para o DELETE). */
+  const linhasRef = useRef(/** @type {any[]} */ ([]));
+  /** D-PROD-287: exclui os bens escolhidos; o que já foi usado fica e a tela diz para inativar. @param {string[]} ids */
+  const excluirSelecionados = async (ids) => {
+    if (!empresaId) return;
+    let excluidos = 0;
+    /** @type {string[]} */
+    const emUso = [];
+    let outroErro = null;
+    for (const id of ids) {
+      const linha = linhasRef.current.find((b) => String(b.id) === String(id));
+      if (!linha || !Number.isInteger(linha.versao)) continue;
+      try {
+        await excluirBem(empresaId, { id: String(linha.id), versao: linha.versao });
+        excluidos += 1;
+      } catch (err) {
+        if (lerErroGestao(err).code === "BEM_PATRIMONIAL_EM_USO") emUso.push(String(linha.nome || "bem"));
+        else outroErro = err;
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ, "page"] });
+    if (excluidos) notifySuccess("Sucesso", excluidos === 1 ? "Bem patrimonial excluído" : `${excluidos} bens patrimoniais excluídos`);
+    if (emUso.length) {
+      notifyWarning(
+        "Não foi excluído",
+        `${emUso.join(", ")}: já foi usado (abastecimento, atividade ou lançamento) e não pode ser excluído. Use "Inativar bem patrimonial" no menu ⋯.`,
+      );
+    }
+    if (outroErro) notifyWarning("Atenção", mensagemErroPatrimonio(outroErro, "Não foi possível excluir o bem patrimonial."));
+  };
+
   const controller = useCadastroBase1Controller({
     storageKey: GRADE_BENS.storageKey,
     columnIds: BENS_CAMPOS_CARD,
@@ -107,9 +138,10 @@ export default function BensPatrimoniaisTela() {
     getRowId: (b) => String(b.id),
     findRowById: (rows, id) => rows.find((b) => String(b.id) === String(id)),
     onSubmitRecord: (data) => submitRef.current(/** @type {Record<string, any>} */ (data)),
-    // Sem exclusão física: a grade não oferece "Excluir" (inativar é ação própria).
-    onRequestDeleteMutation: () => {},
+    // D-PROD-287: "Excluir" apaga de vez SÓ o bem nunca usado; com histórico o servidor recusa e a tela manda inativar.
+    onRequestDeleteMutation: (ids) => void excluirSelecionados(ids),
   });
+  linhasRef.current = controller.visibleRows ?? [];
 
   // Fuso da FAZENDA para o "hoje" da leitura do medidor (o servidor valida no dia
   // da empresa): o mesmo resumo de empresas do Layout (mesma chave, sem guarda de
@@ -417,13 +449,13 @@ export default function BensPatrimoniaisTela() {
         showCreate={podeGravar && acoes.criar}
         showDuplicate={podeGravar && acoes.criar}
         showEdit={podeGravar && acoes.editar}
-        showDelete={false}
+        showDelete={Boolean(empresaId) && acoes.excluir}
         additionalMoreActions={acoesDoMenu.length ? acoesDoMenu : null}
         deleteDialog={{
-          title: "Inativar bem patrimonial",
-          confirmText: "Inativar",
-          descriptionOne: "Inativar este bem? Nada é apagado.",
-          descriptionMany: (n) => `Inativar ${n} bens? Nada é apagado.`,
+          title: "Excluir bem patrimonial",
+          confirmText: "Excluir",
+          descriptionOne: "Excluir este bem de vez? Só sai o bem que nunca foi usado; o que já teve abastecimento ou lançamento continua e pode ser inativado.",
+          descriptionMany: (n) => `Excluir ${n} bens de vez? Só saem os que nunca foram usados; os outros continuam e podem ser inativados.`,
         }}
         recordForm={conteudoRegistro}
         listSlot={
