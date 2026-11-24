@@ -53,7 +53,7 @@ export const tipoDaAreaTexto = (area) => {
 
 /** @param {any} a uma atividade do resumo */
 const situacaoDaAtividade = (a) => {
-  if (a.area_status === STATUS_AREA.CONCLUIDA) return { rotulo: "Concluída", tom: /** @type {"ok"} */ ("ok") };
+  if (a.area_status === STATUS_AREA.CONCLUIDA) return { rotulo: "Finalizada", tom: /** @type {"ok"} */ ("ok") };
   if (a.area_status === STATUS_AREA.PLANEJADA) return { rotulo: "Planejada", tom: /** @type {"neutro"} */ ("neutro") };
   return { rotulo: "Em andamento", tom: /** @type {"atencao"} */ ("atencao") };
 };

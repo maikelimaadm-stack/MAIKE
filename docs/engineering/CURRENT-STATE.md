@@ -20,6 +20,16 @@ rollout pausado **D-PROD-41**)
 | Relatório | [`MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md) · SPEC [`MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md) · Runbook [`MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md) |
 | Próximas | escolha manual de lote na atividade e no abastecimento; lote na tela de confirmação do financeiro e no cocho |
 
+## Missão anterior (2026-11-23) — MAIKE-ENTREGA-A: nomes simples, "Atividades em andamento" e o "Novo lançamento" curto (D-PROD-281)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-281** (pedida como D-PROD-280, reservada pela PR #367), maquetes aprovadas pelo proprietário |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `def1cda2` · PR (a abrir) |
+| Mudança | Nomes: "+ Nova atividade", "+ Lançamento" / "Novo lançamento", "Finalizar", "Finalizada", "Finalizou a atividade hoje?", "Tudo feito · falta finalizar", "Planejar atividade". Bloco "Atividades em andamento" no topo da lista. "Novo lançamento" curto (hectares opcionais, escolha obrigatória, "Vai junto" + "Mudar"). Horímetro: só "Horímetro agora" e "Horímetro quebrado?" |
+| Migration | Nenhuma. Servidor sem mudança (vários lançamentos no mesmo dia já funcionavam; teste novo contra Postgres) |
+| Relatório | [`MAIKE-ENTREGA-A-LANCAMENTO-SIMPLES-REPORT.md`](./MAIKE-ENTREGA-A-LANCAMENTO-SIMPLES-REPORT.md) |
+
 ## Missão anterior (2026-11-23) — MAIKE-DETALHES-LOTE-V13: telas do pasto redesenhadas no celular (D-PROD-280)
 
 | Campo | Valor |
@@ -36,7 +46,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-279**, pedido do proprietário: "a máquina sozinha não leva produto; quem leva é o implemento" |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `d62a4ef8` · PR (a abrir) |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `d62a4ef8` · PR **#366** (mergeada, `def1cda2`, migration aplicada em produção em 2026-11-23) |
 | Mudança | `TipoPatrimonial`: "Usa produto?", "Como conta" (por jato) e "Capacidade" (L/kg), só para Implemento (API: 400 em outra natureza; sem produto limpa; com produto, os três obrigatórios); bloco no "+ Novo tipo" do "Gerenciar tipos" e o resumo discreto na lista |
 | Migration | `20261124100000_tipo_implemento_produto`, **EXPAND** (4 colunas anuláveis em `TipoPatrimonial`), checksum `a1836240…ae45`. **Aplicada em produção** (a 76ª concluída). É a 76ª, depois da reforma; pré-checagem 75/0 e 111 tabelas, pós-checagem 76/0 e 111 tabelas. Ordem: aplicar com o GO do proprietário, depois o merge |
 | Relatório | [`MAIKE-TIPO-IMPLEMENTO-PRODUTO-REPORT.md`](./MAIKE-TIPO-IMPLEMENTO-PRODUTO-REPORT.md) · runbook [`MAIKE-TIPO-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md) |

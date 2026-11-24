@@ -107,7 +107,7 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
     const emAndamentoNaArea = linha.area_status === STATUS_AREA.EM_ANDAMENTO;
     const lancar = ac.lancarApontamento
       ? [
-          { key: "lancar-dia", label: "+ Lançar dia", icon: <Plus size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "dia") },
+          { key: "lancar-dia", label: "+ Lançamento", icon: <Plus size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "dia") },
           ...(emAndamentoNaArea
             ? lancamentosPermitidos(flagsDoTipoDaAtividade(linha, tipos))
                 .slice()
@@ -124,7 +124,7 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
     // "Concluir" só com dia lançado na área (a lista só mostra o botão no serviço em andamento).
     const concluir =
       ac.concluir && (emAndamentoNaArea || Boolean(linha.ultimo_dia))
-        ? [{ key: "concluir", label: "Concluir", icon: <CircleCheck size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "concluir") }]
+        ? [{ key: "concluir", label: "Finalizar", icon: <CircleCheck size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "concluir") }]
         : [];
     const grupos = [lancar, concluir];
     return grupos.some((g) => g.length) ? grupos : null;
@@ -138,7 +138,7 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
     reler();
     setAberta(null);
     const numero = (r ?? alvo)?.numero;
-    notifySuccess("Sucesso", `Serviço ${numero != null ? `nº ${numero} ` : ""}concluído.`);
+    notifySuccess("Sucesso", `Atividade ${numero != null ? `nº ${numero} ` : ""}finalizada.`);
   };
 
   const fechar = () => setAberta(null);

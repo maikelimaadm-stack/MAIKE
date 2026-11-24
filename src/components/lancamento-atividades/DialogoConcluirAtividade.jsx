@@ -75,11 +75,11 @@ export default function DialogoConcluirAtividade({ atividade, empresaId, hoje, d
     <DialogoAcao
       aberto
       janelaBase1
-      titulo="Concluir atividade"
+      titulo="Finalizar atividade"
       descricao=""
       icone={<CircleCheck size={20} strokeWidth={2} />}
       iconeBotao={<Check size={16} aria-hidden />}
-      rotuloBotao="Concluir atividade"
+      rotuloBotao="Finalizar atividade"
       testId="dialogo-concluir-atividade"
       comMotivo={false}
       perigo={false}

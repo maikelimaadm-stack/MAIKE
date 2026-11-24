@@ -130,20 +130,20 @@ describe("D-PROD-278 — ações da atividade nos Detalhes da área", () => {
     expect(linha).toHaveAttribute("aria-haspopup", "menu");
     await abrirMenu("at-1");
     // As operações chegam junto com o resumo: o menu aberto acompanha.
-    await waitFor(() => expect(rotulosDoMenu("at-1")).toEqual(["+ Lançar dia", "Só máquina", "Só mão de obra", "Concluir"]));
+    await waitFor(() => expect(rotulosDoMenu("at-1")).toEqual(["+ Lançamento", "Só máquina", "Só mão de obra", "Finalizar"]));
     expect(rotulosDoMenu("at-1")).not.toContain("Abrir atividade");
   });
 
   it("área planejada na atividade: só o \"+ Lançar dia\"", async () => {
     renderizar();
     const { rotulos } = await abrirMenu("at-3");
-    expect(rotulos).toEqual(["+ Lançar dia"]);
+    expect(rotulos).toEqual(["+ Lançamento"]);
   });
 
   it("\"+ Lançar dia\" lê a atividade inteira e abre a Nova realização preenchida (continuar)", async () => {
     const { invalidar } = renderizar();
     await abrirMenu("at-1");
-    clicarItem("at-1", "+ Lançar dia");
+    clicarItem("at-1", "+ Lançamento");
     const janela = await screen.findByTestId("janela-registro");
     expect(atividades.obter).toHaveBeenCalledWith("at-1");
     expect(atividades.listar).toHaveBeenCalledWith({ area_id: "area-A", status: "ABERTA" });
@@ -169,7 +169,7 @@ describe("D-PROD-278 — ações da atividade nos Detalhes da área", () => {
   it("\"Concluir\" usa a versão do detalhe e relê o resumo da área", async () => {
     const { invalidar } = renderizar();
     await abrirMenu("at-1");
-    clicarItem("at-1", "Concluir");
+    clicarItem("at-1", "Finalizar");
     const dialogo = await screen.findByTestId("dialogo-concluir");
     expect(dialogo).toHaveAttribute("data-versao", "4");
     fireEvent.click(dialogo);

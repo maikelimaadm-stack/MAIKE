@@ -207,7 +207,7 @@ describe("DetalhesArea — Detalhes e Histórico", () => {
     expect(screen.getByText("Gradeação · nov/26")).toBeTruthy();
     expect(screen.getByText("Feito 12 de 22 ha · até 30/11/2026")).toBeTruthy();
     expect(screen.getByText("Em andamento")).toBeTruthy();
-    expect(screen.getByText("Concluída")).toBeTruthy();
+    expect(screen.getByText("Finalizada")).toBeTruthy();
     expect(screen.getByText("Feito 0 de 22 ha · previsto 10/12/2026")).toBeTruthy();
     expect(screen.getByText("Planejada")).toBeTruthy();
     expect(screen.getByText("Custos da área · nov/26")).toBeTruthy();
@@ -320,11 +320,11 @@ describe("DetalhesArea — Manejos abre a MESMA \"Nova realização\" (D-PROD-25
     expect(document.querySelector(".mk-dp-cab__titulo")?.textContent).not.toBe("Manejos");
     expect(document.querySelectorAll('[data-testid="janela-registro-de-campo"]').length).toBe(1);
     // D-PROD-265: passo 1, os cartões dos 7 tipos; só Cancelar no rodapé.
-    expect(within(janela).getByTestId("registro-de-campo-titulo")).toHaveTextContent(/^Nova realização$/);
+    expect(within(janela).getByTestId("registro-de-campo-titulo")).toHaveTextContent(/^Nova atividade$/);
     expect(within(janela).getByTestId("registro-de-campo-tipos")).toBeTruthy();
     expect(within(janela).queryByRole("button", { name: "Salvar" })).toBeNull();
     await escolherTipo(janela, "Roçada e tratos");
-    expect(within(janela).getByTestId("registro-de-campo-titulo")).toHaveTextContent("Nova realização de Roçada e tratos");
+    expect(within(janela).getByTestId("registro-de-campo-titulo")).toHaveTextContent("Nova atividade de Roçada e tratos");
     // D-PROD-263: a área presa vem MARCADA nas Áreas, com 100% do tamanho (22 ha), e não sai; outras podem entrar.
     expect(within(janela).getByTestId("registro-areas-campo")).toHaveTextContent("P1 — PASTO 01");
     expect(within(janela).getByTestId("registro-areas-linha-area-A")).toHaveTextContent("P1 — PASTO 01");
@@ -350,7 +350,7 @@ describe("DetalhesArea — Manejos abre a MESMA \"Nova realização\" (D-PROD-25
     await escolher(janela, /Operação/, "Roçada");
     expect(secoes().filter((t) => QUATRO.includes(t))).toEqual(QUATRO);
     // A observação fica em "Informações complementares"; D-PROD-267: "Como fica depois de salvar?" fecha o formulário.
-    expect(secoes().slice(-2)).toEqual(["Informações complementares", "Como fica depois de salvar?"]);
+    expect(secoes().slice(-2)).toEqual(["Informações complementares", "Finalizou a atividade hoje?"]);
     // D-PROD-263: os hectares são de cada área (a tabela das Áreas); "Hectares feitos" saiu do Resultado. O operador fica.
     expect(janela.textContent).not.toContain("Hectares feitos");
     expect(within(janela).getByTestId("registro-areas-escolhidas")).toHaveTextContent("Hectares (ha)");
