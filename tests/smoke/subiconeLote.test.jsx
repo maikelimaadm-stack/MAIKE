@@ -226,7 +226,7 @@ describe("pasto que mistura sexos: o mapa é misto; os detalhes, nunca", () => {
     for (const f of [...modelo.lotes.map((l) => l.subicone), ...Object.values(porNome)]) expect(figurasDosMistos).not.toContain(f);
   });
 
-  it("na tela (Detalhes › Categorias 26 px, Lotes › Resumo 30 px, Lotes › Lote 36 px — densidade compacta, D-PROD-224): só animais, na cor do sexo; nada vermelho", async () => {
+  it("na tela (Detalhes sem subícones desde o v13, Lotes › Resumo 30 px, Lotes › Lote 36 px — densidade compacta, D-PROD-224): só animais, na cor do sexo; nada vermelho", async () => {
     const posicoes = PASTO();
     const esperado = posicoes.map((p) => p.categoria_manejo_id.slice(3));
     const modelo = modeloDe(posicoes);
@@ -243,8 +243,8 @@ describe("pasto que mistura sexos: o mapa é misto; os detalhes, nunca", () => {
       return imgs.map(figuraDaImg);
     };
 
-    // Detalhes: uma linha por categoria da área.
-    expect(imagens(26)).toEqual(modelo.area.categorias.map((k) => k.subicone));
+    // Detalhes (v13): o bloco Categorias saiu da aba — nenhum subícone aqui; a composição fica em Lotes.
+    expect(imagens(26)).toEqual([]);
     // Lotes › Resumo (o celular abre no Resumo): um item por lote, por nome.
     await aba("Lotes");
     expect(imagens(30).sort()).toEqual([...esperado].sort());

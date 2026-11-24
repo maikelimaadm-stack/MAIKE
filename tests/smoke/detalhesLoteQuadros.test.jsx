@@ -9,7 +9,8 @@ import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
 import { Scale } from "lucide-react";
-import AcoesDoLote from "@/components/mapa/AcoesDoLote";
+import AcoesDoLote, { FRASES_DOS_QUADROS } from "@/components/mapa/AcoesDoLote";
+import { RodapePilulas } from "@/components/mapa/detalhes-lote/blocos";
 import PainelPasto from "@/components/mapa/detalhes-lote/PainelPasto";
 import { montarModeloDetalhes } from "@/components/mapa/detalhes-lote/catalogo";
 import { readFileSync } from "node:fs";
@@ -60,6 +61,27 @@ describe("Detalhes do Lote: Manejos e Históricos em quadros (D-PROD-119)", () =
     expect(catalogo).not.toMatch(/Sistemas Reprodutivos|Lotes:/);
   });
 
+  it("v13: cada quadro traz uma frase simples embaixo do nome; o nome acessível não muda", () => {
+    render(<AcoesDoLote grupos={grupos(vi.fn(), vi.fn())} />);
+    for (const b of document.querySelectorAll(".mk-al__quadro")) {
+      const nome = b.querySelector(".mk-al__nome")?.textContent ?? "";
+      expect(b.querySelector(".mk-al__frase")?.textContent, nome).toBe(FRASES_DOS_QUADROS[nome]);
+      expect(b.getAttribute("aria-label")).not.toContain(FRASES_DOS_QUADROS[nome]);
+    }
+    expect(FRASES_DOS_QUADROS).toMatchObject({ Mover: "Levar a outro pasto", Morte: "Animal que morreu", Pesar: "Anotar o peso", Saída: "Venda ou saída" });
+  });
+
+  it("v13: casca — abas com traço verde, seletor compacto e rodapé com a ação principal em verde", () => {
+    const css = readFileSync("src/styles/mk-dp-casca-v13.css", "utf8");
+    expect(css).toMatch(/\.mk-dp-aba\.is-on::after \{[^}]*background: #16a34a;/);
+    expect(css).toMatch(/\.mk-dp-pilula \{[^}]*height: 44px;[^}]*border-radius: 13px;/);
+    expect(css).toMatch(/\.mk-dp-pilula:is\(\.is-principal, :has\(> svg\.mk-dp-icone-lancar\)\) \{[^}]*background: #40de63;/);
+    expect(readFileSync("src/components/mapa/detalhes-lote/RodapePasto.jsx", "utf8")).toMatch(/chave: "manejos"[^}]*principal: true/);
+    render(<RodapePilulas itens={[{ rotulo: "Pesar", icone: Scale }, { rotulo: "Manejos", principal: true }]} />);
+    expect(screen.getByRole("button", { name: "Manejos" }).className).toContain("is-principal");
+    expect(screen.getByRole("button", { name: "Pesar" }).className).not.toContain("is-principal");
+  });
+
   it("a grade é só a grade: grupos com nome, cada quadro chama a ação (sem gatilho nem diálogo próprios)", () => {
     const pesar = vi.fn();
     const historico = vi.fn();
@@ -74,10 +96,15 @@ describe("Detalhes do Lote: Manejos e Históricos em quadros (D-PROD-119)", () =
     expect(historico).toHaveBeenCalledTimes(1);
   });
 
-  it("v12: 3 colunas em todos os modos, quadro no padrão dos cartões (#fff) de 112 px, desabilitado a 45%", () => {
+  it("v12/v13: 3 colunas no tablet e no computador; no celular 2 por linha com o ícone à esquerda; desabilitado a 45%", () => {
     const css = readFileSync("src/styles/acoes-lote-modulos.css", "utf8");
     expect(css).toMatch(/\.mk-al__quadros:not\(#mk-padrao\) \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[^}]*gap: 10px;/);
-    expect(css).not.toMatch(/@media/);
+    // v13: só o celular muda a grade (2 por linha, ícone num quadrado claro à esquerda).
+    expect(css.match(/@media[^{]*\{/g)).toEqual(["@media (max-width: 767px) {"]);
+    const celular = css.slice(css.indexOf("@media (max-width: 767px)"));
+    expect(celular).toMatch(/\.mk-al__quadros:not\(#mk-padrao\) \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(celular).toMatch(/\.mk-al__quadro:not\(#mk-padrao\) \{[^}]*flex-direction: row;/);
+    expect(celular).toMatch(/\.mk-al__icone[^{]*\{[^}]*background: #ecfaff;/);
     expect(css).toMatch(/\.mk-al__quadro:not\(#mk-padrao\) \{[^}]*min-height: 112px;[^}]*border-radius: 6px;[^}]*background: #fff !important;/);
     expect(css).toMatch(/\.mk-al__quadro:not\(#mk-padrao\):disabled \{[^}]*opacity: 0\.45;/);
   });
