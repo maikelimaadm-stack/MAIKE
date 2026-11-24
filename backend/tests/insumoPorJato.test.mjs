@@ -115,3 +115,29 @@ describe('implemento da linha de máquina', () => {
     assert.equal(implementoPublico(null), null);
   });
 });
+
+describe('D-PROD-292: o jato na linha avulsa (lançar e editar)', () => {
+  test('lançar um produto num dia já salvo com jato "2"; editar troca para "3" e null tira', async () => {
+    const s = await montar();
+    const r = await s.registrar({ operation_id: opId('base'), produtos: [s.insumo('5', '1')] });
+    assert.equal(r.statusCode, 201, r.body);
+    const p = prisma();
+    const [base] = await p.atividadeApontamentoProduto.findMany({ where: { cliente_id: s.c } });
+    let ap = await p.atividadeApontamento.findUnique({ where: { id: base.apontamento_id } });
+    const url = `/atividades/${ap.atividade_id}/apontamentos/${ap.id}/produtos`;
+    const l = await s.H.req('POST', url, s.token, { empresa_id: s.e1.id, versao: ap.versao, operation_id: opId('avulsa'), ...s.insumo('3', '2') });
+    assert.equal(l.statusCode, 201, l.body);
+    assert.equal(l.json().linha.jato, 2);
+    ap = await p.atividadeApontamento.findUnique({ where: { id: ap.id } });
+    const e = await s.H.req('PATCH', `${url}/${l.json().linha.id}`, s.token, { empresa_id: s.e1.id, versao: ap.versao, operation_id: opId('e1'), jato: '3' });
+    assert.equal(e.statusCode, 200, e.body);
+    assert.equal(e.json().linha.jato, 3);
+    ap = await p.atividadeApontamento.findUnique({ where: { id: ap.id } });
+    const sem = await s.H.req('PATCH', `${url}/${e.json().linha.id}`, s.token, { empresa_id: s.e1.id, versao: ap.versao, operation_id: opId('e2'), jato: null });
+    assert.equal(sem.statusCode, 200, sem.body);
+    assert.equal(sem.json().linha.jato, null);
+    ap = await p.atividadeApontamento.findUnique({ where: { id: ap.id } });
+    const ruim = await s.H.req('PATCH', `${url}/${sem.json().linha.id}`, s.token, { empresa_id: s.e1.id, versao: ap.versao, operation_id: opId('e3'), jato: '0' });
+    assert.equal(ruim.statusCode, 400, ruim.body);
+  });
+});

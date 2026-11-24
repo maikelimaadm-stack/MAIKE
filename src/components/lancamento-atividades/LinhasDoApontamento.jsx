@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Pencil, Plus } from "lucide-react";
-import { textoDosJatosSalvos } from "@/lib/jatosRegras";
+import { tanqueEJatoDoDia, textoDosJatosSalvos } from "@/lib/jatosRegras";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import { SeloAbastecimento } from "@/components/patrimonio/TabelaAbastecimentos";
@@ -577,6 +577,7 @@ export default function LinhasDoApontamento({
           }}
           onCancelar={() => setJanela(null)}
           onMudou={onMudou}
+          {...tanqueEJatoDoDia(apontamento)}
         />
       ) : null}
       {janela?.tipo === LINHA_MAQUINA ? (

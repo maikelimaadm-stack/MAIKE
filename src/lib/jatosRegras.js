@@ -128,3 +128,29 @@ export const textoDosJatosSalvos = (linhasProduto, linhasMaquina = []) => {
   const totais = [...porProduto.values()].map((t) => `${t.rotulo.toLowerCase()} ${formatarQuantidadeLinha(String(t.soma), t.unidade)}`.trim());
   return [cabeca, ...totais].join(' · ');
 };
+
+/**
+ * D-PROD-292 — o tanque e o jato sugerido para a linha avulsa: o tanque do implemento das máquinas (do dia ou, sem ele, do
+ * último lançamento da atividade) e o MAIOR jato já lançado no dia (sem nenhum, 1).
+ * @param {any} apontamento @param {any[]} [outros]  os lançamentos da atividade (o último com máquina dá o tanque)
+ * @returns {{ tanque: { capacidade: string, unidade: string|null } | null, jatoSugerido: number }}
+ */
+export const tanqueEJatoDoDia = (apontamento, outros = []) => {
+  const doDia = (Array.isArray(apontamento?.maquinas) ? apontamento.maquinas : []).filter((m) => m?.status !== 'CANCELADO').map((m) => jatoDoImplemento(m?.implemento)).find(Boolean) ?? null;
+  let tanque = doDia;
+  if (!tanque) {
+    const ordenados = (Array.isArray(outros) ? outros : [])
+      .filter((a) => a && a.status !== 'CANCELADO')
+      .slice()
+      .sort((a, b) => String(b.data_operacional ?? '').localeCompare(String(a.data_operacional ?? '')));
+    for (const a of ordenados) {
+      const t = (a.maquinas ?? []).filter((m) => m?.status !== 'CANCELADO').map((m) => jatoDoImplemento(m?.implemento)).find(Boolean);
+      if (t) {
+        tanque = t;
+        break;
+      }
+    }
+  }
+  const jatos = (Array.isArray(apontamento?.produtos) ? apontamento.produtos : []).filter((l) => l?.status !== 'CANCELADO' && Number.isInteger(l?.jato)).map((l) => l.jato);
+  return { tanque, jatoSugerido: jatos.length ? Math.max(...jatos) : 1 };
+};

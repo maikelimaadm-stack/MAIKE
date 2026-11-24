@@ -807,7 +807,7 @@ export const lancarLinhaProduto = async (contexto, atividadeId, apontamentoId, c
 };
 
 /** Campos que a edição troca (o resto vem da linha gravada). */
-const CAMPOS_EDITAVEIS = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao']);
+const CAMPOS_EDITAVEIS = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao', 'jato']);
 
 /**
  * `PATCH …/produtos/:linhaId` — EDITAR = estorno EXATO da linha (CANCELADO,
@@ -828,6 +828,8 @@ export const editarLinhaProduto = async (contexto, atividadeId, apontamentoId, l
   if (temCampo(corpo, 'local_estoque_id')) campos.local_estoque_id = idObrigatorio(corpo.local_estoque_id, 'local_estoque_id');
   if (temCampo(corpo, 'quantidade')) campos.quantidade = quantidadeDoCorpo(corpo.quantidade);
   if (temCampo(corpo, 'observacao')) campos.observacao = textoDoCorpo(corpo.observacao, 'observacao') ?? null;
+  // D-PROD-292: trocar (ou tirar, com null) o jato da linha.
+  if (temCampo(corpo, 'jato')) campos.jato = corpo.jato === null ? undefined : jatoDoCorpo(corpo.jato);
   if (!CAMPOS_EDITAVEIS.some((c) => temCampo(campos, c))) throw invalido('informe ao menos um campo da linha para alterar', { field: 'corpo', reason: 'sem_alteracao' });
   const fingerprint = fingerprintDePayload({ v: 1, atividade_id: atividadeId, apontamento_id: apontamentoId, linha_id: linhaId, empresa_id: corpo.empresa_id, versao: corpo.versao, ...campos });
   return comRecibo(contexto, {

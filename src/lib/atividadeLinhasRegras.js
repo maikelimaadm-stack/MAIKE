@@ -350,7 +350,7 @@ export const textoDaLeituraVigente = (medidor) => {
 
 /**
  * @typedef {{ id: string, rotulo: string, unidade_principal_estoque: string|null, carencia_dias?: number|null } | null} ProdutoEscolhido
- * @typedef {{ produto: ProdutoEscolhido, local_estoque_id: string|null, quantidade: string, observacao: string, vc?: string }} FormularioLinhaProduto
+ * @typedef {{ produto: ProdutoEscolhido, local_estoque_id: string|null, quantidade: string, observacao: string, vc?: string, jato?: number|null }} FormularioLinhaProduto
  *   D-PROD-274: `carencia_dias` (a carência da bula, para o "Pasto liberado em") e `vc` (o VC % digitado, Plantio).
  */
 
@@ -381,6 +381,7 @@ export const formularioDaLinhaProduto = (l) => ({
   local_estoque_id: texto(l?.local_estoque_id) || null,
   quantidade: paraEdicao(l?.quantidade),
   observacao: typeof l?.observacao === 'string' ? l.observacao : '',
+  ...(Number.isInteger(l?.jato) && l.jato > 0 ? { jato: l.jato } : {}),
 });
 
 /**
@@ -420,6 +421,8 @@ export const corpoDaLinhaProduto = (form) => ({
   local_estoque_id: form.local_estoque_id ?? null,
   quantidade: lerDecimal(form.quantidade, '').valor,
   observacao: texto(form.observacao) || null,
+  // D-PROD-292: o número do jato, em texto, só na linha de um jato.
+  ...(Number.isInteger(form.jato) && form.jato > 0 ? { jato: String(form.jato) } : {}),
 });
 
 // ─── Linha de MÁQUINA (janela e "Repetir") ───────────────────────────────

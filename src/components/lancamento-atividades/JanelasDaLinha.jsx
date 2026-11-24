@@ -1139,9 +1139,10 @@ const lerEfeitoDoEnvio = async ({ tipo, atividadeId, apontamento, novoDia, gravo
  * Janela da linha de PRODUTO (adicionar ou editar). A baixa sai do estoque pelo MESMO motor (custo médio) do abastecimento, no
  * servidor; editar = estorno exato + nova saída. Toda escrita leva a `versao` do apontamento e o `operation_id`
  * persistente.
- * @param {PropsDaJanela} props
+ * D-PROD-292: `tanque` (o implemento "por jato" do dia ou da atividade) mostra o "Jato nº"; `jatoSugerido`, o número da linha nova.
+ * @param {PropsDaJanela & { tanque?: { capacidade: string, unidade: string|null } | null, jatoSugerido?: number|null }} props
  */
-export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escopo, onSalvo, onCancelar, onMudou = null, novoDia = null, atividadeAreaId = null, Casca = Janela }) {
+export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escopo, onSalvo, onCancelar, onMudou = null, novoDia = null, atividadeAreaId = null, Casca = Janela, tanque = null, jatoSugerido = null }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const editando = Boolean(linha?.id);
   const atividadeId = String(atividade?.id ?? "");
@@ -1154,7 +1155,10 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
     refetchOnWindowFocus: false,
   });
   const hectaresDaDose = hectaresParaDose({ atividade, totais: totaisQuery.data ?? null, areaId: atividadeAreaId ?? apontamento?.atividade_area_id ?? null });
-  const [form, setForm] = useState(() => (editando ? formularioDaLinhaProduto(linha) : formularioProdutoVazio()));
+  // D-PROD-292: com implemento "por jato", a linha avulsa também diz o jato (a nova já vem com o jato sugerido).
+  const [form, setForm] = useState(() =>
+    editando ? formularioDaLinhaProduto(linha) : { ...formularioProdutoVazio(), ...(tanque && Number.isInteger(jatoSugerido) && jatoSugerido > 0 ? { jato: jatoSugerido } : {}) },
+  );
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
   const saldo = useSaldoDoProduto(empresaId, form, setForm, editando ? linha : null);
   const antes = useRef(idsDasLinhas(apontamento, LINHA_PRODUTO));
@@ -1188,6 +1192,8 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
     let dados = corpoDaLinhaProduto(form);
     if (editando) {
       dados = camposAlteradosDaLinha(linha, dados);
+      // D-PROD-292: tirar o jato da linha que tinha um.
+      if (Number.isInteger(linha?.jato) && !Number.isInteger(form.jato)) dados.jato = null;
       if (!Object.keys(dados).length) {
         notifyInfo("Sem alterações", "Nada foi alterado.");
         onCancelar();
@@ -1261,6 +1267,23 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
         bloqueado={enviando}
         prefixo="linha-produto"
       />
+      {tanque || Number.isInteger(form.jato) ? (
+        <CampoTexto
+          label="Jato nº"
+          value={Number.isInteger(form.jato) ? String(form.jato) : ""}
+          onChange={(v) => {
+            const n = Number(String(v).replace(/\D/g, "").slice(0, 3));
+            mudar({ jato: n > 0 ? n : null }, ["jato"]);
+          }}
+          readOnly={enviando}
+          span={6}
+          inputMode="numeric"
+          maxLength={3}
+          keepCase
+          dica={<p className="mt-1 px-1 text-[12px] text-[var(--mg-text-2,#475569)]">o jato do dia em que este produto foi (em branco: sem jato)</p>}
+          testId="linha-produto-jato"
+        />
+      ) : null}
       <div className="col-span-12 min-w-0">
         <AvisoEnvioDaLinha estado={estado} produto onRepetir={() => void salvar()} onConsultar={() => void consultar()} />
       </div>

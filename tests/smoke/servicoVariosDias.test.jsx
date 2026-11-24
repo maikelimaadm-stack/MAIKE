@@ -287,8 +287,12 @@ const PULVERIZADOR = { id: "i-pv", numero: "9", codigo_frota: "PV-01", nome: "PU
 const GLIFOSATO = { id: "p-gli", nome: "GLIFOSATO", unidade: "L", unidade_principal_estoque: "L" };
 /** O implemento da máquina do último dia (troca por teste). */
 let implementoDoUltimoDia = ROCADEIRA;
+/** D-PROD-292: o último dia com duas máquinas (troca por teste). */
+let duasMaquinas = false;
+const TRATOR3 = { id: "b-tr3", numero: "3", codigo_frota: "TR-03", nome: "TRATOR VALTRA", natureza: "MAQUINA" };
 const MEDIDORES = /** @type {Record<string, any>} */ ({
   "b-tr": { medidor_tipo: "HORIMETRO", medidor_unidade: "h", sem_medidor: false, leitura_vigente: { leitura: "1244.0000", data: "2026-12-02", origem: "ATIVIDADE" }, salto_maximo_medidor: null },
+  "b-tr3": { medidor_tipo: "HORIMETRO", medidor_unidade: "h", sem_medidor: false, leitura_vigente: { leitura: "500.0000", data: "2026-12-02", origem: "ATIVIDADE" }, salto_maximo_medidor: null },
 });
 const JOAO = { id: "f-joao", nome: "JOÃO", origem: "FUNCIONARIO", funcionario_tipo: "DIARISTA", funcionario_custo_hora: null, funcionario_custo_diaria: "150.0000" };
 const ULTIMO_DIA = {
@@ -321,6 +325,10 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
   if (partes[0] === "atividades-por-area" && method === "GET") {
     return { status: 200, body: { area_id: partes[1], mes: "2026-12", atividades: partes[1] === "area-aroeira" ? [NA_AROEIRA] : [], custos: null } };
   }
+  if (path === "/atividades/at-14/apontamentos" && method === "GET" && duasMaquinas) {
+    const segunda = { id: "lm-2", bem_id: "b-tr3", bem: TRATOR3, implemento_bem_id: null, implemento: null, sem_medidor: false, leitura_inicial: "490.0000", leitura_final: "500.0000", status: "CONFIRMADO", ordem: 2 };
+    return { status: 200, body: { items: [{ ...ULTIMO_DIA, maquinas: [...ULTIMO_DIA.maquinas, segunda] }] } };
+  }
   if (path === "/atividades/at-14/apontamentos" && method === "GET" && implementoDoUltimoDia !== ROCADEIRA) {
     const comImplemento = { ...ULTIMO_DIA, maquinas: ULTIMO_DIA.maquinas.map((m) => ({ ...m, implemento_bem_id: implementoDoUltimoDia.id, implemento: implementoDoUltimoDia })) };
     return { status: 200, body: { items: [comImplemento] } };
@@ -345,6 +353,7 @@ beforeEach(async () => {
   confirmacao.confirmar.mockResolvedValue(true);
   proximas = [];
   implementoDoUltimoDia = ROCADEIRA;
+  duasMaquinas = false;
   sessao.editar = true;
   backend = instalarBackendFake(rotear);
 });
@@ -823,5 +832,30 @@ describe("D-PROD-283: jatos de hoje no Novo lançamento", () => {
     await waitFor(() => expect(within(janela).getByTestId("registro-de-campo-vai-junto")).toHaveTextContent("JOÃO"));
     expect(within(janela).queryByTestId("jatos-vazio")).toBeNull();
     expect(within(janela).queryByTestId("jatos-novo")).toBeNull();
+  });
+});
+
+describe("D-PROD-292: várias máquinas no Novo lançamento curto", () => {
+  it("o horímetro de cada máquina do último dia, uma depois da outra ('Próxima máquina'); as duas vão no corpo", async () => {
+    duasMaquinas = true;
+    const { janela } = await montar({ continuar: SERVICO });
+    await within(janela).findByTestId("registro-de-campo-curto");
+    expect(await within(janela).findByTestId("registro-de-campo-proxima-maquina")).toHaveTextContent("Máquina 1 de 2");
+    expect(within(janela).getByTestId("registro-maquina-curto-nome")).toHaveTextContent("TR-02");
+    await waitFor(() => expect(within(janela).getByTestId("registro-maquina-horimetro-dica")).toHaveTextContent("última hora lançada: 1.244"));
+    fireEvent.change(within(janela).getByTestId("registro-maquina-leitura-final"), { target: { value: "1251" } });
+    fireEvent.click(within(janela).getByTestId("registro-de-campo-proxima-maquina-botao"));
+    await waitFor(() => expect(within(janela).getByTestId("registro-maquina-curto-nome")).toHaveTextContent("TR-03"));
+    expect(within(janela).queryByTestId("registro-de-campo-proxima-maquina")).toBeNull();
+    await waitFor(() => expect(within(janela).getByTestId("registro-maquina-horimetro-dica")).toHaveTextContent("última hora lançada: 500"));
+    fireEvent.change(within(janela).getByTestId("registro-maquina-leitura-final"), { target: { value: "506" } });
+    fireEvent.change(within(janela).getByTestId("registro-de-campo-hectares-hoje"), { target: { value: "4" } });
+    fireEvent.click(within(within(janela).getByTestId("registro-de-campo-situacao")).getByRole("radio", { name: "Não, continua" }));
+    fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(registros()).toHaveLength(1));
+    expect(registros()[0].body.maquinas).toMatchObject([
+      { bem_id: "b-tr", leitura_inicial: "1244", leitura_final: "1251" },
+      { bem_id: "b-tr3", leitura_inicial: "500", leitura_final: "506" },
+    ]);
   });
 });
