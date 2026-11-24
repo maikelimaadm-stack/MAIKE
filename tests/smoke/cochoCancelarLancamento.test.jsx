@@ -231,7 +231,7 @@ describe("C3 — operation_id persistida", () => {
   });
 });
 
-describe("C4 — sem internet (D-PROD-297)", () => {
+describe("C4 — sem internet (D-PROD-298)", () => {
   it("offline: não consulta o servidor; confirma e guarda a exclusão para subir depois (motivo fixo)", async () => {
     Object.defineProperty(window.navigator, "onLine", { value: false, configurable: true });
     const confirmarOriginal = window.confirm;

@@ -45,7 +45,7 @@ export const cancelarLancamentoCocho = async ({ evento, motivo, operationId }) =
   return cancelarLancamentoCochoNativo(evento.id, { empresa_id: evento.empresa_id, operation_id: operationId, motivo: String(motivo ?? '').trim() });
 };
 
-// ── D-PROD-297: excluir sem internet o lançamento que já está no servidor ──
+// ── D-PROD-298: excluir sem internet o lançamento que já está no servidor ──
 
 /**
  * O cancelamento do lançamento pelo motor de sincronização: sem internet fica no

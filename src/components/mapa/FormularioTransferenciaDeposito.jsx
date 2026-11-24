@@ -110,7 +110,7 @@ const respostaDefinitiva = (erro) => {
  * }} props
  *   `initialDirection`: "entrada" (o depósito recebe de outro local) ou "saida"
  *   (o depósito manda para outro local).
- *   `edicao` (D-PROD-297): corrigir a transferência que ainda não subiu (abre preenchida; salvar a
+ *   `edicao` (D-PROD-298): corrigir a transferência que ainda não subiu (abre preenchida; salvar a
  *   substitui na fila, na mesma posição; o saldo não desconta ela mesma).
  */
 export default function FormularioTransferenciaDeposito({ deposito, initialDirection = "entrada", onSuccess, onCancel, edicao = null }) {
@@ -169,7 +169,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   const { data: lotesNota = [] } = useQuery({
     queryKey: ["estoque-lotes-transferencia", empresaSelecionadaId, opEmEdicao],
     queryFn: async () => {
-      // D-PROD-297: editando, o saldo não desconta a própria transferência em edição.
+      // D-PROD-298: editando, o saldo não desconta a própria transferência em edição.
       const all = await listarTodosLotesNota({ ignorar: opEmEdicao });
       return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.status === "Disponivel");
     },

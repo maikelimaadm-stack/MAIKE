@@ -133,7 +133,7 @@ describe('D-PROD-296 — transferência entre depósitos sem internet', () => {
     expect((await motor.resumoDaFila()).aguardando).toBe(1);
   });
 
-  it('ET-06 D-PROD-297: a transferência que não subiu aparece no depósito, edita (mesmo código) e exclui', async () => {
+  it('ET-06 D-PROD-298: a transferência que não subiu aparece no depósito, edita (mesmo código) e exclui', async () => {
     const { estoque, motor } = await carregar();
     motor.definirSessaoDaFila({ cliente_id: 'cli_et06', usuario_id: 'usr_et06' });
     online = false;
@@ -153,7 +153,7 @@ describe('D-PROD-296 — transferência entre depósitos sem internet', () => {
     expect(await estoque.transferenciasAguardandoDoLocal('deposito-2')).toEqual([]);
   });
 
-  it('ET-07 D-PROD-297: excluir SEM internet a transferência que já está no servidor: some do histórico, o saldo volta; sobe depois', async () => {
+  it('ET-07 D-PROD-298: excluir SEM internet a transferência que já está no servidor: some do histórico, o saldo volta; sobe depois', async () => {
     const { estoque, motor } = await carregar();
     motor.definirSessaoDaFila({ cliente_id: 'cli_et07', usuario_id: 'usr_et07' });
     const visao = await import('@/services/estoqueAguardandoEnvioService');

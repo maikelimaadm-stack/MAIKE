@@ -71,7 +71,7 @@ export const MENSAGEM_LANCAMENTO_JA_CANCELADO = "Este lançamento já tinha sido
  * animais com o mesmo produto em outro cocho). O fechamento desse ciclo vai sem farol ("sem referência"):
  * não se rateia o consumo. Sem a prop, o serviço confere pelo cache do mapa.
  *
- * `edicao` (D-PROD-297): corrigir o lançamento feito sem internet que ainda não subiu. O formulário
+ * `edicao` (D-PROD-298): corrigir o lançamento feito sem internet que ainda não subiu. O formulário
  * abre preenchido com ele, o "último lançamento" é o de antes dele, o saldo não desconta ele mesmo, e
  * salvar o substitui na fila (mesma posição e mesmo código).
  * @param {{ ponto: any, onSubmit?: any, onCancel: () => void, cicloCompartilhado?: boolean,
@@ -253,7 +253,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const { data: lotesNota = [] } = useQuery({
     queryKey: ["lotes-nota-suplementacao", empresaSelecionadaId, opEmEdicao],
     queryFn: async () => {
-      // D-PROD-297: editando, o saldo não desconta a baixa do próprio lançamento em edição.
+      // D-PROD-298: editando, o saldo não desconta a baixa do próprio lançamento em edição.
       const all = await listarLotesNotaDaEmpresa(empresaSelecionadaId, { ignorar: opEmEdicao });
       return all.filter((lote) => lote.status === "Disponivel");
     },

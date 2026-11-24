@@ -1,5 +1,5 @@
 /**
- * D-PROD-297 — cancelamentos feitos sem internet que ainda não subiram: como as
+ * D-PROD-298 — cancelamentos feitos sem internet que ainda não subiram: como as
  * telas devem mostrar enquanto isso. O lançamento do cocho cancelado some (e o
  * período que ele fechou volta a ficar aberto); a transferência cancelada some
  * do histórico do depósito (as duas pernas). Só visão: o servidor decide quando

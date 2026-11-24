@@ -430,7 +430,7 @@ describe('D-PROD-296 — progresso e reajuste (revisão)', () => {
   });
 });
 
-describe('D-PROD-297 — corrigir na fila', () => {
+describe('D-PROD-298 — corrigir na fila', () => {
   it('MS-26 alterar troca o payload na MESMA posição e com o mesmo código; quem cita continua citando', async () => {
     const ordem = [];
     registrarTipoDeEnvio({ tipo: 'cocho.lancamento', versao: 1, offline: true, recursos: () => ['cocho:A'], enviar: async (p, { operationId }) => { ordem.push([p.n, operationId]); return { registro: { id: `srv-${p.n}` } }; } });

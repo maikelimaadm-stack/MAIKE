@@ -136,7 +136,7 @@ const CAPACIDADES = {
   aplicacaoMedicamento: async (empresaId) => daEmpresa(await listAplicacoesMedicamento(), empresaId),
   eventoSanitario: async (empresaId) => daEmpresa(await listEventosSanitarios(), empresaId),
   manejoTecnico: async (empresaId) => daEmpresa(await listManejosTecnicos(), empresaId),
-  // D-PROD-297: a transferência com cancelamento esperando envio já sai do histórico do depósito.
+  // D-PROD-298: a transferência com cancelamento esperando envio já sai do histórico do depósito.
   movimentacaoEstoque: async (empresaId) => comTransferenciasCanceladasAguardando(daEmpresa(await listMovimentacoesEstoque(), empresaId)),
   /**
    * `produtos` faltava no registro anterior enquanto `MapaGeral` pedia a query.

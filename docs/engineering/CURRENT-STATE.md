@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-24 (missão ativa D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-24 (missão ativa D-PROD-298; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-24) — MAIKE-BEM-IMPLEMENTO-PRODUTO: o produto do implemento no cadastro do bem (D-PROD-297)
+## Missão ativa (2026-11-24) — MAIKE-CORRIGIR-SEM-INTERNET: editar, excluir e cancelar sem internet (D-PROD-298)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-298**: editar/excluir na fila o lançamento do cocho e a transferência que não subiram; excluir (estorno) sem internet o que já subiu |
+| Banco | sem migration |
+| Próxima | limpeza dos recibos antigos de idempotência |
+| Relatório | [`CORRIGIR-SEM-INTERNET-D298-REPORT.md`](./CORRIGIR-SEM-INTERNET-D298-REPORT.md) · inventário [`OFFLINE-INVENTARIO.md`](./OFFLINE-INVENTARIO.md) |
+
+## Missão anterior (2026-11-24) — MAIKE-BEM-IMPLEMENTO-PRODUTO: o produto do implemento no cadastro do bem (D-PROD-297)
 
 | Item | Estado |
 |---|---|

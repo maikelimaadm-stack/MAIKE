@@ -151,7 +151,7 @@ export const registrarSaidaSuplementacao = async ({ operationId, ...params }) =>
  */
 /**
  * @param {{ empresaId: string, produto: object, quantidade: number, localOrigemId: string, localOrigemNome?: string, localDestinoId: string, localDestinoNome?: string, observacoes?: string, lotesNota?: object[], dataMovimentacao?: string, operationId?: string, edicao?: string }} params
- *   `edicao` (D-PROD-297): o código da transferência que ainda não subiu e está sendo corrigida.
+ *   `edicao` (D-PROD-298): o código da transferência que ainda não subiu e está sendo corrigida.
  */
 export const registrarTransferenciaEntreLocais = async ({
   empresaId,
@@ -194,7 +194,7 @@ export const registrarTransferenciaEntreLocais = async ({
     data_movimentacao: dataMovimentacao || null,
     observacoes: observacaoComRateio(observacoes, validacao.rateio),
   };
-  // D-PROD-297: corrigir a transferência que ainda não subiu (mesma posição, mesmo código).
+  // D-PROD-298: corrigir a transferência que ainda não subiu (mesma posição, mesmo código).
   if (edicao) {
     const ok = await alterarNaFila(edicao, corpo);
     if (!ok) {
@@ -265,7 +265,7 @@ export const consultarCancelamentoTransferencia = async ({ movimentacaoId, empre
 /** Reexportado para quem só precisa do cálculo, sem tocar no service. */
 export { calcularRateioFIFO };
 
-// ── D-PROD-297: transferências que ainda não subiram ──────────────────────
+// ── D-PROD-298: transferências que ainda não subiram ──────────────────────
 
 /** Tira o rateio e o texto padrão das observações guardadas (para o formulário de edição). @param {unknown} obs */
 const observacaoDigitada = (obs) => {
@@ -336,7 +336,7 @@ export const transferenciaAguardandoPodeEditar = async (operationId) => {
   return true;
 };
 
-// ── D-PROD-297: excluir sem internet a transferência que já está no servidor ──
+// ── D-PROD-298: excluir sem internet a transferência que já está no servidor ──
 
 registrarTipoDeEnvio({
   tipo: TIPO_CANCELAMENTO_TRANSFERENCIA,

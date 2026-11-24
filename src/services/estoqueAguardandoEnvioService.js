@@ -59,7 +59,7 @@ const EFEITOS = [
         : null,
   },
   {
-    // D-PROD-297: o cancelamento do lançamento devolve ao depósito a baixa dele.
+    // D-PROD-298: o cancelamento do lançamento devolve ao depósito a baixa dele.
     tipo: TIPO_CANCELAMENTO_LANCAMENTO_COCHO,
     /** @param {any} p @param {string} operationId @returns {MovimentoAguardando|null} */
     movimento: (p, operationId) =>
@@ -76,7 +76,7 @@ const EFEITOS = [
         : null,
   },
   {
-    // D-PROD-297: o cancelamento da transferência faz o caminho de volta (destino → origem).
+    // D-PROD-298: o cancelamento da transferência faz o caminho de volta (destino → origem).
     tipo: TIPO_CANCELAMENTO_TRANSFERENCIA,
     /** @param {any} p @param {string} operationId @returns {MovimentoAguardando|null} */
     movimento: (p, operationId) =>

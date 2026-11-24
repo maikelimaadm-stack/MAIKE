@@ -1,6 +1,6 @@
 # Inventário: o que funciona sem internet (app)
 
-Situação em 2026-11-24, depois da D-PROD-296 (cochos e depósitos no motor de sincronização). Atualizar
+Situação em 2026-11-24, depois da D-PROD-298 (corrigir sem internet: editar, excluir e cancelar). Atualizar
 a cada manejo ligado ao motor.
 
 ## Funciona sem internet
@@ -23,7 +23,10 @@ a cada manejo ligado ao motor.
 | `cocho.lancamento` (baixa + lançamento + fechamento do período anterior) | `FormularioLancamentoSuplementacao` | aparece como último lançamento do cocho; o período anterior aparece fechado; o saldo do depósito desconta a baixa |
 | `deposito.transferencia` | `FormularioTransferenciaDeposito` | o saldo da origem desconta e o destino ganha o lote |
 
-Ainda com internet (próxima etapa): cancelar lançamento do cocho e transferência (estorno), editar ou excluir na fila o lançamento e a transferência que não subiram.
+| `cocho.cancelamento` | `CancelarLancamentoCocho` (sem internet) | o lançamento some do cocho; o período que ele fechou reabre; o produto volta ao depósito |
+| `deposito.cancelamento-transferencia` | `CancelarTransferenciaDeposito` (sem internet) | as duas pernas somem do histórico; o saldo volta |
+
+Corrigir antes de subir (D-PROD-298): o lançamento do cocho e a transferência que esperam envio têm **Editar** e **Excluir** (no cocho, no depósito e na janela "Dados sem internet"); a leitura de cocho tem **Excluir**. Nada disso deixa rastro no banco.
 
 ### Fila antiga por entidade (`offlineEntityRuntime`)
 
@@ -46,7 +49,6 @@ criação só com internet. Lote de nota e movimentação de estoque: só ediç�
 
 | O quê | Por quê |
 |---|---|
-| Cancelar lançamento do cocho e transferência entre depósitos | estorno no servidor (vai para o motor na próxima etapa) |
 | Entrada, saída e ajuste de estoque; motivos | gravação direta, sem fila |
 | Manejos de gado por comando (movimentação, junção, baixa, rebanho) | comandos com `operation_id`, gravação direta |
 | Exclusão de lote, de categoria de manejo e o que exige elegibilidade | só com confirmação do servidor |

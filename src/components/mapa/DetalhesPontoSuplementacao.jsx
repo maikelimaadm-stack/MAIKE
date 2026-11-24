@@ -198,7 +198,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
   const [animAba, setAnimAba] = useState(/** @type {"aba-dir" | "aba-esq" | null} */ (null));
   const [filtroHistorico, setFiltroHistorico] = useState("todos");
   const [showLancamento, setShowLancamento] = useState(false);
-  // D-PROD-297: o lançamento que ainda não subiu, aberto para correção.
+  // D-PROD-298: o lançamento que ainda não subiu, aberto para correção.
   const [edicaoLancamento, setEdicaoLancamento] = useState(/** @type {null | { operationId: string, payload: any }} */ (null));
   const [showLeitura, setShowLeitura] = useState(false);
 
@@ -339,7 +339,7 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
           rotulo: `Quantidade: ${formatarKgNivel(qtdKg)}${textoSacos ? `, ${textoSacos}` : ""}`,
         },
         linhas,
-        // D-PROD-297: o que ainda não subiu tem Editar/Excluir (só no aparelho); o que está no servidor, o cancelamento.
+        // D-PROD-298: o que ainda não subiu tem Editar/Excluir (só no aparelho); o que está no servidor, o cancelamento.
         ...(ev?._aguardandoEnvio
           ? {
               acoes: (

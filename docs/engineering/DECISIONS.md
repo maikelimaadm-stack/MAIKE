@@ -9455,4 +9455,17 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Correção junto:** com implemento por jato e a área em andamento, o formulário inteiro não grava mais os 100% da área no dia; os hectares vêm no "Fez o pasto todo?" do Finalizar (D-PROD-292).
 - **Testes:** `bemImplementoProduto.test.mjs`, `patrimonioP1Bens.test.mjs`, `premerge-migrate.test.mjs` (B45), `preflight-schema.test.mjs`, `bensPatrimoniais.test.jsx`, `registroDeCampoVariasLinhas.test.jsx`, `bensGerenciarTipos.test.jsx`; ensaio no navegador real.
 
-<!-- Próxima decisão: D-PROD-298 -->
+## D-PROD-298 — Corrigir sem internet: editar, excluir e cancelar lançamentos do cocho e transferências
+
+- **Contexto:** a D-PROD-296 deixou para a etapa seguinte corrigir o que foi feito sem internet. O proprietário escolheu: enquanto o registro está só no celular, editar e excluir sem deixar rastro no banco; o que já subiu continua com o cancelamento (estorno) de hoje, também sem internet (D-PROD-268 mantida).
+- **Numeração:** nasceu como D-PROD-297, que a `main` deu ao produto do implemento no cadastro do bem (PR #385) antes do merge desta; esta é a **D-PROD-298**.
+- **Decisão:**
+  1. **Motor — corrigir na fila** (`alterarNaFila`): o payload novo toma o lugar do antigo na MESMA posição e com o MESMO código. Só vale quando o servidor certamente não tem nada do registro: esperando e nunca tentou subir, ou recusado sem nenhum passo confirmado (`progresso` vazio). `dependentesNaFila` lista quem cita o registro (o próximo lançamento do mesmo cocho), para a tela avisar antes de excluir; `registroNaFila` devolve o registro para o formulário.
+  2. **Lançamento do cocho que ainda não subiu:** no histórico do cocho, "aguardando envio" com **Editar** (o mesmo formulário, preenchido; o "último lançamento" é o de antes dele, com o período reaberto; o saldo não desconta a baixa dele mesmo; salvar substitui na fila) e **Excluir** (sai só do aparelho; a baixa vai junto, porque ainda não foi feita; avisa quem depende dele).
+  3. **Transferência que ainda não subiu:** no depósito, a seção **Aguardando envio** com Editar (formulário preenchido) e Excluir. "Confirmando envio" e "precisa de atenção" só mostram a situação.
+  4. **Janela "Dados sem internet":** "Excluir" também para o que espera envio (nunca para o que está subindo), com o aviso de dependentes.
+  5. **Excluir sem internet o que já subiu** (`cocho.cancelamento`, `deposito.cancelamento-transferencia`): sem internet, "Excluir lançamento"/"Excluir transferência" pede confirmação e guarda o cancelamento (motivo fixo do mapa, D-PROD-270; o código da pendência, se havia uma sem resposta). O servidor confere a elegibilidade e estorna quando o cancelamento subir; recusa → "precisa de atenção"; "já excluído" conta como feito. Enquanto isso o aparelho já mostra: o lançamento fora do cocho e o período que ele fechou aberto de novo; as duas pernas da transferência fora do histórico do depósito; o produto de volta no saldo (`cancelamentosAguardandoService`, `estoqueAguardandoEnvioService`).
+- **Limite aceito:** a exclusão sem internet não mostra a prévia do servidor (efeitos, recálculo de custo); quem decide é o servidor quando ela sobe. Editar não vale para o que já tentou subir ("confirmando envio") nem para o lançamento com a baixa já gravada (usa-se o "Tentar de novo" da D-PROD-296).
+- **Testes:** `tests/smoke/motorSincronizacao.test.js` (MS-26..27), `tests/smoke/lancamentoCochoOffline.test.js` (LCO-08..11), `tests/smoke/depositoTransferenciaOffline.test.js` (ET-06..07), `tests/smoke/cochoCancelarLancamento.test.jsx` (C4), `tests/smoke/depositoCancelarTransferencia.test.jsx` (CT-2).
+
+<!-- Próxima decisão: D-PROD-299 -->

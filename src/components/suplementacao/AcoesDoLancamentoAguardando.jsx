@@ -11,7 +11,7 @@ import {
 import { updateMapaCachedData } from "@/services/mapaCacheService";
 
 /**
- * D-PROD-297 — o lançamento feito sem internet que ainda não subiu: "Editar" (abre o formulário
+ * D-PROD-298 — o lançamento feito sem internet que ainda não subiu: "Editar" (abre o formulário
  * preenchido; salvar o substitui na fila, na mesma posição) e "Excluir" (sai só do aparelho; a baixa
  * do depósito vai junto, porque ainda não foi feita). Nada disso vai ao servidor nem deixa rastro.
  *

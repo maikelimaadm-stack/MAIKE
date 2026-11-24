@@ -229,7 +229,7 @@ describe('CT-1 — o cartão no histórico do depósito', () => {
   });
 });
 
-describe('CT-2 — sem internet (D-PROD-297)', () => {
+describe('CT-2 — sem internet (D-PROD-298)', () => {
   it('offline: sem ensaio no servidor; confirma e guarda a exclusão para subir depois', async () => {
     Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true });
     const confirmarOriginal = window.confirm;

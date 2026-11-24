@@ -13,7 +13,7 @@ import {
 const kg = (n) => `${Number(n || 0).toLocaleString("pt-BR", { maximumFractionDigits: 3 })} kg`;
 
 /**
- * D-PROD-297 — as entradas e saídas deste depósito feitas sem internet que ainda não subiram,
+ * D-PROD-298 — as entradas e saídas deste depósito feitas sem internet que ainda não subiram,
  * com "Editar" (abre o formulário preenchido) e "Excluir" (sai só do aparelho). Subindo
  * ("confirmando envio") ou recusada ("precisa de atenção"), só mostra a situação.
  *

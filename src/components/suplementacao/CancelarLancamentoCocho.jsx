@@ -215,7 +215,7 @@ export function usePermissaoCancelarCocho() {
   return { usuario, autorizado };
 }
 
-/** D-PROD-297 — o que o botão diz sem internet. */
+/** D-PROD-298 — o que o botão diz sem internet. */
 export const TEXTO_EXCLUSAO_SEM_INTERNET = "Sem internet: a exclusão fica no celular e vai ao sistema quando a internet voltar.";
 
 /**
@@ -276,7 +276,7 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
   const podeEnviar = online && motivoPronto && !enviando && (elegivelAgora || desconhecido);
 
   const estado = (() => {
-    // D-PROD-297: sem internet, a exclusão fica no aparelho e sobe quando a internet voltar.
+    // D-PROD-298: sem internet, a exclusão fica no aparelho e sobe quando a internet voltar.
     if (!online) return { habilitado: true, motivo: TEXTO_EXCLUSAO_SEM_INTERNET };
     if (pendenteAgora) return { habilitado: true, motivo: "Exclusão anterior sem confirmação do servidor: abra para reenviar a mesma operação." };
     if (negadoNoServidor) return { habilitado: false, motivo: MENSAGENS_CODIGO.ACAO_NAO_PERMITIDA };
@@ -286,7 +286,7 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
     return { habilitado: true, motivo: null };
   })();
 
-  // D-PROD-297: sem internet, confirma e guarda a exclusão (o servidor confere tudo quando ela subir).
+  // D-PROD-298: sem internet, confirma e guarda a exclusão (o servidor confere tudo quando ela subir).
   const excluirSemInternet = async () => {
     const ok = await pedirConfirmacao({
       titulo: "Excluir lançamento sem internet?",

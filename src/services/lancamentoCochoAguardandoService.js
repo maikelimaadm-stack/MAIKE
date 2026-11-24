@@ -36,7 +36,7 @@ export const lancamentoAguardandoComoEvento = (p, operationId, criadoEm) => ({
  * @param {string} [pontoId] só os deste cocho (a lista recebida já é só dele)
  */
 export const comLancamentosAguardandoEnvio = async (eventos, empresaId, pontoId) =>
-  // D-PROD-297: e sem os lançamentos com cancelamento esperando envio.
+  // D-PROD-298: e sem os lançamentos com cancelamento esperando envio.
   semLancamentosCanceladosAguardando(await comLancamentosNovosAguardando(eventos, empresaId, pontoId));
 
 /**

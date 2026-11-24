@@ -55,7 +55,7 @@ import { mensagemRecalculoDaExclusao } from "@/lib/gestaoErros";
  *   div.mk-dp-hist__excluir[data-estado-cancelamento] > div > button + p (motivo de estar desligado)
  */
 
-/** D-PROD-297: sem internet, a exclusão fica no aparelho e sobe quando a internet voltar. */
+/** D-PROD-298: sem internet, a exclusão fica no aparelho e sobe quando a internet voltar. */
 export const TEXTO_SEM_CONEXAO_TRANSFERENCIA = "Sem internet: a exclusão fica no celular e vai ao sistema quando a internet voltar.";
 export const MOTIVO_MINIMO_TRANSFERENCIA = 3;
 export const MOTIVO_MAXIMO_TRANSFERENCIA = 500;
@@ -256,7 +256,7 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
   if (!id) return null;
   const pendente = cancelada ? null : lerPendenteTransferencia(escopo, id);
 
-  // D-PROD-297: sem internet, confirma e guarda a exclusão (o servidor confere tudo quando ela subir).
+  // D-PROD-298: sem internet, confirma e guarda a exclusão (o servidor confere tudo quando ela subir).
   const excluirSemInternet = async () => {
     const ok = await pedirConfirmacaoSemInternet({
       titulo: "Excluir transferência sem internet?",

@@ -783,7 +783,7 @@ export const descartarDaFila = async (id) => {
 };
 
 /**
- * D-PROD-297 — dá para editar este registro na fila? Só quando o servidor
+ * D-PROD-298 — dá para editar este registro na fila? Só quando o servidor
  * certamente não tem nada dele:
  *  - esperando e nunca tentou subir; ou
  *  - recusado ("precisa de atenção") sem nenhum passo confirmado (`progresso`

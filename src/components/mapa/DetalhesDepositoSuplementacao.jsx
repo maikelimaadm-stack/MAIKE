@@ -104,7 +104,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const queryClient = useQueryClient();
   const [showTransferencia, setShowTransferencia] = useState(false);
   const [transferDirection, setTransferDirection] = useState("entrada");
-  // D-PROD-297: a transferência que ainda não subiu, aberta para correção.
+  // D-PROD-298: a transferência que ainda não subiu, aberta para correção.
   const [edicaoTransferencia, setEdicaoTransferencia] = useState(/** @type {any} */ (null));
   const [abaAtiva, setAbaAtiva] = useState(/** @type {"detalhes" | "informacoes" | "historico"} */ ("detalhes"));
   const [animAba, setAnimAba] = useState(/** @type {"aba-dir" | "aba-esq" | null} */ (null));

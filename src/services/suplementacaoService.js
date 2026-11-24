@@ -591,7 +591,7 @@ export const registrarLancamentoDoCocho = async (dados, { operationId, rotulo })
   return { aguardandoEnvio: true, evento: lancamentoAguardandoComoEvento(payload, r.operationId, new Date().toISOString()), fechamento: 'aguardando' };
 };
 
-// ── D-PROD-297: corrigir o lançamento que ainda não subiu ─────────────────
+// ── D-PROD-298: corrigir o lançamento que ainda não subiu ─────────────────
 
 /** @param {string} mensagem */
 const naoDaMais = (mensagem) => {

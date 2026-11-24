@@ -247,7 +247,7 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
     expect(lotes[0].quantidade_disponivel).toBe(20);
   });
 
-  it('LCO-08 D-PROD-297: editar o lançamento que não subiu troca na fila (mesmo código); o saldo do formulário não desconta ele mesmo; excluir tira do aparelho', async () => {
+  it('LCO-08 D-PROD-298: editar o lançamento que não subiu troca na fila (mesmo código); o saldo do formulário não desconta ele mesmo; excluir tira do aparelho', async () => {
     const srv = servidor();
     vi.stubGlobal('fetch', srv.fetch);
     const { sup, motor, estoque } = await carregar();
@@ -271,7 +271,7 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
     expect(srv.fetch).not.toHaveBeenCalled();
   });
 
-  it('LCO-09 D-PROD-297: o que já tentou subir não abre para edição nem se exclui', async () => {
+  it('LCO-09 D-PROD-298: o que já tentou subir não abre para edição nem se exclui', async () => {
     const srv = servidor();
     vi.stubGlobal('fetch', srv.fetch);
     const { sup } = await carregar();
@@ -285,7 +285,7 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
     await expect(sup.excluirLancamentoAguardando(r.evento)).rejects.toThrow(/sendo enviado/);
   });
 
-  it('LCO-11 D-PROD-297: excluir SEM internet o lançamento que já está no servidor: some, o anterior reabre, o estoque volta; sobe depois com o mesmo código', async () => {
+  it('LCO-11 D-PROD-298: excluir SEM internet o lançamento que já está no servidor: some, o anterior reabre, o estoque volta; sobe depois com o mesmo código', async () => {
     const srv = servidor();
     vi.stubGlobal('fetch', srv.fetch);
     const { sup, motor, estoque } = await carregar();
