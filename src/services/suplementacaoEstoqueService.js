@@ -31,7 +31,9 @@ import {
   descartarDaFila,
   registroNaFila,
 } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
-import { TIPO_TRANSFERENCIA_DEPOSITO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
+import { TIPO_TRANSFERENCIA_DEPOSITO, TIPO_CANCELAMENTO_TRANSFERENCIA } from '@/lib/offline/sincronizacao/tiposDeEnvio';
+import { getMapaCachedData, updateMapaCachedData } from '@/services/mapaCacheService';
+import { comTransferenciasCanceladasAguardando } from '@/services/cancelamentosAguardandoService';
 import {
   proximoNumeroDeMovimentacao,
   buildRateioObservacao,
@@ -332,5 +334,63 @@ export const transferenciaAguardandoPodeEditar = async (operationId) => {
   if (!registro) throw indisponivel('Esta transferência já chegou ao sistema. Atualize a tela.');
   if (!registro.podeAlterar) throw indisponivel('Esta transferência está sendo enviada agora. Espere confirmar.');
   return true;
+};
+
+// ── D-PROD-297: excluir sem internet a transferência que já está no servidor ──
+
+registrarTipoDeEnvio({
+  tipo: TIPO_CANCELAMENTO_TRANSFERENCIA,
+  versao: 1,
+  offline: true,
+  recursos: (p) => [`estoque:${p?.estorno?.origem ?? ''}`, `estoque:${p?.estorno?.destino ?? ''}`],
+  rotulo: (p) => `Excluir transferência ${p?.estorno?.origem_nome ?? ''} → ${p?.estorno?.destino_nome ?? ''}`.trim(),
+  atualiza: ['movimentacaoEstoque', 'estoqueLotes'],
+  enviar: async (p, { operationId }) => {
+    try {
+      return await cancelarTransferenciaApi(p.movimentacao_id, { empresa_id: p.empresa_id, motivo: p.motivo, operation_id: operationId });
+    } catch (erro) {
+      const cause = /** @type {any} */ (erro)?.cause;
+      // Já excluída (por esta ou outra tela): conta como feito.
+      if (cause?.code === 'TRANSFERENCIA_CANCELAMENTO_BLOQUEADO' && (cause?.details?.reason ?? cause?.reason) === 'original_ja_estornado') return { committed: true, ja_excluida: true };
+      throw erro;
+    }
+  },
+});
+
+/**
+ * Exclui (cancela) sem internet a transferência que já está no servidor: fica no
+ * aparelho e sobe quando a internet voltar. O depósito já mostra a
+ * transferência fora do histórico e o saldo de volta.
+ * @param {{ movimento: any, empresaId: string, motivo: string, operationId: string }} p
+ */
+export const cancelarTransferenciaSemInternet = async ({ movimento, empresaId, motivo, operationId }) => {
+  const r = await enviarOuGuardar(
+    TIPO_CANCELAMENTO_TRANSFERENCIA,
+    {
+      movimentacao_id: movimento.id,
+      empresa_id: empresaId,
+      motivo: String(motivo ?? '').trim(),
+      estorno: {
+        produto_id: movimento.produto_id,
+        quantidade: Number(movimento.quantidade) || 0,
+        origem: movimento.local_estoque_origem ?? null,
+        destino: movimento.local_estoque_destino ?? null,
+        origem_nome: movimento.local_origem ?? null,
+        destino_nome: movimento.local_destino ?? null,
+        data: movimento.data_movimentacao ?? null,
+      },
+    },
+    { empresaId, operationId }
+  );
+  if (r.estado === 'aguardando') {
+    // A cópia do aparelho (lida sem internet) já tira as duas pernas do histórico.
+    try {
+      const atuais = await getMapaCachedData('movimentacaoEstoque', empresaId);
+      await updateMapaCachedData('movimentacaoEstoque', empresaId, await comTransferenciasCanceladasAguardando(atuais));
+    } catch {
+      // só visão: o servidor decide quando o cancelamento subir
+    }
+  }
+  return r;
 };
 

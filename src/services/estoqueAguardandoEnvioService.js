@@ -13,7 +13,12 @@
  *  - os registros entram na ordem em que foram feitos.
  */
 
-import { TIPO_TRANSFERENCIA_DEPOSITO, TIPO_LANCAMENTO_COCHO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
+import {
+  TIPO_TRANSFERENCIA_DEPOSITO,
+  TIPO_LANCAMENTO_COCHO,
+  TIPO_CANCELAMENTO_LANCAMENTO_COCHO,
+  TIPO_CANCELAMENTO_TRANSFERENCIA,
+} from '@/lib/offline/sincronizacao/tiposDeEnvio';
 import { registrosAguardandoDoTipo } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 
 /**
@@ -50,6 +55,40 @@ const EFEITOS = [
             local_origem_id: p.saida.local_origem_id ?? null,
             local_destino_id: null,
             data: p.saida.data_movimentacao ?? null,
+          }
+        : null,
+  },
+  {
+    // D-PROD-297: o cancelamento do lançamento devolve ao depósito a baixa dele.
+    tipo: TIPO_CANCELAMENTO_LANCAMENTO_COCHO,
+    /** @param {any} p @param {string} operationId @returns {MovimentoAguardando|null} */
+    movimento: (p, operationId) =>
+      p?.estorno?.local_id && p.estorno.produto_id
+        ? {
+            operationId,
+            empresa_id: p.empresa_id,
+            produto_id: p.estorno.produto_id,
+            quantidade: Number(p.estorno.quantidade) || 0,
+            local_origem_id: null,
+            local_destino_id: p.estorno.local_id,
+            data: p.estorno.data ?? null,
+          }
+        : null,
+  },
+  {
+    // D-PROD-297: o cancelamento da transferência faz o caminho de volta (destino → origem).
+    tipo: TIPO_CANCELAMENTO_TRANSFERENCIA,
+    /** @param {any} p @param {string} operationId @returns {MovimentoAguardando|null} */
+    movimento: (p, operationId) =>
+      p?.estorno?.origem && p.estorno.destino && p.estorno.produto_id
+        ? {
+            operationId,
+            empresa_id: p.empresa_id,
+            produto_id: p.estorno.produto_id,
+            quantidade: Number(p.estorno.quantidade) || 0,
+            local_origem_id: p.estorno.destino,
+            local_destino_id: p.estorno.origem,
+            data: p.estorno.data ?? null,
           }
         : null,
   },

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { getCurrentUser, carregarPermissaoEfetiva } from "@/services/sessionService";
 import { podeCancelarLancamentosEstoque } from "@/lib/mapaGeralPermissions";
-import { cancelarLancamentoCocho, consultarElegibilidadeCancelamentoCocho } from "@/services/suplementacaoCancelamentoService";
+import { cancelarLancamentoCocho, cancelarLancamentoCochoSemInternet, consultarElegibilidadeCancelamentoCocho } from "@/services/suplementacaoCancelamentoService";
 import { refreshMapaCacheEntry, updateMapaCachedData } from "@/services/mapaCacheService";
 import { CANCELAMENTO_COCHO_HABILITADO } from "@/domain/estornos/politicaEstorno";
 import { invalidarCachesDoMapa } from "@/components/mapa/invalidarCachesMapa";
@@ -215,6 +215,9 @@ export function usePermissaoCancelarCocho() {
   return { usuario, autorizado };
 }
 
+/** D-PROD-297 — o que o botão diz sem internet. */
+export const TEXTO_EXCLUSAO_SEM_INTERNET = "Sem internet: a exclusão fica no celular e vai ao sistema quando a internet voltar.";
+
 /**
  * @param {{ evento: any, onCancelado?: () => void, rotulo?: string }} props
  */
@@ -273,7 +276,8 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
   const podeEnviar = online && motivoPronto && !enviando && (elegivelAgora || desconhecido);
 
   const estado = (() => {
-    if (!online) return { habilitado: false, motivo: "Sem conexão: a exclusão só é feita online." };
+    // D-PROD-297: sem internet, a exclusão fica no aparelho e sobe quando a internet voltar.
+    if (!online) return { habilitado: true, motivo: TEXTO_EXCLUSAO_SEM_INTERNET };
     if (pendenteAgora) return { habilitado: true, motivo: "Exclusão anterior sem confirmação do servidor: abra para reenviar a mesma operação." };
     if (negadoNoServidor) return { habilitado: false, motivo: MENSAGENS_CODIGO.ACAO_NAO_PERMITIDA };
     if (elegibilidade.isError) return { habilitado: false, motivo: "Não foi possível verificar no servidor. Nada foi alterado.", tentarDeNovo: true };
@@ -282,7 +286,34 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
     return { habilitado: true, motivo: null };
   })();
 
+  // D-PROD-297: sem internet, confirma e guarda a exclusão (o servidor confere tudo quando ela subir).
+  const excluirSemInternet = async () => {
+    const ok = await pedirConfirmacao({
+      titulo: "Excluir lançamento sem internet?",
+      descricao:
+        "A exclusão fica guardada neste celular e vai ao sistema quando a internet voltar. Lá, o estoque volta ao depósito e o período anterior é reaberto. Se o sistema recusar, ela aparece em \"Dados sem internet\".",
+      textoConfirmar: "Excluir",
+      perigo: true,
+    });
+    if (!ok) return;
+    const pendente = lerPendenteCocho(escopo, evento.id);
+    try {
+      await cancelarLancamentoCochoSemInternet({ evento, motivo: pendente?.motivo || MOTIVO_EXCLUSAO_MAPA, operationId: pendente?.operation_id || novaChave() });
+      limparPendente(escopo, evento.id);
+      setCancelado(true);
+      toast.success("Lançamento excluído.");
+      await recarregar(queryClient, evento);
+      onCancelado?.();
+    } catch (erro) {
+      toast.error(/** @type {any} */ (erro)?.message || "Não foi possível excluir agora.");
+    }
+  };
+
   const abrir = () => {
+    if (!online) {
+      void excluirSemInternet();
+      return;
+    }
     const pendente = lerPendenteCocho(escopo, evento.id);
     if (pendente) {
       chaveRef.current = pendente.operation_id;

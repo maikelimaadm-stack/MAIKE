@@ -12,3 +12,7 @@ export const TIPO_LEITURA_COCHO = 'cocho.leitura';
 export const TIPO_TRANSFERENCIA_DEPOSITO = 'deposito.transferencia';
 /** Lançamento de suplementação no cocho (baixa do depósito + lançamento + fechamento do período anterior). */
 export const TIPO_LANCAMENTO_COCHO = 'cocho.lancamento';
+/** Cancelamento (estorno) de um lançamento do cocho que já está no servidor. */
+export const TIPO_CANCELAMENTO_LANCAMENTO_COCHO = 'cocho.cancelamento';
+/** Cancelamento (estorno) de uma transferência entre depósitos que já está no servidor. */
+export const TIPO_CANCELAMENTO_TRANSFERENCIA = 'deposito.cancelamento-transferencia';

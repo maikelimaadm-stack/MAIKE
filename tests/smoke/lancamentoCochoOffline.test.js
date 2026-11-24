@@ -284,5 +284,31 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
     await expect(sup.lancamentoAguardandoParaEditar(r.evento)).rejects.toThrow(/baixa deste lançamento já foi feita|sendo enviado/);
     await expect(sup.excluirLancamentoAguardando(r.evento)).rejects.toThrow(/sendo enviado/);
   });
+
+  it('LCO-11 D-PROD-297: excluir SEM internet o lançamento que já está no servidor: some, o anterior reabre, o estoque volta; sobe depois com o mesmo código', async () => {
+    const srv = servidor();
+    vi.stubGlobal('fetch', srv.fetch);
+    const { sup, motor, estoque } = await carregar();
+    const canc = await import('@/services/suplementacaoCancelamentoService');
+    const mapa = await import('@/services/mapaCacheService');
+    const lancado = { id: 'ev-9', empresa_id: EMP, ponto_suplementacao_id: 'c1', ponto_nome: 'COCHO 1', data_lancamento: '2026-11-12', movimentacao_estoque_id: 'mov-9', dias_periodo: null };
+    const anterior = { ...srv.eventos[0], dias_periodo: 2, fechado_por_evento_id: 'ev-9' };
+    await mapa.updateMapaCachedData('movimentacaoEstoque', EMP, [{ id: 'mov-9', empresa_id: EMP, produto_id: 'prod-1', local_estoque_origem: 'galpao', quantidade: 80 }]);
+    online = false;
+    const r = await canc.cancelarLancamentoCochoSemInternet({ evento: lancado, motivo: 'Lançado errado', operationId: 'op-canc-0001' });
+    expect(r.estado).toBe('aguardando');
+
+    const lista = await sup.comLancamentosAguardandoEnvio([lancado, anterior], EMP, 'c1');
+    expect(lista.map((e) => e.id)).toEqual(['ev-1']);
+    expect(lista[0]).toMatchObject({ dias_periodo: null, _reabertoAguardando: true });
+    const lotes = await estoque.comEstoqueAguardandoEnvio([{ id: 'nf1', empresa_id: EMP, produto_id: 'prod-1', local_estoque_id: 'galpao', status: 'Disponivel', quantidade_disponivel: 20, data_documento: '2026-01-01' }]);
+    expect(lotes.filter((l) => l.local_estoque_id === 'galpao').reduce((t, l) => t + l.quantidade_disponivel, 0)).toBe(100);
+
+    online = true;
+    await motor.sincronizar();
+    const envio = srv.chamadas.find((c) => c.caminho === '/suplementacao-eventos/ev-9/cancelamento');
+    expect(envio.corpo).toMatchObject({ empresa_id: EMP, operation_id: 'op-canc-0001', motivo: 'Lançado errado' });
+    expect((await motor.resumoDaFila()).aguardando).toBe(0);
+  });
 });
 

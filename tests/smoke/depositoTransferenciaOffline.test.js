@@ -152,5 +152,31 @@ describe('D-PROD-296 — transferência entre depósitos sem internet', () => {
     await estoque.descartarTransferenciaAguardando(r.operation_id);
     expect(await estoque.transferenciasAguardandoDoLocal('deposito-2')).toEqual([]);
   });
+
+  it('ET-07 D-PROD-297: excluir SEM internet a transferência que já está no servidor: some do histórico, o saldo volta; sobe depois', async () => {
+    const { estoque, motor } = await carregar();
+    motor.definirSessaoDaFila({ cliente_id: 'cli_et07', usuario_id: 'usr_et07' });
+    const visao = await import('@/services/estoqueAguardandoEnvioService');
+    const canc = await import('@/services/cancelamentosAguardandoService');
+    const saida = { id: 'ms-1', empresa_id: EMP, produto_id: 'prod-1', quantidade: 30, local_estoque_origem: 'galpao', local_estoque_destino: 'deposito-2', movimentacao_grupo_id: 'g1', tipo_detalhado: 'transferencia_enviada', status: 'Ativa' };
+    const entrada = { ...saida, id: 'me-1', tipo_detalhado: 'transferencia_recebida' };
+    online = false;
+    const fetchMock = vi.fn().mockResolvedValue(respostaJson(201, { committed: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    const r = await estoque.cancelarTransferenciaSemInternet({ movimento: saida, empresaId: EMP, motivo: 'Lançada errada', operationId: 'op-canct-0001' });
+    expect(r.estado).toBe('aguardando');
+    expect((await canc.comTransferenciasCanceladasAguardando([saida, entrada])).map((m) => m.status)).toEqual(['Estornada', 'Estornada']);
+    const lotes = await visao.comEstoqueAguardandoEnvio([
+      { id: 'l-dep', empresa_id: EMP, produto_id: 'prod-1', local_estoque_id: 'deposito-2', status: 'Disponivel', quantidade_disponivel: 30, data_documento: '2026-11-01' },
+    ]);
+    const saldo = (local) => lotes.filter((l) => l.local_estoque_id === local).reduce((t, l) => t + l.quantidade_disponivel, 0);
+    expect([saldo('deposito-2'), saldo('galpao')]).toEqual([0, 30]);
+
+    online = true;
+    await motor.sincronizar();
+    const [url, init] = fetchMock.mock.calls.find((c) => String(c[0]).includes('/cancelar-transferencia'));
+    expect(url).toBe(`${API}/api/native/movimentacoes-estoque/ms-1/cancelar-transferencia`);
+    expect(JSON.parse(init.body)).toMatchObject({ empresa_id: EMP, operation_id: 'op-canct-0001', motivo: 'Lançada errada' });
+  });
 });
 

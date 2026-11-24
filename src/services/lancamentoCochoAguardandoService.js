@@ -7,6 +7,7 @@
 
 import { registrosAguardandoDoTipo, operacaoDaReferencia } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { TIPO_LANCAMENTO_COCHO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
+import { semLancamentosCanceladosAguardando } from '@/services/cancelamentosAguardandoService';
 
 /**
  * Como o lançamento que ainda não subiu aparece nas telas.
@@ -34,7 +35,16 @@ export const lancamentoAguardandoComoEvento = (p, operationId, criadoEm) => ({
  * @param {string|null} empresaId
  * @param {string} [pontoId] só os deste cocho (a lista recebida já é só dele)
  */
-export const comLancamentosAguardandoEnvio = async (eventos, empresaId, pontoId) => {
+export const comLancamentosAguardandoEnvio = async (eventos, empresaId, pontoId) =>
+  // D-PROD-297: e sem os lançamentos com cancelamento esperando envio.
+  semLancamentosCanceladosAguardando(await comLancamentosNovosAguardando(eventos, empresaId, pontoId));
+
+/**
+ * @param {any[]} eventos
+ * @param {string|null} empresaId
+ * @param {string} [pontoId]
+ */
+const comLancamentosNovosAguardando = async (eventos, empresaId, pontoId) => {
   let aguardando = [];
   try {
     aguardando = (await registrosAguardandoDoTipo(TIPO_LANCAMENTO_COCHO)).filter((r) => {

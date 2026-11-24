@@ -50,6 +50,7 @@ import { listLeiturasCocho } from '@/apis/leituras-cocho';
 import { leiturasAguardandoEnvio } from '@/services/leituraCochoService';
 import { comEstoqueAguardandoEnvio } from '@/services/estoqueAguardandoEnvioService';
 import { comLancamentosAguardandoEnvio } from '@/services/lancamentoCochoAguardandoService';
+import { comTransferenciasCanceladasAguardando } from '@/services/cancelamentosAguardandoService';
 import { listMedicoesForragem, listDescansoPastos } from '@/apis/medicoes-forragem';
 import {
   listAplicacoesMedicamento,
@@ -135,7 +136,8 @@ const CAPACIDADES = {
   aplicacaoMedicamento: async (empresaId) => daEmpresa(await listAplicacoesMedicamento(), empresaId),
   eventoSanitario: async (empresaId) => daEmpresa(await listEventosSanitarios(), empresaId),
   manejoTecnico: async (empresaId) => daEmpresa(await listManejosTecnicos(), empresaId),
-  movimentacaoEstoque: async (empresaId) => daEmpresa(await listMovimentacoesEstoque(), empresaId),
+  // D-PROD-297: a transferência com cancelamento esperando envio já sai do histórico do depósito.
+  movimentacaoEstoque: async (empresaId) => comTransferenciasCanceladasAguardando(daEmpresa(await listMovimentacoesEstoque(), empresaId)),
   /**
    * `produtos` faltava no registro anterior enquanto `MapaGeral` pedia a query.
    * O resultado era uma lista sempre vazia, em silêncio (seção 11.4).
