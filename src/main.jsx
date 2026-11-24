@@ -12,7 +12,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   // </React.StrictMode>,
 )
 
-// D-PROD-290: app Android/iOS — avisa que este pacote abriu e confere versão nova.
+// D-PROD-291: app Android/iOS — avisa que este pacote abriu e confere versão nova.
 iniciarAtualizacaoAutomatica()
 
 if (import.meta.hot) {

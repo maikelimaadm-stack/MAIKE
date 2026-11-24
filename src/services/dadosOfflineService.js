@@ -1,5 +1,5 @@
 /**
- * "Baixar dados para usar sem internet" (D-PROD-290).
+ * "Baixar dados para usar sem internet" (D-PROD-291).
  *
  * Com internet, baixa de uma vez o que o app precisa para abrir no campo:
  *   1. mapa (áreas, pontos, linhas, ícones, lotes e o que o mapa mostra);
@@ -49,7 +49,7 @@ const marcarBaixa = (quando) => {
 
 /**
  * O app (Android/iOS) ainda não foi preparado para esta fazenda? Na primeira
- * entrada ele baixa tudo ANTES de abrir; depois, só sincroniza (D-PROD-290).
+ * entrada ele baixa tudo ANTES de abrir; depois, só sincroniza (D-PROD-291).
  */
 export const appPrecisaPreparar = () => isAppNativo() && ultimaBaixaDosDados() === null;
 

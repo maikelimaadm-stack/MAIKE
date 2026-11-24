@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * D-PROD-290 — atualização automática do app (sem baixar APK de novo).
+ * D-PROD-291 — atualização automática do app (sem baixar APK de novo).
  *
  * Roda no build da Vercel, DEPOIS do build do site. Gera o pacote web do app
  * (o mesmo frontend, com a URL da API fixa, como no APK) e publica junto do

@@ -30,7 +30,7 @@ const formatarQuando = (ms) =>
     : null;
 
 /**
- * D-PROD-290 — "Baixar dados para usar sem internet".
+ * D-PROD-291 — "Baixar dados para usar sem internet".
  *
  * - A primeira baixa no app é feita pela tela de preparo (`PreparoDoApp`),
  *   antes de o sistema abrir.
@@ -91,7 +91,7 @@ export default function DadosOffline() {
     return () => window.removeEventListener(EVENTO_ABRIR_DADOS_OFFLINE, abrir);
   }, []);
 
-  // Sincronização (D-PROD-290): já preparado, com internet, atualiza por baixo
+  // Sincronização (D-PROD-291): já preparado, com internet, atualiza por baixo
   // a cada 6 h (na abertura e enquanto o app fica aberto). A PRIMEIRA baixa é
   // da tela de preparo (`PreparoDoApp`), antes de o sistema abrir.
   useEffect(() => {

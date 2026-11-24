@@ -167,7 +167,7 @@ export const getNativeApiUrl = () => {
 
 /**
  * Origem de onde o app Android/iOS busca as atualizações automáticas
- * (`/app-atualizacao/ultima.json`, D-PROD-290): o mesmo servidor do build.
+ * (`/app-atualizacao/ultima.json`, D-PROD-291): o mesmo servidor do build.
  * Fora do app nativo não há atualização: `null`.
  *
  * @returns {string|null}

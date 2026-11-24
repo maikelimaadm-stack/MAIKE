@@ -14,7 +14,7 @@ const LIMITE_TEXTO_CURTO = 48;
  * inteiro (sem cortar) ao tocar em "ⓘ Fontes de dados". Texto curto aparece
  * direto. Fica acima da linha de atribuição nativa, à esquerda do zoom.
  *
- * D-PROD-290 (pedido do proprietário): sem avisos do satélite no mapa — nem
+ * D-PROD-291 (pedido do proprietário): sem avisos do satélite no mapa — nem
  * "Carregando satélite…" nem "Satélite indisponível". Sem satélite (sem
  * internet, cota, chave), o mapa segue com o fundo normal, em silêncio.
  * `status`, `mensagem` e `onRetry` continuam aceitos pelas telas, sem uso.

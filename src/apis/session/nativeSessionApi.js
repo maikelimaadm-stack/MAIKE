@@ -263,7 +263,7 @@ export const obterContexto = async () => {
   // campo que o corpo carrega por conveniência; marcá-lo a partir de algo que o
   // navegador escolheu seria a R11 pelo avesso.
   setOfflineTenant(corpo.cliente_id);
-  // D-PROD-290: só a sessão guardada no aparelho abre sem internet.
+  // D-PROD-291: só a sessão guardada no aparelho abre sem internet.
   if (tokenLembrado()) lembrarSessaoOffline(corpo);
   else esquecerSessaoOffline();
 
@@ -352,7 +352,7 @@ export const restaurarSessao = async () => {
       return { autenticado: false, contexto: null };
     }
 
-    // D-PROD-290: sessão guardada com "Manter conectado" (sempre, no app) abre
+    // D-PROD-291: sessão guardada com "Manter conectado" (sempre, no app) abre
     // sem internet com o último contexto que o SERVIDOR confirmou, desde que o
     // token ainda não tenha vencido pelo relógio do aparelho. É só leitura dos
     // dados salvos: toda gravação continua passando pelo servidor, que recusa
@@ -367,7 +367,7 @@ export const restaurarSessao = async () => {
 };
 
 /**
- * Contexto para abrir sem internet, ou `null` (D-PROD-290). Exige as três
+ * Contexto para abrir sem internet, ou `null` (D-PROD-291). Exige as três
  * coisas: token guardado no aparelho, ainda no prazo pelo relógio local, e o
  * último contexto confirmado ser do mesmo tenant dono do armazenamento offline.
  *
@@ -383,7 +383,7 @@ const sessaoOfflineUtilizavel = () => {
 };
 
 /**
- * Renova a sessão guardada no aparelho (D-PROD-290): troca o token por um novo
+ * Renova a sessão guardada no aparelho (D-PROD-291): troca o token por um novo
  * de validade longa, para o app ficar conectado até a pessoa sair. Só roda com
  * "Manter conectado"; sessão de aba não é estendida.
  *

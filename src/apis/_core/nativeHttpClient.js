@@ -356,13 +356,13 @@ const requisitarNaRede = async (caminho, opcoes, contexto) => {
 
 const semInternetAgora = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
-/** Leitura com cópia no aparelho espera a rede no máximo isto (D-PROD-290). */
+/** Leitura com cópia no aparelho espera a rede no máximo isto (D-PROD-291). */
 const TIMEOUT_COM_COPIA_MS = 6000;
 
 /**
  * Requisição ao backend nativo (contrato acima).
  *
- * D-PROD-290 — leitura autenticada (`GET`) funciona sem internet: a resposta
+ * D-PROD-291 — leitura autenticada (`GET`) funciona sem internet: a resposta
  * que o servidor deu fica guardada no aparelho (por tenant e caminho) e volta
  * quando a rede falha ou o aparelho está sem sinal. Gravações (POST/PUT/PATCH/
  * DELETE) nunca usam o guardado. Sem resposta guardada, a falha de rede segue

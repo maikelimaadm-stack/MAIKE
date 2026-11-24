@@ -28,7 +28,7 @@ import {
 } from "./estiloAreas.js";
 
 /**
- * Fundo do mapa SEM internet (D-PROD-290): estilo local, sem nenhum recurso de
+ * Fundo do mapa SEM internet (D-PROD-291): estilo local, sem nenhum recurso de
  * rede. O estilo-base (OpenFreeMap) vem da internet; sem ela, o mapa abria com
  * "Mapa indisponível" e escondia áreas, lotes e pontos, que estão no aparelho.
  * Com este fundo as camadas de negócio aparecem sobre uma cor neutra.
