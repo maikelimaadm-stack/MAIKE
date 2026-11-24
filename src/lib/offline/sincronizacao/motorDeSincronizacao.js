@@ -98,6 +98,9 @@ const GUARDAR_ENVIADO_MS = 7 * 24 * 3600 * 1000;
 
 const PREFIXO_REFERENCIA = '@@resultado:';
 
+/** Códigos do servidor que significam "tente de novo daqui a pouco", não recusa. */
+const CODIGOS_PASSAGEIROS = new Set(['IDEMPOTENCY_IN_PROGRESS', 'CONCURRENCY_CONFLICT', 'INTERNAL_ERROR', 'RATE_LIMITED']);
+
 /** @type {Map<string, TipoDeEnvio>} */
 const TIPOS = new Map();
 
@@ -196,6 +199,18 @@ const novoOperationId = () => {
  */
 export const referenciaAoResultado = (operationId, caminho) => `${PREFIXO_REFERENCIA}${operationId}:${caminho}`;
 
+/**
+ * O registro citado por uma referência (`referenciaAoResultado`), ou null.
+ * @param {unknown} valor
+ * @returns {string|null}
+ */
+export const operacaoDaReferencia = (valor) => {
+  if (typeof valor !== 'string' || !valor.startsWith(PREFIXO_REFERENCIA)) return null;
+  const resto = valor.slice(PREFIXO_REFERENCIA.length);
+  const fim = resto.indexOf(':');
+  return fim > 0 ? resto.slice(0, fim) : null;
+};
+
 /** @param {unknown} valor @param {Set<string>} [acc] */
 const referenciasNoPayload = (valor, acc = new Set()) => {
   if (typeof valor === 'string' && valor.startsWith(PREFIXO_REFERENCIA)) {
@@ -257,21 +272,34 @@ class ErroDeReferencia extends Error {
  */
 export const classificarFalhaDeEnvio = (erro) => {
   const codigo = /** @type {any} */ (erro)?.code;
+  const doServidor = /** @type {any} */ (erro)?.cause?.code;
   if (codigo === API_ERROR_CODES.PROVIDER_UNAVAILABLE) return 'rede';
   if (codigo === API_ERROR_CODES.TENANT_CONTEXT_REQUIRED) return 'sessao';
-  if (codigo === API_ERROR_CODES.OPERATION_FAILED) return 'servidor';
-  // A mesma operação ainda está sendo gravada no servidor (outra tentativa
-  // chegou antes): não é recusa, é esperar e perguntar de novo.
-  if (/** @type {any} */ (erro)?.cause?.code === 'IDEMPOTENCY_IN_PROGRESS') return 'servidor';
+  // Passageiro do lado do servidor (a mesma operação ainda em processamento,
+  // trava concorrente, erro interno): esperar e perguntar de novo.
+  if (typeof doServidor === 'string' && CODIGOS_PASSAGEIROS.has(doServidor)) return 'servidor';
+  // O cliente HTTP traduz para OPERATION_FAILED todo código que não está no
+  // catálogo do app. Com o código do servidor junto, é uma resposta de negócio
+  // ("o cocho mudou", "saldo insuficiente"): definitiva. Sem código, é erro do
+  // servidor sem motivo: tenta mais algumas vezes.
+  if (codigo === API_ERROR_CODES.OPERATION_FAILED && !(typeof doServidor === 'string' && doServidor)) return 'servidor';
   return 'recusado';
 };
 
-/** @param {unknown} erro */
-const resumoDoErro = (erro) => ({
-  codigo: String(/** @type {any} */ (erro)?.cause?.code ?? /** @type {any} */ (erro)?.code ?? 'ERRO'),
-  mensagem: getApiErrorMessage(erro, /** @type {any} */ (erro)?.message || 'O servidor recusou este registro.'),
-  em: new Date(agora()).toISOString(),
-});
+/**
+ * Motivo guardado no item. O tipo pode explicar melhor o que fazer
+ * (`erro.mensagemDaFila`, ex.: "a baixa já foi feita; tente de novo").
+ * @param {unknown} erro
+ */
+const resumoDoErro = (erro) => {
+  const base = getApiErrorMessage(erro, /** @type {any} */ (erro)?.message || 'O servidor recusou este registro.');
+  const extra = /** @type {any} */ (erro)?.mensagemDaFila;
+  return {
+    codigo: String(/** @type {any} */ (erro)?.cause?.code ?? /** @type {any} */ (erro)?.code ?? 'ERRO'),
+    mensagem: typeof extra === 'string' && extra.trim() ? `${base} ${extra.trim()}` : base,
+    em: new Date(agora()).toISOString(),
+  };
+};
 
 /** @param {number} tentativas */
 const esperaDepoisDe = (tentativas) => ESPERAS_MS[Math.min(Math.max(tentativas - 1, 0), ESPERAS_MS.length - 1)];

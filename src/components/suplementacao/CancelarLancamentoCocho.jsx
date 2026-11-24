@@ -241,7 +241,9 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
 
   const { usuario, autorizado } = usePermissaoCancelarCocho();
   const escopo = escopoDoUsuario(usuario);
-  const suportado = CANCELAMENTO_COCHO_HABILITADO && !!evento?.id && !!evento?.empresa_id && evento?.situacao !== "cancelado";
+  // D-PROD-296: o lançamento feito sem internet que ainda não subiu não existe no servidor —
+  // não há o que excluir lá (o "Excluir" da fila vem na próxima etapa).
+  const suportado = CANCELAMENTO_COCHO_HABILITADO && !!evento?.id && !!evento?.empresa_id && evento?.situacao !== "cancelado" && !evento?._aguardandoEnvio;
 
   const elegibilidade = useQuery({
     queryKey: ["elegibilidade-cancelamento-cocho", usuario?.cliente_id ?? null, usuario?.id ?? null, evento?.empresa_id ?? null, evento?.id],

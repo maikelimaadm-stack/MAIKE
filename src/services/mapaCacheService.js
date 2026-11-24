@@ -49,6 +49,7 @@ import { listPermissoes } from '@/apis/session';
 import { listLeiturasCocho } from '@/apis/leituras-cocho';
 import { leiturasAguardandoEnvio } from '@/services/leituraCochoService';
 import { comEstoqueAguardandoEnvio } from '@/services/estoqueAguardandoEnvioService';
+import { comLancamentosAguardandoEnvio } from '@/services/lancamentoCochoAguardandoService';
 import { listMedicoesForragem, listDescansoPastos } from '@/apis/medicoes-forragem';
 import {
   listAplicacoesMedicamento,
@@ -102,7 +103,9 @@ const CAPACIDADES = {
   // Manejo; ela fica no cache para o ícone sair certo também sem rede. Inclui as
   // inativas: uma posição antiga pode apontar para uma delas.
   categoriasManejo: async (empresaId) => daEmpresa(await listCategoriasManejo(), empresaId),
-  eventosSuplementacao: async (empresaId) => daEmpresa(await listSuplementacaoEventos(), empresaId),
+  // D-PROD-296: + os lançamentos feitos sem internet que ainda não subiram.
+  eventosSuplementacao: async (empresaId) =>
+    comLancamentosAguardandoEnvio(daEmpresa(await listSuplementacaoEventos(), empresaId), empresaId),
   // D-PROD-205: leituras de cocho (escore, acesso, estrutura) — o farol do cocho no mapa, também sem rede.
   // D-PROD-296: + as feitas sem internet que ainda não subiram ("aguardando envio").
   leiturasCocho: async (empresaId) => [

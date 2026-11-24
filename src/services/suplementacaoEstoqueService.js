@@ -81,10 +81,12 @@ const observacaoComRateio = (observacoes, rateio) =>
   `${observacoes || ''}${observacoes ? '\n' : ''}[RATEIO_FIFO] ${buildRateioObservacao(rateio)}`;
 
 /**
- * Baixa de suplementação — comando transacional único no backend (ESTAB-P0-01).
- * @param {{ empresaId: string, produto: object, quantidade: number, localOrigemId: string, localOrigemNome?: string, areaId?: string, areaNome?: string, observacoes?: string, lotesNota?: object[], depositoId?: string, pontoSuplementacaoId?: string, dataMovimentacao?: string, operationId?: string }} params
+ * D-PROD-296 — o corpo do comando de saída de suplementação, já validado (FIFO
+ * nos lotes recebidos) e com o rateio nas observações. Sem `operation_id` e sem
+ * I/O: quem envia (direto ou pelo motor) acrescenta o código.
+ * @param {{ empresaId: string, produto: any, quantidade: number, localOrigemId: string, localOrigemNome?: string, areaId?: string, areaNome?: string, observacoes?: string, lotesNota?: object[], depositoId?: string, pontoSuplementacaoId?: string, dataMovimentacao?: string }} params
  */
-export const registrarSaidaSuplementacao = async ({
+export const montarCorpoDaSaidaSuplementacao = ({
   empresaId,
   produto,
   quantidade,
@@ -97,27 +99,32 @@ export const registrarSaidaSuplementacao = async ({
   depositoId,
   pontoSuplementacaoId,
   dataMovimentacao,
-  operationId,
 }) => {
-  exigirConexaoParaComando();
   const validacao = validarBaixaFIFO({ lotesNota, produto, localEstoqueId: localOrigemId, quantidade });
   if (!validacao.ok) recusar('registrarSaidaSuplementacao', validacao.motivo);
-
-  const quantidadeFinal = parseNumber(quantidade);
-  const resposta = await comandoSaidaSuplementacao({
-    operation_id: operationId || novaOperationId(),
+  return {
     empresa_id: empresaId,
     produto_id: produto.id,
     local_origem_id: localOrigemId,
     local_origem_nome: localOrigemNome,
-    quantidade: quantidadeFinal,
+    quantidade: parseNumber(quantidade),
     area_id: areaId || null,
     area_nome: areaNome || null,
     deposito_id: depositoId || null,
     ponto_suplementacao_id: pontoSuplementacaoId || null,
     data_movimentacao: dataMovimentacao || null,
     observacoes: observacaoComRateio(observacoes, validacao.rateio),
-  });
+  };
+};
+
+/**
+ * Baixa de suplementação — comando transacional único no backend (ESTAB-P0-01).
+ * @param {Parameters<typeof montarCorpoDaSaidaSuplementacao>[0] & { operationId?: string }} params
+ */
+export const registrarSaidaSuplementacao = async ({ operationId, ...params }) => {
+  exigirConexaoParaComando();
+  const corpo = montarCorpoDaSaidaSuplementacao(params);
+  const resposta = await comandoSaidaSuplementacao({ operation_id: operationId || novaOperationId(), ...corpo });
 
   return {
     movimentacao: resposta.movimentacao,

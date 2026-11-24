@@ -13,7 +13,7 @@
  *  - os registros entram na ordem em que foram feitos.
  */
 
-import { TIPO_TRANSFERENCIA_DEPOSITO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
+import { TIPO_TRANSFERENCIA_DEPOSITO, TIPO_LANCAMENTO_COCHO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
 import { registrosAguardandoDoTipo } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 
 /**
@@ -35,6 +35,23 @@ const EFEITOS = [
       local_destino_id: p?.local_destino_id ?? null,
       data: p?.data_movimentacao ?? null,
     }),
+  },
+  {
+    // A baixa do depósito do lançamento do cocho (só saída; o destino é o cocho).
+    tipo: TIPO_LANCAMENTO_COCHO,
+    /** @param {any} p @param {string} operationId @returns {MovimentoAguardando|null} */
+    movimento: (p, operationId) =>
+      p?.saida
+        ? {
+            operationId,
+            empresa_id: p.saida.empresa_id,
+            produto_id: p.saida.produto_id,
+            quantidade: Number(p.saida.quantidade) || 0,
+            local_origem_id: p.saida.local_origem_id ?? null,
+            local_destino_id: null,
+            data: p.saida.data_movimentacao ?? null,
+          }
+        : null,
   },
 ];
 

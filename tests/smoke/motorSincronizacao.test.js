@@ -357,3 +357,37 @@ describe('D-PROD-295 — revisão (Codex)', () => {
     expect(enviarV2).toHaveBeenCalledWith({ escore: 2, v: 2 }, expect.any(Object));
   });
 });
+
+describe('D-PROD-296 — recusa de negócio x erro passageiro do servidor', () => {
+  it('MS-22 código do servidor fora do catálogo do app (OPERATION_FAILED + código) é recusa: vai para atenção na hora', async () => {
+    registrarTipoDeEnvio({
+      tipo: 'cocho.lancamento', versao: 1, offline: true,
+      enviar: async () => { throw new ApiError(API_ERROR_CODES.OPERATION_FAILED, { operation: 't', resource: 'T', cause: { code: 'LANCAMENTO_DESATUALIZADO' } }); },
+    });
+    temRede = false;
+    await enviarOuGuardar('cocho.lancamento', {});
+    temRede = true;
+    const resumo = await sincronizar();
+    expect(resumo).toMatchObject({ aguardando: 0, atencao: 1 });
+    expect(resumo.itens[0].ultimo_erro.codigo).toBe('LANCAMENTO_DESATUALIZADO');
+  });
+
+  it('MS-23 erro interno, trava concorrente ou 5xx sem código: espera e tenta de novo', async () => {
+    let n = 0;
+    const erros = [
+      new ApiError(API_ERROR_CODES.OPERATION_FAILED, { operation: 't', resource: 'T', cause: { code: 'INTERNAL_ERROR' } }),
+      new ApiError(API_ERROR_CODES.OPERATION_FAILED, { operation: 't', resource: 'T', cause: { code: 'CONCURRENCY_CONFLICT' } }),
+      new ApiError(API_ERROR_CODES.OPERATION_FAILED, { operation: 't', resource: 'T' }),
+    ];
+    registrarTipoDeEnvio({ tipo: 'cocho.leitura', versao: 1, offline: true, enviar: async () => { if (n < erros.length) throw erros[n++]; return {}; } });
+    temRede = false;
+    await enviarOuGuardar('cocho.leitura', {});
+    temRede = true;
+    for (let i = 0; i < erros.length; i += 1) {
+      expect((await sincronizar()).atencao).toBe(0);
+      relogio += 700_000;
+    }
+    expect((await sincronizar()).aguardando).toBe(0);
+  });
+});
+
