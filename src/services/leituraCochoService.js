@@ -7,7 +7,8 @@
  * "aguardando envio" até chegar ao servidor. Excluir uma leitura que ainda não
  * subiu só a tira do aparelho (nada vai ao servidor).
  */
-import { deleteLeituraCocho, TIPO_LEITURA_COCHO } from '@/apis/leituras-cocho';
+import { deleteLeituraCocho } from '@/apis/leituras-cocho';
+import { TIPO_LEITURA_COCHO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
 import {
   enviarOuGuardar,
   registrosAguardandoDoTipo,
@@ -47,10 +48,16 @@ export const registrarLeituraCocho = async (corpo, opcoes = {}) => {
  * Leituras desta fazenda que ainda não chegaram ao servidor.
  * @param {string|null} empresaId
  */
-export const leiturasAguardandoEnvio = async (empresaId) =>
-  (await registrosAguardandoDoTipo(TIPO_LEITURA_COCHO))
-    .filter((r) => /** @type {any} */ (r.payload)?.empresa_id === empresaId)
-    .map((r) => leituraAguardandoComoRegistro(/** @type {any} */ (r.payload), r.operationId));
+export const leiturasAguardandoEnvio = async (empresaId) => {
+  try {
+    return (await registrosAguardandoDoTipo(TIPO_LEITURA_COCHO))
+      .filter((r) => /** @type {any} */ (r.payload)?.empresa_id === empresaId)
+      .map((r) => leituraAguardandoComoRegistro(/** @type {any} */ (r.payload), r.operationId));
+  } catch {
+    // Falha ao ler a fila nunca derruba a lista do servidor.
+    return [];
+  }
+};
 
 /**
  * Exclui a leitura. A que ainda não subiu sai só do aparelho; a que está

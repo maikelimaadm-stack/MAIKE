@@ -48,6 +48,7 @@ import { listLancamentos, listHistorico } from '@/apis/tarefas';
 import { listPermissoes } from '@/apis/session';
 import { listLeiturasCocho } from '@/apis/leituras-cocho';
 import { leiturasAguardandoEnvio } from '@/services/leituraCochoService';
+import { comEstoqueAguardandoEnvio } from '@/services/estoqueAguardandoEnvioService';
 import { listMedicoesForragem, listDescansoPastos } from '@/apis/medicoes-forragem';
 import {
   listAplicacoesMedicamento,
@@ -114,7 +115,8 @@ const CAPACIDADES = {
   // Sem fazenda não há o que pedir: lista vazia.
   descansoPastos: async (empresaId) => (empresaId ? listDescansoPastos(empresaId) : []),
   estoqueLotes: async (empresaId) =>
-    daEmpresa(await listLotesNota(), empresaId).filter((item) => item.status === 'Disponivel'),
+    // D-PROD-296: + o efeito do que foi lançado sem internet e espera envio.
+    daEmpresa(await comEstoqueAguardandoEnvio(await listLotesNota()), empresaId).filter((item) => item.status === 'Disponivel'),
   tarefas: async (empresaId) =>
     daEmpresa(await listLancamentos(), empresaId).filter(
       (t) => t.coordenadas && (t.status === 'Pendente' || t.status === 'Em Andamento')

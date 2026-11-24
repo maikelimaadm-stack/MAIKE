@@ -13,6 +13,7 @@ import {
 } from '@/lib/offline/offlineEntityRuntime';
 import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 import { registrarTipoDeEnvio } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
+import { TIPO_LEITURA_COCHO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
 
 const RESOURCE = 'LeituraCocho';
 const CAMINHO = '/leituras-cocho';
@@ -63,8 +64,6 @@ registrarLeiturasOffline([
  * (`operation_id`) que o servidor deduplica. Leituras do mesmo cocho saem na
  * ordem em que foram feitas.
  */
-export const TIPO_LEITURA_COCHO = 'cocho.leitura';
-
 registrarTipoDeEnvio({
   tipo: TIPO_LEITURA_COCHO,
   versao: 1,

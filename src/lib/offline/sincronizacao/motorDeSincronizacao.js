@@ -356,6 +356,13 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
 
   const itens = fila && sessao ? (await fila.listar()).filter(eDaSessao) : [];
   const porId = new Map(itens.map((i) => [i.id, i]));
+  // O mesmo registro de novo (a tela reenviou o mesmo código): não duplica nem
+  // regrava. Na fila, continua esperando; já enviado, devolve o resultado.
+  const jaNaFila = porId.get(operationId);
+  if (jaNaFila && jaNaFila.tipo === tipo) {
+    if (jaNaFila.estado === 'enviado') return { estado: 'enviado', operationId, resultado: jaNaFila.resultado };
+    return { estado: 'aguardando', operationId };
+  }
   const naoConfirmado = (/** @type {string} */ id) => porId.get(id)?.estado !== 'enviado';
   const temQueEsperar =
     referencias.some(naoConfirmado) ||

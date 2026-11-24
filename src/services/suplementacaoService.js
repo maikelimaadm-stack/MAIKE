@@ -36,6 +36,7 @@ import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { getMapaCachedData } from '@/services/mapaCacheService';
 import { calcularNivelCocho } from '@/domain/suplementacao/nivelSuplementacao';
 import { somarDias } from '@/lib/diaCivil';
+import { comEstoqueAguardandoEnvio } from '@/services/estoqueAguardandoEnvioService';
 
 const novaOperationId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `op-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -91,7 +92,8 @@ export const listarProdutosDaEmpresa = async (empresaId) => daEmpresa(await list
  * @param {string} empresaId
  */
 export const listarFormulacoesParaLancamento = async (empresaId) => listFormulacoesOpcoesLancamento(empresaId);
-export const listarLotesNotaDaEmpresa = async (empresaId) => daEmpresa(await listLotesNota(), empresaId);
+// D-PROD-296: com o efeito do que foi lançado sem internet e espera envio.
+export const listarLotesNotaDaEmpresa = async (empresaId) => daEmpresa(await comEstoqueAguardandoEnvio(await listLotesNota()), empresaId);
 export const listarMovimentacoesPecuariasDaEmpresa = async (empresaId) =>
   daEmpresa(await listMovimentacoesPecuarias(), empresaId);
 

@@ -22,6 +22,8 @@ import {
   elegibilidadeCancelamentoTransferencia as elegibilidadeCancelamentoTransferenciaApi,
 } from '@/apis/movimentacoes-estoque';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
+import { enviarOuGuardar, registrarTipoDeEnvio } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
+import { TIPO_TRANSFERENCIA_DEPOSITO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
 import {
   proximoNumeroDeMovimentacao,
   buildRateioObservacao,
@@ -48,6 +50,21 @@ const exigirConexaoParaComando = () => {
     });
   }
 };
+
+/**
+ * D-PROD-296 — transferência entre locais pelo motor de sincronização: sem
+ * internet fica no aparelho e sai depois com o mesmo `operation_id` (o comando
+ * do servidor deduplica). Tudo que toca o mesmo local de estoque sai na ordem.
+ */
+registrarTipoDeEnvio({
+  tipo: TIPO_TRANSFERENCIA_DEPOSITO,
+  versao: 1,
+  offline: true,
+  recursos: (p) => [`estoque:${p?.local_origem_id ?? ''}`, `estoque:${p?.local_destino_id ?? ''}`],
+  rotulo: (p) => `Transferência ${p?.local_origem_nome ?? 'origem'} → ${p?.local_destino_nome ?? 'destino'}`,
+  atualiza: ['movimentacaoEstoque', 'estoqueLotes'],
+  enviar: (p, { operationId }) => comandoTransferenciaEntreLocais({ ...p, operation_id: operationId }),
+});
 
 const novaOperationId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `op-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -131,7 +148,10 @@ export const registrarTransferenciaEntreLocais = async ({
   dataMovimentacao,
   operationId,
 }) => {
-  exigirConexaoParaComando();
+  // D-PROD-296: pelo motor de sincronização — sem internet fica no aparelho e
+  // sai depois com o mesmo código (o servidor deduplica). O saldo da origem é
+  // conferido aqui com os lotes do aparelho (já descontado o que espera envio);
+  // quem decide de verdade é o servidor quando o registro chega.
   const lotesDisponiveis = (lotesNota || []).filter(
     (lote) => lote.empresa_id === empresaId && lote.status === 'Disponivel'
   );
@@ -144,8 +164,7 @@ export const registrarTransferenciaEntreLocais = async ({
   if (!validacao.ok) recusar('registrarTransferenciaEntreLocais', validacao.motivo);
 
   const quantidadeFinal = parseNumber(quantidade);
-  const resposta = await comandoTransferenciaEntreLocais({
-    operation_id: operationId || novaOperationId(),
+  const corpo = {
     empresa_id: empresaId,
     produto_id: produto.id,
     local_origem_id: localOrigemId,
@@ -155,9 +174,18 @@ export const registrarTransferenciaEntreLocais = async ({
     quantidade: quantidadeFinal,
     data_movimentacao: dataMovimentacao || null,
     observacoes: observacaoComRateio(observacoes, validacao.rateio),
+  };
+  const envio = await enviarOuGuardar(TIPO_TRANSFERENCIA_DEPOSITO, corpo, {
+    empresaId,
+    operationId: operationId || novaOperationId(),
   });
+  if (envio.estado === 'aguardando') {
+    return { aguardandoEnvio: true, operation_id: envio.operationId, committed: false, replay: false, rateio: validacao.rateio };
+  }
+  const resposta = /** @type {any} */ (envio.resultado) ?? {};
 
   return {
+    aguardandoEnvio: false,
     movimentacaoSaida: resposta.movimentacao_saida,
     movimentacaoEntrada: resposta.movimentacao_entrada,
     rateio: resposta.rateio,
