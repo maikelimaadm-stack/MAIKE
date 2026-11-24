@@ -11,7 +11,7 @@ import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginado
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import { AvisoEnvioDaLinha, SecoesDoFormularioContext, useEnvioDaLinha } from "@/components/lancamento-atividades/JanelasDaLinha";
-import { EditorDaLinhaDoRegistro, SecaoDeLinhasDoRegistro } from "@/components/lancamento-atividades/LinhasDoRegistro";
+import { EditorDaLinhaDoRegistro, SecaoDeLinhasDoRegistro, UsoDaMaquinaDoRegistro } from "@/components/lancamento-atividades/LinhasDoRegistro";
 import AreasDoRegistro from "@/components/lancamento-atividades/AreasDoRegistro";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
@@ -27,6 +27,8 @@ import {
   ehSaltoDoMedidor,
   formularioMaquinaVazio,
   validarLinhaMaoObra,
+  formatarDecimalLinha,
+  usoDaLinha,
   validarLinhaMaquina,
   validarLinhaProduto,
   validarLinhaServico,
@@ -57,6 +59,9 @@ import { somar } from "@/lib/dinheiroDecimal";
 import {
   CODIGO_SERVICO_PARADO,
   diaCurto,
+  dicaDosHectaresDeHoje,
+  textoJaFeito,
+  tituloDoConcluir,
   hectaresDepoisDoRegistro,
   preenchimentoDoLancarDia,
   resumoAntesDeSalvar,
@@ -268,7 +273,13 @@ export default function JanelaRegistroDeCampo({
   // D-PROD-274 (ajuste do teste de ponta a ponta): "Concluída" pede a permissão do "Concluir" (editar ou salvar, a mesma
   // guarda do servidor). Sem ela, fica sempre Em andamento (o término preenchido não marca Concluída).
   const podeConcluir = acoes?.editar === true;
-  const situacaoDepois = podeConcluir ? situacaoDepoisDeSalvar(termino, escolhaDaSituacao) : "EM_ANDAMENTO";
+  // D-PROD-281: no "Novo lançamento" (continuar), nada vem marcado — a pessoa escolhe "Sim, finalizei" ou "Não, continua".
+  const situacaoDepois = !podeConcluir ? "EM_ANDAMENTO" : continuar ? (escolhaDaSituacao ?? "EM_ANDAMENTO") : situacaoDepoisDeSalvar(termino, escolhaDaSituacao);
+  /** A opção marcada no "Finalizou a atividade hoje?" (no continuar, só a escolhida). */
+  const marcada = continuar ? escolhaDaSituacao : situacaoDepois;
+  // D-PROD-281: o "Novo lançamento" curto (continuar): só o essencial; "Mudar" mostra o formulário inteiro.
+  const [tudo, setTudo] = useState(!continuar);
+  const curto = Boolean(continuar) && !tudo;
   // D-PROD-267: a recusa "serviço parado" (a pergunta) e a fila das máquinas e da equipe do último dia (um editor por vez).
   const [parado, setParado] = useState(/** @type {{ ultimo_dia: string|null, atividade_nome: string|null } | null} */ (null));
   const filas = useRef(/** @type {{ maquinas: any[], mao_obra: any[] }} */ ({ maquinas: [], mao_obra: [] }));
@@ -414,7 +425,19 @@ export default function JanelaRegistroDeCampo({
     preenchido.current = true;
     const p = preenchimentoDoLancarDia({ atividade: continuar, apontamentos: /** @type {any} */ (doServico.data)?.items ?? [] });
     const [maquina, ...outrasMaquinas] = p.maquinas;
-    const [pessoa, ...outrasPessoas] = p.equipe;
+    // D-PROD-281: "Vai junto, igual ao último dia" — a equipe com a quantidade do último dia entra direto na tabela; a que
+    // não fecha (sem quantidade válida) abre no editor, uma por vez, como antes.
+    const prontas = p.equipe.filter((f) => !Object.keys(validarLinhaMaoObra(f)).length);
+    const [pessoa, ...outrasPessoas] = p.equipe.filter((f) => !prontas.includes(f));
+    if (prontas.length) {
+      setItens((x) => ({
+        ...x,
+        mao_obra: prontas.reduce((lista, form) => {
+          ultimoItem.current += 1;
+          return comItem(lista, { chave: `mao_obra-${ultimoItem.current}`, form });
+        }, x.mao_obra),
+      }));
+    }
     filas.current = { maquinas: outrasMaquinas, mao_obra: outrasPessoas };
     if (maquina) abrirEditor("maquinas", /** @type {any} */ ({ chave: null, form: maquina }));
     if (pessoa) abrirEditor("mao_obra", /** @type {any} */ ({ chave: null, form: pessoa }));
@@ -521,9 +544,13 @@ export default function JanelaRegistroDeCampo({
     if (!tipo?.id) e.tipo = "Escolha a operação.";
     // D-PROD-274: Manutenção e Outros sem área → o local é obrigatório; com área, a regra de sempre.
     const semArea = campos.areaOpcional && !areasDoRegistro.length;
+    // D-PROD-281: no "Novo lançamento", os hectares de hoje de UMA área podem ficar em branco (informados ao finalizar):
+    // o corpo leva `area_id` sem hectares (o servidor aceita, como sempre aceitou no `area_id`).
+    const semHectares = Boolean(continuar) && areasDoRegistro.length === 1 && !String(areasDoRegistro[0].hectares ?? "").trim();
     if (semArea) {
       if (!localDoTexto(local)) e.local = "Sem área, informe o local do serviço.";
-    } else Object.assign(e, errosDasAreasDoRegistro(areasDoRegistro));
+    } else if (!semHectares) Object.assign(e, errosDasAreasDoRegistro(areasDoRegistro));
+    if (continuar && !escolhaDaSituacao) e.situacao = "Escolha se finalizou a atividade hoje.";
     if (campos.plantio && !culturaId) e.capim = "Escolha o capim plantado.";
     // D-PROD-276: com duas reformas abertas na área, a escolha é obrigatória (uma delas ou "Não faz parte de reforma").
     if (!semArea && faz.falta) e.reforma = "Escolha de qual reforma este serviço faz parte (ou \"Não faz parte de reforma\").";
@@ -562,6 +589,12 @@ export default function JanelaRegistroDeCampo({
     setErros(e);
     if (finais !== itens) setItens(finais);
     setEditores(novosEditores);
+    // D-PROD-281: no curto, um erro que só o formulário inteiro mostra abre o formulário inteiro (nada se perde).
+    if (falhou && curto) {
+      const visiveis = ["situacao", "data_operacional", "quantidade_produzida_dia", "unidade", ...areasDoRegistro.map((l) => `area:${l.area_id}`)];
+      const oculto = Object.keys(e).some((k) => !visiveis.includes(k)) || COLECOES_DO_REGISTRO.some((c) => c !== "maquinas" && novosEditores[c]?.erros && Object.keys(novosEditores[c].erros).length);
+      if (oculto) setTudo(true);
+    }
     if (falhou) return null;
     const apontamento = Object.fromEntries(
       Object.entries(corpoDoApontamento(doDia)).filter(([k, v]) => k !== "atividade_area_id" && k !== "turno" && k !== "area_executada_dia" && v !== null && v !== ""),
@@ -572,7 +605,7 @@ export default function JanelaRegistroDeCampo({
       corpo: {
         ...apontamento,
         // D-PROD-274: sem área (Manutenção e Outros), o local no lugar das áreas.
-        ...(semArea ? { local: localDoTexto(local) } : { areas: corpoDasAreasDoRegistro(areasDoRegistro) }),
+        ...(semArea ? { local: localDoTexto(local) } : semHectares ? { area_id: areasDoRegistro[0].area_id } : { areas: corpoDasAreasDoRegistro(areasDoRegistro) }),
         ...(campos.plantio ? { plantio: corpoDoPlantio({ culturaId, forma, incrustada, cobertura, consorcioId }) } : {}),
         ...(campos.aplicacao && receituario.trim() ? { numero_receituario: receituario.trim() } : {}),
         ...(unidade ? { unidade_producao_sigla: unidade } : {}),
@@ -711,11 +744,22 @@ export default function JanelaRegistroDeCampo({
         <span className="b1-tipo-titulo__icone" aria-hidden>
           <Icone size={16} strokeWidth={1.75} />
         </span>
-        <span className="min-w-0">Nova realização de {rotuloDoTipo}</span>
+        <span className="min-w-0">Nova atividade de {rotuloDoTipo}</span>
       </span>
     ) : (
-      <span data-testid="registro-de-campo-titulo">Nova realização</span>
+      <span data-testid="registro-de-campo-titulo">Nova atividade</span>
     );
+  // D-PROD-281: o continuar é o "Novo lançamento" (com a atividade embaixo: "SEMEADURA DE CAPIM · PASTO DA AROEIRA").
+  const tituloFinal = continuar ? (
+    <span className="flex min-w-0 flex-col">
+      <span data-testid="registro-de-campo-titulo">Novo lançamento</span>
+      <span className="text-[12.5px] font-semibold uppercase" data-testid="registro-de-campo-titulo-atividade">
+        {tituloDoConcluir(continuar)}
+      </span>
+    </span>
+  ) : (
+    titulo
+  );
   const acoesDoTitulo =
     passo === "form" && !tipoPreso && !continuar ? (
       <button type="button" className={`${BOTAO_SECUNDARIO} tb-btn-outline b1-realizacao__trocar`} onClick={trocarTipo} disabled={enviando} data-testid="registro-de-campo-trocar-tipo">
@@ -815,7 +859,7 @@ export default function JanelaRegistroDeCampo({
     areaTotal: depois.area,
   });
 
-  const form = (
+  const renderForm = () => (
     <form
       key={chaveForm}
       id="formulario-registro-de-campo"
@@ -1206,20 +1250,31 @@ export default function JanelaRegistroDeCampo({
         />
         <CampoTextoLongo label="Observação" value={observacao} onChange={(v) => { setObservacao(v); esquecerUltimo(); }} readOnly={enviando} maxLength={MAX_OBSERVACAO_ATIVIDADE} />
 
-        <SecaoForm titulo="Como fica depois de salvar?" />
-        <div className="col-span-12 min-w-0 b1-situacao-depois" role="radiogroup" aria-label="Como fica depois de salvar?" data-testid="registro-de-campo-situacao">
-          {/** @type {const} */ ([["EM_ANDAMENTO", "Em andamento"], ["CONCLUIDA", "Concluída"]]).map(([valor, rotulo]) => (
+        {escolhaFinalizou}
+        {curto ? null : resumoDoRegistro}
+        {avisosDoFim}
+      </SecoesDoFormularioContext.Provider>
+    </form>
+  );
+
+  /** D-PROD-281: "Finalizou a atividade hoje?" — "Sim, finalizei" / "Não, continua" (no continuar, nada marcado). */
+  const escolhaFinalizou = (
+    <>
+        <SecaoForm titulo="Finalizou a atividade hoje?" />
+        <div className="col-span-12 min-w-0 b1-situacao-depois" role="radiogroup" aria-label="Finalizou a atividade hoje?" data-testid="registro-de-campo-situacao">
+          {/** @type {const} */ ([["CONCLUIDA", "Sim, finalizei"], ["EM_ANDAMENTO", "Não, continua"]]).map(([valor, rotulo]) => (
             <button
               key={valor}
               type="button"
               role="radio"
-              aria-checked={situacaoDepois === valor}
+              aria-checked={marcada === valor}
               className="b1-situacao-depois__opcao"
               // D-PROD-274: sem a permissão do "Concluir", "Concluída" não é oferecida (o servidor também recusa, 403).
               disabled={enviando || (valor === "CONCLUIDA" && !podeConcluir)}
-              title={valor === "CONCLUIDA" && !podeConcluir ? "Só quem pode editar conclui." : undefined}
+              title={valor === "CONCLUIDA" && !podeConcluir ? "Só quem pode editar finaliza." : undefined}
               onClick={() => {
                 setEscolhaDaSituacao(valor);
+                limparErros(["situacao"]);
                 mexeu();
               }}
               data-testid={`registro-de-campo-situacao-${valor === "CONCLUIDA" ? "concluida" : "andamento"}`}
@@ -1229,17 +1284,27 @@ export default function JanelaRegistroDeCampo({
             </button>
           ))}
         </div>
-        {!podeConcluir && !acoes?.carregando ? (
-          <p className="col-span-12 -mt-1 min-w-0 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="registro-de-campo-situacao-sem-permissao">
-            Só quem pode editar conclui.
+        {erros.situacao ? (
+          <p className="col-span-12 -mt-1 min-w-0 text-[12px] text-red-700" role="alert" data-testid="registro-de-campo-situacao-erro">
+            {erros.situacao}
           </p>
         ) : null}
-        {resumo.frase || resumo.vai ? (
+        {!podeConcluir && !acoes?.carregando ? (
+          <p className="col-span-12 -mt-1 min-w-0 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="registro-de-campo-situacao-sem-permissao">
+            Só quem pode editar finaliza.
+          </p>
+        ) : null}
+    </>
+  );
+  const resumoDoRegistro =
+        resumo.frase || resumo.vai ? (
           <p className="col-span-12 min-w-0 break-words text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="registro-de-campo-resumo">
             {resumo.frase ? `${resumo.frase} ` : ""}
             <strong className="text-[var(--mg-text-1,#1f2937)]">{resumo.vai}</strong>
           </p>
-        ) : null}
+        ) : null;
+  const avisosDoFim = (
+    <>
         {parado ? (
           <div className="col-span-12 min-w-0 b1-parado" role="alertdialog" aria-label="Serviço parado" data-testid="registro-de-campo-parado" ref={(el) => el?.scrollIntoView?.({ block: "nearest" })}>
             <p className="b1-parado__pergunta">
@@ -1259,6 +1324,171 @@ export default function JanelaRegistroDeCampo({
         <div className="col-span-12 min-w-0">
           <AvisoEnvioDaLinha estado={estado} produto={false} lancado="o registro PODE ter sido gravado" onRepetir={() => void salvar(true)} onConsultar={consultar} />
         </div>
+    </>
+  );
+
+  // ─── D-PROD-281: o "Novo lançamento" curto ──────────────────────────
+  const umaArea = areasDoRegistro.length === 1;
+  const hectaresDeHoje = umaArea ? String(areasDoRegistro[0].hectares ?? "") : "";
+  const lidoHoje = umaArea ? totaisDasAreas.hectares : null;
+  const edMaquina = editores.maquinas;
+  /** As linhas que vão junto (as da tabela e as dos editores abertos), uma frase cada. */
+  const vaiJunto = (() => {
+    /** @type {string[]} */
+    const linhas = [];
+    const maquinas = [...itens.maquinas.map((i) => ({ form: i.form, medidor: i.medidor ?? null }))];
+    for (const { form: f, medidor } of maquinas) {
+      const uso = medidor ? usoDaLinha(f, medidor) : null;
+      linhas.push([String(f?.bem?.rotulo ?? ""), uso ? `${formatarDecimalLinha(uso)} ${medidor?.unidade || "h"}` : ""].filter(Boolean).join(" · "));
+    }
+    if (edMaquina?.form?.bem) linhas.push(String(edMaquina.form.bem.rotulo ?? ""));
+    for (const f of [...itens.mao_obra.map((i) => i.form), ...(editores.mao_obra?.form?.parceiro ? [editores.mao_obra.form] : [])]) {
+      linhas.push([String(f?.parceiro?.rotulo ?? ""), medida(f)].filter(Boolean).join(" · "));
+    }
+    for (const f of [...itens.produtos.map((i) => i.form), ...(editores.produtos?.form?.produto ? [editores.produtos.form] : [])]) {
+      linhas.push([String(f?.produto?.rotulo ?? ""), String(f?.quantidade ?? "").trim()].filter(Boolean).join(" · "));
+    }
+    for (const f of [...itens.servicos.map((i) => i.form), ...(editores.servicos?.form ? [editores.servicos.form] : [])]) {
+      const nome = [String(f?.servico?.rotulo ?? f?.servico?.nome ?? ""), String(f?.parceiro?.rotulo ?? "")].filter(Boolean).join(" · ").trim();
+      if (nome) linhas.push(nome);
+    }
+    return linhas.filter(Boolean);
+  })();
+  const maisMaquinas = filas.current.maquinas.length;
+  const formCurto = (
+    <form
+      key={`curto-${chaveForm}`}
+      id="formulario-registro-de-campo"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void salvar(true);
+      }}
+      className="b1 mg-b1-form-grid b1-form-embutido"
+      data-densidade={DENSIDADE_BASE1}
+      noValidate
+      data-testid="registro-de-campo-curto"
+    >
+      <SecoesDoFormularioContext.Provider value={{ topo: null, opcional: true }}>
+        <p className="col-span-12 min-w-0 b1-lancamento-curto__contexto" data-testid="registro-de-campo-ja-feito">
+          {textoJaFeito(continuar)}
+        </p>
+        {semAreaAgora ? (
+          campos.quantidadeFeita ? (
+            <>
+              <CampoTexto
+                label="Quantidade feita hoje"
+                value={quantidadeFeita}
+                onChange={(v) => {
+                  setQuantidadeFeita(v);
+                  mexeu();
+                  limparErros(["quantidade_produzida_dia", "unidade"]);
+                }}
+                readOnly={enviando}
+                span={6}
+                inputMode="decimal"
+                maxLength={16}
+                keepCase
+                error={erros.quantidade_produzida_dia}
+                testId="registro-de-campo-quantidade-feita"
+              />
+              {unidadeDaOperacao ? (
+                <ValorCalculado label="Unidade" valor={unidadeDaOperacao} span={6} testId="registro-de-campo-unidade" />
+              ) : (
+                <CampoSelect
+                  label="Unidade"
+                  value={unidadeFeita}
+                  onChange={(v) => {
+                    setUnidadeFeita(v);
+                    mexeu();
+                    limparErros(["unidade"]);
+                  }}
+                  options={[...UNIDADES_FEITAS]}
+                  placeholder="Escolha"
+                  readOnly={enviando}
+                  span={6}
+                  error={erros.unidade}
+                />
+              )}
+            </>
+          ) : null
+        ) : umaArea ? (
+          <div className="col-span-12 min-w-0 b1-lancamento-curto__grande">
+            <CampoTexto
+              label="Quantos hectares fez hoje?"
+              value={hectaresDeHoje}
+              onChange={(v) => {
+                setAreasDoRegistro((ls) => ls.map((l, i) => (i === 0 ? { ...l, percentual: "", hectares: v } : l)));
+                mexeu();
+                limparErros([`area:${areasDoRegistro[0].area_id}`]);
+              }}
+              readOnly={enviando}
+              span={12}
+              inputMode="decimal"
+              maxLength={16}
+              keepCase
+              error={erros[`area:${areasDoRegistro[0].area_id}`]}
+              dica={<p className={NOTA_DO_CAMPO} data-testid="registro-de-campo-hectares-dica">{dicaDosHectaresDeHoje(continuar, lidoHoje)}</p>}
+              testId="registro-de-campo-hectares-hoje"
+            />
+          </div>
+        ) : (
+          <AreasDoRegistro
+            areasDoMapa={areasDoMapa}
+            linhas={areasDoRegistro}
+            onChange={(ls) => {
+              setAreasDoRegistro(ls);
+              mexeu();
+              setErros((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k !== "areas" && !k.startsWith("area:") && !k.startsWith("pct:"))));
+            }}
+            erros={erros}
+            travada={null}
+            celular={celular}
+            readOnly={enviando}
+            carregando={false}
+            opcional={campos.areaOpcional}
+          />
+        )}
+        <CampoDia
+          label="Dia"
+          value={dia}
+          onChange={(v) => {
+            if (!v || (hoje && v > hoje)) return;
+            diaMexido.current = true;
+            setDia(v);
+            esquecerUltimo();
+            limparErros(["data_operacional"]);
+          }}
+          max={hoje || undefined}
+          required
+          span={12}
+          error={erros.data_operacional}
+          testId="registro-de-campo-data"
+        />
+        {edMaquina?.form?.bem ? (
+          <UsoDaMaquinaDoRegistro
+            key={edMaquina.id}
+            editor={edMaquina}
+            mudar={mudarNoEditor("maquinas")}
+            setForm={setFormDoEditor("maquinas", edMaquina.id)}
+            onLido={(lido) => {
+              lidoNosEditores.current.maquinas = lido;
+            }}
+            dia={dia || null}
+            bloqueado={enviando}
+          />
+        ) : null}
+        <SecaoForm titulo="Vai junto, igual ao último dia" />
+        <div className="col-span-12 min-w-0 b1-lancamento-curto__resumo" data-testid="registro-de-campo-vai-junto">
+          {doServico.isLoading ? <span>Lendo o último dia…</span> : vaiJunto.length ? vaiJunto.map((l, i) => <span key={i}>{l}</span>) : <span>Nada do último dia.</span>}
+          {maisMaquinas > 0 ? <span>e mais {maisMaquinas === 1 ? "1 máquina" : `${maisMaquinas} máquinas`} (toque em Mudar)</span> : null}
+        </div>
+        <div className="col-span-12 min-w-0">
+          <button type="button" className={BOTAO_SECUNDARIO} onClick={() => setTudo(true)} disabled={enviando} data-testid="registro-de-campo-mudar">
+            Mudar
+          </button>
+        </div>
+        {escolhaFinalizou}
+        {avisosDoFim}
       </SecoesDoFormularioContext.Provider>
     </form>
   );
@@ -1271,7 +1501,7 @@ export default function JanelaRegistroDeCampo({
       onFechar={onFechar}
       podeFechar={!enviando}
       aoPedirFechar={() => !alvoFolha?.querySelector(".mk-sheet-root")}
-      titulo={titulo}
+      titulo={tituloFinal}
       acoesDoTitulo={acoesDoTitulo}
       testId="janela-registro-de-campo"
       className={`b1-realizacao${celular ? " b1-janela--tela-cheia" : ""}`}
@@ -1288,10 +1518,12 @@ export default function JanelaRegistroDeCampo({
                 {enviando ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Check className="h-4 w-4" aria-hidden />}
                 {enviando ? "Salvando…" : estado.fase === "incerto" ? "Repetir o mesmo envio" : "Salvar"}
               </button>
-              <button type="button" className={BOTAO_PRIMARIO} onClick={() => void salvar(false)} disabled={!podeEnviar} data-testid="registro-de-campo-salvar-novo">
-                <CheckCheck className="h-4 w-4" aria-hidden />
-                Salvar e novo
-              </button>
+              {continuar ? null : (
+                <button type="button" className={BOTAO_PRIMARIO} onClick={() => void salvar(false)} disabled={!podeEnviar} data-testid="registro-de-campo-salvar-novo">
+                  <CheckCheck className="h-4 w-4" aria-hidden />
+                  Salvar e novo
+                </button>
+              )}
             </>
           ) : null}
         </>
@@ -1299,7 +1531,7 @@ export default function JanelaRegistroDeCampo({
     >
       <MobileSheetPortalCtx.Provider value={alvoFolha}>
         {avisoStatus ? <AvisoGestao testId="registro-de-campo-aviso">{avisoStatus}</AvisoGestao> : null}
-        {noFormulario ? form : cartoes}
+        {noFormulario ? (curto ? formCurto : renderForm()) : cartoes}
       </MobileSheetPortalCtx.Provider>
     </B1Janela>
   );

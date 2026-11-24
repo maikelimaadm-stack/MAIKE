@@ -266,6 +266,8 @@ describe('"Faz parte de" na Nova realização', () => {
       planejamento_id: "ref-antiga", planejamento: { id: "ref-antiga", numero: "9", nome: "Reforma · PASTO DA AROEIRA · 2025/26", status: "CONCLUIDO" },
     };
     const janela = await montarRegistro({ continuar });
+    // D-PROD-281: o "Novo lançamento" abre curto; o "Faz parte de" fica no formulário inteiro ("Mudar").
+    fireEvent.click(await within(janela).findByTestId("registro-de-campo-mudar"));
     await within(janela).findByTestId("registro-de-campo-form");
     const linha = await within(janela).findByTestId("registro-de-campo-faz-parte");
     expect(linha.textContent).toContain("Faz parte de: Reforma · PASTO DA AROEIRA · 2025/26 ✓");
@@ -381,7 +383,7 @@ describe("a lista: Planejar, o filtro Reforma, a barra do custo e a conclusão",
     ]);
     const servicos = within(within(barra).getByTestId("barra-reforma-servicos")).getAllByRole("listitem").map((li) => li.textContent);
     expect(servicos[0]).toContain("03/09");
-    expect(servicos[0]).toContain("Concluída");
+    expect(servicos[0]).toContain("Finalizada");
     expect(servicos[3]).toContain("Em andamento");
   });
 

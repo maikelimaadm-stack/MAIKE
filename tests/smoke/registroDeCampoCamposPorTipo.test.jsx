@@ -164,7 +164,7 @@ describe("Plantio de pastagem (D-PROD-274)", () => {
     const janela = await montar();
     expect(within(janela).getByRole("list", { name: "Tipos de serviço" }).textContent).toContain("Plantio de pastagem");
     await escolherTipo(janela, "Plantio de pastagem");
-    expect(within(janela).getByTestId("registro-de-campo-titulo").textContent).toContain("Nova realização de Plantio de pastagem");
+    expect(within(janela).getByTestId("registro-de-campo-titulo").textContent).toContain("Nova atividade de Plantio de pastagem");
     await marcarArea(janela, "area-aroeira");
     await escolher(janela, /Operação/, "SEMEADURA DE CAPIM");
     await salvar(janela);

@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-23 (missão ativa D-PROD-279; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-23 (missão ativa D-PROD-281; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,14 +9,24 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-23) — MAIKE-TIPO-IMPLEMENTO-PRODUTO: o tipo de implemento diz se usa produto, como conta e a capacidade (D-PROD-279)
+## Missão ativa (2026-11-23) — MAIKE-ENTREGA-A: nomes simples, "Atividades em andamento" e o "Novo lançamento" curto (D-PROD-281)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-281** (pedida como D-PROD-280, reservada pela PR #367), maquetes aprovadas pelo proprietário |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `def1cda2` · PR (a abrir) |
+| Mudança | Nomes: "+ Nova atividade", "+ Lançamento" / "Novo lançamento", "Finalizar", "Finalizada", "Finalizou a atividade hoje?", "Tudo feito · falta finalizar", "Planejar atividade". Bloco "Atividades em andamento" no topo da lista. "Novo lançamento" curto (hectares opcionais, escolha obrigatória, "Vai junto" + "Mudar"). Horímetro: só "Horímetro agora" e "Horímetro quebrado?" |
+| Migration | Nenhuma. Servidor sem mudança (vários lançamentos no mesmo dia já funcionavam; teste novo contra Postgres) |
+| Relatório | [`MAIKE-ENTREGA-A-LANCAMENTO-SIMPLES-REPORT.md`](./MAIKE-ENTREGA-A-LANCAMENTO-SIMPLES-REPORT.md) |
+
+## Missão anterior (2026-11-23) — MAIKE-TIPO-IMPLEMENTO-PRODUTO: o tipo de implemento diz se usa produto, como conta e a capacidade (D-PROD-279)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-279**, pedido do proprietário: "a máquina sozinha não leva produto; quem leva é o implemento" |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `d62a4ef8` · PR (a abrir) |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `d62a4ef8` · PR **#366** (mergeada, `def1cda2`, migration aplicada em produção em 2026-11-23) |
 | Mudança | `TipoPatrimonial`: "Usa produto?", "Como conta" (por jato) e "Capacidade" (L/kg), só para Implemento (API: 400 em outra natureza; sem produto limpa; com produto, os três obrigatórios); bloco no "+ Novo tipo" do "Gerenciar tipos" e o resumo discreto na lista |
-| Migration | `20261124100000_tipo_implemento_produto`, **EXPAND** (4 colunas anuláveis em `TipoPatrimonial`), checksum `a1836240…ae45`. **Não aplicada.** É a 76ª, depois da reforma; pré-checagem 75/0 e 111 tabelas, pós-checagem 76/0 e 111 tabelas. Ordem: aplicar com o GO do proprietário, depois o merge |
+| Migration | `20261124100000_tipo_implemento_produto`, **EXPAND** (4 colunas anuláveis em `TipoPatrimonial`), checksum `a1836240…ae45`. É a 76ª, depois da reforma; pré-checagem 75/0 e 111 tabelas, pós-checagem 76/0 e 111 tabelas. **Aplicada em produção em 2026-11-23** |
 | Relatório | [`MAIKE-TIPO-IMPLEMENTO-PRODUTO-REPORT.md`](./MAIKE-TIPO-IMPLEMENTO-PRODUTO-REPORT.md) · runbook [`MAIKE-TIPO-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md) |
 | Próximas | "Jatos de hoje" nas telas de atividade quando o implemento escolhido usa produto |
 

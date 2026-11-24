@@ -21,7 +21,7 @@ import {
  *
  * `SituacaoDoServico`: a célula "Situação" (computador) — a situação ("Em andamento", "Concluída"…) e, em andamento com
  * dia lançado, "12 de 40 ha (30%) · último dia 02/12", a barra fina e os botões "+ Lançar dia" e "Concluir"; aos 100% sem
- * ninguém concluir, "100%, falta concluir" em negrito e só "Concluir". `BlocoDoServico`: o mesmo serviço no celular, em
+ * ninguém concluir, "Tudo feito · falta finalizar" (D-PROD-281) em negrito e só "Finalizar". `BlocoDoServico`: o mesmo serviço no celular, em
  * bloco compacto (Nº à esquerda; tipo e custo; operação · área; data · situação; o andamento, a barra e os botões).
  * Os botões não selecionam nem abrem a linha (o clique para ali).
  * D-PROD-274 (ajustes do teste de ponta a ponta): o Plantio de pastagem mostra o capim ("operação · área · capim …") e o
@@ -64,7 +64,7 @@ function AndamentoDoServico({ item, podeLancar, podeConcluir, onLancarDia, onCon
     <>
       {falta ? (
         <span className="b1-servico-andamento b1-servico-andamento--falta" data-testid={`servico-falta-concluir-${id}`}>
-          <strong>100%, falta concluir</strong>
+          <strong>Tudo feito · falta finalizar</strong>
           {textoDosHectares(a.hectares_feitos, a.hectares_area, null) ? (
             <span className="text-[#73726c]"> ({textoDosHectares(a.hectares_feitos, a.hectares_area, null)})</span>
           ) : null}
@@ -84,12 +84,12 @@ function AndamentoDoServico({ item, podeLancar, podeConcluir, onLancarDia, onCon
           {podeLancar && !falta ? (
             <button type="button" className="b1-servico-botao" onClick={() => onLancarDia(item)} data-testid={`servico-lancar-dia-${id}`}>
               <Plus className="h-3.5 w-3.5" aria-hidden />
-              Lançar dia
+              Lançamento
             </button>
           ) : null}
           {podeConcluir ? (
             <button type="button" className="b1-servico-botao" onClick={() => onConcluir(item)} data-testid={`servico-concluir-${id}`}>
-              Concluir
+              Finalizar
             </button>
           ) : null}
         </span>

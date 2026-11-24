@@ -125,7 +125,7 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
       {onConcluir ? (
         <button type="button" className="b1-aberta-cab__concluir" onClick={onConcluir} data-testid="atividade-concluir-celular">
           <CircleCheck className="h-4 w-4" aria-hidden />
-          Concluir
+          Finalizar
         </button>
       ) : null}
     </div>
