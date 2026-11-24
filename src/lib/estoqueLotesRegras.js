@@ -130,6 +130,46 @@ export const pendenciaDoLote = ({ produto, erroLote, loteVencido, confirmaVencid
   return '';
 };
 
+/**
+ * `lotes_por_item` da confirmação do lançamento financeiro e a primeira pendência ('' sem pendência). Só os efeitos
+ * de estoque de produto que controla lote (`controla_lote` da prévia) entram:
+ *  - compra (PAGAR): `lote_fabricante` obrigatório (aparado, até 64) e `data_validade` obrigatória se o produto
+ *    controla validade (opcional nos demais; vai só quando informada);
+ *  - venda (RECEBER): a escolha do `CampoLotes` (`lotes` só com escolha manual; sem ela, o servidor aplica o FEFO),
+ *    com a soma conferida e o vencido confirmado.
+ * `estado` por `item_ordem`: compra `{ lote, validade }`; venda `{ lotes, confirmaVencido, loteVencido, erroLote }`.
+ * @param {string} direcao @param {any[]} efeitos @param {Record<string|number, any>} estado
+ * @returns {{ lotes_por_item: Array<Record<string, unknown>>, pendencia: string }}
+ */
+export const lotesDaConfirmacao = (direcao, efeitos, estado) => {
+  /** @type {Array<Record<string, unknown>>} */
+  const lotesPorItem = [];
+  /** @type {string[]} */
+  const pendencias = [];
+  for (const e of efeitos ?? []) {
+    if (!e?.controla_lote) continue;
+    const n = e.item_ordem;
+    const s = estado?.[n] ?? {};
+    if (direcao === 'PAGAR') {
+      const lote = String(s.lote ?? '').trim();
+      const validade = String(s.validade ?? '');
+      if (!lote) pendencias.push(`Item ${n}: informe o lote do fabricante.`);
+      else if (lote.length > 64) pendencias.push(`Item ${n}: o lote tem no máximo 64 caracteres.`);
+      else if (e.controla_validade && !validade) pendencias.push(`Item ${n}: informe a validade.`);
+      else lotesPorItem.push({ item_ordem: n, lote_fabricante: lote, ...(validade ? { data_validade: validade } : {}) });
+      continue;
+    }
+    const pendencia = pendenciaDoLote({ produto: { controla_lote: true }, ...s });
+    if (pendencia) {
+      pendencias.push(`Item ${n}: ${pendencia}`);
+      continue;
+    }
+    const corpo = corpoDaEscolha(s.lotes);
+    if (corpo && corpo.length) lotesPorItem.push({ item_ordem: n, lotes: corpo });
+  }
+  return { lotes_por_item: lotesPorItem, pendencia: pendencias[0] ?? '' };
+};
+
 /** Estado inicial da escolha de lote de uma tela (FEFO, sem confirmação, sem erro). */
 export const ESCOLHA_LOTE_INICIAL = Object.freeze({ lotes: null, confirmaVencido: false, loteVencido: false, erroLote: '' });
 

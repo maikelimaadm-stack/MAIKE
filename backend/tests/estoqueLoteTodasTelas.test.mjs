@@ -6,7 +6,12 @@
  *  T0 a leitura dos lotes disponíveis (`GET /estoque/lotes-disponiveis`) é liberada a quem lança nessas telas
  *     (antes só a tela Estoque); quem não lança em nenhuma continua recebendo 403.
  *  T1 cocho: a escolha manual soma certo e sai pelo custo do lote escolhido; soma errada → 422; produto sem lote com
- *     a lista → 422; lote vencido escolhido → aviso; o cancelamento do lançamento devolve ao lote escolhido.
+ *     a lista → 422; lote vencido escolhido → aviso.
+ *  T2 financeiro: a compra de produto com lote SEM `lotes_por_item` é recusada (422 lote_obrigatorio, nada gravado) — é
+ *     por isso que a confirmação da tela passa a mandar o lote; com o lote e a validade, a camada nasce com eles. A
+ *     prévia diz, por efeito de estoque, se o produto controla lote/validade (a tela decide os campos por ela). Venda:
+ *     escolha manual pelo custo do lote; soma errada e produto sem lote com a lista → 422; vencido → aviso com o item;
+ *     o cancelamento devolve ao lote escolhido; replay = gravado.
  */
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -155,3 +160,79 @@ describe('T1 — cocho com a escolha manual do lote', () => {
     assert.deepEqual(semId(r.avisos), [{ tipo: 'lote_vencido', lote: 'VELHO', validade: '2027-01-10' }]);
   });
 });
+
+// ── Financeiro ──────────────────────────────────────────────────────────────
+/** Rascunho COM_PRODUTOS (PAGAR = compra de fornecedor; RECEBER = venda a cliente) com as linhas `[produto, local, kg, preço]`. */
+const rascunho = async (x, direcao, linhas) => {
+  const p = prisma();
+  const base = { cliente_id: x.c, empresa_id: x.e1.id };
+  const marca = randomUUID().slice(0, 6);
+  const compra = direcao === 'PAGAR';
+  const parceiro = await p.fornecedor.create({ data: { ...base, numero_cadastro: `PA-${marca}`, tipo_pessoa: 'Jurídica', nome: `Parceiro ${marca}`, tipos: [compra ? 'fornecedor' : 'cliente'] } });
+  const natureza = await p.naturezaFinanceira.create({ data: { ...base, numero: `NA-${marca}`, tipo: compra ? 'DESPESA' : 'RECEITA', nome: `${compra ? 'INSUMOS' : 'VENDAS'} ${marca}` } });
+  const centavos = linhas.reduce((t, [, , kg, preco]) => t + Math.round(Number(kg) * Number(preco) * 100), 0);
+  const total = `${Math.trunc(centavos / 100)}.${String(centavos % 100).padStart(2, '0')}`;
+  return ok(await H.req('POST', '/operacoes-financeiras', x.token, {
+    empresa_id: x.e1.id, direcao, conteudo: 'COM_PRODUTOS', condicao: 'PRAZO', parceiro_id: parceiro.id, data_emissao: '2027-06-10', data_operacional: '2027-06-10',
+    efeito_fisico_confirmado: true,
+    itens: linhas.map(([produto, local, kg, preco]) => ({ tipo_item: 'MERCADORIA', produto_id: produto.id, local_estoque_id: local.id, unidade: 'KG', quantidade: kg, valor_unitario: preco })),
+    rateio_modo: 'PERCENTUAL', rateios: [{ natureza_id: natureza.id, percentual: '100' }], parcelas: [{ vencimento: '2027-07-10', valor: total }],
+    operation_id: opId(),
+  }), 201);
+};
+const confirmarCom = (x, r, lotesPorItem) =>
+  H.req('POST', `/operacoes-financeiras/${r.id}/confirmar`, x.token, { empresa_id: x.e1.id, operation_id: opId(), versao: r.versao, ...(lotesPorItem ? { lotes_por_item: lotesPorItem } : {}) });
+const previaDe = async (x, r) => ok(await H.req('POST', `/operacoes-financeiras/${r.id}/previa`, x.token, { empresa_id: x.e1.id }));
+
+describe('T2 — financeiro: lote na compra e escolha na venda', () => {
+  test('compra de produto com lote sem lotes_por_item → 422 lote_obrigatorio, nada gravado; com lote e validade → camada com eles; sem lote, como hoje', async () => {
+    const x = await montar();
+    const r = await rascunho(x, 'PAGAR', [[x.sal, x.local, '40', '5'], [x.semLote, x.local, '10', '2']]);
+    erro(await confirmarCom(x, r), 422, 'ESTOQUE_LOTE_OBRIGATORIO', 'lote_obrigatorio');
+    assert.equal(await prisma().estoqueLoteNota.count({ where: { cliente_id: x.c } }), 0, 'nada gravado');
+    erro(await confirmarCom(x, r, [{ item_ordem: 1, lote_fabricante: 'NF-77' }]), 422, 'ESTOQUE_LOTE_OBRIGATORIO', 'validade_obrigatoria');
+    const c = ok(await confirmarCom(x, r, [{ item_ordem: 1, lote_fabricante: 'NF-77', data_validade: '2027-12-31' }]));
+    assert.equal(c.status, 'CONFIRMADO');
+    const camadas = await prisma().estoqueLoteNota.findMany({ where: { cliente_id: x.c }, orderBy: { createdAt: 'asc' } });
+    assert.deepEqual(camadas.map((l) => [l.produto_id === x.sal.id ? 'sal' : 'semLote', l.lote_fabricante, l.data_validade?.toISOString().slice(0, 10) ?? null, v4(l.custo_unitario)]),
+      [['sal', 'NF-77', '2027-12-31', '5.0000'], ['semLote', null, null, '2.0000']]);
+  });
+
+  test('a prévia diz, por efeito de estoque, se o produto controla lote e validade', async () => {
+    const x = await montar();
+    const compra = await previaDe(x, await rascunho(x, 'PAGAR', [[x.sal, x.local, '40', '5'], [x.semLote, x.local, '10', '2']]));
+    assert.deepEqual(compra.plano.efeitos_estoque.entradas.map((e) => [e.item_ordem, e.controla_lote, e.controla_validade]), [[1, true, true], [2, false, false]]);
+    await entrar(x, x.sal, x.local, '10', '3', 'A', '2027-12-31');
+    const venda = await previaDe(x, await rascunho(x, 'RECEBER', [[x.sal, x.local, '5', '9']]));
+    assert.deepEqual(venda.plano.efeitos_estoque.saidas.map((e) => [e.item_ordem, e.controla_lote, e.controla_validade]), [[1, true, true]]);
+  });
+
+  test('venda: 12 do A + 8 do B → custo 96,0000 (sem aviso); cancelar devolve aos mesmos lotes; replay = gravado', async () => {
+    const x = await montar();
+    const L = await tresLotes(x);
+    const r = await rascunho(x, 'RECEBER', [[x.sal, x.local, '20', '9']]);
+    const c = ok(await confirmarCom(x, r, [{ item_ordem: 1, lotes: [{ estoque_lote_nota_id: L.A, quantidade: '12' }, { estoque_lote_nota_id: L.B, quantidade: '8' }] }]));
+    assert.equal(c.avisos, undefined);
+    const mov = await prisma().movimentacaoEstoque.findFirst({ where: { cliente_id: x.c, tipo_detalhado: 'venda_financeiro' } });
+    assert.equal(v4(mov.valor_total), '96.0000');
+    assert.deepEqual(await porLote(x.sal), { VELHO: ['10.0000', '3.0000'], B: ['42.0000', '6.0000'], A: ['88.0000', '4.0000'] });
+    await provarReplay(x, x.sal);
+    ok(await H.req('POST', `/operacoes-financeiras/${r.id}/cancelar`, x.token, { empresa_id: x.e1.id, operation_id: opId(), motivo: 'lançada errada' }));
+    assert.deepEqual(await porLote(x.sal), { VELHO: ['10.0000', '3.0000'], B: ['50.0000', '6.0000'], A: ['100.0000', '4.0000'] });
+    await provarReplay(x, x.sal);
+  });
+
+  test('venda: soma errada → 422 lotes_nao_somam; produto sem lote com a lista → 422; vencido escolhido → aviso com item_ordem', async () => {
+    const x = await montar();
+    const L = await tresLotes(x);
+    await entrar(x, x.semLote, x.local, '10', '2');
+    const r = await rascunho(x, 'RECEBER', [[x.sal, x.local, '20', '9']]);
+    erro(await confirmarCom(x, r, [{ item_ordem: 1, lotes: [{ estoque_lote_nota_id: L.A, quantidade: '12' }] }]), 422, 'ESTOQUE_LOTE_INVALIDO', 'lotes_nao_somam');
+    const r2 = await rascunho(x, 'RECEBER', [[x.semLote, x.local, '5', '9']]);
+    erro(await confirmarCom(x, r2, [{ item_ordem: 1, lotes: [{ estoque_lote_nota_id: L.A, quantidade: '5' }] }]), 422, 'ESTOQUE_LOTE_INVALIDO', 'produto_sem_controle_de_lote');
+    assert.deepEqual(await porLote(x.sal), { VELHO: ['10.0000', '3.0000'], B: ['50.0000', '6.0000'], A: ['100.0000', '4.0000'] });
+    const c = ok(await confirmarCom(x, r, [{ item_ordem: 1, lotes: [{ estoque_lote_nota_id: L.V, quantidade: '10' }, { estoque_lote_nota_id: L.A, quantidade: '10' }] }]));
+    assert.deepEqual(semId(c.avisos), [{ tipo: 'lote_vencido', lote: 'VELHO', validade: '2027-01-10', item_ordem: 1 }]);
+  });
+});
+

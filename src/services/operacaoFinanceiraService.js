@@ -415,16 +415,19 @@ export const salvarRascunho = async (empresaId, p) => {
 
 /**
  * Confirma o rascunho (cria títulos e efeitos de estoque). `baixa_no_ato` só
- * para à vista e só com a permissão `liquidar`.
+ * para à vista e só com a permissão `liquidar`. D-PROD-282 em todas as telas:
+ * `lotes_por_item` (lote e validade da compra, lotes escolhidos da venda) só vai
+ * quando tem item; sem ele, o corpo é o de sempre.
  * @param {string|null} empresaId
  * @param {string} id
- * @param {{ versao: number, baixa_no_ato?: { metodo: string, data: string, referencia?: string } | null, escopo: string, storage?: Storage|null, retentativa?: boolean }} p
+ * @param {{ versao: number, baixa_no_ato?: { metodo: string, data: string, referencia?: string } | null, lotes_por_item?: Array<Record<string, unknown>>|null, escopo: string, storage?: Storage|null, retentativa?: boolean }} p
  */
 export const confirmarLancamento = async (empresaId, id, p) => {
   const empresa = exigirEmpresa(empresaId, 'confirmarLancamento', RESOURCE);
   /** @type {Record<string, unknown>} */
   const conteudo = { versao: p.versao };
   if (p.baixa_no_ato) conteudo.baixa_no_ato = p.baixa_no_ato;
+  if (Array.isArray(p.lotes_por_item) && p.lotes_por_item.length) conteudo.lotes_por_item = p.lotes_por_item;
   return enviarComPendencia({
     escopo: p.escopo,
     acao: 'confirmar',
