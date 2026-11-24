@@ -10,7 +10,7 @@ import { formatarNumero } from "@/lib/dinheiroDecimal";
 import { lerErroGestao } from "@/lib/gestaoErros";
 import { mensagemErroPatrimonio } from "@/lib/patrimonioErros";
 import { AvisoGestao, CampoSelect, CampoTexto } from "@/components/gestao/GestaoFormParts";
-import { CampoNumero } from "@/components/financeiroGestao/CamposLancamento";
+import { CampoNumero, EscolhaSegmentada } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
 import MedidorBem from "@/components/patrimonio/MedidorBem";
@@ -24,7 +24,10 @@ import {
   ABAS_BEM,
   CHAVE_OPCOES_PATRIMONIO,
   LIMITES_BEM,
+  LIMITES_CAPACIDADE,
   LOCALE_BEM,
+  OPCOES_UNIDADE_CAPACIDADE,
+  OPCOES_USA_PRODUTO,
   abaDoCampo,
   estadoInicialDoBem,
   formaDoEstado,
@@ -385,6 +388,46 @@ export default function FormularioBem({
           <AvisoGestao tone="blue" testId="bem-escolha-tipo-de-bem">
             Escolha o tipo de bem (benfeitoria, máquina, veículo…): ele define as abas e os campos do bem e não muda depois de gravado. Depois escolha o tipo (ou crie um em “+ Novo tipo”).
           </AvisoGestao>
+        </div>
+      ) : null}
+      {form.natureza === "IMPLEMENTO" ? (
+        <div className="b1-form-embutido col-span-12 grid grid-cols-12 gap-x-3 gap-y-2 rounded-md border border-[var(--mg-divider,#e2e8f0)] p-3" data-testid="bem-produto">
+          <EscolhaSegmentada
+            rotulo="Leva produto (veneno, adubo)?"
+            opcoes={OPCOES_USA_PRODUTO}
+            value={form.usa_produto}
+            onChange={(v) => set("usa_produto", /** @type {'SIM'|'NAO'} */ (v))}
+            readOnly={readOnly}
+            testId="bem-usa-produto"
+          />
+          {form.usa_produto === "SIM" ? (
+            <>
+              <CampoNumero
+                label="Quanto cabe no tanque"
+                required
+                value={form.capacidade}
+                onChange={(v) => set("capacidade", v)}
+                locale={LOCALE_BEM}
+                limites={LIMITES_CAPACIDADE}
+                span={6}
+                readOnly={readOnly}
+                error={erros.capacidade || null}
+                testId="bem-capacidade"
+              />
+              <EscolhaSegmentada
+                rotulo="Medida"
+                opcoes={OPCOES_UNIDADE_CAPACIDADE}
+                value={form.capacidade_unidade}
+                onChange={(v) => set("capacidade_unidade", v)}
+                readOnly={readOnly}
+                span={6}
+                testId="bem-capacidade-unidade"
+              />
+              <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="bem-produto-dica">
+                No lançamento, o produto é contado por tanque cheio (jato).
+              </p>
+            </>
+          ) : null}
         </div>
       ) : null}
     </div>
