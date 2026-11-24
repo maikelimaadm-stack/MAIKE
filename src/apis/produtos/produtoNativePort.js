@@ -44,7 +44,7 @@ const CAMPOS_DE_CRIACAO = Object.freeze([
   // D-PROD-282: controle de lote e de validade.
   'controla_lote',
   'controla_validade',
-  // D-PROD-286: unidades de conversão (dentro do POST/PATCH do produto).
+  // D-PROD-288: unidades de conversão (dentro do POST/PATCH do produto).
   'unidades_conversao',
   'observacoes',
   'ativo',

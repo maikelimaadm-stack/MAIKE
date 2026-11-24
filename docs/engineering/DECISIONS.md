@@ -9292,13 +9292,37 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Sem mudança:** chamadas ao servidor, `operation_id`, validações, motivos (e o "Motivos…" na mesma tela), custo, lote/validade, permissões (ações `entrada`/`saida`/`ajuste`).
 - **Testes:** `tests/smoke/estoqueNovoMovimento.test.jsx`. **Relatório:** [`MAIKE-ESTOQUE-LANCAMENTO-TELA-BASE1-REPORT.md`](./MAIKE-ESTOQUE-LANCAMENTO-TELA-BASE1-REPORT.md)
 
+## D-PROD-286 — Controles do Mapa Geral numa faixa acima do mapa
 
+**Data:** 2026-11-24 · **Origem:** proprietário: "o mapa é a tela principal e abre com coisa demais em cima"; comparou atual × proposto em celular, tablet e computador, escolheu o estilo dos botões pelo exemplo "Chat | Work" e aprovou ("perfeito, pode começar a implementação"; "faça o merge quando ficar pronto") · **Relatório:** [`MAIKE-MAPA-CONTROLES-V13-REPORT.md`](./MAIKE-MAPA-CONTROLES-V13-REPORT.md)
 
-## D-PROD-286 — Produto: unidades de conversão no cadastro; consumo só na Formulação; preços, local e código interno fora da tela
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` deu D-PROD-286 (o marcador); o marcador passa a D-PROD-287.
+
+- **Contexto:** no celular, uma barra escura flutuava no meio do topo do mapa; no computador e no tablet, botões soltos ficavam por cima do terreno. Quem usa o mapa no campo tem pouca leitura e não deve precisar procurar.
+- **Decisão (só arrumação; nenhuma função removida):**
+  - **Faixa branca fixa acima do mapa**, fora da área do mapa, nos três tamanhos: um trilho segmentado (cinza claro, totalmente arredondado, selecionado em pílula branca) com [Filtro] · Lotes · Pontos · [Visualização]; Filtro e Visualização só com ícone e rótulo acessível. No celular o trilho ocupa a largura; no computador e no tablet fica à esquerda, mais estreito.
+  - **Resumo dos animais** (animais · peso médio · áreas, e a setinha do Resumo) embaixo à esquerda, no mesmo estilo de trilho, com milhar em pt-BR.
+  - **Atualizar · Minha localização · Ativar arrasto** numa pílula em pé embaixo à direita, no mesmo estilo; no celular as três peças têm a mesma altura.
+  - Os painéis de Filtro e de Visualização, o cabeçalho, o menu e a barra de baixo do celular não mudam.
+- **Fora:** aparência dos pastos e marcadores (preenchimento transparente, nomes em branco), "Colorir por"/"Mostrar" como botões próprios, busca e modo campo. Nenhuma mudança no servidor; nenhuma migration.
+- **Testes:** `tests/smoke/mapaControlesV13.test.jsx` (novo); os testes do mapa existentes passam sem alteração.
+
+## D-PROD-287 — Bens Patrimoniais: excluir de vez o bem que nunca foi usado
+
+**Data:** 2026-11-24 · **Origem:** proprietário ("eu quero excluir também") · **Relatório:** [`MAIKE-EXCLUIR-BEM-NAO-USADO-REPORT.md`](./MAIKE-EXCLUIR-BEM-NAO-USADO-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `19ca524e`: nasceu D-PROD-286 (a 285 era da PR #372); antes do merge a `main` deu a D-PROD-286 aos controles do Mapa Geral (PR #373) e passou a indicar D-PROD-287, que é esta; o marcador passa a D-PROD-288.
+
+- **Contexto:** o bem só era inativado (D-PROD-157, "nada é apagado"). Cadastro feito errado ficava para sempre na lista de inativos.
+- **Decisão:** `DELETE /bens-patrimoniais/:id?empresa_id=&versao=` exclui de vez SÓ o bem sem nenhum uso: nenhum abastecimento (em qualquer situação), nenhuma atividade com ele no cabeçalho e nenhum lançamento de máquina (como máquina ou implemento). Com uso → 409 `BEM_PATRIMONIAL_EM_USO` e o caminho continua sendo inativar (o proprietário: não apagar o que tem custo). Saem junto os tanques e os produtos aceitos; fica a auditoria `delete`. Permissão: a ação padrão "excluir" da tela Bens. Tela: botão "Excluir" com confirmação e o aviso de "já foi usado, use Inativar".
+- **Fora:** excluir tipo continua no "Gerenciar tipos" (D-PROD-169); nenhuma migration.
+- **Testes:** `backend/tests/bemPatrimonialExcluir.test.mjs`; smoke de permissões do Patrimônio.
+
+## D-PROD-288 — Produto: unidades de conversão no cadastro; consumo só na Formulação; preços, local e código interno fora da tela
 
 **Data:** 2026-11-24 · **Origem:** escolhas do proprietário (2026-11-24), com o alinhamento ao outro repositório do dono (CONTROLE-DE-ESTOQUE, `erp.produto_unidades`, migration 0029) pedido pela coordenação · **Branch:** `claude/produto-unidades-conversao` (da `main` `4e9b4445`) · **Migration:** `20261125200000_produto_unidades_conversao` (CONTRACT condicionado, formato CONVERSÃO sem DROP) · **Especificação:** [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md) · **Runbook:** [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md) · **Relatório:** [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md)
 
-> **Numeração:** nasceu D-PROD-284 (o script, no início da missão). A PR #371 reservou a D-PROD-284 e passou-se a D-PROD-285; depois do merge da `main` (PR #370 e #371), a PR #372 (mergeada) levou a D-PROD-285 e `node scripts/dev/proxima-decisao.mjs` mandou usar a **D-PROD-286**, que é esta (renumerada só nesses momentos, D-PROD-277). O marcador passa a D-PROD-287. O número não está no `migration.sql` (checksum inalterado). Conferir de novo antes do merge (regra A5).
+> **Numeração:** nasceu D-PROD-284 (o script, no início da missão). A PR #371 reservou a D-PROD-284 e passou-se a D-PROD-285; depois do merge da `main` (PR #370 e #371), a PR #372 levou a D-PROD-285, e antes do merge a `main` deu a D-PROD-286 (controles do Mapa, PR #373/#374) e a D-PROD-287 (Bens Patrimoniais, PR #375); `node scripts/dev/proxima-decisao.mjs` mandou usar a **D-PROD-288**, que é esta (D-PROD-277). O marcador passa a D-PROD-289. O número não está no `migration.sql` (checksum inalterado). Conferir de novo antes do merge (regra A5).
 
 **Escolhas do proprietário (2026-11-24).**
 1. **Unidades de conversão no cadastro do produto.** O produto continua com **uma** unidade de estoque (KG ou L; o SACO legado guarda kg); saldo, custo médio, lote e recálculo ficam sempre nela. Na seção "Unidades" do cadastro, uma lista: unidade (sigla, até 8 caracteres), **Multiplica** ou **Divide**, fator e uso (compra/entrada e saída/venda), com a prévia "1 SACO = 25 KG". MULTIPLICA: 1 sigla = fator; DIVIDE: 1 sigla = 1/fator (fator ≤ 10.000).
@@ -9316,4 +9340,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Constituição.** Nenhuma regra tocada: abastecimento, atividade e cocho ficam como estão; o custo médio, o lote e o recálculo não mudam. Sem emenda.
 
-<!-- Próxima decisão: D-PROD-287 -->
+<!-- Próxima decisão: D-PROD-289 -->

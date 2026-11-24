@@ -36,6 +36,7 @@ import {
   getBemPatrimonial,
   createBemPatrimonial,
   updateBemPatrimonial,
+  deleteBemPatrimonial,
   previaDepreciacaoBemPatrimonial,
   listOpcoesBemPatrimonial,
   RECURSOS_OPCOES_DA_EMPRESA,
@@ -368,6 +369,15 @@ export const atualizarBem = async (empresaId, original, dados) => {
 export const alterarSituacaoBem = async (empresaId, original, ativo) => {
   const empresa = exigirEmpresa(empresaId, 'alterarSituacaoBem', RESOURCE);
   return updateBemPatrimonial(original.id, { empresa_id: empresa, versao: original.versao, ativo: ativo === true });
+};
+
+/**
+ * D-PROD-287 — exclui de vez o bem nunca usado (`original` traz `id` e `versao`).
+ * @param {string|null} empresaId @param {{ id: string, versao: number }} original
+ */
+export const excluirBem = async (empresaId, original) => {
+  const empresa = exigirEmpresa(empresaId, 'excluirBem', RESOURCE);
+  return deleteBemPatrimonial(original.id, empresa, original.versao);
 };
 
 /**

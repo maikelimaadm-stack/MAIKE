@@ -187,7 +187,7 @@ export const NOME_PRODUTO_IMPLEMENTO = '20261124100000_tipo_implemento_produto';
 export const NOME_CONTROLE_LOTE = '20261124200000_estoque_controle_lote';
 /** D-PROD-283: a EXPAND do insumo por jato (1 coluna anulável em AtividadeApontamentoProduto), ainda posterior; fora da partida, sobe no GREEN. */
 export const NOME_INSUMO_JATO = '20261125100000_insumo_por_jato';
-/** D-PROD-286: a CONTRACT das unidades de conversão do produto, ainda posterior; fora da partida, sobe no GREEN. */
+/** D-PROD-288: a CONTRACT das unidades de conversão do produto, ainda posterior; fora da partida, sobe no GREEN. */
 export const NOME_UNIDADES_CONVERSAO = '20261125200000_produto_unidades_conversao';
 export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_CONTROLE_LOTE, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(

@@ -140,7 +140,7 @@ const COLUNAS_ENTRADA = [
  */
 function celulaDeEntrada({ linha, indice, empresaId, erros, onMudar }, coluna) {
   const e = (/** @type {string} */ campo) => erros[`itens.${indice}.${campo}`] || undefined;
-  // D-PROD-286: a de estoque e as unidades de conversão com uso em compra/entrada.
+  // D-PROD-288: a de estoque e as unidades de conversão com uso em compra/entrada.
   const unidades = unidadesDoProduto(linha.produto, "compra");
   const por = linha.unidade === "SACO" ? "saco" : linha.unidade === "L" ? "litro" : linha.unidade && linha.unidade !== "KG" ? linha.unidade : "kg";
   switch (coluna) {
@@ -201,7 +201,7 @@ function celulaDeEntrada({ linha, indice, empresaId, erros, onMudar }, coluna) {
           span={4}
           testId={`entrada-linha-${indice}-quantidade`}
         />
-        {/* D-PROD-286: "10 SACO = 250 kg". */}
+        {/* D-PROD-288: "10 SACO = 250 kg". */}
         {equivalenciaDaLinha(linha) ? (
           <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`entrada-linha-${indice}-equivalencia`}>{equivalenciaDaLinha(linha)}</p>
         ) : null}
@@ -283,7 +283,7 @@ const COLUNAS_SAIDA = [
  */
 function celulaDeSaida({ linha, indice, empresaId, erros, onMudar }, coluna) {
   const e = (/** @type {string} */ campo) => erros[`itens.${indice}.${campo}`] || undefined;
-  // D-PROD-286: a de estoque e as unidades de conversão com uso em saída.
+  // D-PROD-288: a de estoque e as unidades de conversão com uso em saída.
   const unidades = unidadesDoProduto(linha.produto, "venda");
   switch (coluna) {
     case "produto":
@@ -343,7 +343,7 @@ function celulaDeSaida({ linha, indice, empresaId, erros, onMudar }, coluna) {
           span={12}
           testId={`saida-linha-${indice}-quantidade`}
         />
-        {/* D-PROD-286: "10 SACO = 250 kg". */}
+        {/* D-PROD-288: "10 SACO = 250 kg". */}
         {equivalenciaDaLinha(linha) ? (
           <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`saida-linha-${indice}-equivalencia`}>{equivalenciaDaLinha(linha)}</p>
         ) : null}

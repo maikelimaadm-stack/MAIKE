@@ -108,7 +108,7 @@ export const comoProdutoPublico = (registro) => ({
   controla_lote: registro.controla_lote === true,
   controla_validade: registro.controla_validade === true,
   observacoes: registro.observacoes ?? null,
-  // D-PROD-286: unidade de estoque efetiva (KG ou L) e as unidades de conversão vigentes ("1 SACO = 25 KG").
+  // D-PROD-288: unidade de estoque efetiva (KG ou L) e as unidades de conversão vigentes ("1 SACO = 25 KG").
   unidade_estoque: unidadeEstoqueEfetiva(registro),
   unidades_conversao: listarConversoesPublicas(registro),
   ativo: registro.ativo,
@@ -139,7 +139,7 @@ export const carenciaDoCorpo = (v) => {
 };
 
 /**
- * D-PROD-286: campos que saíram da tela do produto. O corpo que os traz é aceito (cliente antigo) e IGNORADO: nada é
+ * D-PROD-288: campos que saíram da tela do produto. O corpo que os traz é aceito (cliente antigo) e IGNORADO: nada é
  * gravado neles e o valor antigo continua no banco. `codigo_interno` passa a ser automático (= `numero_produto`) na
  * criação e só leitura depois.
  */
@@ -367,7 +367,7 @@ const exigirProdutoSemEstoqueParaTrocarEmpresa = async (tx, clienteId, anterior)
   }
 };
 
-/** D-PROD-286: grava a lista de conversões do produto e devolve o produto relido (com as conversões). */
+/** D-PROD-288: grava a lista de conversões do produto e devolve o produto relido (com as conversões). */
 const gravarConversoes = async (tx, clienteId, produto, normalizadas) => {
   await sincronizarConversoes(tx, clienteId, produto.id, normalizadas);
   return (await buscarProduto(clienteId, produto.id, tx)) ?? produto;
@@ -450,7 +450,7 @@ export const criar = async (contexto, entrada) => {
       ...campos,
       cliente_id: auth.clienteId,
       numero_produto: String(numero),
-      // D-PROD-286: código interno automático, igual ao número do cadastro.
+      // D-PROD-288: código interno automático, igual ao número do cadastro.
       codigo_interno: String(numero),
       // D-PROD-161: o cadastro nunca cria saldo (o motor físico é a única porta).
       estoque_atual: 0,
@@ -458,7 +458,7 @@ export const criar = async (contexto, entrada) => {
       unidade_principal_estoque: campos.unidade_principal_estoque ?? 'KG',
     });
 
-    // D-PROD-286: as unidades de conversão vêm no mesmo POST (tenant do auth_context).
+    // D-PROD-288: as unidades de conversão vêm no mesmo POST (tenant do auth_context).
     const comConversoes = conversoesPedidas ? await gravarConversoes(tx, auth.clienteId, registro, conversoesPedidas) : registro;
     const publico = comoProdutoPublico(comConversoes);
     await registrarEvento(
@@ -568,7 +568,7 @@ export const atualizar = async (contexto, id, entrada) => {
     const atualizado = Object.keys(campos).length
       ? await atualizarProdutoPorId(tx, auth.clienteId, id, campos)
       : anterior;
-    // D-PROD-286: a lista de unidades de conversão, quando vem, substitui a vigente (com a linha do produto travada).
+    // D-PROD-288: a lista de unidades de conversão, quando vem, substitui a vigente (com a linha do produto travada).
     const registro = entrada?.unidades_conversao === undefined ? atualizado
       : await gravarConversoes(tx, auth.clienteId, atualizado, normalizarConversoes(entrada.unidades_conversao, atualizado));
 
@@ -637,7 +637,7 @@ export const excluir = async (contexto, id) => {
       });
     }
 
-    // D-PROD-286: as conversões são do cadastro (o produto sem lançamento não tem histórico delas): saem junto.
+    // D-PROD-288: as conversões são do cadastro (o produto sem lançamento não tem histórico delas): saem junto.
     await tx.produtoUnidadeConversao.deleteMany({ where: { cliente_id: auth.clienteId, produto_id: id } });
     await excluirProdutoPorId(tx, auth.clienteId, id);
     await registrarEvento(

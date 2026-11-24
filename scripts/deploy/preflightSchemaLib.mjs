@@ -145,7 +145,7 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // D-PROD-283 (MAIKE-INSUMO-POR-JATO): toda leitura do apontamento lê o jato da linha de insumo; sem a migration
   // `20261125100000_insumo_por_jato`, o lançamento de atividades responde 500.
   ['AtividadeApontamentoProduto', 'jato'],
-  // D-PROD-286: os lançamentos e o cadastro do produto leem as unidades de conversão; sem a migration
+  // D-PROD-288: os lançamentos e o cadastro do produto leem as unidades de conversão; sem a migration
   // `20261125200000_produto_unidades_conversao`, o cadastro de produto e toda entrada/saída de estoque respondem 500.
   ['ProdutoUnidadeConversao', 'fator'],
   ['CADFORMULACAO', 'consumo_minimo_pv'],

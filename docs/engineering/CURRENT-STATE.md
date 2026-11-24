@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-24 (missão ativa D-PROD-286; antes D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-24 (missão ativa D-PROD-288; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,25 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-24) — MAIKE-COCHO-DEPOSITO-V13: detalhe do cocho e do depósito no desenho v13 (D-PROD-284)
+## Missão ativa (2026-11-24) — MAIKE-EXCLUIR-BEM-NAO-USADO: excluir de vez o bem que nunca foi usado (D-PROD-287)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-287**: `DELETE /bens-patrimoniais/:id` só para bem sem abastecimento, atividade ou lançamento; com uso, 409 `BEM_PATRIMONIAL_EM_USO` (inativar) |
+| Banco | sem migration |
+| Relatório | [`MAIKE-EXCLUIR-BEM-NAO-USADO-REPORT.md`](./MAIKE-EXCLUIR-BEM-NAO-USADO-REPORT.md) |
+## Missão anterior (2026-11-24) — MAIKE-MAPA-CONTROLES-V13: controles do Mapa Geral numa faixa acima do mapa (D-PROD-286)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-286**, pedido e aprovação do proprietário, em celular, tablet e computador |
+| Branch / PR | `claude/kind-knuth-tztu1v` · PR **#373** |
+| Mudança | Faixa branca acima do mapa com [Filtro] · Lotes · Pontos · [Visualização]; resumo dos animais embaixo à esquerda; atualizar, localização e arrasto numa pílula em pé embaixo à direita |
+| Migration | Nenhuma |
+| Relatório | [`MAIKE-MAPA-CONTROLES-V13-REPORT.md`](./MAIKE-MAPA-CONTROLES-V13-REPORT.md) |
+| Próximas | Aparência dos pastos e marcadores; Forragem dentro do Detalhes do Lote |
+
+## Missão anterior (2026-11-24) — MAIKE-COCHO-DEPOSITO-V13: detalhe do cocho e do depósito no desenho v13 (D-PROD-284)
 
 | Campo | Valor |
 |---|---|
@@ -43,14 +61,14 @@ rollout pausado **D-PROD-41**)
 | Validação | `npm run verify:all` local **verde** no `946b5965` (39 etapas; backend 2364/2370 com 6 `todo` antigos, smoke 3682/3682, gates 1038/1038), com banco recriado; **CI da PR verde** no mesmo head (o GitHub Actions voltou) ([relatório](./MAIKE-P2002-SEM-ALVO-REPORT.md) §6) |
 | Documentos | [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md) |
 
-## Missão ativa (2026-11-24) — MAIKE-PRODUTO-UNIDADES-CONVERSAO: unidades de conversão no cadastro do produto (D-PROD-286)
+## Missão ativa (2026-11-24) — MAIKE-PRODUTO-UNIDADES-CONVERSAO: unidades de conversão no cadastro do produto (D-PROD-288)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-286** (nasceu D-PROD-284; a PR #371 reservou a 284), escolhas do proprietário (2026-11-24) e o alinhamento ao CONTROLE-DE-ESTOQUE (`uso_compra`/`uso_venda`, código de barras, exclusão lógica, único parcial) |
+| Decisão | **D-PROD-288** (nasceu D-PROD-284; a PR #371 reservou a 284), escolhas do proprietário (2026-11-24) e o alinhamento ao CONTROLE-DE-ESTOQUE (`uso_compra`/`uso_venda`, código de barras, exclusão lógica, único parcial) |
 | Branch / PR | `claude/produto-unidades-conversao`, da `main` `4e9b4445` · sem push. **A `main` andou** (PR #370, `20261125100000_insumo_por_jato`, aplicada em produção): integrar e renomear a migration antes da PR (relatório §8) |
 | Mudança | tabela `ProdutoUnidadeConversao` (MULTIPLICA/DIVIDE, fator, uso, código de barras, ativa, `excluido_em`); conversão no servidor em entrada, saída manual, ajuste, compra e venda; CRUD dentro do POST/PATCH do produto; consumo mínimo/máximo na Formulação; preços, local e código interno fora da tela (ignorados no corpo; código = número) |
-| Migration | `20261125200000_produto_unidades_conversao`, **CONTRACT condicionado (CONVERSÃO sem DROP)**, `--contract D-PROD-286`, sha256 `779347bf…863b`. **Não aplicada em produção**; ensaiada localmente com o envelope do runbook |
+| Migration | `20261125200000_produto_unidades_conversao`, **CONTRACT condicionado (CONVERSÃO sem DROP)**, `--contract D-PROD-288`, sha256 `779347bf…863b`. **Não aplicada em produção**; ensaiada localmente com o envelope do runbook |
 | Relatório | [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md) · SPEC [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md) · Runbook [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md) |
 | Próximas | conversão na atividade, no cocho e na transferência (exige emenda, SPEC §7); cocho e farol lendo o consumo da Formulação; UN como unidade de estoque |
 

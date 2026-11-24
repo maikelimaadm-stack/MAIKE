@@ -185,7 +185,7 @@ export const NOME_REFORMA = '20261122100000_reforma_planejamento';
 export const NOME_PRODUTO_IMPLEMENTO = '20261124100000_tipo_implemento_produto';
 /** D-PROD-283: a EXPAND do insumo por jato (1 coluna anulável na AtividadeApontamentoProduto, que nasce depois desta CONTRACT); fora da partida, sobe no GREEN. */
 export const NOME_INSUMO_JATO = '20261125100000_insumo_por_jato';
-/** D-PROD-286: a CONTRACT das unidades de conversão do produto, ainda posterior. */
+/** D-PROD-288: a CONTRACT das unidades de conversão do produto, ainda posterior. */
 export const NOME_UNIDADES_CONVERSAO = '20261125200000_produto_unidades_conversao';
 export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */

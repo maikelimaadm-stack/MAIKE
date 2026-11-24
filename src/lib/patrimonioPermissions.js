@@ -38,7 +38,7 @@ export const ACOES_EXTRAS_PATRIMONIO = Object.freeze([ACAO_INATIVAR]);
 /**
  * @param {unknown} permissao
  * @param {string} tela
- * @returns {{ ver: boolean, criar: boolean, editar: boolean, inativar: boolean }}
+ * @returns {{ ver: boolean, criar: boolean, editar: boolean, inativar: boolean, excluir: boolean }}
  */
 export const acoesDaTelaPatrimonio = (permissao, tela) => {
   const pode = (/** @type {string} */ acao) => canPerformAction(permissao, tela, MODULO_PATRIMONIO, acao);
@@ -47,6 +47,8 @@ export const acoesDaTelaPatrimonio = (permissao, tela) => {
     criar: pode('novo') || pode('salvar'),
     editar: pode('editar') || pode('salvar'),
     inativar: pode(ACAO_INATIVAR),
+    // D-PROD-287: excluir de vez o bem nunca usado (a ação padrão "excluir" da tela).
+    excluir: pode('excluir'),
   };
 };
 

@@ -217,7 +217,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // MAIKE-INSUMO-POR-JATO (D-PROD-283): EXPAND — o número do jato na linha de insumo: 1 coluna anulável sem DEFAULT em
   // tabela antiga (AtividadeApontamentoProduto.jato); sem CHECK (a API confere 1..999).
   '20261125100000_insumo_por_jato': '725a8c5ac873ad19d0c191cd7c2f303dc84ef97170b74c0bb2133479c76d3551',
-  // MAIKE-PRODUTO-UNIDADES-CONVERSAO (D-PROD-286): CONTRACT condicionado, formato CONVERSÃO sem DROP — tabela nova
+  // MAIKE-PRODUTO-UNIDADES-CONVERSAO (D-PROD-288): CONTRACT condicionado, formato CONVERSÃO sem DROP — tabela nova
   // ProdutoUnidadeConversao (sigla, MULTIPLICA|DIVIDE, fator, uso compra/venda, código de barras, exclusão lógica), os 5
   // CHECKs de unidade das linhas de lançamento alargados, 2 colunas anuláveis na Formulação e a cópia pinada do
   // peso_por_saco_kg (conversão SACO) e do consumo mínimo/máximo do produto para a formulação.
@@ -281,7 +281,7 @@ export const DO_RLS_APROVADOS = Object.freeze([
   'e47bfde02699052ca52f4c6c750e9f28aec247d1fcaf5c2c308a05e006799765',
   // D-PROD-276: RLS/REVOKE do Planejamento e da PlanejamentoArea (mesmo corpo, lista nova).
   '3dd03bb8d852888ae7f058ec6eb8c6304f93d3dcdb3f4e946d03413a5565c654',
-  // D-PROD-286: RLS/REVOKE da ProdutoUnidadeConversao (mesmo corpo, lista nova).
+  // D-PROD-288: RLS/REVOKE da ProdutoUnidadeConversao (mesmo corpo, lista nova).
   '6518df2877f62ef12dac0f111dbe514254272d7086e8c3d252be96fd66a683af',
 ]);
 
@@ -734,7 +734,7 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "EstoqueLoteNota" ADD COLUMN "data_validade" DATE',
     ]),
   }),
-  // D-PROD-286: as unidades de conversão do produto. Formato CONVERSÃO sem DROP (como a D-PROD-249): depois da guarda
+  // D-PROD-288: as unidades de conversão do produto. Formato CONVERSÃO sem DROP (como a D-PROD-249): depois da guarda
   // (hash pinado; confere que as 6 tabelas existem, que a tabela e as 2 colunas novas não existem e que os 5 CHECKs de
   // unidade existem; trava as 6 tabelas em ACCESS EXCLUSIVE), EXATAMENTE as 10 instruções abaixo, nesta ordem (texto
   // pinado): os 5 CHECKs de unidade apagados e recriados mais largos (o descritor os declara em `constraints_alargadas`;
@@ -744,7 +744,7 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   // peso por saco (conversão SACO multiplica) e o UPDATE do consumo mínimo/máximo da formulação. A guarda só cita as 6
   // tabelas antigas e a criada no resto.
   '20261125200000_produto_unidades_conversao': Object.freeze({
-    decisao: 'D-PROD-286',
+    decisao: 'D-PROD-288',
     guarda_sha256: '86df7d20db22e4ae2596dba4c29788fa60537d41e6e4cfa35d68171266fd0ff8',
     drop: Object.freeze([]),
     literais_guarda: Object.freeze(['Produto', 'CADFORMULACAO', 'EntradaEstoqueItem', 'SaidaEstoqueItem', 'AjusteEstoqueItem', 'OperacaoFinanceiraItem']),

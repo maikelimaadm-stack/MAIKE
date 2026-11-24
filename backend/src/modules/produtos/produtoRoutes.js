@@ -38,7 +38,7 @@ const CAMPOS = Object.freeze({
   controla_validade: { type: 'boolean' },
   observacoes: { type: ['string', 'null'], maxLength: 2000 },
   ativo: { type: 'boolean' },
-  // D-PROD-286: unidades de conversão (a lista substitui a vigente; o serviço confere sigla, operação e fator).
+  // D-PROD-288: unidades de conversão (a lista substitui a vigente; o serviço confere sigla, operação e fator).
   unidades_conversao: {
     type: 'array',
     maxItems: 30,

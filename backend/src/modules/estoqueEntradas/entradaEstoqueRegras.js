@@ -113,7 +113,7 @@ export const normalizarCriacao = (corpo) => {
   if (!bruto.length || bruto.length > MAX_ITENS) throw invalido(`informe de 1 a ${MAX_ITENS} itens`, { field: 'itens', reason: 'quantidade_de_itens' });
   const itens = bruto.map((i, indice) => {
     const it = /** @type {Record<string, any>} */ (i ?? {});
-    // D-PROD-286: KG, L, SACO ou a sigla de uma unidade de conversão do produto (conferida contra o cadastro depois).
+    // D-PROD-288: KG, L, SACO ou a sigla de uma unidade de conversão do produto (conferida contra o cadastro depois).
     if (typeof it.unidade !== 'string' || !it.unidade.trim() || it.unidade.trim().length > 8 || it.unidade.trim() === 'UN') throw invalido('unidade inválida (a de estoque ou uma unidade de conversão do produto)', { field: 'unidade', reason: 'unidade', indice });
     it.unidade = it.unidade.trim().toUpperCase();
     const quantidade = decimalDoCorpo(it.quantidade, 'quantidade', indice);
@@ -231,7 +231,7 @@ export const mesmaVersaoFisica = (atual, linhas, nova) => {
  * @param {{ unidade_principal_estoque: string, peso_por_saco_kg: any }} produto
  */
 export const efeitoDoItem = (item, produto) => {
-  // D-PROD-286: a unidade de estoque ou uma conversão ativa do produto com uso em compra/entrada; o motor converte.
+  // D-PROD-288: a unidade de estoque ou uma conversão ativa do produto com uso em compra/entrada; o motor converte.
   const r = resolverUnidade(produto, item.unidade, {
     uso: 'compra',
     erro: (reason, mensagem, extra = {}) => new AppError('ENTRADA_ESTOQUE_INVALIDA', mensagem.replace('do lançamento', 'da entrada'), { details: { field: 'unidade', reason, ...extra } }),

@@ -66,7 +66,7 @@ describe('PL-1 — formulário do Produto', () => {
     expect(seletor.textContent).toContain('QUILOGRAMAS (KG)');
     expect(screen.queryByTestId('aviso-unidade-litros')).toBeNull();
     fireEvent.click(seletor);
-    expect(screen.getAllByRole('option').map((o) => o.textContent.trim())).toEqual(['QUILOGRAMAS (KG)', 'LITROS (L)']); // D-PROD-286: SACO só no produto legado (o saco é unidade de conversão)
+    expect(screen.getAllByRole('option').map((o) => o.textContent.trim())).toEqual(['QUILOGRAMAS (KG)', 'LITROS (L)']); // D-PROD-288: SACO só no produto legado (o saco é unidade de conversão)
     fireEvent.click(screen.getByRole('option', { name: 'LITROS (L)' }));
     await waitFor(() => expect(seletorUnidadePrincipal().textContent).toContain('LITROS (L)'));
     expect(screen.getByTestId('aviso-unidade-litros')).toHaveTextContent('A unidade de medida do cadastro não é de litros; confira.');

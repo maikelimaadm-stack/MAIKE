@@ -65,7 +65,7 @@ export const normalizarCriacao = (corpo) => {
   if (!bruto.length || bruto.length > MAX_ITENS) throw invalido(`informe de 1 a ${MAX_ITENS} itens`, { field: 'itens', reason: 'quantidade_de_itens' });
   const itens = bruto.map((i, indice) => {
     const it = /** @type {Record<string, any>} */ (i ?? {});
-    // D-PROD-286: KG, L, SACO ou a sigla de uma unidade de conversão do produto (conferida contra o cadastro depois).
+    // D-PROD-288: KG, L, SACO ou a sigla de uma unidade de conversão do produto (conferida contra o cadastro depois).
     if (typeof it.unidade !== 'string' || !it.unidade.trim() || it.unidade.trim().length > 8 || it.unidade.trim() === 'UN') throw invalido('unidade inválida (a de estoque ou uma unidade de conversão do produto)', { field: 'unidade', reason: 'unidade', indice });
     it.unidade = it.unidade.trim().toUpperCase();
     const quantidade = decimalDoCorpo(it.quantidade_contada, 'quantidade_contada', indice);
@@ -139,7 +139,7 @@ export const fingerprintDaExclusao = (a) => ({ v: 1, id: a.id, empresa_id: a.emp
  * @param {number} indice
  */
 export const contadoEmEstoque = (item, produto, indice) => {
-  // D-PROD-286: a unidade de estoque ou qualquer conversão ativa do produto (a contagem não é compra nem saída).
+  // D-PROD-288: a unidade de estoque ou qualquer conversão ativa do produto (a contagem não é compra nem saída).
   const r = resolverUnidade(produto, item.unidade, {
     erro: (reason, mensagem, extra = {}) => new AppError('AJUSTE_ESTOQUE_INVALIDO', mensagem.replace('do lançamento', 'da contagem'), { details: { field: 'unidade', reason, ...extra, indice } }),
   });

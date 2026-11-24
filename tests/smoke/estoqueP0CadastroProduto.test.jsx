@@ -80,7 +80,7 @@ describe('F2-UI — FormularioProduto', () => {
   ])('F2-UI1 — %s: aviso fixo visível e nenhum campo de estoque atual', (_rotulo, props) => {
     montar({ onSubmit: vi.fn(), ...props });
     expect(screen.getByText(AVISO)).toBeTruthy();
-    // D-PROD-286: o estoque atual aparece só para leitura (nunca é campo editável nem vai no envio).
+    // D-PROD-288: o estoque atual aparece só para leitura (nunca é campo editável nem vai no envio).
     const atual = screen.getByTestId('produto-estoque-atual');
     expect(atual.readOnly).toBe(true);
     // o mínimo continua (é cadastro, não saldo)

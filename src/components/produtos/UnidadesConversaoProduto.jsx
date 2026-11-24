@@ -5,7 +5,7 @@ import B1Select from "@/components/cadastro/base1/B1Select";
 import { parseDecimalPtBR } from "@/domain/numeroPtBR";
 
 /**
- * D-PROD-286 — seção "Unidades" do cadastro do produto: a lista de unidades de conversão da unidade de estoque.
+ * D-PROD-288 — seção "Unidades" do cadastro do produto: a lista de unidades de conversão da unidade de estoque.
  * Cada linha: unidade (sigla), Multiplica/Divide, fator, uso em compra e em saída, e a prévia em linguagem simples
  * ("1 SACO = 25 KG"). O servidor confere de novo (sigla, fator > 0, divide ≤ 10000, nunca a unidade de estoque);
  * unidade já usada em lançamento, tirada da lista, fica desativada em vez de apagada.

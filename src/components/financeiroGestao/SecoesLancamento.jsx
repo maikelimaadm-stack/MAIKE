@@ -67,7 +67,7 @@ function LinhaItem({ item, indice, total, resumoItem, direcao, ctx, alterar, rem
   const saldoDoLocal = item.local ? (saldos.data ?? []).find((s) => String(s.local_estoque_id) === String(item.local.id)) : null;
   const faltaSaldo = venda && saldoDoLocal && resumoItem?.kg && comparar(resumoItem.kg, saldoDoLocal.disponivel_kg) > 0;
   const aceitaSaco = produtoAceitaSaco(item.produto);
-  // D-PROD-286: as unidades de conversão do cadastro do produto (compra → uso compra; venda → uso saída).
+  // D-PROD-288: as unidades de conversão do cadastro do produto (compra → uso compra; venda → uso saída).
   const conversoes = conversoesDoItem(item.produto, direcao === "RECEBER" ? "RECEBER" : "PAGAR");
   // D-PROD-162: Produto em litros só aceita a unidade L, e o estoque dele é mostrado em L.
   const emLitros = produtoEmLitros(item.produto);

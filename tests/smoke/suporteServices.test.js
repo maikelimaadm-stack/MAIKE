@@ -185,7 +185,7 @@ describe('PR — produtos', () => {
       unidade_principal_estoque: 'SACO', peso_por_saco_kg: '30,5',
     });
     expect(payload.nome_produto).toBe('MILHO');
-    // D-PROD-286: preço, consumo, código interno e peso por saco saíram da tela e não vão no payload (o saco é uma
+    // D-PROD-288: preço, consumo, código interno e peso por saco saíram da tela e não vão no payload (o saco é uma
     // unidade de conversão; o consumo, da Formulação).
     expect(payload.preco_custo).toBeUndefined();
     expect(payload.percentual_consumo_pv).toBeUndefined();
@@ -194,7 +194,7 @@ describe('PR — produtos', () => {
     expect(payload.unidade_principal_estoque).toBe('SACO');
   });
 
-  it('PR9b (D-PROD-286) — as linhas de Unidades viram unidades_conversao (vazias saem; fator com vírgula)', () => {
+  it('PR9b (D-PROD-288) — as linhas de Unidades viram unidades_conversao (vazias saem; fator com vírgula)', () => {
     const payload = produtoSvc.normalizarProduto({
       nome_produto: 'sal', unidades_conversao: [
         { sigla: ' saco ', operacao: 'MULTIPLICA', fator: '25', uso_compra: true, uso_venda: false },

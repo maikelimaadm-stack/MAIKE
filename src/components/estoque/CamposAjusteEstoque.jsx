@@ -110,7 +110,7 @@ function celulaDeAjuste({ linha, indice, empresaId, erros, saldo, onMudar }, col
           span={4}
           testId={`ajuste-linha-${indice}-contado`}
         />
-        {/* D-PROD-286: a contagem em outra unidade mostra a equivalência ("8 SACO = 200 kg"). */}
+        {/* D-PROD-288: a contagem em outra unidade mostra a equivalência ("8 SACO = 200 kg"). */}
         {equivalenciaDaLinha({ ...linha, quantidade: linha.contado }) ? (
           <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`ajuste-linha-${indice}-equivalencia`}>{equivalenciaDaLinha({ ...linha, quantidade: linha.contado })}</p>
         ) : null}

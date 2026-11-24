@@ -1,11 +1,11 @@
-# MAIKE — Produto: unidades de conversão — relatório (D-PROD-286)
+# MAIKE — Produto: unidades de conversão — relatório (D-PROD-288)
 
-Decisão: [D-PROD-286](./DECISIONS.md) · SPEC: [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md) ·
+Decisão: [D-PROD-288](./DECISIONS.md) · SPEC: [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md) ·
 Runbook: [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md)
 
 Branch `claude/produto-unidades-conversao`, criada da `main` `4e9b4445` e integrada por merge (sem rebase) com a `main`
 das PRs #370/#371 (`19ca524e`…) e da #372. A decisão nasceu D-PROD-284 e foi renumerada duas vezes pelo
-`proxima-decisao.mjs` (a #371 levou a 284; a #372 levou a 285): é a **D-PROD-286**, marcador D-PROD-287.
+`proxima-decisao.mjs` (a #371 levou a 284; a #372 levou a 285): é a **D-PROD-288**, marcador D-PROD-287.
 
 ## 1. O que foi feito
 
@@ -33,7 +33,7 @@ das PRs #370/#371 (`19ca524e`…) e da #372. A decisão nasceu D-PROD-284 e foi 
 | Item | Valor |
 |---|---|
 | Nome | `20261125200000_produto_unidades_conversao` (renomeada de `20261124300000_…` no merge, para vir depois de `20261125100000_insumo_por_jato`) |
-| Natureza | CONTRACT condicionado, formato CONVERSÃO sem DROP (`--contract D-PROD-286`) |
+| Natureza | CONTRACT condicionado, formato CONVERSÃO sem DROP (`--contract D-PROD-288`) |
 | sha256 | `779347bf9780ecb391dc76e64048601e6adcad449b5b868a44811def12be863b` (o nome e o número da decisão não estão no arquivo) |
 | Guarda | `86df7d20db22e4ae2596dba4c29788fa60537d41e6e4cfa35d68171266fd0ff8` |
 | RLS | `6518df2877f62ef12dac0f111dbe514254272d7086e8c3d252be96fd66a683af` |

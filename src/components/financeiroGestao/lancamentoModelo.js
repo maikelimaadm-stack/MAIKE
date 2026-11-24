@@ -118,7 +118,7 @@ export const formularioDoDetalhe = (d, ctx) => {
       i.produto_id,
       i.produto_nome,
       i.unidade === 'SACO' ? { unidade_principal_estoque: 'SACO', peso_por_saco_kg: t(i.fator_kg) } : i.unidade === 'L' ? { unidade_principal_estoque: 'L' }
-        // D-PROD-286: item numa unidade de conversão volta com o fator GRAVADO (editar o fator não muda o passado).
+        // D-PROD-288: item numa unidade de conversão volta com o fator GRAVADO (editar o fator não muda o passado).
         : ehSiglaDeConversao(i.unidade) && i.fator_kg != null ? { unidades_conversao: [{ sigla: String(i.unidade), operacao: 'MULTIPLICA', fator: t(i.fator_kg), ativa: true }] } : {},
     ),
     local: ref(i.local_estoque_id, i.local_estoque_nome),
@@ -392,15 +392,15 @@ const pesoDoSaco = (produto) => {
   return /^\d+(?:\.\d+)?$/.test(texto) && ehPositivo(texto) ? texto : null;
 };
 
-/** D-PROD-286: a sigla é de uma unidade de conversão (não KG, SACO, L nem UN)? @param {unknown} u */
+/** D-PROD-288: a sigla é de uma unidade de conversão (não KG, SACO, L nem UN)? @param {unknown} u */
 export const ehSiglaDeConversao = (u) => typeof u === 'string' && u.trim() !== '' && !['KG', 'SACO', 'L', 'UN'].includes(u);
 
-/** D-PROD-286: a conversão ativa do produto com a sigla (ou null). @param {any} produto @param {string} sigla */
+/** D-PROD-288: a conversão ativa do produto com a sigla (ou null). @param {any} produto @param {string} sigla */
 export const conversaoDoProduto = (produto, sigla) =>
   (Array.isArray(produto?.unidades_conversao) ? produto.unidades_conversao : []).find((c) => c && c.sigla === sigla && c.ativa !== false) ?? null;
 
 /**
- * D-PROD-286: unidades que o item de mercadoria oferece: a de estoque, o SACO legado e as conversões ativas com o uso
+ * D-PROD-288: unidades que o item de mercadoria oferece: a de estoque, o SACO legado e as conversões ativas com o uso
  * da direção (compra → uso_compra; venda → uso_venda). @param {any} produto @param {'PAGAR'|'RECEBER'} direcao
  */
 export const conversoesDoItem = (produto, direcao) =>
@@ -748,7 +748,7 @@ export const calcularResumo = (form, ctx) => {
       else if (produtoEmLitros(item.produto) && item.unidade !== 'L' && !conversao) e.unidade = 'Este produto é controlado em litros (L)';
       else if (!produtoEmLitros(item.produto) && item.unidade === 'L') e.unidade = 'Use KG ou SACO';
       if (q.valor && !q.erro) {
-        // fator 1 para KG e para L (a quantidade em estoque fica em litros); SACO usa o peso do saco; D-PROD-286: as
+        // fator 1 para KG e para L (a quantidade em estoque fica em litros); SACO usa o peso do saco; D-PROD-288: as
         // unidades de conversão multiplicam ou dividem (a mesma conta do servidor).
         const emEstoque = emEstoqueDoItem(item, q.valor);
         if (emEstoque) {

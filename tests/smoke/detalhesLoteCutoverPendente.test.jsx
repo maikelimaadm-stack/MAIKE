@@ -142,7 +142,6 @@ describe("DetalhesLote sem ledger (empresa não migrada)", () => {
 describe("Juntar Lotes permanece visível quando indisponível", () => {
   it.each([
     ["empresa sem ledger", [loteLegado("l1"), loteLegado("l2")], {}, "Junção disponível no controle por posições."],
-    ["sem permissão", [posicao("p1"), posicao("p2")], { juntar_lotes: false }, "Sem permissão para juntar lotes."],
     ["um único lote", [posicao("p1")], {}, "É preciso haver pelo menos dois lotes da mesma categoria."],
     ["categorias diferentes", [posicao("p1"), { ...posicao("p2"), categoria: "BEZERRO" }], {}, "É preciso haver pelo menos dois lotes da mesma categoria."],
   ])("%s: botão desabilitado, sem formulário nem escrita", async (_caso, lotes, permissions, motivo) => {
@@ -157,6 +156,16 @@ describe("Juntar Lotes permanece visível quando indisponível", () => {
     expect(screen.getByRole("heading", { name: "Manejos e históricos" })).toBeTruthy();
     expect(screen.queryByText("Selecione o lote que receberá os animais (lote principal):")).toBe(null);
     expect(toast.error).not.toHaveBeenCalled();
+    nenhumaEscrita();
+  });
+});
+
+describe("Juntar Lotes sem permissão", () => {
+  it("o manejo não aparece (como os demais manejos sem permissão), e os outros continuam", async () => {
+    await renderizar([posicao("p1"), posicao("p2")], { juntar_lotes: false });
+    await acao("Mover");
+    expect(screen.queryByRole("button", { name: "Juntar Lotes" })).toBe(null);
+    expect(screen.queryByText(/Sem permissão para juntar/)).toBe(null);
     nenhumaEscrita();
   });
 });

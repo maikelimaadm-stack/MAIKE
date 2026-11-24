@@ -184,7 +184,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.match(recusada.saida, /alvo conferido nas duas conexões/);
     assert.match(recusada.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
     // D-PROD-208, D-PROD-209, D-PROD-210, D-PROD-211, D-PROD-216, D-PROD-217, D-PROD-249, D-PROD-259 e D-PROD-265: as CONTRACT posteriores também pendem e também são citadas.
-    assert.ok(recusada.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_ATIVIDADE_CABECALHO} (D-PROD-200), 20261116000000_mao_obra_parceiro (D-PROD-208), 20261116100000_funcionario_tipo_terceirizado (D-PROD-209), 20261116200000_formulacao_base_consumo (D-PROD-210), 20261116300000_abastecimento_atividade (D-PROD-211), 20261117000000_area_cultura (D-PROD-216), 20261117100000_abastecimento_fk_apontamento_atividade (D-PROD-217), 20261118100000_atividade_areas (D-PROD-249), 20261119200000_estoque_entradas_motivos (D-PROD-259), 20261120200000_apontamento_data_termino (D-PROD-265), 20261125200000_produto_unidades_conversao (D-PROD-286).`), recusada.saida);
+    assert.ok(recusada.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_ATIVIDADE_CABECALHO} (D-PROD-200), 20261116000000_mao_obra_parceiro (D-PROD-208), 20261116100000_funcionario_tipo_terceirizado (D-PROD-209), 20261116200000_formulacao_base_consumo (D-PROD-210), 20261116300000_abastecimento_atividade (D-PROD-211), 20261117000000_area_cultura (D-PROD-216), 20261117100000_abastecimento_fk_apontamento_atividade (D-PROD-217), 20261118100000_atividade_areas (D-PROD-249), 20261119200000_estoque_entradas_motivos (D-PROD-259), 20261120200000_apontamento_data_termino (D-PROD-265), 20261125200000_produto_unidades_conversao (D-PROD-288).`), recusada.saida);
     assert.match(recusada.saida, /Nenhuma migration foi executada/);
     assert.deepEqual(await retrato(db), partida, 'nada mudou');
     assert.equal((await historico(db)).concluidas, MIGRATIONS_PARTIDA);
@@ -197,7 +197,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.equal(h.concluidas, TOTAL_MIGRATIONS);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
-    assert.equal(await contarTabelas(db), 112, 'D-PROD-286: + a ProdutoUnidadeConversao; D-PROD-276: + o Planejamento e a PlanejamentoArea; D-PROD-274: + a AtividadePlantio; D-PROD-272: + as 3 do ajuste de inventário (a D-PROD-265, data de término, não cria tabela); D-PROD-264: + as 4 da saída manual do Estoque; D-PROD-259: + a MotivoEntradaEstoque; D-PROD-257: + as 3 das Entradas do Estoque; D-PROD-249: + a AtividadeArea; D-PROD-219: + a MEDICAOFORRAGEM; D-PROD-215: + a CADCULTURAS; D-PROD-208: − Funcionario (nasce com a D-PROD-207 e sai com a D-PROD-208); as 82 do formato novo (com a CADESTACOES, D-PROD-188, e a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento (D-PROD-200) + as 3 das linhas de produto e de máquina (D-PROD-202) + as 3 das Formulações (D-PROD-203) + a LEITURACOCHO (D-PROD-205) + as 4 da mão de obra e do serviço (D-PROD-207); as 3 do apontamento antigo (D-PROD-190/D-PROD-193) nascem e saem com a D-PROD-200');
+    assert.equal(await contarTabelas(db), 112, 'D-PROD-288: + a ProdutoUnidadeConversao; D-PROD-276: + o Planejamento e a PlanejamentoArea; D-PROD-274: + a AtividadePlantio; D-PROD-272: + as 3 do ajuste de inventário (a D-PROD-265, data de término, não cria tabela); D-PROD-264: + as 4 da saída manual do Estoque; D-PROD-259: + a MotivoEntradaEstoque; D-PROD-257: + as 3 das Entradas do Estoque; D-PROD-249: + a AtividadeArea; D-PROD-219: + a MEDICAOFORRAGEM; D-PROD-215: + a CADCULTURAS; D-PROD-208: − Funcionario (nasce com a D-PROD-207 e sai com a D-PROD-208); as 82 do formato novo (com a CADESTACOES, D-PROD-188, e a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento (D-PROD-200) + as 3 das linhas de produto e de máquina (D-PROD-202) + as 3 das Formulações (D-PROD-203) + a LEITURACOCHO (D-PROD-205) + as 4 da mão de obra e do serviço (D-PROD-207); as 3 do apontamento antigo (D-PROD-190/D-PROD-193) nascem e saem com a D-PROD-200');
     // D-PROD-190/191/198/201: subiram DEPOIS da CONTRACT (o runner aplica em ordem de nome); no fim ficam as 2 da atividade, as 3 das linhas, as 3 das Formulações (D-PROD-203), a LEITURACOCHO (D-PROD-205) e as 4 da mão de obra e do serviço (D-PROD-207), vazias, com RLS e sem FORCE.
     const ordem = await db.$queryRawUnsafe(
       `SELECT migration_name AS nome FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[]) AND finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY finished_at, migration_name`,
@@ -224,7 +224,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
       ['MotivoSaidaEstoque', true, false],
       // D-PROD-276: as 2 tabelas da reforma de pastagem, vazias, com RLS e sem FORCE.
       ['Planejamento', true, false], ['PlanejamentoArea', true, false],
-      // D-PROD-286: as unidades de conversão do produto, vazias (a cópia do peso por saco não tem produto aqui), com RLS.
+      // D-PROD-288: as unidades de conversão do produto, vazias (a cópia do peso por saco não tem produto aqui), com RLS.
       ['ProdutoUnidadeConversao', true, false],
       ['SaidaEstoque', true, false], ['SaidaEstoqueEvento', true, false], ['SaidaEstoqueItem', true, false],
       ['Servico', true, false],
@@ -264,7 +264,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
 
     assert.deepEqual(await fingerprintV2(db), fpAntes, 'as 75 tabelas que ficam não mudaram (fora os 2 CHECKs alargados)');
     const k = await checksOperacaoItem(db);
-    // D-PROD-286: os 2 CHECKs foram alargados de novo depois (a unidade de conversão do produto); L continua aceito.
+    // D-PROD-288: os 2 CHECKs foram alargados de novo depois (a unidade de conversão do produto); L continua aceito.
     assert.match(k.OperacaoFinanceiraItem_unidade_check, /char_length\(btrim/);
     assert.match(k.OperacaoFinanceiraItem_forma_check, /'MERCADORIA'.*<> 'UN'.*'SERVICO'.*'UN'/);
     assert.deepEqual(await itemEmLitros(db), { aceito: true }, 'o item P3 em L agora entra (D1)');

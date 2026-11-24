@@ -103,7 +103,7 @@ const COLUNAS_OK = [
   { table_name: 'EstoqueLoteNota', column_name: 'data_validade' },
   // D-PROD-283: o número do jato na linha de insumo.
   { table_name: 'AtividadeApontamentoProduto', column_name: 'jato' },
-  // D-PROD-286: as unidades de conversão do produto e o consumo da formulação.
+  // D-PROD-288: as unidades de conversão do produto e o consumo da formulação.
   { table_name: 'ProdutoUnidadeConversao', column_name: 'fator' },
   { table_name: 'CADFORMULACAO', column_name: 'consumo_minimo_pv' },
 ];

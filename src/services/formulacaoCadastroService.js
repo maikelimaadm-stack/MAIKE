@@ -147,7 +147,7 @@ export const validarFormulacao = (f) => {
   else if (gramas === null) erros.consumo_objetivo_g_cab_dia = `Maior que 0, até ${G_MAXIMO.toLocaleString('pt-BR')} g, até 2 casas`;
   const faixa = lerFaixa(f.faixa_tolerancia_percentual);
   if (faixa === null) erros.faixa_tolerancia_percentual = `De 0 a ${FAIXA_MAXIMA}%, até 2 casas`;
-  // D-PROD-286: consumo mínimo e máximo (%PV), opcionais — saíram do cadastro do produto e ficam só aqui.
+  // D-PROD-288: consumo mínimo e máximo (%PV), opcionais — saíram do cadastro do produto e ficam só aqui.
   const temConsumo = f.consumo_minimo_pv !== undefined || f.consumo_maximo_pv !== undefined;
   const pvMin = lerPercentualPV(f.consumo_minimo_pv ?? '');
   const pvMax = lerPercentualPV(f.consumo_maximo_pv ?? '');

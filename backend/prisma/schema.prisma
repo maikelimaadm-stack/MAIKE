@@ -167,7 +167,7 @@ model Cliente {
   servicos                          Servico[]
   atividadeApontamentoMaoObras      AtividadeApontamentoMaoObra[]
   atividadeApontamentoServicos      AtividadeApontamentoServico[]
-  // D-PROD-286 — unidades de conversão dos produtos.
+  // D-PROD-288 — unidades de conversão dos produtos.
   produtoUnidadesConversao          ProdutoUnidadeConversao[]
 
   @@index([nome])
@@ -802,7 +802,7 @@ model Formulacao {
   consumo_objetivo_g_cab_dia Decimal? @db.Decimal(10, 2)
   // D-PROD-206: faixa de tolerância do farol de consumo (% do esperado); null = padrão de 15%.
   faixa_tolerancia_percentual Decimal? @db.Decimal(5, 2)
-  // D-PROD-286: consumo mínimo e máximo (%PV) do cocho — saíram da tela do produto (copiados dele na migration).
+  // D-PROD-288: consumo mínimo e máximo (%PV) do cocho — saíram da tela do produto (copiados dele na migration).
   consumo_minimo_pv          Decimal? @db.Decimal(14, 6)
   consumo_maximo_pv          Decimal? @db.Decimal(14, 6)
   observacoes                String?  @db.VarChar(2000)
@@ -1226,7 +1226,7 @@ model LocalEstoque {
 // Produto — cadastro de produtos e insumos (P5.2, D-PROD-48).
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
-// ProdutoUnidadeConversao — D-PROD-286. Unidade alternativa do produto, convertida
+// ProdutoUnidadeConversao — D-PROD-288. Unidade alternativa do produto, convertida
 // para a unidade de estoque (KG ou L): MULTIPLICA → 1 sigla = fator; DIVIDE → 1 sigla
 // = 1/fator (fator <= 10000). A sigla nunca é KG, L ou UN (CHECK) nem a unidade de
 // estoque (serviço). Usada em lançamento → só desativa; sem uso → exclusão lógica
@@ -1307,7 +1307,7 @@ model Produto {
   ingredientesFormulacao FormulacaoIngrediente[]
   // D-PROD-202 — linhas de produto do lançamento de atividades.
   atividadeApontamentoProdutos AtividadeApontamentoProduto[]
-  // D-PROD-286 — unidades de conversão (sigla × fator) da unidade de estoque.
+  // D-PROD-288 — unidades de conversão (sigla × fator) da unidade de estoque.
   unidadesConversao ProdutoUnidadeConversao[]
 
   @@unique([cliente_id, numero_produto])

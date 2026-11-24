@@ -75,7 +75,7 @@ const ITEM = {
     produto_id: ID_NULO,
     local_estoque_id: ID_NULO,
     descricao: TEXTO_NULO(255),
-    // D-PROD-286: KG, L, SACO, UN (serviço) ou a sigla de uma unidade de conversão do produto (conferida no serviço).
+    // D-PROD-288: KG, L, SACO, UN (serviço) ou a sigla de uma unidade de conversão do produto (conferida no serviço).
     unidade: { type: 'string', minLength: 1, maxLength: 8 },
     quantidade: QUANTIDADE,
     valor_unitario: PRECO,

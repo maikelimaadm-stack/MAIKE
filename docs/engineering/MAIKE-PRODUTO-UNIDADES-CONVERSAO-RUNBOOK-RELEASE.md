@@ -1,4 +1,4 @@
-# MAIKE — Produto, unidades de conversão: runbook de release (D-PROD-286)
+# MAIKE — Produto, unidades de conversão: runbook de release (D-PROD-288)
 
 > **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Registro no §7.
 >
@@ -8,7 +8,7 @@
 >
 > Integrada a `main` com a PR #370 (`20261125100000_insumo_por_jato`, D-PROD-283, aplicada em produção: 78/0); a migration foi renomeada para depois dela (o checksum não mudou: o nome não está no arquivo).
 
-Decisão: [D-PROD-286](./DECISIONS.md) · SPEC: [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md) ·
+Decisão: [D-PROD-288](./DECISIONS.md) · SPEC: [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md) ·
 Relatório: [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md).
 Molde: [`MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md) e, para o formato
 CONVERSÃO sem DROP, as áreas da atividade (D-PROD-249).
@@ -35,8 +35,8 @@ do `lock_timeout` de 5 s aborta tudo. Fazer fora do horário de lançamento.
 
 ## 1. Caminhos
 
-- **A — runner oficial (padrão, D-PROD-74):** `node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --contract D-PROD-286`
-  (depois `--verificar-alvo` e `--aplicar`), numa máquina protegida, com `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-286`.
+- **A — runner oficial (padrão, D-PROD-74):** `node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --contract D-PROD-288`
+  (depois `--verificar-alvo` e `--aplicar`), numa máquina protegida, com `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-288`.
 - **B — conector Supabase, uma única `execute_sql` (§3):** só com autorização **escrita e específica do proprietário
   para esta migration**, como nas anteriores.
 

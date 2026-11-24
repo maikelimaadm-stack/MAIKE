@@ -88,7 +88,7 @@ const apagar = (input, vezes = 1) => {
   for (let i = 0; i < vezes; i += 1) fireEvent.change(input, { target: { value: input.value.slice(0, -1) } });
 };
 
-// D-PROD-286: Peso por saco (virou a unidade de conversão SACO), Preço de Custo e Preço de Venda saíram da tela; a
+// D-PROD-288: Peso por saco (virou a unidade de conversão SACO), Preço de Custo e Preço de Venda saíram da tela; a
 // máscara de centavos continua só no Estoque Mínimo, com a mesma regra "gravado = exibido".
 describe('D-PROD-161 — máscaras do Produto: gravado = exibido', () => {
   it('MP1 — digitação tecla a tecla no Estoque Mínimo: "30,00" na tela ⇒ 30 no envio', async () => {
@@ -118,7 +118,7 @@ describe('D-PROD-161 — máscaras do Produto: gravado = exibido', () => {
     expect(payload.estoque_minimo).toBe(12.5);
   });
 
-  it('MP6 (D-PROD-286) — Peso por saco, Preço de Custo e Preço de Venda não estão na tela nem no envio', async () => {
+  it('MP6 (D-PROD-288) — Peso por saco, Preço de Custo e Preço de Venda não estão na tela nem no envio', async () => {
     const { enviar } = montar({ ...BASE, peso_por_saco_kg: 30, preco_custo: 2, preco_venda: 3 });
     expect(screen.queryByText('Peso por saco (kg)')).toBeNull();
     expect(screen.queryByText('Preço de Custo')).toBeNull();

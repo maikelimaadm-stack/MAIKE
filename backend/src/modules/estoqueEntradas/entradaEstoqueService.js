@@ -213,7 +213,7 @@ export const opcoesProdutos = async (contexto, query = {}) => {
       unidade_estoque: p.unidade_principal_estoque === 'L' ? 'L' : 'KG', peso_por_saco_kg: p.peso_por_saco_kg === null ? null : d4(p.peso_por_saco_kg),
       // D-PROD-282: a tela exige lote/validade na entrada e oferece a escolha de lote na saída.
       controla_lote: p.controla_lote === true, controla_validade: p.controla_validade === true,
-      // D-PROD-286: as unidades de conversão ATIVAS do produto, com a equivalência ("1 SACO = 25 KG").
+      // D-PROD-288: as unidades de conversão ATIVAS do produto, com a equivalência ("1 SACO = 25 KG").
       unidades_conversao: listarConversoesPublicas(p).filter((c) => c.ativa),
     })),
   });

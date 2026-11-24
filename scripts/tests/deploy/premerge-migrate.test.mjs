@@ -438,7 +438,7 @@ const CONTRACT_LOTE = {
  */
 const NOME_JATO = '20261125100000_insumo_por_jato';
 /**
- * D-PROD-286 — as unidades de conversão do produto: CONTRACT condicionado no formato CONVERSÃO sem DROP (a décima
+ * D-PROD-288 — as unidades de conversão do produto: CONTRACT condicionado no formato CONVERSÃO sem DROP (a décima
  * oitava), depois do controle de lote (D-PROD-282); a 78ª. Guarda pinada, os 5 CHECKs de unidade recriados (alargados),
  * no resto a tabela nova "ProdutoUnidadeConversao" e as 2 colunas anuláveis da Formulação e, na cauda, a cópia pinada
  * (peso por saco → conversão SACO; consumo mínimo/máximo → formulação).
@@ -446,7 +446,7 @@ const NOME_JATO = '20261125100000_insumo_por_jato';
 const NOME_UNID = '20261125200000_produto_unidades_conversao';
 const GUARDA_UNID = '86df7d20db22e4ae2596dba4c29788fa60537d41e6e4cfa35d68171266fd0ff8';
 const CONTRACT_UNID = {
-  migration: NOME_UNID, decisao: 'D-PROD-286', tabelas_removidas: [],
+  migration: NOME_UNID, decisao: 'D-PROD-288', tabelas_removidas: [],
   constraints_alargadas: [
     'EntradaEstoqueItem.EntradaEstoqueItem_unidade_check', 'SaidaEstoqueItem.SaidaEstoqueItem_unidade_check', 'AjusteEstoqueItem.AjusteEstoqueItem_unidade_check',
     'OperacaoFinanceiraItem.OperacaoFinanceiraItem_unidade_check', 'OperacaoFinanceiraItem.OperacaoFinanceiraItem_forma_check',
@@ -544,7 +544,7 @@ test('B1f (D-PROD-162): a migration CONTRACT classificada SOZINHA, como na relea
 
 test('B8-0 (D-PROD-162/D-PROD-183/D-PROD-187/D-PROD-194/D-PROD-195/D-PROD-197/D-PROD-200/D-PROD-208/D-PROD-209/D-PROD-210/D-PROD-211/D-PROD-216/D-PROD-217/D-PROD-249/D-PROD-259/D-PROD-265): MIGRATIONS_CONTRACT_APROVADAS é fechado e tem EXATAMENTE as dezesseis entradas (D-PROD-265 a última), na ordem; só a D-PROD-200 e a D-PROD-249 têm `conversao` e só a D-PROD-208 tem `drop_no_fim`; o conteúdo pinado da D-PROD-162 é o ensaiado', () => {
   assert.deepEqual(Object.keys(MIGRATIONS_CONTRACT_APROVADAS), [NOME_C, NOME_T, NOME_D, NOME_K, NOME_G, NOME_P, NOME_V, NOME_PP, NOME_TT, NOME_BC, NOME_AB, NOME_AC, NOME_FA, NOME_ARA, NOME_EEM, NOME_DT, NOME_LOTE, NOME_UNID]);
-  assert.deepEqual(Object.values(MIGRATIONS_CONTRACT_APROVADAS).map((k) => k.decisao), ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', 'D-PROD-200', 'D-PROD-208', 'D-PROD-209', 'D-PROD-210', 'D-PROD-211', 'D-PROD-216', 'D-PROD-217', 'D-PROD-249', 'D-PROD-259', 'D-PROD-265', 'D-PROD-282', 'D-PROD-286']);
+  assert.deepEqual(Object.values(MIGRATIONS_CONTRACT_APROVADAS).map((k) => k.decisao), ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', 'D-PROD-200', 'D-PROD-208', 'D-PROD-209', 'D-PROD-210', 'D-PROD-211', 'D-PROD-216', 'D-PROD-217', 'D-PROD-249', 'D-PROD-259', 'D-PROD-265', 'D-PROD-282', 'D-PROD-288']);
   // O formato CONVERSÃO é escolha da entrada: as seis anteriores, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211,
   // a D-PROD-216 e a D-PROD-217 não têm o campo.
   // D-PROD-249: a segunda no formato CONVERSÃO (sem DROP: a cauda é o backfill e a FK para a tabela nova).
@@ -5843,7 +5843,7 @@ test('B43q (D-PROD-283/D-PROD-282): ordem de produção hoje — alvo com as 77 
   const raiz = 'backend/prisma/migrations';
   const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
-  // D-PROD-286: as unidades de conversão vieram depois; no dia dele, o insumo por jato era a mais recente.
+  // D-PROD-288: as unidades de conversão vieram depois; no dia dele, o insumo por jato era a mais recente.
   assert.equal(locais.length, 79);
   locais.splice(0, locais.length, ...locais.filter((l) => l.nome <= NOME_JATO));
   assert.equal(locais.length, 78);
@@ -5867,7 +5867,7 @@ test('B43q (D-PROD-283/D-PROD-282): ordem de produção hoje — alvo com as 77 
   assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas: depois }), []);
 });
 
-test('B44a (D-PROD-286): as unidades de conversão classificadas SOZINHAS, como na release: ok, modo CONTRACT (CONVERSÃO, sem DROP), a tabela nova, as 2 colunas da Formulação no caminho EXPAND, os 5 CHECKs alargados e a cópia na cauda; checksum, guarda, RLS e texto pinados; a última do manifesto', () => {
+test('B44a (D-PROD-288): as unidades de conversão classificadas SOZINHAS, como na release: ok, modo CONTRACT (CONVERSÃO, sem DROP), a tabela nova, as 2 colunas da Formulação no caminho EXPAND, os 5 CHECKs alargados e a cópia na cauda; checksum, guarda, RLS e texto pinados; a última do manifesto', () => {
   const c = classificarMigrations([ler(NOME_UNID)]);
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);
@@ -5879,7 +5879,7 @@ test('B44a (D-PROD-286): as unidades de conversão classificadas SOZINHAS, como 
   assert.equal(MIGRATIONS_APROVADAS[NOME_UNID], sha256(readFileSync(`backend/prisma/migrations/${NOME_UNID}/migration.sql`, 'utf8')));
   const k = MIGRATIONS_CONTRACT_APROVADAS[NOME_UNID];
   assert.equal(Object.isFrozen(k), true);
-  assert.deepEqual([k.decisao, k.guarda_sha256, [...k.drop]], ['D-PROD-286', GUARDA_UNID, []]);
+  assert.deepEqual([k.decisao, k.guarda_sha256, [...k.drop]], ['D-PROD-288', GUARDA_UNID, []]);
   assert.deepEqual([...k.literais_guarda], ['Produto', 'CADFORMULACAO', 'EntradaEstoqueItem', 'SaidaEstoqueItem', 'AjusteEstoqueItem', 'OperacaoFinanceiraItem']);
   assert.equal(k.alter_antigas.length, 10);
   assert.equal(k.conversao.length, 2);
@@ -5890,7 +5890,7 @@ test('B44a (D-PROD-286): as unidades de conversão classificadas SOZINHAS, como 
   assert.equal(NOMES.at(-2), NOME_JATO, 'depois do insumo por jato (D-PROD-283)');
 });
 
-test('B44n (D-PROD-286): o mesmo arquivo com CHECK trocado, cópia alterada (sem o filtro de litros), DML no resto, único sem o tenant na frente, DROP ou guarda alterada/ausente é recusado; o contrato é do NOME', () => {
+test('B44n (D-PROD-288): o mesmo arquivo com CHECK trocado, cópia alterada (sem o filtro de litros), DML no resto, único sem o tenant na frente, DROP ou guarda alterada/ausente é recusado; o contrato é do NOME', () => {
   const sql = readFileSync(`backend/prisma/migrations/${NOME_UNID}/migration.sql`, 'utf8');
   const classificarU = classificarContractDe(NOME_UNID);
   assert.equal(classificarU(sql).ok, true, 'o original passa com o manifesto sintético');
@@ -5917,12 +5917,12 @@ test('B44n (D-PROD-286): o mesmo arquivo com CHECK trocado, cópia alterada (sem
   assert.deepEqual(codigos(classificarMigrations([{ nome: NOME_UNID, sql: `${sql} ` }])), ['MIGRATION_CHECKSUM_DIVERGENTE']);
 });
 
-test('B44l (D-PROD-286/D-PROD-283): ordem de produção hoje — alvo com as 78 da main concluídas (por último o insumo por jato, D-PROD-283, checksum 725a8c5a…3551): o histórico confere, a única pendente são as unidades de conversão e a barreira do CONTRACT a exige; checksum diferente ou registro parcial é divergência; depois dela, 79 e nada pendente', () => {
+test('B44l (D-PROD-288/D-PROD-283): ordem de produção hoje — alvo com as 78 da main concluídas (por último o insumo por jato, D-PROD-283, checksum 725a8c5a…3551): o histórico confere, a única pendente são as unidades de conversão e a barreira do CONTRACT a exige; checksum diferente ou registro parcial é divergência; depois dela, 79 e nada pendente', () => {
   const raiz = 'backend/prisma/migrations';
   const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(locais.length, 79);
-  assert.ok(locais.every((l) => l.nome <= NOME_UNID), 'as unidades de conversão (D-PROD-286) são a migration de nome mais recente');
+  assert.ok(locais.every((l) => l.nome <= NOME_UNID), 'as unidades de conversão (D-PROD-288) são a migration de nome mais recente');
   const t0 = Date.parse('2026-01-01T00:00:00Z');
   const anteriores = locais.filter((l) => l.nome !== NOME_UNID && l.nome !== NOME_JATO);
   const linhas = [...anteriores, locais.find((l) => l.nome === NOME_JATO)].map((l, i) => ({ migration_name: l.nome, checksum: l.checksum, finished_at: new Date(t0 + i * 1000), rolled_back_at: null }));
@@ -5930,7 +5930,7 @@ test('B44l (D-PROD-286/D-PROD-283): ordem de produção hoje — alvo com as 78 
   assert.equal(linhas.at(-1).checksum, '725a8c5ac873ad19d0c191cd7c2f303dc84ef97170b74c0bb2133479c76d3551');
   const h = conferirHistoricoRemoto({ locais, linhas });
   assert.deepEqual(h, { ok: true, codigo: null, pendentes: [NOME_UNID], falhas: [] });
-  assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas }), [{ nome: NOME_UNID, decisao: 'D-PROD-286' }], 'CONTRACT: a barreira exige a D-PROD-286');
+  assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas }), [{ nome: NOME_UNID, decisao: 'D-PROD-288' }], 'CONTRACT: a barreira exige a D-PROD-288');
   const linhaU = (checksum, extra = {}) => ({ migration_name: NOME_UNID, checksum, finished_at: new Date(t0 + 99_000), rolled_back_at: null, ...extra });
   for (const errado of [MIGRATIONS_APROVADAS[NOME_JATO], 'manual', GUARDA_UNID]) {
     assert.equal(conferirHistoricoRemoto({ locais, linhas: [...linhas, linhaU(errado)] }).codigo, 'PREMERGE_MIGRATIONS_NAO_COMPROVADAS', errado);
