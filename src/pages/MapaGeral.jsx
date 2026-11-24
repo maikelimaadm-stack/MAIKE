@@ -1292,14 +1292,7 @@ export default function MapaGeral() {
   const totalAlertas = lotesFiltrados.filter((l) => l.alertas.length > 0).length;
 
   return (
-    <div className="mk-mapa relative h-full min-h-0 w-full overflow-hidden bg-white" translate="no">
-      <div className="w-full h-full relative">
-        {/* `isolation: isolate` confina o z-index dos marcadores (até 10000) ao
-            mapa: sem isso eles atravessavam janelas e pop-ups abertos por cima. */}
-        <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: 'var(--mk-sup-fundo)', touchAction: 'none', isolation: 'isolate' }} />
-
-        <BasemapAtribuicao atribuicao={basemap.atribuicao} status={basemap.status} mensagem={basemap.mensagem} onRetry={basemap.retry} />
-
+    <div className="mk-mapa mk-mapa--v13 relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-white" translate="no">
         {/* Controles Mobile */}
         <MapaControlesMobile
           mapType={mapTypeEfetivo} setMapType={setMapType}
@@ -1326,6 +1319,12 @@ export default function MapaGeral() {
             podeColorir={podeColorir} />
           } />
 
+      <div className="mk-mapa-area relative min-h-0 w-full flex-1">
+        {/* `isolation: isolate` confina o z-index dos marcadores (até 10000) ao
+            mapa: sem isso eles atravessavam janelas e pop-ups abertos por cima. */}
+        <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: 'var(--mk-sup-fundo)', touchAction: 'none', isolation: 'isolate' }} />
+
+        <BasemapAtribuicao atribuicao={basemap.atribuicao} status={basemap.status} mensagem={basemap.mensagem} onRetry={basemap.retry} />
 
         {/* Legenda */}
         <MapaLegenda
@@ -1342,19 +1341,19 @@ export default function MapaGeral() {
             onClick: () => setShowResumoRebanho(true),
             onKeyDown: (/** @type {React.KeyboardEvent} */ e) => {if (e.key === 'Enter' || e.key === ' ') {e.preventDefault();setShowResumoRebanho(true);}}
           } : {})}>
+          {/* D-PROD-285: uma linha só — "1.319 animais · 250 kg · 12 áreas" (milhar pt-BR). */}
           <div className="mk-mapa-resumo__item">
-            <span className="mk-mapa-resumo__num mk-mapa-resumo__num--verde">{totalCabecas}</span>
-            <span className="mk-mapa-resumo__rot">Animais</span>
+            <span className="mk-mapa-resumo__num mk-mapa-resumo__num--verde" data-valor={totalCabecas}>{totalCabecas.toLocaleString('pt-BR')}</span>
+            <span className="mk-mapa-resumo__rot">animais</span>
           </div>
           {pesoMedioGeral > 0 &&
-          <div className="mk-mapa-resumo__item">
-              <span className="mk-mapa-resumo__num">{pesoMedioGeral}<small> kg</small></span>
-              <span className="mk-mapa-resumo__rot">Peso méd.</span>
+          <div className="mk-mapa-resumo__item" title="Peso médio">
+              <span className="mk-mapa-resumo__num">{pesoMedioGeral.toLocaleString('pt-BR')}<small> kg</small></span>
             </div>
           }
           <div className="mk-mapa-resumo__item">
-            <span className="mk-mapa-resumo__num">{areasFiltradas.length}</span>
-            <span className="mk-mapa-resumo__rot">Áreas</span>
+            <span className="mk-mapa-resumo__num">{areasFiltradas.length.toLocaleString('pt-BR')}</span>
+            <span className="mk-mapa-resumo__rot">áreas</span>
           </div>
           {mapaGeralPermissions.visualizar_lotes &&
           <span className="mk-mapa-resumo__abrir" aria-hidden="true">
