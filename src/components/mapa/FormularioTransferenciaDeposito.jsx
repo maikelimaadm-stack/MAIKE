@@ -265,6 +265,14 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
       });
       envioRef.current = null;
       limparEnvioPendente(chaveStorage);
+      if (resposta?.aguardandoEnvio) {
+        // D-PROD-296: sem internet, ficou no aparelho (o motor envia depois com esta chave).
+        // O saldo do depósito já mostra o efeito; o histórico mostra quando chegar ao servidor.
+        invalidarCachesDoMapa(queryClient, ["estoque-lotes-transferencia", "saldo-deposito", "cochos-vinculados-deposito", "lotes-nota-suplementacao", "mapa-pontos-supl", "produtos"]);
+        toast.success("Transferência registrada.");
+        onSuccess?.();
+        return;
+      }
       await recarregar();
       if (resposta?.replay === true) {
         // O servidor devolveu o envio ANTERIOR desta chave: nada novo foi gravado. Não é "registrada".

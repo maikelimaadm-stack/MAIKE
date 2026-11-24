@@ -18,6 +18,7 @@ import {
   listProdutos,
   filterProdutos,
 } from '@/apis/estoque';
+import { comEstoqueAguardandoEnvio } from '@/services/estoqueAguardandoEnvioService';
 
 /**
  * @param {any[]} items
@@ -36,8 +37,9 @@ export const listarLocaisAtivos = async (empresaId) => ativos(await listarLocais
 export const criarLocal = (dados) => createLocal(dados);
 export const atualizarLocal = (id, dados) => updateLocal(id, dados);
 
-export const listarLotesNotaDaEmpresa = async (empresaId) => daEmpresa(await listLotesNota(), empresaId);
-export const listarTodosLotesNota = () => listLotesNota();
+// D-PROD-296: com o efeito do que foi lançado sem internet e espera envio (saldo certo no aparelho).
+export const listarLotesNotaDaEmpresa = async (empresaId) => daEmpresa(await comEstoqueAguardandoEnvio(await listLotesNota()), empresaId);
+export const listarTodosLotesNota = async () => comEstoqueAguardandoEnvio(await listLotesNota());
 export const buscarLotesNotaPorCriterio = (criterio) => filterLotesNota(criterio);
 export const atualizarLoteNota = (id, dados) => updateLoteNota(id, dados);
 

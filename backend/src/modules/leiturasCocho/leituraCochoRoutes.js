@@ -32,6 +32,8 @@ const CRIAR_SCHEMA = {
       acesso: { type: ['string', 'null'], enum: [...ACESSOS, null] },
       estrutura: { type: ['string', 'null'], enum: [...ESTRUTURAS, null] },
       observacoes: { type: ['string', 'null'], maxLength: 2000 },
+      // D-PROD-296: código único do app (reenvio sem internet não duplica). Opcional.
+      operation_id: { type: 'string', minLength: 8, maxLength: 128 },
     },
   },
 };

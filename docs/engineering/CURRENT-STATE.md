@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-24 (missão ativa D-PROD-295; antes D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-24 (missão ativa D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-24) — MAIKE-SINCRONIZACAO-MOTOR: motor genérico de gravação sem internet (D-PROD-295)
+## Missão ativa (2026-11-24) — MAIKE-COCHOS-DEPOSITOS-OFFLINE: leitura, lançamento e transferência sem internet (D-PROD-296)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-296**: `cocho.leitura`, `cocho.lancamento` (baixa + lançamento + fechamento) e `deposito.transferencia` pelo motor; saldo do aparelho com o que espera envio |
+| Banco | sem migration (`operation_id` da leitura usa a `OperacaoIdempotente`) |
+| Próxima | editar/excluir na fila e cancelar sem internet; limpeza dos recibos antigos |
+| Relatório | [`COCHOS-DEPOSITOS-OFFLINE-D296-REPORT.md`](./COCHOS-DEPOSITOS-OFFLINE-D296-REPORT.md) · inventário [`OFFLINE-INVENTARIO.md`](./OFFLINE-INVENTARIO.md) |
+
+## Missão anterior (2026-11-24) — MAIKE-SINCRONIZACAO-MOTOR: motor genérico de gravação sem internet (D-PROD-295)
 
 | Item | Estado |
 |---|---|

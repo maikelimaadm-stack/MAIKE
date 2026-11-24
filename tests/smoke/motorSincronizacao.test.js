@@ -93,7 +93,7 @@ describe('D-PROD-295 — com e sem internet', () => {
     temRede = true;
     await sincronizar();
     expect(s.enviar).toHaveBeenCalledTimes(1);
-    expect(s.enviar.mock.calls[0][1]).toEqual({ operationId: r.operationId, empresaId: 'emp_1' });
+    expect(s.enviar.mock.calls[0][1]).toMatchObject({ operationId: r.operationId, empresaId: 'emp_1' });
     expect((await resumoDaFila()).aguardando).toBe(0);
   });
 
@@ -357,3 +357,73 @@ describe('D-PROD-295 — revisão (Codex)', () => {
     expect(enviarV2).toHaveBeenCalledWith({ escore: 2, v: 2 }, expect.any(Object));
   });
 });
+
+describe('D-PROD-296 — recusa de negócio x erro passageiro do servidor', () => {
+  it('MS-22 código do servidor fora do catálogo do app (OPERATION_FAILED + código) é recusa: vai para atenção na hora', async () => {
+    registrarTipoDeEnvio({
+      tipo: 'cocho.lancamento', versao: 1, offline: true,
+      enviar: async () => { throw new ApiError(API_ERROR_CODES.OPERATION_FAILED, { operation: 't', resource: 'T', cause: { code: 'LANCAMENTO_DESATUALIZADO' } }); },
+    });
+    temRede = false;
+    await enviarOuGuardar('cocho.lancamento', {});
+    temRede = true;
+    const resumo = await sincronizar();
+    expect(resumo).toMatchObject({ aguardando: 0, atencao: 1 });
+    expect(resumo.itens[0].ultimo_erro.codigo).toBe('LANCAMENTO_DESATUALIZADO');
+  });
+
+  it('MS-23 erro interno, trava concorrente ou 5xx sem código: espera e tenta de novo', async () => {
+    let n = 0;
+    const erros = [
+      new ApiError(API_ERROR_CODES.OPERATION_FAILED, { operation: 't', resource: 'T', cause: { code: 'INTERNAL_ERROR' } }),
+      new ApiError(API_ERROR_CODES.OPERATION_FAILED, { operation: 't', resource: 'T', cause: { code: 'CONCURRENCY_CONFLICT' } }),
+      new ApiError(API_ERROR_CODES.OPERATION_FAILED, { operation: 't', resource: 'T' }),
+    ];
+    registrarTipoDeEnvio({ tipo: 'cocho.leitura', versao: 1, offline: true, enviar: async () => { if (n < erros.length) throw erros[n++]; return {}; } });
+    temRede = false;
+    await enviarOuGuardar('cocho.leitura', {});
+    temRede = true;
+    for (let i = 0; i < erros.length; i += 1) {
+      expect((await sincronizar()).atencao).toBe(0);
+      relogio += 700_000;
+    }
+    expect((await sincronizar()).aguardando).toBe(0);
+  });
+});
+
+describe('D-PROD-296 — progresso e reajuste (revisão)', () => {
+  it('MS-24 o progresso que o tipo registra fica no item e aparece na lista', async () => {
+    registrarTipoDeEnvio({
+      tipo: 'cocho.lancamento', versao: 1, offline: true,
+      enviar: async (_p, { registrarProgresso }) => {
+        await registrarProgresso({ passo1: true });
+        throw recusa('X_RECUSADO');
+      },
+    });
+    temRede = false;
+    await enviarOuGuardar('cocho.lancamento', {});
+    temRede = true;
+    const resumo = await sincronizar();
+    expect(resumo.itens[0]).toMatchObject({ estado: 'atencao', progresso: { passo1: true } });
+  });
+
+  it('MS-25 "Tentar de novo" chama o reajuste do tipo e envia o payload corrigido com o MESMO código', async () => {
+    const enviados = [];
+    let recusar = true;
+    registrarTipoDeEnvio({
+      tipo: 'cocho.lancamento', versao: 1, offline: true,
+      enviar: async (p, { operationId }) => { enviados.push({ p, operationId }); if (recusar) throw recusa('LANCAMENTO_DESATUALIZADO'); return {}; },
+      reajustar: async (p, { ultimoErro }) => ({ ...p, anterior: ultimoErro.codigo === 'LANCAMENTO_DESATUALIZADO' ? 'novo' : p.anterior }),
+    });
+    temRede = false;
+    const r = await enviarOuGuardar('cocho.lancamento', { anterior: 'velho' });
+    temRede = true;
+    await sincronizar();
+    recusar = false;
+    await tentarDeNovo(r.operationId);
+    await sincronizar();
+    expect(enviados.map((e) => e.p.anterior)).toEqual(['velho', 'novo']);
+    expect(enviados.every((e) => e.operationId === r.operationId)).toBe(true);
+  });
+});
+
