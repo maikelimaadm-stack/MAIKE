@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-23 (missão ativa D-PROD-281; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-23 (missão ativa D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,16 +9,27 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-23) — MAIKE-ESTOQUE-CONTROLE-LOTE: controle de lote (e de validade) por produto (D-PROD-281)
+## Missão ativa (2026-11-23) — MAIKE-ESTOQUE-CONTROLE-LOTE: controle de lote (e de validade) por produto (D-PROD-282)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-281**, escolhas do proprietário (2026-11-23): "Controla lote"/"Controla validade" no produto, lote e validade na camada, saída pelo lote escolhido (sugestão FEFO) e pelo custo dele; emenda da Constituição aprovada |
+| Decisão | **D-PROD-282**, escolhas do proprietário (2026-11-23): "Controla lote"/"Controla validade" no produto, lote e validade na camada, saída pelo lote escolhido (sugestão FEFO) e pelo custo dele; emenda da Constituição aprovada |
 | Branch / PR | `claude/estoque-controle-lote`, a partir da `main` `d62a4ef8`, com a `origin/main` (PR #366) mesclada · sem push (PR a abrir; conferir o número com `proxima-decisao.mjs`) |
 | Mudança | motor (FEFO, escolha, custo do lote sem reavaliar, transferência leva lote), serviços, `GET /estoque/lotes-disponiveis`, troca do cadastro só com saldo zero, replay/exclusão com `lote_consumido`, telas (cadastro, entrada, saída, transferência, saldo por lote) |
-| Migration | `20261124200000_estoque_controle_lote`, **CONTRACT condicionado aditivo** (`--contract D-PROD-281`), sha256 `b6b33b0e…48fc`. depois da `20261124100000_tipo_implemento_produto` (produção: 76 concluídas, 0 com falha). **Não aplicada em produção**; ensaiada localmente com o envelope do runbook |
+| Migration | `20261124200000_estoque_controle_lote`, **CONTRACT condicionado aditivo** (`--contract D-PROD-282`), sha256 `b6b33b0e…48fc`. depois da `20261124100000_tipo_implemento_produto` (produção: 76 concluídas, 0 com falha). **Não aplicada em produção**; ensaiada localmente com o envelope do runbook |
 | Relatório | [`MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md) · SPEC [`MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md) · Runbook [`MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md) |
 | Próximas | escolha manual de lote na atividade e no abastecimento; lote na tela de confirmação do financeiro e no cocho |
+
+## Missão anterior (2026-11-23) — MAIKE-DETALHES-LOTE-V13: telas do pasto redesenhadas no celular (D-PROD-280)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-280**, pedido e aprovação do proprietário, tela a tela (atual × proposto) |
+| Branch / PR | `claude/kind-knuth-tztu1v` · PR **#367** |
+| Mudança | Só apresentação do Detalhes do Lote: abas, seletor, rodapé, Detalhes (capim, régua de UA/ha, grade), Lotes (barras, grade, tabela compacta), Histórico (cartões curtos), Suplementação (réguas, barras, gráfico) e Manejos (frase por quadro, ícone do Mover visível) |
+| Migration | Nenhuma |
+| Relatório | [`MAIKE-DETALHES-LOTE-V13-REPORT.md`](./MAIKE-DETALHES-LOTE-V13-REPORT.md) |
+| Próximas | Forragem dentro do Detalhes do Lote; ordem padrão das colunas da Lista |
 
 ## Missão anterior (2026-11-23) — MAIKE-TIPO-IMPLEMENTO-PRODUTO: o tipo de implemento diz se usa produto, como conta e a capacidade (D-PROD-279)
 

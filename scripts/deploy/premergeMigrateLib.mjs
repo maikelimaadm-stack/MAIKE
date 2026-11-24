@@ -210,7 +210,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // MAIKE-TIPO-IMPLEMENTO-PRODUTO (D-PROD-279): EXPAND — o produto do implemento: 4 colunas anuláveis sem DEFAULT em tabela
   // antiga (TipoPatrimonial.usa_produto, forma_produto, capacidade e capacidade_unidade); sem CHECK (a API confere).
   '20261124100000_tipo_implemento_produto': 'a18362400ec4345487bca6bb4b6c94c62991cb120bb36786448a46c39a64ae45',
-  // MAIKE-ESTOQUE-CONTROLE-LOTE (D-PROD-281): CONTRACT condicionado e ADITIVO — Produto.controla_lote e
+  // MAIKE-ESTOQUE-CONTROLE-LOTE (D-PROD-282): CONTRACT condicionado e ADITIVO — Produto.controla_lote e
   // Produto.controla_validade (BOOLEAN NOT NULL DEFAULT false, CHECK "validade só com lote"), EstoqueLoteNota.lote_fabricante
   // e EstoqueLoteNota.data_validade (anuláveis, sem DEFAULT) e o índice tenant-first do FEFO. Sem DROP, sem DML.
   '20261124200000_estoque_controle_lote': 'b6b33b0ebb35f44d91d7b3766525a51e839d68348aca78388fd26ab2645948fc',
@@ -704,7 +704,7 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "AtividadeApontamento" ADD CONSTRAINT "AtividadeApontamento_data_termino_check" CHECK ("data_termino" IS NULL OR "data_termino" >= "data_operacional")',
     ]),
   }),
-  // D-PROD-281: o controle de lote por produto. A mudança é ADITIVA: nenhuma linha muda de valor, nenhuma coluna existente
+  // D-PROD-282: o controle de lote por produto. A mudança é ADITIVA: nenhuma linha muda de valor, nenhuma coluna existente
   // é tocada, nenhuma tabela é criada ou apagada, nenhum DROP, nenhum DML. Só é CONTRACT porque a allowlist EXPAND recusa,
   // em tabela antiga, coluna NOT NULL DEFAULT, coluna DATE e CHECK (como na D-PROD-197, na D-PROD-259 e na D-PROD-265).
   // Depois da guarda (hash pinado; confere que "Produto" e "EstoqueLoteNota" existem e que as 4 colunas, o CHECK e o índice
@@ -712,7 +712,7 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   // pinado): os 2 Sim/Não NOT NULL DEFAULT false, o CHECK "validade só com lote" e as 2 colunas anuláveis sem DEFAULT da
   // camada. O resto, pela allowlist EXPAND: o índice não-único do FEFO. A guarda só cita as 2 tabelas.
   '20261124200000_estoque_controle_lote': Object.freeze({
-    decisao: 'D-PROD-281',
+    decisao: 'D-PROD-282',
     guarda_sha256: '98e741eef93fcd2931fdea5ae8838c24fd842b89e161df32a6e4b66621c588fc',
     drop: Object.freeze([]),
     literais_guarda: Object.freeze(['Produto', 'EstoqueLoteNota']),

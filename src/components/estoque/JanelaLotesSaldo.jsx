@@ -9,7 +9,7 @@ import { avisoDoLote } from "@/lib/estoqueLotesRegras";
 const dataBr = (/** @type {string|null} */ d) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : "—");
 
 /**
- * D-PROD-281 — detalhe do saldo POR LOTE (produto que controla lote) num depósito: lote, validade, saldo, custo do lote
+ * D-PROD-282 — detalhe do saldo POR LOTE (produto que controla lote) num depósito: lote, validade, saldo, custo do lote
  * e o aviso de vencido / vencendo em até 30 dias. Lista empilhada (cabe em 390 px), já na ordem FEFO.
  * @param {{ empresaId: string, alvo: null | { produto_id: string, produto_nome: string, local_estoque_id: string, local_estoque_nome: string }, onFechar: () => void }} props
  */

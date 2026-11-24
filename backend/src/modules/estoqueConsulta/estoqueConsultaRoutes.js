@@ -74,7 +74,7 @@ const DETALHE = {
   querystring: { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } },
 };
 
-/** D-PROD-281: lotes disponíveis de um produto num depósito (FEFO). */
+/** D-PROD-282: lotes disponíveis de um produto num depósito (FEFO). */
 const LOTES = {
   querystring: {
     type: 'object', required: ['empresa_id', 'produto_id', 'local_estoque_id'], additionalProperties: false,

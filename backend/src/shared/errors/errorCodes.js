@@ -542,7 +542,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 422,
     meaning: 'saldo ou FIFO insuficiente para a operação',
   },
-  // D-PROD-281 — controle de lote por produto.
+  // D-PROD-282 — controle de lote por produto.
   ESTOQUE_LOTE_OBRIGATORIO: {
     http: 422,
     meaning: 'o produto controla lote (ou validade): a entrada exige o lote (e a validade); nada foi gravado (details.reason: lote_obrigatorio | validade_obrigatoria)',

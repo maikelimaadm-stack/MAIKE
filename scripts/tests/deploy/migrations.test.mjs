@@ -290,11 +290,11 @@ const CONTRACT_265 = '20261120200000_apontamento_data_termino';
 /** O histórico com a D-PROD-265 concluída (se ele ainda não a cita). */
 const com265Concluida = (h) => (h.some((l) => l.migration_name === CONTRACT_265) ? h : [...h, concluida(CONTRACT_265)]);
 /**
- * D-PROD-281 — a décima sétima CONTRACT (aditiva: o controle de lote), posterior à D-PROD-265. Os cenários anteriores
+ * D-PROD-282 — a décima sétima CONTRACT (aditiva: o controle de lote), posterior à D-PROD-265. Os cenários anteriores
  * (B11…B28) são de antes dela: `rodarBarreiraContract` a acrescenta como CONCLUÍDA, salvo com `sem279` (o B29).
  */
 const CONTRACT_279 = '20261124200000_estoque_controle_lote';
-/** O histórico com a D-PROD-281 concluída (se ele ainda não a cita). */
+/** O histórico com a D-PROD-282 concluída (se ele ainda não a cita). */
 const com279Concluida = (h) => (h.some((l) => l.migration_name === CONTRACT_279) ? h : [...h, concluida(CONTRACT_279)]);
 const ALVO_REMOTO = `postgresql://ops:${SENHA_FIXTURE}@db.exemplo.invalido:5432/postgres`;
 const ALVO_LOCAL = 'postgresql://postgres@localhost:5432/maike_ci';
@@ -1811,8 +1811,8 @@ describe('B28 (D-PROD-265) — a data de término do apontamento (a coluna e o C
   });
 });
 
-describe('B29 (D-PROD-281) — o controle de lote (colunas, CHECK e índice em Produto e EstoqueLoteNota) só passa pelo runner com a própria decisão, e nunca junto de outra CONTRACT', () => {
-  const D279 = `${CONTRACT_279} (D-PROD-281)`;
+describe('B29 (D-PROD-282) — o controle de lote (colunas, CHECK e índice em Produto e EstoqueLoteNota) só passa pelo runner com a própria decisão, e nunca junto de outra CONTRACT', () => {
+  const D279 = `${CONTRACT_279} (D-PROD-282)`;
   const D265 = `${CONTRACT_265} (D-PROD-265)`;
   const ANTERIORES = [CONTRACT_162, CONTRACT_183, CONTRACT_187, CONTRACT_194, CONTRACT_195, CONTRACT_196, CONTRACT_198, CONTRACT_208, CONTRACT_209, CONTRACT_210, CONTRACT_211, CONTRACT_216, CONTRACT_217, CONTRACT_249, CONTRACT_259, CONTRACT_265];
   const PRODUCAO = () => ANTERIORES.map((n) => concluida(n));
@@ -1831,28 +1831,28 @@ describe('B29 (D-PROD-281) — o controle de lote (colunas, CHECK e índice em P
     assert.ok(!r.texto.includes(SENHA_FIXTURE) && !r.texto.includes('@'), `${rotulo}: a saída expôs a URL:\n${r.texto}`);
   };
 
-  test('B29-1 as dezesseis CONTRACT anteriores concluídas e a D-PROD-281 pendente no alvo remoto, sem a decisão exata → recusa citando só a D-PROD-281', async () => {
-    for (const autorizado of [undefined, '', 'D-PROD-265', 'D-PROD-278', 'd-prod-279', ' D-PROD-281 ', 'D-PROD-2810']) {
+  test('B29-1 as dezesseis CONTRACT anteriores concluídas e a D-PROD-282 pendente no alvo remoto, sem a decisão exata → recusa citando só a D-PROD-282', async () => {
+    for (const autorizado of [undefined, '', 'D-PROD-265', 'D-PROD-278', 'd-prod-279', ' D-PROD-282 ', 'D-PROD-2820']) {
       const r = await rodarBarreiraContract(remoto(autorizado), PRODUCAO, SEM279);
       assertRecusa(r, D279, String(autorizado));
       for (const anterior of ANTERIORES) assert.ok(!r.texto.includes(anterior), `${anterior} já está concluída e não pode ser citada:\n${r.texto}`);
     }
   });
 
-  test('B29-2 com MIGRATION_CONTRACT_AUTORIZADO = D-PROD-281 → segue e registra a autorização', async () => {
-    const r = await rodarBarreiraContract(remoto('D-PROD-281'), PRODUCAO, SEM279);
+  test('B29-2 com MIGRATION_CONTRACT_AUTORIZADO = D-PROD-282 → segue e registra a autorização', async () => {
+    const r = await rodarBarreiraContract(remoto('D-PROD-282'), PRODUCAO, SEM279);
     assert.equal(r.pode, true);
     assert.ok(r.texto.includes(`CONTRACT autorizado: ${D279}`), r.texto);
   });
 
-  test('B29-3 D-PROD-281 pendente junto da D-PROD-265 → recusa com qualquer das duas decisões', async () => {
+  test('B29-3 D-PROD-282 pendente junto da D-PROD-265 → recusa com qualquer das duas decisões', async () => {
     const historico = () => ANTERIORES.filter((x) => x !== CONTRACT_265).map((x) => concluida(x));
     const opcoes = { sem265: true, sem279: true };
-    assertRecusa(await rodarBarreiraContract(remoto('D-PROD-281'), historico, opcoes), D265, 'D-PROD-281');
+    assertRecusa(await rodarBarreiraContract(remoto('D-PROD-282'), historico, opcoes), D265, 'D-PROD-282');
     assertRecusa(await rodarBarreiraContract(remoto('D-PROD-265'), historico, opcoes), D279, 'D-PROD-265');
   });
 
-  test('B29-4 D-PROD-281 com linha aberta ou revertida continua pendente; as dezessete concluídas → segue sem a variável', async () => {
+  test('B29-4 D-PROD-282 com linha aberta ou revertida continua pendente; as dezessete concluídas → segue sem a variável', async () => {
     for (const linha of [concluida(CONTRACT_279, { finished_at: null }), concluida(CONTRACT_279, { rolled_back_at: new Date() })]) {
       assertRecusa(await rodarBarreiraContract(remoto(undefined), () => [...PRODUCAO(), linha], SEM279), D279, 'pendente');
     }

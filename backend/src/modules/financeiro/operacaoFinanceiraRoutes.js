@@ -140,7 +140,7 @@ const CONFIRMAR = {
         additionalProperties: false,
         properties: { metodo: ENUM(METODOS), data: DIA, referencia: TEXTO_NULO(120) },
       },
-      // D-PROD-281: por item de produto com lote — lote e validade (compra) ou lotes escolhidos (venda; sem eles, FEFO).
+      // D-PROD-282: por item de produto com lote — lote e validade (compra) ou lotes escolhidos (venda; sem eles, FEFO).
       lotes_por_item: {
         type: 'array', maxItems: 200,
         items: {

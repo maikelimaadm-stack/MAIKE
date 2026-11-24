@@ -1,5 +1,5 @@
 /**
- * D-PROD-281 — esquema HTTP da escolha de lotes numa linha de saída de produto que controla lote:
+ * D-PROD-282 — esquema HTTP da escolha de lotes numa linha de saída de produto que controla lote:
  * `lotes: [{ estoque_lote_nota_id, quantidade }]`, opcional (sem a lista, o servidor aplica o FEFO). A quantidade é
  * TEXTO decimal, na unidade de ESTOQUE do produto (kg ou L), e a soma tem de ser a quantidade de estoque da linha
  * (o motor confere). Formato fechado (`additionalProperties: false`), como as linhas que o usam.

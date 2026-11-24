@@ -449,7 +449,7 @@ export const planejarAbastecimento = (entrada, estado) => {
   const produtoOk = produtoValido && unidadeAceita;
   let fifo = null;
   if (doEstoque && quantidadePositiva && dentroDoLimite && produtoOk && local && local.ativo) {
-    // D-PROD-281: produto com lote sai pelo custo da camada (FEFO), sem reavaliar (como o motor).
+    // D-PROD-282: produto com lote sai pelo custo da camada (FEFO), sem reavaliar (como o motor).
     const sim = produto.controla_lote === true ? consumirPorLote(lotes, quantidade) : consumirCustoMedio(lotes, quantidade);
     if (!sim.suficiente) {
       bloqueios.push(bloqueio('ESTOQUE_SALDO_INSUFICIENTE', 'quantidade', 'saldo_lote_insuficiente', { disponivel: q4(sim.disponivel), solicitado: q4(quantidade), unidade }));

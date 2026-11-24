@@ -96,7 +96,7 @@ const COLUNAS_OK = [
   { table_name: 'TipoPatrimonial', column_name: 'forma_produto' },
   { table_name: 'TipoPatrimonial', column_name: 'capacidade' },
   { table_name: 'TipoPatrimonial', column_name: 'capacidade_unidade' },
-  // D-PROD-281: o controle de lote (Produto e camada).
+  // D-PROD-282: o controle de lote (Produto e camada).
   { table_name: 'Produto', column_name: 'controla_lote' },
   { table_name: 'Produto', column_name: 'controla_validade' },
   { table_name: 'EstoqueLoteNota', column_name: 'lote_fabricante' },

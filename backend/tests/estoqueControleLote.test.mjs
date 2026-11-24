@@ -1,5 +1,5 @@
 /**
- * D-PROD-281 — controle de lote (e de validade) por produto. PostgreSQL real, pela API (usuário autenticado).
+ * D-PROD-282 — controle de lote (e de validade) por produto. PostgreSQL real, pela API (usuário autenticado).
  *
  * Números feitos à mão (em kg, custo por kg):
  *  - L1: E_A 100 kg a 4,00 (lote A, vence 31/12/2027), E_B 50 kg a 6,00 (lote B, vence 01/08/2027),

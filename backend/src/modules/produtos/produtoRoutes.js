@@ -33,7 +33,7 @@ const CAMPOS = Object.freeze({
   peso_por_saco_kg: { type: ['number', 'null'] },
   // MAIKE-ENTREGA2 (D-PROD-274): carência da bula, em dias (0..365 no serviço; null limpa).
   carencia_dias: { type: ['integer', 'null'] },
-  // D-PROD-281: controle de lote e de validade (Sim/Não; validade só com lote; trocar só com saldo zero).
+  // D-PROD-282: controle de lote e de validade (Sim/Não; validade só com lote; trocar só com saldo zero).
   controla_lote: { type: 'boolean' },
   controla_validade: { type: 'boolean' },
   observacoes: { type: ['string', 'null'], maxLength: 2000 },

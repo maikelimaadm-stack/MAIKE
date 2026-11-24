@@ -176,8 +176,8 @@ export const schemaSemProdutoDoImplemento = (schema) => {
 };
 
 /**
- * D-PROD-281 — o `schema.prisma` de hoje sem o controle de lote: as colunas `controla_lote`/`controla_validade` do
- * Produto, `lote_fabricante`/`data_validade` da EstoqueLoteNota, o índice do FEFO e as linhas `// D-PROD-281` logo acima
+ * D-PROD-282 — o `schema.prisma` de hoje sem o controle de lote: as colunas `controla_lote`/`controla_validade` do
+ * Produto, `lote_fabricante`/`data_validade` da EstoqueLoteNota, o índice do FEFO e as linhas `// D-PROD-282` logo acima
  * delas. A CONTRACT aditiva `20261124200000_estoque_controle_lote` é posterior a todos os "dias" destes espelhos e tem a
  * prova própria em `premerge-migrate.test.mjs` (B43) e em `estoqueControleLote.test.mjs`.
  * @param {string} schema
@@ -195,7 +195,7 @@ export const schemaSemControleLote = (schema) => {
     if (sai[i] && /^\s+(controla_lote|controla_validade)\s/.test(l) && modelo !== 'Produto') sai[i] = false;
   });
   for (let i = linhas.length - 1; i > 0; i -= 1) {
-    if (sai[i] && /^\s*\/\/ D-PROD-281/.test(linhas[i - 1])) sai[i - 1] = true;
+    if (sai[i] && /^\s*\/\/ D-PROD-282/.test(linhas[i - 1])) sai[i - 1] = true;
   }
   return linhas.filter((_, i) => !sai[i]).join('\n');
 };

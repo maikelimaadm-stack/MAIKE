@@ -172,7 +172,8 @@ const montar = (ui = <Casca />) => {
 const cartoes = () =>
   [...document.querySelectorAll(".mk-dp-tl__card")].map((c) => ({
     titulo: c.querySelector(".mk-dp-tl__titulo")?.textContent,
-    lote: c.querySelector(".mk-dp-tl__row dd")?.textContent,
+    // v13 (cartão curto): o lote sobe para o cabeçalho; cartão sem "Lote" (suplementação) segue na 1ª linha.
+    lote: c.querySelector(".mk-dp-tl__lote")?.textContent.replace(/^Lote: /, "") ?? c.querySelector(".mk-dp-tl__row dd")?.textContent,
     acao: c.querySelector(".mk-dp-tl__acoes [data-mov]")?.getAttribute("data-mov") ?? null,
     pe: Boolean(c.querySelector(".mk-dp-tl__acoes")),
     alcance: c.querySelector(".mk-dp-hist__alcance")?.textContent ?? null,

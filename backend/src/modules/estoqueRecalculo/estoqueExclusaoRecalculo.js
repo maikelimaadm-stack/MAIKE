@@ -69,7 +69,7 @@ const AMOSTRA = 20;
  */
 
 /**
- * D-PROD-281 — a entrada de um lote que já teve saída (ou transferência) não sai da sequência: a saída escolheu aquele
+ * D-PROD-282 — a entrada de um lote que já teve saída (ou transferência) não sai da sequência: a saída escolheu aquele
  * lote e não há outro custo para ela. 409 `ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL`, `reason: 'lote_consumido'`.
  * @param {{ movimento_id?: string, movimento_numero?: string, lote_id?: string }} p
  */
@@ -102,7 +102,7 @@ const porProduto = (movimentos) => {
 export const provarExclusaoComRecalculo = async (tx, cli, a) => {
   const historico = await lerHistoricoDoProduto(tx, cli, a.empresaId, a.produtoId, { teto: a.teto ?? TETO_MOVIMENTOS_PRODUTO });
   const porId = new Map(historico.movimentos.map((x) => [x.id, x]));
-  // D-PROD-281 (revisão): o movimento excluído tem de estar no modo do cadastro atual (o mesmo ponto do estorno).
+  // D-PROD-282 (revisão): o movimento excluído tem de estar no modo do cadastro atual (o mesmo ponto do estorno).
   const controle = await controleDeLote(tx, cli, { id: a.produtoId });
   const camadaDaEntrada = new Map(historico.camadas.filter((c) => c.movimentacao_entrada_id).map((c) => [c.movimentacao_entrada_id, c]));
   for (const id of a.excluirIds) {
@@ -142,7 +142,7 @@ export const provarExclusaoComRecalculo = async (tx, cli, a) => {
     if (reason === 'saldo_negativo') throw saldoNegativo(detalhes);
     // Ajuste de inventário vigente num depósito que a cascata da transferência alcança: recusa (nunca contornável).
     if (reason === RAZAO_AJUSTE_POSTERIOR) throw await recusaAjustePosterior(tx, cli, detalhes);
-    if (reason === 'lote_consumido') throw loteConsumido(detalhes); // D-PROD-281
+    if (reason === 'lote_consumido') throw loteConsumido(detalhes); // D-PROD-282
     throw recalculoInviavel(reason, detalhes);
   }
   return { produtoId: a.produtoId, excluirIds: [...a.excluirIds], posteriores, dispensa: null };

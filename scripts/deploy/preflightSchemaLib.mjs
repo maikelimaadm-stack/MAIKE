@@ -136,7 +136,7 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['TipoPatrimonial', 'forma_produto'],
   ['TipoPatrimonial', 'capacidade'],
   ['TipoPatrimonial', 'capacidade_unidade'],
-  // D-PROD-281: o motor de estoque lê o controle de lote do produto e o lote/validade da camada; sem a migration
+  // D-PROD-282: o motor de estoque lê o controle de lote do produto e o lote/validade da camada; sem a migration
   // `20261124200000_estoque_controle_lote`, toda entrada e saída de estoque responde 500.
   ['Produto', 'controla_lote'],
   ['Produto', 'controla_validade'],

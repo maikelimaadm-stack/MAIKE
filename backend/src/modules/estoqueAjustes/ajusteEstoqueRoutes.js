@@ -49,7 +49,7 @@ const ITEM = {
   properties: {
     produto_id: ID, local_estoque_id: ID, unidade: { type: 'string', enum: ['KG', 'SACO', 'L'] }, quantidade_contada: DECIMAL,
     custo_unitario: { anyOf: [DECIMAL, { type: 'null' }] },
-    // D-PROD-281: sobra de produto com lote (lote e validade da camada nova) e falta (lotes escolhidos; sem eles, FEFO).
+    // D-PROD-282: sobra de produto com lote (lote e validade da camada nova) e falta (lotes escolhidos; sem eles, FEFO).
     lote_fabricante: LOTE_FABRICANTE, data_validade: DATA_VALIDADE, lotes: LOTES_ESCOLHIDOS,
   },
 };

@@ -95,7 +95,7 @@ export const ORIGEM_AJUSTE_ESTOQUE = 'ajuste_estoque';
 /** D-PROD-256: marca `modo_saida_fifo` (nome legado da coluna) das saídas valorizadas a custo médio; as antigas ficam 'FIFO'. */
 export const MODO_CUSTO_MEDIO = 'CUSTO_MEDIO';
 /**
- * D-PROD-281 — marca da saída (e da transferência) de produto que CONTROLA LOTE: cada fatia sai pelo custo da camada
+ * D-PROD-282 — marca da saída (e da transferência) de produto que CONTROLA LOTE: cada fatia sai pelo custo da camada
  * escolhida (o custo da nota) e nenhuma camada é reavaliada. O estorno e o replay decidem pela marca, não pelo cadastro.
  */
 export const MODO_LOTE = 'LOTE';
@@ -168,7 +168,7 @@ export const ordenarFifo = (lotes) =>
   });
 
 /**
- * D-PROD-281 — ordem FEFO (o lote que vence primeiro): `data_validade` crescente, SEM validade por último; empate (ou
+ * D-PROD-282 — ordem FEFO (o lote que vence primeiro): `data_validade` crescente, SEM validade por último; empate (ou
  * sem validade) pela ordem FIFO única (`ordenarFifo`: a entrada mais antiga).
  * @template T
  * @param {T[]} lotes camadas com `id`, `data_validade`, `data_documento` e `createdAt`
@@ -185,11 +185,11 @@ export const ordenarFefo = (lotes) => {
   });
 };
 
-/** D-PROD-281 — o lote está vencido no dia `hoje` (AAAA-MM-DD): validade ANTERIOR a hoje (vencer hoje ainda vale). */
+/** D-PROD-282 — o lote está vencido no dia `hoje` (AAAA-MM-DD): validade ANTERIOR a hoje (vencer hoje ainda vale). */
 export const loteVencido = (dataValidade, hoje) => Boolean(dataValidade) && dataValidade.toISOString().slice(0, 10) < hoje;
 
 /**
- * D-PROD-281 — o controle de lote do produto, sob a trava dele. Usa o que veio no objeto (o `findMany` sem `select` dos
+ * D-PROD-282 — o controle de lote do produto, sob a trava dele. Usa o que veio no objeto (o `findMany` sem `select` dos
  * serviços traz as colunas); senão lê do banco (fail-closed: sem a linha → 404).
  * @param {any} tx @param {string} clienteId @param {any} produto
  * @returns {Promise<{ lote: boolean, validade: boolean }>}
@@ -204,7 +204,7 @@ export const controleDeLote = async (tx, clienteId, produto) => {
 };
 
 /**
- * D-PROD-281 (achado da revisão) — o modo de um movimento gravado tem de bater com o cadastro ATUAL do produto para
+ * D-PROD-282 (achado da revisão) — o modo de um movimento gravado tem de bater com o cadastro ATUAL do produto para
  * ser estornado ou excluído (com ou sem recálculo): saída/transferência `LOTE` ⇔ produto que controla lote; camada de
  * entrada com `lote_fabricante` ⇔ produto que controla lote. Senão a troca do flag (com saldo zero) seria driblada por
  * um estorno posterior: camada sem lote num produto com lote, ou custos de lote diferentes num poço de custo médio.
@@ -222,13 +222,13 @@ export const exigirModoLoteDoCadastro = (controle, movimentoEmLote, details = {}
     details: { field: 'movimento_id', reason: controle.lote ? 'movimento_sem_lote' : 'movimento_com_lote', ...details },
   });
 };
-/** D-PROD-281 — a saída (ou a perna enviada da transferência) foi gravada em modo lote. @param {{ modo_saida_fifo?: string|null }} m */
+/** D-PROD-282 — a saída (ou a perna enviada da transferência) foi gravada em modo lote. @param {{ modo_saida_fifo?: string|null }} m */
 export const saidaEmModoLote = (m) => m?.modo_saida_fifo === MODO_LOTE;
-/** D-PROD-281 — a camada de entrada foi gravada em modo lote (o motor só grava o lote em produto que controla lote). @param {{ lote_fabricante?: string|null }} c */
+/** D-PROD-282 — a camada de entrada foi gravada em modo lote (o motor só grava o lote em produto que controla lote). @param {{ lote_fabricante?: string|null }} c */
 export const camadaEmModoLote = (c) => c?.lote_fabricante !== null && c?.lote_fabricante !== undefined;
 
 /**
- * D-PROD-281 (revisão) — avisos `{ tipo: 'lote_vencido', lote, validade }` das fatias que saíram de lote vencido no dia
+ * D-PROD-282 (revisão) — avisos `{ tipo: 'lote_vencido', lote, validade }` das fatias que saíram de lote vencido no dia
  * da saída (`loteVencido`), um por camada, na ordem das fatias. Não recusa nada (vencido sai, com aviso).
  * @param {Array<{ lote_id: string }>} fatias @param {Map<string, any>} camadas por id @param {string} dia AAAA-MM-DD
  * @returns {Array<{ tipo: 'lote_vencido', lote_id: string, lote: string|null, validade: string }>}
@@ -250,7 +250,7 @@ const loteInvalido = (reason, mensagem, details = {}) =>
   new AppError('ESTOQUE_LOTE_INVALIDO', mensagem, { details: { field: 'lotes', reason, ...details } });
 
 /**
- * D-PROD-281 — lista de lotes escolhidos de uma linha (`lotes: [{ estoque_lote_nota_id, quantidade }]`), na fronteira:
+ * D-PROD-282 — lista de lotes escolhidos de uma linha (`lotes: [{ estoque_lote_nota_id, quantidade }]`), na fronteira:
  * ausente/nula → `null` (o servidor aplica o FEFO); fora do formato → 422. Não lê banco.
  * @param {unknown} bruto
  * @param {{ indice?: number }} [o]
@@ -271,7 +271,7 @@ export const normalizarLotesEscolhidos = (bruto, { indice } = {}) => {
 };
 
 /**
- * D-PROD-281 — lote do fabricante e validade de uma ENTRADA, na fronteira (texto aparado ≤ 64; validade AAAA-MM-DD).
+ * D-PROD-282 — lote do fabricante e validade de uma ENTRADA, na fronteira (texto aparado ≤ 64; validade AAAA-MM-DD).
  * Ausentes → null. Não decide obrigatoriedade (isso é do motor, pelo produto).
  * @param {unknown} lote @param {unknown} validade @param {{ indice?: number }} [o]
  * @returns {{ fabricante: string|null, validade: string|null }}
@@ -297,7 +297,7 @@ export const normalizarLoteDaEntrada = (lote, validade, { indice } = {}) => {
 };
 
 /**
- * D-PROD-281 — simulação PURA da saída de produto que CONTROLA LOTE. Sem `escolhidos`, consome pelo FEFO
+ * D-PROD-282 — simulação PURA da saída de produto que CONTROLA LOTE. Sem `escolhidos`, consome pelo FEFO
  * (`ordenarFefo`); com eles, cada camada citada tem de estar no poço (do produto, da empresa e do depósito: quem chama
  * passa só as camadas Disponivel desse poço), com o disponível, sem repetir, e a soma = `kg`. Cada fatia sai pelo
  * CUSTO DA CAMADA; valor = Σ(fatia × custo) em `CASAS_CUSTO`; valor unitário = valor ÷ kg. Nada é reavaliado
@@ -357,7 +357,7 @@ export const consumirPorLote = (lotes, kg, escolhidos = null, extra = {}) => {
   return { suficiente, disponivel, fatias, valorTotal, valorUnitario, custoMedioAntes, custoMedioDepois, valorPoco, camadasRestantes: /** @type {string[]} */ ([]) };
 };
 
-/** D-PROD-281 — produto SEM controle de lote com a lista de lotes na linha → 422 (nunca ignorada em silêncio). */
+/** D-PROD-282 — produto SEM controle de lote com a lista de lotes na linha → 422 (nunca ignorada em silêncio). */
 const exigirSemLotesEscolhidos = (escolhidos, extra) => {
   if (escolhidos && escolhidos.length) {
     throw loteInvalido('produto_sem_controle_de_lote', 'este produto não controla lote; não informe lotes; nada foi gravado', extra);
@@ -685,7 +685,7 @@ const procedenciaDaEntrada = (procedencia) => {
  *   origem: {operacaoId: string, tipoDetalhado?: string, sistema?: string, motivo?: string}, numeroMovimento?: string|number, contextoErro?: Record<string, unknown>,
  *   procedencia?: Partial<Record<'fornecedor_id'|'fornecedor_nome'|'numero_documento', string|null>>,
  *   lote?: { fabricante?: string|null, validade?: string|null } }} a
- *   `lote` (D-PROD-281): lote do fabricante e validade (AAAA-MM-DD) da camada; obrigatórios conforme o produto.
+ *   `lote` (D-PROD-282): lote do fabricante e validade (AAAA-MM-DD) da camada; obrigatórios conforme o produto.
  */
 export const aplicarEntradaEstoque = async (tx, ctx, a) => {
   const auth = exigirAuthContext(ctx?.auth);
@@ -712,7 +712,7 @@ export const aplicarEntradaEstoque = async (tx, ctx, a) => {
   if (!kg.gt(0)) {
     throw new AppError('OPERACAO_VALORES_INVALIDOS', 'quantidade em kg deve ser maior que zero', { details: comCampo({ reason: 'quantidade_estoque_zero', ...extra }) });
   }
-  // D-PROD-281: produto com controle de lote exige o lote (e a validade, se controla) em TODA entrada; sem lote, ignorados.
+  // D-PROD-282: produto com controle de lote exige o lote (e a validade, se controla) em TODA entrada; sem lote, ignorados.
   const controle = await controleDeLote(tx, cli, a.produto);
   const loteFabricante = controle.lote ? (a.lote?.fabricante ?? null) : null;
   const dataValidade = controle.lote && a.lote?.validade ? comoDia(a.lote.validade) : null;
@@ -888,7 +888,7 @@ export const estoqueAtualInsuficiente = (details) =>
  *   origem: {operacaoId: string|null, tipoDetalhado?: string, sistema?: string, motivo?: string}, numeroMovimento?: string|number, contextoErro?: Record<string, unknown>,
  *   procedencia?: boolean, complemento?: (plano: { fatias: any[], valorTotal: any, valorUnitario: any, custoMedioAntes: any, custoMedioDepois: any }) => Record<string, unknown>,
  *   lotes?: Array<{ estoque_lote_nota_id: string, quantidade: any }>|null }} a
- *   `lotes` (D-PROD-281, só produto com lote): as camadas escolhidas; ausente → FEFO.
+ *   `lotes` (D-PROD-282, só produto com lote): as camadas escolhidas; ausente → FEFO.
  */
 export const aplicarSaida = async (tx, ctx, a) => {
   const auth = exigirAuthContext(ctx?.auth);
@@ -902,7 +902,7 @@ export const aplicarSaida = async (tx, ctx, a) => {
   if (!kg.gt(0)) throw quantidadeZero(extra);
   if (kg.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ ...extra, quantidade_kg: kg.toFixed(CASAS_QUANTIDADE) });
   const lotes = await lotesFifo(tx, cli, a.empresaId, a.produto.id, a.local.id, { procedencia: Boolean(a.procedencia) });
-  // D-PROD-281: produto com lote sai pelo custo da camada (escolhida ou FEFO), sem reavaliar; os demais, pelo médio.
+  // D-PROD-282: produto com lote sai pelo custo da camada (escolhida ou FEFO), sem reavaliar; os demais, pelo médio.
   const controle = await controleDeLote(tx, cli, a.produto);
   if (!controle.lote) exigirSemLotesEscolhidos(a.lotes, extra);
   const fifo = controle.lote ? consumirPorLote(lotes, kg, a.lotes ?? null, extra) : consumirCustoMedio(lotes, kg);
@@ -951,7 +951,7 @@ export const aplicarSaida = async (tx, ctx, a) => {
     fatias: publicas,
     valor_total: fifo.valorTotal,
     valor_unitario: fifo.valorUnitario,
-    // D-PROD-281 (revisão): lote vencido consumido (FEFO ou escolha) vira aviso na resposta das origens só com API.
+    // D-PROD-282 (revisão): lote vencido consumido (FEFO ou escolha) vira aviso na resposta das origens só com API.
     avisos: controle.lote ? avisosDeLoteVencido(fifo.fatias, porId, (a.dia ?? instante.toISOString()).slice(0, 10)) : [],
   };
 };
@@ -976,7 +976,7 @@ export const aplicarSaida = async (tx, ctx, a) => {
  * @returns {Promise<{ saida: any, entrada: any, valor_total: any, valor_unitario: any,
  *   fatias: Array<{ lote_id: string, lote_destino_id: string, quantidade: any, custo_unitario: any, lote: any }> }>}
  */
-/** `a.lotes` (D-PROD-281, só produto com lote): as camadas escolhidas na origem; ausente → FEFO. */
+/** `a.lotes` (D-PROD-282, só produto com lote): as camadas escolhidas na origem; ausente → FEFO. */
 export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
   const auth = exigirAuthContext(ctx?.auth);
   const cli = auth.clienteId;
@@ -993,7 +993,7 @@ export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
   if (kg.gt(LIMITE_ESTOQUE)) throw excedeLimiteEstoque({ ...extra, quantidade_kg: kg.toFixed(CASAS_QUANTIDADE) });
   // 4–5: plano FIFO na origem e limites, ainda sem escrever
   const lotes = await lotesFifo(tx, cli, a.empresaId, a.produto.id, a.origem.id, { procedencia: true });
-  // D-PROD-281: produto com lote leva as camadas escolhidas (ou FEFO) pelo custo delas, com lote e validade.
+  // D-PROD-282: produto com lote leva as camadas escolhidas (ou FEFO) pelo custo delas, com lote e validade.
   const controle = await controleDeLote(tx, cli, a.produto);
   if (!controle.lote) exigirSemLotesEscolhidos(a.lotes, extra);
   const fifo = controle.lote ? consumirPorLote(lotes, kg, a.lotes ?? null, extra) : consumirCustoMedio(lotes, kg);
@@ -1084,7 +1084,7 @@ export const aplicarTransferenciaEstoque = async (tx, ctx, a) => {
     destinos.push(camada.id);
   }
   // D-PROD-256: o destino entra pelo valor da saída (médio da origem) e o médio dele se recalcula.
-  // D-PROD-281: produto com lote não tem médio: cada camada de destino fica com o custo da sua origem.
+  // D-PROD-282: produto com lote não tem médio: cada camada de destino fica com o custo da sua origem.
   if (!controle.lote) await reavaliarPoco(tx, cli, a.empresaId, a.produto.id, a.destino.id, pocoDestino.valor.plus(fifo.valorTotal), saldoDestino.plus(kg));
   // 10: pai → filho e linhagem (JSON, sem FK)
   const saidaFinal = await tx.movimentacaoEstoque.update({
@@ -1305,7 +1305,7 @@ export const estornarSaida = async (tx, ctx, a) => {
   if (!original) throw new AppError('MOVIMENTACAO_ESTOQUE_NOT_FOUND', 'movimento de estoque do item não encontrado');
   exigirOriginalEstornavel(original, { item_ordem: a.item.ordem }, { empresaId: a.empresaId, produtoId: a.produto.id });
   if (a.originalEsperado) exigirOriginalComoEsperado(original, a.originalEsperado, { item_ordem: a.item.ordem }, kg);
-  // D-PROD-281: o modo gravado tem de ser o do cadastro atual (senão 409); daí em diante decide o cadastro.
+  // D-PROD-282: o modo gravado tem de ser o do cadastro atual (senão 409); daí em diante decide o cadastro.
   const controle = await controleDeLote(tx, cli, a.produto);
   exigirModoLoteDoCadastro(controle, saidaEmModoLote(original), { item_ordem: a.item.ordem, movimento_id: original.id });
   // Validação de TODAS as fatias antes da primeira escrita (soma por lote).
@@ -1352,7 +1352,7 @@ export const estornarSaida = async (tx, ctx, a) => {
   }
   // D-PROD-256: estorno EXATO — volta a quantidade e o VALOR gravado no movimento original (FIFO nas saídas
   // antigas, médio nas novas); o poço inteiro é reavaliado para o médio resultante (nunca um médio novo no lugar).
-  // D-PROD-281: saída de produto com lote volta a cada camada pelo custo dela; nada é reavaliado.
+  // D-PROD-282: saída de produto com lote volta a cada camada pelo custo dela; nada é reavaliado.
   // Revisão: a decisão é pelo produto (nunca reavalia camada de produto com lote, mesmo no fallback do estorno exato).
   if (!controle.lote) {
     await reavaliarPoco(tx, cli, a.empresaId, a.produto.id, a.local.id, poco.valor.plus(dec(original.valor_total)), poco.quantidade.plus(kg));
@@ -1576,7 +1576,7 @@ export const estornarEmLote = async (tx, ctx, a) => {
       const l = item.estoque_lote_nota_id ? lotes.get(item.estoque_lote_nota_id) : null;
       if (!l) throw jaConsumido('o lote de entrada deste item não existe mais; cancelamento recusado (nada foi alterado)', { ...base, reason: 'lote_inexistente' });
       exigirCamadaDaLinha(l, linhaDe(item), base);
-      // D-PROD-281: a camada tem de estar no modo do cadastro atual (camada sem lote em produto com lote → 409).
+      // D-PROD-282: a camada tem de estar no modo do cadastro atual (camada sem lote em produto com lote → 409).
       exigirModoLoteDoCadastro(await controleDeLote(tx, cli, exigirProdutoLido(produto)), camadaEmModoLote(l), { ...base, movimento_id: item.movimentacao_estoque_id ?? null });
       const semCamada = peloRecalculo.has(item.movimentacao_estoque_id);
       if (semCamada ? !l.entrada.eq(kg) : (l.status !== 'Disponivel' || !l.disp.eq(l.entrada) || !l.entrada.eq(kg))) {
@@ -1606,7 +1606,7 @@ export const estornarEmLote = async (tx, ctx, a) => {
         throw jaConsumido('as fatias FIFO gravadas não somam a quantidade do item; cancelamento recusado', { item_ordem: item.ordem, reason: 'fatias_inconsistentes' });
       }
       original = exigirOriginal(item);
-      // D-PROD-281: o modo da saída tem de ser o do cadastro atual (senão 409); a reavaliação decide pelo cadastro.
+      // D-PROD-282: o modo da saída tem de ser o do cadastro atual (senão 409); a reavaliação decide pelo cadastro.
       const controle = await controleDeLote(tx, cli, exigirProdutoLido(produto));
       exigirModoLoteDoCadastro(controle, saidaEmModoLote(original), { item_ordem: item.ordem, movimento_id: original.id });
       if (!controle.lote) reavaliar.add(chaveSaldo(produto.id, local.id));
@@ -1640,7 +1640,7 @@ export const estornarEmLote = async (tx, ctx, a) => {
       estoque.set(produto.id, atual.plus(kg));
       // D-PROD-256: devolve o VALOR gravado no original (estorno exato); o poço é reavaliado no fim.
       valores.set(chaveSaldo(produto.id, local.id), (valores.get(chaveSaldo(produto.id, local.id)) ?? ZERO).plus(dec(original.valor_total)));
-      // D-PROD-281: devolução de saída de produto com lote não reavalia (as camadas voltam pelo custo delas): acima.
+      // D-PROD-282: devolução de saída de produto com lote não reavalia (as camadas voltam pelo custo delas): acima.
     }
     movimentos.push({
       ...camposComuns(auth, { empresaId: a.empresaId, produto, documento: a.documento, origem: a.origem }),
@@ -2294,7 +2294,7 @@ export const estornarTransferenciaEstoque = async (tx, ctx, a) => {
   exigirParCoerente(s, r);
   if (s.empresa_id !== a.empresaId || s.produto_id !== produto.id || s.local_estoque_origem !== origem.id || s.local_estoque_destino !== destino.id) {
     throw conflitoDoOriginal({ movimento_id: s.id });
-  }  // D-PROD-281: a transferência tem de estar no modo do cadastro atual (senão 409, antes de qualquer escrita).
+  }  // D-PROD-282: a transferência tem de estar no modo do cadastro atual (senão 409, antes de qualquer escrita).
   const controle = await controleDeLote(tx, cli, produto);
   exigirModoLoteDoCadastro(controle, saidaEmModoLote(s), { movimento_id: s.id });
 
@@ -2355,7 +2355,7 @@ export const estornarTransferenciaEstoque = async (tx, ctx, a) => {
     if (z.count !== 1) throw conflitoDeEstoque({ lote_id: id });
   }
   const valorD = pocoD.valor.minus(valorTotal);
-  const semMedio = recalculo || controle.lote; // D-PROD-281: produto com lote não reavalia
+  const semMedio = recalculo || controle.lote; // D-PROD-282: produto com lote não reavalia
   const medioDepoisD = semMedio
     ? medioDoPoco({ valor: valorD.gt(0) ? valorD : ZERO, quantidade: pocoD.quantidade.minus(kg) })
     : await reavaliarPoco(tx, cli, a.empresaId, produto.id, destino.id, valorD.gt(0) ? valorD : ZERO, pocoD.quantidade.minus(kg));

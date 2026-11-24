@@ -112,7 +112,7 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
       { migration_name: '20261119200000_estoque_entradas_motivos', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       // D-PROD-265: a décima sexta CONTRACT (aditiva: a data de término do apontamento), B28 em migrations.test.mjs.
       { migration_name: '20261120200000_apontamento_data_termino', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
-      // D-PROD-281: a décima sétima CONTRACT (aditiva: o controle de lote), B29 em migrations.test.mjs.
+      // D-PROD-282: a décima sétima CONTRACT (aditiva: o controle de lote), B29 em migrations.test.mjs.
       { migration_name: '20261124200000_estoque_controle_lote', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
     ],
     log: () => {},

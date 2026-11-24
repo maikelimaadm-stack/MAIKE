@@ -224,6 +224,9 @@ export function esperadoGramasCabDia({ resumo, fechado, ponto }) {
  *   kpis: KpiSupl[],
  *   fornecimento: CelulaSupl[],
  *   consumo: CelulaSupl[],
+ *   regua: ReturnType<typeof reguaDoDesvio>,
+ *   barra: ReturnType<typeof barraDoFornecimento>,
+ *   serie: ReturnType<typeof serieEsperadoReal>,
  * }} NumerosDoCocho
  */
 
@@ -312,7 +315,122 @@ export function numerosDoCocho(cocho, { eventos } = {}) {
     },
   ];
 
-  return { cocho, fechado, resumo, kpis, fornecimento, consumo };
+  return {
+    cocho,
+    fechado,
+    resumo,
+    kpis,
+    fornecimento,
+    consumo,
+    regua: reguaDoDesvio(desvio, typeof faixa === "number" ? faixa : null),
+    barra: barraDoFornecimento(nivel),
+    serie: serieEsperadoReal(eventos, ponto),
+  };
+}
+
+// ── v13: régua do desvio, barra do fornecimento e série esperado × real ──────
+
+/** A zona verde (dentro da faixa) ocupa de 20% a 80% da régua; o resto é fora. */
+const REGUA_INICIO = 20;
+const REGUA_FIM = 80;
+
+/**
+ * Régua do desvio da meta: de −faixa a +faixa no trecho verde (20%–80% da largura), o que
+ * passa disso cai nas pontas e o marcador fica PRESO à borda (0% ou 100%). Sem desvio ou
+ * sem faixa válida → null (não há régua).
+ * @param {number | null | undefined} desvio (real ÷ esperado − 1) × 100
+ * @param {number | null | undefined} faixa tolerância em pontos percentuais (> 0)
+ * @returns {null | { posicao: number, inicio: number, fim: number, dentro: boolean, preso: boolean, faixa: number, desvio: number, texto: string }}
+ */
+export function reguaDoDesvio(desvio, faixa) {
+  const d = numero(desvio);
+  const f = positivo(faixa);
+  if (d === null || f === null) return null;
+  const meio = (REGUA_INICIO + REGUA_FIM) / 2;
+  const porPonto = (REGUA_FIM - REGUA_INICIO) / 2 / f;
+  const livre = meio + d * porPonto;
+  const posicao = Math.max(0, Math.min(100, livre));
+  const dentro = Math.abs(d) <= f;
+  return {
+    posicao,
+    inicio: REGUA_INICIO,
+    fim: REGUA_FIM,
+    dentro,
+    preso: livre !== posicao,
+    faixa: f,
+    desvio: d,
+    texto: `Desvio de ${numeroBR(d, 1)}% em relação à meta; ${dentro ? "dentro" : "fora"} da faixa de ±${textoFaixa(f)}%`,
+  };
+}
+
+/**
+ * Barra do fornecimento do ciclo: consumido × sobra sobre o total fornecido (base do
+ * ciclo). Sem base positiva ou sem consumo/sobra → null.
+ * @param {NivelCocho | null | undefined} nivel
+ * @returns {null | { consumido: number, sobra: number, texto: string }} percentuais 0–100
+ */
+export function barraDoFornecimento(nivel) {
+  const base = positivo(nivel?.baseCicloKg);
+  const consumo = numero(nivel?.consumoEstimadoKg);
+  const saldo = numero(nivel?.saldoKg);
+  if (base === null || (consumo === null && saldo === null)) return null;
+  const c = consumo !== null ? consumo : base - /** @type {number} */ (saldo);
+  const consumido = Math.max(0, Math.min(100, (c / base) * 100));
+  return {
+    consumido,
+    sobra: 100 - consumido,
+    texto: `Consumido ${numeroBR(consumido, 0)}% do total fornecido; sobra ${numeroBR(100 - consumido, 0)}%`,
+  };
+}
+
+/** Máximo de períodos no gráfico (os mais recentes). */
+export const MAX_PONTOS_DA_SERIE = 8;
+
+/**
+ * Série "esperado × real" (g/cab/dia) do cocho: UM ponto por período FECHADO
+ * (`dias_periodo` > 0) que tenha o real do fechamento, do mais antigo ao mais novo
+ * (data do lançamento; empate → ordem da lista), só os `MAX_PONTOS_DA_SERIE` mais recentes.
+ * O esperado é o do PRÓPRIO fechamento (a meta gravada ou o %PV do período); período sem
+ * esperado entra só com o real. Nada é interpolado nem inventado.
+ * @param {any[] | null | undefined} eventos
+ * @param {any} ponto
+ * @returns {Array<{ chave: string, dia: string, rotulo: string, real: number, esperado: number | null }>}
+ */
+export function serieEsperadoReal(eventos, ponto) {
+  const lista = Array.isArray(eventos) ? eventos : [];
+  const pontos = [];
+  lista.forEach((evento, i) => {
+    if (!evento || String(evento.ponto_suplementacao_id) !== String(ponto?.id)) return;
+    if (!(Number(evento.dias_periodo) > 0)) return;
+    const resumo = resumoDoFechamento(evento);
+    const real = numero(resumo?.consumo_g_cab_dia);
+    if (real === null) return;
+    const dia = String(evento.data_lancamento ?? "").slice(0, 10);
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dia);
+    pontos.push({
+      chave: String(evento.id ?? `p-${i}`),
+      dia,
+      rotulo: m ? `${m[3]}/${m[2]}` : VAZIO,
+      real,
+      // Sem `ponto`: só o esperado do fechamento (o ideal do cadastro de hoje não é o daquele período).
+      esperado: esperadoGramasCabDia({ resumo, fechado: evento, ponto: null }),
+      i,
+    });
+  });
+  pontos.sort((a, b) => a.dia.localeCompare(b.dia) || a.i - b.i);
+  return pontos.slice(-MAX_PONTOS_DA_SERIE).map(({ i, ...p }) => p);
+}
+
+/**
+ * Nível do cocho em % (0–100) para a barra do item: `fracaoCiclo` do SSOT; ícone
+ * neutro (sem estimativa, sem lançamento) → null.
+ * @param {NivelCocho | null | undefined} nivel
+ * @returns {number | null}
+ */
+export function percentualDoNivel(nivel) {
+  if (!nivel || nivel.neutro) return null;
+  const f = numero(nivel.fracaoCiclo);
+  return f === null ? null : Math.max(0, Math.min(100, f * 100));
 }
 
 /**

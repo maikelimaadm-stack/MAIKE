@@ -1,11 +1,11 @@
-# MAIKE — Estoque, controle de lote: runbook de release (D-PROD-281)
+# MAIKE — Estoque, controle de lote: runbook de release (D-PROD-282)
 
 > **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no primeiro desvio com
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de leituras reais.
 
-Decisão: [D-PROD-281](./DECISIONS.md) · SPEC: [`MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md) ·
+Decisão: [D-PROD-282](./DECISIONS.md) · SPEC: [`MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md) ·
 Relatório: [`MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md).
 Anterior em produção: a EXPAND do produto do implemento (`20261124100000_tipo_implemento_produto`, D-PROD-279, PR #366),
 aplicada: produção com **76** concluídas e 0 com falha, 111 tabelas; as colunas do controle de lote ainda não existem. Molde: [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md)
@@ -33,8 +33,8 @@ sem aplicar nada. Fazer fora do horário de lançamento.
 
 ## 1. Caminhos
 
-- **A — runner oficial (padrão, D-PROD-74):** `node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --contract D-PROD-281`
-  (depois `--verificar-alvo` e `--aplicar`), numa máquina protegida, com `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-281`.
+- **A — runner oficial (padrão, D-PROD-74):** `node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --contract D-PROD-282`
+  (depois `--verificar-alvo` e `--aplicar`), numa máquina protegida, com `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-282`.
 - **B — conector Supabase, uma única `execute_sql` (§3):** só com autorização **escrita e específica do
   proprietário para esta migration**, como nas anteriores.
 

@@ -68,7 +68,7 @@ export const normalizarCriacao = (corpo) => {
     if (!UNIDADES.includes(it.unidade)) throw invalido('unidade inválida (KG, SACO ou L)', { field: 'unidade', reason: 'unidade', indice });
     const quantidade = decimalDoCorpo(it.quantidade_contada, 'quantidade_contada', indice);
     const custo = it.custo_unitario === undefined || it.custo_unitario === null ? null : dec(decimalDoCorpo(it.custo_unitario, 'custo_unitario', indice)).toFixed(CASAS_CUSTO);
-    // D-PROD-281: lote e validade (sobra) e lotes escolhidos (falta), só quando vêm (o objeto de antes não muda).
+    // D-PROD-282: lote e validade (sobra) e lotes escolhidos (falta), só quando vêm (o objeto de antes não muda).
     const lote = normalizarLoteDaEntrada(it.lote_fabricante, it.data_validade, { indice });
     const lotes = normalizarLotesEscolhidos(it.lotes, { indice });
     return {
@@ -118,7 +118,7 @@ export const fingerprintDaCriacao = (a) => ({
   centro_custo_id: a.centro_custo_id,
   centro_resultado_id: a.centro_resultado_id,
   observacao: a.observacao,
-  // D-PROD-281: lote, validade e lotes escolhidos entram no fingerprint só quando vêm.
+  // D-PROD-282: lote, validade e lotes escolhidos entram no fingerprint só quando vêm.
   itens: a.itens.map((i) => {
     const base = [i.produto_id, i.local_estoque_id, i.unidade, i.quantidade_contada, i.custo_unitario];
     const lote = /** @type {any} */ (i);

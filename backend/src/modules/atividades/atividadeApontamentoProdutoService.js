@@ -348,11 +348,11 @@ const baixarProduto = async (tx, contexto, { clienteId, empresaId, atividade, ap
     },
     fatias: saida.fatias,
     movimentoId: saida.movimento.id,
-    avisos: saida.avisos ?? [], // D-PROD-281 (revisão): lote vencido consumido pelo FEFO
+    avisos: saida.avisos ?? [], // D-PROD-282 (revisão): lote vencido consumido pelo FEFO
   };
 };
 
-/** D-PROD-281 (revisão): `avisos` só entra na resposta quando há (o contrato de sempre não muda). @param {any[]} avisos */
+/** D-PROD-282 (revisão): `avisos` só entra na resposta quando há (o contrato de sempre não muda). @param {any[]} avisos */
 const comAvisos = (avisos) => (avisos?.length ? { avisos } : {});
 
 /**

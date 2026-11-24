@@ -103,7 +103,7 @@ export const comoProdutoPublico = (registro) => ({
   peso_por_saco_kg: comoNumero(registro.peso_por_saco_kg),
   // MAIKE-ENTREGA2 (D-PROD-274): a carência da bula, em dias (nulo = sem carência cadastrada).
   carencia_dias: registro.carencia_dias ?? null,
-  // D-PROD-281: controle de lote e de validade.
+  // D-PROD-282: controle de lote e de validade.
   controla_lote: registro.controla_lote === true,
   controla_validade: registro.controla_validade === true,
   observacoes: registro.observacoes ?? null,
@@ -198,7 +198,7 @@ const UNIDADES_DO_TANQUE = Object.freeze(['L', 'KG', 'SACO']);
  */
 export const UNIDADES_ESTOQUE = Object.freeze(['KG', 'SACO', 'L']);
 
-/** D-PROD-281: "Controla validade" só com "Controla lote" (o CHECK do banco; aqui vira 422 antes de gravar). */
+/** D-PROD-282: "Controla validade" só com "Controla lote" (o CHECK do banco; aqui vira 422 antes de gravar). */
 const exigirValidadeSoComLote = (lote, validade) => {
   if (validade && !lote) {
     throw new AppError('REQUEST_VALIDATION_FAILED', 'para controlar a validade, o produto precisa controlar lote; nada foi gravado', {
@@ -208,7 +208,7 @@ const exigirValidadeSoComLote = (lote, validade) => {
 };
 
 /**
- * D-PROD-281: trocar "Controla lote" ou "Controla validade" só com o saldo do produto ZERO em todos os depósitos (Σ das
+ * D-PROD-282: trocar "Controla lote" ou "Controla validade" só com o saldo do produto ZERO em todos os depósitos (Σ das
  * camadas disponíveis e o `estoque_atual`). Chamar sob a trava do produto. Senão 409, com o saldo.
  */
 const exigirSaldoZeroParaTrocarLote = async (tx, clienteId, produto) => {
@@ -471,7 +471,7 @@ export const atualizar = async (contexto, id, entrada) => {
     // ordem: sem deadlock com confirmação/cancelamento/abastecimento) ANTES de
     // qualquer outra trava do Produto. A unidade é lida sem trava só para saber
     // se há troca; sob a trava ela é relida e, se mudou no meio, 409.
-    // D-PROD-281: a troca do controle de lote/validade também toma a trava dos escritores de estoque (mesma ordem).
+    // D-PROD-282: a troca do controle de lote/validade também toma a trava dos escritores de estoque (mesma ordem).
     const pedeLote = campos.controla_lote !== undefined || campos.controla_validade !== undefined;
     const lida = campos.unidade_principal_estoque !== undefined || pedeLote ? await buscarProduto(auth.clienteId, id, tx) : null;
     if ((campos.unidade_principal_estoque !== undefined || pedeLote) && !lida) throw produtoNotFound();

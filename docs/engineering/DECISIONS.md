@@ -9141,11 +9141,28 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** o uso nas telas de atividade ("Jatos de hoje"); a edição dos campos num tipo já criado pela tela (a API aceita no PATCH; a linha do "Gerenciar tipos" continua só com nome e teto de salto).
 - **Testes:** `backend/tests/tipoImplementoProduto.test.mjs` (Postgres real), `tests/smoke/tipoImplementoProduto.test.jsx`, B43a/B43b/B43k e as contagens de migrations nos testes que as pinam.
 
-## D-PROD-281 — Estoque: controle de lote (e de validade) por produto; produto com lote sai pelo custo do lote
+## D-PROD-280 — Detalhes do Lote v13: telas do pasto redesenhadas no celular
+
+**Data:** 2026-11-23 · **Origem:** proprietário: pediu propostas para "detalhes de lotes e lançamentos", comparou atual × proposto tela a tela e aprovou ("pode começar a implementação"; "assim que tiver pronto pode fazer o merge") · **Relatório:** [`MAIKE-DETALHES-LOTE-V13-REPORT.md`](./MAIKE-DETALHES-LOTE-V13-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` deu D-PROD-280 (o marcador); o marcador passa a D-PROD-281.
+
+- **Contexto:** o Detalhes do Lote v12 (D-PROD-218) mostrava tudo em linhas rótulo/valor: muita rolagem no celular, rótulos cortados na faixa do Resumo e o ícone do Mover invisível (traço branco em cartão branco). Quem lança manejo muitas vezes tem pouca leitura.
+- **Decisão (só apresentação; mesmos dados e mesmas ações):**
+  - **Casca:** abas só com o nome e a linha verde embaixo; seletor Resumo · Lote · Lista pequeno, à esquerda; rodapé com botões maiores e a ação principal em verde ("Manejos"; "Lançar" na Suplementação). Botão de fechar e subícones não mudam.
+  - **Detalhes:** o capim no lugar do nome da área (nome e setor já estão no cabeçalho), status em etiqueta, régua de UA/ha com as faixas e cores do mapa (`CORES_UA_HA`) e a Lotação em grade. O bloco "Categorias" sai (a informação está em Lotes).
+  - **Lotes:** Resumo com rótulos inteiros e duas barras por lote (% cabeças, % da UA); Lote em três blocos em grade (Lotação, Pesagem com a origem em etiqueta, Identificação); Lista continua tabela, compacta, zebrada e com total.
+  - **Histórico:** a linha do tempo com os pontos nas datas continua; botão "Mostrar" e cartões curtos (quantidade em destaque, "De → Até") só no histórico do pasto e da área (`compacto`).
+  - **Suplementação:** régua do desvio da meta, barra de fornecimento (consumido × sobra), barra de nível no cocho e o gráfico esperado × real, um ponto por período fechado (com menos de dois, um texto).
+  - **Manejos:** mesmo modelo e mesma ordem; no celular dois por linha, com uma frase simples por quadro. SVG do Mover em `#3db5c9`.
+- **Fora:** cartão de Forragem dentro do Detalhes do Lote (a tela não recebe a cultura da área nem a medição; pede mudança no carregamento de dados); mudar a ordem padrão das colunas da Lista; redesenho próprio de tablet e computador (recebem o mesmo conteúdo, sem quebra); os formulários de lançamento. Nenhuma mudança no servidor; nenhuma migration.
+- **Testes:** `tests/smoke/detalhesV13HistoricoSupl.test.jsx` (novo) e os smoke do Detalhes ajustados (`detalhesLoteV12Lotes`, `detalhesLoteQuadros`, `iconesManejo`, `detalhesCompactos`, `subiconeLote`, `abaHistoricoPasto`, `abaHistoricoExcluirMovimento`).
+
+## D-PROD-282 — Estoque: controle de lote (e de validade) por produto; produto com lote sai pelo custo do lote
 
 **Data:** 2026-11-23 · **Origem:** escolhas do proprietário (2026-11-23, aprovadas) · **Branch:** `claude/estoque-controle-lote` (da `main` `d62a4ef8`, com a `origin/main` mesclada depois da PR #366) · **Migration:** `20261124200000_estoque_controle_lote` (CONTRACT condicionado e **aditivo**; ver abaixo) · **Especificação:** [`MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md) · **Runbook:** [`MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md) · **Relatório:** [`MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md)
 
-> **Numeração:** nasceu como D-PROD-279 na branch (a `main` `d62a4ef8` indicava 279). A PR #366 (tipo de implemento, `def1cda2`/`a94ddfbe`) levou a D-PROD-279 na `main`. No merge da `origin/main`, o pedido foi D-PROD-280, mas `node scripts/dev/proxima-decisao.mjs` mostrou a D-PROD-280 reservada pela PR aberta #367 (Detalhes do Lote v13) e mandou usar a D-PROD-281: esta é a **D-PROD-281** e o marcador passa a D-PROD-282. A migration foi renomeada para `20261124200000_estoque_controle_lote` (depois da `20261124100000_tipo_implemento_produto`, a última aplicada em produção); o número da decisão não está no `migration.sql`, então o checksum continua `b6b33b0e…48fc`. Conferir de novo antes de abrir a PR e antes do merge (D-PROD-277, regra A5).
+> **Numeração:** nasceu como D-PROD-279; a PR #367 levou a D-PROD-280 e a PR #368 reservou a D-PROD-281, então esta passa a **D-PROD-282** (marcador D-PROD-283). Antes: na branch (a `main` `d62a4ef8` indicava 279). A PR #366 (tipo de implemento, `def1cda2`/`a94ddfbe`) levou a D-PROD-279 na `main`. No merge da `origin/main`, o pedido foi D-PROD-280, mas `node scripts/dev/proxima-decisao.mjs` mostrou a D-PROD-280 reservada pela PR aberta #367 (Detalhes do Lote v13) e mandou usar a D-PROD-282: esta é a **D-PROD-282** e o marcador passa a D-PROD-283. A migration foi renomeada para `20261124200000_estoque_controle_lote` (depois da `20261124100000_tipo_implemento_produto`, a última aplicada em produção); o número da decisão não está no `migration.sql`, então o checksum continua `b6b33b0e…48fc`. Conferir de novo antes de abrir a PR e antes do merge (D-PROD-277, regra A5).
 
 **Escolhas do proprietário (2026-11-23).**
 1. **Cadastro.** O produto ganha "Controla lote" e "Controla validade" (Sim/Não, padrão Não; os de hoje ficam Não). Validade só com lote.
@@ -9163,10 +9180,10 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Aviso de lote vencido nas origens só com API (escolha do proprietário: a escolha manual em atividade, abastecimento, cocho e financeiro fica para depois).** A resposta dessas quatro origens traz `avisos: [{ tipo: 'lote_vencido', lote_id, lote, validade }]` quando a saída consome lote vencido no dia dela (na venda, com `item_ordem`).
 
-**Migration.** `20261124200000_estoque_controle_lote`: `Produto.controla_lote` e `Produto.controla_validade` BOOLEAN NOT NULL DEFAULT false, CHECK `Produto_controla_validade_check`, `EstoqueLoteNota.lote_fabricante` VARCHAR(64) NULL e `EstoqueLoteNota.data_validade` DATE NULL, e o índice `EstoqueLoteNota_fefo_idx` (`cliente_id`, `empresa_id`, `produto_id`, `local_estoque_id`, `data_validade`). Nenhuma linha muda de valor, nenhum DROP, nenhum DML. É **aditiva**, mas o classificador a trata como **CONTRACT condicionado** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`, `--contract D-PROD-281`), porque a allowlist EXPAND recusa em tabela antiga coluna NOT NULL DEFAULT, coluna DATE e CHECK — o mesmo caminho da D-PROD-197, da D-PROD-259 e da D-PROD-265. **Não aplicada em produção**; só ensaiada localmente.
+**Migration.** `20261124200000_estoque_controle_lote`: `Produto.controla_lote` e `Produto.controla_validade` BOOLEAN NOT NULL DEFAULT false, CHECK `Produto_controla_validade_check`, `EstoqueLoteNota.lote_fabricante` VARCHAR(64) NULL e `EstoqueLoteNota.data_validade` DATE NULL, e o índice `EstoqueLoteNota_fefo_idx` (`cliente_id`, `empresa_id`, `produto_id`, `local_estoque_id`, `data_validade`). Nenhuma linha muda de valor, nenhum DROP, nenhum DML. É **aditiva**, mas o classificador a trata como **CONTRACT condicionado** (entrada fechada em `MIGRATIONS_CONTRACT_APROVADAS`, `--contract D-PROD-282`), porque a allowlist EXPAND recusa em tabela antiga coluna NOT NULL DEFAULT, coluna DATE e CHECK — o mesmo caminho da D-PROD-197, da D-PROD-259 e da D-PROD-265. **Não aplicada em produção**; só ensaiada localmente.
 
 **Constituição — emenda APROVADA pelo proprietário em 2026-11-23** (aplicada como parágrafo próprio em `00-CONSTITUICAO.md` §1, depois da emenda D-PROD-273, e nota própria em `07-DO-NOT-DO.md`, depois da nota D-PROD-273). Texto aprovado: "Produto que controla lote usa o custo do lote escolhido; os demais seguem no custo médio do depósito (D-PROD-256)".
 
 **Fora de escopo.** Rastreio de lote por animal ou área; lote no cadastro de nota fiscal/NF-e; recusa de saída de lote vencido (só aviso); relatório de lotes vencidos.
 
-<!-- Próxima decisão: D-PROD-282 -->
+<!-- Próxima decisão: D-PROD-283 -->

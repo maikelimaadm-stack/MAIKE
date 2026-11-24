@@ -91,7 +91,7 @@ export const previasDaExclusao = async (empresaId, movimentoIds) => {
 };
 
 /**
- * D-PROD-281 — lotes disponíveis de um produto num depósito, já na ordem FEFO (a sugestão da saída). Sem fazenda,
+ * D-PROD-282 — lotes disponíveis de um produto num depósito, já na ordem FEFO (a sugestão da saída). Sem fazenda,
  * produto ou depósito, nada é lido.
  * @param {string|null} empresaId @param {string|null|undefined} produtoId @param {string|null|undefined} localId
  * @returns {Promise<Record<string, any>>}
