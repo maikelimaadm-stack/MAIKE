@@ -49,6 +49,8 @@ import { createPageUrl } from "@/utils";
 import { QUERY_FORMULACOES_LANCAMENTO, rotuloDoTipo } from "@/services/formulacaoCadastroService";
 import { calcularFechamentoConsumo } from "@/domain/suplementacao/fechamentoConsumo";
 import { ResumoFechamentoConsumo } from "./FarolConsumo";
+import CampoLotes from "@/components/estoque/CampoLotes";
+import { ESCOLHA_LOTE_INICIAL, corpoDaEscolha, mensagemDeLoteVencido, pendenciaDoLote } from "@/lib/estoqueLotesRegras";
 
 /** D-PROD-268 — 409 LANCAMENTO_DESATUALIZADO do comando de lançamento. */
 export const MENSAGEM_LANCAMENTO_DESATUALIZADO = "O cocho mudou (um lançamento foi excluído ou registrado em outra tela). Confira e salve de novo.";
@@ -94,6 +96,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const [mostrarConsumoLote, setMostrarConsumoLote] = useState(false);
   const [sobraHerdadaDecidida, setSobraHerdadaDecidida] = useState(false);
   const [sobraHerdadaKg, setSobraHerdadaKg] = useState(0);
+  // D-PROD-282 em todas as telas: a escolha do lote da baixa (só produto que controla lote; null = FEFO).
+  const [escolhaLote, setEscolhaLote] = useState(/** @type {any} */ (ESCOLHA_LOTE_INICIAL));
   // D-PROD-178: a data PADRÃO é o dia civil da FAZENDA (`Empresa.fuso_horario`),
   // o mesmo que o nível do cocho usa — com o navegador em outro fuso, perto da
   // meia-noite, o lançamento recém-feito não vira "data futura" nem nasce com um
@@ -417,6 +421,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     }
   }, [formData.formulacao_id, formulacoesDisponiveis]);
 
+  // D-PROD-282: trocar o produto ou o depósito volta a escolha do lote para a sugestão (FEFO).
+  useEffect(() => {
+    setEscolhaLote(ESCOLHA_LOTE_INICIAL);
+  }, [produtoSelecionado?.id, depositoVinculado?.local_estoque_id]);
+
   // Ajustar unidade ao trocar produto
   useEffect(() => {
     if (produtoSelecionado) {
@@ -460,6 +469,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     }
     // Com a baixa desta operação já feita (salvar de novo após falha), o saldo lido pode já estar sem ela.
     if (!operacaoRef.current?.saida && depositoVinculado?.local_estoque_id && quantidadeKg > 0 && quantidadeKg > saldoNoDeposito) return toast.error("Saldo insuficiente no depósito vinculado.");
+    // D-PROD-282: produto com lote — a soma dos lotes escolhidos e a confirmação do lote vencido, antes de gravar.
+    const pendenciaLote = !operacaoRef.current?.saida && depositoVinculado?.local_estoque_id && quantidadeKg > 0
+      ? pendenciaDoLote({ produto: produtoSelecionado, ...escolhaLote })
+      : "";
+    if (pendenciaLote) return toast.error(pendenciaLote);
 
     if (loadingUltimoEvento) return toast.error("Aguarde: carregando o último lançamento deste cocho.");
     // D-PROD-201: lançamento fora de ordem fechava o período ERRADO (o mais novo, com 1 dia).
@@ -494,8 +508,9 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       setProgresso({ show: true, atual: 0, total: totalPassos, mensagem: "Iniciando lançamento..." });
 
       let movimentoEstoque = null;
+      const lotesEscolhidos = produtoSelecionado?.controla_lote ? corpoDaEscolha(escolhaLote.lotes) : null;
       const chaveSaidaAtual = deveBaixarDeposito
-        ? chaveDaSaida({ produtoId: produtoSelecionado?.id, quantidadeKg, data: formData.data_lancamento, localId: depositoVinculado?.local_estoque_id })
+        ? chaveDaSaida({ produtoId: produtoSelecionado?.id, quantidadeKg, data: formData.data_lancamento, localId: depositoVinculado?.local_estoque_id, lotes: lotesEscolhidos })
         : null;
       if (operacao.saida && operacao.chaveSaida !== chaveSaidaAtual) {
         // A baixa desta operação JÁ foi feita com outros valores: baixar de novo duplicaria o estoque.
@@ -540,8 +555,12 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           pontoSuplementacaoId: ponto.id,
           dataMovimentacao: formData.data_lancamento,
           operationId,
+          ...(lotesEscolhidos ? { lotes: lotesEscolhidos } : {}),
         });
         movimentoEstoque = saidaRegistrada.movimentacao;
+        // D-PROD-282: o servidor nunca recusa lote vencido; quando a baixa saiu de um, avisa.
+        const alertaVencido = mensagemDeLoteVencido(saidaRegistrada.avisos);
+        if (alertaVencido) toast.warning(alertaVencido);
         operacao.saida = {
           movimentacao: saidaRegistrada.movimentacao,
           resumo: `${formatDecimal(quantidadeKg, 2)} kg de ${nomeProduto} em ${formatDateBR(formData.data_lancamento)}`,
@@ -891,6 +910,23 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               </div>
             </LancLoteAviso>
           ) : null}
+          {/* D-PROD-282: produto com lote — sugestão FEFO, escolher e dividir, aviso de vencido. */}
+          {depositoVinculado?.local_estoque_id && produtoSelecionado?.controla_lote ? (
+            <CampoLotes
+              empresaId={empresaSelecionadaId}
+              produto={produtoSelecionado}
+              localId={depositoVinculado.local_estoque_id}
+              quantidade={quantidadeKg}
+              lotes={escolhaLote.lotes}
+              confirmaVencido={escolhaLote.confirmaVencido}
+              loteVencido={escolhaLote.loteVencido}
+              erroLote={escolhaLote.erroLote}
+              onMudar={(patch) => setEscolhaLote((atual) => ({ ...atual, ...patch }))}
+              desabilitado={salvando}
+              className=""
+              testId="suplementacao-lotes"
+            />
+          ) : null}
           {depositoVinculado?.local_estoque_id && formulacaoSelecionada && produtoSelecionado && saldoNoDeposito <= 0 ? (
             <LancLoteAviso tom="vermelho" data-testid="suplementacao-sem-saldo">Produto sem saldo disponível neste depósito/local de estoque.</LancLoteAviso>
           ) : null}
@@ -1063,11 +1099,14 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 }
 /**
  * D-PROD-201 — chave dos valores de uma baixa de estoque: mudou a chave depois
- * de a baixa ser feita, salvar de novo NÃO pode baixar outra vez.
- * @param {{ produtoId?: unknown, quantidadeKg: number, data?: string, localId?: unknown }} p
+ * de a baixa ser feita, salvar de novo NÃO pode baixar outra vez. D-PROD-282: a escolha manual dos lotes entra na
+ * chave só quando existe (sem ela, a chave é a de sempre).
+ * @param {{ produtoId?: unknown, quantidadeKg: number, data?: string, localId?: unknown, lotes?: Array<{ estoque_lote_nota_id: string, quantidade: string }>|null }} p
  */
-export function chaveDaSaida({ produtoId, quantidadeKg, data, localId }) {
-  return [String(produtoId ?? ""), Number(quantidadeKg || 0).toFixed(4), String(data ?? ""), String(localId ?? "")].join("|");
+export function chaveDaSaida({ produtoId, quantidadeKg, data, localId, lotes }) {
+  const base = [String(produtoId ?? ""), Number(quantidadeKg || 0).toFixed(4), String(data ?? ""), String(localId ?? "")];
+  if (Array.isArray(lotes) && lotes.length) base.push(lotes.map((l) => `${l.estoque_lote_nota_id}:${l.quantidade}`).join(","));
+  return base.join("|");
 }
 
 /** Tamanho máximo de `area_nome` no comando de saída de estoque (VarChar(255) no movimento). */

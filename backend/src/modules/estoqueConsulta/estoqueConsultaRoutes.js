@@ -2,7 +2,9 @@
  * D-PROD-255 (Estoque E1 + E2, P1-04) — consultas SOMENTE LEITURA do estoque.
  *
  * Todas guardadas pela tela `sup-estoque` (`GUARDAS.estoque.ver`, ação
- * `visualizar`). Os GETs antigos (`/movimentacoes-estoque`, `/estoque-lotes-nota`)
+ * `visualizar`), menos os lotes disponíveis (D-PROD-282 em todas as telas:
+ * `GUARDAS.estoque.lotesDisponiveis`, também quem lança no cocho, no
+ * financeiro, na atividade ou no abastecimento). Os GETs antigos (`/movimentacoes-estoque`, `/estoque-lotes-nota`)
  * continuam como estão: o Mapa depende deles. Querystring fechada
  * (`additionalProperties: false`): `cliente_id` ou qualquer chave extra é 400;
  * o tenant vem do `auth_context`. `empresa_id` é obrigatória.
@@ -99,7 +101,8 @@ export const registrarEstoqueConsultaRoutes = async (app) => {
     return saldo(request.contexto, /** @type {any} */ (request.query));
   });
 
-  app.get('/estoque/lotes-disponiveis', { ...guarda, schema: LOTES }, async (request) => {
+  // D-PROD-282 em todas as telas: guarda própria (quem lança no cocho, no financeiro, na atividade ou no abastecimento).
+  app.get('/estoque/lotes-disponiveis', { onRequest: [app.autenticar], preHandler: [GUARDAS.estoque.lotesDisponiveis], schema: LOTES }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     return lotesDisponiveis(request.contexto, /** @type {any} */ (request.query));
   });

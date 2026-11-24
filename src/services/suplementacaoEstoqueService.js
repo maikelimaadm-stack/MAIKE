@@ -65,7 +65,12 @@ const observacaoComRateio = (observacoes, rateio) =>
 
 /**
  * Baixa de suplementação — comando transacional único no backend (ESTAB-P0-01).
- * @param {{ empresaId: string, produto: object, quantidade: number, localOrigemId: string, localOrigemNome?: string, areaId?: string, areaNome?: string, observacoes?: string, lotesNota?: object[], depositoId?: string, pontoSuplementacaoId?: string, dataMovimentacao?: string, operationId?: string }} params
+ *
+ * D-PROD-282 em todas as telas: `lotes` (a escolha manual de produto que controla lote, já no formato do corpo,
+ * `[{ estoque_lote_nota_id, quantidade }]`) só vai quando vem; sem ela, o servidor aplica o FEFO. Produto com lote não
+ * leva o rateio FIFO calculado aqui nas observações (o servidor grava o rateio real, pelos lotes). A resposta devolve
+ * os `avisos` do servidor (lote vencido), ou lista vazia.
+ * @param {{ empresaId: string, produto: any, quantidade: number, localOrigemId: string, localOrigemNome?: string, areaId?: string, areaNome?: string, observacoes?: string, lotesNota?: object[], depositoId?: string, pontoSuplementacaoId?: string, dataMovimentacao?: string, operationId?: string, lotes?: Array<{ estoque_lote_nota_id: string, quantidade: string }>|null }} params
  */
 export const registrarSaidaSuplementacao = async ({
   empresaId,
@@ -81,10 +86,12 @@ export const registrarSaidaSuplementacao = async ({
   pontoSuplementacaoId,
   dataMovimentacao,
   operationId,
+  lotes,
 }) => {
   exigirConexaoParaComando();
   const validacao = validarBaixaFIFO({ lotesNota, produto, localEstoqueId: localOrigemId, quantidade });
   if (!validacao.ok) recusar('registrarSaidaSuplementacao', validacao.motivo);
+  const comLote = produto?.controla_lote === true;
 
   const quantidadeFinal = parseNumber(quantidade);
   const resposta = await comandoSaidaSuplementacao({
@@ -99,12 +106,14 @@ export const registrarSaidaSuplementacao = async ({
     deposito_id: depositoId || null,
     ponto_suplementacao_id: pontoSuplementacaoId || null,
     data_movimentacao: dataMovimentacao || null,
-    observacoes: observacaoComRateio(observacoes, validacao.rateio),
+    observacoes: comLote ? observacoes || null : observacaoComRateio(observacoes, validacao.rateio),
+    ...(comLote && Array.isArray(lotes) && lotes.length ? { lotes } : {}),
   });
 
   return {
     movimentacao: resposta.movimentacao,
     rateio: resposta.rateio,
+    avisos: Array.isArray(resposta.avisos) ? resposta.avisos : [],
     committed: resposta.committed === true,
     operation_id: resposta.operation_id,
     replay: resposta.replay === true,

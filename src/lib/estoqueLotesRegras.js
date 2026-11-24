@@ -129,3 +129,21 @@ export const pendenciaDoLote = ({ produto, erroLote, loteVencido, confirmaVencid
   if (loteVencido && confirmaVencido !== true) return 'Confirme o uso do lote vencido.';
   return '';
 };
+
+/** Estado inicial da escolha de lote de uma tela (FEFO, sem confirmação, sem erro). */
+export const ESCOLHA_LOTE_INICIAL = Object.freeze({ lotes: null, confirmaVencido: false, loteVencido: false, erroLote: '' });
+
+/** AAAA-MM-DD → dd/mm/aaaa. @param {string|null|undefined} dia */
+const diaMesAno = (dia) => (dia && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? `${dia.slice(8, 10)}/${dia.slice(5, 7)}/${dia.slice(0, 4)}` : '');
+
+/**
+ * Texto do alerta quando a resposta de uma saída traz `avisos: [{ tipo: 'lote_vencido', lote, validade }]` (o
+ * servidor nunca recusa o vencido; só avisa). '' sem aviso de vencido. Um texto só para vários lotes.
+ * @param {Array<{ tipo?: string, lote?: string|null, validade?: string }>|null|undefined} avisos
+ */
+export const mensagemDeLoteVencido = (avisos) => {
+  const vencidos = (Array.isArray(avisos) ? avisos : []).filter((a) => a?.tipo === 'lote_vencido');
+  if (!vencidos.length) return '';
+  const partes = vencidos.map((a) => `${a.lote ?? 'sem lote'} (venceu em ${diaMesAno(a.validade)})`);
+  return `Saiu de lote vencido: ${partes.join(', ')}.`;
+};
