@@ -4,9 +4,12 @@ name: app-android
 # do GitHub (`app-vX.Y.Z`), pronto para baixar e instalar. Ver
 # docs/engineering/APP-ANDROID-IOS.md.
 #
-# Roda quando `app-version.json` muda na main (versão nova) ou à mão
+# Publica quando `app-version.json` muda na main (versão nova) ou à mão
 # (Actions → app-android → Run workflow). Uma versão publicada nunca é
 # sobrescrita: para gerar outro APK, suba `versionName` e `versionCode`.
+#
+# Numa PR que mexe no app, roda o mesmo build assinado e confere a assinatura,
+# mas NÃO publica: prova antes do merge que os segredos e o build funcionam.
 #
 # Segredos do repositório (Settings → Secrets and variables → Actions):
 #   MAKGESTAO_KEYSTORE_BASE64    a chave makgestao-release.jks em base64
@@ -19,6 +22,12 @@ on:
   push:
     branches: [main]
     paths: [app-version.json]
+  pull_request:
+    paths:
+      - app-version.json
+      - capacitor.config.json
+      - android/**
+      - .github/workflows/app-android.yml
 
 permissions:
   contents: write
@@ -51,6 +60,7 @@ jobs:
           echo "Versão $nome (código $codigo)"
 
       - name: A versão ainda não foi publicada
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -121,7 +131,16 @@ jobs:
           cp "$origem" "$destino"
           echo "arquivo=$destino" >> "$GITHUB_OUTPUT"
 
+      - name: APK da PR (sem publicar)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.arquivo }}
+          path: ${{ steps.apk.outputs.arquivo }}
+          retention-days: 7
+
       - name: Publicar a versão
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
