@@ -354,7 +354,7 @@ describe('U5 — mensagens com a unidade do item', () => {
     const residuoL = caso('L', { quantidade: '100000', valor_unitario: '0.00001' }).erro;
     assert.deepEqual([residuoL?.details?.reason, residuoL?.message], ['custo_kg_nao_representavel', 'o custo por L com 4 casas não representa o valor líquido desta linha (o resíduo passa de 0,1% do líquido da linha, mínimo 1 unidade da moeda); revise quantidade, unidade ou valores']);
     const un = caso('UN', { quantidade: '1', valor_unitario: '10' }).erro;
-    assert.deepEqual([un?.details?.reason, un?.message], ['unidade_invalida', 'mercadoria usa a unidade KG, SACO ou L']);
+    assert.deepEqual([un?.details?.reason, un?.message], ['unidade_invalida', 'mercadoria usa a unidade de estoque (KG ou L) ou uma unidade de conversão do produto']); // D-PROD-285
     // Plano de um item L: fator 1 e quantidade em estoque = a quantidade (4 casas).
     const okL = caso('L', { quantidade: '1000', valor_unitario: '6' }).ok;
     assert.deepEqual([okL?.itens[0].unidade, okL?.itens[0].fator_kg.toString(), okL?.itens[0].quantidade_estoque.toFixed(4)], ['L', '1', '1000.0000']);

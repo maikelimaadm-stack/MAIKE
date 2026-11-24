@@ -202,7 +202,8 @@ describe('C4–C7 — PATCH /produtos/:id nunca escreve estoque_atual', () => {
     const editado = await A.ok(patch(s, e.sal, {
       empresa_id: e.id, nome_produto: 'SAL EDITADO', categoria: 'MINERAL', preco_custo: 999, preco_venda: 1500, estoque_minimo: 3, consumo_minimo_pv: 0.1, consumo_maximo_pv: 0.3,
     }));
-    assert.deepEqual([editado.nome_produto, editado.preco_custo, editado.estoque_minimo, editado.estoque_atual], ['SAL EDITADO', 999, 3, 100]);
+    // D-PROD-285: preço de custo e de venda saíram da tela; o corpo que os traz é aceito e IGNORADO.
+    assert.deepEqual([editado.nome_produto, editado.preco_custo, editado.estoque_minimo, editado.estoque_atual], ['SAL EDITADO', null, 3, 100]);
     assert.equal(await historico(e.sal, conf), antes, 'lote (custo 2.0000), item, movimento e cache intactos');
     const venda = await vender(s, e, [item(e.sal, '10', '50')]);
     const saida = await p.movimentacaoEstoque.findUnique({ where: { id: venda.itens[0].movimentacao_estoque_id } });
@@ -210,7 +211,7 @@ describe('C4–C7 — PATCH /produtos/:id nunca escreve estoque_atual', () => {
     const fatias = await p.operacaoFinanceiraConsumoLote.findMany({ where: { cliente_id: s.c, item_id: venda.itens[0].id } });
     assert.deepEqual(fatias.map((f) => [f.estoque_lote_nota_id, q4(f.quantidade), q4(f.custo_unitario)]), [[conf.itens[0].estoque_lote_nota_id, '10.0000', '2.0000']]);
     assert.equal(await estoqueAtual(e.sal), '90.0000');
-    assert.equal((await p.produto.findUnique({ where: { id: e.sal.id } })).preco_custo.toFixed(2), '999.00', 'o motor não altera preco_custo');
+    assert.equal((await p.produto.findUnique({ where: { id: e.sal.id } })).preco_custo, null, 'D-PROD-285: preco_custo ignorado no PATCH; o motor também não o altera');
   });
 
   test('C7: motor segura o produto e muda o cache 100 → 90 enquanto o PATCH {estoque_atual: 100} espera → 422 e cache 90 (sem lost update); {estoque_atual: 90} sob a mesma corrida é aceito', async () => {

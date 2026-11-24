@@ -38,6 +38,7 @@
  *    `duplicado_de_id` (só proveniência no AuditLog).
  */
 
+import { SELECT_CONVERSOES, resolverUnidade } from '../produtos/produtoUnidadesConversao.js';
 import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -260,6 +261,8 @@ export const carregarReferencias = async (tx, clienteId, empresaId, doc) => {
         estoque_atual: true, codigo_interno: true, codigo_barras: true, categoria: true,
         // D-PROD-282 (revisão): sem estas colunas o `comLote` da prévia ficava vazio (prévia no médio, gravado no lote).
         controla_lote: true, controla_validade: true,
+        // D-PROD-285: as unidades de conversão (compra e venda escolhem a unidade).
+        unidadesConversao: SELECT_CONVERSOES,
       },
     })
     : [];
@@ -273,6 +276,16 @@ export const carregarReferencias = async (tx, clienteId, empresaId, doc) => {
     produtos: new Map(produtos.map((p) => [p.id, p])),
     locais: new Map(locais.map((l) => [l.id, l])),
   };
+};
+
+/** D-PROD-285: a unidade (não KG/L) existe no produto — conversão ativa com o uso da direção, ou o SACO legado. */
+const unidadeDoProdutoValida = (prod, unidade, direcao) => {
+  try {
+    resolverUnidade(prod, unidade, { uso: direcao === 'RECEBER' ? 'venda' : 'compra', erro: (reason) => new Error(reason) });
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 /** PAGAR: fornecedor ou prestador (ou legado `tipos=[]`); RECEBER: cliente EXPLÍCITO. */
@@ -326,7 +339,8 @@ export const problemasDeReferencia = (doc, refs, perfil) => {
     const prod = refs.produtos.get(it.produto_id);
     if (!prod || prod.empresa_id !== doc.empresa_id) add('produto_id', 'produto_nao_encontrado', extra);
     else if (!prod.ativo) add('produto_id', 'produto_inativo', extra);
-    else if (it.unidade === 'SACO' && !(prod.unidade_principal_estoque === 'SACO' && prod.peso_por_saco_kg != null && dec(prod.peso_por_saco_kg).gt(0))) {
+    else if (it.unidade !== 'KG' && it.unidade !== 'L' && !unidadeDoProdutoValida(prod, it.unidade, doc.direcao)) {
+      // D-PROD-285: SACO e as siglas de conversão só com a unidade cadastrada (ativa, com o uso) no produto.
       add('unidade', 'unidade_invalida', extra);
     } else if ((it.unidade === 'L') !== (prod.unidade_principal_estoque === 'L')) {
       // D-PROD-162 (§4.7): item L só com Produto em L, e Produto em L só com item L.
@@ -2417,11 +2431,30 @@ const exigirDocumentoUnico = async (tx, cli, empresaId, doc, ignorar) => {
 const comPesoGravado = (refs, mercadorias) => {
   /** @type {Map<string, any>} */
   const gravado = new Map();
+  /** D-PROD-285: as outras siglas de conversão também ficam com o fator GRAVADO (editar o fator não muda o passado). */
+  const siglas = new Map();
   for (const i of mercadorias) {
     if (i.unidade === 'SACO' && i.produto_id && i.fator_kg != null && !gravado.has(i.produto_id)) gravado.set(i.produto_id, i.fator_kg);
+    if (!['KG', 'L', 'SACO', 'UN'].includes(i.unidade) && i.produto_id && i.fator_kg != null) {
+      const m = siglas.get(i.produto_id) ?? new Map();
+      if (!m.has(i.unidade)) m.set(i.unidade, i.fator_kg);
+      siglas.set(i.produto_id, m);
+    }
   }
-  if (!gravado.size) return refs;
-  const produtos = new Map([...refs.produtos].map(([id, p]) => [id, gravado.has(id) ? { ...p, unidade_principal_estoque: 'SACO', peso_por_saco_kg: gravado.get(id) } : p]));
+  if (!gravado.size && !siglas.size) return refs;
+  const comSiglas = (id, p) => {
+    const m = siglas.get(id);
+    if (!m) return p;
+    const outras = (p.unidadesConversao ?? []).filter((c) => !m.has(c.sigla));
+    const fixas = [...m].map(([sigla, fator]) => ({ sigla, operacao: 'MULTIPLICA', fator, ativa: true, uso_compra: true, uso_venda: true }));
+    return { ...p, unidadesConversao: [...outras, ...fixas] };
+  };
+  const produtos = new Map([...refs.produtos].map(([id, p]) => {
+    const base = gravado.has(id)
+      ? { ...p, unidade_principal_estoque: 'SACO', peso_por_saco_kg: gravado.get(id), unidadesConversao: (p.unidadesConversao ?? []).filter((c) => c.sigla !== 'SACO') }
+      : p;
+    return [id, comSiglas(id, base)];
+  }));
   return { ...refs, produtos };
 };
 

@@ -3,6 +3,7 @@
  */
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { clausulaKeysetDesc } from '../../shared/pagination/keysetCursor.js';
+import { SELECT_CONVERSOES } from './produtoUnidadesConversao.js';
 
 const SELECAO = Object.freeze({
   id: true,
@@ -35,6 +36,8 @@ const SELECAO = Object.freeze({
   ativo: true,
   createdAt: true,
   updatedAt: true,
+  // D-PROD-285: as unidades de conversão vigentes (não excluídas), na ordem do cadastro.
+  unidadesConversao: SELECT_CONVERSOES,
 });
 
 export const listarProdutos = async (clienteId, filtros = {}) => {

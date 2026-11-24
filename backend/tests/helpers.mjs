@@ -85,6 +85,8 @@ const ORDEM_DE_LIMPEZA = [
   // D-PROD-215 — CADCULTURAS referencia Empresa (FK composta, Restrict).
   'cultura',
   'empresa',
+  // D-PROD-285: as unidades de conversão do produto saem antes dele (FK composta, Restrict).
+  'produtoUnidadeConversao',
   'produto',
   'localEstoque',
   'categoria',

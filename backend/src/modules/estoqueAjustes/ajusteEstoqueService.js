@@ -15,6 +15,7 @@
  * ORDEM DAS TRAVAS: recibo → Empresa FOR SHARE (o "hoje") → (exclusão: cabeçalho FOR UPDATE) →
  * LocalEstoque FOR KEY SHARE → Produto (`travarProdutosEstoque`) → camadas → movimentos → sequências.
  */
+import { SELECT_CONVERSOES } from '../produtos/produtoUnidadesConversao.js';
 import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -213,7 +214,7 @@ export const criar = async (contexto, corpo) => {
           await exigirCentros(tx, cli, empresaId, ajuste);
           const locais = await exigirLocaisEstoque(tx, cli, ajuste.itens.map((i) => ({ id: i.local_estoque_id, field: 'local_estoque_id', exigirAtivo: true })));
           const produtoIds = await travarProdutosEstoque(tx, cli, empresaId, ajuste.itens.map((i) => i.produto_id));
-          const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } } })).map((p) => [p.id, p]));
+          const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } }, include: { unidadesConversao: SELECT_CONVERSOES } })).map((p) => [p.id, p]));
           // Sob a trava do produto: o saldo de agora decide a diferença de cada linha.
           const planos = [];
           for (const [indice, item] of ajuste.itens.entries()) {
@@ -417,7 +418,7 @@ export const excluir = async (contexto, id, corpo) => {
               empresaId, movimentos: comMovimento.map((i) => ({ id: /** @type {string} */ (i.movimentacao_estoque_id), produtoId: i.produto_id, localId: i.local_estoque_id })),
             });
             const peloRecalculo = new Set(camadasPeloRecalculo(planos));
-            const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } } })).map((p) => [p.id, p]));
+            const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } }, include: { unidadesConversao: SELECT_CONVERSOES } })).map((p) => [p.id, p]));
             const motivoEstorno = `Exclusão do ajuste ${atual.numero}: ${e.motivo}`.slice(0, 255);
             const sobras = comMovimento.filter((i) => i.tipo === SOBRA);
             const porItem = new Map();

@@ -61,7 +61,7 @@ const ITEM = {
   required: ['produto_id', 'local_estoque_id', 'unidade', 'quantidade', 'custo_unitario'],
   additionalProperties: false,
   properties: {
-    produto_id: ID, local_estoque_id: ID, unidade: { type: 'string', enum: ['KG', 'SACO', 'L'] }, quantidade: DECIMAL, custo_unitario: DECIMAL, custo_zero: { type: 'boolean' },
+    produto_id: ID, local_estoque_id: ID, unidade: { type: 'string', minLength: 1, maxLength: 8 }, quantidade: DECIMAL, custo_unitario: DECIMAL, custo_zero: { type: 'boolean' },
     lote_fabricante: TEXTO_NULO(64), data_validade: { type: ['string', 'null'], pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
   },
 };

@@ -23,6 +23,7 @@
  * ORDEM DAS TRAVAS: recibo → Empresa FOR SHARE (o "hoje") → (edição e exclusão: cabeçalho FOR UPDATE) →
  * LocalEstoque FOR KEY SHARE → Produto (`travarProdutosEstoque`) → camadas → movimentos → sequências.
  */
+import { SELECT_CONVERSOES } from '../produtos/produtoUnidadesConversao.js';
 import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -208,7 +209,7 @@ export const criar = async (contexto, corpo) => {
           await exigirCentros(tx, cli, empresaId, saida);
           const locais = await exigirLocaisEstoque(tx, cli, saida.itens.map((i) => ({ id: i.local_estoque_id, field: 'local_origem_id', exigirAtivo: true })));
           const produtoIds = await travarProdutosEstoque(tx, cli, empresaId, saida.itens.map((i) => i.produto_id));
-          const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } } })).map((p) => [p.id, p]));
+          const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } }, include: { unidadesConversao: SELECT_CONVERSOES } })).map((p) => [p.id, p]));
           const quantidades = saida.itens.map((item, indice) => {
             const p = produtos.get(item.produto_id);
             if (!p) throw invalida('produto_id', 'produto_inexistente', 'produto não encontrado nesta fazenda', { indice });
@@ -357,7 +358,7 @@ export const excluir = async (contexto, id, corpo) => {
             movimentos: itens.map((i) => ({ id: i.movimentacao_estoque_id, produtoId: i.produto_id, localId: i.local_estoque_id })),
             ignorarIds: await estornosSubstituidos(tx, cli, empresaId, id),
           });
-          const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } } })).map((p) => [p.id, p]));
+          const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } }, include: { unidadesConversao: SELECT_CONVERSOES } })).map((p) => [p.id, p]));
           const movimentos = new Map((await tx.movimentacaoEstoque.findMany({
             where: { cliente_id: cli, id: { in: itens.map((i) => i.movimentacao_estoque_id) } }, select: { id: true, lotes_consumidos: true },
           })).map((m) => [m.id, m]));
@@ -477,7 +478,7 @@ const substituir = async (tx, contexto, e) => {
   ]);
   // Uma chamada só: as travas dos produtos de ANTES e de DEPOIS saem na ordem canônica.
   const produtoIds = await travarProdutosEstoque(tx, cli, empresaId, [...vigentes.map((i) => i.produto_id), ...nova.itens.map((i) => i.produto_id)]);
-  const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } } })).map((p) => [p.id, p]));
+  const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } }, include: { unidadesConversao: SELECT_CONVERSOES } })).map((p) => [p.id, p]));
   const quantidades = nova.itens.map((item, indice) => {
     const p = produtos.get(item.produto_id);
     if (!p) throw invalida('produto_id', 'produto_inexistente', 'produto não encontrado nesta fazenda', { indice });

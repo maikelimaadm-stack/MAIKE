@@ -7,8 +7,9 @@
  *  - Por linha: produto, depósito, unidade (KG, SACO ou L, compatível com o estoque do produto) e quantidade.
  *    Um par produto × depósito por saída.
  */
+import { resolverUnidade } from '../produtos/produtoUnidadesConversao.js';
 import { AppError } from '../../shared/errors/AppError.js';
-import { CASAS_QUANTIDADE, arredondar, dec } from '../financeiro/decimalFinanceiro.js';
+import { CASAS_QUANTIDADE, dec } from '../financeiro/decimalFinanceiro.js';
 import { invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { diaDoCorpo } from '../patrimonio/patrimonioComum.js';
 import { normalizarLotesEscolhidos } from '../estoqueFisico/estoqueFisicoMotor.js';
@@ -38,7 +39,6 @@ export const MAX_ITENS = 50;
 
 export const PADRAO_DECIMAL = /^\d{1,10}(\.\d{1,4})?$/;
 export const PADRAO_OPERATION_ID = /^[A-Za-z0-9_.:-]{8,128}$/;
-const UNIDADES = Object.freeze(['KG', 'SACO', 'L']);
 
 const ehObjeto = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const tamanho = (t) => [...t].length;
@@ -77,7 +77,9 @@ export const normalizarCriacao = (corpo) => {
   if (!bruto.length || bruto.length > MAX_ITENS) throw invalido(`informe de 1 a ${MAX_ITENS} itens`, { field: 'itens', reason: 'quantidade_de_itens' });
   const itens = bruto.map((i, indice) => {
     const it = /** @type {Record<string, any>} */ (i ?? {});
-    if (!UNIDADES.includes(it.unidade)) throw invalido('unidade inválida (KG, SACO ou L)', { field: 'unidade', reason: 'unidade', indice });
+    // D-PROD-285: KG, L, SACO ou a sigla de uma unidade de conversão do produto (conferida contra o cadastro depois).
+    if (typeof it.unidade !== 'string' || !it.unidade.trim() || it.unidade.trim().length > 8 || it.unidade.trim() === 'UN') throw invalido('unidade inválida (a de estoque ou uma unidade de conversão do produto)', { field: 'unidade', reason: 'unidade', indice });
+    it.unidade = it.unidade.trim().toUpperCase();
     const quantidade = decimalDoCorpo(it.quantidade, 'quantidade', indice);
     if (!dec(quantidade).gt(0)) throw new AppError('SAIDA_ESTOQUE_INVALIDA', 'a quantidade deve ser maior que zero; nada foi gravado', { details: { field: 'quantidade', reason: 'quantidade_zero', indice } });
     // D-PROD-282: lotes escolhidos (produto com lote); ausente → FEFO no servidor. Só entra no objeto quando vem.
@@ -175,16 +177,10 @@ export const fingerprintDaExclusao = (s) => ({ v: 1, id: s.id, empresa_id: s.emp
  * @param {number} indice
  */
 export const quantidadeDeEstoque = (item, produto, indice) => {
-  const principal = produto.unidade_principal_estoque === 'L' ? 'L' : 'KG';
-  if ((principal === 'L') !== (item.unidade === 'L')) {
-    throw new AppError('SAIDA_ESTOQUE_INVALIDA', 'a unidade da saída não é compatível com o estoque do produto; nada foi gravado', {
-      details: { field: 'unidade', reason: 'unidade_incompativel', unidade_produto: principal, indice },
-    });
-  }
-  let fator = dec(1);
-  if (item.unidade === 'SACO') {
-    fator = dec(produto.peso_por_saco_kg ?? 0);
-    if (!fator.gt(0)) throw new AppError('SAIDA_ESTOQUE_INVALIDA', 'o produto não tem peso por saco cadastrado; nada foi gravado', { details: { field: 'unidade', reason: 'peso_por_saco_ausente', indice } });
-  }
-  return { fator, quantidadeEstoque: arredondar(dec(item.quantidade).times(fator), CASAS_QUANTIDADE) };
+  // D-PROD-285: a unidade de estoque ou uma conversão ativa do produto com uso em saída; o motor converte (4 casas).
+  const r = resolverUnidade(produto, item.unidade, {
+    uso: 'venda',
+    erro: (reason, mensagem, extra = {}) => new AppError('SAIDA_ESTOQUE_INVALIDA', mensagem.replace('do lançamento', 'da saída'), { details: { field: 'unidade', reason, ...extra, indice } }),
+  });
+  return { fator: r.fator, quantidadeEstoque: r.quantidadeEstoque(item.quantidade) };
 };

@@ -42,6 +42,7 @@
  * da saída continua FIFO).
  */
 
+import { resolverUnidade } from '../produtos/produtoUnidadesConversao.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { consumirCustoMedio, consumirPorLote } from '../estoqueFisico/estoqueFisicoMotor.js';
@@ -209,7 +210,8 @@ const normalizarItem = (it, indice) => {
   if (it.tipo_item === 'MERCADORIA') {
     if (!presente(it.produto_id)) throw invalido('produto_id é obrigatório para mercadoria', { field: 'produto_id', reason: 'obrigatorio', ...extra });
     if (!presente(it.local_estoque_id)) throw invalido('local_estoque_id é obrigatório para mercadoria', { field: 'local_estoque_id', reason: 'obrigatorio', ...extra });
-    if (it.unidade !== 'KG' && it.unidade !== 'SACO' && it.unidade !== 'L') throw invalido('mercadoria usa a unidade KG, SACO ou L', { field: 'unidade', reason: 'unidade_invalida', ...extra });
+    // D-PROD-285: a de estoque (KG/L), SACO ou a sigla de uma conversão do produto (conferida no plano); nunca UN.
+    if (typeof it.unidade !== 'string' || !it.unidade.trim() || it.unidade === 'UN') throw invalido('mercadoria usa a unidade de estoque (KG ou L) ou uma unidade de conversão do produto', { field: 'unidade', reason: 'unidade_invalida', ...extra });
     return { ...base, produto_id: it.produto_id, local_estoque_id: it.local_estoque_id, descricao: textoLinha(it.descricao, 'descricao', {}, extra) };
   }
   if (presente(it.produto_id)) throw invalido('serviço não tem produto', { field: 'produto_id', reason: 'nao_permitido_em_servico', ...extra });
@@ -304,7 +306,9 @@ export const exigirEscopoDoRateio = (doc) => {
  */
 export const planejarOperacao = (doc, referencias) => {
   const casas = referencias.casas;
-  const brutos = doc.itens.map((it, indice) => planejarItem(it, indice, referencias, casas));
+  // D-PROD-285: compra (PAGAR) usa as conversões de compra; venda (RECEBER), as de saída.
+  const uso = /** @type {'compra'|'venda'} */ (doc.direcao === 'RECEBER' ? 'venda' : 'compra');
+  const brutos = doc.itens.map((it, indice) => planejarItem(it, indice, referencias, casas, uso));
   const valorBruto = doc.conteudo === 'COM_PRODUTOS' ? somar(brutos.map((i) => i.valor_total)) : dec(doc.valor_bruto);
   // D-PROD-177 (P1-02, M4): desconto e acréscimo negativos nunca entram no rateio
   // nem no custo (o schema da rota já os recusa; o documento lido do banco, não).
@@ -386,7 +390,8 @@ export const planejarOperacao = (doc, referencias) => {
 };
 
 /** Subtotal, fator e kg de uma linha (o custo por kg sai do líquido: `planejarCustoLiquido`). */
-const planejarItem = (it, indice, referencias, casas) => {
+/** @param {any} it @param {number} indice @param {any} referencias @param {number} casas @param {'compra'|'venda'} [uso] */
+const planejarItem = (it, indice, referencias, casas, uso = 'compra') => {
   const extra = { colecao: 'itens', indice };
   if (!it.quantidade.gt(0)) throw valoresInvalidos('a quantidade deve ser maior que zero', { field: 'quantidade', reason: 'quantidade_nao_positiva', ...extra });
   // D-PROD-177 (P1-02, M4): valor unitário negativo é recusado pelo nome (antes
@@ -397,11 +402,12 @@ const planejarItem = (it, indice, referencias, casas) => {
   if (!valorTotal.gt(0)) throw valoresInvalidos('o subtotal do item (quantidade × valor unitário) arredondado na moeda é zero', { field: 'valor_unitario', reason: 'item_valor_zero', ...extra });
   if (it.tipo_item !== 'MERCADORIA') return { ...it, valor_total: valorTotal, fator_kg: null, quantidade_estoque: null };
   const produto = referencias.produtos.get(it.produto_id);
-  if (produto) exigirUnidadeCompativel(it, produto, extra);
   // D-PROD-162: item em L (só de Produto em L) tem fator 1, como o KG; a quantidade em estoque fica em litros.
-  const fator = it.unidade === 'KG' || it.unidade === 'L' ? UM : dec(produto?.peso_por_saco_kg ?? 0);
+  // D-PROD-285: as outras unidades (SACO e as de conversão) pelo motor de conversão (`resolverUnidade`).
+  const conv = produto ? exigirUnidadeCompativel(it, produto, extra, uso) : null;
+  const fator = conv ? conv.fator : it.unidade === 'KG' || it.unidade === 'L' ? UM : dec(produto?.peso_por_saco_kg ?? 0);
   // kg UMA vez, 4 casas: o mesmo valor no item, lote, movimento, estoque_atual, consumo e estorno.
-  const kg = arredondar(it.quantidade.times(fator), CASAS_QUANTIDADE);
+  const kg = conv ? conv.quantidadeEstoque(it.quantidade) : arredondar(it.quantidade.times(fator), CASAS_QUANTIDADE);
   if (!kg.gt(0)) throw valoresInvalidos(`a quantidade em ${unidadeDeEstoqueDoItem(it)} (arredondada a 4 casas) é zero`, { field: 'quantidade', reason: 'quantidade_estoque_zero', ...extra });
   const acima = [['valor_total', valorTotal], ['quantidade', kg]].find(([, v]) => dec(v).gt(LIMITE_ESTOQUE));
   if (acima) throw excedeLimiteEstoque(acima[0], extra, it);
@@ -421,16 +427,28 @@ const planejarItem = (it, indice, referencias, casas) => {
  * Produto SACO com peso e o L × não-L (`OPERACAO_REFERENCIA_INVALIDA`/
  * `unidade_invalida`); aqui é a garantia do próprio plano. Produto ausente do
  * mapa é recusa de referência do serviço, não daqui.
- * @param {any} it @param {any} produto @param {Record<string, unknown>} extra
+ * @param {any} it @param {any} produto @param {Record<string, unknown>} extra @param {'compra'|'venda'} [uso]
  */
-const exigirUnidadeCompativel = (it, produto, extra) => {
+const exigirUnidadeCompativel = (it, produto, extra, uso = 'compra') => {
   const unidadeProduto = produto.unidade_principal_estoque ?? null;
   if (!UNIDADES_ESTOQUE_PRODUTO.includes(unidadeProduto)) {
     throw valoresInvalidos('o produto tem unidade de estoque fora de KG, SACO ou L (cadastro legado) e não movimenta estoque; procure o administrador antes de lançar este produto; nada foi gravado', {
       field: 'unidade', reason: 'unidade_produto_invalida', ...extra, unidade_produto: unidadeProduto, permitidos: [...UNIDADES_ESTOQUE_PRODUTO],
     });
   }
+  // D-PROD-285: o item KG de produto SACO (legado) continua fator 1; o resto pelo motor de conversão.
   const aceitas = PRODUTO_ACEITA_ITEM[/** @type {'KG'|'SACO'|'L'} */ (it.unidade)] ?? [];
+  const temConversao = (produto.unidadesConversao ?? []).some((c) => c.sigla === it.unidade && c.excluido_em == null);
+  // SACO sem a conversão SACO cadastrada: o caminho de antes (produto SACO com o peso), byte a byte.
+  const legadoSaco = it.unidade === 'SACO' && !temConversao;
+  if (!legadoSaco && (it.unidade !== 'KG' || unidadeProduto === 'L')) {
+    return resolverUnidade(produto, it.unidade, {
+      uso,
+      erro: (reason, mensagem, det = {}) => valoresInvalidos(mensagem.replace('do lançamento', 'do item'), {
+        field: 'unidade', reason: reason === 'unidade_incompativel' ? 'unidade_incompativel' : reason, ...extra, unidade: it.unidade, unidade_produto: unidadeProduto, ...det,
+      }),
+    });
+  }
   if (!aceitas.includes(unidadeProduto)) {
     throw valoresInvalidos('unidade do item incompatível com a do produto (KG: produto em KG ou SACO; SACO: produto em SACO; L: só produto em L); nada foi gravado', {
       field: 'unidade', reason: 'unidade_incompativel', ...extra, unidade: it.unidade, unidade_produto: unidadeProduto,

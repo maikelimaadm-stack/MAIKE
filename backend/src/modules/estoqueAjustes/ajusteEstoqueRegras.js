@@ -7,8 +7,9 @@
  *  - `custo_unitario` (por kg ou L, opcional): só é usado na SOBRA de um depósito SEM saldo (sem custo médio).
  *  - Um par produto × depósito por ajuste. O ajuste é sempre do dia de hoje da fazenda (sem data no corpo).
  */
+import { resolverUnidade } from '../produtos/produtoUnidadesConversao.js';
 import { AppError } from '../../shared/errors/AppError.js';
-import { CASAS_CUSTO, CASAS_QUANTIDADE, arredondar, dec } from '../financeiro/decimalFinanceiro.js';
+import { CASAS_CUSTO, CASAS_QUANTIDADE, dec } from '../financeiro/decimalFinanceiro.js';
 import { invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { normalizarLoteDaEntrada, normalizarLotesEscolhidos } from '../estoqueFisico/estoqueFisicoMotor.js';
 
@@ -27,7 +28,6 @@ export const MAX_ITENS = 100;
 
 export const PADRAO_DECIMAL = /^\d{1,10}(\.\d{1,4})?$/;
 export const PADRAO_OPERATION_ID = /^[A-Za-z0-9_.:-]{8,128}$/;
-const UNIDADES = Object.freeze(['KG', 'SACO', 'L']);
 const DECIMAIS = Object.freeze(['quantidade_contada', 'custo_unitario']);
 
 const ehObjeto = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -65,7 +65,9 @@ export const normalizarCriacao = (corpo) => {
   if (!bruto.length || bruto.length > MAX_ITENS) throw invalido(`informe de 1 a ${MAX_ITENS} itens`, { field: 'itens', reason: 'quantidade_de_itens' });
   const itens = bruto.map((i, indice) => {
     const it = /** @type {Record<string, any>} */ (i ?? {});
-    if (!UNIDADES.includes(it.unidade)) throw invalido('unidade inválida (KG, SACO ou L)', { field: 'unidade', reason: 'unidade', indice });
+    // D-PROD-285: KG, L, SACO ou a sigla de uma unidade de conversão do produto (conferida contra o cadastro depois).
+    if (typeof it.unidade !== 'string' || !it.unidade.trim() || it.unidade.trim().length > 8 || it.unidade.trim() === 'UN') throw invalido('unidade inválida (a de estoque ou uma unidade de conversão do produto)', { field: 'unidade', reason: 'unidade', indice });
+    it.unidade = it.unidade.trim().toUpperCase();
     const quantidade = decimalDoCorpo(it.quantidade_contada, 'quantidade_contada', indice);
     const custo = it.custo_unitario === undefined || it.custo_unitario === null ? null : dec(decimalDoCorpo(it.custo_unitario, 'custo_unitario', indice)).toFixed(CASAS_CUSTO);
     // D-PROD-282: lote e validade (sobra) e lotes escolhidos (falta), só quando vêm (o objeto de antes não muda).
@@ -137,16 +139,9 @@ export const fingerprintDaExclusao = (a) => ({ v: 1, id: a.id, empresa_id: a.emp
  * @param {number} indice
  */
 export const contadoEmEstoque = (item, produto, indice) => {
-  const principal = produto.unidade_principal_estoque === 'L' ? 'L' : 'KG';
-  if ((principal === 'L') !== (item.unidade === 'L')) {
-    throw new AppError('AJUSTE_ESTOQUE_INVALIDO', 'a unidade da contagem não é compatível com o estoque do produto; nada foi gravado', {
-      details: { field: 'unidade', reason: 'unidade_incompativel', unidade_produto: principal, indice },
-    });
-  }
-  let fator = dec(1);
-  if (item.unidade === 'SACO') {
-    fator = dec(produto.peso_por_saco_kg ?? 0);
-    if (!fator.gt(0)) throw new AppError('AJUSTE_ESTOQUE_INVALIDO', 'o produto não tem peso por saco cadastrado; nada foi gravado', { details: { field: 'unidade', reason: 'peso_por_saco_ausente', indice } });
-  }
-  return { fator, contado: arredondar(dec(item.quantidade_contada).times(fator), CASAS_QUANTIDADE) };
+  // D-PROD-285: a unidade de estoque ou qualquer conversão ativa do produto (a contagem não é compra nem saída).
+  const r = resolverUnidade(produto, item.unidade, {
+    erro: (reason, mensagem, extra = {}) => new AppError('AJUSTE_ESTOQUE_INVALIDO', mensagem.replace('do lançamento', 'da contagem'), { details: { field: 'unidade', reason, ...extra, indice } }),
+  });
+  return { fator: r.fator, contado: r.quantidadeEstoque(item.quantidade_contada) };
 };

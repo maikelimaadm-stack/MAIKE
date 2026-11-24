@@ -32,6 +32,7 @@
  * ORDEM DAS TRAVAS: recibo → Empresa FOR SHARE (o "hoje") → (edição e exclusão: cabeçalho FOR UPDATE) →
  * LocalEstoque FOR KEY SHARE → Produto (`travarProdutosEstoque`) → camadas → movimentos → sequências.
  */
+import { SELECT_CONVERSOES, listarConversoesPublicas } from '../produtos/produtoUnidadesConversao.js';
 import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -204,7 +205,7 @@ export const opcoesProdutos = async (contexto, query = {}) => {
   return paginarPorNome(prisma.produto, {
     where: { AND: filtros },
     campoNome: 'nome_produto',
-    select: { id: true, nome_produto: true, codigo_interno: true, unidade_principal_estoque: true, peso_por_saco_kg: true, controla_lote: true, controla_validade: true },
+    select: { id: true, nome_produto: true, codigo_interno: true, unidade_principal_estoque: true, peso_por_saco_kg: true, controla_lote: true, controla_validade: true, unidadesConversao: SELECT_CONVERSOES },
     limit,
     cursor,
     mapear: (linhas) => linhas.map((p) => ({
@@ -212,6 +213,8 @@ export const opcoesProdutos = async (contexto, query = {}) => {
       unidade_estoque: p.unidade_principal_estoque === 'L' ? 'L' : 'KG', peso_por_saco_kg: p.peso_por_saco_kg === null ? null : d4(p.peso_por_saco_kg),
       // D-PROD-282: a tela exige lote/validade na entrada e oferece a escolha de lote na saída.
       controla_lote: p.controla_lote === true, controla_validade: p.controla_validade === true,
+      // D-PROD-285: as unidades de conversão ATIVAS do produto, com a equivalência ("1 SACO = 25 KG").
+      unidades_conversao: listarConversoesPublicas(p).filter((c) => c.ativa),
     })),
   });
 };
@@ -345,7 +348,7 @@ export const criar = async (contexto, corpo) => {
           await exigirVinculosDoCabecalho(tx, cli, empresaId, entrada, natureza);
           const locais = await exigirLocaisEstoque(tx, cli, entrada.itens.map((i) => ({ id: i.local_estoque_id, field: 'local_destino_id', exigirAtivo: true })));
           const produtoIds = await travarProdutosEstoque(tx, cli, empresaId, entrada.itens.map((i) => i.produto_id));
-          const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } } })).map((p) => [p.id, p]));
+          const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: produtoIds } }, include: { unidadesConversao: SELECT_CONVERSOES } })).map((p) => [p.id, p]));
           for (const item of entrada.itens) {
             const p = produtos.get(item.produto_id);
             if (!p) throw invalida('produto_id', 'produto_inexistente', 'produto não encontrado nesta fazenda');
@@ -626,7 +629,7 @@ const substituir = async (tx, contexto, e) => {
   // Uma chamada só: as travas dos produtos de ANTES e de DEPOIS saem na ordem canônica (sem deadlock entre edições).
   await travarProdutosEstoque(tx, cli, empresaId, [...vigentes.map((i) => i.produto_id), ...nova.itens.map((i) => i.produto_id)]);
   const novosIds = [...new Set(nova.itens.map((i) => i.produto_id))];
-  const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: novosIds } } })).map((p) => [p.id, p]));
+  const produtos = new Map((await tx.produto.findMany({ where: { cliente_id: cli, empresa_id: empresaId, id: { in: novosIds } }, include: { unidadesConversao: SELECT_CONVERSOES } })).map((p) => [p.id, p]));
   for (const item of nova.itens) {
     const p = produtos.get(item.produto_id);
     if (!p) throw invalida('produto_id', 'produto_inexistente', 'produto não encontrado nesta fazenda');

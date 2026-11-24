@@ -45,6 +45,7 @@ import {
   contarMovimentacoesPorProduto,
   contarLotesPorProduto,
 } from './produtoRepository.js';
+import { listarConversoesPublicas, normalizarConversoes, sincronizarConversoes, unidadeEstoqueEfetiva } from './produtoUnidadesConversao.js';
 
 export const ENTIDADE_SEQUENCIA = 'Produto';
 export const escopoDaNumeracao = () => ESCOPO_TENANT;
@@ -107,6 +108,9 @@ export const comoProdutoPublico = (registro) => ({
   controla_lote: registro.controla_lote === true,
   controla_validade: registro.controla_validade === true,
   observacoes: registro.observacoes ?? null,
+  // D-PROD-285: unidade de estoque efetiva (KG ou L) e as unidades de conversão vigentes ("1 SACO = 25 KG").
+  unidade_estoque: unidadeEstoqueEfetiva(registro),
+  unidades_conversao: listarConversoesPublicas(registro),
   ativo: registro.ativo,
   created_date:
     registro.createdAt instanceof Date ? registro.createdAt.toISOString() : registro.createdAt,
@@ -134,25 +138,25 @@ export const carenciaDoCorpo = (v) => {
   return v;
 };
 
+/**
+ * D-PROD-285: campos que saíram da tela do produto. O corpo que os traz é aceito (cliente antigo) e IGNORADO: nada é
+ * gravado neles e o valor antigo continua no banco. `codigo_interno` passa a ser automático (= `numero_produto`) na
+ * criação e só leitura depois.
+ */
+export const CAMPOS_IGNORADOS = Object.freeze(['codigo_interno', 'preco_custo', 'preco_venda', 'local_estoque']);
+
 const CAMPOS_EDITAVEIS = Object.freeze({
   empresa_id: (v) => textoOuNulo(v),
   nome_produto: (v) => normalizarNomeProduto(v),
   tipo_uso: (v) => textoOuNulo(v),
-  codigo_interno: (v) => {
-    const limpo = textoOuNulo(v);
-    return limpo === undefined || limpo === null ? limpo : limpo.toUpperCase();
-  },
   codigo_barras: (v) => textoOuNulo(v),
   categoria: (v) => textoOuNulo(v),
   marca: (v) => textoOuNulo(v),
   descricao: (v) => textoOuNulo(v),
   unidade_medida: (v) => textoOuNulo(v),
-  preco_custo: (v) => decimalOuNulo(v),
-  preco_venda: (v) => decimalOuNulo(v),
   // D-PROD-161: `estoque_atual` NÃO é campo editável (cache do motor físico);
   // o corpo que o traz é conferido por `estoqueInformado`/`exigir*` abaixo.
   estoque_minimo: (v) => decimalComDefault(v, 0),
-  local_estoque: (v) => textoOuNulo(v),
   tipo_consumo: (v) => textoOuNulo(v),
   percentual_consumo_pv: (v) => decimalOuNulo(v),
   consumo_minimo_pv: (v) => decimalOuNulo(v),
@@ -363,6 +367,12 @@ const exigirProdutoSemEstoqueParaTrocarEmpresa = async (tx, clienteId, anterior)
   }
 };
 
+/** D-PROD-285: grava a lista de conversões do produto e devolve o produto relido (com as conversões). */
+const gravarConversoes = async (tx, clienteId, produto, normalizadas) => {
+  await sincronizarConversoes(tx, clienteId, produto.id, normalizadas);
+  return (await buscarProduto(clienteId, produto.id, tx)) ?? produto;
+};
+
 /** @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {{empresa_id?: string, ativo?: boolean}} [filtros] */
 export const listar = async (contexto, filtros = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
@@ -420,6 +430,8 @@ export const criar = async (contexto, entrada) => {
   // D-PROD-177 (P1-02): ausente → 'KG' (abaixo, como antes); informada, só KG, SACO ou L.
   if (campos.unidade_principal_estoque !== undefined) exigirUnidadeDoDominio(campos.unidade_principal_estoque);
   exigirValidadeSoComLote(campos.controla_lote === true, campos.controla_validade === true);
+  const conversoesPedidas = entrada?.unidades_conversao === undefined ? null
+    : normalizarConversoes(entrada.unidades_conversao, { unidade_principal_estoque: campos.unidade_principal_estoque ?? 'KG' });
 
   const criado = await prisma.$transaction(async (tx) => {
     const empresaId = String(campos.empresa_id);
@@ -438,13 +450,17 @@ export const criar = async (contexto, entrada) => {
       ...campos,
       cliente_id: auth.clienteId,
       numero_produto: String(numero),
+      // D-PROD-285: código interno automático, igual ao número do cadastro.
+      codigo_interno: String(numero),
       // D-PROD-161: o cadastro nunca cria saldo (o motor físico é a única porta).
       estoque_atual: 0,
       estoque_minimo: campos.estoque_minimo ?? 0,
       unidade_principal_estoque: campos.unidade_principal_estoque ?? 'KG',
     });
 
-    const publico = comoProdutoPublico(registro);
+    // D-PROD-285: as unidades de conversão vêm no mesmo POST (tenant do auth_context).
+    const comConversoes = conversoesPedidas ? await gravarConversoes(tx, auth.clienteId, registro, conversoesPedidas) : registro;
+    const publico = comoProdutoPublico(comConversoes);
     await registrarEvento(
       contexto,
       { acao: 'create', entidade: 'Produto', entidadeId: registro.id, dadosNovos: publico },
@@ -549,9 +565,12 @@ export const atualizar = async (contexto, id, entrada) => {
       }
     }
 
-    const registro = Object.keys(campos).length
+    const atualizado = Object.keys(campos).length
       ? await atualizarProdutoPorId(tx, auth.clienteId, id, campos)
       : anterior;
+    // D-PROD-285: a lista de unidades de conversão, quando vem, substitui a vigente (com a linha do produto travada).
+    const registro = entrada?.unidades_conversao === undefined ? atualizado
+      : await gravarConversoes(tx, auth.clienteId, atualizado, normalizarConversoes(entrada.unidades_conversao, atualizado));
 
     const publico = comoProdutoPublico(registro);
     await registrarEvento(
@@ -618,6 +637,8 @@ export const excluir = async (contexto, id) => {
       });
     }
 
+    // D-PROD-285: as conversões são do cadastro (o produto sem lançamento não tem histórico delas): saem junto.
+    await tx.produtoUnidadeConversao.deleteMany({ where: { cliente_id: auth.clienteId, produto_id: id } });
     await excluirProdutoPorId(tx, auth.clienteId, id);
     await registrarEvento(
       contexto,
