@@ -39,7 +39,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEventosEmLote } from '../auditoria/auditService.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, dec, paraBanco } from '../financeiro/decimalFinanceiro.js';
-import { travarProdutosEstoque } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { camadaEmModoLote, controleDeLote, exigirModoLoteDoCadastro, saidaEmModoLote, travarProdutosEstoque } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { buscarMovimentoPosterior } from '../estoqueFisico/movimentoPosterior.js';
 import { recomporRateio } from '../estoqueFisico/rateioObservacoes.js';
 import { recalcularCustosDosCochos } from '../suplementacaoEventos/fechamentoCustoCocho.js';
@@ -68,6 +68,15 @@ const AMOSTRA = 20;
  * se possível, só tira o par da sequência.
  */
 
+/**
+ * D-PROD-282 — a entrada de um lote que já teve saída (ou transferência) não sai da sequência: a saída escolheu aquele
+ * lote e não há outro custo para ela. 409 `ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL`, `reason: 'lote_consumido'`.
+ * @param {{ movimento_id?: string, movimento_numero?: string, lote_id?: string }} p
+ */
+export const loteConsumido = (p) =>
+  recalculoInviavel('lote_consumido', { movimento_id: p.movimento_id, movimento_numero: p.movimento_numero, lote_id: p.lote_id },
+    `este lote já teve saída (movimento nº ${p.movimento_numero}); exclua antes as saídas dele; nada foi alterado`);
+
 /** Saldo negativo na simulação → 409 `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO` (a recusa da SPEC §4.4). */
 const saldoNegativo = (detalhes) =>
   new AppError('ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', `sem este movimento o saldo do depósito ficaria negativo (${detalhes.saldo}) no movimento nº ${detalhes.movimento_numero}; nada foi alterado`, {
@@ -93,6 +102,9 @@ const porProduto = (movimentos) => {
 export const provarExclusaoComRecalculo = async (tx, cli, a) => {
   const historico = await lerHistoricoDoProduto(tx, cli, a.empresaId, a.produtoId, { teto: a.teto ?? TETO_MOVIMENTOS_PRODUTO });
   const porId = new Map(historico.movimentos.map((x) => [x.id, x]));
+  // D-PROD-282 (revisão): o movimento excluído tem de estar no modo do cadastro atual (o mesmo ponto do estorno).
+  const controle = await controleDeLote(tx, cli, { id: a.produtoId });
+  const camadaDaEntrada = new Map(historico.camadas.filter((c) => c.movimentacao_entrada_id).map((c) => [c.movimentacao_entrada_id, c]));
   for (const id of a.excluirIds) {
     const m = porId.get(id);
     if (!m) throw recalculoInviavel('movimento_fora_do_historico', { movimento_id: id });
@@ -103,6 +115,8 @@ export const provarExclusaoComRecalculo = async (tx, cli, a) => {
     // Fatia 4: SAÍDAS (manual, cocho, atividade, abastecimento, venda, falta do ajuste). Fatia 5: ENTRADAS (entrada
     // documentada, compra, sobra do ajuste) e a TRANSFERÊNCIA (as duas pernas juntas). Estorno nunca.
     if (!CLASSES_EXCLUIVEIS.includes(classe)) throw recalculoInviavel('origem_nao_suportada', { movimento_id: id, origem_sistema: m.origem_sistema });
+    if (classe === CLASSE.SAIDA || classe === CLASSE.TRANSFERENCIA_ENVIADA) exigirModoLoteDoCadastro(controle, saidaEmModoLote(m), { movimento_id: id });
+    if (classe === CLASSE.ENTRADA) exigirModoLoteDoCadastro(controle, camadaEmModoLote(camadaDaEntrada.get(id)), { movimento_id: id });
     if (classe === CLASSE.TRANSFERENCIA_ENVIADA || classe === CLASSE.TRANSFERENCIA_RECEBIDA) {
       const s = classe === CLASSE.TRANSFERENCIA_ENVIADA ? m : porId.get(m.movimento_pai_id);
       const r = s?.movimento_filho_id ? porId.get(s.movimento_filho_id) : null;
@@ -128,6 +142,7 @@ export const provarExclusaoComRecalculo = async (tx, cli, a) => {
     if (reason === 'saldo_negativo') throw saldoNegativo(detalhes);
     // Ajuste de inventário vigente num depósito que a cascata da transferência alcança: recusa (nunca contornável).
     if (reason === RAZAO_AJUSTE_POSTERIOR) throw await recusaAjustePosterior(tx, cli, detalhes);
+    if (reason === 'lote_consumido') throw loteConsumido(detalhes); // D-PROD-282
     throw recalculoInviavel(reason, detalhes);
   }
   return { produtoId: a.produtoId, excluirIds: [...a.excluirIds], posteriores, dispensa: null };
@@ -517,6 +532,7 @@ const aplicarUm = async (tx, contexto, cli, plano, a) => {
       delete detalhes.reason;
       throw saldoNegativo(detalhes);
     }
+    if (sim.parada?.reason === 'lote_consumido') throw loteConsumido(sim.parada);
     if (!sim.reproduzivel) {
       throw recalculoInviavel('historico_nao_reproduzivel', { problemas: [...sim.problemas, ...(sim.parada ? [sim.parada] : [])].slice(0, AMOSTRA) },
         'o recálculo não conseguiu refazer a sequência deste produto; nada foi alterado');
@@ -552,6 +568,7 @@ const aplicarUm = async (tx, contexto, cli, plano, a) => {
             local_estoque_id: c.local, local_estoque_nome: irmas?.local_estoque_nome ?? null,
             numero_documento: origem.numero_documento ?? null, serie_documento: origem.serie_documento ?? null,
             fornecedor_id: origem.fornecedor_id ?? null, fornecedor_nome: origem.fornecedor_nome ?? null,
+            lote_fabricante: origem.lote_fabricante ?? null, data_validade: origem.data_validade ?? null,
             data_documento: c.data_documento, custo_unitario: paraBanco(c.custo, CASAS_CUSTO),
             quantidade_entrada: paraBanco(c.entrada, CASAS_QUANTIDADE), quantidade_disponivel: paraBanco(c.disp, CASAS_QUANTIDADE),
             movimentacao_entrada_id: nova.r.id, status: c.status,

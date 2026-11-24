@@ -3,6 +3,7 @@
  * leitura. Sem fazenda real selecionada, nada é lido (página vazia).
  */
 import {
+  listLotesDisponiveis,
   listSaldoEstoque,
   listMovimentosEstoque,
   getMovimentoEstoque,
@@ -87,4 +88,15 @@ export const previasDaExclusao = async (empresaId, movimentoIds) => {
   const ids = [...new Set((movimentoIds ?? []).filter((v) => typeof v === 'string' && v))];
   if (!empresaId || !ids.length) return [];
   return Promise.all(ids.map((id) => getPreviaExclusaoMovimento(id, empresaId)));
+};
+
+/**
+ * D-PROD-282 — lotes disponíveis de um produto num depósito, já na ordem FEFO (a sugestão da saída). Sem fazenda,
+ * produto ou depósito, nada é lido.
+ * @param {string|null} empresaId @param {string|null|undefined} produtoId @param {string|null|undefined} localId
+ * @returns {Promise<Record<string, any>>}
+ */
+export const listarLotesDisponiveis = async (empresaId, produtoId, localId) => {
+  if (!empresaId || !produtoId || !localId) return { lotes: [], controla_lote: false, controla_validade: false };
+  return listLotesDisponiveis({ empresa_id: empresaId, produto_id: produtoId, local_estoque_id: localId });
 };

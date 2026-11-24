@@ -242,6 +242,7 @@ export const criar = async (contexto, corpo) => {
               origem: { operacaoId: id, motivo: texto },
               numeroMovimento: numeroMovimentoProvisorio(),
               contextoErro: { field: 'itens', indice },
+              lotes: item.lotes ?? null, // D-PROD-282
             });
             movimentosIds.push(r.movimento.id);
             linhas.push(await tx.saidaEstoqueItem.create({
@@ -524,6 +525,7 @@ const substituir = async (tx, contexto, e) => {
       origem: { operacaoId: e.id, motivo: texto },
       numeroMovimento: numeroMovimentoProvisorio(),
       contextoErro: { field: 'itens', indice },
+      lotes: item.lotes ?? null, // D-PROD-282
     });
     novosMovimentos.push(r.movimento.id);
     linhas.push(await tx.saidaEstoqueItem.create({

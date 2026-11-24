@@ -31,6 +31,12 @@
  *    transferência processada depois) para a simulação com `ajuste_de_inventario_posterior`: o estoque nunca fica
  *    diferente do contado. Os pares marcados (exclusões com recálculo já gravadas) não contam: só `opcoes.excluir`.
  *
+ * D-PROD-282 — PRODUTO COM LOTE: saída e transferência com `modo_saida_fifo = 'LOTE'` aplicam as FATIAS GRAVADAS pelo
+ * custo gravado de cada uma (o custo da camada escolhida) e não reavaliam nada — nem a origem, nem o destino, nem o
+ * estorno delas. Na simulação, esses valores não mudam (não há médio a refazer). Fatia de lote que caiu numa camada
+ * excluída (a entrada daquele lote saiu da sequência) para a simulação com `lote_consumido`: a exclusão da entrada de um
+ * lote que já teve saída é recusada. A sobra de ajuste numa camada com lote do fabricante fica no custo gravado.
+ *
  * Movimento fora do protocolo (origem que o motor não grava, estorno sem original legível, entrada sem camada)
  * não é adivinhado: vira `problema` e o replay daquele produto é declarado não reproduzível (fail-closed).
  *
@@ -50,7 +56,7 @@
  */
 import { CASAS_CUSTO, CASAS_QUANTIDADE, Dec, ZERO, arredondar, dec, somar } from '../financeiro/decimalFinanceiro.js';
 import {
-  MODO_CUSTO_MEDIO, ORIGEM_AJUSTE_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_SISTEMA, consumirCustoMedio, ordenarFifo,
+  MODO_CUSTO_MEDIO, MODO_LOTE, ORIGEM_AJUSTE_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_SISTEMA, consumirCustoMedio, ordenarFifo,
   TIPO_ESTORNO_TRANSFERENCIA_ENVIADA, TIPO_ESTORNO_TRANSFERENCIA_RECEBIDA, TIPO_FALTA_AJUSTE, TIPO_SOBRA_AJUSTE,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { ORIGENS_PROTOCOLO } from '../estoqueFisico/reconciliacaoEstoque.js';
@@ -222,6 +228,10 @@ export const fatiaComoTexto = (f) => ({
 const consumir = (estado, local, fatias, m) => {
   for (const f of fatias) {
     const l = estado.camadas.get(f.lote_id);
+    // D-PROD-282: a saída de lote escolheu ESTA camada; se a entrada dela saiu da sequência, a exclusão é recusada.
+    if (m.modo_saida_fifo === MODO_LOTE && l && l.status === 'Estornado') {
+      throw new Parada({ reason: 'lote_consumido', movimento_id: m.id, movimento_numero: m.numero_movimentacao, lote_id: f.lote_id });
+    }
     if (!l || l.local !== local || l.status !== 'Disponivel' || l.disp.lt(f.quantidade)) {
       throw new Parada({ reason: 'fatia_gravada_inaplicavel', movimento_id: m.id, movimento_numero: m.numero_movimentacao, lote_id: f.lote_id });
     }
@@ -412,11 +422,13 @@ export const reproduzir = (historico, opcoes = {}) => {
     exigirSemAjusteAlcancado(m, local);
     const kg = dec(m.quantidade);
     const saldoAntes = estado.saldo(local);
-    const legado = m.modo_saida_fifo !== MODO_CUSTO_MEDIO && !afetado(local);
+    const lote = m.modo_saida_fifo === MODO_LOTE;
+    const legado = lote || (m.modo_saida_fifo !== MODO_CUSTO_MEDIO && !afetado(local));
     if (legado) {
       /** @type {Array<{ lote_id: string, quantidade: any, custo_unitario: any }>|null} */
       let fatias = fatiasGravadas(m.lotes_consumidos);
       let reconstruidas = false;
+      if (!fatias && lote) throw new Parada({ reason: 'saida_de_lote_sem_fatias', movimento_id: m.id, movimento_numero: m.numero_movimentacao });
       if (!fatias) {
         const plano = consumirFifoLegado(estado.comoLotes(local), kg);
         if (!plano.suficiente) throw saldoNegativo(local, m, saldoAntes, kg);
@@ -425,7 +437,7 @@ export const reproduzir = (historico, opcoes = {}) => {
       }
       consumir(estado, local, fatias, m);
       registrar(m, {
-        regra: 'legado', local, saldo_antes: saldoAntes, saldo_depois: saldoAntes.minus(kg),
+        regra: lote ? 'lote' : 'legado', local, saldo_antes: saldoAntes, saldo_depois: saldoAntes.minus(kg),
         valor_unitario: m.valor_unitario === null ? null : dec(m.valor_unitario), valor_total: m.valor_total === null ? null : dec(m.valor_total),
         custo_medio_antes: null, custo_medio_depois: null, fatias: fatias.map(fatiaComoTexto), fatias_reconstruidas: reconstruidas,
       });
@@ -451,7 +463,8 @@ export const reproduzir = (historico, opcoes = {}) => {
     const saldoAntes = estado.saldo(local);
     let valorUnitario = m.valor_unitario === null ? null : dec(m.valor_unitario);
     let valorTotal = m.valor_total === null ? null : dec(m.valor_total);
-    if (m.origem_sistema === ORIGEM_AJUSTE_ESTOQUE && m.tipo_detalhado === TIPO_SOBRA_AJUSTE) {
+    // D-PROD-282: a sobra de um produto com lote (camada com lote do fabricante) fica no custo gravado (custo do lote).
+    if (m.origem_sistema === ORIGEM_AJUSTE_ESTOQUE && m.tipo_detalhado === TIPO_SOBRA_AJUSTE && !fato.lote_fabricante) {
       const linha = linhasDeAjuste.get(m.id);
       if (!linha) throw new Parada({ reason: 'sobra_de_ajuste_sem_linha', movimento_id: m.id, movimento_numero: m.numero_movimentacao });
       if (!linha.custo_informado) {
@@ -478,11 +491,12 @@ export const reproduzir = (historico, opcoes = {}) => {
     const destino = s.local_estoque_destino;
     const kg = dec(s.quantidade);
     const saldoOrigem = estado.saldo(origem);
-    const legadoOrigem = s.modo_saida_fifo !== MODO_CUSTO_MEDIO && !afetado(origem);
+    const deLote = s.modo_saida_fifo === MODO_LOTE; // D-PROD-282: fatias gravadas, sem reavaliar origem nem destino
+    const legadoOrigem = deLote || (s.modo_saida_fifo !== MODO_CUSTO_MEDIO && !afetado(origem));
     // Cascata: o custo recalculado na origem chega ao destino (e daí às saídas e transferências dele).
     if (afetado(origem)) afetados.add(destino);
     if (alcancados.has(origem)) alcancados.add(destino);
-    const legadoDestino = s.modo_saida_fifo !== MODO_CUSTO_MEDIO && !afetado(destino);
+    const legadoDestino = deLote || (s.modo_saida_fifo !== MODO_CUSTO_MEDIO && !afetado(destino));
     let fatias;
     let valorTotal;
     let valorUnitario;
@@ -536,11 +550,11 @@ export const reproduzir = (historico, opcoes = {}) => {
     if (!legadoDestino) estado.reavaliarPoco(destino, vDestino.plus(valorTotal), saldoDestino.plus(kg));
     const comum = { valor_unitario: valorUnitario, valor_total: valorTotal, custo_medio_antes: medioAntes, custo_medio_depois: medioDepois };
     registrar(s, {
-      regra: legadoOrigem ? 'legado' : 'atual', local: origem, saldo_antes: saldoOrigem, saldo_depois: saldoOrigem.minus(kg), ...comum,
+      regra: deLote ? 'lote' : legadoOrigem ? 'legado' : 'atual', local: origem, saldo_antes: saldoOrigem, saldo_depois: saldoOrigem.minus(kg), ...comum,
       fatias: comDestino.map(fatiaComoTexto),
     });
     registrar(r, {
-      regra: legadoDestino ? 'legado' : 'atual', local: destino, saldo_antes: saldoDestino, saldo_depois: saldoDestino.plus(kg), ...comum, fatias: null,
+      regra: deLote ? 'lote' : legadoDestino ? 'legado' : 'atual', local: destino, saldo_antes: saldoDestino, saldo_depois: saldoDestino.plus(kg), ...comum, fatias: null,
     });
   };
 
@@ -554,7 +568,8 @@ export const reproduzir = (historico, opcoes = {}) => {
       const original = resultados.get(pai.id);
       if (!original) throw new Parada({ reason: 'original_nao_reproduzido', movimento_id: e.id, movimento_numero: e.numero_movimentacao });
       const kg = dec(e.quantidade);
-      if (!pocos.has(local)) pocos.set(local, { v: estado.valor(local), legado: ms(e.createdAt) < corte && !afetado(local) });
+      // D-PROD-282: o estorno de saída de lote devolve às camadas pelo custo delas, sem reavaliar o poço.
+      if (!pocos.has(local)) pocos.set(local, { v: estado.valor(local), legado: pai.modo_saida_fifo === MODO_LOTE || (ms(e.createdAt) < corte && !afetado(local)) });
       const saldoAntes = estado.saldo(local);
       const fatias = (original.fatias ?? []).map((f) => ({ lote_id: f.lote_id, quantidade: dec(f.quantidade) }));
       if (!fatias.length || !somar(fatias.map((f) => f.quantidade)).eq(kg)) {
@@ -617,12 +632,13 @@ export const reproduzir = (historico, opcoes = {}) => {
     const qD = estado.saldo(destino);
     retirarCamadas(estado, destino, fatias.map((f) => f.lote_destino_id), d);
     const restoD = vD.minus(valorTotal);
-    const medioDepoisD = estado.reavaliarPoco(destino, restoD.gt(0) ? restoD : ZERO, qD.minus(kg));
+    const deLote = s.modo_saida_fifo === MODO_LOTE; // D-PROD-282: sem médio, nada é reavaliado
+    const medioDepoisD = deLote ? medioDe(estado.valor(destino), estado.saldo(destino)) : estado.reavaliarPoco(destino, restoD.gt(0) ? restoD : ZERO, qD.minus(kg));
     // Origem: as fatias voltam às camadas e o valor de S volta ao poço.
     const vO = estado.valor(origem);
     const qO = estado.saldo(origem);
     devolver(estado, origem, fatias, o);
-    const medioDepoisO = estado.reavaliarPoco(origem, vO.plus(valorTotal), qO.plus(kg));
+    const medioDepoisO = deLote ? medioDe(estado.valor(origem), estado.saldo(origem)) : estado.reavaliarPoco(origem, vO.plus(valorTotal), qO.plus(kg));
     const comum = { regra: 'atual', valor_unitario: rs.valor_unitario, valor_total: rs.valor_total };
     registrar(d, {
       ...comum, local: destino, saldo_antes: qD, saldo_depois: qD.minus(kg), custo_medio_antes: medioDe(vD, qD), custo_medio_depois: medioDepoisD,

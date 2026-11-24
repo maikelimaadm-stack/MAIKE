@@ -27,7 +27,8 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, dec } from '../financeiro/decimalFinanceiro.js';
-import { ORIGEM_SAIDA_ESTOQUE } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { ORIGEM_SAIDA_ESTOQUE, loteVencido, lotesFifo, ordenarFefo } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueRecalculo/estoqueReplay.js';
 import { exigirEmpresaDoTenant, invalido, textoDeBusca } from '../gestao/gestaoComum.js';
 import { ehDiaValido, paginacaoOpcoes, paginarPorNome } from '../patrimonio/patrimonioComum.js';
@@ -117,7 +118,7 @@ export const saldo = async (contexto, query = {}) => {
     const c = await tx.$queryRaw(Prisma.sql`SELECT COUNT(*)::int AS total ${juncao}`);
     const l = await tx.$queryRaw(Prisma.sql`
       SELECT g.produto_id, g.local_id, g.quantidade, g.valor, g.camadas,
-             p.nome_produto, p.codigo_interno, p.unidade_principal_estoque, l.nome AS local_nome
+             p.nome_produto, p.codigo_interno, p.unidade_principal_estoque, p.controla_lote, p.controla_validade, l.nome AS local_nome
         ${juncao}
         ${posicao ? Prisma.sql`AND (p.nome_produto, l.nome, g.produto_id, g.local_id) > (${posicao[0]}, ${posicao[1]}, ${posicao[2]}, ${posicao[3]})` : Prisma.empty}
        ORDER BY p.nome_produto, l.nome, g.produto_id, g.local_id
@@ -146,6 +147,9 @@ export const saldo = async (contexto, query = {}) => {
         custo_medio: quantidade.gt(0) ? valor.div(quantidade).toFixed(CASAS_CUSTO) : null,
         valor: valor.toFixed(CASAS_CUSTO),
         camadas: Number(r.camadas ?? 0),
+        // D-PROD-282: o produto controla lote (a tela abre o detalhe por lote, com validade).
+        controla_lote: r.controla_lote === true,
+        controla_validade: r.controla_validade === true,
       };
     }),
     next_cursor: temMais && ultimo ? codificarCursorConsulta(amarra, [ultimo.nome_produto, ultimo.local_nome, ultimo.produto_id, ultimo.local_id]) : null,
@@ -153,6 +157,60 @@ export const saldo = async (contexto, query = {}) => {
     total,
     limit: limite,
   };
+};
+
+// ─── lotes disponíveis (D-PROD-282) ─────────────────────────────────────────
+
+/** D-PROD-282: aviso "vence em até N dias" na tela (a regra é só de exibição). */
+export const DIAS_AVISO_VENCIMENTO = 30;
+
+/**
+ * D-PROD-282 — lotes (camadas Disponivel com saldo) de um produto num depósito, JÁ NA ORDEM FEFO (a sugestão da
+ * saída): validade, saldo, custo da camada (o custo da nota, no produto com lote), vencido e dias até vencer, pelo dia
+ * de hoje da fazenda. Somente leitura; tenant de `auth_context`; produto e depósito de outro tenant = 404.
+ * @param {{ auth: any }} contexto
+ * @param {{ empresa_id?: string, produto_id?: string, local_estoque_id?: string }} query
+ */
+export const lotesDisponiveis = async (contexto, query = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const cli = auth.clienteId;
+  const prisma = getPrismaClient();
+  const empresaId = await exigirEmpresaDoTenant(prisma, cli, query.empresa_id);
+  return emTransacao(LEITURA, async (tx) => {
+    const produto = await tx.produto.findFirst({
+      where: { cliente_id: cli, empresa_id: empresaId, id: String(query.produto_id ?? '') },
+      select: { id: true, nome_produto: true, unidade_principal_estoque: true, controla_lote: true, controla_validade: true },
+    });
+    if (!produto) throw new AppError('PRODUTO_NOT_FOUND', 'produto não encontrado nesta fazenda');
+    const local = await tx.localEstoque.findFirst({ where: { cliente_id: cli, id: String(query.local_estoque_id ?? '') }, select: { id: true, nome: true } });
+    if (!local) throw new AppError('ESTOQUE_LOCAL_INVALIDO', 'local de estoque não encontrado', { details: { field: 'local_estoque_id', reason: 'local_inexistente' } });
+    const { hoje } = await hojeDaEmpresa(tx, cli, empresaId);
+    const camadas = ordenarFefo(await lotesFifo(tx, cli, empresaId, produto.id, local.id));
+    const diaMs = 24 * 60 * 60 * 1000;
+    const hojeMs = new Date(`${hoje}T00:00:00.000Z`).getTime();
+    return {
+      produto_id: produto.id,
+      local_estoque_id: local.id,
+      unidade: unidadeDeEstoque(produto.unidade_principal_estoque),
+      controla_lote: produto.controla_lote,
+      controla_validade: produto.controla_validade,
+      hoje,
+      dias_aviso: DIAS_AVISO_VENCIMENTO,
+      lotes: camadas.map((l) => {
+        const validade = l.data_validade ? l.data_validade.toISOString().slice(0, 10) : null;
+        return {
+          id: l.id,
+          lote_fabricante: l.lote_fabricante ?? null,
+          data_validade: validade,
+          data_documento: dia(l.data_documento),
+          quantidade_disponivel: dec(l.quantidade_disponivel).toFixed(CASAS_QUANTIDADE),
+          custo_unitario: dec(l.custo_unitario).toFixed(CASAS_CUSTO),
+          vencido: loteVencido(l.data_validade, hoje),
+          vence_em_dias: l.data_validade ? Math.round((l.data_validade.getTime() - hojeMs) / diaMs) : null,
+        };
+      }),
+    };
+  });
 };
 
 // ─── movimentos (E2, P1-04) ─────────────────────────────────────────────────

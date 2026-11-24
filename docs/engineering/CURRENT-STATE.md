@@ -1,8 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-23 (missão ativa D-PROD-281; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
-
-**Atualizado em:** 2026-11-23 (missão ativa D-PROD-280; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-23 (missão ativa D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -11,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-23) — MAIKE-ENTREGA-A: nomes simples, "Atividades em andamento" e o "Novo lançamento" curto (D-PROD-281)
+## Missão ativa (2026-11-23) — MAIKE-ESTOQUE-CONTROLE-LOTE: controle de lote (e de validade) por produto (D-PROD-282)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-282**, escolhas do proprietário (2026-11-23): "Controla lote"/"Controla validade" no produto, lote e validade na camada, saída pelo lote escolhido (sugestão FEFO) e pelo custo dele; emenda da Constituição aprovada |
+| Branch / PR | `claude/estoque-controle-lote`, a partir da `main` `d62a4ef8`, com a `origin/main` (PR #366) mesclada · sem push (PR a abrir; conferir o número com `proxima-decisao.mjs`) |
+| Mudança | motor (FEFO, escolha, custo do lote sem reavaliar, transferência leva lote), serviços, `GET /estoque/lotes-disponiveis`, troca do cadastro só com saldo zero, replay/exclusão com `lote_consumido`, telas (cadastro, entrada, saída, transferência, saldo por lote) |
+| Migration | `20261124200000_estoque_controle_lote`, **CONTRACT condicionado aditivo** (`--contract D-PROD-282`), sha256 `b6b33b0e…48fc`. depois da `20261124100000_tipo_implemento_produto` (produção: 76 concluídas, 0 com falha). **Não aplicada em produção**; ensaiada localmente com o envelope do runbook |
+| Relatório | [`MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md) · SPEC [`MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md) · Runbook [`MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md) |
+| Próximas | escolha manual de lote na atividade e no abastecimento; lote na tela de confirmação do financeiro e no cocho |
+
+## Missão anterior (2026-11-23) — MAIKE-ENTREGA-A: nomes simples, "Atividades em andamento" e o "Novo lançamento" curto (D-PROD-281)
 
 | Campo | Valor |
 |---|---|
@@ -39,7 +48,7 @@ rollout pausado **D-PROD-41**)
 | Decisão | **D-PROD-279**, pedido do proprietário: "a máquina sozinha não leva produto; quem leva é o implemento" |
 | Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `d62a4ef8` · PR **#366** (mergeada, `def1cda2`, migration aplicada em produção em 2026-11-23) |
 | Mudança | `TipoPatrimonial`: "Usa produto?", "Como conta" (por jato) e "Capacidade" (L/kg), só para Implemento (API: 400 em outra natureza; sem produto limpa; com produto, os três obrigatórios); bloco no "+ Novo tipo" do "Gerenciar tipos" e o resumo discreto na lista |
-| Migration | `20261124100000_tipo_implemento_produto`, **EXPAND** (4 colunas anuláveis em `TipoPatrimonial`), checksum `a1836240…ae45`. É a 76ª, depois da reforma; pré-checagem 75/0 e 111 tabelas, pós-checagem 76/0 e 111 tabelas. **Aplicada em produção em 2026-11-23** |
+| Migration | `20261124100000_tipo_implemento_produto`, **EXPAND** (4 colunas anuláveis em `TipoPatrimonial`), checksum `a1836240…ae45`. **Aplicada em produção** (a 76ª concluída). É a 76ª, depois da reforma; pré-checagem 75/0 e 111 tabelas, pós-checagem 76/0 e 111 tabelas. Ordem: aplicar com o GO do proprietário, depois o merge |
 | Relatório | [`MAIKE-TIPO-IMPLEMENTO-PRODUTO-REPORT.md`](./MAIKE-TIPO-IMPLEMENTO-PRODUTO-REPORT.md) · runbook [`MAIKE-TIPO-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md) |
 | Próximas | "Jatos de hoje" nas telas de atividade quando o implemento escolhido usa produto |
 

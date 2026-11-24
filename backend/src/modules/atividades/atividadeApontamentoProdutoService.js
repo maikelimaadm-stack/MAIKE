@@ -348,8 +348,12 @@ const baixarProduto = async (tx, contexto, { clienteId, empresaId, atividade, ap
     },
     fatias: saida.fatias,
     movimentoId: saida.movimento.id,
+    avisos: saida.avisos ?? [], // D-PROD-282 (revisão): lote vencido consumido pelo FEFO
   };
 };
+
+/** D-PROD-282 (revisão): `avisos` só entra na resposta quando há (o contrato de sempre não muda). @param {any[]} avisos */
+const comAvisos = (avisos) => (avisos?.length ? { avisos } : {});
 
 /**
  * Grava UMA linha confirmada (baixa + linha + fatias), na transação de quem
@@ -359,7 +363,7 @@ const baixarProduto = async (tx, contexto, { clienteId, empresaId, atividade, ap
  * @param {{ clienteId: string, empresaId: string, atividade: { id: string, numero: string },
  *   apontamento: { id: string, data_operacional: any, area_executada_dia: any }, dados: DadosDaLinha,
  *   operationId: string, contextoErro?: Record<string, unknown> }} a
- * @returns {Promise<{ id: string, movimentoId: string }>}
+ * @returns {Promise<{ id: string, movimentoId: string, avisos: any[] }>}
  */
 const gravarLinha = async (tx, contexto, { clienteId, empresaId, atividade, apontamento, dados, operationId, contextoErro = {} }) => {
   const auth = exigirAuthContext(contexto?.auth);
@@ -390,7 +394,7 @@ const gravarLinha = async (tx, contexto, { clienteId, empresaId, atividade, apon
       custo_unitario: paraBanco(f.custo_unitario, CASAS_CUSTO),
     }))
   );
-  return { id, movimentoId: baixa.movimentoId };
+  return { id, movimentoId: baixa.movimentoId, avisos: baixa.avisos };
 };
 
 // ─── estorno exato: um caminho só (editar, cancelar a linha, o apontamento, a atividade) ──
@@ -758,12 +762,12 @@ export const lancarLinhaProduto = async (contexto, atividadeId, apontamentoId, c
         empresaDoCorpo: corpo.empresa_id, atividadeId, apontamentoId, versao: corpo.versao, acao: 'lancar_linha',
       });
       await exigirPermiteProduto(tx, cli, atividade);
-      const { id, movimentoId } = await gravarLinha(tx, contexto, { clienteId: cli, empresaId, atividade, apontamento, dados, operationId });
+      const { id, movimentoId, avisos } = await gravarLinha(tx, contexto, { clienteId: cli, empresaId, atividade, apontamento, dados, operationId });
       await incrementarVersaoDoApontamento(tx, { clienteId: cli, empresaId, atividadeId, apontamentoId, versao: apontamento.versao, acao: 'lancar_linha' });
       await numerarMovimentos(tx, cli, [movimentoId]);
       const resposta = await respostaDaEscrita(tx, cli, empresaId, atividadeId, apontamentoId, id);
       await registrarEvento(contexto, { acao: ACOES_AUDITORIA_LINHA_PRODUTO.lancar, entidade: ENTIDADE_LINHA_PRODUTO, entidadeId: id, dadosNovos: paraAuditoria(resposta.linha) }, tx);
-      return { httpStatus: 201, body: resposta };
+      return { httpStatus: 201, body: { ...resposta, ...comAvisos(avisos) } };
     },
   });
 };
@@ -814,7 +818,7 @@ export const editarLinhaProduto = async (contexto, atividadeId, apontamentoId, l
         clienteId: cli, empresaId, linhas: [anterior], estornos, motivo: 'Linha editada: estorno exato e nova saída',
         origem: ORIGEM_CANCELAMENTO_LINHA.EDICAO, usuarioId: auth.usuarioId ?? null, agora: tempo.agora,
       });
-      const { id, movimentoId } = await gravarLinha(tx, contexto, { clienteId: cli, empresaId, atividade, apontamento, dados, operationId });
+      const { id, movimentoId, avisos } = await gravarLinha(tx, contexto, { clienteId: cli, empresaId, atividade, apontamento, dados, operationId });
       await incrementarVersaoDoApontamento(tx, { clienteId: cli, empresaId, atividadeId, apontamentoId, versao: apontamento.versao, acao: 'editar_linha' });
       await numerarMovimentos(tx, cli, [...estornos.values(), movimentoId]);
       const resposta = await respostaDaEscrita(tx, cli, empresaId, atividadeId, apontamentoId, id);
@@ -830,7 +834,7 @@ export const editarLinhaProduto = async (contexto, atividadeId, apontamentoId, l
         },
         tx
       );
-      return { httpStatus: 200, body: { linha: resposta.linha, linha_anterior_id: linhaId, apontamento: resposta.apontamento, atividade: resposta.atividade } };
+      return { httpStatus: 200, body: { linha: resposta.linha, linha_anterior_id: linhaId, apontamento: resposta.apontamento, atividade: resposta.atividade, ...comAvisos(avisos) } };
     },
   });
 };

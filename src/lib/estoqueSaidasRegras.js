@@ -16,6 +16,7 @@ import { lerNumeroLocal } from '@/lib/dinheiroDecimal';
 import { formatarQtd } from '@/lib/estoqueConsultaRegras';
 import { LIMITES_ENTRADA, LOCALE_ENTRADA, paraCampo } from '@/lib/estoqueEntradasRegras';
 import { mensagemRecusaRecalculo } from '@/lib/estoqueRecalculoExclusao';
+import { corpoDosLotes } from './estoqueLotesRegras.js';
 
 export const MAX_ITENS_SAIDA = 50;
 export const ROTULO_STATUS_SAIDA = Object.freeze({ CONFIRMADA: 'Confirmada', EXCLUIDA: 'Excluída' });
@@ -67,6 +68,9 @@ export const validarFormularioSaida = (form, hoje) => {
     const quantidade = lerDecimal(l.quantidade);
     if (!quantidade.ok) erros[`${p}quantidade`] = quantidade.motivo === 'vazio' ? 'Informe a quantidade.' : 'Quantidade inválida (até 4 casas decimais).';
     else if (ehZeroCanonico(quantidade.valor)) erros[`${p}quantidade`] = 'A quantidade deve ser maior que zero.';
+    // D-PROD-282: produto com lote — a escolha tem de fechar e o lote vencido, ser confirmado.
+    if (l.produto?.controla_lote && l.erroLote) erros[`${p}lotes`] = l.erroLote;
+    else if (l.produto?.controla_lote && l.loteVencido && !l.confirmaVencido) erros[`${p}lotes`] = 'Confirme o uso do lote vencido.';
     if (l.produto?.id && l.deposito?.id) {
       const chave = `${l.produto.id}|${l.deposito.id}`;
       if (pares.has(chave)) erros[`${p}produto`] = 'Este produto já está neste depósito em outra linha: some as quantidades.';
@@ -90,6 +94,7 @@ export const montarCorpoSaida = (empresaId, form, operationId) => ({
     local_estoque_id: l.deposito.id,
     unidade: l.unidade,
     quantidade: /** @type {any} */ (lerDecimal(l.quantidade)).valor,
+    ...corpoDosLotes(l), // D-PROD-282: só com escolha manual (sem ela, FEFO no servidor)
   })),
 });
 

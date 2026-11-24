@@ -5,6 +5,7 @@ import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import { FiltrosDaTelaContext } from "@/components/cadastro/base1/FiltrosRapidos";
 import AbasEstoque from "@/components/estoque/AbasEstoque";
+import JanelaLotesSaldo from "@/components/estoque/JanelaLotesSaldo";
 import TabelaSaldoEstoque, {
   SALDO_ESTOQUE_CAMPOS_CARD,
   SALDO_ESTOQUE_COLUNAS,
@@ -34,6 +35,8 @@ const NO_OP = () => {};
 export default function SaldoEstoque({ empresaId, aba, onAba, onAbrirMovimentos }) {
   const [depositoId, setDepositoId] = useState("");
   const [saldoFiltro, setSaldoFiltro] = useState("COM");
+  // D-PROD-282: o detalhe por lote (produto que controla lote).
+  const [lotesDe, setLotesDe] = useState(/** @type {any} */ (null));
 
   const depositosQuery = useQuery({ queryKey: ["estoque", "filtro-depositos"], queryFn: () => listarDepositosDoFiltro(), staleTime: 60 * 1000, enabled: Boolean(empresaId) });
   const depositos = depositosQuery.data ?? [];
@@ -87,7 +90,10 @@ export default function SaldoEstoque({ empresaId, aba, onAba, onAbrirMovimentos 
       rotulo={`Ações do saldo de ${linha.produto_nome} em ${linha.local_estoque_nome}`}
       titulo={String(linha.produto_nome ?? "")}
       subtitulo={String(linha.local_estoque_nome ?? "")}
-      grupos={[[{ key: "movimentos", label: "Ver movimentos", onSelect: () => abrir(linha) }]]}
+      grupos={[[
+        { key: "movimentos", label: "Ver movimentos", onSelect: () => abrir(linha) },
+        ...(linha.controla_lote ? [{ key: "lotes", label: "Ver lotes e validade", onSelect: () => setLotesDe(linha) }] : []),
+      ]]}
       testId={`saldo-acoes-${linha.id}`}
     />
   );
@@ -140,6 +146,7 @@ export default function SaldoEstoque({ empresaId, aba, onAba, onAbrirMovimentos 
           />
         }
       />
+      <JanelaLotesSaldo empresaId={empresaId} alvo={lotesDe} onFechar={() => setLotesDe(null)} />
     </FiltrosDaTelaContext.Provider>
   );
 }
