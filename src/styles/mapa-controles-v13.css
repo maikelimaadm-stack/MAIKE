@@ -211,3 +211,13 @@
 @media (prefers-reduced-motion: reduce) {
   .mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra__seg { transition: none; }
 }
+
+/* O resumo nunca passa por baixo da pílula de ações: a largura dele para antes
+   da pílula, e em telas estreitas o peso médio sai (animais e áreas ficam). */
+.mk-mapa--v13 .mk-mapa-resumo:not(#mk13a):not(#mk13b) {
+  max-width: calc(100% - 20px - var(--mk13-botao) - var(--mk13-folga) * 2 - 8px);
+  overflow: hidden;
+}
+@media (max-width: 359px) {
+  .mk-mapa--v13 .mk-mapa-resumo__item:nth-child(2):not(#mk13a):not(#mk13b) { display: none; }
+}
