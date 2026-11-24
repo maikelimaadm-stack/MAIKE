@@ -88,63 +88,43 @@ const apagar = (input, vezes = 1) => {
   for (let i = 0; i < vezes; i += 1) fireEvent.change(input, { target: { value: input.value.slice(0, -1) } });
 };
 
+// D-PROD-288: Peso por saco (virou a unidade de conversão SACO), Preço de Custo e Preço de Venda saíram da tela; a
+// máscara de centavos continua só no Estoque Mínimo, com a mesma regra "gravado = exibido".
 describe('D-PROD-161 — máscaras do Produto: gravado = exibido', () => {
-  it('MP1 — digitação tecla a tecla no Peso por saco: "30,00" na tela ⇒ 30 no envio', async () => {
-    const { campo, enviar } = montar({ ...BASE, peso_por_saco_kg: null, preco_custo: 2 });
-    const peso = campo('Peso por saco (kg)');
-    apagar(peso, peso.value.length);
-    digitar(peso, '3000');
-    expect(peso.value).toBe('30,00');
+  it('MP1 — digitação tecla a tecla no Estoque Mínimo: "30,00" na tela ⇒ 30 no envio', async () => {
+    const { campo, enviar } = montar({ ...BASE, estoque_minimo: null });
+    const minimo = campo('Estoque Mínimo');
+    apagar(minimo, minimo.value.length);
+    digitar(minimo, '3000');
+    expect(minimo.value).toBe('30,00');
     const payload = await enviar();
-    expect(payload.peso_por_saco_kg).toBe(30);
-  });
-
-  it('MP2 — colagem de uma vez no Preço de Custo: "25,00" na tela ⇒ 25 no envio', async () => {
-    const { campo, enviar } = montar({ ...BASE, peso_por_saco_kg: 30, preco_custo: 0 });
-    const preco = campo('Preço de Custo');
-    fireEvent.change(preco, { target: { value: '2500' } });
-    expect(preco.value).toBe('25,00');
-    const payload = await enviar();
-    expect(payload.preco_custo).toBe(25);
-    expect(payload.peso_por_saco_kg).toBe(30);
+    expect(payload.estoque_minimo).toBe(30);
   });
 
   it('MP3 — editar o valor existente (apagar e digitar): o enviado é o exibido', async () => {
-    const { campo, enviar } = montar({ ...BASE, peso_por_saco_kg: 30, preco_custo: 2, estoque_minimo: 10 });
-    const peso = campo('Peso por saco (kg)');
-    expect(peso.value).toBe('30,00');
-    apagar(peso);
-    expect(peso.value).toBe('3,00');
-    digitar(peso, '5');
-    const exibido = peso.value;
-    expect(exibido).toBe('30,05');
+    const { campo, enviar } = montar({ ...BASE, estoque_minimo: 10 });
     const minimo = campo('Estoque Mínimo');
+    expect(minimo.value).toBe('10,00');
     digitar(minimo, '0');
     expect(minimo.value).toBe('100,00');
     const payload = await enviar();
-    expect(payload.peso_por_saco_kg).toBe(30.05);
     expect(payload.estoque_minimo).toBe(100);
-    expect(payload.preco_custo).toBe(2);
   });
 
-  it('MP4 — sem edição, o valor lido do servidor volta igual (número ou decimal canônico)', async () => {
-    const { campo, enviar } = montar({ ...BASE, peso_por_saco_kg: '30.0000', preco_custo: 2.5, preco_venda: '3.5000' });
-    expect(campo('Peso por saco (kg)').value).toBe('30,00');
-    expect(campo('Preço de Custo').value).toBe('2,50');
-    expect(campo('Preço de Venda').value).toBe('3,50');
+  it('MP4 — sem edição, o valor lido do servidor volta igual (decimal canônico)', async () => {
+    const { campo, enviar } = montar({ ...BASE, estoque_minimo: '12.5000' });
+    expect(campo('Estoque Mínimo').value).toBe('12,50');
     const payload = await enviar();
-    expect(payload.peso_por_saco_kg).toBe(30);
-    expect(payload.preco_custo).toBe(2.5);
-    expect(payload.preco_venda).toBe(3.5);
+    expect(payload.estoque_minimo).toBe(12.5);
   });
 
-  it('MP5 — campo apagado vai como antes: preço 0 e peso ausente bloqueiam/zeram igual', async () => {
-    const { campo, enviar } = montar({ ...BASE, unidade_principal_estoque: 'KG', peso_por_saco_kg: null, preco_custo: 2 });
-    const preco = campo('Preço de Custo');
-    apagar(preco, preco.value.length);
-    expect(preco.value).toBe('0,00');
+  it('MP6 (D-PROD-288) — Peso por saco, Preço de Custo e Preço de Venda não estão na tela nem no envio', async () => {
+    const { enviar } = montar({ ...BASE, peso_por_saco_kg: 30, preco_custo: 2, preco_venda: 3 });
+    expect(screen.queryByText('Peso por saco (kg)')).toBeNull();
+    expect(screen.queryByText('Preço de Custo')).toBeNull();
     const payload = await enviar();
-    expect(payload.preco_custo).toBe(0);
-    expect(payload.peso_por_saco_kg).toBeUndefined();
+    expect(payload).not.toHaveProperty('peso_por_saco_kg');
+    expect(payload).not.toHaveProperty('preco_custo');
+    expect(payload).not.toHaveProperty('preco_venda');
   });
 });

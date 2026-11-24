@@ -32,7 +32,7 @@ import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { METODOS } from './financeiroCatalogo.js';
 import {
-  CONDICOES, CONTEUDOS, DIRECOES, MAX_ITENS, MAX_PARCELAS, MAX_RATEIOS, MAX_RATEIOS_ITENS_TOTAL, RATEIO_MODOS, TIPOS_ITEM, UNIDADES,
+  CONDICOES, CONTEUDOS, DIRECOES, MAX_ITENS, MAX_PARCELAS, MAX_RATEIOS, MAX_RATEIOS_ITENS_TOTAL, RATEIO_MODOS, TIPOS_ITEM,
 } from './operacaoFinanceiraPlano.js';
 import {
   LIMITE_LISTA_MAXIMO, LIMITE_LISTA_PADRAO, SITUACOES_LISTA, cancelar, confirmar, criarRascunho, descartarRascunho, detalhar, elegibilidade, estornarLiquidacao,
@@ -75,7 +75,8 @@ const ITEM = {
     produto_id: ID_NULO,
     local_estoque_id: ID_NULO,
     descricao: TEXTO_NULO(255),
-    unidade: ENUM(UNIDADES),
+    // D-PROD-288: KG, L, SACO, UN (serviço) ou a sigla de uma unidade de conversão do produto (conferida no serviço).
+    unidade: { type: 'string', minLength: 1, maxLength: 8 },
     quantidade: QUANTIDADE,
     valor_unitario: PRECO,
     // D-PROD-156: linhas do rateio POR ITEM (mesmo formato da linha geral). O teto

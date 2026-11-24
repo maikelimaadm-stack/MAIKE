@@ -41,6 +41,9 @@ export const formularioDoRegistro = (r) => ({
   percentual_pv_padrao: textoDe(r?.percentual_pv_padrao),
   consumo_objetivo_g_cab_dia: textoDe(r?.consumo_objetivo_g_cab_dia),
   faixa_tolerancia_percentual: textoDe(r?.faixa_tolerancia_percentual),
+  // D-PROD-288: consumo mínimo e máximo (%PV), que saíram do cadastro do produto.
+  consumo_minimo_pv: textoDe(r?.consumo_minimo_pv),
+  consumo_maximo_pv: textoDe(r?.consumo_maximo_pv),
   observacoes: r?.observacoes || "",
   ativo: r?.ativo ?? true,
   ingredientes: (r?.ingredientes || []).map((/** @type {any} */ i) => ({ produto_id: i.produto_id, quantidade_kg: textoDe(i.quantidade_kg) })),
@@ -341,6 +344,31 @@ export default function FormularioFormulacao({
           aria-label="Faixa de tolerância do consumo, em porcentagem do esperado"
         />
       </B1Field>
+
+      {/* D-PROD-288: consumo mínimo e máximo do cocho (%PV); vieram do cadastro do produto. */}
+      {/** @type {Array<["consumo_minimo_pv" | "consumo_maximo_pv", string]>} */ ([["consumo_minimo_pv", "%PV mínimo"], ["consumo_maximo_pv", "%PV máximo"]]).map(([campo, rotulo]) => (
+        <B1Field
+          key={campo}
+          label={rotulo}
+          span={3}
+          hasValue={Boolean(String(formData[campo] ?? "").trim())}
+          locked={readOnly}
+          disabled={travado}
+          error={erros[campo]}
+        >
+          <input
+            type="text"
+            inputMode="decimal"
+            value={formData[campo] ?? ""}
+            onChange={(e) => mudarCampo(campo, e.target.value)}
+            maxLength={8}
+            className={CTL_NUMERO}
+            readOnly={readOnly}
+            aria-label={`${rotulo} do consumo, em porcentagem do peso vivo`}
+            data-testid={`formulacao-${campo}`}
+          />
+        </B1Field>
+      ))}
 
       <section className="col-span-12" aria-labelledby="formulacao-regras-titulo" data-testid="formulacao-regras">
         <div className="mb-2 flex items-center justify-between gap-2">
