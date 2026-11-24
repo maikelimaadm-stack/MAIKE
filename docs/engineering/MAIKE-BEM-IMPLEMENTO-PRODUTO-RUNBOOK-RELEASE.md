@@ -1,6 +1,6 @@
 # MAIKE — Produto do implemento no bem: runbook de release expand-only (D-PROD-297)
 
-> **Estado: `SCHEMA_APPLIED_PROD: NÃO`.** Aguarda o GO do proprietário ("aplica").
+> **Estado: `SCHEMA_APPLIED_PROD: SIM` (2026-11-24, caminho B, GO do proprietário).** Pós-checagem do §4 conferida.
 >
 > Cada passo exige o GO do proprietário ("aplica") e para no primeiro desvio com **`RELEASE_BLOCKED`**. Valores
 > entre `<…>` são preenchidos na hora, a partir de leituras reais, nunca copiados deste texto.
@@ -151,3 +151,4 @@ perde no DROP; os lançamentos, o estoque e o custo ficam.
 | Data | Quem | O quê |
 |---|---|---|
 | 2026-11-24 | Claude (sessão D-PROD-297) | plano preparado; migration aplicada e testada no PostgreSQL local; ensaio no navegador |
+| 2026-11-24 | Claude, com o GO do proprietário ("pode aplicar assim que possível e fazer o merge") | **aplicada em produção pelo caminho B** (desvio da D-PROD-74 autorizado): preflight 79/0, anterior `produto_unidades_conversao` com o checksum, colunas ausentes, 112 tabelas; depois 80/0, a nova com `330d9318…efbe` e 1 passo, as 4 colunas anuláveis sem DEFAULT, 0 linhas preenchidas, 112 tabelas |

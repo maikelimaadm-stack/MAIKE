@@ -14,7 +14,7 @@ rollout pausado **D-PROD-41**)
 | Item | Estado |
 |---|---|
 | Decisão | **D-PROD-297**: "Leva produto? · Quanto cabe no tanque · Litros/Quilos" no cadastro do bem implemento (sai do tipo); o tanque vem do bem (sem marcação, do tipo); com jato e área em andamento, o dia não grava hectares |
-| Banco | migration EXPAND `20261126100000_bem_implemento_produto` (4 colunas anuláveis em `BemPatrimonial`) — **não aplicada em produção** (aguarda "aplica") |
+| Banco | migration EXPAND `20261126100000_bem_implemento_produto` (4 colunas anuláveis em `BemPatrimonial`) — **aplicada em produção em 2026-11-24** (caminho B, GO do proprietário) |
 | Relatório | [`MAIKE-BEM-IMPLEMENTO-PRODUTO-REPORT.md`](./MAIKE-BEM-IMPLEMENTO-PRODUTO-REPORT.md) · runbook [`MAIKE-BEM-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md`](./MAIKE-BEM-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md) |
 
 ## Missão anterior (2026-11-24) — MAIKE-SINCRONIZACAO-MOTOR: motor genérico de gravação sem internet (D-PROD-295)
