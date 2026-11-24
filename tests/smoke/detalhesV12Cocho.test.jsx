@@ -253,6 +253,11 @@ describe('CV-3 — bloco do nível', () => {
     expect(cartaoEl.classList.contains('mk-dp-cocho__cartao-nivel')).toBe(true);
     const celulas = [...cartaoEl.querySelectorAll('.mk-dp-grade > .mk-dp-cel > dt')].map((dt) => dt.textContent);
     expect(celulas).toEqual(['Duração estimada', 'Próxima reposição']);
+    // v13: barra do uso do limite operacional (saldo ÷ limite), o consumo em grade e a barra do ciclo com hoje.
+    expect(within(nivelEl).getByRole('img', { name: 'Uso do limite operacional: 100 kg de 300 kg · 33,33%' })).toBeTruthy();
+    expect(valorDe(nivelEl, 'Em sacos')).toBe('2,00 sacos/dia');
+    const ciclo = within(cartaoEl).getByRole('img', { name: 'Lançado em 10/11; acaba por volta de 14/11; restam 2 dias' });
+    expect(/** @type {HTMLElement} */ (ciclo.querySelector('span')).style.width).toBe('50%');
     cleanup();
 
     dados.cache.eventosSuplementacao = [];
@@ -328,7 +333,13 @@ describe('CV-5 — leitura do cocho', () => {
     const farol = within(secao).getByTestId('farol-cocho');
     expect(farol.getAttribute('data-cor')).toBe('verde');
     const linhaFarol = /** @type {HTMLElement} */ (farol.closest('.mk-dp-linha'));
-    expect(linhaFarol.querySelector('.mk-dp-linha__sub')?.textContent).toBe('Escore adequado · acesso ruim · estrutura precisa de reparo');
+    // v13: escore · acesso · estrutura em grade de 3 embaixo do título (a situação).
+    expect(linhaFarol.querySelector('.mk-dp-linha__sub')).toBeNull();
+    const grade = within(secao).getByTestId('leitura-cocho-grade');
+    expect(grade.className).toContain('mk-dp-c13-grade');
+    expect(valorDe(grade, 'Escore')).toBe('Adequado');
+    expect(valorDe(grade, 'Acesso')).toBe('Ruim');
+    expect(valorDe(grade, 'Estrutura')).toBe('Precisa de reparo');
     expect(linhaFarol.querySelector('.mk-dp-linha__val')?.textContent).toBe('12/11/2026 · JOÃO');
     expect(/** @type {HTMLElement} */ (linhaFarol.querySelector('.mk-dp-bolinha')).style.background).toBeTruthy();
 
@@ -337,7 +348,8 @@ describe('CV-5 — leitura do cocho', () => {
     const itens = within(screen.getByRole('list', { name: 'Últimas leituras' })).getAllByRole('listitem');
     expect(itens).toHaveLength(2);
     expect(within(itens[0]).getByText('12/11/2026')).toBeTruthy();
-    expect(within(itens[0]).getByText('ADEQUADO · RUIM · REPARO')).toBeTruthy();
+    expect(within(itens[0]).getByText('ADEQUADO · RUIM · REPARO').className).toContain('mk-dp-c13-chip');
+    expect(within(itens[0]).getByText('Adequado · acesso ruim · estrutura precisa de reparo')).toBeTruthy();
     expect(within(itens[0]).getByText('Lama na entrada.').className).toBe('mk-dp-cocho__obs-leitura');
     expect(within(itens[0]).getByRole('button', { name: 'Excluir a leitura de 12/11/2026' }).className).toContain('mk-dp-acao--perigo');
     expect(within(itens[1]).getByText('CHEIO · BOM · BOA')).toBeTruthy();
@@ -377,17 +389,21 @@ describe('CV-6 — último período fechado', () => {
     const cartao = screen.getByTestId('ultimo-periodo-fechado');
     expect(cartao.className).toContain('mk-dp-cartao');
     const rotulos = [...cartao.querySelectorAll('dt')].map((dt) => dt.textContent);
+    // v13: consumo real, esperado e desvio em destaque; a régua do desvio; o resto em grade.
     expect(rotulos).toEqual([
-      'Produto',
-      'Lançamento',
       'Consumo real',
       'Consumo esperado',
       'Desvio',
+      'Produto',
+      'Lançamento',
       'Peso médio do período',
       'Custo por cab/dia (R$)',
       'Custo do período',
+      'Custo por kg',
       'Sobra antiga primeiro',
     ]);
+    const regua = within(cartao).getByRole('img', { name: /^Desvio de -1(,\d)?% em relação à meta; dentro da faixa de ±20%$/ });
+    expect(regua.getAttribute('data-dentro')).toBe('sim');
     expect(valorDe(cartao, 'Produto')).toBe('SAL MINERAL 80');
     expect(valorDe(cartao, 'Lançamento')).toBe('27/10/2026 · 13 dia(s)');
     expect(valorDe(cartao, 'Consumo real')).toBe('75 g');
@@ -399,7 +415,8 @@ describe('CV-6 — último período fechado', () => {
     expect(bolinha.style.background).toBe('rgb(22, 163, 74)');
     expect(valorDe(cartao, 'Custo por cab/dia (R$)')).toBe('0,21');
     expect(within(cartao).getByTestId('peso-medio-periodo').textContent).toBe('Peso médio do período217 kgaproximado: sem os lotes do período');
-    expect(valorDe(cartao, 'Custo do período')).toMatch(/^R\$\s273,00 · R\$\s0,70\/kg$/);
+    expect(valorDe(cartao, 'Custo do período')).toMatch(/^R\$\s273,00$/);
+    expect(valorDe(cartao, 'Custo por kg')).toMatch(/^R\$\s0,70\/kg$/);
     expect(within(cartao).getByTestId('custo-sobra-herdada').textContent).toMatch(/^Sobra antiga primeiro20,00 kg a R\$\s0,60\/kgcusto da sobra aproximado$/);
     expect(within(cartao).getByTestId('fechamento-aproximado').textContent).toBe('Aproximado — sobra não informada');
   });
@@ -420,6 +437,7 @@ describe('CV-6 — último período fechado', () => {
     expect(valorDe(cartao, 'Custo por cab/dia (R$)')).toBe('Sem custo');
     expect(valorDe(cartao, 'Custo do período')).toBe('Sem custo');
     expect(within(cartao).queryByText(/%PV/)).toBeNull();
+    expect(within(cartao).queryByText('Custo por kg')).toBeNull();
     cleanup();
 
     dados.cache.eventosSuplementacao = [evento('e-aberto')];
@@ -447,7 +465,9 @@ describe('CV-7 — cadastro na aba Informações e total fornecido na aba Histó
     expect(screen.getByRole('button', { name: 'Mostrar: Todos os registros' })).toBeTruthy();
     expect(screen.getByRole('list', { name: 'Lançamentos do cocho' })).toBeTruthy();
     const total = screen.getByRole('region', { name: 'Total fornecido por produto' });
-    expect(total.textContent).toContain('16,00 sacos · 400 kg');
+    // v13: o total em destaque (kg) e os sacos embaixo.
+    expect(total.querySelector('.mk-dp-c13-qtd > b')?.textContent).toBe('400 kg');
+    expect(total.querySelector('.mk-dp-c13-qtd > small')?.textContent).toBe('16,00 sacos');
   });
 });
 
@@ -478,7 +498,7 @@ describe('CV-7b — lançamento excluído some do cocho', () => {
     const lista = screen.getByRole('list', { name: 'Lançamentos do cocho' });
     expect(lista.textContent).not.toContain('999');
     expect(lista.textContent).not.toMatch(/Cancelad|Estornad|estorno/i);
-    expect(screen.getByRole('region', { name: 'Total fornecido por produto' }).textContent).toContain('16,00 sacos · 400 kg');
+    expect(screen.getByRole('region', { name: 'Total fornecido por produto' }).querySelector('.mk-dp-c13-qtd')?.textContent).toBe('400 kg16,00 sacos');
     // O botão fica no lançamento ativo mais recente (e-aberto), nunca no excluído.
     const botao = await within(lista).findByRole('button', { name: 'Excluir lançamento' });
     expect(within(lista).getAllByRole('button', { name: 'Excluir lançamento' })).toHaveLength(1);

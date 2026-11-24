@@ -1,0 +1,312 @@
+/*
+ * Detalhe do COCHO — v13 (redesenho aprovado pelo dono; as mesmas regras do Detalhes do
+ * Lote v13): grades em colunas (rótulo pequeno em cima, valor embaixo), barras e réguas,
+ * cartões curtos no histórico, valores em 500 e títulos em 600. Só classes `mk-dp-c13-*`
+ * e o que já existia no cocho; tudo sob `.mk-dp.mk-dp-cocho`. Os seletores levam dois
+ * `:not(#…)` para passar na frente das regras antigas dos pontos (`:not(#mk-padrao)`).
+ *
+ *   div.mk-dp-cocho__nivel.mk-dp-c13-nivel > div.mk-dp-nivel + div.mk-dp-c13-barra + dl.mk-dp-c13-grade
+ *   dl.mk-dp-grade.mk-dp-c13-grade(.--2)(.mk-dp-c13-destaque) > div.mk-dp-cel(.mk-dp-c13-larga | .mk-dp-c13-larga2)
+ *   div.mk-dp-c13-barra > div.__cab(span + b) + div.__trilho[role=img] > span
+ *   div.mk-dp-c13-ciclo > div.__trilho[role=img](span + i) + div.__escala > span ×3
+ *   div.mk-dp-c13-consumo[role=img] > div.__trilho(.__zona + .__marca) + div.__escala > span
+ *   span.mk-dp-c13-chip (etiqueta da leitura) · span.mk-dp-c13-qtd (total por produto)
+ */
+
+/* ── Grades em colunas ─────────────────────────────────────────────────── */
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-grade.mk-dp-c13-grade {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 12px;
+  row-gap: 0;
+  padding: 2px 12px 4px;
+  border-top: 0;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-grade.mk-dp-c13-grade--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-grade.mk-dp-c13-grade::before,
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-grade > .mk-dp-cel::before {
+  display: none;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-grade > .mk-dp-cel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  row-gap: 2px;
+  min-width: 0;
+  min-height: 0;
+  padding: 8px 0;
+  border: 0;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-grade > .mk-dp-cel.mk-dp-c13-larga { grid-column: 1 / -1; }
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-grade > .mk-dp-cel.mk-dp-c13-larga2 { grid-column: span 2; }
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-grade .mk-dp-cel__rot {
+  color: #656970;
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.25;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-grade .mk-dp-cel__val {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  min-width: 0;
+  color: #1f2328;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-grade .mk-dp-cel__sub {
+  color: #656970;
+  font-size: 11.5px;
+  text-align: left;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-grade .mk-dp-cel__barra {
+  margin-top: 4px;
+}
+/* Valores em destaque (estimativas, consumo real × esperado × desvio). */
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-destaque .mk-dp-cel__val {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-destaque .mk-dp-cel:has([data-testid="farol-consumo"]) .mk-dp-cel__val {
+  font-size: 14px;
+  white-space: normal;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-grade + .mk-dp-c13-grade {
+  border-top: 1px solid #e7e9ec;
+}
+@media (min-width: 768px) {
+  .mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-grade.mk-dp-c13-grade:not(.mk-dp-c13-grade--2) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ── Nível (aba Detalhes): um cartão com o nível, o uso do limite e o consumo ── */
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-nivel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e7e9ec;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-nivel > .mk-dp-nivel {
+  gap: 14px;
+  min-height: 0;
+  padding: 12px 12px 8px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-nivel .mk-dp-cocho__fig--painel {
+  width: 112px;
+  height: 82px;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-saldo .mk-dp-cocho__metrica-val {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  white-space: nowrap;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-nivel > .mk-dp-c13-grade {
+  border-top: 1px solid #e7e9ec;
+}
+
+/* ── Barra simples (uso do limite) ─────────────────────────────────────── */
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-barra {
+  padding: 2px 12px 10px;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-barra__cab {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 10px;
+  color: #656970;
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-barra__cab > b {
+  color: #1f2328;
+  font-weight: 500;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-barra__trilho {
+  height: 8px;
+  margin-top: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eef0f2;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-barra__trilho > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #3db5c9;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-barra[data-tom="atencao"] .mk-dp-c13-barra__trilho > span {
+  background: #d97706;
+}
+
+/* ── Barra do ciclo (lançamento → hoje → acaba) ─────────────────────────── */
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-ciclo {
+  padding: 2px 12px 10px;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-ciclo__trilho {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: #eef0f2;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-ciclo__trilho > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 999px;
+  background: #16a34a;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-ciclo__trilho > i {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: #0f172a;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-ciclo__escala {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  color: #656970;
+  font-size: 11px;
+}
+
+/* ── Régua do consumo por cabeça (mín · ideal · máx) ───────────────────── */
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-consumo {
+  padding: 28px 16px 2px;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-consumo__trilho {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: #eef0f2;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-consumo__zona {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #86efac;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-consumo__marca {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: #0f172a;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-consumo__escala {
+  position: relative;
+  height: 16px;
+  margin-top: 5px;
+  color: #656970;
+  font-size: 11px;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-consumo__escala > span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-consumo__escala > span[data-ideal] {
+  top: -35px;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+/* ── Fechamentos: régua do desvio dentro do cartão ─────────────────────── */
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-fech .mk-dp-supl-regua {
+  margin: 0 12px 8px;
+  padding: 0;
+  border: 0;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-cocho__fechamentos + .mk-dp-supl-graf,
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-cocho__fechamentos + .mk-dp-supl-graf__vazio {
+  margin-top: 4px;
+}
+
+/* ── Leitura: etiqueta (farol, data · quem leu) e chip de cada leitura ── */
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-leitura-cab .mk-dp-linha__rot {
+  font-size: 14px;
+  font-weight: 600;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-leitura-cab .mk-dp-linha__fim {
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #f1f5f9;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-leitura-cab .mk-dp-linha__val {
+  color: #1f2328;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-leitura-cab + .mk-dp-c13-grade {
+  border-top: 1px solid #e7e9ec;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #1f2328;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-cocho__leituras .mk-dp-linha__rot {
+  font-weight: 500;
+}
+
+/* ── Histórico: total por produto e quantidade do cartão curto ─────────── */
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-qtd {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-qtd > b {
+  color: #1f2328;
+  font-size: 15px;
+  font-weight: 600;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-c13-qtd > small,
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-tl__qtd-sub {
+  color: #656970;
+  font-size: 11.5px;
+  font-weight: 400;
+}
+.mk-dp.mk-dp-cocho:not(#mk-c13a):not(#mk-c13b) .mk-dp-tl--curto .mk-dp-tl__qtd {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+  white-space: nowrap;
+}

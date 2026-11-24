@@ -81,8 +81,14 @@ export function resumoDoCartao(cartao) {
   const temValor = (v) => (typeof v === "string" || typeof v === "number") && String(v).trim() !== "" && String(v).trim() !== "—";
   const titulo = String(cartao?.titulo ?? "");
 
+  // Cartão que já traz o subtítulo e o destaque prontos (cocho, v13): usa os dele e
+  // não procura nas linhas. Os demais cartões seguem a regra de baixo, sem mudança.
+  if (cartao?.destaque || cartao?.sub != null) {
+    return { lote: cartao?.sub ?? null, destaque: cartao?.destaque ?? null, rota: null, resto: linhas };
+  }
+
   let lote = null;
-  /** @type {null | { texto: string, tom: "entrada" | "saida" | "neutro", rotulo: string }} */
+  /** @type {null | { texto: string, tom: "entrada" | "saida" | "neutro", rotulo: string, sub?: string | null }} */
   let destaque = null;
   const lLote = achar("Lote");
   if (lLote && temValor(lLote.valor)) {
@@ -161,6 +167,7 @@ export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto", text
                       {r.destaque ? (
                         <span className="mk-dp-tl__qtd" data-tom={r.destaque.tom} aria-label={r.destaque.rotulo}>
                           {r.destaque.texto}
+                          {r.destaque.sub ? <small className="mk-dp-tl__qtd-sub">{r.destaque.sub}</small> : null}
                         </span>
                       ) : null}
                     </div>
