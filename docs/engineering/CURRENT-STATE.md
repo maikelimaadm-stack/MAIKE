@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-24 (missão ativa D-PROD-284; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-24 (missão ativa D-PROD-286; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-24) — MAIKE-COCHO-DEPOSITO-V13: detalhe do cocho e do depósito no desenho v13 (D-PROD-284)
+## Missão ativa (2026-11-24) — MAIKE-MAPA-CONTROLES-V13: controles do Mapa Geral numa faixa acima do mapa (D-PROD-286)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-286**, pedido e aprovação do proprietário, em celular, tablet e computador |
+| Branch / PR | `claude/kind-knuth-tztu1v` · PR (a abrir) |
+| Mudança | Faixa branca acima do mapa com [Filtro] · Lotes · Pontos · [Visualização]; resumo dos animais embaixo à esquerda; atualizar, localização e arrasto numa pílula em pé embaixo à direita |
+| Migration | Nenhuma |
+| Relatório | [`MAIKE-MAPA-CONTROLES-V13-REPORT.md`](./MAIKE-MAPA-CONTROLES-V13-REPORT.md) |
+| Próximas | Aparência dos pastos e marcadores; Forragem dentro do Detalhes do Lote |
+
+## Missão anterior (2026-11-24) — MAIKE-COCHO-DEPOSITO-V13: detalhe do cocho e do depósito no desenho v13 (D-PROD-284)
 
 | Campo | Valor |
 |---|---|
