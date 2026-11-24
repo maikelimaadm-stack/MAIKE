@@ -810,6 +810,8 @@ export default function MapaGeral() {
         if (cancelled) return;
         const msg = String(e?.error?.message || e?.message || '');
         if (e?.sourceId && String(e.sourceId).startsWith('maike-basemap')) return;
+        // D-PROD-288: sem internet o mapa abre com o fundo local; não é falha.
+        if (created.erroContornado()) return;
         if (!map.isStyleLoaded?.() && /style|fetch|network|xhr|40\d/i.test(msg)) {
           setMapLoadError('Falha ao carregar o estilo ou os tiles do mapa. Verifique a conexão e tente novamente.');
         }

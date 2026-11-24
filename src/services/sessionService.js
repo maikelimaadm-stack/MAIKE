@@ -174,7 +174,7 @@ export const descartarTrocaSenhaPendente = () => descartarTrocaSenhaPendenteNati
  * o defeito corrigido. Token recusado é descartado pela camada de sessão;
  * indisponibilidade preserva o token. Ver `nativeSessionApi.restaurarSessao`.
  *
- * @returns {Promise<{autenticado: boolean, contexto: object|null}>}
+ * @returns {Promise<{autenticado: boolean, contexto: object|null, offline?: boolean}>}
  * @throws {ApiError} indisponibilidade — a sessão não foi validada nem negada
  */
 export const restaurarSessaoNativaAtual = () => restaurarSessaoNativa();

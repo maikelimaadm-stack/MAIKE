@@ -332,7 +332,7 @@ export const obterUsuarioAtualLegado = async () => {
  * com confirmação do servidor. O aplicativo continua fechado enquanto não
  * houver resposta. É fail-closed sem destruir a credencial.
  *
- * @returns {Promise<{autenticado: boolean, contexto: ContextoDeSessao|null}>}
+ * @returns {Promise<{autenticado: boolean, contexto: ContextoDeSessao|null, offline?: boolean}>}
  * @throws {ApiError} quando a validade não pôde ser determinada
  */
 export const restaurarSessao = async () => {
