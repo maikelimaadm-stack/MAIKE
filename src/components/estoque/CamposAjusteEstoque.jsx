@@ -1,9 +1,11 @@
 import React from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import B1Field from "@/components/cadastro/base1/B1Field";
 import { CampoSelect, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { CampoNumero, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
+import { useCelular } from "@/components/common/MobileSheet";
+import TabelaProdutosMovimento from "@/components/estoque/TabelaProdutosMovimento";
 import { formatarCustoUnitario, formatarDia, formatarQtd } from "@/lib/estoqueConsultaRegras";
 import { LIMITES_ENTRADA, LOCALE_ENTRADA, comProduto, equivalenciaDaLinha, unidadesDoProduto } from "@/lib/estoqueEntradasRegras";
 import { FALTA, MAX_ITENS_AJUSTE, ROTULO_TIPO_AJUSTE, SEM_DIFERENCA, SOBRA, diferencaDaLinha, formatarDiferenca, linhaVaziaAjuste, precisaCusto } from "@/lib/estoqueAjustesRegras";
@@ -19,33 +21,40 @@ const COR_DIFERENCA = /** @type {Record<string, string>} */ ({
   [FALTA]: "text-red-800",
 });
 
+const COLUNAS_AJUSTE = [
+  { id: "produto", titulo: "Produto", largura: 220 },
+  { id: "unidade", titulo: "Unidade", largura: 100 },
+  { id: "deposito", titulo: "Local de estoque", largura: 190 },
+  { id: "contado", titulo: "Contado", numero: true, largura: 120 },
+  { id: "saldo", titulo: "Saldo atual", numero: true, largura: 120 },
+  { id: "diferenca", titulo: "Diferença", numero: true, largura: 150 },
+];
+
 /**
- * Uma linha do AJUSTE (D-PROD-272): produto, unidade, depósito, o saldo CONTADO e, ao lado, o saldo atual do depósito
- * e a diferença (sobra +, falta −, sem diferença). O custo unitário só aparece (e é obrigatório) na sobra de um
- * depósito sem saldo, que não tem custo médio. Mesmo cartão de linha inteira da entrada e da saída.
- * @param {{ linha: any, indice: number, empresaId: string, erros: Record<string, string>, podeRemover: boolean,
- *   saldo: { data?: any, isLoading?: boolean, isError?: boolean } | undefined, onMudar: (l: any) => void, onRemover: () => void }} props
+ * O que a linha do AJUSTE (D-PROD-272) calcula: o saldo atual do depósito e a diferença (sobra +, falta −, sem
+ * diferença). @param {any} linha @param {{ data?: any, isLoading?: boolean, isError?: boolean } | undefined} saldo
  */
-function LinhaDeAjuste({ linha, indice, empresaId, erros, podeRemover, saldo, onMudar, onRemover }) {
-  const e = (/** @type {string} */ campo) => erros[`itens.${indice}.${campo}`] || undefined;
-  const unidades = unidadesDoProduto(linha.produto);
+function contaDaLinha(linha, saldo) {
   const info = saldo?.data ?? null;
   const unidadeEstoque = info?.unidade_estoque ?? (linha.produto?.unidade_estoque === "L" ? "L" : "KG");
   const dif = diferencaDaLinha(linha, info);
-  const pedeCusto = precisaCusto(linha, info);
-  const textoSaldo = !linha.produto || !linha.deposito ? "—" : saldo?.isLoading ? "Carregando…" : saldo?.isError ? "Não foi possível ler" : info ? formatarQtd(info.saldo, unidadeEstoque) : "—";
-  const textoDiferenca = dif ? `${formatarDiferenca(dif.diferenca, unidadeEstoque)} · ${ROTULO_TIPO_AJUSTE[dif.tipo]}` : "—";
-  return (
-    <div className="col-span-12 b1-form-embutido rounded border border-[var(--mg-border,#e2e8f0)] p-2" data-testid={`ajuste-linha-${indice}`}>
-      <div className="grid grid-cols-12 gap-x-3 gap-y-2">
-        <div className="col-span-12 flex items-center justify-between text-[12px] font-semibold text-[var(--mg-text-2,#475569)]">
-          <span>Produto {indice + 1}</span>
-          {podeRemover ? (
-            <button type="button" className="tb-btn" onClick={onRemover} aria-label={`Remover o produto ${indice + 1}`} data-testid={`ajuste-linha-${indice}-remover`}>
-              <Trash2 size={14} aria-hidden /> Remover
-            </button>
-          ) : null}
-        </div>
+  return { info, unidadeEstoque, dif, pedeCusto: precisaCusto(linha, info) };
+}
+
+/**
+ * Uma célula da linha do AJUSTE: produto, unidade, depósito, o saldo CONTADO e, ao lado, o saldo atual do depósito e
+ * a diferença. A linha é uma linha da `TabelaProdutosMovimento` (D-PROD-285), no desenho da tabela "Áreas".
+ * @param {{ linha: any, indice: number, empresaId: string, erros: Record<string, string>,
+ *   saldo: { data?: any, isLoading?: boolean, isError?: boolean } | undefined, onMudar: (l: any) => void }} p
+ * @param {string} coluna
+ */
+function celulaDeAjuste({ linha, indice, empresaId, erros, saldo, onMudar }, coluna) {
+  const e = (/** @type {string} */ campo) => erros[`itens.${indice}.${campo}`] || undefined;
+  const unidades = unidadesDoProduto(linha.produto);
+  const { info, unidadeEstoque, dif } = contaDaLinha(linha, saldo);
+  switch (coluna) {
+    case "produto":
+      return (
         <SeletorPaginadoGestao
           rotulo="Produto"
           testId={`ajuste-linha-${indice}-produto`}
@@ -56,8 +65,11 @@ function LinhaDeAjuste({ linha, indice, empresaId, erros, podeRemover, saldo, on
           detalheDaOpcao={(o) => (o?.codigo ? String(o.codigo) : null)}
           obrigatorio
           erro={e("produto")}
-          span={6}
+          span={12}
         />
+      );
+    case "unidade":
+      return (
         <CampoSelect
           label="Unidade"
           value={linha.unidade}
@@ -66,9 +78,12 @@ function LinhaDeAjuste({ linha, indice, empresaId, erros, podeRemover, saldo, on
           readOnly={unidades.length <= 1}
           required
           error={e("unidade")}
-          span={2}
+          span={4}
           placeholder={linha.produto ? undefined : "Escolha o produto"}
         />
+      );
+    case "deposito":
+      return (
         <SeletorPaginadoGestao
           rotulo="Local de estoque"
           testId={`ajuste-linha-${indice}-deposito`}
@@ -78,8 +93,12 @@ function LinhaDeAjuste({ linha, indice, empresaId, erros, podeRemover, saldo, on
           onChange={(o) => onMudar({ ...linha, deposito: opcaoSimples(o) })}
           obrigatorio
           erro={e("deposito")}
-          span={4}
+          span={8}
         />
+      );
+    case "contado":
+      return (
+        <>
         <CampoNumero
           label="Contado"
           value={linha.contado}
@@ -93,9 +112,17 @@ function LinhaDeAjuste({ linha, indice, empresaId, erros, podeRemover, saldo, on
         />
         {/* D-PROD-286: a contagem em outra unidade mostra a equivalência ("8 SACO = 200 kg"). */}
         {equivalenciaDaLinha({ ...linha, quantidade: linha.contado }) ? (
-          <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`ajuste-linha-${indice}-equivalencia`}>{equivalenciaDaLinha({ ...linha, quantidade: linha.contado })}</p>
+          <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`ajuste-linha-${indice}-equivalencia`}>{equivalenciaDaLinha({ ...linha, quantidade: linha.contado })}</p>
         ) : null}
-        <ValorCalculado label="Saldo atual" valor={textoSaldo} span={4} testId={`ajuste-linha-${indice}-saldo`} />
+        </>
+      );
+    case "saldo": {
+      const textoSaldo = !linha.produto || !linha.deposito ? "—" : saldo?.isLoading ? "Carregando…" : saldo?.isError ? "Não foi possível ler" : info ? formatarQtd(info.saldo, unidadeEstoque) : "—";
+      return <ValorCalculado label="Saldo atual" valor={textoSaldo} span={4} testId={`ajuste-linha-${indice}-saldo`} />;
+    }
+    case "diferenca": {
+      const textoDiferenca = dif ? `${formatarDiferenca(dif.diferenca, unidadeEstoque)} · ${ROTULO_TIPO_AJUSTE[dif.tipo]}` : "—";
+      return (
         <B1Field label="Diferença" span={4} hasValue locked>
           <output
             data-testid={`ajuste-linha-${indice}-diferenca`}
@@ -106,36 +133,54 @@ function LinhaDeAjuste({ linha, indice, empresaId, erros, podeRemover, saldo, on
             <span className="block min-w-0 truncate">{textoDiferenca}</span>
           </output>
         </B1Field>
-        {pedeCusto ? (
-          <>
-            <CampoNumero
-              label={`Custo da sobra (R$ por ${unidadeEstoque === "L" ? "litro" : "kg"})`}
-              value={linha.custo}
-              onChange={(v) => onMudar({ ...linha, custo: v })}
-              locale={LOCALE_ENTRADA}
-              limites={LIMITES_ENTRADA}
-              casasMin={2}
-              required
-              error={e("custo")}
-              span={6}
-              testId={`ajuste-linha-${indice}-custo`}
-            />
-            <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)] md:col-span-6" data-testid={`ajuste-linha-${indice}-aviso-custo`}>
-              Este depósito não tem saldo deste produto, então não há custo médio: informe o custo da sobra.
-            </p>
-          </>
-        ) : info?.custo_medio && dif && dif.tipo !== SEM_DIFERENCA ? (
-          <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid={`ajuste-linha-${indice}-custo-medio`}>
-            Valorizado pelo custo médio do depósito: {formatarCustoUnitario(info.custo_medio)} por {unidadeEstoque === "L" ? "litro" : "kg"}.
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
+      );
+    }
+    default:
+      return null;
+  }
 }
 
 /**
- * Os campos do tipo AJUSTE na janela "Novo movimento" (D-PROD-272): data fixa (hoje na fazenda, só informação),
+ * O detalhe da linha do AJUSTE: o custo unitário só aparece (e é obrigatório) na sobra de um depósito sem saldo, que
+ * não tem custo médio; senão, a nota do custo médio usado. Nada a dizer, sem detalhe.
+ * @param {{ linha: any, indice: number, erros: Record<string, string>,
+ *   saldo: { data?: any, isLoading?: boolean, isError?: boolean } | undefined, onMudar: (l: any) => void }} p
+ */
+function detalheDoAjuste({ linha, indice, erros, saldo, onMudar }) {
+  const { info, unidadeEstoque, dif, pedeCusto } = contaDaLinha(linha, saldo);
+  if (pedeCusto) {
+    return (
+      <>
+        <CampoNumero
+          label={`Custo da sobra (R$ por ${unidadeEstoque === "L" ? "litro" : "kg"})`}
+          value={linha.custo}
+          onChange={(v) => onMudar({ ...linha, custo: v })}
+          locale={LOCALE_ENTRADA}
+          limites={LIMITES_ENTRADA}
+          casasMin={2}
+          required
+          error={erros[`itens.${indice}.custo`] || undefined}
+          span={6}
+          testId={`ajuste-linha-${indice}-custo`}
+        />
+        <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)] md:col-span-6" data-testid={`ajuste-linha-${indice}-aviso-custo`}>
+          Este depósito não tem saldo deste produto, então não há custo médio: informe o custo da sobra.
+        </p>
+      </>
+    );
+  }
+  if (info?.custo_medio && dif && dif.tipo !== SEM_DIFERENCA) {
+    return (
+      <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid={`ajuste-linha-${indice}-custo-medio`}>
+        Valorizado pelo custo médio do depósito: {formatarCustoUnitario(info.custo_medio)} por {unidadeEstoque === "L" ? "litro" : "kg"}.
+      </p>
+    );
+  }
+  return null;
+}
+
+/**
+ * Os campos do tipo AJUSTE na tela "Novo movimento" (D-PROD-272): data fixa (hoje na fazenda, só informação),
  * centros, observação e as linhas de contagem. `saldos[i]` é a consulta do saldo do depósito da linha `i` (feita
  * por quem usa, que também valida e monta o corpo).
  * @param {{ ajuste: any, empresaId: string, hoje: string, erros: Record<string, string>,
@@ -143,6 +188,7 @@ function LinhaDeAjuste({ linha, indice, empresaId, erros, podeRemover, saldo, on
  *   observacao: React.ReactNode, onMudar: (mudanca: Record<string, any>) => void }} props
  */
 export default function CamposAjusteEstoque({ ajuste, empresaId, hoje, erros, saldos, observacao, onMudar }) {
+  const celular = useCelular();
   /** @param {number} i @param {any} linha */
   const mudarLinha = (i, linha) => onMudar({ itens: ajuste.itens.map((/** @type {any} */ l, /** @type {number} */ j) => (j === i ? linha : l)) });
   return (
@@ -175,19 +221,17 @@ export default function CamposAjusteEstoque({ ajuste, empresaId, hoje, erros, sa
       {observacao}
 
       <SecaoForm titulo="Contagem" />
-      {ajuste.itens.map((/** @type {any} */ linha, /** @type {number} */ i) => (
-        <LinhaDeAjuste
-          key={linha.chave}
-          linha={linha}
-          indice={i}
-          empresaId={empresaId}
-          erros={erros}
-          podeRemover={ajuste.itens.length > 1}
-          saldo={saldos[i]}
-          onMudar={(l) => mudarLinha(i, l)}
-          onRemover={() => onMudar({ itens: ajuste.itens.filter((/** @type {any} */ _, /** @type {number} */ j) => j !== i) })}
-        />
-      ))}
+      <TabelaProdutosMovimento
+        prefixo="ajuste"
+        linhas={ajuste.itens}
+        colunas={COLUNAS_AJUSTE}
+        celula={(linha, i, coluna) => celulaDeAjuste({ linha, indice: i, empresaId, erros, saldo: saldos[i], onMudar: (l) => mudarLinha(i, l) }, coluna)}
+        detalhe={(linha, i) => detalheDoAjuste({ linha, indice: i, erros, saldo: saldos[i], onMudar: (l) => mudarLinha(i, l) })}
+        podeRemover={ajuste.itens.length > 1}
+        onRemover={(i) => onMudar({ itens: ajuste.itens.filter((/** @type {any} */ _, /** @type {number} */ j) => j !== i) })}
+        total={{ rotulo: `Total · ${ajuste.itens.length} ${ajuste.itens.length === 1 ? "produto" : "produtos"}` }}
+        celular={celular}
+      />
       {erros.itens ? <p className="col-span-12 text-[12px] text-red-800">{erros.itens}</p> : null}
       <div className="col-span-12 flex flex-wrap items-center justify-between gap-2">
         <button

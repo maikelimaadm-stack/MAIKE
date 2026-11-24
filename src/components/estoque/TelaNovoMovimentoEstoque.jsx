@@ -1,15 +1,16 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import B1Field from "@/components/cadastro/base1/B1Field";
-import B1Janela from "@/components/cadastro/base1/B1Janela";
+import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroMotivosEstoque from "@/components/estoque/CadastroMotivosEstoque";
 import CamposAjusteEstoque from "@/components/estoque/CamposAjusteEstoque";
 import CampoLotesSaida from "@/components/estoque/CampoLotesSaida";
+import TabelaProdutosMovimento from "@/components/estoque/TabelaProdutosMovimento";
 import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { CampoDia, CampoNumero, EscolhaSegmentada, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
-import { MobileSheetPortalCtx, useCelular } from "@/components/common/MobileSheet";
+import { useCelular } from "@/components/common/MobileSheet";
 import { formatarReais } from "@/lib/estoqueConsultaRegras";
 import { lerNumeroLocal, somar } from "@/lib/dinheiroDecimal";
 import {
@@ -69,6 +70,10 @@ import { formularioVazioAjuste, mensagemErroAjuste, montarCorpoAjuste, validarFo
 import { criarAjusteEstoque, saldoParaAjuste } from "@/services/estoqueAjustesService";
 
 export const FORMULARIO_NOVO_MOVIMENTO_ID = "formulario-novo-movimento-estoque";
+
+/** O título da tela (o cabeçalho do registro Base1). @param {{ tipo: string, documento: any } | null | undefined} edicao */
+export const tituloDoMovimento = (edicao) =>
+  edicao ? `Editar ${edicao.tipo === TIPO_SAIDA ? "saída" : "entrada"} nº ${edicao.documento?.numero ?? ""}` : "Novo movimento de estoque";
 const CHAVE_MOTIVOS = ["estoque", "motivos-entrada"];
 const CHAVE_MOTIVOS_SAIDA = ["estoque", "motivos-saida"];
 
@@ -112,142 +117,177 @@ const totalDasLinhas = (itens) => {
   }
 };
 
+/** "Total · 2 produtos". @param {number} n */
+const rotuloTotal = (n) => `Total · ${n} ${n === 1 ? "produto" : "produtos"}`;
+
+const COLUNAS_ENTRADA = [
+  { id: "produto", titulo: "Produto", largura: 220 },
+  { id: "unidade", titulo: "Unidade", largura: 100 },
+  { id: "deposito", titulo: "Local de estoque", largura: 190 },
+  { id: "quantidade", titulo: "Quantidade", numero: true, largura: 110 },
+  { id: "custo", titulo: "Valor unitário (R$)", numero: true, largura: 130 },
+  { id: "total", titulo: "Valor total (R$)", numero: true, largura: 130 },
+  { id: "sem_custo", titulo: "Sem custo", largura: 90 },
+  { id: "lote", titulo: "Lote", largura: 120 },
+  { id: "validade", titulo: "Validade", largura: 150 },
+];
+
 /**
- * Uma linha de produto da entrada: produto, unidade, depósito, quantidade, valor unitário, valor total (um calcula o
- * outro), "Sem custo", lote e validade.
- * @param {{ linha: any, indice: number, empresaId: string, erros: Record<string, string>, podeRemover: boolean,
- *   onMudar: (l: any) => void, onRemover: () => void }} props
+ * Uma célula da linha de produto da ENTRADA: produto, unidade, depósito, quantidade, valor unitário, valor total (um
+ * calcula o outro), "Sem custo", lote e validade. A linha é uma linha da `TabelaProdutosMovimento` (D-PROD-285).
+ * @param {{ linha: any, indice: number, empresaId: string, erros: Record<string, string>, onMudar: (l: any) => void }} p
+ * @param {string} coluna
  */
-function LinhaDeProduto({ linha, indice, empresaId, erros, podeRemover, onMudar, onRemover }) {
+function celulaDeEntrada({ linha, indice, empresaId, erros, onMudar }, coluna) {
   const e = (/** @type {string} */ campo) => erros[`itens.${indice}.${campo}`] || undefined;
   // D-PROD-286: a de estoque e as unidades de conversão com uso em compra/entrada.
   const unidades = unidadesDoProduto(linha.produto, "compra");
   const por = linha.unidade === "SACO" ? "saco" : linha.unidade === "L" ? "litro" : linha.unidade && linha.unidade !== "KG" ? linha.unidade : "kg";
-  const equivalencia = equivalenciaDaLinha(linha);
-  return (
-    // A linha é um cartão de linha inteira (`b1-form-embutido`) com a grade PRÓPRIA dentro: a grade compacta de 4 colunas
-    // da Base1 (D-PROD-164/#339) vale para `.mg-b1-form-grid` e, aplicada aqui dentro, achatava o cartão e empilhava os
-    // campos de uma linha sobre os da outra (não dava para escolher o produto da 2ª linha).
-    <div className="col-span-12 b1-form-embutido rounded border border-[var(--mg-border,#e2e8f0)] p-2" data-testid={`entrada-linha-${indice}`}>
-      <div className="grid grid-cols-12 gap-x-3 gap-y-2">
-      <div className="col-span-12 flex items-center justify-between text-[12px] font-semibold text-[var(--mg-text-2,#475569)]">
-        <span>Produto {indice + 1}</span>
-        {podeRemover ? (
-          <button type="button" className="tb-btn" onClick={onRemover} aria-label={`Remover o produto ${indice + 1}`} data-testid={`entrada-linha-${indice}-remover`}>
-            <Trash2 size={14} aria-hidden /> Remover
-          </button>
-        ) : null}
-      </div>
-      <SeletorPaginadoGestao
-        rotulo="Produto"
-        testId={`entrada-linha-${indice}-produto`}
-        chave={["estoque", "entrada-produtos", empresaId]}
-        buscar={({ q, cursor, limit }) => listarProdutosDaEntrada(empresaId, { q, cursor, limit })}
-        value={linha.produto ? { id: linha.produto.id, rotulo: linha.produto.rotulo } : null}
-        onChange={(o) => onMudar(comProduto(linha, opcaoProduto(o), "compra"))}
-        detalheDaOpcao={(o) => (o?.codigo ? String(o.codigo) : null)}
-        obrigatorio
-        erro={e("produto")}
-        span={6}
-      />
-      <CampoSelect
-        label="Unidade"
-        value={linha.unidade}
-        onChange={(v) => onMudar({ ...linha, unidade: v })}
-        options={unidades}
-        readOnly={unidades.length <= 1}
-        required
-        error={e("unidade")}
-        span={2}
-        placeholder={linha.produto ? undefined : "Escolha o produto"}
-      />
-      <SeletorPaginadoGestao
-        rotulo="Local de estoque"
-        testId={`entrada-linha-${indice}-deposito`}
-        chave={["estoque", "entrada-depositos"]}
-        buscar={({ q, cursor, limit }) => listarDepositosDaEntrada({ q, cursor, limit })}
-        value={linha.deposito}
-        onChange={(o) => onMudar({ ...linha, deposito: opcaoSimples(o) })}
-        obrigatorio
-        erro={e("deposito")}
-        span={4}
-      />
-      <CampoNumero
-        label="Quantidade"
-        value={linha.quantidade}
-        onChange={(v) => onMudar(comValor(linha, "quantidade", v))}
-        locale={LOCALE_ENTRADA}
-        limites={LIMITES_ENTRADA}
-        required
-        error={e("quantidade")}
-        span={3}
-        testId={`entrada-linha-${indice}-quantidade`}
-      />
-      {equivalencia ? (
-        <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`entrada-linha-${indice}-equivalencia`}>{equivalencia}</p>
-      ) : null}
-      <CampoNumero
-        label={`Valor unitário (R$ por ${por})`}
-        value={linha.custo_zero ? "" : linha.custo}
-        onChange={(v) => onMudar(comValor(linha, "custo", v))}
-        locale={LOCALE_ENTRADA}
-        limites={LIMITES_ENTRADA}
-        casasMin={2}
-        readOnly={linha.custo_zero}
-        required={!linha.custo_zero}
-        error={e("custo")}
-        span={3}
-        testId={`entrada-linha-${indice}-custo`}
-      />
-      <CampoNumero
-        label="Valor total (R$)"
-        value={linha.custo_zero ? "" : linha.total}
-        onChange={(v) => onMudar(comValor(linha, "total", v))}
-        locale={LOCALE_ENTRADA}
-        limites={LIMITES_TOTAL}
-        casasMin={2}
-        readOnly={linha.custo_zero}
-        span={3}
-        testId={`entrada-linha-${indice}-total`}
-      />
-      <label className="col-span-12 flex items-center gap-2 text-[13px] md:col-span-3" data-testid={`entrada-linha-${indice}-sem-custo-rotulo`}>
-        <input
-          type="checkbox"
-          checked={linha.custo_zero}
-          onChange={(ev) => onMudar({ ...linha, custo_zero: ev.target.checked, custo: "", total: "" })}
-          data-testid={`entrada-linha-${indice}-sem-custo`}
+  switch (coluna) {
+    case "produto":
+      return (
+        <SeletorPaginadoGestao
+          rotulo="Produto"
+          testId={`entrada-linha-${indice}-produto`}
+          chave={["estoque", "entrada-produtos", empresaId]}
+          buscar={({ q, cursor, limit }) => listarProdutosDaEntrada(empresaId, { q, cursor, limit })}
+          value={linha.produto ? { id: linha.produto.id, rotulo: linha.produto.rotulo } : null}
+          onChange={(o) => onMudar(comProduto(linha, opcaoProduto(o), "compra"))}
+          detalheDaOpcao={(o) => (o?.codigo ? String(o.codigo) : null)}
+          obrigatorio
+          erro={e("produto")}
+          span={12}
         />
-        Sem custo
-      </label>
-      <CampoTexto label="Lote" value={linha.lote} onChange={(v) => onMudar({ ...linha, lote: v })} maxLength={64} span={6} error={e("lote")} required={linha.produto?.controla_lote === true} keepCase />
-      <CampoDia label="Data de validade" value={linha.validade} onChange={(v) => onMudar({ ...linha, validade: v })} error={e("validade")} required={linha.produto?.controla_validade === true} span={6} testId={`entrada-linha-${indice}-validade`} />
-      </div>
-    </div>
-  );
+      );
+    case "unidade":
+      return (
+        <CampoSelect
+          label="Unidade"
+          value={linha.unidade}
+          onChange={(v) => onMudar({ ...linha, unidade: v })}
+          options={unidades}
+          readOnly={unidades.length <= 1}
+          required
+          error={e("unidade")}
+          span={4}
+          placeholder={linha.produto ? undefined : "Escolha o produto"}
+        />
+      );
+    case "deposito":
+      return (
+        <SeletorPaginadoGestao
+          rotulo="Local de estoque"
+          testId={`entrada-linha-${indice}-deposito`}
+          chave={["estoque", "entrada-depositos"]}
+          buscar={({ q, cursor, limit }) => listarDepositosDaEntrada({ q, cursor, limit })}
+          value={linha.deposito}
+          onChange={(o) => onMudar({ ...linha, deposito: opcaoSimples(o) })}
+          obrigatorio
+          erro={e("deposito")}
+          span={8}
+        />
+      );
+    case "quantidade":
+      return (
+        <>
+        <CampoNumero
+          label="Quantidade"
+          value={linha.quantidade}
+          onChange={(v) => onMudar(comValor(linha, "quantidade", v))}
+          locale={LOCALE_ENTRADA}
+          limites={LIMITES_ENTRADA}
+          required
+          error={e("quantidade")}
+          span={4}
+          testId={`entrada-linha-${indice}-quantidade`}
+        />
+        {/* D-PROD-286: "10 SACO = 250 kg". */}
+        {equivalenciaDaLinha(linha) ? (
+          <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`entrada-linha-${indice}-equivalencia`}>{equivalenciaDaLinha(linha)}</p>
+        ) : null}
+        </>
+      );
+    case "custo":
+      return (
+        <CampoNumero
+          label={`Valor unitário (R$ por ${por})`}
+          value={linha.custo_zero ? "" : linha.custo}
+          onChange={(v) => onMudar(comValor(linha, "custo", v))}
+          locale={LOCALE_ENTRADA}
+          limites={LIMITES_ENTRADA}
+          casasMin={2}
+          readOnly={linha.custo_zero}
+          required={!linha.custo_zero}
+          error={e("custo")}
+          span={4}
+          testId={`entrada-linha-${indice}-custo`}
+        />
+      );
+    case "total":
+      return (
+        <CampoNumero
+          label="Valor total (R$)"
+          value={linha.custo_zero ? "" : linha.total}
+          onChange={(v) => onMudar(comValor(linha, "total", v))}
+          locale={LOCALE_ENTRADA}
+          limites={LIMITES_TOTAL}
+          casasMin={2}
+          readOnly={linha.custo_zero}
+          span={4}
+          testId={`entrada-linha-${indice}-total`}
+        />
+      );
+    case "sem_custo":
+      return (
+        <label className="col-span-12 flex min-h-9 items-center gap-2 text-[13px]" data-testid={`entrada-linha-${indice}-sem-custo-rotulo`}>
+          <input
+            type="checkbox"
+            checked={linha.custo_zero}
+            onChange={(ev) => onMudar({ ...linha, custo_zero: ev.target.checked, custo: "", total: "" })}
+            data-testid={`entrada-linha-${indice}-sem-custo`}
+          />
+          Sem custo
+        </label>
+      );
+    case "lote":
+      return <CampoTexto label="Lote" value={linha.lote} onChange={(v) => onMudar({ ...linha, lote: v })} maxLength={64} span={6} error={e("lote")} required={linha.produto?.controla_lote === true} keepCase />;
+    case "validade":
+      return (
+        <CampoDia
+          label="Data de validade"
+          value={linha.validade}
+          onChange={(v) => onMudar({ ...linha, validade: v })}
+          error={e("validade")}
+          required={linha.produto?.controla_validade === true}
+          span={6}
+          testId={`entrada-linha-${indice}-validade`}
+        />
+      );
+    default:
+      return null;
+  }
 }
 
+const COLUNAS_SAIDA = [
+  { id: "produto", titulo: "Produto", largura: 240 },
+  { id: "unidade", titulo: "Unidade", largura: 100 },
+  { id: "deposito", titulo: "Local de estoque", largura: 200 },
+  { id: "quantidade", titulo: "Quantidade", numero: true, largura: 120 },
+];
+
 /**
- * Uma linha de produto da SAÍDA (D-PROD-264): produto, unidade, depósito e quantidade. Sem valor: o servidor valoriza
- * pelo custo médio do depósito. Mesmo cartão de linha inteira da entrada (`b1-form-embutido` com grade própria).
- * @param {{ linha: any, indice: number, empresaId: string, erros: Record<string, string>, podeRemover: boolean,
- *   onMudar: (l: any) => void, onRemover: () => void }} props
+ * Uma célula da linha de produto da SAÍDA (D-PROD-264): produto, unidade, depósito e quantidade. Sem valor: o servidor
+ * valoriza pelo custo médio do depósito. Os lotes (D-PROD-282) vão na linha de detalhe (`detalheDaSaida`).
+ * @param {{ linha: any, indice: number, empresaId: string, erros: Record<string, string>, onMudar: (l: any) => void }} p
+ * @param {string} coluna
  */
-function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, onRemover }) {
+function celulaDeSaida({ linha, indice, empresaId, erros, onMudar }, coluna) {
   const e = (/** @type {string} */ campo) => erros[`itens.${indice}.${campo}`] || undefined;
   // D-PROD-286: a de estoque e as unidades de conversão com uso em saída.
   const unidades = unidadesDoProduto(linha.produto, "venda");
-  const equivalencia = equivalenciaDaLinha(linha);
-  return (
-    <div className="col-span-12 b1-form-embutido rounded border border-[var(--mg-border,#e2e8f0)] p-2" data-testid={`saida-linha-${indice}`}>
-      <div className="grid grid-cols-12 gap-x-3 gap-y-2">
-        <div className="col-span-12 flex items-center justify-between text-[12px] font-semibold text-[var(--mg-text-2,#475569)]">
-          <span>Produto {indice + 1}</span>
-          {podeRemover ? (
-            <button type="button" className="tb-btn" onClick={onRemover} aria-label={`Remover o produto ${indice + 1}`} data-testid={`saida-linha-${indice}-remover`}>
-              <Trash2 size={14} aria-hidden /> Remover
-            </button>
-          ) : null}
-        </div>
+  switch (coluna) {
+    case "produto":
+      return (
         <SeletorPaginadoGestao
           rotulo="Produto"
           testId={`saida-linha-${indice}-produto`}
@@ -258,8 +298,11 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
           detalheDaOpcao={(o) => (o?.codigo ? String(o.codigo) : null)}
           obrigatorio
           erro={e("produto")}
-          span={6}
+          span={12}
         />
+      );
+    case "unidade":
+      return (
         <CampoSelect
           label="Unidade"
           value={linha.unidade}
@@ -268,9 +311,12 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
           readOnly={unidades.length <= 1}
           required
           error={e("unidade")}
-          span={2}
+          span={4}
           placeholder={linha.produto ? undefined : "Escolha o produto"}
         />
+      );
+    case "deposito":
+      return (
         <SeletorPaginadoGestao
           rotulo="Local de estoque"
           testId={`saida-linha-${indice}-deposito`}
@@ -280,8 +326,12 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
           onChange={(o) => onMudar({ ...linha, deposito: opcaoSimples(o), lotes: null, confirmaVencido: false })}
           obrigatorio
           erro={e("deposito")}
-          span={4}
+          span={8}
         />
+      );
+    case "quantidade":
+      return (
+        <>
         <CampoNumero
           label="Quantidade"
           value={linha.quantidade}
@@ -290,22 +340,38 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
           limites={LIMITES_ENTRADA}
           required
           error={e("quantidade")}
-          span={4}
+          span={12}
           testId={`saida-linha-${indice}-quantidade`}
         />
-        {equivalencia ? (
-          <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`saida-linha-${indice}-equivalencia`}>{equivalencia}</p>
+        {/* D-PROD-286: "10 SACO = 250 kg". */}
+        {equivalenciaDaLinha(linha) ? (
+          <p className="mt-1 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`saida-linha-${indice}-equivalencia`}>{equivalenciaDaLinha(linha)}</p>
         ) : null}
-        {/* D-PROD-282: produto com lote — sugestão FEFO, troca, divisão e aviso de vencido. */}
-        <CampoLotesSaida empresaId={empresaId} linha={linha} onMudar={(patch) => onMudar({ ...linha, ...patch })} testId={`saida-linha-${indice}-lotes`} />
-        {e("lotes") ? <p className="col-span-12 text-[12px] text-red-700" role="alert">{e("lotes")}</p> : null}
-      </div>
-    </div>
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
+/**
+ * D-PROD-282: produto com lote — sugestão FEFO, troca, divisão e aviso de vencido, na linha de detalhe da saída.
+ * Sem lote (e sem erro de lote), não há detalhe.
+ * @param {{ linha: any, indice: number, empresaId: string, erros: Record<string, string>, onMudar: (l: any) => void }} p
+ */
+function detalheDaSaida({ linha, indice, empresaId, erros, onMudar }) {
+  const erroLotes = erros[`itens.${indice}.lotes`] || undefined;
+  if (!linha?.produto?.controla_lote && !erroLotes) return null;
+  return (
+    <>
+      <CampoLotesSaida empresaId={empresaId} linha={linha} onMudar={(patch) => onMudar({ ...linha, ...patch })} testId={`saida-linha-${indice}-lotes`} />
+      {erroLotes ? <p className="col-span-12 text-[12px] text-red-700" role="alert">{erroLotes}</p> : null}
+    </>
   );
 }
 
 /**
- * "Novo movimento" do Estoque (D-PROD-259): UMA janela (680px; tela cheia no celular) em que se escolhe o TIPO de
+ * "Novo movimento" do Estoque (D-PROD-259): UMA tela em que se escolhe o TIPO de
  * movimento — Entrada ou Transferência — e preenche o formulário daquele tipo. Tudo aparece junto na lista de
  * Movimentos (não há aba separada). A Entrada tem cabeçalho (data, motivo do cadastro, fornecedor, documento, centro
  * de resultado, centro de custo, observação) e vários produtos; o saldo de implantação esconde fornecedor e documento.
@@ -324,13 +390,18 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
  * uma `operation_id` própria (`ent-ed-`/`sai-ed-`), reaproveitada no reenvio do mesmo conteúdo. O servidor estorna e
  * refaz os lançamentos só se nada mexeu depois; se só a observação mudou, ele grava como edição de observação.
  * O Ajuste não tem modo edição (não há edição física do ajuste: só o estorno integral).
- * @param {{ aberto: boolean, empresaId: string, hoje: string, podeEntrada?: boolean, podeSaida?: boolean, podeAjuste?: boolean, onFechar: () => void,
+ * D-PROD-285: deixou de ser janela (popup): é uma TELA CHEIA no padrão do Motor Base1 — o corpo do registro da
+ * `CadastroBase1Screen` de Movimentos (cabeçalho do registro, ✕/✓ na barra, corpo no cartão Base1), como os outros
+ * cadastros Base1. Os produtos de Entrada, Saída e Ajuste ficam na tabela da `TabelaProdutosMovimento` (o desenho da
+ * tabela "Áreas" da atividade; cartões no celular). Regras, validações e chamadas ao servidor não mudaram.
+ * `onEnviando` avisa quem monta a tela quando um envio começa e termina (para travar o ✕/✓ da barra).
+ * @param {{ empresaId: string, hoje: string, podeEntrada?: boolean, podeSaida?: boolean, podeAjuste?: boolean, onFechar: () => void,
+ *   onEnviando?: (enviando: boolean) => void,
  *   edicao?: { tipo: 'entrada'|'saida', documento: any } | null,
  *   onLancado: (r: { tipo: string, entrada?: any, saida?: any, ajuste?: any, editada?: boolean }) => void }} props
  */
-export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, podeEntrada = true, podeSaida = false, podeAjuste = false, edicao = null, onFechar, onLancado }) {
+export default function TelaNovoMovimentoEstoque({ empresaId, hoje, podeEntrada = true, podeSaida = false, podeAjuste = false, edicao = null, onFechar, onLancado, onEnviando = undefined }) {
   const celular = useCelular();
-  const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
   const tipos = tiposPermitidos({ entrada: podeEntrada, saida: podeSaida, ajuste: podeAjuste });
   const [tipo, setTipo] = useState(() => edicao?.tipo ?? tipos[0]?.value ?? TIPO_ENTRADA);
   const [modoMotivos, setModoMotivos] = useState(/** @type {null | 'entrada' | 'saida'} */ (null));
@@ -345,16 +416,16 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
   const operacao = useRef(/** @type {{ conteudo: string, id: string } | null} */ (null));
 
   const editando = Boolean(edicao);
-  const motivosQuery = useQuery({ queryKey: [...CHAVE_MOTIVOS, "ativos"], queryFn: () => listarMotivosEntrada({ ativos: true }), staleTime: 30 * 1000, enabled: aberto && podeEntrada && (!editando || tipo === TIPO_ENTRADA) });
+  const motivosQuery = useQuery({ queryKey: [...CHAVE_MOTIVOS, "ativos"], queryFn: () => listarMotivosEntrada({ ativos: true }), staleTime: 30 * 1000, enabled: podeEntrada && (!editando || tipo === TIPO_ENTRADA) });
   const motivos = motivosQuery.data ?? [];
-  const motivosSaidaQuery = useQuery({ queryKey: [...CHAVE_MOTIVOS_SAIDA, "ativos"], queryFn: () => listarMotivosSaida({ ativos: true }), staleTime: 30 * 1000, enabled: aberto && podeSaida && (!editando || tipo === TIPO_SAIDA) });
+  const motivosSaidaQuery = useQuery({ queryKey: [...CHAVE_MOTIVOS_SAIDA, "ativos"], queryFn: () => listarMotivosSaida({ ativos: true }), staleTime: 30 * 1000, enabled: podeSaida && (!editando || tipo === TIPO_SAIDA) });
   const motivosSaida = motivosSaidaQuery.data ?? [];
   // Saldo atual (e custo médio) de cada linha do ajuste que já tem produto e depósito.
   const saldosQueries = useQueries({
     queries: ajuste.itens.map((/** @type {any} */ l) => ({
       queryKey: ["estoque", "ajuste-saldo", empresaId, l.produto?.id ?? null, l.deposito?.id ?? null],
       queryFn: () => saldoParaAjuste(empresaId, l.produto.id, l.deposito.id),
-      enabled: aberto && podeAjuste && tipo === TIPO_AJUSTE && Boolean(l.produto?.id && l.deposito?.id),
+      enabled: podeAjuste && tipo === TIPO_AJUSTE && Boolean(l.produto?.id && l.deposito?.id),
       staleTime: 15 * 1000,
       refetchOnWindowFocus: false,
     })),
@@ -458,10 +529,14 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
     }
   };
 
+  useEffect(() => {
+    onEnviando?.(enviando);
+  }, [enviando, onEnviando]);
+
   const totalEntrada = tipo === TIPO_ENTRADA ? totalDasLinhas(entrada.itens) : "";
 
   const rodape = modoMotivos ? null : (
-    <>
+    <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-[var(--mg-divider,#E8E7E2)] pt-3" data-testid="movimento-acoes">
       <button type="button" className="tb-btn" onClick={onFechar} disabled={enviando} data-testid="movimento-cancelar">
         Cancelar
       </button>
@@ -471,25 +546,19 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
           ? enviando ? "Salvando…" : "Salvar edição"
           : enviando ? "Lançando…" : tipo === TIPO_ENTRADA ? "Lançar entrada" : tipo === TIPO_SAIDA ? "Lançar saída" : tipo === TIPO_AJUSTE ? "Lançar ajuste" : "Lançar transferência"}
       </button>
-    </>
+    </div>
   );
 
+  const titulo = tituloDoMovimento(edicao);
   return (
-    <B1Janela
-      aberto={aberto}
-      onFechar={onFechar}
-      podeFechar={!enviando}
-      titulo={edicao ? `Editar ${edicao.tipo === TIPO_SAIDA ? "saída" : "entrada"} nº ${edicao.documento?.numero ?? ""}` : "Novo movimento de estoque"}
-      testId="janela-novo-movimento-estoque"
-      className={celular ? "b1-janela--tela-cheia" : ""}
-      contentProps={{ className: celular ? "b1-janela__camada--tela-cheia" : "" }}
-      // No celular as listas (produto, local, motivo…) abrem numa folha: ela nasce DENTRO da janela, senão a janela
-      // modal fica por cima dela e não deixa tocar nas opções. Com a folha aberta, "fechar" fecha só a folha.
-      aoPedirFechar={() => !alvoFolha?.querySelector(".mk-sheet-root")}
-      fora={<div ref={setAlvoFolha} className="contents" />}
-      rodape={rodape}
-    >
-      <MobileSheetPortalCtx.Provider value={alvoFolha}>
+    <div className="min-w-0" data-testid="tela-novo-movimento-estoque" aria-label={titulo}>
+      <CadastroFormShell embedded>
+      {/* Registro sem abas: no computador a Base1 tira a faixa do cabeçalho, então o título fica no cartão; no celular ele já está na casca. */}
+      {celular ? null : (
+        <div className="mg-b1-form-header mb-2">
+          <h2 className="mg-card-title" data-testid="movimento-titulo">{titulo}</h2>
+        </div>
+      )}
       {modoMotivos === "entrada" ? (
         <CadastroMotivosEstoque
           titulo="Motivos de entrada"
@@ -599,18 +668,16 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
               <Observacao label="Observação" value={entrada.observacao} onChange={(v) => mudarEntrada({ observacao: v })} testId="entrada-observacao" />
 
               <SecaoForm titulo="Produtos" />
-              {entrada.itens.map((linha, i) => (
-                <LinhaDeProduto
-                  key={linha.chave}
-                  linha={linha}
-                  indice={i}
-                  empresaId={empresaId}
-                  erros={erros}
-                  podeRemover={entrada.itens.length > 1}
-                  onMudar={(l) => mudarLinha(i, l)}
-                  onRemover={() => mudarEntrada({ itens: entrada.itens.filter((_, j) => j !== i) })}
-                />
-              ))}
+              <TabelaProdutosMovimento
+                prefixo="entrada"
+                linhas={entrada.itens}
+                colunas={COLUNAS_ENTRADA}
+                celula={(linha, i, coluna) => celulaDeEntrada({ linha, indice: i, empresaId, erros, onMudar: (l) => mudarLinha(i, l) }, coluna)}
+                podeRemover={entrada.itens.length > 1}
+                onRemover={(i) => mudarEntrada({ itens: entrada.itens.filter((_, j) => j !== i) })}
+                total={{ rotulo: rotuloTotal(entrada.itens.length), porColuna: { total: totalEntrada ? formatarReais(totalEntrada) : "—" } }}
+                celular={celular}
+              />
               {erros.itens ? <p className="col-span-12 text-[12px] text-red-800">{erros.itens}</p> : null}
               <div className="col-span-12 flex flex-wrap items-center justify-between gap-2">
                 <button
@@ -670,18 +737,17 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
               <Observacao label="Observação" value={saida.observacao} onChange={(v) => mudarSaida({ observacao: v })} testId="saida-observacao" />
 
               <SecaoForm titulo="Produtos" />
-              {saida.itens.map((linha, i) => (
-                <LinhaDeSaida
-                  key={linha.chave}
-                  linha={linha}
-                  indice={i}
-                  empresaId={empresaId}
-                  erros={erros}
-                  podeRemover={saida.itens.length > 1}
-                  onMudar={(l) => mudarLinhaSaida(i, l)}
-                  onRemover={() => mudarSaida({ itens: saida.itens.filter((_, j) => j !== i) })}
-                />
-              ))}
+              <TabelaProdutosMovimento
+                prefixo="saida"
+                linhas={saida.itens}
+                colunas={COLUNAS_SAIDA}
+                celula={(linha, i, coluna) => celulaDeSaida({ linha, indice: i, empresaId, erros, onMudar: (l) => mudarLinhaSaida(i, l) }, coluna)}
+                detalhe={(linha, i) => detalheDaSaida({ linha, indice: i, empresaId, erros, onMudar: (l) => mudarLinhaSaida(i, l) })}
+                podeRemover={saida.itens.length > 1}
+                onRemover={(i) => mudarSaida({ itens: saida.itens.filter((_, j) => j !== i) })}
+                total={{ rotulo: rotuloTotal(saida.itens.length) }}
+                celular={celular}
+              />
               {erros.itens ? <p className="col-span-12 text-[12px] text-red-800">{erros.itens}</p> : null}
               <div className="col-span-12 flex flex-wrap items-center justify-between gap-2">
                 <button
@@ -801,8 +867,9 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
           ) : null}
         </form>
       )}
-      </MobileSheetPortalCtx.Provider>
-    </B1Janela>
+      {rodape}
+      </CadastroFormShell>
+    </div>
   );
 }
 

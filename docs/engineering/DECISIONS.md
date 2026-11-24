@@ -9282,12 +9282,23 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** "Consumido (kg)" no cartão de fechamento (o evento não tem um campo próprio do cocho; ficou a Sobra); "% do lançamento" ao lado do saldo (o percentual já aparece uma vez, no desenho); desenho próprio de tablet e computador. Nenhuma mudança no servidor; nenhuma migration.
 - **Testes:** `tests/smoke/detalhesCochoV13.test.jsx` (novo) e os smoke do cocho e do depósito ajustados (`detalhesV12Cocho`, `leituraCocho`, `depositoNivel`, `detalhesV12Deposito`, `detalhesDepositoNiveis`, `detalhesCompactos`, `mapaDepositoLitros`, `mapaNiveisFonteUnica`).
 
+## D-PROD-285 — "Novo movimento" do Estoque em tela cheia Base1, com os produtos na tabela das Áreas
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `19ca524e` disse D-PROD-284, mas outra missão em paralelo pode tomar a D-PROD-284; esta fica com a D-PROD-285. O marcador não é mexido aqui (quem fizer merge por último ajusta).
+
+- **Contexto:** o lançamento de estoque (Entrada, Saída, Transferência e Ajuste, D-PROD-259/264/272) e a edição de entrada/saída (D-PROD-271) abriam numa janela (`B1Janela`, popup). Os cadastros Base1 abrem o registro em tela cheia.
+- **Decisão:** a janela vira **tela** (`TelaNovoMovimentoEstoque`, antes `JanelaNovoMovimentoEstoque`), mostrada como **corpo do registro da `CadastroBase1Screen`** de Movimentos: cabeçalho do registro com o título ("Novo movimento de estoque" / "Editar entrada nº N"), ✕/✓ na barra (o ✓ envia o mesmo formulário) e os botões "Cancelar"/"Lançar …" no pé. Sem rota nova: é estado da página (o escopo de rotas não muda). Fechar volta para a lista; cancelar a edição volta para o detalhe do documento (como antes).
+- **Produtos:** Entrada, Saída e Ajuste mostram os produtos na `TabelaProdutosMovimento`, o mesmo desenho da tabela "Áreas" da abertura da atividade (`SeletorAreasDaAtividade`, D-PROD-249): `b1-tipo-tabela` com cabeçalho, campos editáveis nas células, números à direita, ✕ no fim, linha de total no rodapé; no celular, cartões. Os lotes da saída (FEFO, troca, divisão, aviso e confirmação de vencido, D-PROD-282) e o custo da sobra do ajuste vão numa linha de detalhe sob o produto.
+- **Sem mudança:** chamadas ao servidor, `operation_id`, validações, motivos (e o "Motivos…" na mesma tela), custo, lote/validade, permissões (ações `entrada`/`saida`/`ajuste`).
+- **Testes:** `tests/smoke/estoqueNovoMovimento.test.jsx`. **Relatório:** [`MAIKE-ESTOQUE-LANCAMENTO-TELA-BASE1-REPORT.md`](./MAIKE-ESTOQUE-LANCAMENTO-TELA-BASE1-REPORT.md)
+
+
 
 ## D-PROD-286 — Produto: unidades de conversão no cadastro; consumo só na Formulação; preços, local e código interno fora da tela
 
 **Data:** 2026-11-24 · **Origem:** escolhas do proprietário (2026-11-24), com o alinhamento ao outro repositório do dono (CONTROLE-DE-ESTOQUE, `erp.produto_unidades`, migration 0029) pedido pela coordenação · **Branch:** `claude/produto-unidades-conversao` (da `main` `4e9b4445`) · **Migration:** `20261125200000_produto_unidades_conversao` (CONTRACT condicionado, formato CONVERSÃO sem DROP) · **Especificação:** [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md) · **Runbook:** [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md) · **Relatório:** [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md)
 
-> **Numeração:** nasceu D-PROD-284 (o script, no início da missão). A PR #371 reservou a D-PROD-284 e passou-se a D-PROD-285; depois do merge da `main` (PR #370 e #371), a PR aberta #372 reservou a D-PROD-285 e `node scripts/dev/proxima-decisao.mjs` mandou usar a **D-PROD-286**, que é esta (renumerada só nesses momentos, D-PROD-277). O marcador passa a D-PROD-287. O número não está no `migration.sql` (checksum inalterado). Conferir de novo antes do merge (regra A5).
+> **Numeração:** nasceu D-PROD-284 (o script, no início da missão). A PR #371 reservou a D-PROD-284 e passou-se a D-PROD-285; depois do merge da `main` (PR #370 e #371), a PR #372 (mergeada) levou a D-PROD-285 e `node scripts/dev/proxima-decisao.mjs` mandou usar a **D-PROD-286**, que é esta (renumerada só nesses momentos, D-PROD-277). O marcador passa a D-PROD-287. O número não está no `migration.sql` (checksum inalterado). Conferir de novo antes do merge (regra A5).
 
 **Escolhas do proprietário (2026-11-24).**
 1. **Unidades de conversão no cadastro do produto.** O produto continua com **uma** unidade de estoque (KG ou L; o SACO legado guarda kg); saldo, custo médio, lote e recálculo ficam sempre nela. Na seção "Unidades" do cadastro, uma lista: unidade (sigla, até 8 caracteres), **Multiplica** ou **Divide**, fator e uso (compra/entrada e saída/venda), com a prévia "1 SACO = 25 KG". MULTIPLICA: 1 sigla = fator; DIVIDE: 1 sigla = 1/fator (fator ≤ 10.000).
