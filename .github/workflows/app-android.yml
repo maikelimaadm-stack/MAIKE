@@ -101,6 +101,7 @@ jobs:
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
         run: |
           npx vite build
+          node scripts/app/versao-do-pacote.mjs dist
           npx cap sync android
 
       - name: Chave de assinatura

@@ -7,6 +7,7 @@ import {
   createOfflineEntityAdapter,
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'UnidadeMedida';
 const CAMINHO = '/unidades-medida';
@@ -84,3 +85,9 @@ export const unidadeMedidaPort = createOfflineEntityAdapter({
   enabled: offlineStorageDisponivel(),
   tenantScoped: true,
 });
+
+// D-PROD-289: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/unidades-medida/page?limit=100',
+]);

@@ -5,6 +5,7 @@
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'Servico';
 const CAMINHO = '/servicos';
@@ -44,3 +45,9 @@ export const operacoesNativas = Object.freeze({
   opcoesCentrosCusto: (empresaId) =>
     nativeRequest(comEmpresa('/servicos-opcoes/centros-custo', empresaId), { autenticado: true }, ctx('listOpcoesCentrosCustoServico')),
 });
+
+// D-PROD-289: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/servicos?empresa_id={empresa}&limit=100&ativo=true',
+]);

@@ -59,9 +59,17 @@ O APK sai em `android/app/build/outputs/apk/release/app-release.apk` e instala p
 
 ## Sem internet (D-PROD-289)
 
-- **Baixar dados:** depois do primeiro login no app aparece "Dados para usar sem internet" → "Baixar agora". Baixa mapa, áreas, lotes e cadastros, e atualiza as telas já abertas com internet (cada tela aberta uma vez com internet passa a abrir sem internet). Com internet, o app atualiza sozinho a cada 6 h; o menu do usuário → "Dados sem internet" baixa ou atualiza quando quiser.
-- **Abre:** telas, código e ícones estão dentro do app, e o login guardado vale (aviso "Sem internet — mostrando dados salvos").
-- **Mapa:** sem internet, fundo liso local com áreas, pontos e lotes por cima. Satélite sem internet não existe (licença do Google).
+- **Primeira vez:** depois de entrar, o app mostra "Preparando o app para usar no campo" e só abre quando baixou mapa, áreas, lotes, cadastros e as telas do sistema. **Depois:** abre direto com o que está no celular e sincroniza sozinho a cada 6 h com internet; o menu do usuário → "Dados sem internet" atualiza na hora.
+- **Internet fraca:** com cópia no celular, a tela espera o servidor no máximo 6 s e abre com a cópia.
+- **Abre:** telas, código e ícones estão dentro do app, e o login guardado vale (sem aviso na tela).
+- **Mapa:** sem internet, fundo liso local com áreas, pontos e lotes por cima, sem mensagens. Satélite sem internet não existe (as políticas do Google proíbem uso offline das imagens).
 - **Mostra:** tudo o que foi baixado ou visto com internet (leituras guardadas no aparelho, por fazenda).
 - **Quando a rede volta:** o app confere o login no servidor sozinho.
 - **Ainda precisa de internet:** o primeiro login e **gravar** (lançar, editar, excluir). Registrar sem internet e enviar depois é a próxima etapa.
+
+## Atualização automática (D-PROD-289)
+
+- Frontend novo chega sem instalar APK: a cada deploy da Vercel, `npm run app:pacote` publica `/app-atualizacao/ultima.json` e o pacote `.zip`.
+- O app confere ao abrir e ao voltar para a frente; baixa por baixo e aplica na **próxima abertura**. Se a versão nova não abrir, volta sozinho à anterior.
+- **Precisa de APK novo** só para mudança nativa (plugin novo, permissão, ícone): suba `versionCode` em `app-version.json`; pacotes com `nativoMinimo` maior que o APK instalado não são aplicados.
+- Plugin `@capgo/capacitor-updater` em modo manual, sem servidor da Capgo (estatística e canais desligados).

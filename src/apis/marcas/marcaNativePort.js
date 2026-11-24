@@ -7,6 +7,7 @@ import {
   createOfflineEntityAdapter,
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'Marca';
 const CAMINHO = '/marcas';
@@ -109,3 +110,9 @@ export const marcaPort = createOfflineEntityAdapter({
   enabled: offlineStorageDisponivel(),
   tenantScoped: true,
 });
+
+// D-PROD-289: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/marcas?limit=100&empresa_id={empresa}',
+]);

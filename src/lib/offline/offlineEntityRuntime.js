@@ -170,15 +170,21 @@ export const baixarEntidadesParaOffline = async (aoAvancar) => {
   const falhas = [];
   if (!estaOnline()) return { total: alvos.length, ok: 0, falhas: alvos.map(([nome]) => nome) };
   let feitas = 0;
-  for (const [nome, entrada] of alvos) {
-    try {
-      await entrada.adapter.list();
-    } catch {
-      falhas.push(nome);
+  const fila = [...alvos];
+  // 6 por vez: baixar uma entidade de cada vez deixava o preparo lento.
+  const trabalhar = async () => {
+    while (fila.length) {
+      const [nome, entrada] = /** @type {[string, any]} */ (fila.shift());
+      try {
+        await entrada.adapter.list();
+      } catch {
+        falhas.push(nome);
+      }
+      feitas += 1;
+      aoAvancar?.({ feitas, total: alvos.length, entidade: nome });
     }
-    feitas += 1;
-    aoAvancar?.({ feitas, total: alvos.length, entidade: nome });
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(6, alvos.length) }, trabalhar));
   return { total: alvos.length, ok: alvos.length - falhas.length, falhas };
 };
 

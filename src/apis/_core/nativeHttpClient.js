@@ -356,6 +356,9 @@ const requisitarNaRede = async (caminho, opcoes, contexto) => {
 
 const semInternetAgora = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
+/** Leitura com cópia no aparelho espera a rede no máximo isto (D-PROD-289). */
+const TIMEOUT_COM_COPIA_MS = 6000;
+
 /**
  * Requisição ao backend nativo (contrato acima).
  *
@@ -379,18 +382,21 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
 
   // `somenteRede` (baixar dados): a leitura precisa vir do servidor agora.
   const podeUsarGuardado = opcoes.somenteRede !== true;
-  if (podeUsarGuardado && semInternetAgora()) {
-    const guardada = await lerResposta(tenant, caminho);
-    if (guardada) return guardada.corpo;
-  }
+  const guardada = podeUsarGuardado ? await lerResposta(tenant, caminho) : undefined;
+  if (guardada && semInternetAgora()) return guardada.corpo;
+
+  // Internet fraca (campo): com uma cópia guardada, não espera os 20 s do
+  // servidor — em 6 s sem resposta, a tela abre com a cópia do aparelho.
+  const opcoesDaRede = guardada
+    ? { ...opcoes, timeoutMs: Math.min(opcoes.timeoutMs ?? TIMEOUT_COM_COPIA_MS, TIMEOUT_COM_COPIA_MS) }
+    : opcoes;
   try {
-    const corpo = await requisitarNaRede(caminho, opcoes, contexto);
+    const corpo = await requisitarNaRede(caminho, opcoesDaRede, contexto);
     guardarResposta(tenant, caminho, corpo).catch(() => {});
     return corpo;
   } catch (erro) {
-    if (podeUsarGuardado && /** @type {any} */ (erro)?.code === API_ERROR_CODES.PROVIDER_UNAVAILABLE && !opcoes.signal?.aborted) {
-      const guardada = await lerResposta(tenant, caminho);
-      if (guardada) return guardada.corpo;
+    if (guardada && /** @type {any} */ (erro)?.code === API_ERROR_CODES.PROVIDER_UNAVAILABLE && !opcoes.signal?.aborted) {
+      return guardada.corpo;
     }
     throw erro;
   }

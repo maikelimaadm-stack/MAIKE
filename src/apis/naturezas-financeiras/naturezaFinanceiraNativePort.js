@@ -4,6 +4,7 @@
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'NaturezaFinanceira';
 const CAMINHO = '/naturezas-financeiras';
@@ -64,3 +65,9 @@ export const operacoesNativas = Object.freeze({
   /** @param {Record<string, unknown>} filtros */
   opcoesPais: (filtros) => nativeRequest(montarCaminhoOpcoesPais(filtros), { autenticado: true }, ctx('listOpcoesPaiNaturezaFinanceira')),
 });
+
+// D-PROD-289: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/naturezas-financeiras?empresa_id={empresa}&tipo=DESPESA&ativo=true&limit=100',
+]);

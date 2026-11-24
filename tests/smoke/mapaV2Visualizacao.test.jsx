@@ -124,13 +124,12 @@ describe("Atribuição e aviso do satélite discretos", () => {
     expect(screen.getByRole("region", { name: "Fontes de dados do mapa" }).textContent).toBe(LONGO);
   });
 
-  it("aviso de falha compacto: Tentar novamente e fechar", () => {
-    const onRetry = vi.fn();
-    render(<BasemapAtribuicao status="erro" mensagem="Satélite não configurado." onRetry={onRetry} />);
-    expect(screen.getByRole("alert").textContent).toContain("Satélite indisponível");
-    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
-    expect(onRetry).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "Fechar aviso" }));
+  it("D-PROD-289: sem aviso do satélite — nem carregando nem falha (o mapa segue com o fundo normal)", () => {
+    const { rerender } = render(<BasemapAtribuicao status="erro" mensagem="Satélite não configurado." onRetry={vi.fn()} />);
     expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText(/Satélite indisponível/)).toBeNull();
+    rerender(<BasemapAtribuicao status="carregando" />);
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByText(/Carregando satélite/)).toBeNull();
   });
 });

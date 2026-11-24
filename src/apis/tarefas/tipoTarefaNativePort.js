@@ -7,6 +7,7 @@ import {
   createOfflineEntityAdapter,
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'TipoTarefa';
 const CAMINHO = '/tipos-tarefa';
@@ -73,3 +74,9 @@ export const tipoTarefaPort = createOfflineEntityAdapter({
   enabled: offlineStorageDisponivel(),
   tenantScoped: true,
 });
+
+// D-PROD-289: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/tipos-tarefa',
+]);

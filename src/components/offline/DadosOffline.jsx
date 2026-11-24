@@ -32,10 +32,11 @@ const formatarQuando = (ms) =>
 /**
  * D-PROD-289 — "Baixar dados para usar sem internet".
  *
- * - No app (Android/iOS), logo depois de entrar, pergunta uma vez por fazenda
- *   se quer baixar os dados (mapa, cadastros, telas já abertas).
- * - Já baixado e com internet: atualiza sozinho em segundo plano a cada 6 h.
- * - O menu do usuário abre esta janela para baixar/atualizar quando quiser.
+ * - A primeira baixa no app é feita pela tela de preparo (`PreparoDoApp`),
+ *   antes de o sistema abrir.
+ * - Depois, com internet, sincroniza sozinho por baixo a cada 6 h.
+ * - O menu do usuário ("Dados sem internet") abre esta janela para atualizar
+ *   na hora e ver quando foi a última vez.
  */
 export default function DadosOffline() {
   const { isAuthenticated, clienteId } = useAuth();
@@ -90,15 +91,23 @@ export default function DadosOffline() {
     return () => window.removeEventListener(EVENTO_ABRIR_DADOS_OFFLINE, abrir);
   }, []);
 
-  // No app: pergunta na primeira vez; depois, atualiza sozinho com internet.
+  // Sincronização (D-PROD-289): já preparado, com internet, atualiza por baixo
+  // a cada 6 h (na abertura e enquanto o app fica aberto). A PRIMEIRA baixa é
+  // da tela de preparo (`PreparoDoApp`), antes de o sistema abrir.
   useEffect(() => {
-    if (!isAuthenticated || !clienteId || !layoutBootReady || !isAppNativo() || estaSemInternet()) return;
-    const anterior = ultimaBaixaDosDados();
-    if (!anterior) {
-      setAberto(true);
-      return;
-    }
-    if (Date.now() - anterior > ATUALIZAR_SOZINHO_APOS_MS) baixar({ silencioso: true });
+    if (!isAuthenticated || !clienteId || !layoutBootReady || !isAppNativo()) return undefined;
+    const talvezSincronizar = () => {
+      const anterior = ultimaBaixaDosDados();
+      if (!anterior || estaSemInternet()) return;
+      if (Date.now() - anterior > ATUALIZAR_SOZINHO_APOS_MS) baixar({ silencioso: true });
+    };
+    talvezSincronizar();
+    const intervalo = window.setInterval(talvezSincronizar, 15 * 60 * 1000);
+    window.addEventListener('online', talvezSincronizar);
+    return () => {
+      window.clearInterval(intervalo);
+      window.removeEventListener('online', talvezSincronizar);
+    };
   }, [isAuthenticated, clienteId, layoutBootReady]);
 
   if (!isAuthenticated) return null;

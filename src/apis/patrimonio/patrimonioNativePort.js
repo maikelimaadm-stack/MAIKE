@@ -16,6 +16,7 @@
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import { UNIDADES_ESTOQUE_TANQUE } from '@/lib/patrimonioDominio';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 /** Caminho de cada catálogo (recurso → rota). D-PROD-169: só os tipos (a família saiu da tela). */
 export const CAMINHOS_CATALOGO = Object.freeze({
@@ -259,3 +260,10 @@ export const operacoesNativas = Object.freeze({
   abastecimentoConsumo: (filtros = {}) =>
     nativeRequest(montarCaminhoConsumoAbastecimento(filtros), { autenticado: true }, ctx('getConsumoAbastecimento', RESOURCE_ABASTECIMENTO)),
 });
+
+// D-PROD-289: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/bens-patrimoniais?empresa_id={empresa}&ativo=true&limit=100',
+  '/patrimonio-abastecimentos?empresa_id={empresa}&limit=100',
+]);

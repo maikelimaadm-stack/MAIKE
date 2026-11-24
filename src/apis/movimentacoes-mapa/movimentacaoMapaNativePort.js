@@ -9,6 +9,7 @@ import {
   pendenciasOfflineDoRegistro,
   getOfflineSyncEventName,
 } from '@/lib/offline/offlineEntityRuntime';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'MovimentacaoMapa';
 const CAMINHO = '/movimentacoes-mapa';
@@ -139,3 +140,10 @@ export const movimentacaoMapaPort = offlineStorageDisponivel()
       tenantScoped: true,
     })
   : operacoesNativas;
+
+// D-PROD-289: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/movimentacoes-mapa?limit=500',
+  '/rebanho/posicoes?empresa_id={empresa}',
+]);

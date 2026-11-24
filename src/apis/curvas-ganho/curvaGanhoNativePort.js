@@ -5,6 +5,7 @@
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'CurvaGanho';
 const CAMINHO = '/curvas-ganho';
@@ -29,3 +30,9 @@ export const operacoesNativas = Object.freeze({
   remove: (id, empresaId) =>
     nativeRequest(comEmpresa(doId(id), empresaId), { method: 'DELETE', autenticado: true }, ctx('deleteCurvaGanho', { id })),
 });
+
+// D-PROD-289: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/curvas-ganho?empresa_id={empresa}',
+]);

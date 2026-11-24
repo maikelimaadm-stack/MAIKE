@@ -4,29 +4,33 @@
  * Duas leituras em lote, as duas só de leitura:
  *  - `baixarEntidadesParaOffline`: todas as entidades com adaptador offline
  *    (cadastros, áreas, lotes, pontos…) vão para o cache do aparelho;
- *  - `atualizarLeiturasGuardadas`: refaz cada leitura já guardada no
- *    aparelho (telas abertas antes com internet).
+ *  - `baixarLeiturasDasTelas`: as leituras que as telas fazem ao abrir
+ *    (registradas pelas portas) e as já guardadas no aparelho.
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import { getOfflineTenant } from '@/lib/offline/offlineTenant';
 import { listarCaminhosGuardados } from '@/lib/offline/respostasOffline';
 import { baixarEntidadesParaOffline } from '@/lib/offline/offlineEntityRuntime';
+import { leiturasOfflineRegistradas } from '@/lib/offline/leiturasOffline';
 import { API_ERROR_CODES } from '../_core/ApiError.js';
 
-const CONCORRENCIA = 4;
+/** Leituras ao mesmo tempo ao baixar (D-PROD-289: preparo mais rápido). */
+const CONCORRENCIA = 8;
 
 /**
- * Refaz, com internet, toda leitura já guardada no aparelho (as telas que a
- * pessoa abriu com internet), para elas abrirem atualizadas sem internet.
- * Os caminhos vêm do que as próprias portas pediram: nada é montado aqui.
- * Sem permissão para uma tela (403) não é falha: a pessoa não a usa.
+ * Leituras das telas (registradas por cada porta de módulo, com a empresa) e
+ * todas as já guardadas no aparelho, sem repetir. Cada uma vai ao servidor e a
+ * resposta fica guardada (o `nativeRequest` guarda toda leitura). Nenhum
+ * caminho é montado aqui. Sem permissão para uma tela (403) não é falha.
  *
+ * @param {string|null} empresaId
  * @param {(p: {feitas: number, total: number}) => void} [aoAvancar]
  * @returns {Promise<{total: number, ok: number, falhas: number}>}
  */
-export const atualizarLeiturasGuardadas = async (aoAvancar) => {
-  const caminhos = await listarCaminhosGuardados(getOfflineTenant());
+export const baixarLeiturasDasTelas = async (empresaId, aoAvancar) => {
+  const guardadas = await listarCaminhosGuardados(getOfflineTenant());
+  const caminhos = [...new Set([...leiturasOfflineRegistradas(empresaId), ...guardadas])];
   let feitas = 0;
   let falhas = 0;
   const fila = [...caminhos];

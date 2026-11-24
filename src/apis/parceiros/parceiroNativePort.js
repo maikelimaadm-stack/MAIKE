@@ -7,6 +7,7 @@
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'Parceiro';
 const CAMINHO = '/parceiros';
@@ -41,3 +42,9 @@ export const operacoesNativas = Object.freeze({
   update: (id, corpo) =>
     nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}`, { method: 'PATCH', body: corpo, autenticado: true }, ctx('updateParceiro', { id })),
 });
+
+// D-PROD-289: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/parceiros?empresa_id={empresa}&limit=100&ativo=true',
+]);

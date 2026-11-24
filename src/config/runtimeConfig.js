@@ -165,6 +165,15 @@ export const getNativeApiUrl = () => {
   return daEnv;
 };
 
+/**
+ * Origem de onde o app Android/iOS busca as atualizações automáticas
+ * (`/app-atualizacao/ultima.json`, D-PROD-289): o mesmo servidor do build.
+ * Fora do app nativo não há atualização: `null`.
+ *
+ * @returns {string|null}
+ */
+export const getOrigemDasAtualizacoesDoApp = () => (rodandoNoAppNativo() ? getNativeApiUrl() : null);
+
 /** O backend nativo está configurado? */
 export const isNativeApiConfigured = () => getNativeApiUrl() !== null;
 

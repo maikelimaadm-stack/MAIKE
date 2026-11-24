@@ -21,6 +21,7 @@
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'Atividade';
 const RESOURCE_APONTAMENTO = 'AtividadeApontamento';
@@ -616,3 +617,10 @@ export const operacoesNativas = Object.freeze({
   opcoes: (recurso, filtros = {}) =>
     nativeRequest(montarCaminhoOpcoes(recurso, filtros), { autenticado: true }, ctx('listOpcoesAtividade', { recurso })),
 });
+
+// D-PROD-289: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/atividades?empresa_id={empresa}&limit=100',
+  '/planejamentos?empresa_id={empresa}',
+]);
