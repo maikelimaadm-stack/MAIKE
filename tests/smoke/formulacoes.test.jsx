@@ -140,7 +140,7 @@ describe("FO-SV — leitura, batida e validação", () => {
     expect(ok.erros).toEqual({});
     expect(ok.corpo).toEqual({
       nome: "PROTEINADO SECA", tipo: "BATELADA", produto_id: "p-mix", base_consumo: "PV", percentual_pv_padrao: 0.2, consumo_objetivo_g_cab_dia: 800,
-      faixa_tolerancia_percentual: null, observacoes: null, ativo: true,
+      faixa_tolerancia_percentual: null, consumo_minimo_pv: null, consumo_maximo_pv: null, observacoes: null, ativo: true,
       ingredientes: [{ produto_id: "p-milho", quantidade_kg: 600 }, { produto_id: "p-farelo", quantidade_kg: 300 }, { produto_id: "p-nucleo", quantidade_kg: 100 }],
       regras: [{ categoria_manejo_id: "c-bez", consome: false, percentual_pv: null, g_cab_dia: null }, { categoria_manejo_id: "c-vaca", consome: true, percentual_pv: 0.15, g_cab_dia: null }],
     });
@@ -210,7 +210,7 @@ describe("FO-FORM — formulário de formulação", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit.mock.calls[0][0]).toEqual({
       nome: "SAL 80", tipo: "PRONTO", produto_id: "p-sal", base_consumo: "PV", percentual_pv_padrao: 0.1, consumo_objetivo_g_cab_dia: null,
-      faixa_tolerancia_percentual: null, observacoes: null, ativo: true, ingredientes: [],
+      faixa_tolerancia_percentual: null, consumo_minimo_pv: null, consumo_maximo_pv: null, observacoes: null, ativo: true, ingredientes: [],
       regras: [{ categoria_manejo_id: "c-bez", consome: false, percentual_pv: null, g_cab_dia: null }, { categoria_manejo_id: "c-vaca", consome: true, percentual_pv: 0.15, g_cab_dia: null }],
     });
   });

@@ -206,7 +206,8 @@ describe("MOTORBASE1-BATCH-01", () => {
         />,
       ),
     );
-    expect(screen.getByText(/Configuração de Suplementação/i)).toBeTruthy();
+    // D-PROD-286: o consumo saiu do cadastro do produto; fica o aviso apontando para a Formulação.
+    expect(screen.getByTestId("aviso-consumo-formulacao")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Sugerir valores/i })).toBeNull();
   });
 
