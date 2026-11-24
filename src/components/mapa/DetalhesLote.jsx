@@ -635,7 +635,7 @@ export default function DetalhesLote({ lotes: lotesDoPasto, onClose, permissions
         const categoriasJuntaveis = Object.entries(porCategoria).filter(([, ls]) => ls.length > 1);
         const temPermissaoJuncao = permissions.juntar_lotes !== false;
         const podeJuntar = temPermissaoJuncao && modoLedger && lotes.length > 1 && categoriasJuntaveis.length > 0;
-        const motivoJuncao = !temPermissaoJuncao ? 'Sem permissão para juntar lotes.' : !modoLedger ? 'Junção disponível no controle por posições.' : 'É preciso haver pelo menos dois lotes da mesma categoria.';
+        const motivoJuncao = !modoLedger ? 'Junção disponível no controle por posições.' : 'É preciso haver pelo menos dois lotes da mesma categoria.';
         const abrirJuncao = () => {
           if (!podeJuntar) return;
           if (!modoLedger) {
@@ -659,7 +659,8 @@ export default function DetalhesLote({ lotes: lotesDoPasto, onClose, permissions
         };
         const manejos = [
           permissions.registrar_abate !== false && { nome: 'Saída', Icone: IconeSaida, onClick: () => abrirManejo(setShowAbate) },
-          { nome: 'Juntar Lotes', Icone: IconeJuntarLotes, onClick: abrirJuncao, disabled: !podeJuntar, motivoBloqueio: motivoJuncao },
+          // Sem a permissão o manejo some, como os demais (antes ficava visível e desligado).
+          temPermissaoJuncao && { nome: 'Juntar Lotes', Icone: IconeJuntarLotes, onClick: abrirJuncao, disabled: !podeJuntar, motivoBloqueio: motivoJuncao },
           permissions.mover_lotes !== false && { nome: 'Mover', Icone: IconeMoverAnimais, onClick: () => abrirManejo(setShowMovimentacao) },
           permissions.mudar_categoria_lotes !== false && { nome: 'Mudar Categoria', Icone: IconeMudarCategoria, onClick: () => abrirManejo(setShowMudancaCategoria) },
           permissions.registrar_nascimento !== false && { nome: 'Nascimento', Icone: IconeNascimento, onClick: () => abrirManejo(setShowNascimento) },
