@@ -17,8 +17,8 @@ export const OPCOES_TIPO_DE_BEM = NATUREZAS_PATRIMONIO.map((n) => ({ value: n, l
 export const OPCOES_USA_PRODUTO = [{ value: "SIM", label: "Sim" }, { value: "NAO", label: "Não" }];
 export const OPCOES_FORMA_PRODUTO = [{ value: "JATO", label: "Por jato (tanque)" }];
 export const OPCOES_UNIDADE_CAPACIDADE = [{ value: "L", label: "L" }, { value: "KG", label: "kg" }];
-const LIMITES_CAPACIDADE = Object.freeze({ casas: 4, inteiros: 6 });
-const CAPACIDADE_MAXIMA = "100000";
+export const LIMITES_CAPACIDADE = Object.freeze({ casas: 4, inteiros: 6 });
+export const CAPACIDADE_MAXIMA = "100000";
 
 /**
  * Formulário do NOVO tipo (D-PROD-169): "Tipo de bem" (a natureza, lista fixa)

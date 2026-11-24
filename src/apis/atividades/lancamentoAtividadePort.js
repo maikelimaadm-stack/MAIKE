@@ -78,7 +78,8 @@ export const CAMPOS_DE_EDICAO_AREA = Object.freeze(['empresa_id', 'versao', 'are
 export const ACOES_DA_AREA = Object.freeze(
   /** @type {Record<string, readonly string[]>} */ ({
     iniciar: Object.freeze(['empresa_id', 'versao', 'data_inicio']),
-    concluir: Object.freeze(['empresa_id', 'versao', 'data_conclusao']),
+    // D-PROD-292: e os hectares finais de cada área ("Fez o pasto todo?").
+    concluir: Object.freeze(['empresa_id', 'versao', 'data_conclusao', 'areas']),
     reabrir: Object.freeze(['empresa_id', 'versao']),
     remover: Object.freeze(['empresa_id', 'versao']),
   }),
@@ -86,7 +87,7 @@ export const ACOES_DA_AREA = Object.freeze(
 /** PATCH /atividades/:id (§10): os dados de abertura menos empresa e tipo (o tipo é imutável), mais a `versao` (CAS). */
 export const CAMPOS_DE_EDICAO = Object.freeze(['versao', ...CAMPOS_DA_ATIVIDADE]);
 /** POST /atividades/:id/concluir. */
-export const CAMPOS_DE_CONCLUSAO = Object.freeze(['empresa_id', 'versao', 'data_conclusao']);
+export const CAMPOS_DE_CONCLUSAO = Object.freeze(['empresa_id', 'versao', 'data_conclusao', 'areas']);
 /** POST /atividades/:id/reabrir. */
 export const CAMPOS_DE_REABERTURA = Object.freeze(['empresa_id', 'versao', 'motivo']);
 /** POST /atividades/:id/cancelar (cancela também os apontamentos confirmados). */
@@ -155,14 +156,15 @@ export const CAMPOS_DO_APONTAMENTO = Object.freeze([
  * Linha de PRODUTO: produto, local de onde sai e a quantidade na unidade do estoque do produto. A unidade, o custo
  * (FIFO) e a dose/ha são do servidor e nunca vão.
  */
-// D-PROD-282 em todas as telas: `lotes` (a escolha manual dos lotes de produto que controla lote; sem ela, FEFO).
-export const CAMPOS_DA_LINHA_PRODUTO = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao', 'lotes']);
+// D-PROD-293: e o número do jato (texto), também na linha avulsa.
+// D-PROD-294: `lotes` (a escolha manual dos lotes de produto que controla lote; sem ela, FEFO).
+export const CAMPOS_DA_LINHA_PRODUTO = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao', 'jato', 'lotes']);
 /**
  * D-PROD-274 — a linha de insumo DENTRO do lançamento (`produtos[]` do apontamento, do duplicar e do registro de campo):
  * a de sempre e o VC (%) da semente, só quando preenchido. As rotas de UMA linha continuam com `CAMPOS_DA_LINHA_PRODUTO`.
  */
 // D-PROD-283: e o número do jato (texto "1".."999"), só na linha de um jato.
-export const CAMPOS_DA_LINHA_PRODUTO_DO_LANCAMENTO = Object.freeze([...CAMPOS_DA_LINHA_PRODUTO, 'vc_percentual', 'jato']);
+export const CAMPOS_DA_LINHA_PRODUTO_DO_LANCAMENTO = Object.freeze([...CAMPOS_DA_LINHA_PRODUTO, 'vc_percentual']);
 /**
  * Linha de MÁQUINA: o bem, o implemento (se o tipo permitir), as leituras inicial e final — ou `sem_medidor` com o
  * uso direto (`quantidade_uso`) — e a justificativa do salto. Tipo e unidade do medidor e custo são do bem (snapshot no

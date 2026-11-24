@@ -102,3 +102,57 @@ export const linhasDoJato = (itens) =>
     const c = corpoDaLinhaProduto(i.form);
     return { chave: i.chave, rotulo: String(i.form?.produto?.rotulo ?? ''), texto: formatarQuantidadeLinha(c.quantidade, unidadeDoProduto(i.form?.produto)) };
   });
+
+/**
+ * D-PROD-292 — o dia já salvo: "3 jatos de 2.000 L · herbicida folha larga 34 L · adubo foliar 24 kg" a partir das linhas
+ * de insumo gravadas (só as CONFIRMADAS com `jato`); o tanque vem do implemento das máquinas do dia (pode faltar). Sem
+ * jato, null.
+ * @param {any[]} linhasProduto @param {any[]} [linhasMaquina]
+ * @returns {string|null}
+ */
+export const textoDosJatosSalvos = (linhasProduto, linhasMaquina = []) => {
+  const ativas = (Array.isArray(linhasProduto) ? linhasProduto : []).filter((l) => l && l.status !== 'CANCELADO' && Number.isInteger(l.jato) && l.jato > 0);
+  if (!ativas.length) return null;
+  const numeros = new Set(ativas.map((l) => l.jato));
+  const tanque = (Array.isArray(linhasMaquina) ? linhasMaquina : []).map((m) => jatoDoImplemento(m?.implemento)).find(Boolean) ?? null;
+  /** @type {Map<string, { rotulo: string, soma: number, unidade: any }>} */
+  const porProduto = new Map();
+  for (const l of ativas) {
+    const q = Number(l.quantidade);
+    if (!Number.isFinite(q)) continue;
+    const id = String(l.produto_id ?? l.produto?.id ?? '');
+    const atual = porProduto.get(id) ?? { rotulo: String(l.produto?.nome ?? ''), soma: 0, unidade: l.unidade };
+    atual.soma = Math.round((atual.soma + q) * 10000) / 10000;
+    porProduto.set(id, atual);
+  }
+  const n = numeros.size;
+  const cabeca = `${n} ${n === 1 ? 'jato' : 'jatos'}${tanque ? ` de ${rotuloDoTanque(tanque)}` : ''}`;
+  const totais = [...porProduto.values()].map((t) => `${t.rotulo.toLowerCase()} ${formatarQuantidadeLinha(String(t.soma), t.unidade)}`.trim());
+  return [cabeca, ...totais].join(' · ');
+};
+
+/**
+ * D-PROD-293 — o tanque e o jato sugerido para a linha avulsa: o tanque do implemento das máquinas (do dia ou, sem ele, do
+ * último lançamento da atividade) e o MAIOR jato já lançado no dia (sem nenhum, 1).
+ * @param {any} apontamento @param {any[]} [outros]  os lançamentos da atividade (o último com máquina dá o tanque)
+ * @returns {{ tanque: { capacidade: string, unidade: string|null } | null, jatoSugerido: number }}
+ */
+export const tanqueEJatoDoDia = (apontamento, outros = []) => {
+  const doDia = (Array.isArray(apontamento?.maquinas) ? apontamento.maquinas : []).filter((m) => m?.status !== 'CANCELADO').map((m) => jatoDoImplemento(m?.implemento)).find(Boolean) ?? null;
+  let tanque = doDia;
+  if (!tanque) {
+    const ordenados = (Array.isArray(outros) ? outros : [])
+      .filter((a) => a && a.status !== 'CANCELADO')
+      .slice()
+      .sort((a, b) => String(b.data_operacional ?? '').localeCompare(String(a.data_operacional ?? '')));
+    for (const a of ordenados) {
+      const t = (a.maquinas ?? []).filter((m) => m?.status !== 'CANCELADO').map((m) => jatoDoImplemento(m?.implemento)).find(Boolean);
+      if (t) {
+        tanque = t;
+        break;
+      }
+    }
+  }
+  const jatos = (Array.isArray(apontamento?.produtos) ? apontamento.produtos : []).filter((l) => l?.status !== 'CANCELADO' && Number.isInteger(l?.jato)).map((l) => l.jato);
+  return { tanque, jatoSugerido: jatos.length ? Math.max(...jatos) : 1 };
+};

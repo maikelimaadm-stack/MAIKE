@@ -351,7 +351,7 @@ export const textoDaLeituraVigente = (medidor) => {
 
 /**
  * @typedef {{ id: string, rotulo: string, unidade_principal_estoque: string|null, carencia_dias?: number|null, controla_lote?: boolean } | null} ProdutoEscolhido
- * @typedef {{ produto: ProdutoEscolhido, local_estoque_id: string|null, quantidade: string, observacao: string, vc?: string,
+ * @typedef {{ produto: ProdutoEscolhido, local_estoque_id: string|null, quantidade: string, observacao: string, vc?: string, jato?: number|null,
  *   lotes?: Array<{ id: string, quantidade: string }>|null, confirmaVencido?: boolean, loteVencido?: boolean, erroLote?: string,
  *   saidaGravada?: { produto_id: string, local_estoque_id: string|null, quantidade: string|null } }} FormularioLinhaProduto
  *   D-PROD-274: `carencia_dias` (a carência da bula, para o "Pasto liberado em") e `vc` (o VC % digitado, Plantio).
@@ -389,8 +389,9 @@ export const formularioDaLinhaProduto = (l) => ({
   local_estoque_id: texto(l?.local_estoque_id) || null,
   quantidade: paraEdicao(l?.quantidade),
   observacao: typeof l?.observacao === 'string' ? l.observacao : '',
-  // D-PROD-282 em todas as telas: a saída gravada da linha de produto com lote — editar sem escolher lotes e sem trocar
-  // produto, local nem quantidade mantém os mesmos lotes (o servidor reaproveita as fatias da linha).
+  ...(Number.isInteger(l?.jato) && l.jato > 0 ? { jato: l.jato } : {}),
+  // D-PROD-294: a saída gravada da linha de produto com lote — editar sem escolher lotes e sem trocar produto, local nem
+  // quantidade mantém os mesmos lotes (o servidor reaproveita as fatias da linha).
   ...(l?.produto?.controla_lote === true && l?.id
     ? { saidaGravada: { produto_id: String(l.produto_id), local_estoque_id: texto(l?.local_estoque_id) || null, quantidade: texto(l?.quantidade) || null } }
     : {}),
@@ -448,13 +449,15 @@ export const validarLinhaProduto = (form, ctx = {}) => {
  * @param {FormularioLinhaProduto} form
  */
 export const corpoDaLinhaProduto = (form) => {
-  // D-PROD-282 em todas as telas: `lotes` só com produto que controla lote e escolha manual (sem ela, o servidor aplica o FEFO).
+  // D-PROD-294: `lotes` só com produto que controla lote e escolha manual (sem ela, o servidor aplica o FEFO).
   const lotes = form.produto?.controla_lote ? corpoDaEscolha(form.lotes) : null;
   return {
     produto_id: form.produto?.id ?? null,
     local_estoque_id: form.local_estoque_id ?? null,
     quantidade: lerDecimal(form.quantidade, '').valor,
     observacao: texto(form.observacao) || null,
+    // D-PROD-293: o número do jato, em texto, só na linha de um jato.
+    ...(Number.isInteger(form.jato) && form.jato > 0 ? { jato: String(form.jato) } : {}),
     ...(lotes && lotes.length ? { lotes } : {}),
   };
 };

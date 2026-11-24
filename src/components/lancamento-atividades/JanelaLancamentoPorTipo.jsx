@@ -37,6 +37,7 @@ import {
 } from "@/lib/atividadeApontamentoRegras";
 import { LINHA_MAO_OBRA, LINHA_MAQUINA, LINHA_PRODUTO, LINHA_SERVICO, chaveTotais } from "@/lib/atividadeLinhasRegras";
 import { listarApontamentos } from "@/services/lancamentoAtividadesService";
+import { tanqueEJatoDoDia } from "@/lib/jatosRegras";
 import { STATUS_AREA, areaDaAtividadePorId, temAreas } from "@/lib/atividadeAreasRegras";
 
 /**
@@ -343,7 +344,11 @@ export default function JanelaLancamentoPorTipo({ atividade: atividadeRecebida, 
   const chaveDoFormulario = `${chaveForm}:${dia}:${apontamento?.id ?? "novo"}`;
   let formulario = null;
   if (podeLancar && dia && consulta.isSuccess) {
-    if (tipo === LINHA_PRODUTO) formulario = <JanelaLinhaProduto key={chaveDoFormulario} {...propsDoFormulario} atividadeAreaId={comAreas ? areaId : null} />;
+    if (tipo === LINHA_PRODUTO) {
+      // D-PROD-293: com implemento "por jato" (no dia ou no último lançamento da atividade), o "Jato nº" na linha.
+      const jato = tanqueEJatoDoDia(apontamento, todosOsItens);
+      formulario = <JanelaLinhaProduto key={chaveDoFormulario} {...propsDoFormulario} atividadeAreaId={comAreas ? areaId : null} tanque={jato.tanque} jatoSugerido={jato.jatoSugerido} />;
+    }
     else if (tipo === LINHA_MAO_OBRA) formulario = <JanelaLinhaMaoObra key={chaveDoFormulario} {...propsDoFormulario} />;
     else if (tipo === LINHA_SERVICO) formulario = <JanelaLinhaServico key={chaveDoFormulario} {...propsDoFormulario} />;
     else formulario = <JanelaLinhaMaquina key={chaveDoFormulario} {...propsDoFormulario} permiteImplemento={flags?.permiteImplemento === true} />;

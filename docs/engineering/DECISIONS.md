@@ -9363,14 +9363,37 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` deu D-PROD-290; o marcador passa a D-PROD-291.
 
-- **Decisão:** a partir de 1024 px, as janelas de detalhes do Mapa (as que usam a casca `mk-dp` dentro do diálogo largo: lote, área, cocho, depósito, bebedouro) têm 720 px de largura (a do tablet, antes até 880 px) e no máximo 820 px de altura. Sai o arranjo de duas colunas só do computador na aba Detalhes do lote; fica o do tablet. Letras e componentes não mudam (já são os mesmos do tablet).
+- **Decisão:** a partir de 1024 px, as janelas de detalhes do Mapa (as que usam a casca `mk-dp` dentro do diálogo largo: lote, área, cocho, depósito, bebedouro) têm 600 px de largura (antes até 880 px; 720 px na primeira versão, ainda grande para o proprietário) e no máximo 780 px de altura; gráficos e réguas em SVG ficam com no máximo 120 px de altura (as letras do SVG cresciam com a largura). Sai o arranjo de duas colunas só do computador na aba Detalhes do lote; fica o do tablet. Letras e componentes não mudam (já são os mesmos do tablet).
 - **Fora:** diálogos de lançamento e telas de cadastro. Sem servidor, sem migration.
 
-## D-PROD-291 — Estoque: escolha do lote e aviso de lote vencido em todas as telas que tiram produto; lote e validade na compra do financeiro
+## D-PROD-291 — Gerenciar tipos: marcar "usa produto · por jato" num tipo de implemento que já existe
+
+**Data:** 2026-11-24 · **Origem:** proprietário ("veja o que falta para implantar"; "pode começar a fazer tudo") · **Relatório:** [`MAIKE-JATOS-FECHAMENTO-REPORT.md`](./MAIKE-JATOS-FECHAMENTO-REPORT.md)
+
+> **Numeração:** nasceram D-PROD-290, 291 e 292 (a `main` `8ee36943` indicava 290); antes do merge a `main` deu a D-PROD-290 aos detalhes do mapa no computador (PR #379). Estas passam a **D-PROD-291, 292 e 293**; o marcador passa a D-PROD-294.
+
+- **Contexto:** em produção nenhum tipo estava "por jato"; só dava para marcar ao criar o tipo.
+- **Decisão:** no "Gerenciar tipos", o tipo de Implemento tem "Editar" com Usa produto?, Como conta, Capacidade e Unidade; "Não" limpa os três. O PATCH leva os campos (o servidor já conferia, D-PROD-279). Sem migration.
+
+## D-PROD-292 — Finalizar com "Fez o pasto todo?", o resumo por hectare e os jatos no dia salvo
+
+**Data:** 2026-11-24 · **Origem:** maquete aprovada (tela 4, "Quando terminar a área") · **Relatório:** [`MAIKE-JATOS-FECHAMENTO-REPORT.md`](./MAIKE-JATOS-FECHAMENTO-REPORT.md)
+
+- **Decisão:** o Finalizar pergunta, por área em andamento, "Sim, os N ha" / "Não, fiz só uma parte" (+ hectares) e mostra "Como ficou" (jatos, horas de máquina, produto por hectare, custo total e por hectare). `POST /atividades/:id/concluir` aceita `areas[{atividade_area_id, hectares}]` (texto); o que falta para os hectares informados entra num **lançamento de fechamento** (sem linhas, só os hectares, observação "Fechamento: hectares informados ao finalizar", no dia da conclusão), pelo caminho único de lançar, na mesma transação. Menor que o lançado → 400 `menor_que_lancado`. Por que um lançamento e não uma coluna: todas as somas (andamento, mapa, custo por área) já leem os dias; nada muda nelas e não há migration.
+- **Também:** com implemento "por jato", o Novo lançamento curto não pergunta os hectares do dia; o dia salvo mostra "N jatos de 2.000 L · totais" e "Jato N" em cada linha.
+
+## D-PROD-293 — Várias máquinas no Novo lançamento curto e o jato na linha avulsa de insumo
+
+**Data:** 2026-11-24 · **Origem:** proprietário (o que faltava da conversa dos jatos) · **Relatório:** [`MAIKE-JATOS-FECHAMENTO-REPORT.md`](./MAIKE-JATOS-FECHAMENTO-REPORT.md)
+
+- **Decisão:** com várias máquinas no último dia, o curto mostra "Máquina 1 de N" e "Próxima máquina" (o horímetro de cada uma ali). A linha avulsa de insumo (dia salvo e "Aplicação de insumos" do mapa) ganha "Jato nº" quando há implemento "por jato" no dia ou no último lançamento; as rotas de uma linha de produto aceitam `jato` (texto; null tira). Sem migration.
+- **Testes:** `atividadeFechamentoHectares.test.mjs`, `insumoPorJato.test.mjs`, `fechamentoArea.test.jsx`, `jatosDoDia.test.jsx`, `bensGerenciarTipos.test.jsx`, `servicoVariosDias.test.jsx`.
+
+## D-PROD-294 — Estoque: escolha do lote e aviso de lote vencido em todas as telas que tiram produto; lote e validade na compra do financeiro
 
 **Data:** 2026-11-24 · **Origem:** pedido do proprietário (o módulo de estoque completo: cada tela que tira produto escolhe o lote como a Saída; a compra pelo financeiro grava o lote), plano aprovado · **Branch:** `claude/estoque-lote-todas-telas` · **Relatório:** [`MAIKE-ESTOQUE-LOTE-TODAS-TELAS-REPORT.md`](./MAIKE-ESTOQUE-LOTE-TODAS-TELAS-REPORT.md)
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `c789e0e0` deu D-PROD-291 (nenhuma PR aberta reservava); o marcador passa a D-PROD-292.
+> **Numeração:** nasceu D-PROD-291 (`node scripts/dev/proxima-decisao.mjs` na `main` `c789e0e0`). Antes do push, a `main` (`16287908`, PR #380) deu da D-PROD-291 à D-PROD-293 aos jatos e ao fechamento e passou a indicar `Próxima decisão: D-PROD-294`, que é esta; o marcador passa a D-PROD-295.
 
 - **Contexto:** a D-PROD-282 deu o controle de lote por produto e a escolha manual só na Saída (e na transferência) do Estoque; cocho, financeiro, atividade e abastecimento ficaram no FEFO automático "por enquanto", com o aviso de vencido só na resposta da API. A compra de produto com lote pelo financeiro era **recusada** (422 `ESTOQUE_LOTE_OBRIGATORIO`), porque a tela não mandava o lote.
 - **Decisão (reusa a D-PROD-282; nada muda para produto sem lote):**
@@ -9386,4 +9409,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Constituição:** nenhuma regra nova; a emenda da D-PROD-282 ("produto que controla lote usa o custo do lote escolhido") já cobre.
 - **Fora (missões próprias):** unidade convertida (SACO, galão…) em atividade, abastecimento, cocho e transferência (emenda proposta na SPEC de unidades, §7); a reconciliação do valor do estoque (pausada pelo proprietário); o lote na retificação por substituição do financeiro (a retificação não recebe `lotes_por_item`); os `avisos` de vencido na resposta do lançamento de atividade com várias linhas (a tela já pediu a confirmação antes de enviar).
 
-<!-- Próxima decisão: D-PROD-292 -->
+<!-- Próxima decisão: D-PROD-295 -->
