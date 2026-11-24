@@ -111,7 +111,7 @@ export const AuthProvider = ({ children }) => {
     )
   );
   const [sessionValidationError, setSessionValidationError] = useState(null);
-  // D-PROD-291: aberto sem confirmação do servidor (sem internet), com o último
+  // D-PROD-294: aberto sem confirmação do servidor (sem internet), com o último
   // contexto que ele confirmou. Revalida sozinho quando a rede volta.
   const [sessaoOffline, setSessaoOffline] = useState(false);
   const revalidandoRef = useRef(false);
@@ -165,7 +165,7 @@ export const AuthProvider = ({ children }) => {
         setClienteId(veredito.contexto.cliente_id);
         setSessaoOffline(veredito.offline === true);
         setSessionState(ESTADOS_DE_SESSAO.AUTENTICADA);
-        // Com o servidor respondendo, estende a sessão guardada (D-PROD-291).
+        // Com o servidor respondendo, estende a sessão guardada (D-PROD-294).
         if (veredito.offline !== true) renovarSessaoNativaAtual();
         return;
       }
@@ -213,7 +213,7 @@ export const AuthProvider = ({ children }) => {
   }, [carregarConfiguracoes, restaurarSessao]);
 
   /**
-   * D-PROD-291: aberto sem internet, revalida em segundo plano — sem tela de
+   * D-PROD-294: aberto sem internet, revalida em segundo plano — sem tela de
    * carregamento, para não tirar a pessoa do que está fazendo. Servidor
    * confirmou: sai do modo offline e renova. Servidor recusou: volta ao login.
    * Ainda sem resposta: continua como está e tenta de novo depois.
@@ -266,7 +266,7 @@ export const AuthProvider = ({ children }) => {
    * @param {{login: string, senha: string, lembrar?: boolean}} credenciais
    */
   const entrar = useCallback(async (credenciais) => {
-    // No app Android/iOS a sessão fica no aparelho até a pessoa sair (D-PROD-291).
+    // No app Android/iOS a sessão fica no aparelho até a pessoa sair (D-PROD-294).
     const resultado = await entrarComSessaoNativa(isAppNativo() ? { ...credenciais, lembrar: true } : credenciais);
     // S04-P2: senha temporária. Não há sessão: nada de usuário, tenant, cache
     // ou estado autenticado — o formulário abre a troca obrigatória.

@@ -141,7 +141,7 @@ export const movimentacaoMapaPort = offlineStorageDisponivel()
     })
   : operacoesNativas;
 
-// D-PROD-291: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
 // de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
 registrarLeiturasOffline([
   '/movimentacoes-mapa?limit=500',

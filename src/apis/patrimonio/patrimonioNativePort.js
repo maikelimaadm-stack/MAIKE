@@ -261,7 +261,7 @@ export const operacoesNativas = Object.freeze({
     nativeRequest(montarCaminhoConsumoAbastecimento(filtros), { autenticado: true }, ctx('getConsumoAbastecimento', RESOURCE_ABASTECIMENTO)),
 });
 
-// D-PROD-291: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
 // de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
 registrarLeiturasOffline([
   '/bens-patrimoniais?empresa_id={empresa}&ativo=true&limit=100',

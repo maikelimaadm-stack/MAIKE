@@ -243,7 +243,7 @@ describe("o diálogo Concluir (V3)", () => {
     const item = { ...SERVICO, andamento: andamento({ hectares_feitos: "40.0000", percentual: "100.00", ultimo_dia: "2026-12-07" }) };
     const onConcluir = vi.fn(async () => ({}));
     const onFechar = vi.fn();
-    render(<DialogoConcluirServico item={item} hoje={HOJE} onFechar={onFechar} onConcluir={onConcluir} />);
+    render(comQuery(<DialogoConcluirServico item={item} hoje={HOJE} onFechar={onFechar} onConcluir={onConcluir} />));
     expect(screen.getByTestId("dialogo-concluir-servico-titulo")).toHaveTextContent("Finalizar atividade");
     expect(screen.getByTestId("dialogo-concluir-servico-nome")).toHaveTextContent("ROÇADA MECÂNICA · PASTO DA AROEIRA +1");
     const campo = screen.getByTestId("dialogo-concluir-servico-dia");
@@ -251,13 +251,15 @@ describe("o diálogo Concluir (V3)", () => {
     expect(screen.getByTestId("dialogo-concluir-servico-sugerido")).toHaveTextContent("sugerido: último dia lançado");
     expect(screen.getByTestId("dialogo-concluir-servico-hectares")).toHaveTextContent("40 de 40 ha (100%)");
     // Antes do último dia lançado: o erro no campo, nada enviado.
+    // D-PROD-292: o diálogo lê as áreas e os lançamentos antes de liberar o envio.
+    await waitFor(() => expect(screen.getByTestId("dialogo-concluir-servico-enviar")).not.toBeDisabled());
     fireEvent.change(campo, { target: { value: "2026-12-01" } });
     fireEvent.click(screen.getByTestId("dialogo-concluir-servico-enviar"));
     expect(await screen.findByText("O último dia não pode ser antes do último dia lançado (07/12/2026).")).toBeTruthy();
     expect(onConcluir).not.toHaveBeenCalled();
     fireEvent.change(campo, { target: { value: "2026-12-07" } });
     fireEvent.click(screen.getByTestId("dialogo-concluir-servico-enviar"));
-    await waitFor(() => expect(onConcluir).toHaveBeenCalledWith("2026-12-07"));
+    await waitFor(() => expect(onConcluir).toHaveBeenCalledWith("2026-12-07", undefined));
     fireEvent.click(screen.getByTestId("dialogo-concluir-servico-cancelar"));
     expect(onFechar).toHaveBeenCalled();
   });
@@ -267,10 +269,11 @@ describe("o diálogo Concluir (V3)", () => {
     const onConcluir = vi.fn(async () => {
       throw new ApiError("ATIVIDADE_DATA_INVALIDA", { details: { field: "data_conclusao", reason: "antes_do_ultimo_dia", ultimo_dia: "2026-12-03" } });
     });
-    render(<DialogoConcluirServico item={{ ...SERVICO, andamento: andamento({ ultimo_dia: null }) }} hoje={HOJE} onFechar={vi.fn()} onConcluir={onConcluir} />);
+    render(comQuery(<DialogoConcluirServico item={{ ...SERVICO, andamento: andamento({ ultimo_dia: null }) }} hoje={HOJE} onFechar={vi.fn()} onConcluir={onConcluir} />));
     // Sem último dia lançado: sugere hoje, sem a nota.
     expect(screen.getByTestId("dialogo-concluir-servico-dia")).toHaveValue(HOJE);
     expect(screen.queryByTestId("dialogo-concluir-servico-sugerido")).toBeNull();
+    await waitFor(() => expect(screen.getByTestId("dialogo-concluir-servico-enviar")).not.toBeDisabled());
     fireEvent.click(screen.getByTestId("dialogo-concluir-servico-enviar"));
     expect(await screen.findByTestId("dialogo-concluir-servico-erro")).toHaveTextContent("A data de conclusão não pode ser antes do último dia lançado (03/12/2026). Nada foi gravado.");
   });
@@ -284,8 +287,12 @@ const PULVERIZADOR = { id: "i-pv", numero: "9", codigo_frota: "PV-01", nome: "PU
 const GLIFOSATO = { id: "p-gli", nome: "GLIFOSATO", unidade: "L", unidade_principal_estoque: "L" };
 /** O implemento da máquina do último dia (troca por teste). */
 let implementoDoUltimoDia = ROCADEIRA;
+/** D-PROD-293: o último dia com duas máquinas (troca por teste). */
+let duasMaquinas = false;
+const TRATOR3 = { id: "b-tr3", numero: "3", codigo_frota: "TR-03", nome: "TRATOR VALTRA", natureza: "MAQUINA" };
 const MEDIDORES = /** @type {Record<string, any>} */ ({
   "b-tr": { medidor_tipo: "HORIMETRO", medidor_unidade: "h", sem_medidor: false, leitura_vigente: { leitura: "1244.0000", data: "2026-12-02", origem: "ATIVIDADE" }, salto_maximo_medidor: null },
+  "b-tr3": { medidor_tipo: "HORIMETRO", medidor_unidade: "h", sem_medidor: false, leitura_vigente: { leitura: "500.0000", data: "2026-12-02", origem: "ATIVIDADE" }, salto_maximo_medidor: null },
 });
 const JOAO = { id: "f-joao", nome: "JOÃO", origem: "FUNCIONARIO", funcionario_tipo: "DIARISTA", funcionario_custo_hora: null, funcionario_custo_diaria: "150.0000" };
 const ULTIMO_DIA = {
@@ -318,6 +325,10 @@ const rotear = async (/** @type {{ method: string, path: string, query: URLSearc
   if (partes[0] === "atividades-por-area" && method === "GET") {
     return { status: 200, body: { area_id: partes[1], mes: "2026-12", atividades: partes[1] === "area-aroeira" ? [NA_AROEIRA] : [], custos: null } };
   }
+  if (path === "/atividades/at-14/apontamentos" && method === "GET" && duasMaquinas) {
+    const segunda = { id: "lm-2", bem_id: "b-tr3", bem: TRATOR3, implemento_bem_id: null, implemento: null, sem_medidor: false, leitura_inicial: "490.0000", leitura_final: "500.0000", status: "CONFIRMADO", ordem: 2 };
+    return { status: 200, body: { items: [{ ...ULTIMO_DIA, maquinas: [...ULTIMO_DIA.maquinas, segunda] }] } };
+  }
   if (path === "/atividades/at-14/apontamentos" && method === "GET" && implementoDoUltimoDia !== ROCADEIRA) {
     const comImplemento = { ...ULTIMO_DIA, maquinas: ULTIMO_DIA.maquinas.map((m) => ({ ...m, implemento_bem_id: implementoDoUltimoDia.id, implemento: implementoDoUltimoDia })) };
     return { status: 200, body: { items: [comImplemento] } };
@@ -342,6 +353,7 @@ beforeEach(async () => {
   confirmacao.confirmar.mockResolvedValue(true);
   proximas = [];
   implementoDoUltimoDia = ROCADEIRA;
+  duasMaquinas = false;
   sessao.editar = true;
   backend = instalarBackendFake(rotear);
 });
@@ -364,6 +376,8 @@ const montar = async (props = {}) => {
   const janela = await screen.findByTestId("janela-registro-de-campo");
   return { janela, onFechar };
 };
+/** D-PROD-292: o diálogo Finalizar lê o detalhe e os lançamentos da atividade (react-query). @param {React.ReactElement} el */
+const comQuery = (el) => <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{el}</QueryClientProvider>;
 const registros = () => backend.chamadas.filter((c) => c.method === "POST" && c.path === "/atividades/registrar");
 const editorDe = (/** @type {HTMLElement} */ janela, /** @type {string} */ secao) => within(janela).getByTestId(`registro-${secao}-editor`);
 /** D-PROD-281: o "Novo lançamento" abre curto; "Mudar" mostra o formulário inteiro. */
@@ -568,10 +582,10 @@ describe("ajustes do teste de ponta a ponta (D-PROD-274): o capim, o serviço se
   });
 
   it("o diálogo Concluir: o título com o capim; sem área, o local no título e a quantidade no lugar dos hectares", () => {
-    const { unmount } = render(<DialogoConcluirServico item={MOMBACA} hoje={HOJE} onFechar={vi.fn()} onConcluir={vi.fn()} />);
+    const { unmount } = render(comQuery(<DialogoConcluirServico item={MOMBACA} hoje={HOJE} onFechar={vi.fn()} onConcluir={vi.fn()} />));
     expect(screen.getByTestId("dialogo-concluir-servico-nome")).toHaveTextContent("SEMEADURA DE CAPIM · PASTO DA AROEIRA · capim PANICUM CV. MOMBAÇA");
     unmount();
-    render(<DialogoConcluirServico item={CERCA} hoje={HOJE} onFechar={vi.fn()} onConcluir={vi.fn()} />);
+    render(comQuery(<DialogoConcluirServico item={CERCA} hoje={HOJE} onFechar={vi.fn()} onConcluir={vi.fn()} />));
     expect(screen.getByTestId("dialogo-concluir-servico-nome")).toHaveTextContent("REFORMA DE CERCA · DIVISA NORTE");
     expect(screen.getByTestId("dialogo-concluir-servico-hectares")).toHaveTextContent(/^2,5 km$/);
   });
@@ -772,8 +786,10 @@ describe("D-PROD-283: jatos de hoje no Novo lançamento", () => {
     expect(within(janela).getByTestId("jatos-total")).toHaveTextContent("Hoje: 2 jatos · glifosato 20 L");
     // Os insumos não se repetem no "Vai junto".
     expect(within(janela).getByTestId("registro-de-campo-vai-junto")).not.toHaveTextContent("GLIFOSATO");
-    // O resto do dia, como sempre: hectares, horímetro e a situação.
-    fireEvent.change(within(janela).getByTestId("registro-de-campo-hectares-hoje"), { target: { value: "4" } });
+    // D-PROD-292: com jato, os hectares não são perguntados no dia (só ao finalizar).
+    expect(within(janela).queryByTestId("registro-de-campo-hectares-hoje")).toBeNull();
+    expect(within(janela).getByTestId("registro-de-campo-hectares-no-fim")).toHaveTextContent("Os hectares são perguntados quando finalizar a área.");
+    // O resto do dia, como sempre: horímetro e a situação.
     await waitFor(() => expect(within(janela).getByTestId("registro-maquina-horimetro-dica")).toHaveTextContent("última hora lançada: 1.244"));
     fireEvent.change(within(janela).getByTestId("registro-maquina-leitura-final"), { target: { value: "1251" } });
     fireEvent.click(within(within(janela).getByTestId("registro-de-campo-situacao")).getByRole("radio", { name: "Não, continua" }));
@@ -816,5 +832,30 @@ describe("D-PROD-283: jatos de hoje no Novo lançamento", () => {
     await waitFor(() => expect(within(janela).getByTestId("registro-de-campo-vai-junto")).toHaveTextContent("JOÃO"));
     expect(within(janela).queryByTestId("jatos-vazio")).toBeNull();
     expect(within(janela).queryByTestId("jatos-novo")).toBeNull();
+  });
+});
+
+describe("D-PROD-293: várias máquinas no Novo lançamento curto", () => {
+  it("o horímetro de cada máquina do último dia, uma depois da outra ('Próxima máquina'); as duas vão no corpo", async () => {
+    duasMaquinas = true;
+    const { janela } = await montar({ continuar: SERVICO });
+    await within(janela).findByTestId("registro-de-campo-curto");
+    expect(await within(janela).findByTestId("registro-de-campo-proxima-maquina")).toHaveTextContent("Máquina 1 de 2");
+    expect(within(janela).getByTestId("registro-maquina-curto-nome")).toHaveTextContent("TR-02");
+    await waitFor(() => expect(within(janela).getByTestId("registro-maquina-horimetro-dica")).toHaveTextContent("última hora lançada: 1.244"));
+    fireEvent.change(within(janela).getByTestId("registro-maquina-leitura-final"), { target: { value: "1251" } });
+    fireEvent.click(within(janela).getByTestId("registro-de-campo-proxima-maquina-botao"));
+    await waitFor(() => expect(within(janela).getByTestId("registro-maquina-curto-nome")).toHaveTextContent("TR-03"));
+    expect(within(janela).queryByTestId("registro-de-campo-proxima-maquina")).toBeNull();
+    await waitFor(() => expect(within(janela).getByTestId("registro-maquina-horimetro-dica")).toHaveTextContent("última hora lançada: 500"));
+    fireEvent.change(within(janela).getByTestId("registro-maquina-leitura-final"), { target: { value: "506" } });
+    fireEvent.change(within(janela).getByTestId("registro-de-campo-hectares-hoje"), { target: { value: "4" } });
+    fireEvent.click(within(within(janela).getByTestId("registro-de-campo-situacao")).getByRole("radio", { name: "Não, continua" }));
+    fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(registros()).toHaveLength(1));
+    expect(registros()[0].body.maquinas).toMatchObject([
+      { bem_id: "b-tr", leitura_inicial: "1244", leitura_final: "1251" },
+      { bem_id: "b-tr3", leitura_inicial: "500", leitura_final: "506" },
+    ]);
   });
 });

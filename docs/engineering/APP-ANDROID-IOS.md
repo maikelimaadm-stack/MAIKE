@@ -51,13 +51,13 @@ O APK sai em `android/app/build/outputs/apk/release/app-release.apk` e instala p
 - iOS (`Info.plist`): textos de localização, câmera e fotos.
 - Permissão nova é mudança nativa: exige APK novo (não vai pela atualização automática).
 
-## Login (D-PROD-291)
+## Login (D-PROD-294)
 
 - No app o login fica guardado no aparelho até a pessoa tocar em "Sair" (a opção "Manter conectado" não aparece: vale sempre).
 - Com internet, o app troca o login por um novo de 30 dias (`POST /auth/renovar`). Quem abre o app ao menos uma vez a cada 30 dias com internet não precisa entrar de novo.
 - Suspender a conta, trocar a senha ou o papel derruba a sessão do app na próxima vez que ele falar com o servidor.
 
-## Sem internet (D-PROD-291)
+## Sem internet (D-PROD-294)
 
 - **Primeira vez:** depois de entrar, o app mostra "Preparando o app para usar no campo" e só abre quando baixou mapa, áreas, lotes, cadastros e as telas do sistema. **Depois:** abre direto com o que está no celular e sincroniza sozinho a cada 6 h com internet; o menu do usuário → "Dados sem internet" atualiza na hora.
 - **Internet fraca:** com cópia no celular, a tela espera o servidor no máximo 6 s e abre com a cópia.
@@ -67,7 +67,7 @@ O APK sai em `android/app/build/outputs/apk/release/app-release.apk` e instala p
 - **Quando a rede volta:** o app confere o login no servidor sozinho.
 - **Ainda precisa de internet:** o primeiro login e **gravar** (lançar, editar, excluir). Registrar sem internet e enviar depois é a próxima etapa.
 
-## Atualização automática (D-PROD-291)
+## Atualização automática (D-PROD-294)
 
 - Frontend novo chega sem instalar APK: a cada deploy da Vercel, `npm run app:pacote` publica `/app-atualizacao/ultima.json` e o pacote `.zip`.
 - O app confere ao abrir e ao voltar para a frente; baixa por baixo e aplica na **próxima abertura**. Se a versão nova não abrir, volta sozinho à anterior.

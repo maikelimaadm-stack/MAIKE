@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * D-PROD-291 — grava `app-versao.json` no pacote web do app (pasta indicada).
+ * D-PROD-294 — grava `app-versao.json` no pacote web do app (pasta indicada).
  *
  * É a identidade do pacote que o app carrega: a atualização automática compara
  * esta versão com a publicada (`/app-atualizacao/ultima.json`). Versão = commit

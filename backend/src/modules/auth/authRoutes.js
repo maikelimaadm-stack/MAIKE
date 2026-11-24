@@ -34,7 +34,7 @@ const LOGIN_SCHEMA = {
   },
 };
 
-/** D-PROD-291: só o opt-in de validade longa. Nada de identidade no corpo. */
+/** D-PROD-294: só o opt-in de validade longa. Nada de identidade no corpo. */
 const RENOVAR_SCHEMA = {
   body: {
     type: ['object', 'null'],
@@ -121,7 +121,7 @@ export const registrarAuthRoutes = async (app) => {
     }
   );
 
-  // D-PROD-291 — renovação da sessão (o app fica conectado até a pessoa sair).
+  // D-PROD-294 — renovação da sessão (o app fica conectado até a pessoa sair).
   // Só com uma sessão válida AGORA: `app.autenticar` já conferiu assinatura,
   // validade, conta e cliente ativos e as épocas atuais. O token novo leva as
   // MESMAS épocas, então suspender, trocar senha ou papel continua derrubando a

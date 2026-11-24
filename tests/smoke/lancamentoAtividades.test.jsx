@@ -2358,6 +2358,7 @@ describe("LA-VARIOS-DIAS — a linha do serviço: \"+ Lançar dia\" e \"Concluir
     expect(within(dialogo).getByTestId("dialogo-concluir-servico-nome")).toHaveTextContent("APLICAÇÃO · Pasto 01");
     expect(within(dialogo).getByTestId("dialogo-concluir-servico-dia")).toHaveValue("2026-11-12");
     expect(within(dialogo).getByTestId("dialogo-concluir-servico-hectares")).toHaveTextContent("40 de 40 ha (100%)");
+    await waitFor(() => expect(within(dialogo).getByTestId("dialogo-concluir-servico-enviar")).not.toBeDisabled());
     fireEvent.click(within(dialogo).getByTestId("dialogo-concluir-servico-enviar"));
     await waitFor(() => expect(ultimaEscrita()).toEqual({ method: "POST", path: "/atividades/a1/concluir", query: {}, body: { empresa_id: "emp-1", versao: 4, data_conclusao: "2026-11-12" } }));
     await waitFor(() => expect(screen.queryByTestId("dialogo-concluir-servico")).toBeNull());

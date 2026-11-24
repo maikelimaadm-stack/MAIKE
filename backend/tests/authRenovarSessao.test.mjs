@@ -1,5 +1,5 @@
 /**
- * D-PROD-291 — renovação da sessão (`POST /auth/renovar`).
+ * D-PROD-294 — renovação da sessão (`POST /auth/renovar`).
  *
  * O app fica conectado até a pessoa sair: com internet, troca o token por um
  * novo. Prova: só renova sessão válida AGORA; o token novo leva as MESMAS
@@ -36,7 +36,7 @@ const contexto = (token) => app.inject({ method: 'GET', url: '/auth/contexto', h
 const payloadDe = (token) => JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
 const ttl = (token) => payloadDe(token).exp - payloadDe(token).iat;
 
-describe('D-PROD-291 renovação da sessão', () => {
+describe('D-PROD-294 renovação da sessão', () => {
   test('RN-01 sessão válida renova: token novo de 30 dias, mesma conta, mesmo tenant, mesmas épocas', async () => {
     const t = await criarTenant();
     await prisma().cliente.update({ where: { id: t.cliente.id }, data: { sessao_epoca: 2 } });

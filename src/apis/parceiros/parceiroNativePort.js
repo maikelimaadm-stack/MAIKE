@@ -43,7 +43,7 @@ export const operacoesNativas = Object.freeze({
     nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}`, { method: 'PATCH', body: corpo, autenticado: true }, ctx('updateParceiro', { id })),
 });
 
-// D-PROD-291: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
 // de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
 registrarLeiturasOffline([
   '/parceiros?empresa_id={empresa}&limit=100&ativo=true',

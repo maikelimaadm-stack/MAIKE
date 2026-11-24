@@ -4,7 +4,7 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import JatosDoDia from "@/components/lancamento-atividades/JatosDoDia";
-import { jatosDosItens, jatosIguais, proximoJato, repetirUltimoJato, rotuloDoTanque, tanqueDoRegistro, totaisDosJatos } from "@/lib/jatosRegras";
+import { jatosDosItens, jatosIguais, proximoJato, repetirUltimoJato, rotuloDoTanque, tanqueDoRegistro, tanqueEJatoDoDia, textoDosJatosSalvos, totaisDosJatos } from "@/lib/jatosRegras";
 import { bemEscolhido, formularioDaLinhaMaquina, jatoDoImplemento } from "@/lib/atividadeLinhasRegras";
 import { linhasDoCorpoDoRegistro } from "@/lib/registroDeCampoRegras";
 
@@ -58,6 +58,36 @@ describe("regras dos jatos", () => {
     expect(tanqueDoRegistro([{ form: f }])).toEqual(TANQUE);
     expect(tanqueDoRegistro([], { form: { implemento: { id: "i2" } } })).toBeNull();
     expect(rotuloDoTanque(TANQUE)).toBe("2.000 L");
+  });
+});
+
+describe("D-PROD-292: o dia já salvo com jatos", () => {
+  it("'3 jatos de 2.000 L' e o total de cada produto; cancelada e linha sem jato não contam; sem jato, nada", () => {
+    const linhas = [
+      { status: "CONFIRMADO", jato: 1, produto_id: "p1", produto: { nome: "HERBICIDA FOLHA LARGA" }, quantidade: "10.0000", unidade: "L" },
+      { status: "CONFIRMADO", jato: 2, produto_id: "p1", produto: { nome: "HERBICIDA FOLHA LARGA" }, quantidade: "10.0000", unidade: "L" },
+      { status: "CONFIRMADO", jato: 3, produto_id: "p1", produto: { nome: "HERBICIDA FOLHA LARGA" }, quantidade: "14.0000", unidade: "L" },
+      { status: "CONFIRMADO", jato: 3, produto_id: "p2", produto: { nome: "ADUBO FOLIAR" }, quantidade: "8.0000", unidade: "KG" },
+      { status: "CANCELADO", jato: 4, produto_id: "p1", produto: { nome: "HERBICIDA FOLHA LARGA" }, quantidade: "99.0000", unidade: "L" },
+    ];
+    const maquinas = [{ implemento: { id: "i1", jato: { capacidade: "2000", unidade: "L" } } }];
+    expect(textoDosJatosSalvos(linhas, maquinas)).toBe("3 jatos de 2.000 L · herbicida folha larga 34 L · adubo foliar 8 kg");
+    expect(textoDosJatosSalvos(linhas, [])).toBe("3 jatos · herbicida folha larga 34 L · adubo foliar 8 kg");
+    expect(textoDosJatosSalvos([{ status: "CONFIRMADO", produto_id: "p1", quantidade: "1" }], maquinas)).toBeNull();
+  });
+});
+
+describe("D-PROD-293: o jato na linha avulsa", () => {
+  it("o tanque vem da máquina do dia ou, sem ela, do último lançamento com implemento por jato; o jato sugerido é o maior do dia", () => {
+    const pv = { implemento: { id: "i1", jato: { capacidade: "2000", unidade: "L" } } };
+    const dia = { maquinas: [pv], produtos: [{ status: "CONFIRMADO", jato: 1 }, { status: "CONFIRMADO", jato: 3 }, { status: "CANCELADO", jato: 9 }] };
+    expect(tanqueEJatoDoDia(dia)).toEqual({ tanque: TANQUE, jatoSugerido: 3 });
+    const outros = [
+      { data_operacional: "2026-12-01", maquinas: [{ implemento: { id: "r1" } }] },
+      { data_operacional: "2026-12-02", maquinas: [pv] },
+    ];
+    expect(tanqueEJatoDoDia(null, outros)).toEqual({ tanque: TANQUE, jatoSugerido: 1 });
+    expect(tanqueEJatoDoDia(null, [])).toEqual({ tanque: null, jatoSugerido: 1 });
   });
 });
 

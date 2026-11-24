@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Pencil, Plus } from "lucide-react";
+import { tanqueEJatoDoDia, textoDosJatosSalvos } from "@/lib/jatosRegras";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import { SeloAbastecimento } from "@/components/patrimonio/TabelaAbastecimentos";
@@ -332,6 +333,7 @@ export default function LinhasDoApontamento({
     const comAcoes = !cancelada && (editar || cancelar);
     return (
       <li key={id} className={cancelada ? LINHA_CANCELADA : LINHA_CONFIRMADA} data-testid={`linha-produto-${id}`} data-status={statusDaLinha(l)}>
+        {Number.isInteger(l.jato) && l.jato > 0 ? <span data-testid={`linha-produto-${id}-jato`}>Jato {l.jato} ·</span> : null}
         <span className={cancelada ? "line-through" : "font-medium"} data-testid={`linha-produto-${id}-nome`}>
           {rotuloDoProdutoDaLinha(l) || "Produto"}
         </span>
@@ -491,6 +493,12 @@ export default function LinhasDoApontamento({
       {mostrarProdutos ? (
         <div className="min-w-0" data-testid={`apontamento-${apId}-produtos`}>
           <p className={TITULO_BLOCO}>Produtos</p>
+          {/* D-PROD-292: o dia com jatos mostra o resumo dos jatos antes das linhas (cada linha diz o jato dela). */}
+          {textoDosJatosSalvos(produtos, maquinas) ? (
+            <p className="mb-1 text-[13px] font-semibold text-[#141413]" data-testid={`apontamento-${apId}-jatos`}>
+              {textoDosJatosSalvos(produtos, maquinas)}
+            </p>
+          ) : null}
           {produtos.length ? (
             <ul className="space-y-1" aria-label="Produtos do lançamento">
               {produtos.map(linhaProduto)}
@@ -569,6 +577,7 @@ export default function LinhasDoApontamento({
           }}
           onCancelar={() => setJanela(null)}
           onMudou={onMudou}
+          {...tanqueEJatoDoDia(apontamento)}
         />
       ) : null}
       {janela?.tipo === LINHA_MAQUINA ? (

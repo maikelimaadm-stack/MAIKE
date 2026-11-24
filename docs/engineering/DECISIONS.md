@@ -9366,7 +9366,30 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Decisão:** a partir de 1024 px, as janelas de detalhes do Mapa (as que usam a casca `mk-dp` dentro do diálogo largo: lote, área, cocho, depósito, bebedouro) têm 720 px de largura (a do tablet, antes até 880 px) e no máximo 820 px de altura. Sai o arranjo de duas colunas só do computador na aba Detalhes do lote; fica o do tablet. Letras e componentes não mudam (já são os mesmos do tablet).
 - **Fora:** diálogos de lançamento e telas de cadastro. Sem servidor, sem migration.
 
-## D-PROD-291 — App Android/iOS: conectado até sair, renovação da sessão e abertura sem internet
+## D-PROD-291 — Gerenciar tipos: marcar "usa produto · por jato" num tipo de implemento que já existe
+
+**Data:** 2026-11-24 · **Origem:** proprietário ("veja o que falta para implantar"; "pode começar a fazer tudo") · **Relatório:** [`MAIKE-JATOS-FECHAMENTO-REPORT.md`](./MAIKE-JATOS-FECHAMENTO-REPORT.md)
+
+> **Numeração:** nasceram D-PROD-290, 291 e 292 (a `main` `8ee36943` indicava 290); antes do merge a `main` deu a D-PROD-290 aos detalhes do mapa no computador (PR #379). Estas passam a **D-PROD-291, 292 e 293**; o marcador passa a D-PROD-294.
+
+- **Contexto:** em produção nenhum tipo estava "por jato"; só dava para marcar ao criar o tipo.
+- **Decisão:** no "Gerenciar tipos", o tipo de Implemento tem "Editar" com Usa produto?, Como conta, Capacidade e Unidade; "Não" limpa os três. O PATCH leva os campos (o servidor já conferia, D-PROD-279). Sem migration.
+
+## D-PROD-292 — Finalizar com "Fez o pasto todo?", o resumo por hectare e os jatos no dia salvo
+
+**Data:** 2026-11-24 · **Origem:** maquete aprovada (tela 4, "Quando terminar a área") · **Relatório:** [`MAIKE-JATOS-FECHAMENTO-REPORT.md`](./MAIKE-JATOS-FECHAMENTO-REPORT.md)
+
+- **Decisão:** o Finalizar pergunta, por área em andamento, "Sim, os N ha" / "Não, fiz só uma parte" (+ hectares) e mostra "Como ficou" (jatos, horas de máquina, produto por hectare, custo total e por hectare). `POST /atividades/:id/concluir` aceita `areas[{atividade_area_id, hectares}]` (texto); o que falta para os hectares informados entra num **lançamento de fechamento** (sem linhas, só os hectares, observação "Fechamento: hectares informados ao finalizar", no dia da conclusão), pelo caminho único de lançar, na mesma transação. Menor que o lançado → 400 `menor_que_lancado`. Por que um lançamento e não uma coluna: todas as somas (andamento, mapa, custo por área) já leem os dias; nada muda nelas e não há migration.
+- **Também:** com implemento "por jato", o Novo lançamento curto não pergunta os hectares do dia; o dia salvo mostra "N jatos de 2.000 L · totais" e "Jato N" em cada linha.
+
+## D-PROD-293 — Várias máquinas no Novo lançamento curto e o jato na linha avulsa de insumo
+
+**Data:** 2026-11-24 · **Origem:** proprietário (o que faltava da conversa dos jatos) · **Relatório:** [`MAIKE-JATOS-FECHAMENTO-REPORT.md`](./MAIKE-JATOS-FECHAMENTO-REPORT.md)
+
+- **Decisão:** com várias máquinas no último dia, o curto mostra "Máquina 1 de N" e "Próxima máquina" (o horímetro de cada uma ali). A linha avulsa de insumo (dia salvo e "Aplicação de insumos" do mapa) ganha "Jato nº" quando há implemento "por jato" no dia ou no último lançamento; as rotas de uma linha de produto aceitam `jato` (texto; null tira). Sem migration.
+- **Testes:** `atividadeFechamentoHectares.test.mjs`, `insumoPorJato.test.mjs`, `fechamentoArea.test.jsx`, `jatosDoDia.test.jsx`, `bensGerenciarTipos.test.jsx`, `servicoVariosDias.test.jsx`.
+
+## D-PROD-294 — App Android/iOS: conectado até sair, renovação da sessão e abertura sem internet
 
 - **Contexto:** no app (Capacitor, `docs/engineering/APP-ANDROID-IOS.md`), sem internet a abertura caía em "Não foi possível validar sua sessão" (restauração fail-closed, P4.0-R1), e o login durava no máximo 30 dias. O dono pediu que o login valha "direto até eu sair" e que o app abra sem internet.
 - **Decisão:**
@@ -9387,4 +9410,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Limite aceito:** quem estiver com o app sem internet por mais de 30 dias seguidos precisa entrar de novo.  Abrir sem internet não dá autorização nenhuma: toda gravação passa pelo servidor.
 - **Testes:** `backend/tests/authRenovarSessao.test.mjs` (RN-01..06), `tests/smoke/sessaoOfflineApp.test.js`, `tests/smoke/sessaoShell.test.jsx` (AUTH-OFF1..4), `tests/smoke/dadosOfflineLeitura.test.js` (DO-01..08, DB-01..02), `tests/smoke/offlineRuntime.test.js` (OFF-B1..2).
 
-<!-- Próxima decisão: D-PROD-292 -->
+<!-- Próxima decisão: D-PROD-295 -->
