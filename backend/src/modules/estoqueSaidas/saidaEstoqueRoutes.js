@@ -57,7 +57,7 @@ const ITEM = {
   type: 'object',
   required: ['produto_id', 'local_estoque_id', 'unidade', 'quantidade'],
   additionalProperties: false,
-  // D-PROD-279: `lotes` só em produto com lote (kg/L de estoque; soma = a quantidade de estoque da linha).
+  // D-PROD-281: `lotes` só em produto com lote (kg/L de estoque; soma = a quantidade de estoque da linha).
   properties: { produto_id: ID, local_estoque_id: ID, unidade: { type: 'string', enum: ['KG', 'SACO', 'L'] }, quantidade: DECIMAL, lotes: LOTES_ESCOLHIDOS },
 };
 const CRIAR = {

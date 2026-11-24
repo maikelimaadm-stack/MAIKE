@@ -34,7 +34,7 @@ const normalizarOpcoes = (bruto) => {
 };
 
 /**
- * D-PROD-279: lotes disponíveis (FEFO) de um produto num depósito.
+ * D-PROD-281: lotes disponíveis (FEFO) de um produto num depósito.
  * @param {{ empresa_id: string, produto_id: string, local_estoque_id: string }} filtros
  */
 export const listLotesDisponiveis = async (filtros) => {

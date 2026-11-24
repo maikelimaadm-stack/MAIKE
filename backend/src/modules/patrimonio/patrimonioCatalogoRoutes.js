@@ -46,6 +46,13 @@ const VERSAO = { type: 'integer', minimum: 1 };
 const VIDA_UTIL = INTEIRO_NULO(1, 1200);
 /** D-PROD-202: teto do salto do medidor, texto decimal ≥ 0 (até 10 dígitos e 4 casas), ou null. */
 const SALTO_MAXIMO = { type: ['string', 'null'], pattern: PADRAO_MEDIDA.source };
+/** D-PROD-279: o produto do implemento (forma, faixa e natureza conferidas no service; capacidade em TEXTO decimal). */
+const PRODUTO = {
+  usa_produto: { type: ['boolean', 'null'] },
+  forma_produto: { type: ['string', 'null'], maxLength: 16 },
+  capacidade: { type: ['string', 'null'], maxLength: 32 },
+  capacidade_unidade: { type: ['string', 'null'], maxLength: 8 },
+};
 const PARAMS = { type: 'object', required: ['id'], additionalProperties: false, properties: { id: ID } };
 
 const listar = (filtros = {}) => ({
@@ -71,7 +78,7 @@ const TIPO_CRIAR = {
     required: ['nome'],
     additionalProperties: false,
     properties: {
-      natureza: ENUM(NATUREZAS), familia_id: ID, codigo: CODIGO, nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL, salto_maximo_medidor: SALTO_MAXIMO,
+      natureza: ENUM(NATUREZAS), familia_id: ID, codigo: CODIGO, nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL, salto_maximo_medidor: SALTO_MAXIMO, ...PRODUTO,
     },
   },
 };
@@ -83,7 +90,7 @@ const TIPO_ATUALIZAR = {
     minProperties: 2,
     additionalProperties: false,
     properties: {
-      versao: VERSAO, nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL, salto_maximo_medidor: SALTO_MAXIMO, ativo: { type: 'boolean' },
+      versao: VERSAO, nome: NOME, descricao: TEXTO(500), vida_util_meses_sugerida: VIDA_UTIL, salto_maximo_medidor: SALTO_MAXIMO, ...PRODUTO, ativo: { type: 'boolean' },
     },
   },
 };
@@ -107,13 +114,22 @@ const consulta = (request) => /** @type {any} */ (request.query);
 export const registrarPatrimonioCatalogoRoutes = async (app) => {
   const autenticado = { onRequest: [app.autenticar] };
   // D-PROD-202: o teto do salto é decimal em TEXTO; número → 400 antes da coerção do AJV (o float corromperia o valor).
+  // D-PROD-279: a capacidade do implemento também; e `usa_produto` só booleano (o AJV coagiria "true"/"1").
   app.addHook('preValidation', async (request) => {
     const c = /** @type {any} */ (request.body);
-    if (!c || typeof c !== 'object' || Array.isArray(c) || !Object.prototype.hasOwnProperty.call(c, 'salto_maximo_medidor')) return;
-    const v = c.salto_maximo_medidor;
-    if (v !== null && v !== undefined && typeof v !== 'string') {
-      throw new AppError('REQUEST_VALIDATION_FAILED', 'salto_maximo_medidor deve ser texto decimal (ex.: "24"), nunca número', {
-        details: { field: 'salto_maximo_medidor', reason: 'valor_deve_ser_texto', campo: 'salto_maximo_medidor' },
+    if (!c || typeof c !== 'object' || Array.isArray(c)) return;
+    for (const campo of ['salto_maximo_medidor', 'capacidade']) {
+      if (!Object.prototype.hasOwnProperty.call(c, campo)) continue;
+      const v = c[campo];
+      if (v !== null && v !== undefined && typeof v !== 'string') {
+        throw new AppError('REQUEST_VALIDATION_FAILED', `${campo} deve ser texto decimal (ex.: "24"), nunca número`, {
+          details: { field: campo, reason: 'valor_deve_ser_texto', campo },
+        });
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(c, 'usa_produto') && c.usa_produto !== null && typeof c.usa_produto !== 'boolean') {
+      throw new AppError('REQUEST_VALIDATION_FAILED', 'usa_produto deve ser true, false ou null', {
+        details: { field: 'usa_produto', reason: 'formato', campo: 'usa_produto' },
       });
     }
   });

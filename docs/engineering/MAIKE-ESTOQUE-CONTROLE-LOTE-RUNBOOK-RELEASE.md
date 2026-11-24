@@ -1,25 +1,25 @@
-# MAIKE — Estoque, controle de lote: runbook de release (D-PROD-279)
+# MAIKE — Estoque, controle de lote: runbook de release (D-PROD-281)
 
 > **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário e para no primeiro desvio com
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de leituras reais.
 
-Decisão: [D-PROD-279](./DECISIONS.md) · SPEC: [`MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md) ·
+Decisão: [D-PROD-281](./DECISIONS.md) · SPEC: [`MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md) ·
 Relatório: [`MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md).
-Anterior em produção: a EXPAND da reforma de pastagem (`20261122100000_reforma_planejamento`, D-PROD-276, 75/0 e 111
-tabelas depois dela). Molde: [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md)
+Anterior em produção: a EXPAND do produto do implemento (`20261124100000_tipo_implemento_produto`, D-PROD-279, PR #366),
+aplicada: produção com **76** concluídas e 0 com falha, 111 tabelas; as colunas do controle de lote ainda não existem. Molde: [`MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-AJUSTE-INVENTARIO-RUNBOOK-RELEASE.md)
 e, para a CONTRACT aditiva, a data de término do apontamento (D-PROD-265).
 
 ## 0. O que muda no banco
 
 | Item | Valor |
 |---|---|
-| Migration | `20261123100000_estoque_controle_lote` |
+| Migration | `20261124200000_estoque_controle_lote` |
 | Natureza | **CONTRACT condicionado, ADITIVO**: em `Produto`, `controla_lote` e `controla_validade` BOOLEAN NOT NULL DEFAULT false e o CHECK `Produto_controla_validade_check` (validade só com lote); em `EstoqueLoteNota`, `lote_fabricante` VARCHAR(64) e `data_validade` DATE, anuláveis, sem DEFAULT; o índice não-único `EstoqueLoteNota_fefo_idx` (`cliente_id`, `empresa_id`, `produto_id`, `local_estoque_id`, `data_validade`). Nenhuma tabela criada ou apagada; nenhuma linha muda de valor; nenhum DROP ou DML. É CONTRACT só porque a allowlist EXPAND recusa em tabela antiga NOT NULL DEFAULT, DATE e CHECK |
 | SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `b6b33b0ebb35f44d91d7b3766525a51e839d68348aca78388fd26ab2645948fc` |
 | Guarda (`MIGRATIONS_CONTRACT_APROVADAS`) | `98e741eef93fcd2931fdea5ae8838c24fd842b89e161df32a6e4b66621c588fc`, literais `Produto`, `EstoqueLoteNota` |
-| `_prisma_migrations` | esperado **75** concluídas, 0 abertas (a última `20261122100000_reforma_planejamento`, checksum `27f16e1d44df673e97a62ef2122199c94d8d6adcdd07d006180ef0f90b873a10`); depois **76**. Recontar no §2 |
+| `_prisma_migrations` | esperado **76** concluídas, 0 abertas (a última `20261124100000_tipo_implemento_produto`, checksum `a18362400ec4345487bca6bb4b6c94c62991cb120bb36786448a46c39a64ae45`); depois **77**. Recontar no §2 |
 | Tabelas em `public` | **111** antes e depois |
 
 **Por que antes do merge (D-PROD-72 item 1):** o motor de estoque novo lê `Produto.controla_lote` e grava
@@ -33,8 +33,8 @@ sem aplicar nada. Fazer fora do horário de lançamento.
 
 ## 1. Caminhos
 
-- **A — runner oficial (padrão, D-PROD-74):** `node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --contract D-PROD-279`
-  (depois `--verificar-alvo` e `--aplicar`), numa máquina protegida, com `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-279`.
+- **A — runner oficial (padrão, D-PROD-74):** `node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --contract D-PROD-281`
+  (depois `--verificar-alvo` e `--aplicar`), numa máquina protegida, com `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-281`.
 - **B — conector Supabase, uma única `execute_sql` (§3):** só com autorização **escrita e específica do
   proprietário para esta migration**, como nas anteriores.
 
@@ -43,11 +43,11 @@ sem aplicar nada. Fazer fora do horário de lançamento.
 ```sql
 SELECT
   (SELECT system_identifier FROM pg_control_system())::text                                           AS sid,         -- 7692130048193495360
-  (SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL)  AS concluidas,  -- 75
+  (SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL)  AS concluidas,  -- 76
   (SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)   AS ruins,       -- 0
-  (SELECT count(*) FROM _prisma_migrations WHERE migration_name = '20261122100000_reforma_planejamento'
-     AND checksum = '27f16e1d44df673e97a62ef2122199c94d8d6adcdd07d006180ef0f90b873a10' AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS anterior_ok, -- 1
-  (SELECT count(*) FROM _prisma_migrations WHERE migration_name = '20261123100000_estoque_controle_lote') AS registrada, -- 0
+  (SELECT count(*) FROM _prisma_migrations WHERE migration_name = '20261124100000_tipo_implemento_produto'
+     AND checksum = 'a18362400ec4345487bca6bb4b6c94c62991cb120bb36786448a46c39a64ae45' AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS anterior_ok, -- 1
+  (SELECT count(*) FROM _prisma_migrations WHERE migration_name = '20261124200000_estoque_controle_lote') AS registrada, -- 0
   (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public'
      AND ((table_name = 'Produto' AND column_name IN ('controla_lote', 'controla_validade'))
        OR (table_name = 'EstoqueLoteNota' AND column_name IN ('lote_fabricante', 'data_validade'))))  AS colunas_novas, -- 0
@@ -68,20 +68,20 @@ BEGIN
   IF (SELECT system_identifier FROM pg_control_system()) <> 7692130048193495360 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: alvo divergente';
   END IF;
-  IF EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261123100000_estoque_controle_lote') THEN
+  IF EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '20261124200000_estoque_controle_lote') THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: migration já registrada';
   END IF;
   SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
          count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)
     INTO n_ok, n_ruim FROM _prisma_migrations;
-  IF n_ok <> 75 OR n_ruim <> 0 THEN
+  IF n_ok <> 76 OR n_ruim <> 0 THEN
     RAISE EXCEPTION 'RELEASE_BLOCKED: histórico com % concluídas e % com falha', n_ok, n_ruim;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM _prisma_migrations
-                  WHERE migration_name = '20261122100000_reforma_planejamento'
-                    AND checksum = '27f16e1d44df673e97a62ef2122199c94d8d6adcdd07d006180ef0f90b873a10'
+                  WHERE migration_name = '20261124100000_tipo_implemento_produto'
+                    AND checksum = 'a18362400ec4345487bca6bb4b6c94c62991cb120bb36786448a46c39a64ae45'
                     AND finished_at IS NOT NULL AND rolled_back_at IS NULL) THEN
-    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (20261122100000_reforma_planejamento) não está concluída com o checksum do repositório';
+    RAISE EXCEPTION 'RELEASE_BLOCKED: a anterior (20261124100000_tipo_implemento_produto) não está concluída com o checksum do repositório';
   END IF;
 END $envelope$;
 
@@ -91,7 +91,7 @@ END $envelope$;
 INSERT INTO _prisma_migrations
   (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
 VALUES (gen_random_uuid()::text, 'b6b33b0ebb35f44d91d7b3766525a51e839d68348aca78388fd26ab2645948fc', now(),
-        '20261123100000_estoque_controle_lote', NULL, NULL, now(), 1);
+        '20261124200000_estoque_controle_lote', NULL, NULL, now(), 1);
 COMMIT;
 ```
 
@@ -105,8 +105,8 @@ do trecho da migration antes de usar. Qualquer falha desfaz tudo.
 
 ```sql
 SELECT
-  (SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL)        AS concluidas, -- 76
-  (SELECT checksum FROM _prisma_migrations WHERE migration_name = '20261123100000_estoque_controle_lote')   AS checksum,   -- b6b33b0e…48fc
+  (SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL)        AS concluidas, -- 77
+  (SELECT checksum FROM _prisma_migrations WHERE migration_name = '20261124200000_estoque_controle_lote')   AS checksum,   -- b6b33b0e…48fc
   (SELECT count(*) FROM pg_tables WHERE schemaname = 'public')                                              AS tabelas,    -- 111
   (SELECT string_agg(column_name || ':' || data_type || ':' || is_nullable || ':' || coalesce(column_default, '-'), ', ' ORDER BY column_name)
      FROM information_schema.columns WHERE table_schema = 'public'

@@ -1,5 +1,5 @@
 /**
- * D-PROD-279 — telas do controle de lote: o campo "Lote" da saída/transferência (sugestão FEFO, escolher e dividir,
+ * D-PROD-281 — telas do controle de lote: o campo "Lote" da saída/transferência (sugestão FEFO, escolher e dividir,
  * aviso de vencido com confirmação), o detalhe por lote do Saldo e as regras puras do formulário (lote/validade
  * obrigatórios na entrada; corpo `lotes` só com escolha manual). Mock só do service de leitura dos lotes.
  */
@@ -47,7 +47,7 @@ function Linha({ inicial, aoMudar }) {
   );
 }
 
-describe('D-PROD-279 — campo "Lote" da saída', () => {
+describe('D-PROD-281 — campo "Lote" da saída', () => {
   it('sugere o que vence primeiro (o vencido entra), avisa "Lote vencido em 01/06" e pede confirmação; escolher e dividir monta o corpo', async () => {
     let ultima = null;
     comQuery(<Linha inicial={{ produto: PRODUTO, deposito: { id: 'l1' }, unidade: 'KG', quantidade: '20', lotes: null }} aoMudar={(l) => { ultima = l; }} />);
@@ -89,7 +89,7 @@ describe('D-PROD-279 — campo "Lote" da saída', () => {
   });
 });
 
-describe('D-PROD-279 — Saldo por lote e regras puras', () => {
+describe('D-PROD-281 — Saldo por lote e regras puras', () => {
   it('a janela do Saldo lista lote, validade, saldo e custo e avisa vencido e "Vence em 16 dias" (tela cheia no celular)', async () => {
     comQuery(<JanelaLotesSaldo empresaId="emp-1" alvo={{ produto_id: 'p1', produto_nome: 'Vermífugo', local_estoque_id: 'l1', local_estoque_nome: 'Farmácia' }} onFechar={() => {}} />);
     expect((await screen.findByTestId('lote-saldo-aviso-cV')).textContent).toBe('Lote vencido em 01/06');
@@ -111,7 +111,7 @@ describe('D-PROD-279 — Saldo por lote e regras puras', () => {
   });
 });
 
-describe('D-PROD-279 (revisão) — recusa do estorno com o controle de lote trocado', () => {
+describe('D-PROD-281 (revisão) — recusa do estorno com o controle de lote trocado', () => {
   it('mensagem clara nos dois sentidos, pela mesma função de erro das telas', async () => {
     const { mensagemErroGestao } = await import('@/lib/gestaoErros');
     const erro = (reason) => ({ code: 'ESTOQUE_ESTORNO_MODO_LOTE_DIVERGENTE', details: { field: 'movimento_id', reason } });

@@ -147,7 +147,7 @@ export const saldo = async (contexto, query = {}) => {
         custo_medio: quantidade.gt(0) ? valor.div(quantidade).toFixed(CASAS_CUSTO) : null,
         valor: valor.toFixed(CASAS_CUSTO),
         camadas: Number(r.camadas ?? 0),
-        // D-PROD-279: o produto controla lote (a tela abre o detalhe por lote, com validade).
+        // D-PROD-281: o produto controla lote (a tela abre o detalhe por lote, com validade).
         controla_lote: r.controla_lote === true,
         controla_validade: r.controla_validade === true,
       };
@@ -159,13 +159,13 @@ export const saldo = async (contexto, query = {}) => {
   };
 };
 
-// ─── lotes disponíveis (D-PROD-279) ─────────────────────────────────────────
+// ─── lotes disponíveis (D-PROD-281) ─────────────────────────────────────────
 
-/** D-PROD-279: aviso "vence em até N dias" na tela (a regra é só de exibição). */
+/** D-PROD-281: aviso "vence em até N dias" na tela (a regra é só de exibição). */
 export const DIAS_AVISO_VENCIMENTO = 30;
 
 /**
- * D-PROD-279 — lotes (camadas Disponivel com saldo) de um produto num depósito, JÁ NA ORDEM FEFO (a sugestão da
+ * D-PROD-281 — lotes (camadas Disponivel com saldo) de um produto num depósito, JÁ NA ORDEM FEFO (a sugestão da
  * saída): validade, saldo, custo da camada (o custo da nota, no produto com lote), vencido e dias até vencer, pelo dia
  * de hoje da fazenda. Somente leitura; tenant de `auth_context`; produto e depósito de outro tenant = 404.
  * @param {{ auth: any }} contexto

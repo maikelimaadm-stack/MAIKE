@@ -68,7 +68,7 @@ export const validarFormularioSaida = (form, hoje) => {
     const quantidade = lerDecimal(l.quantidade);
     if (!quantidade.ok) erros[`${p}quantidade`] = quantidade.motivo === 'vazio' ? 'Informe a quantidade.' : 'Quantidade inválida (até 4 casas decimais).';
     else if (ehZeroCanonico(quantidade.valor)) erros[`${p}quantidade`] = 'A quantidade deve ser maior que zero.';
-    // D-PROD-279: produto com lote — a escolha tem de fechar e o lote vencido, ser confirmado.
+    // D-PROD-281: produto com lote — a escolha tem de fechar e o lote vencido, ser confirmado.
     if (l.produto?.controla_lote && l.erroLote) erros[`${p}lotes`] = l.erroLote;
     else if (l.produto?.controla_lote && l.loteVencido && !l.confirmaVencido) erros[`${p}lotes`] = 'Confirme o uso do lote vencido.';
     if (l.produto?.id && l.deposito?.id) {
@@ -94,7 +94,7 @@ export const montarCorpoSaida = (empresaId, form, operationId) => ({
     local_estoque_id: l.deposito.id,
     unidade: l.unidade,
     quantidade: /** @type {any} */ (lerDecimal(l.quantidade)).valor,
-    ...corpoDosLotes(l), // D-PROD-279: só com escolha manual (sem ela, FEFO no servidor)
+    ...corpoDosLotes(l), // D-PROD-281: só com escolha manual (sem ela, FEFO no servidor)
   })),
 });
 

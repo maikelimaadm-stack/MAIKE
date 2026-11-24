@@ -35,7 +35,7 @@ const NO_OP = () => {};
 export default function SaldoEstoque({ empresaId, aba, onAba, onAbrirMovimentos }) {
   const [depositoId, setDepositoId] = useState("");
   const [saldoFiltro, setSaldoFiltro] = useState("COM");
-  // D-PROD-279: o detalhe por lote (produto que controla lote).
+  // D-PROD-281: o detalhe por lote (produto que controla lote).
   const [lotesDe, setLotesDe] = useState(/** @type {any} */ (null));
 
   const depositosQuery = useQuery({ queryKey: ["estoque", "filtro-depositos"], queryFn: () => listarDepositosDoFiltro(), staleTime: 60 * 1000, enabled: Boolean(empresaId) });

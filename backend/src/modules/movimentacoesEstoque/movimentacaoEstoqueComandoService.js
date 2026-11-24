@@ -165,7 +165,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
     ponto_suplementacao_id: entrada.ponto_suplementacao_id ?? null,
     data_movimentacao: entrada.data_movimentacao ?? null,
     observacoes: entrada.observacoes ?? null,
-    // D-PROD-279: a escolha de lotes só entra no fingerprint quando vem (o reenvio de antes continua casando).
+    // D-PROD-281: a escolha de lotes só entra no fingerprint quando vem (o reenvio de antes continua casando).
     ...(lotesEscolhidos ? { lotes: lotesEscolhidos } : {}),
   };
   const fingerprint = fingerprintDePayload(payloadCanonico);
@@ -236,7 +236,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
           replay: false,
           movimentacao: publico,
           rateio: rateioLegado(/** @type {any[]} */ (saida.fatias)),
-          // D-PROD-279 (revisão): lote vencido consumido pelo FEFO (ou escolhido) — aviso, nunca recusa.
+          // D-PROD-281 (revisão): lote vencido consumido pelo FEFO (ou escolhido) — aviso, nunca recusa.
           ...(saida.avisos?.length ? { avisos: saida.avisos } : {}),
         };
         return { httpStatus: 201, body };
@@ -312,7 +312,7 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
     quantidade,
     data_movimentacao: entrada.data_movimentacao ?? null,
     observacoes: entrada.observacoes ?? null,
-    // D-PROD-279: a escolha de lotes só entra no fingerprint quando vem (o reenvio de antes continua casando).
+    // D-PROD-281: a escolha de lotes só entra no fingerprint quando vem (o reenvio de antes continua casando).
     ...(lotesEscolhidos ? { lotes: lotesEscolhidos } : {}),
   };
   const fingerprint = fingerprintDePayload(payloadCanonico);

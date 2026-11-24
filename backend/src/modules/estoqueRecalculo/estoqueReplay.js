@@ -31,7 +31,7 @@
  *    transferência processada depois) para a simulação com `ajuste_de_inventario_posterior`: o estoque nunca fica
  *    diferente do contado. Os pares marcados (exclusões com recálculo já gravadas) não contam: só `opcoes.excluir`.
  *
- * D-PROD-279 — PRODUTO COM LOTE: saída e transferência com `modo_saida_fifo = 'LOTE'` aplicam as FATIAS GRAVADAS pelo
+ * D-PROD-281 — PRODUTO COM LOTE: saída e transferência com `modo_saida_fifo = 'LOTE'` aplicam as FATIAS GRAVADAS pelo
  * custo gravado de cada uma (o custo da camada escolhida) e não reavaliam nada — nem a origem, nem o destino, nem o
  * estorno delas. Na simulação, esses valores não mudam (não há médio a refazer). Fatia de lote que caiu numa camada
  * excluída (a entrada daquele lote saiu da sequência) para a simulação com `lote_consumido`: a exclusão da entrada de um
@@ -228,7 +228,7 @@ export const fatiaComoTexto = (f) => ({
 const consumir = (estado, local, fatias, m) => {
   for (const f of fatias) {
     const l = estado.camadas.get(f.lote_id);
-    // D-PROD-279: a saída de lote escolheu ESTA camada; se a entrada dela saiu da sequência, a exclusão é recusada.
+    // D-PROD-281: a saída de lote escolheu ESTA camada; se a entrada dela saiu da sequência, a exclusão é recusada.
     if (m.modo_saida_fifo === MODO_LOTE && l && l.status === 'Estornado') {
       throw new Parada({ reason: 'lote_consumido', movimento_id: m.id, movimento_numero: m.numero_movimentacao, lote_id: f.lote_id });
     }
@@ -463,7 +463,7 @@ export const reproduzir = (historico, opcoes = {}) => {
     const saldoAntes = estado.saldo(local);
     let valorUnitario = m.valor_unitario === null ? null : dec(m.valor_unitario);
     let valorTotal = m.valor_total === null ? null : dec(m.valor_total);
-    // D-PROD-279: a sobra de um produto com lote (camada com lote do fabricante) fica no custo gravado (custo do lote).
+    // D-PROD-281: a sobra de um produto com lote (camada com lote do fabricante) fica no custo gravado (custo do lote).
     if (m.origem_sistema === ORIGEM_AJUSTE_ESTOQUE && m.tipo_detalhado === TIPO_SOBRA_AJUSTE && !fato.lote_fabricante) {
       const linha = linhasDeAjuste.get(m.id);
       if (!linha) throw new Parada({ reason: 'sobra_de_ajuste_sem_linha', movimento_id: m.id, movimento_numero: m.numero_movimentacao });
@@ -491,7 +491,7 @@ export const reproduzir = (historico, opcoes = {}) => {
     const destino = s.local_estoque_destino;
     const kg = dec(s.quantidade);
     const saldoOrigem = estado.saldo(origem);
-    const deLote = s.modo_saida_fifo === MODO_LOTE; // D-PROD-279: fatias gravadas, sem reavaliar origem nem destino
+    const deLote = s.modo_saida_fifo === MODO_LOTE; // D-PROD-281: fatias gravadas, sem reavaliar origem nem destino
     const legadoOrigem = deLote || (s.modo_saida_fifo !== MODO_CUSTO_MEDIO && !afetado(origem));
     // Cascata: o custo recalculado na origem chega ao destino (e daí às saídas e transferências dele).
     if (afetado(origem)) afetados.add(destino);
@@ -568,7 +568,7 @@ export const reproduzir = (historico, opcoes = {}) => {
       const original = resultados.get(pai.id);
       if (!original) throw new Parada({ reason: 'original_nao_reproduzido', movimento_id: e.id, movimento_numero: e.numero_movimentacao });
       const kg = dec(e.quantidade);
-      // D-PROD-279: o estorno de saída de lote devolve às camadas pelo custo delas, sem reavaliar o poço.
+      // D-PROD-281: o estorno de saída de lote devolve às camadas pelo custo delas, sem reavaliar o poço.
       if (!pocos.has(local)) pocos.set(local, { v: estado.valor(local), legado: pai.modo_saida_fifo === MODO_LOTE || (ms(e.createdAt) < corte && !afetado(local)) });
       const saldoAntes = estado.saldo(local);
       const fatias = (original.fatias ?? []).map((f) => ({ lote_id: f.lote_id, quantidade: dec(f.quantidade) }));
@@ -632,7 +632,7 @@ export const reproduzir = (historico, opcoes = {}) => {
     const qD = estado.saldo(destino);
     retirarCamadas(estado, destino, fatias.map((f) => f.lote_destino_id), d);
     const restoD = vD.minus(valorTotal);
-    const deLote = s.modo_saida_fifo === MODO_LOTE; // D-PROD-279: sem médio, nada é reavaliado
+    const deLote = s.modo_saida_fifo === MODO_LOTE; // D-PROD-281: sem médio, nada é reavaliado
     const medioDepoisD = deLote ? medioDe(estado.valor(destino), estado.saldo(destino)) : estado.reavaliarPoco(destino, restoD.gt(0) ? restoD : ZERO, qD.minus(kg));
     // Origem: as fatias voltam às camadas e o valor de S volta ao poço.
     const vO = estado.valor(origem);

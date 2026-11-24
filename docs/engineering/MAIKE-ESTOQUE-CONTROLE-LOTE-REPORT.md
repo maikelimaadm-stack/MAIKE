@@ -1,6 +1,6 @@
-# MAIKE — Estoque: controle de lote por produto (relatório, D-PROD-279)
+# MAIKE — Estoque: controle de lote por produto (relatório, D-PROD-281)
 
-Decisão: [D-PROD-279](./DECISIONS.md) · SPEC: [`MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md) ·
+Decisão: [D-PROD-281](./DECISIONS.md) · SPEC: [`MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md) ·
 Runbook: [`MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md) ·
 Branch: `claude/estoque-controle-lote` (da `main` `d62a4ef8`, sem push).
 
@@ -8,8 +8,8 @@ Branch: `claude/estoque-controle-lote` (da `main` `d62a4ef8`, sem push).
 
 | Etapa | Commit | Conteúdo |
 |---|---|---|
-| A — governança | `ee2aa8b0` | D-PROD-279 (escolhas do proprietário, tratamento da sobra), emenda aprovada em `00-CONSTITUICAO.md` §1 e nota em `07-DO-NOT-DO.md`, SPEC |
-| B — migration | `78f7bf8a` | `20261123100000_estoque_controle_lote`, `schema.prisma`, pinagem (`MIGRATIONS_APROVADAS` e `MIGRATIONS_CONTRACT_APROVADAS`), colunas do preflight, testes de deploy e espelhos, runbook |
+| A — governança | `ee2aa8b0` | D-PROD-281 (escolhas do proprietário, tratamento da sobra), emenda aprovada em `00-CONSTITUICAO.md` §1 e nota em `07-DO-NOT-DO.md`, SPEC |
+| B — migration | `78f7bf8a` | `20261124200000_estoque_controle_lote`, `schema.prisma`, pinagem (`MIGRATIONS_APROVADAS` e `MIGRATIONS_CONTRACT_APROVADAS`), colunas do preflight, testes de deploy e espelhos, runbook |
 | C — motor e backend | `afdcf6e7` | motor (FEFO, escolha, custo do lote, sem reavaliar), serviços, endpoint de lotes, troca do cadastro, recálculo/replay, teste PG |
 | D — telas | `a162c0e0` | cadastro (2 Sim/Não), entrada (obrigatórios), saída e transferência (campo Lote), saldo (detalhe por lote), smoke |
 | relatório | (este) | relatório e `CURRENT-STATE` |
@@ -65,10 +65,10 @@ Branch: `claude/estoque-controle-lote` (da `main` `d62a4ef8`, sem push).
 
 | Item | Valor |
 |---|---|
-| Pasta | `backend/prisma/migrations/20261123100000_estoque_controle_lote/migration.sql` |
+| Pasta | `backend/prisma/migrations/20261124200000_estoque_controle_lote/migration.sql` |
 | sha256 | `b6b33b0ebb35f44d91d7b3766525a51e839d68348aca78388fd26ab2645948fc` |
 | Guarda (sha256 do corpo normalizado) | `98e741eef93fcd2931fdea5ae8838c24fd842b89e161df32a6e4b66621c588fc` |
-| Classificação | **CONTRACT condicionado e ADITIVO** (`--contract D-PROD-279`): a allowlist EXPAND recusa NOT NULL DEFAULT, DATE e CHECK em tabela antiga. Nenhum DROP, nenhum DML |
+| Classificação | **CONTRACT condicionado e ADITIVO** (`--contract D-PROD-281`): a allowlist EXPAND recusa NOT NULL DEFAULT, DATE e CHECK em tabela antiga. Nenhum DROP, nenhum DML |
 | Conteúdo | `Produto.controla_lote`/`controla_validade` BOOLEAN NOT NULL DEFAULT false; CHECK `Produto_controla_validade_check`; `EstoqueLoteNota.lote_fabricante` VARCHAR(64) e `data_validade` DATE anuláveis; índice `EstoqueLoteNota_fefo_idx` (`cliente_id`, `empresa_id`, `produto_id`, `local_estoque_id`, `data_validade`) |
 | Produção | **não aplicada**; esperado 75 → 76 migrations, 111 tabelas antes e depois |
 
@@ -114,7 +114,7 @@ Revisão independente (cenário temporário `mistura.test.mjs`) transformada em 
 | 1 (importante) | `carregarReferencias` do financeiro não lia `controla_lote`/`controla_validade`: `comLote` ficava vazio e a prévia mostrava o médio | as duas colunas no `select` | A 100 a 4 (31/12/27), B 50 a 6 (01/08/27), venda de 60: prévia **340,0000** com as fatias B 50 × 6 + A 10 × 4 = movimento gravado **340,0000** (5,6667/kg, `LOTE`) e as mesmas fatias em `OperacaoFinanceiraConsumoLote`. Antes a prévia dava 280,0000 (4,6667 × 60) |
 | 2 (importante) | a troca do flag era driblada por estorno posterior (camada sem lote em produto com lote; custos de lote num poço médio) | `exigirModoLoteDoCadastro` no motor (ponto único: `estornarEntrada`, `estornarSaida`, `estornarEmLote`, `estornarTransferenciaEstoque`) e em `provarExclusaoComRecalculo`; 409 `ESTOQUE_ESTORNO_MODO_LOTE_DIVERGENTE` (`movimento_sem_lote` / `movimento_com_lote`); mensagem em `gestaoErros` e na SPEC §5 | o cenário da revisão (10 a 2, saída 10, troca, L1 10 a 8, excluir a saída) → 409 e as camadas iguais; o inverso (L1 10 a 4, saída LOTE, volta a sem lote, 10 a 2 + 10 a 6) → 409; entrada sem lote consumida e entrada com lote consumida → 409 pela prova do recálculo; cancelar transferência antiga → 409; cancelar linha de atividade e cancelar venda → 409; nada gravado em nenhum |
 | 3 (menor) | o fallback do estorno exato decidia a reavaliação pela marca do movimento | `estornarSaida`, `estornarEmLote` e `estornarTransferenciaEstoque` decidem pelo **cadastro atual** (`controleDeLote`); com o item 2 a marca e o cadastro sempre batem | L1 10 a 4, L2 10 a 6; atividade 5 (L1), saída manual 2 depois; cancelar a linha → L1 **8 a 4**, L2 **10 a 6**, replay = gravado. Este teste já passava antes (o caminho divergente só existia com a troca do cadastro, que o item 2 fecha); fica como cinto |
-| 4 (menor) | o custo da sobra "do mesmo lote" aceitava camada `Estornado` e ignorava o custo informado | filtro `status ≠ Estornado`; com camada vigente do lote, `custo_unitario` → 400 `custo_do_lote_existente` (escolha do proprietário registrada na D-PROD-279) | A 10 a 4 excluída: sobra de 5 do A sem custo → 422 `custo_obrigatorio_sem_saldo` (antes entrava a 4); com 7 → **35,0000** informado; depois, sobra de 3 do A com custo 9 → 400; sem custo → **21,0000** a 7 |
+| 4 (menor) | o custo da sobra "do mesmo lote" aceitava camada `Estornado` e ignorava o custo informado | filtro `status ≠ Estornado`; com camada vigente do lote, `custo_unitario` → 400 `custo_do_lote_existente` (escolha do proprietário registrada na D-PROD-281) | A 10 a 4 excluída: sobra de 5 do A sem custo → 422 `custo_obrigatorio_sem_saldo` (antes entrava a 4); com 7 → **35,0000** informado; depois, sobra de 3 do A com custo 9 → 400; sem custo → **21,0000** a 7 |
 | 5 (menor) | lote vencido sem aviso nas origens só com API | `aplicarSaida` devolve `avisos` (`avisosDeLoteVencido`, pelo dia da saída); atividade (lançar/editar), abastecimento, cocho e venda respondem `avisos: [{ tipo: 'lote_vencido', lote_id, lote, validade }]` (venda com `item_ordem`) **só quando há aviso** (as respostas de sempre não mudam de forma) | V1 30 a 3 (vence 10/01/2027) e OK 30 a 5 (10/01/2028), dia 10/06/2027: atividade 5, venda 5, cocho 5 e atividade 20 (15 do V1 + 5 do OK) → um aviso do V1 cada; atividade 5 só do OK → sem `avisos`; abastecimento de 50 L de diesel com lote V1 → aviso |
 
 - **Toast nas telas (item 5): não feito.** Os ports de atividade, abastecimento, cocho e financeiro normalizam a
@@ -151,8 +151,33 @@ Revisão independente (cenário temporário `mistura.test.mjs`) transformada em 
 
 ## 6. Dúvidas
 1. A migration foi pedida como "EXPAND"; pelo classificador ela é CONTRACT condicionado (aditiva), como as anteriores
-   com NOT NULL DEFAULT/DATE/CHECK em tabela antiga. A release precisa do `--contract D-PROD-279`.
+   com NOT NULL DEFAULT/DATE/CHECK em tabela antiga. A release precisa do `--contract D-PROD-281`.
 2. Tratamento da sobra de ajuste (custo do mesmo lote, senão custo informado): confirmar com o proprietário.
 3. Atividade e abastecimento só com FEFO nesta entrega: aceitável ou a escolha manual entra antes da release?
-4. O número D-PROD-279 foi conferido só pelo marcador (sem rede): conferir de novo com
+4. O número D-PROD-281 foi conferido só pelo marcador (sem rede): conferir de novo com
    `scripts/dev/proxima-decisao.mjs` antes de abrir a PR (D-PROD-277).
+
+## 7. Atualização com a `main` (PR #366) e renumeração
+
+- `git merge origin/main` (sem rebase). Conflitos resolvidos nas listas de migrations posteriores, nos espelhos de
+  schema (`schemaSemProdutoDoImplemento` e `schemaSemControleLote` compostos), na pinagem e no preflight (as duas
+  migrations), no B43 do `premerge-migrate` (o da `main` passa a "no dia dele"; o nosso é B43l/B43m/B43n) e nos docs.
+- **Decisão: D-PROD-281** (marcador D-PROD-282). Pedido D-PROD-280, mas `node scripts/dev/proxima-decisao.mjs` deu:
+  marcador da main D-PROD-280, **reservado pela PR aberta #367** (Detalhes do Lote v13), "use D-PROD-281". A D-PROD-279
+  (implemento) não foi tocada.
+- **Migration renomeada:** `20261124200000_estoque_controle_lote` (depois da `20261124100000_tipo_implemento_produto`,
+  checksum `a1836240…ae45`). sha256 do `migration.sql` **continua** `b6b33b0e…48fc`.
+- **Envelope de release** (`aplicar-controle-lote.sql`, no rascunho da sessão; guarda 76 concluídas e 0 com falha,
+  anterior `20261124100000_tipo_implemento_produto` com o checksum do repositório, `migration.sql` integral, INSERT com
+  `b6b33b0e…48fc`, COMMIT): sha256 `2c3491cdd87b60f78ff980bb6f6a12b665bcff96fab9cee9f89d9a84fc40cb90`. O trecho da
+  migration dentro dele tem o sha256 `b6b33b0e…48fc`. Ensaio local: banco migrado até 76/0, com a última = implemento.
+  Rodou o arquivo com **só** o `system_identifier` local no lugar do de produção (uma linha) → **77** concluídas,
+  checksum `b6b33b0e…48fc`, 111 tabelas, as 4 colunas (`controla_lote:boolean:NO:false`, `controla_validade:boolean:NO:false`,
+  `data_validade:date:YES`, `lote_fabricante:varchar:YES`), CHECK 1, índice 1. Na 2ª execução, `RELEASE_BLOCKED: migration já registrada`,
+  ainda 77.
+- **Validação depois do merge** (banco novo `maike_lote3`, `migrate deploy`, 77): os 69 arquivos PG numa rodada única:
+  1076 testes, 1071 ok, 5 todo, **0 falhas**; testes de migration (20 arquivos): 261, com 1 falha de contagem em
+  `estoqueEntradasMotivosMigration` (EEM-01, `PASTAS − 8`), corrigida e verde (5/5); deploy: premerge 212, migrations
+  105, preflight 10, alvo 6, 0 falhas; gate tests 1077/1077; `test:smoke` 324 arquivos, 4062 testes, 0 falhas; eslint 0;
+  `typecheck:backend` 0; `typecheck` 374 (base 374); gates tenancy, indices, deploy-migrations, governance-paths,
+  no-secrets, product-scope, import-integrity e base44 PASSOU.

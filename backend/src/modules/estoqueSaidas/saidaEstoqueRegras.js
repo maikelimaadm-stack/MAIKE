@@ -80,7 +80,7 @@ export const normalizarCriacao = (corpo) => {
     if (!UNIDADES.includes(it.unidade)) throw invalido('unidade inválida (KG, SACO ou L)', { field: 'unidade', reason: 'unidade', indice });
     const quantidade = decimalDoCorpo(it.quantidade, 'quantidade', indice);
     if (!dec(quantidade).gt(0)) throw new AppError('SAIDA_ESTOQUE_INVALIDA', 'a quantidade deve ser maior que zero; nada foi gravado', { details: { field: 'quantidade', reason: 'quantidade_zero', indice } });
-    // D-PROD-279: lotes escolhidos (produto com lote); ausente → FEFO no servidor. Só entra no objeto quando vem.
+    // D-PROD-281: lotes escolhidos (produto com lote); ausente → FEFO no servidor. Só entra no objeto quando vem.
     const lotes = normalizarLotesEscolhidos(it.lotes, { indice });
     return { produto_id: it.produto_id, local_estoque_id: it.local_estoque_id, unidade: it.unidade, quantidade, ...(lotes ? { lotes } : {}) };
   });
@@ -132,7 +132,7 @@ export const fingerprintDaCriacao = (s) => ({
   centro_custo_id: s.centro_custo_id,
   centro_resultado_id: s.centro_resultado_id,
   observacao: s.observacao,
-  // D-PROD-279: a escolha de lotes entra no fingerprint só quando vem (o reenvio de antes continua casando).
+  // D-PROD-281: a escolha de lotes entra no fingerprint só quando vem (o reenvio de antes continua casando).
   itens: s.itens.map((i) => (i.lotes ? [i.produto_id, i.local_estoque_id, i.unidade, i.quantidade, i.lotes.map((l) => [l.estoque_lote_nota_id, l.quantidade])] : [i.produto_id, i.local_estoque_id, i.unidade, i.quantidade])),
 });
 /**
@@ -161,7 +161,7 @@ export const mesmaVersaoFisica = (atual, linhas, nova) => {
   if (linhas.length !== nova.itens.length) return false;
   return nova.itens.every((n, i) => {
     const a = linhas[i];
-    // D-PROD-279: uma escolha de lotes na edição é mudança física (relança a saída nos lotes pedidos).
+    // D-PROD-281: uma escolha de lotes na edição é mudança física (relança a saída nos lotes pedidos).
     return !n.lotes && a.produto_id === n.produto_id && a.local_estoque_id === n.local_estoque_id && a.unidade === n.unidade && dec(a.quantidade).eq(dec(n.quantidade));
   });
 };

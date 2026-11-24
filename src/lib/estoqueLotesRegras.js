@@ -1,5 +1,5 @@
 /**
- * D-PROD-279 — regras de TELA da escolha de lote (produto que controla lote): a sugestão FEFO (a mesma do servidor,
+ * D-PROD-281 — regras de TELA da escolha de lote (produto que controla lote): a sugestão FEFO (a mesma do servidor,
  * que já devolve os lotes nessa ordem), a divisão entre lotes, o aviso de vencido e o corpo `lotes` da linha.
  * Sem cálculo de custo: o servidor valoriza cada fatia pelo custo da camada.
  */

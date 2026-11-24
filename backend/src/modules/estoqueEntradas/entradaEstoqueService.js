@@ -210,7 +210,7 @@ export const opcoesProdutos = async (contexto, query = {}) => {
     mapear: (linhas) => linhas.map((p) => ({
       id: p.id, nome: p.nome_produto, codigo: p.codigo_interno ?? null,
       unidade_estoque: p.unidade_principal_estoque === 'L' ? 'L' : 'KG', peso_por_saco_kg: p.peso_por_saco_kg === null ? null : d4(p.peso_por_saco_kg),
-      // D-PROD-279: a tela exige lote/validade na entrada e oferece a escolha de lote na saída.
+      // D-PROD-281: a tela exige lote/validade na entrada e oferece a escolha de lote na saída.
       controla_lote: p.controla_lote === true, controla_validade: p.controla_validade === true,
     })),
   });
@@ -387,7 +387,7 @@ export const criar = async (contexto, corpo) => {
               origem: { operacaoId: id, motivo: rotulo.texto },
               numeroMovimento: numeroMovimentoProvisorio(),
               contextoErro: { field: 'itens', indice },
-              lote: { fabricante: item.lote_fabricante ?? null, validade: item.data_validade ?? null }, // D-PROD-279
+              lote: { fabricante: item.lote_fabricante ?? null, validade: item.data_validade ?? null }, // D-PROD-281
             });
             movimentosIds.push(r.movimento.id);
             linhas.push(await tx.entradaEstoqueItem.create({
@@ -683,7 +683,7 @@ const substituir = async (tx, contexto, e) => {
       origem: { operacaoId: e.id, motivo: rotulo.texto },
       numeroMovimento: numeroMovimentoProvisorio(),
       contextoErro: { field: 'itens', indice },
-      lote: { fabricante: item.lote_fabricante ?? null, validade: item.data_validade ?? null }, // D-PROD-279
+      lote: { fabricante: item.lote_fabricante ?? null, validade: item.data_validade ?? null }, // D-PROD-281
     });
     novosMovimentos.push(r.movimento.id);
     linhas.push(await tx.entradaEstoqueItem.create({

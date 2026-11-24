@@ -244,7 +244,7 @@ export const carregarReferencias = async (tx, clienteId, empresaId, doc) => {
       select: {
         id: true, empresa_id: true, nome_produto: true, ativo: true, unidade_principal_estoque: true, peso_por_saco_kg: true,
         estoque_atual: true, codigo_interno: true, codigo_barras: true, categoria: true,
-        // D-PROD-279 (revisão): sem estas colunas o `comLote` da prévia ficava vazio (prévia no médio, gravado no lote).
+        // D-PROD-281 (revisão): sem estas colunas o `comLote` da prévia ficava vazio (prévia no médio, gravado no lote).
         controla_lote: true, controla_validade: true,
       },
     })
@@ -1170,7 +1170,7 @@ const estadoDeEstoque = async (tx, clienteId, empresaId, plano, refs) => {
     const chave = `${s.produto_id}|${s.local_estoque_id}`;
     if (!lotes.has(chave)) lotes.set(chave, await lotesFifo(tx, clienteId, empresaId, s.produto_id, s.local_estoque_id));
   }
-  // D-PROD-279: os produtos que controlam lote saem, na prévia, pelo custo da camada (FEFO), como no motor.
+  // D-PROD-281: os produtos que controlam lote saem, na prévia, pelo custo da camada (FEFO), como no motor.
   const comLote = new Set([...refs.produtos].filter(([, p]) => p.controla_lote === true).map(([id]) => id));
   return { estoqueAtual, lotes, comLote };
 };
@@ -1364,7 +1364,7 @@ const conferirLinhasPorItem = async (tx, cli, plano, itens, itemRateios) => {
  * @returns {Promise<{ movimentos: string[], lotes: string[], comEfeito: Set<number> }>}
  */
 /**
- * D-PROD-279 — `lotes_por_item` da confirmação: por `item_ordem`, o lote do fabricante e a validade (compra) e os lotes
+ * D-PROD-281 — `lotes_por_item` da confirmação: por `item_ordem`, o lote do fabricante e a validade (compra) e os lotes
  * escolhidos (venda). Ausente → mapa vazio (o motor exige o lote da compra de produto com lote; a venda usa o FEFO).
  * @param {unknown} bruto
  * @returns {Map<number, { item_ordem: number, lote_fabricante: string|null, data_validade: string|null, lotes: any[]|null }>}
@@ -1389,7 +1389,7 @@ const aplicarEfeitosDoPlano = async (tx, contexto, a) => {
   const movimentos = [];
   /** @type {string[]} */
   const lotes = [];
-  /** D-PROD-279 (revisão): lote vencido consumido pelo FEFO, por item. @type {any[]} */
+  /** D-PROD-281 (revisão): lote vencido consumido pelo FEFO, por item. @type {any[]} */
   const avisos = [];
   for (const e of efeitos) {
     const itemPlano = itensPorOrdem.get(e.item_ordem);
@@ -1419,7 +1419,7 @@ const aplicarEfeitosDoPlano = async (tx, contexto, a) => {
       // Custo de aquisição LÍQUIDO: movimento = líquido da linha; lote = custo por kg do líquido.
       const ent = await aplicarEntradaEstoque(tx, contexto, {
         ...comum, custoUnitarioKg: e.custo_kg, valorTotal: e.valor_liquido, origem: { operacaoId: a.operacaoId, tipoDetalhado: 'compra_financeiro' },
-        // D-PROD-279: lote e validade do item (vêm na confirmação; o motor exige conforme o produto).
+        // D-PROD-281: lote e validade do item (vêm na confirmação; o motor exige conforme o produto).
         lote: { fabricante: a.lotesPorItem?.get(e.item_ordem)?.lote_fabricante ?? null, validade: a.lotesPorItem?.get(e.item_ordem)?.data_validade ?? null },
       });
       dadosItem.movimentacao_estoque_id = ent.movimento.id;
@@ -1428,7 +1428,7 @@ const aplicarEfeitosDoPlano = async (tx, contexto, a) => {
       lotes.push(ent.lote.id);
     } else {
       const sai = await aplicarSaida(tx, contexto, {
-        ...comum, origem: { operacaoId: a.operacaoId, tipoDetalhado: 'venda_financeiro' }, lotes: a.lotesPorItem?.get(e.item_ordem)?.lotes ?? null, // D-PROD-279
+        ...comum, origem: { operacaoId: a.operacaoId, tipoDetalhado: 'venda_financeiro' }, lotes: a.lotesPorItem?.get(e.item_ordem)?.lotes ?? null, // D-PROD-281
       });
       dadosItem.movimentacao_estoque_id = sai.movimento.id;
       movimentos.push(sai.movimento.id);
@@ -1454,7 +1454,7 @@ const aplicarEfeitosDoPlano = async (tx, contexto, a) => {
 export const confirmar = async (contexto, id, corpo) => {
   const auth = exigirAuthContext(contexto?.auth);
   const cli = auth.clienteId;
-  // D-PROD-279: lote/validade (compra) e lotes escolhidos (venda) por item; no fingerprint só quando vêm.
+  // D-PROD-281: lote/validade (compra) e lotes escolhidos (venda) por item; no fingerprint só quando vêm.
   const lotesPorItem = lotesDaConfirmacao(corpo.lotes_por_item);
   const fingerprint = fingerprintDePayload(canonico({
     id, empresa_id: corpo.empresa_id, versao: corpo.versao, baixa_no_ato: corpo.baixa_no_ato ?? null,

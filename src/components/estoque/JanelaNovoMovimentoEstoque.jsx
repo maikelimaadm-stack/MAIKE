@@ -81,7 +81,7 @@ function Observacao({ label, value, onChange, testId = undefined, required = fal
 }
 
 /** @param {any} o */
-// D-PROD-279: o produto leva o controle de lote/validade (a entrada exige; a saída oferece a escolha de lote).
+// D-PROD-281: o produto leva o controle de lote/validade (a entrada exige; a saída oferece a escolha de lote).
 const opcaoProduto = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? ""), unidade_estoque: o.unidade_estoque, peso_por_saco_kg: o.peso_por_saco_kg ?? null, controla_lote: o.controla_lote === true, controla_validade: o.controla_validade === true } : null);
 /** @param {any} o */
 const opcaoSimples = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? "") } : null);
@@ -285,7 +285,7 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
           span={4}
           testId={`saida-linha-${indice}-quantidade`}
         />
-        {/* D-PROD-279: produto com lote — sugestão FEFO, troca, divisão e aviso de vencido. */}
+        {/* D-PROD-281: produto com lote — sugestão FEFO, troca, divisão e aviso de vencido. */}
         <CampoLotesSaida empresaId={empresaId} linha={linha} onMudar={(patch) => onMudar({ ...linha, ...patch })} testId={`saida-linha-${indice}-lotes`} />
         {e("lotes") ? <p className="col-span-12 text-[12px] text-red-700" role="alert">{e("lotes")}</p> : null}
       </div>
@@ -745,7 +745,7 @@ export default function JanelaNovoMovimentoEstoque({ aberto, empresaId, hoje, po
                 span={6}
                 testId="transferencia-quantidade"
               />
-              {/* D-PROD-279: a transferência leva o lote (e a validade) para o destino. */}
+              {/* D-PROD-281: a transferência leva o lote (e a validade) para o destino. */}
               <CampoLotesSaida
                 empresaId={empresaId}
                 linha={{ ...transf, deposito: transf.origem, unidade: "KG" }}

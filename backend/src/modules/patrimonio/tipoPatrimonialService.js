@@ -29,6 +29,13 @@
  *  - D-PROD-202: `salto_maximo_medidor` (texto decimal ≥ 0, null limpa) é o teto
  *    do salto do medidor por lançamento: acima dele, a linha de máquina do
  *    Lançamento de Atividades pede justificativa.
+ *  - D-PROD-279: "a máquina sozinha não leva produto; quem leva é o implemento".
+ *    Só o tipo de IMPLEMENTO aceita `usa_produto`, `forma_produto` (hoje só
+ *    `JATO`), `capacidade` (texto decimal > 0 e ≤ 100000, até 4 casas) e
+ *    `capacidade_unidade` (`L` | `KG`); em outra natureza, mandar qualquer um
+ *    deles é 400. Sem produto (false/null), os outros três ficam nulos (mandá-los
+ *    preenchidos é 400; os gravados são limpos). Com produto, os três são
+ *    obrigatórios (no PATCH, o que não vier é o gravado).
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -50,6 +57,7 @@ export const ENTIDADE = 'TipoPatrimonial';
 
 const SELECAO = Object.freeze({
   id: true, familia_id: true, codigo: true, nome: true, descricao: true, vida_util_meses_sugerida: true, salto_maximo_medidor: true,
+  usa_produto: true, forma_produto: true, capacidade: true, capacidade_unidade: true,
   ativo: true, versao: true, createdAt: true, updatedAt: true,
   familia: { select: { id: true, codigo: true, nome: true, natureza: true, ativo: true } },
   _count: { select: { bens: true } },
@@ -88,6 +96,10 @@ export const comoTipoPublico = (r) => ({
   descricao: r.descricao ?? null,
   vida_util_meses_sugerida: r.vida_util_meses_sugerida ?? null,
   salto_maximo_medidor: texto(r.salto_maximo_medidor, 4),
+  usa_produto: r.usa_produto ?? null,
+  forma_produto: r.forma_produto ?? null,
+  capacidade: texto(r.capacidade, 4),
+  capacidade_unidade: r.capacidade_unidade ?? null,
   ativo: r.ativo,
   versao: r.versao,
   bens_em_uso: r._count?.bens ?? 0,
@@ -103,7 +115,57 @@ export const paraAuditoria = (r) => ({
   ativo: r.ativo,
   versao: r.versao,
 });
-const CAMPOS_AUDITAVEIS = Object.freeze(['nome', 'descricao', 'vida_util_meses_sugerida', 'salto_maximo_medidor', 'ativo']);
+const CAMPOS_AUDITAVEIS = Object.freeze(['nome', 'descricao', 'vida_util_meses_sugerida', 'salto_maximo_medidor', 'usa_produto', 'forma_produto', 'capacidade', 'capacidade_unidade', 'ativo']);
+
+/** D-PROD-279 — os campos do produto do implemento. */
+export const CAMPOS_PRODUTO = Object.freeze(['usa_produto', 'forma_produto', 'capacidade', 'capacidade_unidade']);
+export const FORMAS_PRODUTO = Object.freeze(['JATO']);
+export const UNIDADES_CAPACIDADE = Object.freeze(['L', 'KG']);
+const CAPACIDADE_MAXIMA = 100000;
+const PADRAO_CAPACIDADE = /^\d{1,6}(\.\d{1,4})?$/;
+
+/**
+ * D-PROD-279 — estado final dos campos do produto, conferido. `atual` é o
+ * gravado (PATCH) ou nada (POST); campo ausente na entrada fica como estava.
+ * Natureza diferente de IMPLEMENTO com qualquer campo presente → 400.
+ * @param {Record<string, any>} entrada @param {string} natureza @param {Record<string, any>|null} atual
+ * @returns {null | { usa_produto: boolean|null, forma_produto: string|null, capacidade: string|null, capacidade_unidade: string|null }}
+ *   null quando nenhum campo veio (nada a gravar)
+ */
+export const produtoDoCorpo = (entrada, natureza, atual = null) => {
+  const veio = CAMPOS_PRODUTO.filter((c) => entrada[c] !== undefined);
+  if (!veio.length) return null;
+  if (natureza !== 'IMPLEMENTO') {
+    throw invalido('só o tipo de implemento diz se usa produto; nada foi gravado', { field: veio[0], reason: 'so_implemento' });
+  }
+  const valor = (c) => (entrada[c] !== undefined ? entrada[c] : (atual?.[c] ?? null));
+  const usa = valor('usa_produto');
+  if (usa !== null && typeof usa !== 'boolean') throw invalido('usa_produto deve ser sim ou não', { field: 'usa_produto', reason: 'formato' });
+  if (!usa) {
+    for (const c of ['forma_produto', 'capacidade', 'capacidade_unidade']) {
+      if (entrada[c] !== undefined && entrada[c] !== null) {
+        throw invalido('sem produto, a forma, a capacidade e a unidade ficam vazias; nada foi gravado', { field: c, reason: 'sem_produto' });
+      }
+    }
+    return { usa_produto: usa, forma_produto: null, capacidade: null, capacidade_unidade: null };
+  }
+  const forma = valor('forma_produto');
+  if (forma === null) throw invalido('informe como o produto é contado', { field: 'forma_produto', reason: 'obrigatorio' });
+  if (!FORMAS_PRODUTO.includes(forma)) throw invalido('forma do produto inválida (hoje só por jato)', { field: 'forma_produto', reason: 'invalido' });
+  const bruto = valor('capacidade');
+  if (bruto === null) throw invalido('informe a capacidade do jato', { field: 'capacidade', reason: 'obrigatorio' });
+  const cap = typeof bruto === 'string' ? bruto : texto(bruto, 4);
+  if (typeof cap !== 'string' || !PADRAO_CAPACIDADE.test(cap)) {
+    throw invalido('a capacidade deve ser um número decimal em texto, com até 4 casas', { field: 'capacidade', reason: 'formato' });
+  }
+  const n = Number(cap);
+  if (!(n > 0)) throw invalido('a capacidade deve ser maior que zero', { field: 'capacidade', reason: 'nao_positivo' });
+  if (n > CAPACIDADE_MAXIMA) throw invalido(`a capacidade vai até ${CAPACIDADE_MAXIMA}`, { field: 'capacidade', reason: 'acima_do_maximo' });
+  const unidade = valor('capacidade_unidade');
+  if (unidade === null) throw invalido('informe a unidade da capacidade', { field: 'capacidade_unidade', reason: 'obrigatorio' });
+  if (!UNIDADES_CAPACIDADE.includes(unidade)) throw invalido('unidade da capacidade inválida (L ou KG)', { field: 'capacidade_unidade', reason: 'invalido' });
+  return { usa_produto: true, forma_produto: forma, capacidade: n.toFixed(4), capacidade_unidade: unidade };
+};
 
 /**
  * D-PROD-202 — teto do salto do medidor: texto decimal (≥ 0, até 10 dígitos e
@@ -201,10 +263,11 @@ export const criar = async (contexto, entrada) => {
   return transacao(async (tx) => {
     await travarCatalogo(tx, cli);
     const familia = await resolverFamilia(tx, cli, entrada);
+    const produto = produtoDoCorpo(entrada, familia.natureza) ?? {};
     await exigirLivre(tx, cli, { ...(codigoInformado ? { codigo: codigoInformado } : {}), nome, natureza: familia.natureza });
     const codigo = codigoInformado ?? (await codigoDisponivel(tx, cli, 'tipoPatrimonial', nome));
     const criado = await tx.tipoPatrimonial.create({
-      data: { cliente_id: cli, familia_id: familia.id, codigo, nome, descricao, vida_util_meses_sugerida: entrada.vida_util_meses_sugerida ?? null, salto_maximo_medidor: salto },
+      data: { cliente_id: cli, familia_id: familia.id, codigo, nome, descricao, vida_util_meses_sugerida: entrada.vida_util_meses_sugerida ?? null, salto_maximo_medidor: salto, ...produto },
       select: { id: true },
     });
     const r = await buscar(tx, cli, criado.id);
@@ -240,6 +303,13 @@ export const atualizar = async (contexto, id, entrada) => {
     }
     const salto = saltoDoCorpo(entrada.salto_maximo_medidor);
     if (salto !== undefined && salto !== texto(antes.salto_maximo_medidor, 4)) dados.salto_maximo_medidor = salto;
+    const produto = produtoDoCorpo(entrada, antes.familia.natureza, { ...antes, capacidade: texto(antes.capacidade, 4) });
+    if (produto) {
+      if (produto.usa_produto !== (antes.usa_produto ?? null)) dados.usa_produto = produto.usa_produto;
+      if (produto.forma_produto !== (antes.forma_produto ?? null)) dados.forma_produto = produto.forma_produto;
+      if (produto.capacidade !== texto(antes.capacidade, 4)) dados.capacidade = produto.capacidade;
+      if (produto.capacidade_unidade !== (antes.capacidade_unidade ?? null)) dados.capacidade_unidade = produto.capacidade_unidade;
+    }
     if (entrada.ativo !== undefined && entrada.ativo !== antes.ativo) dados.ativo = entrada.ativo;
     if (!Object.keys(dados).length) return comoTipoPublico(antes);
     await atualizarComVersao(tx.tipoPatrimonial, { clienteId: cli, id, versao: entrada.versao, data: dados });

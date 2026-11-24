@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-23 (missão ativa D-PROD-279; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-23 (missão ativa D-PROD-281; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,23 +9,34 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-23) — MAIKE-ESTOQUE-CONTROLE-LOTE: controle de lote (e de validade) por produto (D-PROD-279)
+## Missão ativa (2026-11-23) — MAIKE-ESTOQUE-CONTROLE-LOTE: controle de lote (e de validade) por produto (D-PROD-281)
 
 | Campo | Valor |
 |---|---|
-| Decisão | **D-PROD-279**, escolhas do proprietário (2026-11-23): "Controla lote"/"Controla validade" no produto, lote e validade na camada, saída pelo lote escolhido (sugestão FEFO) e pelo custo dele; emenda da Constituição aprovada |
-| Branch / PR | `claude/estoque-controle-lote`, a partir da `main` `d62a4ef8` · sem push (PR a abrir; conferir o número com `proxima-decisao.mjs`) |
+| Decisão | **D-PROD-281**, escolhas do proprietário (2026-11-23): "Controla lote"/"Controla validade" no produto, lote e validade na camada, saída pelo lote escolhido (sugestão FEFO) e pelo custo dele; emenda da Constituição aprovada |
+| Branch / PR | `claude/estoque-controle-lote`, a partir da `main` `d62a4ef8`, com a `origin/main` (PR #366) mesclada · sem push (PR a abrir; conferir o número com `proxima-decisao.mjs`) |
 | Mudança | motor (FEFO, escolha, custo do lote sem reavaliar, transferência leva lote), serviços, `GET /estoque/lotes-disponiveis`, troca do cadastro só com saldo zero, replay/exclusão com `lote_consumido`, telas (cadastro, entrada, saída, transferência, saldo por lote) |
-| Migration | `20261123100000_estoque_controle_lote`, **CONTRACT condicionado aditivo** (`--contract D-PROD-279`), sha256 `b6b33b0e…48fc`. **Não aplicada em produção**; ensaiada localmente com o envelope do runbook |
+| Migration | `20261124200000_estoque_controle_lote`, **CONTRACT condicionado aditivo** (`--contract D-PROD-281`), sha256 `b6b33b0e…48fc`. depois da `20261124100000_tipo_implemento_produto` (produção: 76 concluídas, 0 com falha). **Não aplicada em produção**; ensaiada localmente com o envelope do runbook |
 | Relatório | [`MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-REPORT.md) · SPEC [`MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-SPEC.md) · Runbook [`MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-CONTROLE-LOTE-RUNBOOK-RELEASE.md) |
 | Próximas | escolha manual de lote na atividade e no abastecimento; lote na tela de confirmação do financeiro e no cocho |
+
+## Missão anterior (2026-11-23) — MAIKE-TIPO-IMPLEMENTO-PRODUTO: o tipo de implemento diz se usa produto, como conta e a capacidade (D-PROD-279)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-279**, pedido do proprietário: "a máquina sozinha não leva produto; quem leva é o implemento" |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `d62a4ef8` · PR (a abrir) |
+| Mudança | `TipoPatrimonial`: "Usa produto?", "Como conta" (por jato) e "Capacidade" (L/kg), só para Implemento (API: 400 em outra natureza; sem produto limpa; com produto, os três obrigatórios); bloco no "+ Novo tipo" do "Gerenciar tipos" e o resumo discreto na lista |
+| Migration | `20261124100000_tipo_implemento_produto`, **EXPAND** (4 colunas anuláveis em `TipoPatrimonial`), checksum `a1836240…ae45`. **Aplicada em produção** (a 76ª concluída). É a 76ª, depois da reforma; pré-checagem 75/0 e 111 tabelas, pós-checagem 76/0 e 111 tabelas. Ordem: aplicar com o GO do proprietário, depois o merge |
+| Relatório | [`MAIKE-TIPO-IMPLEMENTO-PRODUTO-REPORT.md`](./MAIKE-TIPO-IMPLEMENTO-PRODUTO-REPORT.md) · runbook [`MAIKE-TIPO-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md`](./MAIKE-TIPO-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md) |
+| Próximas | "Jatos de hoje" nas telas de atividade quando o implemento escolhido usa produto |
 
 ## Missão anterior (2026-11-23) — MAIKE-MAPA-ATIVIDADE-ACOES: ações da atividade em andamento nos Detalhes da área (D-PROD-278)
 
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-278**, pedido do proprietário: tocar a atividade em andamento no Mapa e lançar sem refazer tudo pela "Nova realização" |
-| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `6eb44285` · PR (a abrir) |
+| Branch / PR | `claude/tipo-tarefa-drop-colunas-1aznvv`, a partir da `main` `6eb44285` · PR **#365** (mergeada, `d62a4ef8`) |
 | Mudança | Linha tocável em "Atividades em andamento" → menu "+ Lançar dia", "Só máquina / mão de obra / insumo / serviço de terceiro" (presos na área) e "Concluir", com as permissões da lista |
 | Migration | Nenhuma |
 | Relatório | [`MAIKE-MAPA-ATIVIDADE-ACOES-REPORT.md`](./MAIKE-MAPA-ATIVIDADE-ACOES-REPORT.md) |

@@ -56,7 +56,7 @@ const COMANDO_SAIDA_SCHEMA = {
       local_origem_id: { type: 'string', minLength: 1, maxLength: 64 },
       local_origem_nome: { type: ['string', 'null'], maxLength: 255 },
       quantidade: { type: 'number', exclusiveMinimum: 0 },
-      lotes: LOTES_ESCOLHIDOS, // D-PROD-279: só produto com lote; sem a lista, FEFO
+      lotes: LOTES_ESCOLHIDOS, // D-PROD-281: só produto com lote; sem a lista, FEFO
       area_id: { type: ['string', 'null'], maxLength: 64 },
       area_nome: { type: ['string', 'null'], maxLength: 255 },
       deposito_id: { type: ['string', 'null'], maxLength: 64 },
@@ -88,7 +88,7 @@ const COMANDO_TRANSFERENCIA_SCHEMA = {
       local_destino_id: { type: 'string', minLength: 1, maxLength: 64 },
       local_destino_nome: { type: ['string', 'null'], maxLength: 255 },
       quantidade: { type: 'number', exclusiveMinimum: 0 },
-      lotes: LOTES_ESCOLHIDOS, // D-PROD-279: só produto com lote; sem a lista, FEFO
+      lotes: LOTES_ESCOLHIDOS, // D-PROD-281: só produto com lote; sem a lista, FEFO
       data_movimentacao: { type: ['string', 'null'], maxLength: 32 },
       observacoes: { type: ['string', 'null'], maxLength: 2000 },
     },

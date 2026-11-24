@@ -1,5 +1,5 @@
 /**
- * D-PROD-279 — achados da revisão independente do controle de lote, corrigidos. PostgreSQL real, pela API.
+ * D-PROD-281 — achados da revisão independente do controle de lote, corrigidos. PostgreSQL real, pela API.
  *
  *  R1 prévia do financeiro = gravado: A 100 a 4 (vence 31/12/2027), B 50 a 6 (vence 01/08/2027); venda de 60 kg →
  *     FEFO B 50 × 6 + A 10 × 4 = 340,0000 (5,6667/kg) na prévia e no movimento (antes a prévia dava o médio,

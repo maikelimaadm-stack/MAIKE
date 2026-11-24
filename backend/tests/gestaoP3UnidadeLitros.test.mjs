@@ -314,7 +314,7 @@ describe('U4 — KG + SACO pela API: resposta e linhas iguais às de antes', () 
     const w = { where: { cliente_id: s.c }, orderBy: { id: /** @type {const} */ ('asc') } };
     const linhas = {
       itens: (await p.operacaoFinanceiraItem.findMany({ where: { cliente_id: s.c } })).sort((a, b) => `${a.valor_total}|${a.ordem}`.localeCompare(`${b.valor_total}|${b.ordem}`)),
-      // D-PROD-279: as colunas novas da camada (lote do fabricante e validade) ficam vazias no produto sem lote e saem da
+      // D-PROD-281: as colunas novas da camada (lote do fabricante e validade) ficam vazias no produto sem lote e saem da
       // comparação com o HEAD de antes (o resto da linha continua byte a byte o mesmo).
       lotes: (await p.estoqueLoteNota.findMany(w)).map(({ lote_fabricante, data_validade, ...resto }) => {
         assert.deepEqual([lote_fabricante, data_validade], [null, null], 'produto sem lote: camada sem lote e sem validade');

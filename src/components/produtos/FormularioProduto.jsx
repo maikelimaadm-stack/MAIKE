@@ -126,7 +126,7 @@ export default function FormularioProduto({
       peso_por_saco_kg: "",
       // D-PROD-274: a carência da bula, em dias (texto do campo; vazio = sem carência).
       carencia_dias: "",
-      // D-PROD-279: controle de lote e de validade (Sim/Não; padrão Não).
+      // D-PROD-281: controle de lote e de validade (Sim/Não; padrão Não).
       controla_lote: false,
       controla_validade: false,
       observacoes: "",
@@ -382,7 +382,7 @@ export default function FormularioProduto({
                   />
                 </B1Field>
 
-                {/* D-PROD-279: lote e validade. Trocar só com saldo zero (o servidor recusa com a mensagem). */}
+                {/* D-PROD-281: lote e validade. Trocar só com saldo zero (o servidor recusa com a mensagem). */}
                 <B1ChaveRow
                   label="Controla lote"
                   span={6}

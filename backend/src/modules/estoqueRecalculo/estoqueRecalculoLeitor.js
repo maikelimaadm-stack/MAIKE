@@ -45,7 +45,7 @@ const COLUNAS_CAMADA = {
   quantidade_disponivel: true, status: true, movimentacao_entrada_id: true,
   // D-PROD-273 (fatia 4): a procedência e os nomes para criar a camada de destino de uma transferência recalculada.
   numero_documento: true, serie_documento: true, fornecedor_id: true, fornecedor_nome: true, local_estoque_nome: true, produto_nome: true,
-  // D-PROD-279: o lote e a validade (a camada de destino recalculada os copia; a sobra de lote fica no custo gravado).
+  // D-PROD-281: o lote e a validade (a camada de destino recalculada os copia; a sobra de lote fica no custo gravado).
   lote_fabricante: true, data_validade: true,
 };
 

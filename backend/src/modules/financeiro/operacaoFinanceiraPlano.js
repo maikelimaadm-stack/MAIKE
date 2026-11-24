@@ -710,7 +710,7 @@ const planejarParcelas = (doc, total, casas) => {
  * Bloqueios de ESTADO da prévia, simulando os efeitos EM SEQUÊNCIA (itens
  * repetidos do mesmo produto/local consomem o saldo que o anterior deixou).
  * @param {any} plano
- * @param {{ estoqueAtual: Map<string, any>, lotes: Map<string, any[]>, comLote?: Set<string> }} estado `comLote` (D-PROD-279): produtos que controlam lote (saem pelo custo da camada, FEFO)
+ * @param {{ estoqueAtual: Map<string, any>, lotes: Map<string, any[]>, comLote?: Set<string> }} estado `comLote` (D-PROD-281): produtos que controlam lote (saem pelo custo da camada, FEFO)
  *   `lotes` por chave `${produto_id}|${local_estoque_id}` (lotes elegíveis ao FIFO)
  */
 export const simularEfeitosEstoque = (plano, estado) => {
@@ -731,7 +731,7 @@ export const simularEfeitosEstoque = (plano, estado) => {
   for (const s of plano.efeitos_estoque.saidas) {
     const chave = `${s.produto_id}|${s.local_estoque_id}`;
     const ls = lotes.get(chave) ?? [];
-    // D-PROD-279: produto com lote sai pelo custo da camada (FEFO), sem reavaliar (como o motor).
+    // D-PROD-281: produto com lote sai pelo custo da camada (FEFO), sem reavaliar (como o motor).
     const fifo = estado.comLote?.has(s.produto_id) ? consumirPorLote(ls, s.kg) : consumirCustoMedio(ls, s.kg);
     if (!fifo.suficiente) {
       bloqueio('ESTOQUE_SALDO_INSUFICIENTE', 'quantidade', 'saldo_lote_insuficiente', {

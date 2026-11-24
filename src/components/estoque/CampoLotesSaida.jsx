@@ -10,7 +10,7 @@ const fmt = (/** @type {unknown} */ v) => {
 };
 
 /**
- * D-PROD-279 — campo "Lote" de uma linha de SAÍDA ou TRANSFERÊNCIA de produto que controla lote. Mostra a sugestão
+ * D-PROD-281 — campo "Lote" de uma linha de SAÍDA ou TRANSFERÊNCIA de produto que controla lote. Mostra a sugestão
  * FEFO (o lote que vence primeiro; o servidor aplica a mesma sem a lista), deixa trocar e dividir entre lotes
  * ("Escolher lotes") e avisa "Lote vencido em dd/mm", pedindo a confirmação. Produto sem lote: não aparece.
  * O estado vive na linha: `lotes` (null = FEFO; [{ id, quantidade }] = escolha manual) e `confirmaVencido`.
