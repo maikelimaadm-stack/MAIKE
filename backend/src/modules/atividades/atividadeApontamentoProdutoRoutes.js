@@ -66,12 +66,13 @@ export const ESQUEMA_ITEM_PRODUTO = Object.freeze({
 
 /**
  * MAIKE-ENTREGA2 (D-PROD-274) — o item de `produtos[]` do LANÇAMENTO (`POST …/apontamentos`, `…/duplicar` e
- * `POST /atividades/registrar`): o de sempre e o VC (%) opcional da semente, em texto (o serviço confere a faixa). As rotas
+ * `POST /atividades/registrar`): o de sempre, o VC (%) opcional da semente e o número do `jato` (D-PROD-283), em texto (o
+ * serviço confere a faixa). As rotas
  * de UMA linha (lançar e editar a linha) continuam com o corpo de antes.
  */
 export const ESQUEMA_ITEM_PRODUTO_DO_LANCAMENTO = Object.freeze({
   ...ESQUEMA_ITEM_PRODUTO,
-  properties: { ...ESQUEMA_ITEM_PRODUTO.properties, vc_percentual: { type: ['string', 'null'], maxLength: 8 } },
+  properties: { ...ESQUEMA_ITEM_PRODUTO.properties, vc_percentual: { type: ['string', 'null'], maxLength: 8 }, jato: { type: ['string', 'null'], maxLength: 3 } },
 });
 
 const LANCAR = {

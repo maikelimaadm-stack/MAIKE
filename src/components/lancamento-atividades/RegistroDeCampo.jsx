@@ -12,6 +12,8 @@ import { CampoTextoLongo } from "@/components/patrimonio/PatrimonioFormParts";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import { AvisoEnvioDaLinha, SecoesDoFormularioContext, useEnvioDaLinha } from "@/components/lancamento-atividades/JanelasDaLinha";
 import { EditorDaLinhaDoRegistro, SecaoDeLinhasDoRegistro, UsoDaMaquinaDoRegistro } from "@/components/lancamento-atividades/LinhasDoRegistro";
+import JatosDoDia from "@/components/lancamento-atividades/JatosDoDia";
+import { proximoJato, repetirUltimoJato, tanqueDoRegistro } from "@/lib/jatosRegras";
 import AreasDoRegistro from "@/components/lancamento-atividades/AreasDoRegistro";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
@@ -302,6 +304,11 @@ export default function JanelaRegistroDeCampo({
   const lidoNosEditores = useRef(/** @type {Partial<Record<ColecaoDoRegistro, LidoNoEditor>>} */ ({}));
   const ultimaAbertura = useRef(0);
   const ultimoItem = useRef(0);
+  // D-PROD-283: com implemento "por jato", os insumos vão por jato; `jatoAberto` é o jato que a pessoa está montando.
+  const [jatoAberto, setJatoAberto] = useState(/** @type {number|null} */ (null));
+  const tanque = tanqueDoRegistro(itens.maquinas, editores.maquinas);
+  /** O insumo incluído com um jato aberto entra nele. @param {any} form */
+  const comJatoAberto = (form) => (tanque && jatoAberto !== null && !Number.isInteger(form?.jato) ? { ...form, jato: jatoAberto } : form);
   // A dose/ha dos insumos: os hectares TOTAIS do registro (sem nenhum válido, o tamanho somado das áreas).
   const totaisDasAreas = totaisDasAreasDoRegistro(areasDoRegistro, areasDoMapa);
   const areaDoDia = totaisDasAreas.hectares ?? totaisDasAreas.tamanho;
@@ -376,7 +383,7 @@ export default function JanelaRegistroDeCampo({
       // D-PROD-274: o VC (%) da semente, quando digitado, tem de ser válido (só no Plantio de pastagem).
       const vc = campos.plantio ? lerVc(ed.form?.vc) : { erro: null };
       if (vc.erro) e.vc = vc.erro;
-      return resultado(e, () => ({ chave: ed.chave ?? novaChave(), form: ed.form, localNome: lido?.localNome ?? null }));
+      return resultado(e, () => ({ chave: ed.chave ?? novaChave(), form: comJatoAberto(ed.form), localNome: lido?.localNome ?? null }));
     }
     const e = colecao === "mao_obra" ? validarLinhaMaoObra(ed.form) : validarLinhaServico(ed.form);
     return resultado(e, () => ({ chave: ed.chave ?? novaChave(), form: ed.form }));
@@ -410,6 +417,111 @@ export default function JanelaRegistroDeCampo({
     setEditores((e) => (e[colecao]?.chave === item.chave ? { ...e, [colecao]: null } : e));
     mexeu();
   };
+
+  /**
+   * A seção de linhas de uma coleção (a tabela e o editor), com as linhas dadas.
+   * D-PROD-283: nos jatos, a de insumos mostra só as linhas do jato aberto.
+   * @param {ColecaoDoRegistro} colecao @param {ItemDoRegistro[]} lista
+   */
+  const secaoDoRegistro = (colecao, lista) => {
+    const editor = editores[colecao];
+    return (
+        <SecaoDeLinhasDoRegistro
+          colecao={colecao}
+          itens={lista}
+          editor={editor}
+          editorPreenchido={Boolean(editor && temChaveDaLinha(colecao, editor.form))}
+          areaDoDia={areaDoDia}
+          celular={celular}
+          bloqueado={enviando}
+          errosDasLinhas={errosDasLinhas}
+          onNovo={() => abrirEditor(colecao)}
+          onAbrir={(item) => abrirEditor(colecao, item)}
+          onRemover={(item) => removerItem(colecao, item)}
+          editorAberto={
+            editor ? (
+              <EditorDaLinhaDoRegistro
+                key={editor.id}
+                colecao={colecao}
+                editor={editor}
+                numero={editor.chave ? lista.findIndex((i) => i.chave === editor.chave) + 1 : 0}
+                mudar={mudarNoEditor(colecao)}
+                setForm={setFormDoEditor(colecao, editor.id)}
+                onLido={(lido) => {
+                  lidoNosEditores.current[colecao] = lido;
+                }}
+                areaDoDia={areaDoDia}
+                dia={dia || null}
+                permiteImplemento={flags.permiteImplemento}
+                bloqueado={enviando}
+                onIncluir={() => incluirDoEditor(colecao)}
+                onCancelar={() => fecharEditor(colecao)}
+                comVc={campos.plantio}
+              />
+            ) : null
+          }
+        />
+    );
+  };
+
+  // ─── D-PROD-283: os jatos de hoje ───────────────────────────────────
+  /** "Editar" de um jato (ou o jato novo): fecha o editor de insumo aberto e mostra só as linhas dele. @param {number} n */
+  const abrirJato = (n) => {
+    setEditores((e) => ({ ...e, produtos: null }));
+    setJatoAberto(n);
+  };
+  /** "+ Jato diferente": um jato novo, vazio, com o editor do primeiro produto aberto. */
+  const novoJato = () => {
+    abrirJato(proximoJato(itens.produtos));
+    abrirEditor("produtos");
+  };
+  /** "+ Repetir o jato anterior": os produtos e as quantidades do último jato, num jato novo. */
+  const repetirJato = () => {
+    setItens((x) => ({
+      ...x,
+      produtos: [
+        ...x.produtos,
+        ...repetirUltimoJato(x.produtos, () => {
+          ultimoItem.current += 1;
+          return `produtos-${ultimoItem.current}`;
+        }),
+      ],
+    }));
+    mexeu();
+  };
+  /** "Pronto": o insumo digitado no editor entra no jato (com erro, o editor fica e mostra) e o jato fecha. */
+  const fecharJato = () => {
+    const ed = editores.produtos;
+    if (ed && temChaveDaLinha("produtos", ed.form)) {
+      const r = avaliarEditor("produtos", ed);
+      if (!r.item) {
+        incluirDoEditor("produtos");
+        return;
+      }
+      incluirDoEditor("produtos");
+    } else if (ed) fecharEditor("produtos");
+    setJatoAberto(null);
+  };
+
+  /** D-PROD-283: o bloco "Jatos de hoje" (os insumos sem jato, se houver, continuam na seção de sempre, embaixo). */
+  const semJato = itens.produtos.filter((i) => !Number.isInteger(i.form?.jato));
+  const blocoDosJatos = () =>
+    tanque ? (
+    <>
+      <JatosDoDia
+        tanque={tanque}
+        produtos={itens.produtos}
+        jatoAberto={jatoAberto}
+        secaoAberta={jatoAberto === null ? null : secaoDoRegistro("produtos", itens.produtos.filter((i) => i.form?.jato === jatoAberto))}
+        bloqueado={enviando}
+        onEditar={abrirJato}
+        onRepetir={repetirJato}
+        onNovo={novoJato}
+        onPronto={fecharJato}
+      />
+      {jatoAberto === null && semJato.length ? secaoDoRegistro("produtos", semJato) : null}
+    </>
+    ) : null;
 
   // ─── D-PROD-267: o último dia do serviço ("+ Lançar dia") ─────────────
   const doServico = useQuery({
@@ -1148,6 +1260,8 @@ export default function JanelaRegistroDeCampo({
         {COLECOES_DO_REGISTRO.map((colecao) => {
           const editor = editores[colecao];
           const lista = itens[colecao];
+          // D-PROD-283: com implemento "por jato", no lugar de Insumos, os jatos de hoje.
+          if (colecao === "produtos" && tanque) return <React.Fragment key={colecao}>{blocoDosJatos()}</React.Fragment>;
           // D-PROD-267: no "+ Lançar dia", a leitura inicial da máquina é a final do último dia (a vigente do medidor).
           const notaDaMaquina =
             continuar && colecao === "maquinas" && (lista.length > 0 || editor) ? (
@@ -1164,41 +1278,7 @@ export default function JanelaRegistroDeCampo({
             ) : null;
           return (
             <React.Fragment key={colecao}>
-            <SecaoDeLinhasDoRegistro
-              colecao={colecao}
-              itens={lista}
-              editor={editor}
-              editorPreenchido={Boolean(editor && temChaveDaLinha(colecao, editor.form))}
-              areaDoDia={areaDoDia}
-              celular={celular}
-              bloqueado={enviando}
-              errosDasLinhas={errosDasLinhas}
-              onNovo={() => abrirEditor(colecao)}
-              onAbrir={(item) => abrirEditor(colecao, item)}
-              onRemover={(item) => removerItem(colecao, item)}
-              editorAberto={
-                editor ? (
-                  <EditorDaLinhaDoRegistro
-                    key={editor.id}
-                    colecao={colecao}
-                    editor={editor}
-                    numero={editor.chave ? lista.findIndex((i) => i.chave === editor.chave) + 1 : 0}
-                    mudar={mudarNoEditor(colecao)}
-                    setForm={setFormDoEditor(colecao, editor.id)}
-                    onLido={(lido) => {
-                      lidoNosEditores.current[colecao] = lido;
-                    }}
-                    areaDoDia={areaDoDia}
-                    dia={dia || null}
-                    permiteImplemento={flags.permiteImplemento}
-                    bloqueado={enviando}
-                    onIncluir={() => incluirDoEditor(colecao)}
-                    onCancelar={() => fecharEditor(colecao)}
-                    comVc={campos.plantio}
-                  />
-                ) : null
-              }
-            />
+            {secaoDoRegistro(colecao, lista)}
             {notaDaMaquina}
             {avisoSemSemente}
             </React.Fragment>
@@ -1345,7 +1425,8 @@ export default function JanelaRegistroDeCampo({
     for (const f of [...itens.mao_obra.map((i) => i.form), ...(editores.mao_obra?.form?.parceiro ? [editores.mao_obra.form] : [])]) {
       linhas.push([String(f?.parceiro?.rotulo ?? ""), medida(f)].filter(Boolean).join(" · "));
     }
-    for (const f of [...itens.produtos.map((i) => i.form), ...(editores.produtos?.form?.produto ? [editores.produtos.form] : [])]) {
+    // D-PROD-283: com os jatos na tela, os insumos não se repetem aqui.
+    for (const f of tanque ? [] : [...itens.produtos.map((i) => i.form), ...(editores.produtos?.form?.produto ? [editores.produtos.form] : [])]) {
       linhas.push([String(f?.produto?.rotulo ?? ""), String(f?.quantidade ?? "").trim()].filter(Boolean).join(" · "));
     }
     for (const f of [...itens.servicos.map((i) => i.form), ...(editores.servicos?.form ? [editores.servicos.form] : [])]) {
@@ -1477,6 +1558,8 @@ export default function JanelaRegistroDeCampo({
             bloqueado={enviando}
           />
         ) : null}
+        {/* D-PROD-283: com implemento "por jato", os jatos de hoje aparecem já no curto. */}
+        {tanque ? blocoDosJatos() : null}
         <SecaoForm titulo="Vai junto, igual ao último dia" />
         <div className="col-span-12 min-w-0 b1-lancamento-curto__resumo" data-testid="registro-de-campo-vai-junto">
           {doServico.isLoading ? <span>Lendo o último dia…</span> : vaiJunto.length ? vaiJunto.map((l, i) => <span key={i}>{l}</span>) : <span>Nada do último dia.</span>}

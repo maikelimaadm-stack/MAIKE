@@ -79,7 +79,10 @@ import {
   STATUS_ATIVIDADE,
   TRANSACAO_LEITURA,
   atualizarComVersao,
+  IMPLEMENTO_RESUMO,
   bemPublico,
+  implementoPublico,
+  jatoDoTipo,
   carregarAtividadeDetalhe,
   decimalDoCorpo,
   diaDe,
@@ -451,7 +454,8 @@ export const comoLinhaMaquinaPublica = (r) => ({
   bem_id: r.bem_id,
   bem: bemPublico(r.bem),
   implemento_bem_id: r.implemento_bem_id ?? null,
-  implemento: bemPublico(r.implemento),
+  // D-PROD-283: o implemento de tipo "por jato" traz `jato: { capacidade, unidade }` (os outros, a forma de sempre).
+  implemento: implementoPublico(r.implemento),
   medidor_tipo: r.medidor_tipo,
   medidor_unidade: r.medidor_unidade ?? null,
   sem_medidor: r.sem_medidor,
@@ -889,7 +893,16 @@ export const opcoesImplementos = async (contexto, query = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
   const empresaId = await exigirEmpresaDoTenant(getPrismaClient(), auth.clienteId, query.empresa_id);
   const { limit, cursor, q } = paginacaoOpcoes(query);
-  return paginarBensAtivos({ clienteId: auth.clienteId, empresaId, naturezas: [NATUREZA_IMPLEMENTO], q, limit, cursor, mapear: (linhas) => linhas.map(bemPublico) });
+  return paginarBensAtivos({
+    clienteId: auth.clienteId,
+    empresaId,
+    naturezas: [NATUREZA_IMPLEMENTO],
+    q,
+    limit,
+    cursor,
+    select: IMPLEMENTO_RESUMO.select,
+    mapear: (linhas) => linhas.map((b) => ({ ...bemPublico(b), jato: jatoDoTipo(b.tipo) })),
+  });
 };
 
 /**

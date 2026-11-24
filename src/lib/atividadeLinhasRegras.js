@@ -439,7 +439,19 @@ export const corpoDaLinhaProduto = (form) => ({
  */
 
 /** @param {any} o @returns {BemEscolhido} */
-export const bemEscolhido = (o) => (ehObjeto(o) && o.id != null ? { id: String(o.id), rotulo: rotuloDoBem(o) || texto(o.rotulo) || String(o.id) } : null);
+export const bemEscolhido = (o) =>
+  ehObjeto(o) && o.id != null
+    ? { id: String(o.id), rotulo: rotuloDoBem(o) || texto(o.rotulo) || String(o.id), ...(jatoDoImplemento(o) ? { jato: jatoDoImplemento(o) } : {}) }
+    : null;
+
+/**
+ * D-PROD-283 — o tanque do implemento de tipo "por jato" (`{ capacidade, unidade }`, como o servidor manda), ou `null`.
+ * @param {any} o
+ */
+export const jatoDoImplemento = (o) => {
+  const j = ehObjeto(o) ? o.jato : null;
+  return ehObjeto(j) && j.capacidade != null ? { capacidade: String(j.capacidade), unidade: j.unidade ? String(j.unidade) : null } : null;
+};
 
 /**
  * Linha nova: a máquina do CABEÇALHO vem como sugestão (o operador troca).
@@ -459,7 +471,14 @@ export const formularioMaquinaVazio = (bemDoCabecalho = null) => ({
 /** Formulário a partir da linha gravada (editar). @param {any} l @returns {FormularioLinhaMaquina} */
 export const formularioDaLinhaMaquina = (l) => ({
   bem: l?.bem_id ? { id: String(l.bem_id), rotulo: rotuloDaMaquinaDaLinha(l) || String(l.bem_id) } : null,
-  implemento: l?.implemento_bem_id ? { id: String(l.implemento_bem_id), rotulo: rotuloDoImplementoDaLinha(l) || String(l.implemento_bem_id) } : null,
+  implemento: l?.implemento_bem_id
+    ? {
+        id: String(l.implemento_bem_id),
+        rotulo: rotuloDoImplementoDaLinha(l) || String(l.implemento_bem_id),
+        // D-PROD-283: o tanque do implemento "por jato" segue junto (o "Novo lançamento" pergunta os jatos).
+        ...(jatoDoImplemento(l.implemento) ? { jato: jatoDoImplemento(l.implemento) } : {}),
+      }
+    : null,
   sem_medidor: l?.sem_medidor === true,
   leitura_inicial: paraEdicao(l?.leitura_inicial),
   leitura_final: paraEdicao(l?.leitura_final),

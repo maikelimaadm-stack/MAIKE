@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-23 (missão ativa D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-24 (missão ativa D-PROD-283; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-18) — MAIKE-P2002-SEM-ALVO: nenhuma tradução de unique depende só do `meta.target` (D-PROD-253)
+## Missão ativa (2026-11-24) — MAIKE-INSUMO-POR-JATO: "Jatos de hoje", o insumo do implemento de tanque por jato (D-PROD-283)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-283**, maquetes aprovadas pelo proprietário (2026-11-24): com implemento "por jato", Insumos vira "Jatos de hoje" (Editar, Repetir o jato anterior, Jato diferente, total do dia); sem cadastro de mistura |
+| Servidor | cada produto de cada jato é uma linha de insumo de sempre com `jato` (1..999, texto no corpo); opções de implemento e linha de máquina dizem o tanque (`jato`) |
+| Migration | `20261125100000_insumo_por_jato`, **EXPAND** (1 coluna anulável `AtividadeApontamentoProduto.jato`), sha256 `725a8c5a…3551`, depois da `20261124200000_estoque_controle_lote`. **Aplicada em produção em 2026-11-24** (78/0) |
+| Relatório / runbook | [`MAIKE-INSUMO-POR-JATO-REPORT.md`](./MAIKE-INSUMO-POR-JATO-REPORT.md) · [`MAIKE-INSUMO-POR-JATO-RUNBOOK-RELEASE.md`](./MAIKE-INSUMO-POR-JATO-RUNBOOK-RELEASE.md) |
+
+## Missão anterior (2026-11-18) — MAIKE-P2002-SEM-ALVO: nenhuma tradução de unique depende só do `meta.target` (D-PROD-253)
 
 | Campo | Valor |
 |---|---|
@@ -23,7 +32,7 @@ rollout pausado **D-PROD-41**)
 | Validação | `npm run verify:all` local **verde** no `946b5965` (39 etapas; backend 2364/2370 com 6 `todo` antigos, smoke 3682/3682, gates 1038/1038), com banco recriado; **CI da PR verde** no mesmo head (o GitHub Actions voltou) ([relatório](./MAIKE-P2002-SEM-ALVO-REPORT.md) §6) |
 | Documentos | [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md) |
 
-## Missão ativa (2026-11-23) — MAIKE-ESTOQUE-CONTROLE-LOTE: controle de lote (e de validade) por produto (D-PROD-282)
+## Missão anterior (2026-11-23) — MAIKE-ESTOQUE-CONTROLE-LOTE: controle de lote (e de validade) por produto (D-PROD-282)
 
 | Campo | Valor |
 |---|---|

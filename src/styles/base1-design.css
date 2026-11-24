@@ -19,7 +19,10 @@ body.b1-tela header.mk-topnav-header{border-color:var(--mk-sup-borda, #EEEDE9)}
 body.b1-tela .mk-topnav .relative.group > .absolute{top:100%;margin-top:0}
 /* Proposta (celular/tablet): sem abas — cada aba do desktop vira um cartão.
    No celular os campos ficam um embaixo do outro (regra do próprio sistema: .mg-b1-form-grid > * 1 / -1). */
-.cadastro-b1 .mg-shell--join-table > .mg-form-scroll.b1-form--secoes:not(#mk-padrao){padding:0;background:transparent;border-radius:0;box-shadow:none;overflow:hidden}
+.cadastro-b1 .mg-shell--join-table > .mg-form-scroll.b1-form--secoes:not(#mk-padrao){padding:0;background:transparent;border-radius:0;box-shadow:none}
+/* D-PROD-284: só o formulário que tem a PRÓPRIA rolagem (.b1-form-rolagem, ex.: Lote) corta a área de fora; os demais
+   (Bens, Produtos…) rolam nela — antes o overflow:hidden valia para todos e travava a rolagem abaixo de 1024px. */
+.cadastro-b1 .mg-shell--join-table > .mg-form-scroll.b1-form--secoes:has(.b1-form-rolagem):not(#mk-padrao){overflow:hidden}
 .cadastro-b1 .mg-form-scroll.b1-form--secoes > form:not(#mk-padrao){background:transparent}
 .cadastro-b1 .b1-form--secoes .b1-form-rolagem:not(#mk-padrao){padding-right:0;scrollbar-width:none}
 .cadastro-b1 .b1-form--secoes .b1-form-rolagem::-webkit-scrollbar{display:none}

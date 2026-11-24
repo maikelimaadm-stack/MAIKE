@@ -151,7 +151,7 @@ export const aceiteDeCombustivelQueVale = (clienteId, produtoId) => ({
 
 // ─── normalização do corpo (400 antes da transação) ─────────────────────────
 
-/** @typedef {{ produto_id: string, local_estoque_id: string, quantidade: string, observacao: string|null, vc_percentual?: string }} DadosDaLinha */
+/** @typedef {{ produto_id: string, local_estoque_id: string, quantidade: string, observacao: string|null, vc_percentual?: string, jato?: number }} DadosDaLinha */
 
 /** MAIKE-ENTREGA2 (D-PROD-274) — o VC (%) da semente: texto decimal com até 2 casas, maior que 0 e até 100. */
 const PADRAO_VC = /^\d{1,3}(\.\d{1,2})?$/;
@@ -169,6 +169,21 @@ export const vcDoCorpo = (v, campo = 'vc_percentual') => {
   const vc = dec(v.trim());
   if (!vc.gt(0) || vc.gt(100)) throw invalido(`${campo} deve ser maior que 0 e no máximo 100`, { field: campo, reason: 'fora_da_faixa' });
   return vc.toFixed(2);
+};
+
+/** D-PROD-283 — o número do jato: texto "1" a "999". */
+const PADRAO_JATO = /^[1-9]\d{0,2}$/;
+
+/**
+ * D-PROD-283 (MAIKE-INSUMO-POR-JATO) — o número do jato no dia, na linha do insumo: opcional; texto de "1" a "999"
+ * (400 `formato`). Sem CHECK no banco (allowlist EXPAND): a API é a barreira, como o VC.
+ * @param {unknown} v @param {string} campo @returns {number}
+ */
+export const jatoDoCorpo = (v, campo = 'jato') => {
+  if (typeof v !== 'string' || !PADRAO_JATO.test(v.trim())) {
+    throw invalido(`${campo} deve ser o número do jato, em texto, de "1" a "999"`, { field: campo, reason: 'formato' });
+  }
+  return Number(v.trim());
 };
 
 /**
@@ -204,6 +219,8 @@ export const normalizarDadosDaLinha = (c, prefixo = '') => ({
   observacao: textoDoCorpo(c.observacao, `${prefixo}observacao`) ?? null,
   // MAIKE-ENTREGA2 (D-PROD-274): o VC só existe na linha quando vem (sem ele — ou null —, a linha e o fingerprint de antes).
   ...(c.vc_percentual !== undefined && c.vc_percentual !== null ? { vc_percentual: vcDoCorpo(c.vc_percentual, `${prefixo}vc_percentual`) } : {}),
+  // D-PROD-283: o jato também só existe quando vem (sem ele, a linha e o fingerprint de antes).
+  ...(c.jato !== undefined && c.jato !== null ? { jato: jatoDoCorpo(c.jato, `${prefixo}jato`) } : {}),
 });
 
 /** Linha gravada na forma dos dados do corpo (base da edição). @param {any} r @returns {DadosDaLinha} */
@@ -212,6 +229,8 @@ const dadosGravados = (r) => ({
   local_estoque_id: r.local_estoque_id,
   quantidade: /** @type {string} */ (t4(r.quantidade)),
   observacao: r.observacao ?? null,
+  // D-PROD-283: editar a linha de um jato mantém o jato.
+  ...(r.jato ? { jato: r.jato } : {}),
 });
 
 // ─── regras dentro da transação ─────────────────────────────────────────────
@@ -380,6 +399,8 @@ const gravarLinha = async (tx, contexto, { clienteId, empresaId, atividade, apon
     observacao: dados.observacao,
     // MAIKE-ENTREGA2 (D-PROD-274): o VC da semente (só na linha de lançamento que o trouxe).
     ...(dados.vc_percentual ? { vc_percentual: dados.vc_percentual } : {}),
+    // D-PROD-283: o número do jato (só na linha que o trouxe).
+    ...(dados.jato ? { jato: dados.jato } : {}),
     criado_por_usuario_id: auth.usuarioId ?? null,
   });
   await inserirFatias(
