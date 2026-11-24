@@ -137,9 +137,9 @@ colunas), nunca editando esta.
 
 | Campo | Valor |
 |---|---|
-| Data/hora (UTC) | — |
-| Caminho | — |
-| GO | — |
-| Preflight (§2) | — |
-| Postcheck (§4) | — |
-| Resultado | **PENDENTE** (não aplicada em produção) |
+| Data/hora (UTC) | 2026-11-24 |
+| Caminho | B — envelope `aplicar-controle-lote.sql` (sha256 `2c3491cd…cb90`) pelo MCP do Supabase, uma transação |
+| GO | dono do produto ("Pode aplicar, publicar e fazer merge") e confirmação no Supabase |
+| Preflight (§2) | 76 concluídas, 0 com falha, última `20261124100000_tipo_implemento_produto` |
+| Postcheck (§4) | 77 concluídas; checksum `b6b33b0e…48fc`; `Produto.controla_lote`/`controla_validade` boolean NOT NULL default false; `EstoqueLoteNota.lote_fabricante` varchar / `data_validade` date anuláveis; CHECK `Produto_controla_validade_check` e índice `EstoqueLoteNota_fefo_idx` presentes; 0 produtos com lote; advisors de segurança: nenhum |
+| Resultado | **APLICADA** |
