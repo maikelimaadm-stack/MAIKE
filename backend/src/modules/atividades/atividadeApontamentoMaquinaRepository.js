@@ -72,6 +72,14 @@ export const proximaOrdem = async (tx, clienteId, apontamentoId) => {
 export const inserirLinha = (tx, dados) => tx.atividadeApontamentoMaquina.create({ data: dados, select: { id: true } });
 
 /**
+ * A linha que já usa esta `operation_id` (unique `(cliente_id, operation_id)`), em qualquer apontamento: a
+ * pré-conferência das escritas e a conferência sem o alvo do P2002 (D-PROD-253).
+ * @param {any} db @param {string} clienteId @param {string} operationId
+ */
+export const buscarLinhaPorOperacao = (db, clienteId, operationId) =>
+  db.atividadeApontamentoMaquina.findFirst({ where: { cliente_id: clienteId, operation_id: operationId }, select: { id: true } });
+
+/**
  * O que a regra da linha lê do bem (máquina ou implemento): fazenda, situação,
  * natureza, o medidor do CADASTRO (o ponto da série), o custo por uso e o teto
  * de salto do TIPO patrimonial. Outro tenant = `null`.

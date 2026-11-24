@@ -25,7 +25,7 @@ import {
   concurrencyConflict,
 } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
-import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
+import { MENSAGEM_CONFLITO_SEM_CHAVE, TRANSACAO_CURTA, emTransacao, soPeloAlvo } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { Dec } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant, invalido } from '../gestao/gestaoComum.js';
@@ -51,14 +51,31 @@ export const LIMITE_DECIMAL_14_4 = new Dec('9999999999.9999');
 /** Motivo gravado na linha substituída por uma edição (o CHECK exige motivo no cancelado). */
 export const MOTIVO_DA_EDICAO = 'linha editada: substituída por uma linha nova';
 
+const conflitoDeChave = () => new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente');
+
+/**
+ * A unique `(apontamento, ordem)` é a rede da trava da atividade (a ordem nasce sob o FOR UPDATE dela). Só pelo
+ * alvo: sem ele, o caminho genérico responde o mesmo 409 transitório (D-PROD-253).
+ */
+const ORDEM_DA_LINHA = soPeloAlvo(
+  () => concurrencyConflict(MENSAGEM_CONFLITO_SEM_CHAVE),
+  'a ordem da linha de mão de obra ou de serviço nasce sob a trava da atividade (FOR UPDATE) e o erro é o mesmo 409 transitório do caminho genérico'
+);
+
 /**
  * A unique `(cliente_id, operation_id)` da linha é a rede do banco: a mesma
  * chave já usada por OUTRA operação de linha → 409 de idempotência; a unique
  * `(apontamento, ordem)` fora da trava → 409 de concorrência (nunca 500).
+ * D-PROD-253: em produção o P2002 chega sem o alvo (papel não dono + RLS); a
+ * chave é conferida no início da escrita que grava linha (lançar, editar) e,
+ * sem o alvo, de novo depois do rollback, pela `existeChave` da tabela da linha.
+ * @param {(db: any, clienteId: string, chaves: string[]) => Promise<boolean>} existeChave
+ * @param {string} clienteId @param {string} operationId
+ * @returns {Record<string, import('../../shared/prisma/transacaoConcorrente.js').UniqueDeNegocio>}
  */
-export const UNICOS_DA_LINHA = Object.freeze({
-  operation_id: () => new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente'),
-  apontamento_ordem: () => concurrencyConflict(MENSAGEM_CONFLITO_SEM_CHAVE),
+export const unicosDaLinha = (existeChave, clienteId, operationId) => ({
+  operation_id: { erro: conflitoDeChave, conferir: (tx) => existeChave(tx, clienteId, [operationId]) },
+  apontamento_ordem: ORDEM_DA_LINHA,
 });
 
 /**
@@ -107,14 +124,16 @@ const respostaDaLinha = async (tx, clienteId, empresaId, atividadeId, apontament
 /**
  * Esqueleto das três escritas da rota (lançar, editar, cancelar).
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * `existeChave`: a linha desta tabela que já usa a chave (`existeLinhaComChave` do repositório dela, D-PROD-253).
  * @param {{ atividadeId: string, apontamentoId: string, corpo: Record<string, any>, tipoOperacao: string,
  *   acao: 'lancar_linha'|'editar_linha'|'cancelar_linha', httpStatus: number, fingerprint: Record<string, unknown>,
  *   entidade: string, acaoConflito: string, chave: string, publica: (linha: any) => unknown,
+ *   existeChave: (db: any, clienteId: string, chaves: string[]) => Promise<boolean>,
  *   executar: (tx: any, estado: { clienteId: string, empresaId: string, agora: Date, dia: string }) => Promise<any> }} pedido
  * @returns {Promise<{ status: number, body: Record<string, unknown> }>}
  */
 export const escreverLinhaDoApontamento = async (contexto, pedido) => {
-  const { atividadeId, apontamentoId, corpo, tipoOperacao, acao, httpStatus, fingerprint, entidade, acaoConflito, chave, publica, executar } = pedido;
+  const { atividadeId, apontamentoId, corpo, tipoOperacao, acao, httpStatus, fingerprint, entidade, acaoConflito, chave, publica, existeChave, executar } = pedido;
   const cli = exigirAuthContext(contexto?.auth).clienteId;
   const versao = corpo.versao;
   const r = await comAuditoriaDoConflito(contexto, { entidade, acao: acaoConflito, operationId: corpo.operation_id, tipoOperacao }, () =>
@@ -127,6 +146,9 @@ export const escreverLinhaDoApontamento = async (contexto, pedido) => {
           tipoOperacao,
           fingerprint: fingerprintDePayload({ atividade_id: atividadeId, apontamento_id: apontamentoId, empresa_id: corpo.empresa_id, versao, ...fingerprint }),
           executar: async () => {
+            // D-PROD-253: a chave de uma linha JÁ gravada é conflito mesmo sem o recibo (apagado, expurgado ou de
+            // outro tipo), conferida ANTES de tudo nas escritas que gravam linha com ela (lançar, editar).
+            if (acao !== 'cancelar_linha' && (await existeChave(tx, cli, [corpo.operation_id]))) throw conflitoDeChave();
             const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
             const { agora } = await tempoDaFazenda(tx, cli, empresaId); // Empresa FOR SHARE
             if (!(await travarAtividade(tx, cli, empresaId, atividadeId))) throw atividadeNotFound(); // Atividade FOR UPDATE
@@ -147,7 +169,7 @@ export const escreverLinhaDoApontamento = async (contexto, pedido) => {
             return { httpStatus, body: await respostaDaLinha(tx, cli, empresaId, atividadeId, apontamentoId, chave, publica(linha)) };
           },
         }),
-      UNICOS_DA_LINHA,
+      unicosDaLinha(existeChave, cli, corpo.operation_id),
       MENSAGEM_CONFLITO_SEM_CHAVE
     )
   );

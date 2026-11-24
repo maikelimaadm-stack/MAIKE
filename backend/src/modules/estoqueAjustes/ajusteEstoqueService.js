@@ -334,7 +334,16 @@ export const criar = async (contexto, corpo) => {
           return { httpStatus: 201, body: await carregarDetalhe(tx, cli, empresaId, id) };
         },
       }),
-    { operation_id: () => new AppError('AJUSTE_ESTOQUE_VERSAO_CONFLITO', 'outra operação alterou os mesmos registros; tente de novo com a mesma operation_id') },
+    // D-PROD-253: o molde do `criar` das Entradas e das Saídas. Nenhuma unique gravada aqui tem `operation_id`: a
+    // idempotência é o recibo. Sem o alvo do P2002 (produção: papel não dono + RLS), a chave é conferida no recibo
+    // depois do rollback e o reenvio com a mesma operation_id cai no replay. Com o alvo, como antes.
+    {
+      operation_id: {
+        erro: () => new AppError('AJUSTE_ESTOQUE_VERSAO_CONFLITO', 'outra operação alterou os mesmos registros; tente de novo com a mesma operation_id'),
+        conferir: (tx) =>
+          tx.operacaoIdempotente.findFirst({ where: { cliente_id: cli, operation_key: ajuste.operation_id, tipo_operacao: TIPO_CRIAR }, select: { id: true } }),
+      },
+    },
   );
   return { status: r.replay ? 200 : 201, body: { ...r.body, replay: r.replay } };
 };
