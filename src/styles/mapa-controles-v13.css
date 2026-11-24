@@ -1,0 +1,213 @@
+/*
+ * D-PROD-285 — Controles do Mapa Geral (v13), aprovados pelo proprietário.
+ * Mesma arrumação no celular, tablet e computador:
+ *  - .mk-mapa-faixa: faixa branca FIXA acima do mapa (fora da área do mapa) com o
+ *    trilho segmentado Filtro (ícone) · Lotes · Pontos · Visualização (ícone);
+ *  - .mk-mapa-resumo: animais · peso · áreas numa linha, canto de baixo à esquerda;
+ *  - .mk-mapa-dir: Atualizar · Minha localização · Mover numa pílula em pé,
+ *    canto de baixo à direita.
+ * Trilho #f1f1f2 arredondado, botões de 36 px dentro de 3 px (controle de 42 px);
+ * selecionado = pílula branca com sombra leve (estilo "Chat | Work").
+ * Os seletores levam .mk-mapa--v13 e :not(#…) para vencer mapa-geral.css e
+ * mk-mapa-superficie.css (que usam :not(#mk-padrao)).
+ */
+.mk-mapa--v13 {
+  --mk13-trilho: #f1f1f2;
+  --mk13-sombra: 0 4px 16px rgba(0, 0, 0, 0.22);
+  --mk13-botao: 36px;
+  --mk13-folga: 3px;
+}
+
+/* ── Faixa branca de cima ─────────────────────────────────────────────── */
+.mk-mapa--v13 .mk-mapa-faixa {
+  position: relative;
+  z-index: 25;
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding: 6px 14px;
+  background: #fff;
+  border-bottom: 1px solid #e7e9ec;
+}
+.mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra:not(#mk13a):not(#mk13b) {
+  position: static;
+  transform: none;
+  inset: auto;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: 300px;
+  max-width: 100%;
+  height: calc(var(--mk13-botao) + var(--mk13-folga) * 2);
+  padding: var(--mk13-folga);
+  border-radius: 999px;
+  background: var(--mk13-trilho);
+  box-shadow: none;
+  color: #6b7280;
+  font-size: 14.5px;
+}
+.mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra__cfg:not(#mk13a):not(#mk13b),
+.mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra__seg:not(#mk13a):not(#mk13b) {
+  height: var(--mk13-botao);
+  border-radius: 999px;
+  background: transparent;
+  color: #6b7280;
+}
+.mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra__cfg:not(#mk13a):not(#mk13b) {
+  flex: none;
+  width: 42px;
+  position: relative;
+}
+/* Linhas finas separando os ícones das abas. */
+.mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra__cfg:first-child::after,
+.mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra__visualizacao::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  width: 1px;
+  background: #dcdde0;
+}
+.mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra__cfg:first-child::after { right: -1px; }
+.mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra__visualizacao::before { left: -1px; }
+.mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra__seg:not(#mk13a):not(#mk13b) {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 10px;
+  font-size: 14.5px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+.mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra__seg[aria-pressed="true"]:not(#mk13a):not(#mk13b) {
+  background: #fff;
+  color: #0a0a0a;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+}
+.mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra__visualizacao[aria-expanded="true"]:not(#mk13a):not(#mk13b),
+.mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra__cfg:active:not(#mk13a):not(#mk13b) {
+  background: #fff;
+  color: #0a0a0a;
+}
+.mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra--sem-cfg:not(#mk13a):not(#mk13b) { padding-left: var(--mk13-folga); }
+
+/* O aviso do satélite volta para o alto da área do mapa (a barra saiu dela). */
+.mk-mapa--v13:has(.mk-mapa-barra) .mk-mapa-aviso:not(#mk13a) { top: 12px; }
+
+/* ── Pílula em pé: Atualizar · Minha localização · Mover ───────────────── */
+.mk-mapa--v13 .mk-mapa-dir:not(#mk13a):not(#mk13b) {
+  top: auto;
+  right: 10px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+}
+.mk-mapa--v13 .mk-mapa-dir .mk13-pilha {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--mk13-folga);
+  border-radius: 999px;
+  background: var(--mk13-trilho);
+  box-shadow: var(--mk13-sombra);
+}
+/* Classe própria (não .mk-mapa-btn): fora do !important global dos botões de ação. */
+.mk-mapa--v13 .mk13-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--mk13-botao);
+  height: var(--mk13-botao);
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #374151;
+  -webkit-tap-highlight-color: transparent;
+}
+.mk-mapa--v13 .mk13-btn svg { width: 19px; height: 19px; stroke-width: 2; }
+.mk-mapa--v13 .mk13-btn:hover { background: rgba(255, 255, 255, 0.7); }
+.mk-mapa--v13 .mk13-btn + .mk13-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 9px;
+  right: 9px;
+  height: 1px;
+  background: #dcdde0;
+}
+.mk-mapa--v13 .mk13-btn[aria-pressed="true"] {
+  background: #fff;
+  color: #0a0a0a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+}
+.mk-mapa--v13 .mk13-btn:focus-visible { outline: 2px solid #3db5c9; outline-offset: 2px; }
+
+/* A atribuição do mapa fica à esquerda da pílula, acima da linha do resumo no celular. */
+.mk-mapa--v13 .mk-atrib:not(#mk13a):not(#mk13b) {
+  right: calc(10px + var(--mk13-botao) + var(--mk13-folga) * 2 + 8px + env(safe-area-inset-right));
+  bottom: calc(10px + env(safe-area-inset-bottom));
+}
+
+/* Atribuição nativa do MapLibre: também à esquerda da pílula. */
+.mk-mapa--v13 .maplibregl-ctrl-bottom-right:not(#mk13a) {
+  right: calc(10px + var(--mk13-botao) + var(--mk13-folga) * 2 + 4px);
+  bottom: 4px;
+}
+
+/* ── Resumo: uma linha, canto de baixo à esquerda ──────────────────────── */
+.mk-mapa--v13 .mk-mapa-resumo:not(#mk13a):not(#mk13b) {
+  left: 10px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  height: calc(var(--mk13-botao) + var(--mk13-folga) * 2);
+  padding: var(--mk13-folga) var(--mk13-folga) var(--mk13-folga) 13px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mk13-trilho);
+  box-shadow: var(--mk13-sombra);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.mk-mapa--v13 .mk-mapa-resumo__item:not(#mk13a):not(#mk13b) {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 3px;
+  padding: 0 8px;
+  line-height: 1;
+}
+.mk-mapa--v13 .mk-mapa-resumo__item:first-child:not(#mk13a):not(#mk13b) { padding-left: 0; }
+.mk-mapa--v13 .mk-mapa-resumo__item + .mk-mapa-resumo__item:not(#mk13a):not(#mk13b) { border-left: 1px solid #d3d8df; }
+.mk-mapa--v13 .mk-mapa-resumo__num:not(#mk13a):not(#mk13b) { font-size: 12.5px; font-weight: 700; color: #111827; letter-spacing: 0; }
+.mk-mapa--v13 .mk-mapa-resumo__num small:not(#mk13a):not(#mk13b) { font-size: 12.5px; font-weight: 700; color: #111827; }
+.mk-mapa--v13 .mk-mapa-resumo__num--verde:not(#mk13a):not(#mk13b) { color: #16a34a; }
+.mk-mapa--v13 .mk-mapa-resumo__rot:not(#mk13a):not(#mk13b) { margin: 0; font-size: 12.5px; font-weight: 500; color: #475569; }
+.mk-mapa--v13 .mk-mapa-resumo__abrir:not(#mk13a):not(#mk13b) {
+  display: grid;
+  place-items: center;
+  width: var(--mk13-botao);
+  height: var(--mk13-botao);
+  margin-left: 6px;
+  padding: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+}
+
+/* ── Celular: o trilho ocupa a largura toda ─────────────────────────────── */
+@media (max-width: 767px) {
+  .mk-mapa--v13 .mk-mapa-faixa { padding: 6px 10px; }
+  .mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra:not(#mk13a):not(#mk13b) { width: 100%; }
+  .mk-mapa--v13 .mk-mapa-dir:not(#mk13a):not(#mk13b) { right: 10px; }
+  .mk-mapa--v13 .maplibregl-ctrl-bottom-right:not(#mk13a) { bottom: calc(10px + var(--mk13-botao) + var(--mk13-folga) * 2 + 2px); }
+  .mk-mapa--v13 .mk-atrib:not(#mk13a):not(#mk13b) { bottom: calc(10px + var(--mk13-botao) + var(--mk13-folga) * 2 + 6px + env(safe-area-inset-bottom)); max-width: 60vw; }
+  .mk-mapa--v13:has(.mk-mapa-barra) .mk-mapa-aviso:not(#mk13a) { top: 10px; right: 10px; }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra:not(#mk13a):not(#mk13b) { width: 290px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-mapa--v13 .mk-mapa-faixa .mk-mapa-barra__seg { transition: none; }
+}
