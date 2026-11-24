@@ -189,12 +189,12 @@ describe("política do clique na área", () => {
 });
 
 describe("DetalhesArea — Detalhes e Histórico", () => {
-  it("o painel é o do lote: título e setor, abas Detalhes · Histórico, cartão da área, atividades e custos do servidor, rodapé Manejos", async () => {
+  it("o painel é o do lote: título e setor, abas Detalhes · Manejos · Custos (D-PROD-289), cartão da área, resumo, atividades e custos do servidor, rodapé Manejos", async () => {
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} setorNome="RETIRO" ocupada />);
     expect(screen.getByRole("heading", { name: "P1 — PASTO 01" })).toBeTruthy();
     expect(screen.getByText("RETIRO")).toBeTruthy();
     expect(document.querySelector(".mk-dp .mk-dp__corpo--cards")).toBeTruthy();
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Detalhes", "Histórico"]);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Detalhes", "Manejos", "Custos"]);
     expect(screen.getByRole("tab", { name: "Detalhes" }).getAttribute("aria-selected")).toBe("true");
     // O cartão da área.
     const corpo = document.querySelector(".mk-dp-area-organizada");
@@ -202,29 +202,39 @@ describe("DetalhesArea — Detalhes e Histórico", () => {
     expect(corpo.textContent).toContain("PASTO");
     expect(corpo.textContent).toContain("BRACHIARIA");
     expect(corpo.textContent).toContain("OCUPADO");
-    // As atividades (nome, feito/previsto, situação) e os custos (os números do servidor, só formatados).
-    expect(await screen.findByText("Atividades em andamento")).toBeTruthy();
+    // D-PROD-289: o resumo de uma linha leva à aba.
+    const resumoManejos = await screen.findByTestId("area-resumo-manejos");
+    expect(resumoManejos.textContent).toContain("1 em andamento · 1 planejado");
+    expect(screen.getByTestId("area-resumo-custos").textContent.replace(/\u00a0/g, " ")).toContain("R$ 3.480,00");
+    // As atividades (nome, feito/previsto, situação) na aba Manejos.
+    fireEvent.click(resumoManejos);
+    expect(await screen.findByText("Em andamento e planejado")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Manejos" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByText("Gradeação · nov/26")).toBeTruthy();
     expect(screen.getByText("Feito 12 de 22 ha · até 30/11/2026")).toBeTruthy();
     expect(screen.getByText("Em andamento")).toBeTruthy();
     expect(screen.getByText("Finalizada")).toBeTruthy();
     expect(screen.getByText("Feito 0 de 22 ha · previsto 10/12/2026")).toBeTruthy();
     expect(screen.getByText("Planejada")).toBeTruthy();
-    expect(screen.getByText("Custos da área · nov/26")).toBeTruthy();
+    expect(document.querySelectorAll(".mk-da13-prog").length).toBe(3);
+    // Os custos (os números do servidor, só formatados) na aba Custos.
+    fireEvent.click(screen.getByRole("tab", { name: "Custos" }));
+    expect(await screen.findByText("Custos da área · nov/26")).toBeTruthy();
     const custos = { textContent: screen.getByText("Custos da área · nov/26").closest("section").textContent.replace(/\u00a0/g, " ") };
     expect(custos.textContent).toContain("R$ 3.480,00");
     expect(custos.textContent).toContain("R$ 158,18");
     expect(custos.textContent).toContain("R$ 1.920,00");
     expect(custos.textContent).toContain("R$ 1.560,00");
+    expect(custos.textContent).toContain("55%");
     // Rodapé: Manejos + o Histórico completo (movimentação) que já existia.
     const rodape = screen.getByRole("group", { name: "Ações da área" });
     expect([...rodape.querySelectorAll(".mk-dp-pilula")].map((b) => b.textContent)).toEqual(["Manejos", "Histórico completo"]);
     expect(atividades.resumo).toHaveBeenCalledWith("area-A");
   });
 
-  it("aba Histórico: os registros de campo da área na linha do tempo, com o filtro Todos; não é o histórico de movimentação", async () => {
+  it("aba Manejos (Já feito): os registros de campo da área na linha do tempo, com o filtro Todos; não é o histórico de movimentação", async () => {
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} setorNome="RETIRO" />);
-    fireEvent.click(screen.getByRole("tab", { name: "Histórico" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Manejos" }));
     const linha = await screen.findByRole("list", { name: "Registros de campo da área" });
     expect(linha.textContent).toContain("17 NOV. 2026");
     expect(linha.textContent).toContain("12 NOV. 2026");
@@ -237,10 +247,10 @@ describe("DetalhesArea — Detalhes e Histórico", () => {
     expect(servico.listarHistoricoMovimentacoesPagina).not.toHaveBeenCalled();
   });
 
-  it("aba Histórico vazia: vazio verdadeiro, não erro; erro do servidor: Tentar novamente", async () => {
+  it("aba Manejos sem registros: vazio verdadeiro, não erro; erro do servidor: Tentar novamente", async () => {
     atividades.registros.mockImplementation(async () => ({ items: [], next_cursor: null }));
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Histórico" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Manejos" }));
     expect(await screen.findByText("Nenhum registro de campo nesta área.")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
     cleanup();
@@ -248,12 +258,12 @@ describe("DetalhesArea — Detalhes e Histórico", () => {
       throw Object.assign(new Error("x"), { code: "PROVIDER_UNAVAILABLE" });
     });
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Histórico" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Manejos" }));
     expect(await screen.findByText("Não foi possível carregar o histórico.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeTruthy();
   });
 
-  it("sem a permissão de ver atividades: só o cartão da área (sem aba Histórico, atividades, custos nem Manejos); o histórico completo segue", async () => {
+  it("sem a permissão de ver atividades: só o cartão da área (sem abas Manejos/Custos, atividades, custos nem Manejos); o histórico completo segue", async () => {
     atividades.acoes = { ...atividades.acoes, ver: false, lancarApontamento: false };
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
     expect(screen.queryByRole("tab")).toBeNull();
@@ -269,7 +279,7 @@ describe("DetalhesArea — Detalhes e Histórico", () => {
   it("ver sem lançar: abas e histórico, sem a pílula Manejos", async () => {
     atividades.acoes = { ...atividades.acoes, lancarApontamento: false };
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} />);
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Detalhes", "Histórico"]);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Detalhes", "Manejos", "Custos"]);
     expect(screen.queryByRole("button", { name: "Manejos" })).toBeNull();
     expect(screen.getByRole("button", { name: "Histórico completo" })).toBeTruthy();
   });
@@ -281,8 +291,10 @@ describe("DetalhesArea — Detalhes e Histórico", () => {
     expect(screen.queryByTestId("painel-forragem")).toBeNull();
   });
 
-  it("forragem (D-PROD-219) continua no Detalhes: o painel Forragem com a chave medir_forragem", () => {
+  it("forragem (D-PROD-219): com a chave medir_forragem, aba própria Forragem (D-PROD-289) com o painel de antes", () => {
     renderizar(<DetalhesArea area={PASTO} permissions={MAPA_GERAL_ACESSO_TOTAL} />);
+    expect(screen.queryByTestId("painel-forragem")).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Forragem" }));
     expect(screen.getByTestId("painel-forragem")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Histórico completo" })).toBeTruthy();
   });
@@ -487,9 +499,9 @@ describe("Nova realização (a pessoa escolhe a área) — mesmo formulário", (
 });
 
 describe("DetalhesArea — curral e histórico completo", () => {
-  it("T07: curral tem Detalhes · Histórico · Abate, e o Abate segue sendo o histórico de abate de hoje", async () => {
+  it("T07: curral tem Detalhes · Manejos · Custos · Abate, e o Abate segue sendo o histórico de abate de hoje", async () => {
     renderizar(<DetalhesArea area={CURRAL} permissions={PERMITE} />);
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Detalhes", "Histórico", "Abate"]);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Detalhes", "Manejos", "Custos", "Abate"]);
     fireEvent.click(screen.getByRole("tab", { name: "Abate" }));
     expect(screen.getByTestId("abate-curral").textContent).toContain("area-C");
     expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe(screen.getByRole("tab", { name: "Abate" }).id);

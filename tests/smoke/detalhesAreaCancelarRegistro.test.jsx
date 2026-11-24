@@ -81,7 +81,7 @@ const renderizar = () => {
 /** Abre a aba Histórico e espera os cartões. */
 const abrirHistorico = async () => {
   renderizar();
-  fireEvent.click(screen.getByRole("tab", { name: "Histórico" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Manejos" }));
   await screen.findByText("José Silva");
 };
 
@@ -222,7 +222,7 @@ describe("Histórico da área — Excluir registro (D-PROD-266)", () => {
   it("registro que a listagem traz já excluído (status CANCELADO): não vira cartão nem chip", async () => {
     atividades.registros.mockImplementation(async () => ({ ...REGISTROS, items: REGISTROS.items.map((r) => (r.id === "ap-2" ? { ...r, status: "CANCELADO" } : r)) }));
     renderizar();
-    fireEvent.click(screen.getByRole("tab", { name: "Histórico" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Manejos" }));
     await screen.findByText("Pedro Rocha");
     expect(buscarCartao("Gradeação")).toBeNull();
     expect(screen.queryByText("José Silva")).toBeNull();
