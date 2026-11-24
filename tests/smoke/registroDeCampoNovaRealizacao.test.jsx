@@ -43,7 +43,7 @@ const PRODUTOS = [{ id: "p1", nome: "Tiametoxam", unidade: "L", unidade_principa
 const LOCAIS = { p1: [{ local_estoque_id: "l1", local_nome: "Depósito", disponivel: "60.0000", unidade: "L" }] };
 const TIPOS_NA_ORDEM = ["Preparo do solo", "Plantio de pastagem", "Fertilização", "Aplicação", "Roçada e tratos", "Manutenção", "Outros"];
 // D-PROD-267: "Como fica depois de salvar?" fecha o formulário, logo antes do rodapé.
-const SECOES_NA_ORDEM = ["Área", "Operação", "Datas", "Insumos", "Máquinas", "Equipe", "Serviço de terceiro (se houver)", "Planejamento", "Informações complementares", "Como fica depois de salvar?"];
+const SECOES_NA_ORDEM = ["Área", "Operação", "Datas", "Insumos", "Máquinas", "Equipe", "Serviço de terceiro (se houver)", "Planejamento", "Informações complementares", "Finalizou a atividade hoje?"];
 
 /** @type {{ chamadas: Array<{ method: string, path: string, query: Record<string, string>, body: any }> }} */
 let backend;
@@ -129,7 +129,7 @@ const secoes = (janela) => [...within(janela).getByTestId("registro-de-campo-for
 describe("Nova realização — passo 1: os 7 tipos em cartões (D-PROD-265)", () => {
   it("abre em \"Nova realização\" com os 7 tipos fixos em cartões (botões com ícone e nome, na ordem), sem formulário e só Cancelar", async () => {
     const { janela, onFechar } = await montar();
-    expect(titulo(janela)).toBe("Nova realização");
+    expect(titulo(janela)).toBe("Nova atividade");
     const lista = within(janela).getByRole("list", { name: "Tipos de serviço" });
     const cartoes = within(lista).getAllByRole("button");
     expect(cartoes.map((b) => b.textContent.trim())).toEqual(TIPOS_NA_ORDEM);
@@ -147,7 +147,7 @@ describe("Nova realização — passo 1: os 7 tipos em cartões (D-PROD-265)", (
   it("o cartão leva ao formulário \"Nova realização de <Tipo>\", sem o select de Tipo e com as seções na ordem da maquete", async () => {
     const { janela } = await montar();
     await escolherTipo(janela, "Aplicação");
-    expect(titulo(janela)).toBe("Nova realização de Aplicação");
+    expect(titulo(janela)).toBe("Nova atividade de Aplicação");
     expect(within(janela).queryByRole("combobox", { name: /^Tipo/ })).toBeNull();
     expect(within(janela).getByRole("button", { name: "Trocar tipo" })).toBeTruthy();
     expect(secoes(janela)).toEqual(SECOES_NA_ORDEM);
@@ -177,7 +177,7 @@ describe("Nova realização — passo 1: os 7 tipos em cartões (D-PROD-265)", (
     fireEvent.keyDown(cartao, { key: "Enter" });
     fireEvent.click(cartao);
     await within(janela).findByTestId("registro-de-campo-form");
-    expect(titulo(janela)).toBe("Nova realização de Roçada e tratos");
+    expect(titulo(janela)).toBe("Nova atividade de Roçada e tratos");
   });
 });
 
@@ -193,12 +193,12 @@ describe("Nova realização — Trocar tipo e envio (D-PROD-265)", () => {
     expect(within(janela).getAllByTestId(/^registro-insumo-linha-\d+$/).length).toBe(1);
 
     fireEvent.click(within(janela).getByRole("button", { name: "Trocar tipo" }));
-    expect(titulo(janela)).toBe("Nova realização");
+    expect(titulo(janela)).toBe("Nova atividade");
     expect(within(janela).queryByTestId("registro-de-campo-form")).toBeNull();
     // O tipo atual aparece marcado nos cartões.
     expect(within(janela).getByRole("button", { name: "Aplicação" }).getAttribute("aria-pressed")).toBe("true");
     await escolherTipo(janela, "Roçada e tratos");
-    expect(titulo(janela)).toBe("Nova realização de Roçada e tratos");
+    expect(titulo(janela)).toBe("Nova atividade de Roçada e tratos");
     // Áreas, datas e linhas ficaram; a operação saiu.
     expect(within(janela).getByTestId("registro-areas-linha-area-aroeira")).toBeTruthy();
     expect(within(janela).getByTestId("registro-areas-linha-area-acude")).toBeTruthy();
@@ -234,7 +234,7 @@ describe("Nova realização — Trocar tipo e envio (D-PROD-265)", () => {
     expect(registros()[0].body).toMatchObject({ data_operacional: "2026-11-08", data_termino: "2026-11-09", tipo_atividade_id: "t-herb", areas: [{ area_id: "area-aroeira", hectares: "38" }] });
     // "Salvar e novo": o tipo fica (o título também); o término sai.
     await waitFor(() => expect(within(janela).getByTestId("registro-de-campo-data-termino").value).toBe(""));
-    expect(titulo(janela)).toBe("Nova realização de Aplicação");
+    expect(titulo(janela)).toBe("Nova atividade de Aplicação");
     // Sem término: o corpo NÃO leva a chave (o recibo de antes do deploy continua casando).
     fireEvent.click(within(janela).getByRole("button", { name: "Salvar" }));
     await waitFor(() => expect(registros()).toHaveLength(2));
@@ -243,9 +243,9 @@ describe("Nova realização — Trocar tipo e envio (D-PROD-265)", () => {
 
   it("do mapa (área presa): abre nos cartões; escolhido o tipo, a área vem marcada e não sai", async () => {
     const { janela } = await montar({ area: AROEIRA, areas: [] });
-    expect(titulo(janela)).toBe("Nova realização");
+    expect(titulo(janela)).toBe("Nova atividade");
     await escolherTipo(janela, "Fertilização");
-    expect(titulo(janela)).toBe("Nova realização de Fertilização");
+    expect(titulo(janela)).toBe("Nova atividade de Fertilização");
     expect(within(janela).getByTestId("registro-areas-linha-area-aroeira")).toHaveTextContent("PASTO DA AROEIRA");
     expect(within(janela).queryByTestId("registro-areas-tirar-area-aroeira")).toBeNull();
     // Trocar o tipo não solta a área.
@@ -257,7 +257,7 @@ describe("Nova realização — Trocar tipo e envio (D-PROD-265)", () => {
 
   it("com a operação presa, abre direto no formulário do tipo dela, sem Trocar tipo", async () => {
     const { janela } = await montar({ tipo: OPERACOES[0] });
-    expect(titulo(janela)).toBe("Nova realização de Aplicação");
+    expect(titulo(janela)).toBe("Nova atividade de Aplicação");
     expect(within(janela).queryByRole("button", { name: "Trocar tipo" })).toBeNull();
     expect(within(janela).queryByTestId("registro-de-campo-tipos")).toBeNull();
   });
@@ -282,8 +282,8 @@ describe("Nova realização — período e entrada (D-PROD-265)", () => {
   it("o botão da tela de Atividades se chama \"Nova realização\" (rótulo e aria-label) e o mapa segue com \"Manejos\"", () => {
     const pagina = readFileSync("src/pages/LancamentoAtividades.jsx", "utf8");
     // D-PROD-267: é o botão de criar da barra ("+ Nova realização", o principal), ao lado de "Planejar".
-    expect(pagina).toContain('createLabel="Nova realização"');
-    expect(pagina).toContain('createText="Nova realização"');
+    expect(pagina).toContain('createLabel="Nova atividade"');
+    expect(pagina).toContain('createText="Nova atividade"');
     expect(pagina).toContain("onCreate={() => setRegistrando(true)}");
     expect(pagina).toContain('aria-label="Planejar"');
     expect(pagina).not.toContain('aria-label="Registrar serviço"');

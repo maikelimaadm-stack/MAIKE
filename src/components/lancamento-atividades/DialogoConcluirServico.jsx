@@ -41,8 +41,8 @@ export default function DialogoConcluirServico({ item, hoje, onFechar, onConclui
     } catch (falha) {
       setAviso(
         ehResultadoIncerto(falha)
-          ? "Não recebemos a resposta do servidor: o serviço PODE ter sido concluído. Feche e confira a lista antes de tentar de novo."
-          : mensagemDeErroAtividade(falha, "Não foi possível concluir. Nada foi alterado."),
+          ? "Não recebemos a resposta do servidor: a atividade PODE ter sido finalizada. Feche e confira a lista antes de tentar de novo."
+          : mensagemDeErroAtividade(falha, "Não foi possível finalizar. Nada foi alterado."),
       );
     } finally {
       setEnviando(false);
@@ -54,7 +54,14 @@ export default function DialogoConcluirServico({ item, hoje, onFechar, onConclui
       aberto
       onFechar={onFechar}
       podeFechar={!enviando}
-      titulo={<span data-testid="dialogo-concluir-servico-titulo">Concluir {tituloDoConcluir(item)}</span>}
+      titulo={
+        <span className="flex min-w-0 flex-col">
+          <span data-testid="dialogo-concluir-servico-titulo">Finalizar atividade</span>
+          <span className="text-[12.5px] font-normal text-[var(--mg-text-2,#475569)]" data-testid="dialogo-concluir-servico-nome">
+            {tituloDoConcluir(item)}
+          </span>
+        </span>
+      }
       testId="dialogo-concluir-servico"
       className="b1-concluir-servico"
       contentProps={{ "data-permissao-explicita": "" }}
@@ -65,7 +72,7 @@ export default function DialogoConcluirServico({ item, hoje, onFechar, onConclui
           </button>
           <button type="button" className={BOTAO_PRIMARIO} onClick={() => void concluir()} disabled={enviando} data-testid="dialogo-concluir-servico-enviar">
             {enviando ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Check className="h-4 w-4" aria-hidden />}
-            {enviando ? "Concluindo…" : "Concluir"}
+            {enviando ? "Finalizando…" : "Finalizar"}
           </button>
         </>
       }

@@ -352,9 +352,9 @@ function CamposDoInsumo({ editor, mudar, setForm, onLido, areaDoDia, bloqueado, 
  * registro. A justificativa do salto aparece quando o uso passa do teto ou o servidor a pediu (`saltoPedido`). Conta para
  * o registro o medidor lido e se a justificativa é pedida.
  * @param {{ editor: EditorDaSecao, mudar: (mudanca: Record<string, any>, campos: string[]) => void, setForm: (f: (atual: any) => any) => void,
- *   onLido: (lido: LidoNoEditor) => void, dia: string|null, permiteImplemento: boolean, bloqueado: boolean }} props
+ *   onLido: (lido: LidoNoEditor) => void, dia: string|null, permiteImplemento: boolean, bloqueado: boolean, soUso?: boolean }} props
  */
-function CamposDaMaquina({ editor, mudar, setForm, onLido, dia, permiteImplemento, bloqueado }) {
+function CamposDaMaquina({ editor, mudar, setForm, onLido, dia, permiteImplemento, bloqueado, soUso = false }) {
   const empresaId = useEmpresaRealSelecionadaId();
   // Item da tabela aberto de novo: a leitura dele vale e não é sugerida outra vez.
   const medidorDaLinha = useMedidorDaLinha(empresaId, editor.form, setForm, dia, editor.chave !== null);
@@ -374,7 +374,28 @@ function CamposDaMaquina({ editor, mudar, setForm, onLido, dia, permiteImplement
       prefixo="registro-maquina"
       comObservacao={false}
       tituloGrupo={null}
+      soUso={soUso}
+      horimetroSimples
     />
+  );
+}
+
+/**
+ * D-PROD-281 — o USO da máquina no "Novo lançamento" curto: o nome da máquina (vem do último dia, não se escolhe aqui) e
+ * só o uso — no HORÍMETRO, "Horímetro agora" (a inicial é a última leitura) ou, quebrado, as horas corridas. Os mesmos
+ * ganchos e regras do editor de máquina (`CamposDaMaquina`): o medidor lido, a justificativa do salto. Trocar a máquina é
+ * no "Mudar".
+ * @param {{ editor: EditorDaSecao, mudar: (mudanca: Record<string, any>, campos: string[]) => void, setForm: (f: (atual: any) => any) => void,
+ *   onLido: (lido: LidoNoEditor) => void, dia: string|null, bloqueado: boolean }} props
+ */
+export function UsoDaMaquinaDoRegistro({ editor, mudar, setForm, onLido, dia, bloqueado }) {
+  return (
+    <div className="col-span-12 min-w-0 mg-b1-form-grid b1-form-embutido grid grid-cols-12 gap-x-3 gap-y-2" data-testid="registro-maquina-curto">
+      <p className="col-span-12 min-w-0 break-words text-[14px] font-semibold uppercase text-[#141413]" data-testid="registro-maquina-curto-nome">
+        {String(editor.form?.bem?.rotulo ?? "")}
+      </p>
+      <CamposDaMaquina editor={editor} mudar={mudar} setForm={setForm} onLido={onLido} dia={dia} permiteImplemento={false} bloqueado={bloqueado} soUso />
+    </div>
   );
 }
 

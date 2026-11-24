@@ -40,7 +40,7 @@ export const STATUS_CANCELADA = 'CANCELADA';
 /** Status da atividade (CHECK no banco). */
 export const STATUS_ATIVIDADE = Object.freeze([STATUS_ABERTA, STATUS_CONCLUIDA, STATUS_CANCELADA]);
 export const ROTULO_STATUS_ATIVIDADE = Object.freeze(
-  /** @type {Record<string, string>} */ ({ ABERTA: 'Aberta', CONCLUIDA: 'Concluída', CANCELADA: 'Cancelada' }),
+  /** @type {Record<string, string>} */ ({ ABERTA: 'Aberta', CONCLUIDA: 'Finalizada', CANCELADA: 'Cancelada' }),
 );
 
 /**
