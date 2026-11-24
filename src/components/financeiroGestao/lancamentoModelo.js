@@ -24,6 +24,7 @@ import {
   subtrair,
 } from '@/lib/dinheiroDecimal';
 import { ehDiaValido, somarDias } from '@/lib/diaCivil';
+import { dividirArredondar } from '@/lib/estoqueEntradasRegras';
 import { mensagemDaLinhaDoRateio } from '@/lib/gestaoErros';
 import { ratearCabecalho } from '@/lib/rateioCabecalho';
 import { MAX_RATEIOS_ITENS_TOTAL, MAX_RATEIOS_POR_ITEM, distribuirProporcional, escopoDoRateio } from '@/lib/rateioPorItem';
@@ -116,11 +117,13 @@ export const formularioDoDetalhe = (d, ctx) => {
     produto: ref(
       i.produto_id,
       i.produto_nome,
-      i.unidade === 'SACO' ? { unidade_principal_estoque: 'SACO', peso_por_saco_kg: t(i.fator_kg) } : i.unidade === 'L' ? { unidade_principal_estoque: 'L' } : {},
+      i.unidade === 'SACO' ? { unidade_principal_estoque: 'SACO', peso_por_saco_kg: t(i.fator_kg) } : i.unidade === 'L' ? { unidade_principal_estoque: 'L' }
+        // D-PROD-285: item numa unidade de conversão volta com o fator GRAVADO (editar o fator não muda o passado).
+        : ehSiglaDeConversao(i.unidade) && i.fator_kg != null ? { unidades_conversao: [{ sigla: String(i.unidade), operacao: 'MULTIPLICA', fator: t(i.fator_kg), ativa: true }] } : {},
     ),
     local: ref(i.local_estoque_id, i.local_estoque_nome),
     descricao: t(i.descricao),
-    unidade: i.unidade === 'SACO' || i.unidade === 'UN' || i.unidade === 'L' ? i.unidade : 'KG',
+    unidade: i.unidade === 'SACO' || i.unidade === 'UN' || i.unidade === 'L' || ehSiglaDeConversao(i.unidade) ? i.unidade : 'KG',
     quantidade: numero(i.quantidade, 4),
     valor_unitario: numero(i.valor_unitario, 6),
   }));
@@ -290,7 +293,7 @@ export const mudancasFisicas = (d, formulario, resumo) => {
     const { item, k } = novo;
     const ordem = k + 1;
     const r = resumo.itens[k] ?? {};
-    const fator = item.unidade === 'SACO' ? pesoDoSaco(item.produto) : '1';
+    const fator = fatorDoItem(item);
     /** @param {string} campo */
     const dif = (campo) => diferencas.push({ item: ordem, campo });
     if (Number(antigo.ordem) !== ordem) dif('ordem');
@@ -387,6 +390,36 @@ const pesoDoSaco = (produto) => {
   if (peso == null || peso === '') return null;
   const texto = typeof peso === 'number' ? String(peso) : t(peso);
   return /^\d+(?:\.\d+)?$/.test(texto) && ehPositivo(texto) ? texto : null;
+};
+
+/** D-PROD-285: a sigla é de uma unidade de conversão (não KG, SACO, L nem UN)? @param {unknown} u */
+export const ehSiglaDeConversao = (u) => typeof u === 'string' && u.trim() !== '' && !['KG', 'SACO', 'L', 'UN'].includes(u);
+
+/** D-PROD-285: a conversão ativa do produto com a sigla (ou null). @param {any} produto @param {string} sigla */
+export const conversaoDoProduto = (produto, sigla) =>
+  (Array.isArray(produto?.unidades_conversao) ? produto.unidades_conversao : []).find((c) => c && c.sigla === sigla && c.ativa !== false) ?? null;
+
+/**
+ * D-PROD-285: unidades que o item de mercadoria oferece: a de estoque, o SACO legado e as conversões ativas com o uso
+ * da direção (compra → uso_compra; venda → uso_venda). @param {any} produto @param {'PAGAR'|'RECEBER'} direcao
+ */
+export const conversoesDoItem = (produto, direcao) =>
+  (Array.isArray(produto?.unidades_conversao) ? produto.unidades_conversao : [])
+    .filter((c) => c && c.ativa !== false && (direcao === 'RECEBER' ? c.uso_venda !== false : c.uso_compra !== false));
+
+/** Fator efetivo (texto) do item: 1 para KG/L, o peso do saco, ou o da conversão (DIVIDE → 1/fator). @param {any} item */
+const fatorDoItem = (item) => {
+  const c = conversaoDoProduto(item.produto, item.unidade);
+  if (c) return c.operacao === 'DIVIDE' ? dividirArredondar('1', String(c.fator), 4) : t(c.fator);
+  return item.unidade === 'SACO' ? pesoDoSaco(item.produto) : '1';
+};
+
+/** Quantidade do item na unidade de estoque (4 casas), pela operação exata; null se não der. @param {any} item @param {string} q */
+const emEstoqueDoItem = (item, q) => {
+  const c = conversaoDoProduto(item.produto, item.unidade);
+  if (c) return c.operacao === 'DIVIDE' ? dividirArredondar(q, String(c.fator), 4) : multiplicarArredondar(q, t(c.fator), 4);
+  const fator = item.unidade === 'SACO' ? pesoDoSaco(item.produto) : '1';
+  return fator ? multiplicarArredondar(q, fator, 4) : null;
 };
 
 /** O produto aceita SACO? (só com unidade principal SACO e peso por saco > 0). @param {any} produto */
@@ -708,16 +741,18 @@ export const calcularResumo = (form, ctx) => {
     if (mercadoria) {
       if (!item.produto) e.produto = 'Escolha o produto';
       if (!item.local) e.local = 'Escolha o local de estoque';
-      if (item.unidade === 'SACO' && !produtoAceitaSaco(item.produto)) e.unidade = 'Este produto não é controlado em sacos';
-      if (item.unidade !== 'KG' && item.unidade !== 'SACO' && item.unidade !== 'L') e.unidade = 'Use KG ou SACO';
+      const conversao = conversaoDoProduto(item.produto, item.unidade);
+      if (item.unidade === 'SACO' && !conversao && !produtoAceitaSaco(item.produto)) e.unidade = 'Este produto não é controlado em sacos';
+      if (item.unidade !== 'KG' && item.unidade !== 'SACO' && item.unidade !== 'L' && !conversao) e.unidade = 'Use KG ou uma unidade do cadastro do produto';
       // D-PROD-162: Produto em L só com item L; item L só com Produto em L (o servidor confere igual).
-      else if (produtoEmLitros(item.produto) && item.unidade !== 'L') e.unidade = 'Este produto é controlado em litros (L)';
+      else if (produtoEmLitros(item.produto) && item.unidade !== 'L' && !conversao) e.unidade = 'Este produto é controlado em litros (L)';
       else if (!produtoEmLitros(item.produto) && item.unidade === 'L') e.unidade = 'Use KG ou SACO';
       if (q.valor && !q.erro) {
-        // fator 1 para KG e para L (a quantidade em estoque fica em litros); SACO usa o peso do saco.
-        const fator = item.unidade === 'SACO' ? pesoDoSaco(item.produto) : '1';
-        if (fator) {
-          kg = multiplicarArredondar(q.valor, fator, 4);
+        // fator 1 para KG e para L (a quantidade em estoque fica em litros); SACO usa o peso do saco; D-PROD-285: as
+        // unidades de conversão multiplicam ou dividem (a mesma conta do servidor).
+        const emEstoque = emEstoqueDoItem(item, q.valor);
+        if (emEstoque) {
+          kg = emEstoque;
           if (!ehPositivo(kg)) e.quantidade = item.unidade === 'L' ? 'A quantidade em L ficaria zero' : 'A quantidade em kg ficaria zero';
           else if (comparar(kg, LIMITE_ESTOQUE) > 0) e.quantidade = 'Acima do limite do estoque';
         }

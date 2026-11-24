@@ -185,9 +185,28 @@ describe('PR — produtos', () => {
       unidade_principal_estoque: 'SACO', peso_por_saco_kg: '30,5',
     });
     expect(payload.nome_produto).toBe('MILHO');
-    expect(payload.preco_custo).toBe(12.5);
-    expect(payload.percentual_consumo_pv).toBe(0.8);
-    expect(payload.peso_por_saco_kg).toBe(30.5);
+    // D-PROD-285: preço, consumo, código interno e peso por saco saíram da tela e não vão no payload (o saco é uma
+    // unidade de conversão; o consumo, da Formulação).
+    expect(payload.preco_custo).toBeUndefined();
+    expect(payload.percentual_consumo_pv).toBeUndefined();
+    expect(payload.peso_por_saco_kg).toBeUndefined();
+    expect(payload.codigo_interno).toBeUndefined();
+    expect(payload.unidade_principal_estoque).toBe('SACO');
+  });
+
+  it('PR9b (D-PROD-285) — as linhas de Unidades viram unidades_conversao (vazias saem; fator com vírgula)', () => {
+    const payload = produtoSvc.normalizarProduto({
+      nome_produto: 'sal', unidades_conversao: [
+        { sigla: ' saco ', operacao: 'MULTIPLICA', fator: '25', uso_compra: true, uso_venda: false },
+        { sigla: 'g', operacao: 'DIVIDE', fator: '1000' },
+        { sigla: '', fator: '' },
+      ],
+    });
+    expect(payload.unidades_conversao).toEqual([
+      { sigla: 'SACO', operacao: 'MULTIPLICA', fator: 25, uso_compra: true, uso_venda: false, ativa: true, ordem: 1 },
+      { sigla: 'G', operacao: 'DIVIDE', fator: 1000, uso_compra: true, uso_venda: true, ativa: true, ordem: 2 },
+    ]);
+    expect(produtoSvc.normalizarProduto({ nome_produto: 'x' }).unidades_conversao).toBeUndefined();
   });
 
   it('PR10 — peso por saco só entra quando a unidade principal é SACO', () => {

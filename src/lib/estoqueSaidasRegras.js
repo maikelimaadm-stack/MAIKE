@@ -112,7 +112,7 @@ const opcaoOuNada = (id, nome) => (id ? { id: String(id), rotulo: String(nome ??
 export const formularioDaSaida = (s) => {
   const itens = (Array.isArray(s?.itens) ? s.itens : []).map((/** @type {any} */ i) => ({
     ...linhaVaziaSaida(),
-    produto: { id: String(i.produto_id), rotulo: String(i.produto_nome ?? ''), unidade_estoque: i.unidade_estoque === 'L' ? 'L' : 'KG', peso_por_saco_kg: i.unidade === 'SACO' ? (i.fator_kg ?? null) : null },
+    produto: { id: String(i.produto_id), rotulo: String(i.produto_nome ?? ''), unidade_estoque: i.unidade_estoque === 'L' ? 'L' : 'KG', peso_por_saco_kg: i.unidade === 'SACO' ? (i.fator_kg ?? null) : null, unidades_conversao: !['KG', 'L', 'SACO'].includes(String(i.unidade)) && i.fator_kg ? [{ sigla: String(i.unidade), operacao: 'MULTIPLICA', fator: String(i.fator_kg), ativa: true }] : [] },
     deposito: { id: String(i.local_estoque_id), rotulo: String(i.local_estoque_nome ?? '') },
     unidade: String(i.unidade ?? ''),
     quantidade: i.quantidade != null ? paraCampo(i.quantidade) : '',

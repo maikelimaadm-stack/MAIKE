@@ -5,12 +5,12 @@ import { CampoSelect, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { CampoNumero, ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { formatarCustoUnitario, formatarDia, formatarQtd } from "@/lib/estoqueConsultaRegras";
-import { LIMITES_ENTRADA, LOCALE_ENTRADA, comProduto, unidadesDoProduto } from "@/lib/estoqueEntradasRegras";
+import { LIMITES_ENTRADA, LOCALE_ENTRADA, comProduto, equivalenciaDaLinha, unidadesDoProduto } from "@/lib/estoqueEntradasRegras";
 import { FALTA, MAX_ITENS_AJUSTE, ROTULO_TIPO_AJUSTE, SEM_DIFERENCA, SOBRA, diferencaDaLinha, formatarDiferenca, linhaVaziaAjuste, precisaCusto } from "@/lib/estoqueAjustesRegras";
 import { listarCentrosDaEntrada, listarDepositosDaEntrada, listarProdutosDaEntrada } from "@/services/estoqueEntradasService";
 
 /** @param {any} o */
-const opcaoProduto = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? ""), unidade_estoque: o.unidade_estoque, peso_por_saco_kg: o.peso_por_saco_kg ?? null } : null);
+const opcaoProduto = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? ""), unidade_estoque: o.unidade_estoque, peso_por_saco_kg: o.peso_por_saco_kg ?? null, unidades_conversao: Array.isArray(o.unidades_conversao) ? o.unidades_conversao : [] } : null);
 /** @param {any} o */
 const opcaoSimples = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? "") } : null);
 
@@ -91,6 +91,10 @@ function LinhaDeAjuste({ linha, indice, empresaId, erros, podeRemover, saldo, on
           span={4}
           testId={`ajuste-linha-${indice}-contado`}
         />
+        {/* D-PROD-285: a contagem em outra unidade mostra a equivalência ("8 SACO = 200 kg"). */}
+        {equivalenciaDaLinha({ ...linha, quantidade: linha.contado }) ? (
+          <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`ajuste-linha-${indice}-equivalencia`}>{equivalenciaDaLinha({ ...linha, quantidade: linha.contado })}</p>
+        ) : null}
         <ValorCalculado label="Saldo atual" valor={textoSaldo} span={4} testId={`ajuste-linha-${indice}-saldo`} />
         <B1Field label="Diferença" span={4} hasValue locked>
           <output

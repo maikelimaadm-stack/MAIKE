@@ -19,6 +19,7 @@ import {
   moverItemDoFormulario,
   parcelaVazia,
   produtoAceitaSaco,
+  conversoesDoItem,
   produtoEmLitros,
   unidadeAoEscolherProduto,
   rateioVazio,
@@ -66,6 +67,8 @@ function LinhaItem({ item, indice, total, resumoItem, direcao, ctx, alterar, rem
   const saldoDoLocal = item.local ? (saldos.data ?? []).find((s) => String(s.local_estoque_id) === String(item.local.id)) : null;
   const faltaSaldo = venda && saldoDoLocal && resumoItem?.kg && comparar(resumoItem.kg, saldoDoLocal.disponivel_kg) > 0;
   const aceitaSaco = produtoAceitaSaco(item.produto);
+  // D-PROD-285: as unidades de conversão do cadastro do produto (compra → uso compra; venda → uso saída).
+  const conversoes = conversoesDoItem(item.produto, direcao === "RECEBER" ? "RECEBER" : "PAGAR");
   // D-PROD-162: Produto em litros só aceita a unidade L, e o estoque dele é mostrado em L.
   const emLitros = produtoEmLitros(item.produto);
   const unidadeEstoque = emLitros ? "L" : "kg";
@@ -139,7 +142,7 @@ function LinhaItem({ item, indice, total, resumoItem, direcao, ctx, alterar, rem
               }
               onChange={(o) =>
                 alterar({
-                  produto: o ? { id: String(o.id), rotulo: rotuloProduto(o), unidade_principal_estoque: o.unidade_principal_estoque, peso_por_saco_kg: o.peso_por_saco_kg == null ? null : String(o.peso_por_saco_kg) } : null,
+                  produto: o ? { id: String(o.id), rotulo: rotuloProduto(o), unidade_principal_estoque: o.unidade_principal_estoque, peso_por_saco_kg: o.peso_por_saco_kg == null ? null : String(o.peso_por_saco_kg), unidades_conversao: Array.isArray(o.unidades_conversao) ? o.unidades_conversao : [] } : null,
                   unidade: unidadeAoEscolherProduto(o),
                 })
               }
@@ -188,10 +191,13 @@ function LinhaItem({ item, indice, total, resumoItem, direcao, ctx, alterar, rem
                 ) : (
                   <>
                     <option value="KG">KG</option>
-                    {aceitaSaco || item.unidade === "SACO" ? <option value="SACO">SACO</option> : null}
+                    {(aceitaSaco || item.unidade === "SACO") && !conversoes.some((c) => c.sigla === "SACO") ? <option value="SACO">SACO</option> : null}
                     {item.unidade === "L" ? <option value="L">L</option> : null}
                   </>
                 )}
+                {conversoes.map((c) => (
+                  <option key={c.sigla} value={c.sigla}>{c.equivalencia ? `${c.sigla} (${c.equivalencia})` : c.sigla}</option>
+                ))}
               </B1Select>
             </B1Field>
           </>
@@ -247,7 +253,8 @@ function LinhaItem({ item, indice, total, resumoItem, direcao, ctx, alterar, rem
         {mercadoria && resumoItem?.kg ? (
           <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid={`item-${indice}-kg`}>
             {direcao === "PAGAR" ? "Entra no estoque" : "Sai do estoque"}: {formatarNumero(resumoItem.kg, { locale, casasMax: 4 })} {unidadeEstoque}
-            {item.unidade === "SACO" ? " (convertido pelo peso do saco)" : ""}
+            {item.unidade === "SACO" && !conversoes.some((c) => c.sigla === "SACO") ? " (convertido pelo peso do saco)" : ""}
+            {conversoes.some((c) => c.sigla === item.unidade) && item.quantidade ? ` (${item.quantidade} ${item.unidade} = ${formatarNumero(resumoItem.kg, { locale, casasMax: 4 })} ${unidadeEstoque})` : ""}
             {faltaSaldo ? <strong className="ml-1 text-amber-800">— acima do saldo deste local ({formatarNumero(saldoDoLocal.disponivel_kg, { locale, casasMax: 4 })} {unidadeEstoque})</strong> : null}
           </p>
         ) : null}

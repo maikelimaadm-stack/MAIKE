@@ -129,29 +129,45 @@ const carenciaDoFormulario = (valor) => {
   return Number.isInteger(n) ? { carencia_dias: n } : {};
 };
 
+/**
+ * D-PROD-285 — linhas de "Unidades" do formulário → `unidades_conversao` (ausente: não vai; linhas vazias saem).
+ * @param {unknown} linhas @returns {{ unidades_conversao?: any[] }}
+ */
+export const conversoesDoFormulario = (linhas) => {
+  if (!Array.isArray(linhas)) return {};
+  const lista = linhas
+    .filter((l) => l && String(l.sigla ?? '').trim())
+    .map((l, i) => ({
+      ...(l.id ? { id: String(l.id) } : {}),
+      sigla: String(l.sigla).trim().toUpperCase(),
+      operacao: l.operacao === 'DIVIDE' ? 'DIVIDE' : 'MULTIPLICA',
+      fator: typeof l.fator === 'number' ? l.fator : parseDecimalPtBR(l.fator) ?? 0,
+      uso_compra: l.uso_compra !== false,
+      uso_venda: l.uso_venda !== false,
+      ...(l.codigo_barras ? { codigo_barras: String(l.codigo_barras).trim() } : {}),
+      ativa: l.ativa !== false,
+      ordem: i + 1,
+    }));
+  return { unidades_conversao: lista };
+};
+
 export const normalizarProduto = (formData, opcoes = {}) => {
   const unidadePrincipal = formData.unidade_principal_estoque || 'KG';
-  const pesoPorSaco = parseDecimalPtBR(formData.peso_por_saco_kg);
 
   const payload = {
     nome_produto: maiusculoOuIndefinido(formData.nome_produto),
     tipo_uso: formData.tipo_uso || undefined,
-    codigo_interno: maiusculoOuIndefinido(formData.codigo_interno),
+    // D-PROD-285: código interno automático (= número do cadastro), preços, local de estoque, consumo e peso por saco
+    // saíram da tela: não vão no payload (o servidor ignoraria). O consumo fica nas Formulações; o saco vira conversão.
     codigo_barras: formData.codigo_barras || undefined,
     categoria: maiusculoOuIndefinido(formData.categoria),
     marca: maiusculoOuIndefinido(formData.marca),
     descricao: maiusculoOuIndefinido(formData.descricao),
     unidade_medida: maiusculoOuIndefinido(formData.unidade_medida),
-    preco_custo: parseDecimalPtBR(formData.preco_custo) ?? 0,
-    preco_venda: parseDecimalPtBR(formData.preco_venda) ?? 0,
     estoque_minimo: parseDecimalPtBR(formData.estoque_minimo) ?? 0,
-    local_estoque: maiusculoOuIndefinido(formData.local_estoque),
-    tipo_consumo: formData.tipo_consumo || undefined,
-    percentual_consumo_pv: parseDecimalPtBR(formData.percentual_consumo_pv) || undefined,
-    consumo_minimo_pv: parseDecimalPtBR(formData.consumo_minimo_pv) || undefined,
-    consumo_maximo_pv: parseDecimalPtBR(formData.consumo_maximo_pv) || undefined,
     unidade_principal_estoque: unidadePrincipal,
-    peso_por_saco_kg: unidadePrincipal === 'SACO' ? pesoPorSaco || undefined : undefined,
+    // D-PROD-285: as unidades de conversão (sigla, multiplica/divide, fator, compra/saída).
+    ...conversoesDoFormulario(formData.unidades_conversao),
     // D-PROD-274: a carência da bula em dias (vazio = sem carência: null limpa na edição; ausente fica como estava).
     ...carenciaDoFormulario(formData.carencia_dias),
     // D-PROD-282: controle de lote e de validade (validade só com lote).

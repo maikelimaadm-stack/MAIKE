@@ -37,6 +37,7 @@ import {
   montarCorpoEntrada,
   tiposPermitidos,
   unidadesDoProduto,
+  equivalenciaDaLinha,
   validarFormularioEntrada,
   validarTransferencia,
 } from "@/lib/estoqueEntradasRegras";
@@ -82,7 +83,7 @@ function Observacao({ label, value, onChange, testId = undefined, required = fal
 
 /** @param {any} o */
 // D-PROD-282: o produto leva o controle de lote/validade (a entrada exige; a saída oferece a escolha de lote).
-const opcaoProduto = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? ""), unidade_estoque: o.unidade_estoque, peso_por_saco_kg: o.peso_por_saco_kg ?? null, controla_lote: o.controla_lote === true, controla_validade: o.controla_validade === true } : null);
+const opcaoProduto = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? ""), unidade_estoque: o.unidade_estoque, peso_por_saco_kg: o.peso_por_saco_kg ?? null, unidades_conversao: Array.isArray(o.unidades_conversao) ? o.unidades_conversao : [], controla_lote: o.controla_lote === true, controla_validade: o.controla_validade === true } : null);
 /** @param {any} o */
 const opcaoSimples = (o) => (o ? { id: String(o.id), rotulo: String(o.nome ?? "") } : null);
 
@@ -119,8 +120,10 @@ const totalDasLinhas = (itens) => {
  */
 function LinhaDeProduto({ linha, indice, empresaId, erros, podeRemover, onMudar, onRemover }) {
   const e = (/** @type {string} */ campo) => erros[`itens.${indice}.${campo}`] || undefined;
-  const unidades = unidadesDoProduto(linha.produto);
-  const por = linha.unidade === "SACO" ? "saco" : linha.unidade === "L" ? "litro" : "kg";
+  // D-PROD-285: a de estoque e as unidades de conversão com uso em compra/entrada.
+  const unidades = unidadesDoProduto(linha.produto, "compra");
+  const por = linha.unidade === "SACO" ? "saco" : linha.unidade === "L" ? "litro" : linha.unidade && linha.unidade !== "KG" ? linha.unidade : "kg";
+  const equivalencia = equivalenciaDaLinha(linha);
   return (
     // A linha é um cartão de linha inteira (`b1-form-embutido`) com a grade PRÓPRIA dentro: a grade compacta de 4 colunas
     // da Base1 (D-PROD-164/#339) vale para `.mg-b1-form-grid` e, aplicada aqui dentro, achatava o cartão e empilhava os
@@ -141,7 +144,7 @@ function LinhaDeProduto({ linha, indice, empresaId, erros, podeRemover, onMudar,
         chave={["estoque", "entrada-produtos", empresaId]}
         buscar={({ q, cursor, limit }) => listarProdutosDaEntrada(empresaId, { q, cursor, limit })}
         value={linha.produto ? { id: linha.produto.id, rotulo: linha.produto.rotulo } : null}
-        onChange={(o) => onMudar(comProduto(linha, opcaoProduto(o)))}
+        onChange={(o) => onMudar(comProduto(linha, opcaoProduto(o), "compra"))}
         detalheDaOpcao={(o) => (o?.codigo ? String(o.codigo) : null)}
         obrigatorio
         erro={e("produto")}
@@ -180,6 +183,9 @@ function LinhaDeProduto({ linha, indice, empresaId, erros, podeRemover, onMudar,
         span={3}
         testId={`entrada-linha-${indice}-quantidade`}
       />
+      {equivalencia ? (
+        <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`entrada-linha-${indice}-equivalencia`}>{equivalencia}</p>
+      ) : null}
       <CampoNumero
         label={`Valor unitário (R$ por ${por})`}
         value={linha.custo_zero ? "" : linha.custo}
@@ -228,7 +234,9 @@ function LinhaDeProduto({ linha, indice, empresaId, erros, podeRemover, onMudar,
  */
 function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, onRemover }) {
   const e = (/** @type {string} */ campo) => erros[`itens.${indice}.${campo}`] || undefined;
-  const unidades = unidadesDoProduto(linha.produto);
+  // D-PROD-285: a de estoque e as unidades de conversão com uso em saída.
+  const unidades = unidadesDoProduto(linha.produto, "venda");
+  const equivalencia = equivalenciaDaLinha(linha);
   return (
     <div className="col-span-12 b1-form-embutido rounded border border-[var(--mg-border,#e2e8f0)] p-2" data-testid={`saida-linha-${indice}`}>
       <div className="grid grid-cols-12 gap-x-3 gap-y-2">
@@ -246,7 +254,7 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
           chave={["estoque", "entrada-produtos", empresaId]}
           buscar={({ q, cursor, limit }) => listarProdutosDaEntrada(empresaId, { q, cursor, limit })}
           value={linha.produto ? { id: linha.produto.id, rotulo: linha.produto.rotulo } : null}
-          onChange={(o) => onMudar({ ...comProduto(linha, opcaoProduto(o)), lotes: null, confirmaVencido: false })}
+          onChange={(o) => onMudar({ ...comProduto(linha, opcaoProduto(o), "venda"), lotes: null, confirmaVencido: false })}
           detalheDaOpcao={(o) => (o?.codigo ? String(o.codigo) : null)}
           obrigatorio
           erro={e("produto")}
@@ -285,6 +293,9 @@ function LinhaDeSaida({ linha, indice, empresaId, erros, podeRemover, onMudar, o
           span={4}
           testId={`saida-linha-${indice}-quantidade`}
         />
+        {equivalencia ? (
+          <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" role="status" data-testid={`saida-linha-${indice}-equivalencia`}>{equivalencia}</p>
+        ) : null}
         {/* D-PROD-282: produto com lote — sugestão FEFO, troca, divisão e aviso de vencido. */}
         <CampoLotesSaida empresaId={empresaId} linha={linha} onMudar={(patch) => onMudar({ ...linha, ...patch })} testId={`saida-linha-${indice}-lotes`} />
         {e("lotes") ? <p className="col-span-12 text-[12px] text-red-700" role="alert">{e("lotes")}</p> : null}

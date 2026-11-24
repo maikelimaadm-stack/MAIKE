@@ -12,7 +12,7 @@ import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import { lerErroGestao } from '@/lib/gestaoErros';
 import { comparar, lerNumeroLocal, multiplicarArredondar, subtrair } from '@/lib/dinheiroDecimal';
 import { formatarQtd } from '@/lib/estoqueConsultaRegras';
-import { LIMITES_ENTRADA, LOCALE_ENTRADA } from '@/lib/estoqueEntradasRegras';
+import { LIMITES_ENTRADA, LOCALE_ENTRADA, emUnidadeDeEstoque } from '@/lib/estoqueEntradasRegras';
 import { mensagemRecusaRecalculo } from '@/lib/estoqueRecalculoExclusao';
 
 export const MAX_ITENS_AJUSTE = 100;
@@ -53,16 +53,10 @@ const tamanho = (/** @type {string} */ t) => [...String(t ?? '').trim()].length;
 export const contadoEmEstoque = (linha) => {
   const q = lerDecimal(linha?.contado);
   if (!q.ok || !linha?.unidade) return null;
-  if (linha.unidade === 'SACO') {
-    const peso = linha.produto?.peso_por_saco_kg;
-    if (!peso) return null;
-    try {
-      return multiplicarArredondar(q.valor, String(peso), 4);
-    } catch {
-      return null;
-    }
-  }
-  return q.valor;
+  // D-PROD-285: SACO e as unidades de conversão pela mesma conta do servidor (multiplica ou divide, 4 casas).
+  const estoque = linha.produto?.unidade_estoque === 'L' ? 'L' : 'KG';
+  if (linha.unidade === estoque) return q.valor;
+  return emUnidadeDeEstoque(linha.produto, linha.unidade, q.valor);
 };
 
 /**
