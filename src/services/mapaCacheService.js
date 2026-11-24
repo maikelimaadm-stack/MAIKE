@@ -47,6 +47,7 @@ import { listLotesNota, listMovimentacoes as listMovimentacoesEstoque, listProdu
 import { listLancamentos, listHistorico } from '@/apis/tarefas';
 import { listPermissoes } from '@/apis/session';
 import { listLeiturasCocho } from '@/apis/leituras-cocho';
+import { leiturasAguardandoEnvio } from '@/services/leituraCochoService';
 import { listMedicoesForragem, listDescansoPastos } from '@/apis/medicoes-forragem';
 import {
   listAplicacoesMedicamento,
@@ -102,7 +103,11 @@ const CAPACIDADES = {
   categoriasManejo: async (empresaId) => daEmpresa(await listCategoriasManejo(), empresaId),
   eventosSuplementacao: async (empresaId) => daEmpresa(await listSuplementacaoEventos(), empresaId),
   // D-PROD-205: leituras de cocho (escore, acesso, estrutura) — o farol do cocho no mapa, também sem rede.
-  leiturasCocho: async (empresaId) => daEmpresa(await listLeiturasCocho(), empresaId),
+  // D-PROD-296: + as feitas sem internet que ainda não subiram ("aguardando envio").
+  leiturasCocho: async (empresaId) => [
+    ...(await leiturasAguardandoEnvio(empresaId)),
+    ...daEmpresa(await listLeiturasCocho(), empresaId),
+  ],
   // D-PROD-219: medições de forragem dos pastos (régua, no olho, amostra de MS), também sem rede.
   medicoesForragem: async (empresaId) => daEmpresa(await listMedicoesForragem(), empresaId),
   // D-PROD-223: por pasto, lote dentro agora e o dia da última saída (ledger), para o farol estimado.

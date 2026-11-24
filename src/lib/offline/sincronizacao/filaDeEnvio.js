@@ -35,6 +35,7 @@ const VERSAO_DO_BANCO = 1;
  *   criado_em: string,
  *   sequencia?: number,
  *   estado: EstadoDoItem,
+ *   tentado?: boolean,
  *   tentativas: number,
  *   proxima_tentativa_em: number,
  *   ultimo_erro: null | {codigo: string, mensagem: string, em: string},

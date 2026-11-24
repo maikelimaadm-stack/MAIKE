@@ -15,7 +15,9 @@
  *   - `recursos` o que o registro toca (ex.: ['cocho:ID', 'deposito:ID']) —
  *                itens que tocam o mesmo recurso vão ao servidor NA ORDEM;
  *   - `enviar`   como mandar ao servidor, recebendo o `operationId`;
- *   - `rotulo`   texto curto para a pessoa reconhecer o registro na lista.
+ *   - `rotulo`   texto curto para a pessoa reconhecer o registro na lista;
+ *   - `atualiza` (opcional) o que as telas releem depois que um registro deste
+ *                tipo chega ao servidor (ex.: ['leiturasCocho']).
  *
  * Os manejos de hoje se registram assim, e uma aplicação criada no futuro
  * dentro do sistema também: basta declarar o tipo e se usa offline. O motor
@@ -62,6 +64,7 @@ import { criarFilaIndexedDB, filaDeEnvioDisponivel } from './filaDeEnvio.js';
  *   rotulo?: (payload: any) => string,
  *   enviar: (payload: any, contexto: {operationId: string, empresaId: string|null}) => Promise<unknown>,
  *   migrar?: (payload: any, versaoAntiga: number) => any,
+ *   atualiza?: string[],
  * }} TipoDeEnvio
  *
  * @typedef {{cliente_id: string, usuario_id: string|null}} SessaoDaFila
@@ -73,8 +76,10 @@ import { criarFilaIndexedDB, filaDeEnvioDisponivel } from './filaDeEnvio.js';
  *   aguardando: number,
  *   atencao: number,
  *   enviando: boolean,
+ *   atualizar?: string[],
  *   itens: Array<{id: string, tipo: string, rotulo: string, estado: string, criado_em: string,
- *                 tentativas: number, ultimo_erro: ItemDaFila['ultimo_erro'], esperando: boolean}>,
+ *                 tentativas: number, ultimo_erro: ItemDaFila['ultimo_erro'], esperando: boolean,
+ *                 confirmando: boolean}>,
  * }} ResumoDaFila
  */
 
@@ -112,10 +117,11 @@ const portaDaFila = () => {
   return porta;
 };
 
-const emitir = () => {
+/** @param {string[]} [atualizar] o que as telas devem reler (registros que chegaram ao servidor) */
+const emitir = (atualizar) => {
   if (typeof window === 'undefined') return;
   try {
-    window.dispatchEvent(new CustomEvent(EVENTO_FILA_DE_ENVIO));
+    window.dispatchEvent(new CustomEvent(EVENTO_FILA_DE_ENVIO, { detail: { atualizar: atualizar ?? [] } }));
   } catch {
     // sem window: nada a avisar
   }
@@ -333,7 +339,9 @@ const erroSemInternet = (/** @type {string} */ tipo) => {
  *
  * @param {string} tipo
  * @param {unknown} payload
- * @param {{empresaId?: string|null, operationId?: string}} [opcoes]
+ * @param {{empresaId?: string|null, operationId?: string, rotulo?: string}} [opcoes]
+ *        `rotulo`: texto da lista de envio, quando a tela sabe mais que o payload
+ *        (ex.: o nome do cocho).
  * @returns {Promise<ResultadoDoEnvio>}
  */
 export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
@@ -358,8 +366,9 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
    * envio direto, para quem citar este registro depois (referência).
    * @param {'pendente'|'enviado'} [estado]
    * @param {unknown} [resultado]
+   * @param {boolean} [tentado] já houve tentativa de envio (a rede caiu no meio)
    */
-  const guardar = async (estado = 'pendente', resultado = undefined) => {
+  const guardar = async (estado = 'pendente', resultado = undefined, tentado = false) => {
     if (!podeGuardar || !fila || !sessao) throw erroSemInternet(tipo);
     const enviado = estado === 'enviado';
     /** @type {ItemDaFila} */
@@ -374,10 +383,11 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
       payload: JSON.parse(JSON.stringify(payload ?? null)),
       recursos,
       referencias,
-      rotulo: rotuloDe(def, payload),
+      rotulo: typeof opcoes.rotulo === 'string' && opcoes.rotulo.trim() ? opcoes.rotulo.trim().slice(0, 160) : rotuloDe(def, payload),
       criado_em: new Date(agora()).toISOString(),
       sequencia: proximaSequencia(itens),
       estado,
+      tentado: tentado || estado === 'enviado',
       tentativas: 0,
       proxima_tentativa_em: 0,
       ultimo_erro: null,
@@ -408,7 +418,7 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
   } catch (erro) {
     // A rede caiu no meio: o servidor pode ter gravado ou não. Na fila, com o
     // MESMO código, o reenvio é deduplicado — nunca duas vezes.
-    if (classificarFalhaDeEnvio(erro) === 'rede' && podeGuardar) return guardar();
+    if (classificarFalhaDeEnvio(erro) === 'rede' && podeGuardar) return guardar('pendente', undefined, true);
     throw erro;
   }
 };
@@ -433,10 +443,16 @@ export const agendarSincronizacao = (atrasoMs = 1500) => {
  */
 export const sincronizar = () => {
   if (!passadaEmCurso) {
-    passadaEmCurso = passada().finally(() => {
-      passadaEmCurso = null;
-      emitir();
-    });
+    let atualizar = /** @type {string[]} */ ([]);
+    passadaEmCurso = passada()
+      .then((r) => {
+        atualizar = r.atualizar ?? [];
+        return r;
+      })
+      .finally(() => {
+        passadaEmCurso = null;
+        emitir(atualizar);
+      });
     emitir();
   }
   return passadaEmCurso;
@@ -455,6 +471,9 @@ const passada = async () => {
   const existentes = new Set(todos.map((i) => i.id));
   const recursosParados = new Set();
   const itensParados = new Set();
+  /** O que as telas precisam reler: `atualiza` dos tipos que chegaram ao servidor nesta passada. */
+  const atualizar = new Set();
+  const fim = async () => ({ ...(await resumoDaFila()), atualizar: [...atualizar] });
 
   /** @param {ItemDaFila} item */
   const parar = (item) => {
@@ -475,7 +494,7 @@ const passada = async () => {
       parar(item);
       continue;
     }
-    if (!mesmaSessao(dono)) return resumoDaFila();
+    if (!mesmaSessao(dono)) return fim();
     const def = TIPOS.get(item.tipo);
     // Formato ou versão que este app não conhece, tipo ainda não carregado, ou
     // versão antiga sem migração declarada: fica intocado e segura quem vem
@@ -521,7 +540,13 @@ const passada = async () => {
       continue;
     }
 
-    if (!mesmaSessao(dono)) return resumoDaFila();
+    if (!mesmaSessao(dono)) return fim();
+    // A partir daqui o servidor pode receber: o item passa a "confirmando envio"
+    // (não se exclui nem se edita até o servidor responder).
+    if (!item.tentado) {
+      item.tentado = true;
+      await fila.gravar(item);
+    }
     try {
       const resultado = await def.enviar(payload, { operationId: item.id, empresaId: item.empresa_id });
       await fila.gravar({
@@ -532,16 +557,17 @@ const passada = async () => {
         ultimo_erro: null,
       });
       resultados.set(item.id, resultado);
+      (def.atualiza ?? []).forEach((chave) => atualizar.add(chave));
       emitir();
     } catch (erro) {
       const tipoDeFalha = classificarFalhaDeEnvio(erro);
-      if (tipoDeFalha === 'sessao') return resumoDaFila();
+      if (tipoDeFalha === 'sessao') return fim();
       const tentativas = item.tentativas + 1;
       if (tipoDeFalha === 'rede') {
         await fila.gravar({ ...item, tentativas, proxima_tentativa_em: agora() + esperaDepoisDe(tentativas), ultimo_erro: resumoDoErro(erro) });
         emitir();
         // Sem rede para um, sem rede para os outros: para a passada.
-        return resumoDaFila();
+        return fim();
       }
       if (tipoDeFalha === 'servidor' && tentativas < TENTATIVAS_COM_ERRO_DO_SERVIDOR) {
         await fila.gravar({ ...item, tentativas, proxima_tentativa_em: agora() + esperaDepoisDe(tentativas), ultimo_erro: resumoDoErro(erro) });
@@ -554,7 +580,7 @@ const passada = async () => {
   }
 
   await limparEnviadosAntigos(fila);
-  return resumoDaFila();
+  return fim();
 };
 
 /** @param {PortaDaFila} fila */
@@ -589,6 +615,7 @@ export const resumoDaFila = async () => {
       tentativas: i.tentativas,
       ultimo_erro: i.ultimo_erro,
       esperando: i.estado === 'pendente' && i.proxima_tentativa_em > agora(),
+      confirmando: i.estado === 'pendente' && Boolean(i.tentado),
     })),
   };
 };
@@ -607,6 +634,24 @@ export const registrosAguardandoDoTipo = async (tipo) => {
     .filter((i) => eDaSessao(i) && i.tipo === tipo && i.estado !== 'enviado')
     .sort(emOrdem)
     .map((i) => ({ operationId: i.id, payload: i.payload, estado: i.estado, criado_em: i.criado_em }));
+};
+
+/**
+ * Situação de um registro na fila desta sessão:
+ *  - 'aguardando'   nunca tentou subir: pode excluir ou editar;
+ *  - 'confirmando'  tentou e o servidor não respondeu: espera;
+ *  - 'atencao'      o servidor recusou;
+ *  - 'enviado'      está no servidor;
+ *  - null           não está na fila.
+ * @param {string} id
+ * @returns {Promise<'aguardando'|'confirmando'|'atencao'|'enviado'|null>}
+ */
+export const situacaoNaFila = async (id) => {
+  const fila = portaDaFila();
+  const item = fila && id ? await fila.ler(id) : undefined;
+  if (!item || !eDaSessao(item)) return null;
+  if (item.estado === 'enviado' || item.estado === 'atencao') return item.estado;
+  return item.tentado ? 'confirmando' : 'aguardando';
 };
 
 /** Há registro desta sessão que ainda não chegou ao servidor? (aviso ao sair) */
@@ -640,6 +685,9 @@ export const descartarDaFila = async (id) => {
   const fila = portaDaFila();
   const item = fila ? await fila.ler(id) : undefined;
   if (!fila || !item || !eDaSessao(item) || item.estado === 'enviado') return false;
+  // Já tentou subir e o servidor não respondeu: pode ter gravado. Só depois da
+  // resposta (enviado, ou recusado → atenção) dá para decidir.
+  if (item.estado === 'pendente' && item.tentado) return false;
   await fila.remover(id);
   emitir();
   return true;

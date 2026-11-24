@@ -18,11 +18,17 @@
  *  - `data_leitura` AAAA-MM-DD válida e não posterior a hoje no fuso da fazenda
  *    (sem fuso configurado, America/Sao_Paulo) → senão 400 (`data_invalida`, `data_futura`);
  *  - `registrado_por_nome` vem da conta autenticada (nome, ou o login), nunca do corpo;
- *  - exclusão física por id do tenant (a leitura não tem efeito em outro lugar).
+ *  - exclusão física por id do tenant (a leitura não tem efeito em outro lugar);
+ *  - D-PROD-296: com `operation_id`, a criação é idempotente (`OperacaoIdempotente`,
+ *    tipo `leitura_cocho_criar`): o reenvio do app que ficou sem internet devolve
+ *    a MESMA leitura, nunca uma segunda. Sem `operation_id` (versão antiga do
+ *    app), cria como antes.
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { AppError } from '../../shared/errors/AppError.js';
+import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { leituraCochoNotFound } from '../../shared/errors/AppError.js';
 import { exigirEmpresaDoTenant, invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
@@ -108,6 +114,75 @@ export const listar = async (contexto, filtros = {}) => {
   return registros.map(comoLeituraPublica);
 };
 
+/** Tipo do recibo de idempotência da criação (D-PROD-296). */
+export const TIPO_OPERACAO_CRIAR = 'leitura_cocho_criar';
+
+/** @param {unknown} valor */
+const operationIdDaEntrada = (valor) => {
+  if (valor === undefined || valor === null) return null;
+  const chave = typeof valor === 'string' ? valor.trim() : '';
+  if (chave.length < 8 || chave.length > 128) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'operation_id inválido', { details: { field: 'operation_id', reason: 'format' } });
+  }
+  return chave;
+};
+
+/**
+ * Valida e grava uma leitura dentro da transação.
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {any} contexto
+ * @param {{clienteId: string, usuarioId: string, login?: string}} auth
+ * @param {Record<string, unknown>} entrada
+ */
+const gravarLeitura = async (tx, contexto, auth, entrada) => {
+  const empresaId = await exigirEmpresaDoTenant(tx, auth.clienteId, entrada.empresa_id);
+
+  const pontoId = typeof entrada.ponto_suplementacao_id === 'string' ? entrada.ponto_suplementacao_id.trim() : '';
+  if (!pontoId) throw invalido('ponto_suplementacao_id é obrigatório', { field: 'ponto_suplementacao_id', reason: 'obrigatorio' });
+  const ponto = await buscarPonto(tx, auth.clienteId, pontoId);
+  if (!ponto) throw invalido('cocho não encontrado neste tenant', { field: 'ponto_suplementacao_id', reason: 'ponto_inexistente' });
+  if (ponto.empresa_id !== empresaId) {
+    throw invalido('o cocho é de outra fazenda', { field: 'ponto_suplementacao_id', reason: 'ponto_de_outra_fazenda' });
+  }
+  if (!semAcento(ponto.categoria_ponto || 'COCHO').includes('COCHO')) {
+    throw invalido('só cocho tem leitura (depósito não)', { field: 'ponto_suplementacao_id', reason: 'ponto_nao_e_cocho' });
+  }
+
+  const dia = diaValido(entrada.data_leitura);
+  if (!dia) throw invalido('data_leitura deve ser uma data válida (AAAA-MM-DD)', { field: 'data_leitura', reason: 'data_invalida' });
+  const empresa = await buscarFusoDaEmpresa(tx, auth.clienteId, empresaId);
+  const fuso = normalizarFusoIana(empresa?.fuso_horario) || FUSO_RESERVA;
+  const hoje = diaNoFuso(agoraDoServidor(), fuso);
+  if (dia > hoje) {
+    throw invalido(`a data ${dia} é posterior a hoje (${hoje}) na fazenda: só leitura já feita`, { field: 'data_leitura', reason: 'data_futura', hoje });
+  }
+
+  const escore = valorFechado(entrada.escore, 'escore', ESCORES, null);
+  const acesso = valorFechado(entrada.acesso, 'acesso', ACESSOS, 'BOM');
+  const estrutura = valorFechado(entrada.estrutura, 'estrutura', ESTRUTURAS, 'BOA');
+  const observacoes = textoDoCorpo(entrada.observacoes, 'observacoes') ?? null;
+  if (observacoes && [...observacoes].length > 2000) {
+    throw invalido('observacoes passa de 2000 caracteres', { field: 'observacoes', reason: 'tamanho_excedido' });
+  }
+
+  const usuario = await buscarNomeDoUsuario(tx, auth.clienteId, auth.usuarioId);
+  const nome = (usuario?.nome || usuario?.login || auth.login || '').trim().slice(0, 255) || null;
+
+  const registro = await inserirLeitura(tx, {
+    cliente_id: auth.clienteId,
+    empresa_id: empresaId,
+    ponto_suplementacao_id: ponto.id,
+    data_leitura: new Date(`${dia}T00:00:00.000Z`),
+    escore,
+    acesso,
+    estrutura,
+    observacoes,
+    registrado_por_nome: nome,
+  });
+  await registrarEvento(contexto, { acao: 'create', entidade: ENTIDADE, entidadeId: registro.id, dadosNovos: comoLeituraPublica(registro) }, tx);
+  return registro;
+};
+
 /**
  * @param {any} contexto auth_context da requisição (`contexto.auth`)
  * @param {Record<string, unknown>} entrada
@@ -115,55 +190,31 @@ export const listar = async (contexto, filtros = {}) => {
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
-  const criado = await prisma.$transaction(async (tx) => {
-    const empresaId = await exigirEmpresaDoTenant(tx, auth.clienteId, entrada.empresa_id);
-
-    const pontoId = typeof entrada.ponto_suplementacao_id === 'string' ? entrada.ponto_suplementacao_id.trim() : '';
-    if (!pontoId) throw invalido('ponto_suplementacao_id é obrigatório', { field: 'ponto_suplementacao_id', reason: 'obrigatorio' });
-    const ponto = await buscarPonto(tx, auth.clienteId, pontoId);
-    if (!ponto) throw invalido('cocho não encontrado neste tenant', { field: 'ponto_suplementacao_id', reason: 'ponto_inexistente' });
-    if (ponto.empresa_id !== empresaId) {
-      throw invalido('o cocho é de outra fazenda', { field: 'ponto_suplementacao_id', reason: 'ponto_de_outra_fazenda' });
-    }
-    if (!semAcento(ponto.categoria_ponto || 'COCHO').includes('COCHO')) {
-      throw invalido('só cocho tem leitura (depósito não)', { field: 'ponto_suplementacao_id', reason: 'ponto_nao_e_cocho' });
-    }
-
-    const dia = diaValido(entrada.data_leitura);
-    if (!dia) throw invalido('data_leitura deve ser uma data válida (AAAA-MM-DD)', { field: 'data_leitura', reason: 'data_invalida' });
-    const empresa = await buscarFusoDaEmpresa(tx, auth.clienteId, empresaId);
-    const fuso = normalizarFusoIana(empresa?.fuso_horario) || FUSO_RESERVA;
-    const hoje = diaNoFuso(agoraDoServidor(), fuso);
-    if (dia > hoje) {
-      throw invalido(`a data ${dia} é posterior a hoje (${hoje}) na fazenda: só leitura já feita`, { field: 'data_leitura', reason: 'data_futura', hoje });
-    }
-
-    const escore = valorFechado(entrada.escore, 'escore', ESCORES, null);
-    const acesso = valorFechado(entrada.acesso, 'acesso', ACESSOS, 'BOM');
-    const estrutura = valorFechado(entrada.estrutura, 'estrutura', ESTRUTURAS, 'BOA');
-    const observacoes = textoDoCorpo(entrada.observacoes, 'observacoes') ?? null;
-    if (observacoes && [...observacoes].length > 2000) {
-      throw invalido('observacoes passa de 2000 caracteres', { field: 'observacoes', reason: 'tamanho_excedido' });
-    }
-
-    const usuario = await buscarNomeDoUsuario(tx, auth.clienteId, auth.usuarioId);
-    const nome = (usuario?.nome || usuario?.login || auth.login || '').trim().slice(0, 255) || null;
-
-    const registro = await inserirLeitura(tx, {
-      cliente_id: auth.clienteId,
-      empresa_id: empresaId,
-      ponto_suplementacao_id: ponto.id,
-      data_leitura: new Date(`${dia}T00:00:00.000Z`),
-      escore,
-      acesso,
-      estrutura,
-      observacoes,
-      registrado_por_nome: nome,
-    });
-    await registrarEvento(contexto, { acao: 'create', entidade: ENTIDADE, entidadeId: registro.id, dadosNovos: comoLeituraPublica(registro) }, tx);
-    return registro;
+  const operationKey = operationIdDaEntrada(entrada.operation_id);
+  if (!operationKey) {
+    const criado = await prisma.$transaction((tx) => gravarLeitura(tx, contexto, auth, entrada));
+    return comoLeituraPublica(criado);
+  }
+  // O fingerprint é do que define a leitura: o mesmo código com outro conteúdo é 409.
+  const fingerprint = fingerprintDePayload({
+    empresa_id: entrada.empresa_id ?? null,
+    ponto_suplementacao_id: entrada.ponto_suplementacao_id ?? null,
+    data_leitura: entrada.data_leitura ?? null,
+    escore: entrada.escore ?? null,
+    acesso: entrada.acesso ?? null,
+    estrutura: entrada.estrutura ?? null,
+    observacoes: entrada.observacoes ?? null,
   });
-  return comoLeituraPublica(criado);
+  const idem = await prisma.$transaction((tx) =>
+    executarComIdempotencia(tx, {
+      clienteId: auth.clienteId,
+      operationKey,
+      tipoOperacao: TIPO_OPERACAO_CRIAR,
+      fingerprint,
+      executar: async () => ({ httpStatus: 201, body: comoLeituraPublica(await gravarLeitura(tx, contexto, auth, entrada)) }),
+    })
+  );
+  return /** @type {ReturnType<typeof comoLeituraPublica>} */ (/** @type {unknown} */ (idem.body));
 };
 
 /**

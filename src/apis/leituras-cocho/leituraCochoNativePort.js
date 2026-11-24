@@ -12,6 +12,7 @@ import {
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
 import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
+import { registrarTipoDeEnvio } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 
 const RESOURCE = 'LeituraCocho';
 const CAMINHO = '/leituras-cocho';
@@ -55,3 +56,27 @@ export const leituraCochoPort = offlineStorageDisponivel()
 registrarLeiturasOffline([
   '/leituras-cocho',
 ]);
+
+/**
+ * D-PROD-296 — a leitura pelo motor de sincronização: com internet vai direto;
+ * sem internet fica na fila do aparelho e sai depois, com o código único
+ * (`operation_id`) que o servidor deduplica. Leituras do mesmo cocho saem na
+ * ordem em que foram feitas.
+ */
+export const TIPO_LEITURA_COCHO = 'cocho.leitura';
+
+registrarTipoDeEnvio({
+  tipo: TIPO_LEITURA_COCHO,
+  versao: 1,
+  offline: true,
+  recursos: (p) => [`cocho:${p?.ponto_suplementacao_id ?? ''}`],
+  rotulo: (p) => `Leitura de cocho (${String(p?.data_leitura ?? '').split('-').reverse().join('/')})`,
+  atualiza: ['leiturasCocho'],
+  enviar: (p, { operationId }) =>
+    nativeRequest(
+      CAMINHO,
+      { method: 'POST', body: { ...corpoDaLeitura(p), operation_id: operationId }, autenticado: true },
+      ctx('createLeituraCocho')
+    ),
+});
+
