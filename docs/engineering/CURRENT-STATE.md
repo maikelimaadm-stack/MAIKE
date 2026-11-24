@@ -14,7 +14,7 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Decisão | **D-PROD-284**, pedido e aprovação do proprietário, aba a aba (atual × proposto) |
-| Branch / PR | `claude/kind-knuth-tztu1v` · PR (a abrir) |
+| Branch / PR | `claude/kind-knuth-tztu1v` · PR **#371** |
 | Mudança | Só apresentação: cocho (Detalhes, Fechamentos, Informações, Histórico) e depósito (Detalhes, Informações, Histórico) com grade, barras, réguas e cartões curtos, como o Detalhes do Lote v13 |
 | Migration | Nenhuma |
 | Relatório | [`MAIKE-COCHO-DEPOSITO-V13-REPORT.md`](./MAIKE-COCHO-DEPOSITO-V13-REPORT.md) |
