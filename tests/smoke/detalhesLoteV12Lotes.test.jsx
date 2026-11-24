@@ -11,6 +11,8 @@ import { render, screen, cleanup, fireEvent, act, within } from "@testing-librar
 import { CascaDeTeste, modeloV12, movimentacoesV12, AREA_V12 } from "./fixtures/pastoV12.jsx";
 import { esquecerEstadoLotes } from "@/components/mapa/detalhes-lote/useEstadoLotes";
 import { urlSubiconeLote } from "@/assets/icones/lotes";
+import { posicaoNaRegua } from "@/components/mapa/detalhes-lote/AbaDetalhes";
+import { CORES_UA_HA } from "@/components/mapa/MapaFiltrosAvancados";
 
 const clicar = (el) => act(async () => { fireEvent.click(el); });
 const vistaAtiva = () => ["Resumo", "Lote", "Lista"].find((v) => screen.getByRole("button", { name: v, exact: true }).getAttribute("aria-pressed") === "true");
@@ -28,7 +30,10 @@ const celula = (lote, rotulo) => {
   return celulasDa(/** @type {HTMLElement} */ (linha))[i];
 };
 /** Rótulo → valor das células de uma grade. @param {HTMLElement} raiz */
-const grade = (raiz) => Object.fromEntries([...raiz.querySelectorAll(".mk-dp-cel")].map((c) => [c.querySelector("dt").textContent, c.querySelector(".mk-dp-cel__val").textContent]));
+// `.mk-dp-cel` é a célula da Grade comum; `.mk-dp-l13__c` é a da grade compacta dos blocos do lote (v13).
+const grade = (raiz) => Object.fromEntries([...raiz.querySelectorAll(".mk-dp-cel, .mk-dp-l13__c")].map((c) => [c.querySelector("dt").textContent, c.querySelector(".mk-dp-cel__val, .mk-dp-l13__val").textContent]));
+/** As duas barras de participação (v13): [rótulo, valor, largura]. */
+const barras = (raiz) => [...raiz.querySelectorAll(".mk-dp-part__item")].map((b) => [b.querySelector(".mk-dp-part__rot").textContent, b.querySelector(".mk-dp-part__val").textContent, b.querySelector(".mk-dp-part__trilha > span")?.style.width ?? null]);
 
 beforeEach(() => {
   esquecerEstadoLotes();
@@ -39,68 +44,92 @@ afterEach(() => cleanup());
 // ── Aba Detalhes ────────────────────────────────────────────────────────────
 
 describe("aba Detalhes", () => {
-  it("remove a dica Ideal da lotação mantendo o valor e a bolinha", () => {
+  const regua = () => screen.getByRole("tabpanel").querySelector(".mk-dp-d13-regua");
+
+  it("UA/ha no topo da Lotação: valor, etiqueta da faixa e a régua com o marcador na faixa do mapa", () => {
     const modelo = modeloV12({ area: { ...AREA_V12, tamanho_hectares: 180, area_pastejada: 180 } });
     render(<CascaDeTeste modelo={modelo} abaInicial="detalhes" />);
+    const lotacao = document.querySelector(".mk-dp-area-lotacao");
+    expect(lotacao.querySelector(".mk-dp-d13-uaha__val").textContent).toBe("1,28");
+    expect(lotacao.querySelector(".mk-dp-d13-faixa").textContent).toBe("Ideal");
+    // O UA/ha saiu da grade (está no topo); a dica longa só no texto acessível da régua.
+    expect(grade(lotacao)["UA/ha"]).toBeUndefined();
     expect(screen.queryByText("Ideal (1,2 - 1,8 UA/ha)")).toBeNull();
-    const ua = [...document.querySelectorAll('.mk-dp-area-lotacao .mk-dp-cel')].find(c => c.querySelector('dt').textContent === 'UA/ha');
-    expect(ua.querySelector('dd').textContent).toBe('1,28');
-    expect(ua.querySelector('.mk-dp-bolinha')).toBeTruthy();
+    const r = regua();
+    expect(r.getAttribute("role")).toBe("img");
+    expect(r.getAttribute("aria-label")).toBe("UA/ha 1,28 — Ideal (1,2 - 1,8 UA/ha)");
+    expect(r.dataset.posicao).toBe("42.7"); // 1,28 ÷ 3
+    expect(r.querySelector(".mk-dp-d13-regua__marcador").style.left).toBe("42.7%");
+    expect(r.querySelector(".mk-dp-d13-regua__nomes [data-ativa]").textContent).toBe("Ideal");
   });
 
-  it("cartão da área, aviso de capacidade, Lotação e Categorias com os números do v12", () => {
+  it("régua: as cinco faixas e cores do mapa, nos limites 0,8 · 1,2 · 1,8 · 2,4 de uma escala 0–3; acima de 3 o marcador prende na borda", () => {
+    render(<CascaDeTeste modelo={modeloV12()} abaInicial="detalhes" />);
+    const faixas = [...regua().querySelectorAll(".mk-dp-d13-regua__trilho > span")];
+    expect(faixas.map((f) => f.style.background)).toEqual(Object.values(CORES_UA_HA).slice(1).map((hex) => {
+      const n = parseInt(hex.slice(1), 16);
+      return `rgb(${n >> 16}, ${(n >> 8) & 255}, ${n & 255})`;
+    }));
+    expect(faixas.map((f) => Number(parseFloat(f.style.width).toFixed(1)))).toEqual([26.7, 13.3, 20, 20, 20]);
+    expect([...regua().querySelectorAll(".mk-dp-d13-regua__marcas > span")].map((m) => m.textContent)).toEqual(["0,8", "1,2", "1,8", "2,4"]);
+    expect([...regua().querySelectorAll(".mk-dp-d13-regua__nomes > span")].map((m) => m.textContent)).toEqual(["Sublotação", "Moderada", "Ideal", "Alta", "Superlotação"]);
+    expect(posicaoNaRegua(2.24)).toBeCloseTo(74.67, 1);
+    expect(posicaoNaRegua(7)).toBe(100);
+    expect(posicaoNaRegua(-1)).toBe(0);
+    expect(posicaoNaRegua(null)).toBeNull();
+  });
+
+  it("cartão da área (capim, status, áreas e dias), aviso de capacidade e Lotação com os números do v12; sem Categorias", () => {
     render(<CascaDeTeste modelo={modeloV12()} abaInicial="detalhes" />);
     const painel = screen.getByRole("tabpanel");
-    const [cartaoArea, cartaoLotacao, cartaoCategorias] = painel.querySelectorAll(".mk-dp-cartao");
+    const cartoes = painel.querySelectorAll(".mk-dp-cartao");
+    expect(cartoes.length).toBe(2);
+    const [cartaoArea, cartaoLotacao] = cartoes;
 
-    expect(within(cartaoArea).getByText("Pasto 07")).toBeTruthy();
-    expect(within(cartaoArea).getByText("Pastagem / Braquiária Brizantha")).toBeTruthy();
+    // Nome da área e setor já estão no cabeçalho do diálogo: aqui o capim ocupa o título.
+    expect(within(cartaoArea).queryByText("Pasto 07")).toBeNull();
+    expect(within(cartaoArea).queryByText("Retiro")).toBeNull();
+    expect(cartaoArea.querySelector(".mk-dp-cartao__titulo").textContent).toBe("Braquiária Brizantha");
+    expect(cartaoArea.querySelector(".mk-dp-cartao__sub").textContent).toBe("Pastagem");
     expect(cartaoArea.querySelector("svg.mk-dp-cartao__ic")).toBeTruthy(); // broto
+    const status = cartaoArea.querySelector(".mk-dp-d13-status");
+    expect(status.textContent).toBe("OCUPADO");
+    expect(status.classList.contains("mk-dp-chip--ok")).toBe(true);
     expect(grade(cartaoArea)).toEqual({
       "Área (ha)": "109,30",
       "Área pastejada (ha)": "102,70",
-      Status: "OCUPADO",
       "Dias pastejo": "26",
     });
+    expect(cartaoArea.querySelector(".mk-dp-cel__barra")).toBeNull();
 
     expect(painel.querySelector(".mk-dp-aviso--atencao").textContent).toBe("Lotação de 2,24 UA/ha acima da capacidade cadastrada (2,20 UA/ha).");
 
-    expect(grade(cartaoLotacao)).toEqual({
-      "Qtd. Lotes": "6",
-      "Qtd. Cabeças": "314",
-      "UA total": "230,09",
-      "UA/ha": "2,24",
-      "Capacidade (UA/ha)": "2,20",
-      "% da capacidade": "102%",
-      "kg PV/ha": "1.008",
-      "Cab/ha": "3,06",
-      "Peso médio geral (kg)": "329,75",
-    });
-    const ua = [...cartaoLotacao.querySelectorAll(".mk-dp-cel")].find((c) => c.querySelector("dt").textContent === "UA/ha");
-    expect(ua.querySelector(".mk-dp-bolinha").style.background).toBe("rgb(245, 158, 11)"); // faixa Alta
-    expect(ua.querySelector(".mk-dp-cel__sub").textContent).toBe("Alta (1,8 - 2,4 UA/ha)");
+    expect(cartaoLotacao.querySelector(".mk-dp-d13-uaha__val").textContent).toBe("2,24");
+    const faixa = cartaoLotacao.querySelector(".mk-dp-d13-faixa");
+    expect(faixa.textContent).toBe("Alta");
+    expect(faixa.style.getPropertyValue("--mk-d13-faixa")).toBe("#f59e0b");
+    expect(regua().getAttribute("aria-label")).toBe("UA/ha 2,24 — Alta (1,8 - 2,4 UA/ha)");
+    expect(Object.entries(grade(cartaoLotacao))).toEqual([
+      ["Qtd. Lotes", "6"],
+      ["Qtd. Cabeças", "314"],
+      ["UA total", "230,09"],
+      ["kg PV/ha", "1.008"],
+      ["Cab/ha", "3,06"],
+      ["Peso médio geral (kg)", "329,75"],
+      ["Capacidade (UA/ha)", "2,20"],
+      ["% da capacidade", "102%"],
+    ]);
     const cap = [...cartaoLotacao.querySelectorAll(".mk-dp-cel")].find((c) => c.querySelector("dt").textContent === "% da capacidade");
     expect(cap.querySelector(".mk-dp-cel__val").style.color).toBe("rgb(180, 83, 9)");
     expect(cap.querySelector(".mk-dp-cel__barra > span").style.background).toBe("rgb(245, 158, 11)");
 
-    expect(screen.getByRole("heading", { name: "Categorias" })).toBeTruthy();
-    const linhas = [...cartaoCategorias.querySelectorAll(".mk-dp-linha")].map((l) => [
-      l.querySelector(".mk-dp-linha__rot").textContent,
-      l.querySelector(".mk-dp-linha__sub").textContent,
-      l.querySelector(".mk-dp-linha__val").textContent,
-    ]);
-    expect(linhas).toEqual([
-      ["BEZERRO", "20% do pasto · peso 196 kg", "62 cab"],
-      ["BOI MAGRO", "40% do pasto · peso 377 kg", "127 cab"],
-      ["NOVILHA", "28% do pasto · peso 304 kg", "87 cab"],
-      ["VACA", "12% do pasto · peso 450 kg", "38 cab"],
-    ]);
-    // Subícone do código (D-PROD-191), 26 px na densidade compacta (D-PROD-224).
-    const imgs = [...cartaoCategorias.querySelectorAll("img")].map((i) => i.getAttribute("src"));
-    expect(imgs).toEqual(["macho-0-8", "macho-25-36", "femea-13-24", "femea-37-mais"].map((f) => urlSubiconeLote(f, 26)));
+    // A composição por categoria fica só na aba Lotes.
+    expect(screen.queryByRole("heading", { name: "Categorias" })).toBeNull();
+    expect(painel.querySelector(".mk-dp-linha")).toBeNull();
+    expect(painel.querySelector(".mk-dp-vazio")).toBeNull();
   });
 
-  it("pasto vazio: VAZIO · descanso desde a última saída (mesma regra do mapa), Sem gado e o aviso de nenhum lote", () => {
+  it("pasto vazio: VAZIO · descanso desde a última saída (mesma regra do mapa), Sem gado, régua sem marcador e o aviso de nenhum lote", () => {
     const modelo = modeloV12({ qtd: 0 });
     const movs = movimentacoesV12({ qtd: 0, saidaEm: "2026-10-25" });
     render(<CascaDeTeste modelo={modelo} abaInicial="detalhes" movimentacoes={movs} setorNome="" />);
@@ -108,14 +137,18 @@ describe("aba Detalhes", () => {
     const [cartaoArea, cartaoLotacao] = painel.querySelectorAll(".mk-dp-cartao");
     const area = grade(cartaoArea);
     expect(area.Setor).toBeUndefined();
-    expect(area.Status).toBe("VAZIO · descanso há 21 dias");
+    const status = cartaoArea.querySelector(".mk-dp-d13-status");
+    expect(status.textContent).toBe("VAZIO · descanso há 21 dias");
+    expect(status.classList.contains("mk-dp-chip--neutro")).toBe(true);
     expect(area["Dias pastejo"]).toBe("—");
-    const status = [...cartaoArea.querySelectorAll(".mk-dp-cel")].find((c) => c.querySelector("dt").textContent === "Status");
-    expect(status.querySelector(".mk-dp-cel__val").style.color).toBe("rgb(100, 116, 139)");
 
     const lot = grade(cartaoLotacao);
-    expect(lot).toMatchObject({ "Qtd. Lotes": "0", "Qtd. Cabeças": "0", "UA total": "0,00", "UA/ha": "—", "% da capacidade": "—", "kg PV/ha": "—", "Cab/ha": "—", "Peso médio geral (kg)": "—" });
-    expect(cartaoLotacao.textContent).toContain("Sem gado");
+    expect(lot).toMatchObject({ "Qtd. Lotes": "0", "Qtd. Cabeças": "0", "UA total": "0,00", "% da capacidade": "—", "kg PV/ha": "—", "Cab/ha": "—", "Peso médio geral (kg)": "—" });
+    expect(cartaoLotacao.querySelector(".mk-dp-d13-uaha__val").textContent).toBe("—");
+    expect(cartaoLotacao.querySelector(".mk-dp-d13-faixa").textContent).toBe("Sem gado");
+    expect(regua().querySelector(".mk-dp-d13-regua__marcador")).toBeNull();
+    expect(regua().dataset.posicao).toBeUndefined();
+    expect(regua().getAttribute("aria-label")).toBe("UA/ha sem valor — Sem gado");
     expect(painel.querySelector(".mk-dp-aviso")).toBeNull();
     expect(screen.queryByRole("heading", { name: "Categorias" })).toBeNull();
     expect(painel.querySelector(".mk-dp-vazio").textContent).toBe("Nenhum lote neste pasto agora.");
@@ -123,7 +156,7 @@ describe("aba Detalhes", () => {
 
   it("vazio sem saída registrada: só VAZIO", () => {
     render(<CascaDeTeste modelo={modeloV12({ qtd: 0 })} abaInicial="detalhes" movimentacoes={[]} />);
-    expect(grade(screen.getByRole("tabpanel").querySelector(".mk-dp-cartao")).Status).toBe("VAZIO");
+    expect(screen.getByRole("tabpanel").querySelector(".mk-dp-d13-status").textContent).toBe("VAZIO");
   });
 });
 
@@ -149,17 +182,38 @@ describe("aba Lotes: vistas", () => {
 });
 
 describe("aba Lotes › Resumo", () => {
+  it("v13: cada lote mostra as duas barras de participação (% das cabeças e % da UA), sem número grande", () => {
+    render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
+    const itens = [...document.querySelectorAll(".mk-dp-item")];
+    expect(itens).toHaveLength(6);
+    for (const item of itens) expect(barras(item).map(([r]) => r)).toEqual(["% cabeças", "% da UA"]);
+    expect([...itens[0].querySelectorAll(".mk-dp-part__item")].map((b) => b.getAttribute("title"))).toEqual(["% das cabeças do pasto", "% da UA do pasto"]);
+    // L-2026-008: 38 de 314 cab (12%) e 37,96 de 230,09 UA (16%); a barra tem a largura do valor.
+    expect(barras(itens[0]).map(([, v]) => v)).toEqual(["12%", "16%"]);
+    expect(barras(itens[0]).map(([, , w]) => Math.floor(parseFloat(w)))).toEqual([12, 16]);
+    // As seis participações somam o pasto inteiro.
+    expect(Math.round(itens.reduce((t, i) => t + parseFloat(barras(i)[0][2]), 0))).toBe(100);
+    // A linha continua com o texto normal e a situação; o subícone não mudou.
+    expect(itens[0].querySelector(".mk-dp-item__meta").textContent).toContain("38 cab");
+    expect(itens[0].querySelector("img")).toBeTruthy();
+  });
+
   it("5 números, cabeçalho do pasto e os lotes por nome com subícone 30 px (D-PROD-224), cor do lote, meta, peso e situação", () => {
     render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
     const kpis = [...document.querySelectorAll(".mk-dp-kpi")].map((k) => [k.querySelector("dt").textContent, k.querySelector(".mk-dp-kpi__val").textContent]);
-    expect(kpis).toEqual([["Cabeças", "314"], ["Peso médio (kg)", "329,7"], ["Peso médio projetado (kg)", "342,6"], ["UA/ha", "2,24"], ["kg PV/ha", "1.008"]]);
+    expect(kpis).toEqual([["Cabeças", "314"], ["Peso médio (kg)", "329,7"], ["Projetado (kg)", "342,6"], ["UA/ha", "2,24"], ["kg PV/ha", "1.008"]]);
+    // v13: rótulo inteiro (quebra em vez de cortar); o nome completo fica na dica do "Projetado".
+    expect(document.querySelector(".mk-dp-kpi dt .mk-dp-texto-deslizante, .mk-dp-kpi dt [data-texto-deslizante]")).toBeNull();
+    expect(document.querySelectorAll(".mk-dp-kpi")[2].querySelector("dt [title]").getAttribute("title")).toBe("Peso médio projetado (kg)");
     expect(document.querySelector(".mk-dp-itens__titulo").textContent).toBe("Pasto 07 (314)");
 
     const itens = [...document.querySelectorAll(".mk-dp-item")];
     expect(itens.map((i) => i.querySelector(".mk-dp-item__nome").textContent)).toEqual(["L-2026-008", "L-2026-014", "L-2026-019", "L-2026-022", "L-2026-025", "L-2026-027"]);
     const primeiro = itens[0];
     expect(primeiro.querySelector(".mk-dp-item__meta").textContent).toBe("38 cab · 38,0 UA · VACA · 449,5 kg");
-    expect(primeiro.querySelector(".mk-dp-item__sub")).toBeNull();
+    // v13: abaixo do texto ficam só as duas barras de participação (nenhum texto solto a mais).
+    expect(primeiro.querySelector(".mk-dp-item__sub").children).toHaveLength(1);
+    expect(primeiro.querySelector(".mk-dp-item__sub > .mk-dp-part")).toBeTruthy();
     expect(primeiro.querySelector(".mk-dp-quad").style.background).toBe("rgb(239, 68, 68)");
     expect(primeiro.querySelector(".mk-dp-chip--atencao").textContent).toBe("Atenção");
     expect(itens[1].querySelector(".mk-dp-chip--ok").textContent).toBe("Em dia");
@@ -223,15 +277,22 @@ describe("aba Lotes › Lote", () => {
     expect(within(painel).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Lotação", "Pesagem", "Projeção de peso", "Identificação"]);
 
     const [, lotacao, pesagem, projecao, ident] = painel.querySelectorAll(".mk-dp-cartao");
+    // v13: as duas participações viram barras no topo do bloco; o resto fica em grade.
     expect(grade(lotacao)).toEqual({
-      "Cab.": "38", "% das cabeças do pasto": "12%", UA: "37,96", "% da UA do pasto": "16%",
-      "UA/ha": "0,37", "kg PV/ha": "166", "Dias pastejo": "56", "Peso total (kg)": "17.081",
+      "Cab.": "38", UA: "37,96", "UA/ha": "0,37", "kg PV/ha": "166", "Dias pastejo": "56", "Peso total (kg)": "17.081",
     });
-    expect(lotacao.querySelectorAll(".mk-dp-cel__barra")).toHaveLength(2);
+    expect(barras(lotacao).map(([r, v]) => [r, v])).toEqual([["% das cabeças do pasto", "12%"], ["% da UA do pasto", "16%"]]);
+    expect(barras(lotacao).every(([, , w]) => /^\d+(\.\d)?%$/.test(w))).toBe(true);
+    expect(lotacao.querySelector(".mk-dp-l13__barras + .mk-dp-l13")).toBeTruthy();
     expect(within(lotacao).queryByText("Ocupação (UA × dias)")).toBeNull();
     expect(lotacao.querySelectorAll(".mk-dp-cel__sub")).toHaveLength(0);
 
-    expect(grade(pesagem)).toMatchObject({ "Peso médio (kg)": "449,5", "Última": "25/08/2026", Origem: "MEDIDO" });
+    expect(grade(pesagem)).toMatchObject({ "Peso médio (kg)": "449,5", "Última": "25/08/2026" });
+    // v13: a Origem é a etiqueta na linha do título da Pesagem (o nome da seção continua "Pesagem").
+    expect(grade(pesagem).Origem).toBeUndefined();
+    const secaoPesagem = screen.getByRole("region", { name: "Pesagem" });
+    expect(secaoPesagem.querySelector(".mk-dp-l13__origem").textContent).toBe("Origem: MEDIDO");
+    expect(secaoPesagem.querySelector(".mk-dp-l13__origem").className).toContain("mk-dp-chip--ok");
     expect(within(pesagem).queryByText("Peso projetado (kg)")).toBeNull();
     expect(grade(projecao)).toMatchObject({ "Peso projetado (kg)": "465,9", "@ projetadas": "15,53", "GMD do mês (kg/dia)": "0,200", "Base da projeção": "PESAGEM 25/08", "Peso objetivo (kg)": "480", "Atinge o objetivo": "25/01/2027 (71 d)", "Pesado × previsto": "98,7% do previsto" });
     const mensal = projecao.querySelector(".mk-dp-projecao-mensal");
@@ -245,7 +306,7 @@ describe("aba Lotes › Lote", () => {
     expect(within(painel).queryByText("Categoria", { exact: true })).toBeNull();
     expect(Object.keys(grade(ident))).toEqual(["Sist. Rep.", "Identificador", "Sigla", "Entrada", "Cat. de manejo"]);
     expect(grade(ident)).toMatchObject({ Identificador: "VERMELHO", "Cat. de manejo": "CRIA" });
-    const identificador = [...ident.querySelectorAll(".mk-dp-cel")].find((c) => c.querySelector("dt").textContent === "Identificador");
+    const identificador = [...ident.querySelectorAll(".mk-dp-l13__c")].find((c) => c.querySelector("dt").textContent === "Identificador");
     expect(identificador.querySelector(".mk-dp-bolinha").style.background).toBe("rgb(239, 68, 68)");
     expect(ident.querySelectorAll(".mk-dp-cel__sub")).toHaveLength(0);
   });
@@ -378,13 +439,46 @@ describe("aba Lotes › Lista", () => {
     expect(screen.getByRole("heading", { name: "1 lote · 86 cab" })).toBeTruthy();
   });
 
-  it("celular: coluna do nome com 138 px; desktop 170 px", () => {
+  it("celular (v13): tabela compacta — nome com 116 px, colunas do tamanho do conteúdo até 84 px e as fixas 15% menores; desktop 170 px", () => {
     const um = render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
     fireEvent.click(screen.getByRole("button", { name: "Lista", exact: true }));
-    expect(screen.getByRole("table").style.gridTemplateColumns.startsWith("138px ")).toBe(true);
+    expect(screen.getByRole("table").style.gridTemplateColumns.startsWith("116px fit-content(84px) 109px ")).toBe(true);
+    expect(document.querySelector(".mk-dp-tabela").className).toContain("mk-dp-tabela--compacta");
     um.unmount();
     render(<CascaDeTeste modelo={modeloV12()} />);
     expect(screen.getByRole("table").style.gridTemplateColumns.startsWith("170px minmax(84px, auto) 128px ")).toBe(true);
+    expect(document.querySelector(".mk-dp-tabela").className).not.toContain("mk-dp-tabela--compacta");
+  });
+
+  it("v13: continua tabela, com linhas zebradas (uma sim, uma não) e o Total da área preenchido", () => {
+    render(<CascaDeTeste modelo={modeloV12()} />);
+    const linhas = screen.getAllByRole("row").filter((r) => r.querySelector(".mk-dp-tabela__nome"));
+    expect(linhas).toHaveLength(6);
+    expect(linhas.map((r) => r.querySelector(".mk-dp-tabela__nome").classList.contains("is-zebra"))).toEqual([false, true, false, true, false, true]);
+    expect(linhas[1].querySelectorAll(".mk-dp-tabela__td.is-zebra").length).toBe(linhas[1].querySelectorAll(".mk-dp-tabela__td").length);
+    const total = [...document.querySelectorAll(".mk-dp-tabela__tot")].map((c) => c.textContent);
+    expect(total[0]).toBe("Total da área");
+    expect(total.slice(1).filter(Boolean).length).toBeGreaterThan(0);
+  });
+
+  it("v13: a dica de arrastar só aparece quando a tabela passa da largura visível", () => {
+    const dica = "Arraste para o lado para ver as outras colunas →";
+    const um = render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
+    fireEvent.click(screen.getByRole("button", { name: "Lista", exact: true }));
+    expect(screen.queryByText(dica)).toBeNull(); // jsdom: sem rolagem
+    um.unmount();
+    const larguraTotal = Object.getOwnPropertyDescriptor(Element.prototype, "scrollWidth");
+    const larguraVisivel = Object.getOwnPropertyDescriptor(Element.prototype, "clientWidth");
+    Object.defineProperty(Element.prototype, "scrollWidth", { configurable: true, get() { return this.classList?.contains("mk-dp-tabela__rolo") ? 900 : 0; } });
+    Object.defineProperty(Element.prototype, "clientWidth", { configurable: true, get() { return this.classList?.contains("mk-dp-tabela__rolo") ? 370 : 0; } });
+    try {
+      render(<CascaDeTeste modelo={modeloV12()} modo="celular" />);
+      fireEvent.click(screen.getByRole("button", { name: "Lista", exact: true }));
+      expect(screen.getByText(dica)).toBeTruthy();
+    } finally {
+      Object.defineProperty(Element.prototype, "scrollWidth", larguraTotal);
+      Object.defineProperty(Element.prototype, "clientWidth", larguraVisivel);
+    }
   });
 });
 

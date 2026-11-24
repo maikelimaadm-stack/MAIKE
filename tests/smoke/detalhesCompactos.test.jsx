@@ -336,14 +336,14 @@ describe("DC-5 — popup: pares lado a lado (D-PROD-226)", () => {
     ).toMatch(/grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
   });
 
-  it("aba Detalhes do pasto (D-PROD-236 do dono): o corpo é o painel `…-painel-detalhes`, com a grade `.mk-dp-area-organizada` de seções Lotação e Categorias, cada título logo antes do seu cartão; sem lotes, só Lotação", () => {
+  it("aba Detalhes do pasto (D-PROD-236 do dono): o corpo é o painel `…-painel-detalhes`, com a grade `.mk-dp-area-organizada` e a seção Lotação, o título logo antes do cartão (Categorias saiu no v13: a composição fica na aba Lotes)", () => {
     const secoesDoCorpo = (corpo) => [...corpo.querySelectorAll(":scope > .mk-dp-area-organizada > .mk-dp-secao")];
     const { unmount } = render(<CascaDeTeste modelo={modeloV12()} abaInicial="detalhes" />);
     const corpo = screen.getByRole("tabpanel");
     expect(corpo.id).toMatch(/-painel-detalhes$/);
     expect(corpo.classList.contains("mk-dp__corpo--cards")).toBe(true);
     const secoes = secoesDoCorpo(corpo);
-    expect(secoes.map((s) => s.firstElementChild?.textContent)).toEqual(["Lotação", "Categorias"]);
+    expect(secoes.map((s) => s.firstElementChild?.textContent)).toEqual(["Lotação"]);
     for (const s of secoes) {
       const titulo = s.firstElementChild;
       expect(titulo.classList.contains("mk-dp-titulo"), titulo.textContent).toBe(true);

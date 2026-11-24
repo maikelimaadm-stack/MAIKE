@@ -8,6 +8,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import "@/styles/mk-detalhes-pasto.css";
+import "@/styles/mk-dp-casca-v13.css";
 
 /*
  * Peças visuais do Detalhes do Lote v12 (D-PROD-218). Puras: só props, sem
@@ -823,7 +824,7 @@ export const BotaoFiltro = React.forwardRef(BotaoFiltroRender);
 BotaoFiltro.displayName = "BotaoFiltro";
 
 /**
- * @typedef {{ chave?: string, rotulo: string, icone?: IconeLucide, onClick?: () => void, desabilitado?: boolean, title?: string }} Pilula
+ * @typedef {{ chave?: string, rotulo: string, icone?: IconeLucide, onClick?: () => void, desabilitado?: boolean, title?: string, principal?: boolean }} Pilula
  */
 
 /**
@@ -841,7 +842,7 @@ export function RodapePilulas({ itens, rotulo = "Ações", className }) {
           <button
             key={p.chave ?? p.rotulo ?? i}
             type="button"
-            className={cls("mk-dp-pilula", off && "is-off")}
+            className={cls("mk-dp-pilula", p.principal && "is-principal", off && "is-off")}
             disabled={off}
             title={p.title}
             onClick={off ? undefined : p.onClick}

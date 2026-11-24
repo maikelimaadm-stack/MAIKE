@@ -1,0 +1,116 @@
+/* Detalhes do Lote — acabamento v13 da casca (abas, seletor de vista, rodapé e
+   pesos de fonte). Carregado depois de mk-detalhes-pasto.css por blocos.jsx; o
+   `.mk-dp.mk-dp` só sobe a especificidade para vencer as regras anteriores sem
+   depender da ordem dos arquivos. Não toca o botão de fechar nem os subícones. */
+
+/* ── Abas: só o nome, colunas iguais, mais respiro, traço verde embaixo ── */
+.mk-dp.mk-dp .mk-dp-abas {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0 10px;
+  overflow: hidden;
+  background: #fff;
+}
+.mk-dp.mk-dp .mk-dp-aba {
+  width: 100%;
+  height: 44px;
+  padding: 0 4px;
+  background: transparent;
+  color: #64748b;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.mk-dp.mk-dp .mk-dp-aba.is-on {
+  color: #0f172a;
+  font-weight: 600;
+}
+.mk-dp.mk-dp .mk-dp-aba.is-on::after {
+  left: 8px;
+  right: 8px;
+  background: #16a34a;
+}
+.mk-dp.mk-dp .mk-dp-aba__badge {
+  font-weight: 600;
+}
+
+/* ── Seletor Resumo · Lote · Lista: pequeno, à esquerda, só os nomes ── */
+.mk-dp.mk-dp .mk-dp-seg {
+  padding: 3px;
+  border-radius: 10px;
+  background: #e2e8f0;
+}
+.mk-dp.mk-dp .mk-dp-seg__op {
+  min-width: 64px;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 8px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 500;
+}
+.mk-dp.mk-dp .mk-dp-seg__op.is-on {
+  background: #fff;
+  color: #0f172a;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);
+}
+
+/* ── Rodapé: botões maiores, cantos de 13 px, ação principal em verde ── */
+.mk-dp.mk-dp .mk-dp-rodape {
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+}
+.mk-dp.mk-dp .mk-dp-rodape--pilulas {
+  gap: 8px;
+  padding: 10px;
+}
+.mk-dp.mk-dp .mk-dp-pilula {
+  gap: 7px;
+  height: 44px;
+  max-width: 240px;
+  padding: 0 10px;
+  border-radius: 13px;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-size: 13.5px;
+  font-weight: 600;
+  box-shadow: none;
+}
+.mk-dp.mk-dp .mk-dp-pilula > svg {
+  width: 17px;
+  height: 17px;
+}
+.mk-dp.mk-dp .mk-dp-pilula:active:not(:disabled) {
+  background: #e2e8f0;
+}
+@media (hover: hover) {
+  .mk-dp.mk-dp .mk-dp-pilula:hover:not(:disabled) {
+    background: #e2e8f0;
+  }
+}
+/* Principal: "Manejos" (marcado pela casca) e "Lançar" da Suplementação (pelo ícone próprio). */
+.mk-dp.mk-dp .mk-dp-pilula:is(.is-principal, :has(> svg.mk-dp-icone-lancar)) {
+  background: #40de63;
+  color: #052e16;
+}
+.mk-dp.mk-dp .mk-dp-pilula:is(.is-principal, :has(> svg.mk-dp-icone-lancar)) > svg {
+  color: #052e16;
+}
+.mk-dp.mk-dp .mk-dp-pilula:is(.is-principal, :has(> svg.mk-dp-icone-lancar)):active:not(:disabled) {
+  background: #2fcf54;
+}
+@media (hover: hover) {
+  .mk-dp.mk-dp .mk-dp-pilula:is(.is-principal, :has(> svg.mk-dp-icone-lancar)):hover:not(:disabled) {
+    background: #2fcf54;
+  }
+}
+
+/* ── Pesos: valores 500, títulos 600; 700 só nos totais ── */
+.mk-dp.mk-dp :is(.mk-dp-titulo__h, .mk-dp-link, .mk-dp-acao, .mk-dp-nivel__rot, .mk-dp-kpi__rot, .mk-dp-grupo__cab) {
+  font-weight: 600;
+}
+.mk-dp.mk-dp :is(.mk-dp-nivel__val, .mk-dp-kpi__val) {
+  font-weight: 500;
+}
