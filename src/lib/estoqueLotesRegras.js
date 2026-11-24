@@ -56,40 +56,76 @@ export const quantidadeDeEstoque = (linha) => {
 };
 
 /**
- * Confere a escolha manual (`linha.lotes`: [{ id, quantidade: texto }]) contra a quantidade da linha; devolve o erro
- * em português ou ''. Sem escolha manual (FEFO), confere só se a sugestão cobre a quantidade.
- * @param {any} linha @param {any[]} lotes disponíveis
+ * Confere a escolha (`escolha`: null = FEFO; [{ id, quantidade: texto }] = manual) contra a quantidade `total` (na
+ * unidade de estoque); devolve o erro em português ou ''. Sem escolha manual, confere só se a sugestão cobre o total.
+ * É a regra de qualquer tela que tira produto com lote do estoque (Saída, cocho, financeiro, atividade, abastecimento).
+ * @param {Array<{ id: string, quantidade: string }>|null|undefined} escolha @param {number} total @param {any[]} lotes disponíveis
  */
-export const erroDosLotes = (linha, lotes) => {
-  const total = quantidadeDeEstoque(linha);
-  if (!linha?.produto?.controla_lote || total <= 0) return '';
-  if (!Array.isArray(linha.lotes)) return sugestaoFefo(lotes, total).suficiente ? '' : 'Saldo dos lotes insuficiente neste depósito.';
+export const erroDaEscolha = (escolha, total, lotes) => {
+  if (!(total > 0)) return '';
+  if (!Array.isArray(escolha)) return sugestaoFefo(lotes, total).suficiente ? '' : 'Saldo dos lotes insuficiente neste depósito.';
   let soma = 0;
-  for (const f of linha.lotes) {
+  for (const f of escolha) {
     const r = lerNumeroLocal(f.quantidade, LOCALE_ENTRADA, LIMITES_ENTRADA);
     if (!r.ok) return 'Quantidade de lote inválida.';
     const l = (lotes ?? []).find((x) => x.id === f.id);
     if (l && num(r.valor) > num(l.quantidade_disponivel)) return `O lote ${l.lote_fabricante ?? ''} não tem essa quantidade.`;
     soma = q4(soma + num(r.valor));
   }
-  return soma === total ? '' : 'A soma dos lotes tem de ser a quantidade da linha.';
+  return soma === q4(total) ? '' : 'A soma dos lotes tem de ser a quantidade da linha.';
+};
+
+/**
+ * Confere a escolha manual da linha do Estoque (`linha.lotes`) contra a quantidade da linha; '' sem erro.
+ * @param {any} linha @param {any[]} lotes disponíveis
+ */
+export const erroDosLotes = (linha, lotes) => {
+  if (!linha?.produto?.controla_lote) return '';
+  return erroDaEscolha(linha.lotes, quantidadeDeEstoque(linha), lotes);
+};
+
+/** Os lotes que a escolha vai usar (a manual ou a sugestão FEFO de `total`). @param {any} escolha @param {number} total @param {any[]} lotes */
+export const lotesUsadosNaEscolha = (escolha, total, lotes) => {
+  if (Array.isArray(escolha)) return escolha.map((f) => (lotes ?? []).find((l) => l.id === f.id)).filter(Boolean);
+  return sugestaoFefo(lotes, total).fatias.map((f) => (lotes ?? []).find((l) => l.id === f.id)).filter(Boolean);
 };
 
 /** Os lotes que a linha vai usar (a escolha manual ou a sugestão FEFO). @param {any} linha @param {any[]} lotes */
-export const lotesUsados = (linha, lotes) => {
-  if (Array.isArray(linha?.lotes)) return linha.lotes.map((f) => (lotes ?? []).find((l) => l.id === f.id)).filter(Boolean);
-  return sugestaoFefo(lotes, quantidadeDeEstoque(linha)).fatias.map((f) => (lotes ?? []).find((l) => l.id === f.id)).filter(Boolean);
-};
+export const lotesUsados = (linha, lotes) => lotesUsadosNaEscolha(linha?.lotes, quantidadeDeEstoque(linha), lotes);
+
+/** Algum lote usado pela escolha está vencido (a tela pede confirmação). @param {any} escolha @param {number} total @param {any[]} lotes */
+export const usaLoteVencidoNaEscolha = (escolha, total, lotes) => lotesUsadosNaEscolha(escolha, total, lotes).some((l) => l.vencido);
 
 /** Algum lote usado está vencido (a tela pede confirmação). @param {any} linha @param {any[]} lotes */
 export const usaLoteVencido = (linha, lotes) => lotesUsados(linha, lotes).some((l) => l.vencido);
 
+/**
+ * Lista `lotes` do corpo HTTP a partir da escolha manual (quantidades com ponto; zeradas saem). Sem escolha manual,
+ * `null`: o servidor aplica o FEFO.
+ * @param {Array<{ id: string, quantidade: string }>|null|undefined} escolha
+ * @returns {Array<{ estoque_lote_nota_id: string, quantidade: string }>|null}
+ */
+export const corpoDaEscolha = (escolha) => {
+  if (!Array.isArray(escolha)) return null;
+  return escolha
+    .map((f) => ({ estoque_lote_nota_id: f.id, quantidade: /** @type {any} */ (lerNumeroLocal(f.quantidade, LOCALE_ENTRADA, LIMITES_ENTRADA)).valor }))
+    .filter((f) => f.quantidade && !/^0(\.0*)?$/.test(f.quantidade));
+};
+
 /** Corpo `lotes` da linha (só com escolha manual; sem ela, o servidor aplica o FEFO). @param {any} linha */
 export const corpoDosLotes = (linha) => {
   if (!linha?.produto?.controla_lote || !Array.isArray(linha.lotes)) return {};
-  return {
-    lotes: linha.lotes
-      .map((f) => ({ estoque_lote_nota_id: f.id, quantidade: /** @type {any} */ (lerNumeroLocal(f.quantidade, LOCALE_ENTRADA, LIMITES_ENTRADA)).valor }))
-      .filter((f) => f.quantidade && !/^0(\.0*)?$/.test(f.quantidade)),
-  };
+  return { lotes: /** @type {any[]} */ (corpoDaEscolha(linha.lotes)) };
+};
+
+/**
+ * Pendência da escolha de lote para o formulário bloquear o envio ('' sem pendência): o erro dos lotes (que o campo
+ * devolve) ou o vencido sem confirmação. Produto sem lote: nunca pendente.
+ * @param {{ produto?: any, erroLote?: string, loteVencido?: boolean, confirmaVencido?: boolean }} estado
+ */
+export const pendenciaDoLote = ({ produto, erroLote, loteVencido, confirmaVencido }) => {
+  if (!produto?.controla_lote) return '';
+  if (erroLote) return erroLote;
+  if (loteVencido && confirmaVencido !== true) return 'Confirme o uso do lote vencido.';
+  return '';
 };
