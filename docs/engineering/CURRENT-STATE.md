@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-23 (missão ativa D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-24 (missão ativa D-PROD-285; antes D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -22,6 +22,17 @@ rollout pausado **D-PROD-41**)
 | Fora do escopo | o P2003 (FK) não é afetado pelo RLS: continua com o nome da constraint (medido); as traduções por FK ficaram como estão (a do aceite do tanque passou a ler o `meta` por campo, com o mesmo resultado) |
 | Validação | `npm run verify:all` local **verde** no `946b5965` (39 etapas; backend 2364/2370 com 6 `todo` antigos, smoke 3682/3682, gates 1038/1038), com banco recriado; **CI da PR verde** no mesmo head (o GitHub Actions voltou) ([relatório](./MAIKE-P2002-SEM-ALVO-REPORT.md) §6) |
 | Documentos | [`MAIKE-P2002-SEM-ALVO-REPORT.md`](./MAIKE-P2002-SEM-ALVO-REPORT.md) |
+
+## Missão ativa (2026-11-24) — MAIKE-PRODUTO-UNIDADES-CONVERSAO: unidades de conversão no cadastro do produto (D-PROD-285)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-285** (nasceu D-PROD-284; a PR #371 reservou a 284), escolhas do proprietário (2026-11-24) e o alinhamento ao CONTROLE-DE-ESTOQUE (`uso_compra`/`uso_venda`, código de barras, exclusão lógica, único parcial) |
+| Branch / PR | `claude/produto-unidades-conversao`, da `main` `4e9b4445` · sem push. **A `main` andou** (PR #370, `20261125100000_insumo_por_jato`, aplicada em produção): integrar e renomear a migration antes da PR (relatório §8) |
+| Mudança | tabela `ProdutoUnidadeConversao` (MULTIPLICA/DIVIDE, fator, uso, código de barras, ativa, `excluido_em`); conversão no servidor em entrada, saída manual, ajuste, compra e venda; CRUD dentro do POST/PATCH do produto; consumo mínimo/máximo na Formulação; preços, local e código interno fora da tela (ignorados no corpo; código = número) |
+| Migration | `20261124300000_produto_unidades_conversao`, **CONTRACT condicionado (CONVERSÃO sem DROP)**, `--contract D-PROD-285`, sha256 `779347bf…863b`. **Não aplicada em produção**; ensaiada localmente com o envelope do runbook |
+| Relatório | [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-REPORT.md) · SPEC [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md) · Runbook [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md) |
+| Próximas | conversão na atividade, no cocho e na transferência (exige emenda, SPEC §7); cocho e farol lendo o consumo da Formulação; UN como unidade de estoque |
 
 ## Missão ativa (2026-11-23) — MAIKE-ESTOQUE-CONTROLE-LOTE: controle de lote (e de validade) por produto (D-PROD-282)
 
