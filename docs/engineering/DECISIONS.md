@@ -9357,4 +9357,27 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** medições de forragem nos Detalhes do Lote, gráfico de altura, barra de descanso, cartão "Lote aqui agora", tela própria para lavoura. Nenhuma mudança no servidor; nenhuma migration.
 - **Testes:** `detalhesAreaHistorico`, `detalhesAreaCancelarRegistro`, `mapaAtividadeAcoes`, `medicaoForragem` e `reformaPastagem` ajustados às abas novas.
 
-<!-- Próxima decisão: D-PROD-290 -->
+## D-PROD-290 — Gerenciar tipos: marcar "usa produto · por jato" num tipo de implemento que já existe
+
+**Data:** 2026-11-24 · **Origem:** proprietário ("veja o que falta para implantar"; "pode começar a fazer tudo") · **Relatório:** [`MAIKE-JATOS-FECHAMENTO-REPORT.md`](./MAIKE-JATOS-FECHAMENTO-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `8ee36943`: D-PROD-290 (nenhuma PR aberta a reservava). Esta PR leva a 290, a 291 e a 292; o marcador passa a D-PROD-293.
+
+- **Contexto:** em produção nenhum tipo estava "por jato"; só dava para marcar ao criar o tipo.
+- **Decisão:** no "Gerenciar tipos", o tipo de Implemento tem "Editar" com Usa produto?, Como conta, Capacidade e Unidade; "Não" limpa os três. O PATCH leva os campos (o servidor já conferia, D-PROD-279). Sem migration.
+
+## D-PROD-291 — Finalizar com "Fez o pasto todo?", o resumo por hectare e os jatos no dia salvo
+
+**Data:** 2026-11-24 · **Origem:** maquete aprovada (tela 4, "Quando terminar a área") · **Relatório:** [`MAIKE-JATOS-FECHAMENTO-REPORT.md`](./MAIKE-JATOS-FECHAMENTO-REPORT.md)
+
+- **Decisão:** o Finalizar pergunta, por área em andamento, "Sim, os N ha" / "Não, fiz só uma parte" (+ hectares) e mostra "Como ficou" (jatos, horas de máquina, produto por hectare, custo total e por hectare). `POST /atividades/:id/concluir` aceita `areas[{atividade_area_id, hectares}]` (texto); o que falta para os hectares informados entra num **lançamento de fechamento** (sem linhas, só os hectares, observação "Fechamento: hectares informados ao finalizar", no dia da conclusão), pelo caminho único de lançar, na mesma transação. Menor que o lançado → 400 `menor_que_lancado`. Por que um lançamento e não uma coluna: todas as somas (andamento, mapa, custo por área) já leem os dias; nada muda nelas e não há migration.
+- **Também:** com implemento "por jato", o Novo lançamento curto não pergunta os hectares do dia; o dia salvo mostra "N jatos de 2.000 L · totais" e "Jato N" em cada linha.
+
+## D-PROD-292 — Várias máquinas no Novo lançamento curto e o jato na linha avulsa de insumo
+
+**Data:** 2026-11-24 · **Origem:** proprietário (o que faltava da conversa dos jatos) · **Relatório:** [`MAIKE-JATOS-FECHAMENTO-REPORT.md`](./MAIKE-JATOS-FECHAMENTO-REPORT.md)
+
+- **Decisão:** com várias máquinas no último dia, o curto mostra "Máquina 1 de N" e "Próxima máquina" (o horímetro de cada uma ali). A linha avulsa de insumo (dia salvo e "Aplicação de insumos" do mapa) ganha "Jato nº" quando há implemento "por jato" no dia ou no último lançamento; as rotas de uma linha de produto aceitam `jato` (texto; null tira). Sem migration.
+- **Testes:** `atividadeFechamentoHectares.test.mjs`, `insumoPorJato.test.mjs`, `fechamentoArea.test.jsx`, `jatosDoDia.test.jsx`, `bensGerenciarTipos.test.jsx`, `servicoVariosDias.test.jsx`.
+
+<!-- Próxima decisão: D-PROD-293 -->
