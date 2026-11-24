@@ -31,6 +31,7 @@ import {
   RAZOES_DE_SESSAO,
   loginNativo,
   restaurarSessaoNativa,
+  renovarSessaoNativa,
   concluirTrocaSenhaInicialNativa,
   descartarTrocaSenhaPendenteNativa,
   logoutNativo,
@@ -177,6 +178,13 @@ export const descartarTrocaSenhaPendente = () => descartarTrocaSenhaPendenteNati
  * @throws {ApiError} indisponibilidade — a sessão não foi validada nem negada
  */
 export const restaurarSessaoNativaAtual = () => restaurarSessaoNativa();
+
+/**
+ * Renova a sessão guardada no aparelho (D-PROD-287). Nunca lança.
+ *
+ * @returns {Promise<boolean>}
+ */
+export const renovarSessaoNativaAtual = () => renovarSessaoNativa();
 
 /**
  * Encerra a sessão nativa.

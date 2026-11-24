@@ -9,7 +9,7 @@
  * do usuário autenticado, não do formulário (D-PROD-33).
  */
 
-import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { exigirAuthContext, lerEpocasDaSessao } from '../../shared/auth/authContext.js';
 import { tenantContextRequired } from '../../shared/errors/AppError.js';
 import {
   TTL_TROCA_SENHA_SEGUNDOS,
@@ -29,6 +29,17 @@ const LOGIN_SCHEMA = {
       login: { type: 'string', minLength: 1, maxLength: 120, pattern: '\\S' },
       senha: { type: 'string', minLength: 1, maxLength: 512 },
       // "Manter conectado" (D-PROD-136): só muda a validade do token.
+      lembrar: { type: 'boolean' },
+    },
+  },
+};
+
+/** D-PROD-287: só o opt-in de validade longa. Nada de identidade no corpo. */
+const RENOVAR_SCHEMA = {
+  body: {
+    type: ['object', 'null'],
+    additionalProperties: false,
+    properties: {
       lembrar: { type: 'boolean' },
     },
   },
@@ -109,6 +120,28 @@ export const registrarAuthRoutes = async (app) => {
       return reply.header('Cache-Control', 'no-store').status(200).send(resultado);
     }
   );
+
+  // D-PROD-287 — renovação da sessão (o app fica conectado até a pessoa sair).
+  // Só com uma sessão válida AGORA: `app.autenticar` já conferiu assinatura,
+  // validade, conta e cliente ativos e as épocas atuais. O token novo leva as
+  // MESMAS épocas, então suspender, trocar senha ou papel continua derrubando a
+  // sessão renovada. Tenant e conta vêm do token, nunca do corpo.
+  app.post('/auth/renovar', { schema: RENOVAR_SCHEMA, onRequest: [app.autenticar] }, async (request, reply) => {
+    const auth = exigirAuthContext(request.contexto.auth);
+    const epocas = lerEpocasDaSessao(/** @type {any} */ (request.user));
+    const { lembrar = false } = /** @type {{ lembrar?: boolean }} */ (request.body ?? {});
+    const token = await reply.jwtSign(
+      montarPayloadDeSessao({
+        clienteId: auth.clienteId,
+        usuarioId: auth.usuarioId,
+        login: auth.login,
+        clienteSessaoEpoca: epocas.cliente,
+        usuarioSessaoEpoca: epocas.usuario,
+      }),
+      { expiresIn: ttlDaSessao({ lembrar: lembrar === true }) }
+    );
+    return reply.header('Cache-Control', 'no-store').status(200).send({ token });
+  });
 
   // Devolve o contexto derivado do token. Serve de prova viva de que o tenant
   // vem da sessão: nada no corpo ou na query influencia esta resposta.

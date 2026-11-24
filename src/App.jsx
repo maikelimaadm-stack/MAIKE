@@ -16,6 +16,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import NativeLoginForm from '@/components/auth/NativeLoginForm';
 import NativeSessionUnavailable from '@/components/auth/NativeSessionUnavailable';
+import AvisoSessaoOffline from '@/components/auth/AvisoSessaoOffline';
 import SplashScreen from '@/components/common/SplashScreen';
 import { BootSplashProvider, useBootSplash } from '@/lib/bootSplashContext';
 import { normalizeAppPathname } from '@/lib/navigation/normalizeAppPathname';
@@ -66,6 +67,7 @@ const AuthenticatedApp = () => {
     isAuthenticated,
     entrar,
     sessionValidationError,
+    sessaoOffline,
     revalidarSessao,
     encerrarValidacaoEIrParaLogin,
   } = useAuth();
@@ -127,6 +129,7 @@ const AuthenticatedApp = () => {
   return (
     <>
       <SplashScreen visible={showBootSplash} />
+      {showMainApp && sessaoOffline && <AvisoSessaoOffline />}
       {showMainApp && (
         <Routes>
           <Route path="/" element={<Navigate to={createPageUrl(mainPage)} replace />} />

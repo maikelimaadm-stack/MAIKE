@@ -9307,4 +9307,16 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** aparência dos pastos e marcadores (preenchimento transparente, nomes em branco), "Colorir por"/"Mostrar" como botões próprios, busca e modo campo. Nenhuma mudança no servidor; nenhuma migration.
 - **Testes:** `tests/smoke/mapaControlesV13.test.jsx` (novo); os testes do mapa existentes passam sem alteração.
 
-<!-- Próxima decisão: D-PROD-287 -->
+## D-PROD-287 — App Android/iOS: conectado até sair, renovação da sessão e abertura sem internet
+
+- **Contexto:** no app (Capacitor, `docs/engineering/APP-ANDROID-IOS.md`), sem internet a abertura caía em "Não foi possível validar sua sessão" (restauração fail-closed, P4.0-R1), e o login durava no máximo 30 dias. O dono pediu que o login valha "direto até eu sair" e que o app abra sem internet.
+- **Decisão:**
+  1. No app (`isAppNativo()`), a entrada sempre usa "Manter conectado" (`lembrar: true`); a opção some da tela de entrada. Na web nada muda.
+  2. Nova rota `POST /auth/renovar` (autenticada por `app.autenticar`): devolve `{token}` novo com as **mesmas épocas** do token atual e TTL pelo opt-in `lembrar` (como o login). Tenant e conta vêm do token; o corpo só aceita `lembrar` (`additionalProperties: false`). Suspender, desativar, trocar senha ou papel continua derrubando a sessão renovada.
+  3. O app renova a sessão guardada no aparelho sempre que a restauração é confirmada pelo servidor (abertura e volta da rede). Só sessão lembrada renova; sessão de aba não é estendida. Falha na renovação nunca derruba a sessão.
+  4. Sem resposta do servidor (rede, timeout, 5xx), uma sessão **lembrada**, com o token ainda no prazo pelo relógio do aparelho e com o último contexto confirmado do mesmo tenant dono do offline, abre com esse contexto e o aviso "Sem internet — mostrando dados salvos". Revalida em segundo plano ao voltar a rede e a cada minuto: confirmou → sai do modo offline e renova; recusou (401) → login.
+  5. O contexto guardado (`src/lib/auth/sessaoOfflineLocal.js`) tem só `cliente_id`, `usuario_id` e `login`, nunca o token, e sai junto do token no logout e na recusa.
+- **Limite aceito:** quem estiver com o app sem internet por mais de 30 dias seguidos precisa entrar de novo. Abrir sem internet não dá autorização nenhuma: toda gravação passa pelo servidor.
+- **Testes:** `backend/tests/authRenovarSessao.test.mjs` (RN-01..06), `tests/smoke/sessaoOfflineApp.test.js`, `tests/smoke/sessaoShell.test.jsx` (AUTH-OFF1..4).
+
+<!-- Próxima decisão: D-PROD-288 -->

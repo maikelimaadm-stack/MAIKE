@@ -21,16 +21,18 @@
  * poderia resolvê-lo.
  */
 
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import {
   carregarConfiguracoesPublicas,
   entrarComSessaoNativa,
   restaurarSessaoNativaAtual,
+  renovarSessaoNativaAtual,
   sairDaSessaoNativa,
   RAZOES_DE_SESSAO_DO_PRODUTO,
 } from '@/services/sessionService';
 import { clearNativeToken } from '@/lib/auth/nativeTokenStorage';
+import { isAppNativo } from '@/config/runtimeConfig';
 import { resetAppQueryCache } from '@/lib/query-client';
 import { limparEmpresaSelecionadaSessao } from '@/hooks/useEmpresaSelecionadaId';
 
@@ -72,6 +74,7 @@ export const ESTADOS_DE_SESSAO = Object.freeze({
  *   isLoadingAuth: boolean,
  *   isLoadingPublicSettings: boolean,
  *   sessionValidationError: string|null,
+ *   sessaoOffline: boolean,
  *   authError: ErroDeAutenticacao|null,
  *   appPublicSettings: object|null,
  *   entrar: (credenciais: {login: string, senha: string, lembrar?: boolean}) => Promise<object>,
@@ -108,6 +111,10 @@ export const AuthProvider = ({ children }) => {
     )
   );
   const [sessionValidationError, setSessionValidationError] = useState(null);
+  // D-PROD-287: aberto sem confirmação do servidor (sem internet), com o último
+  // contexto que ele confirmou. Revalida sozinho quando a rede volta.
+  const [sessaoOffline, setSessaoOffline] = useState(false);
+  const revalidandoRef = useRef(false);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
   const [authError, setAuthError] = useState(null);
   const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
@@ -156,7 +163,10 @@ export const AuthProvider = ({ children }) => {
         const login = veredito.contexto.login ?? '';
         setUser({ id: veredito.contexto.usuario_id, login, email: login });
         setClienteId(veredito.contexto.cliente_id);
+        setSessaoOffline(veredito.offline === true);
         setSessionState(ESTADOS_DE_SESSAO.AUTENTICADA);
+        // Com o servidor respondendo, estende a sessão guardada (D-PROD-287).
+        if (veredito.offline !== true) renovarSessaoNativaAtual();
         return;
       }
 
@@ -164,6 +174,7 @@ export const AuthProvider = ({ children }) => {
       // descartou o token.
       setUser(null);
       setClienteId(null);
+      setSessaoOffline(false);
       setSessionState(ESTADOS_DE_SESSAO.NAO_AUTENTICADA);
     } catch (erro) {
       // Não conseguimos validar. O token continua guardado — pode estar
@@ -174,6 +185,7 @@ export const AuthProvider = ({ children }) => {
       // infraestrutura, e ele ainda perderia a credencial que tem.
       setUser(null);
       setClienteId(null);
+      setSessaoOffline(false);
       // `getApiErrorMessage` só devolve texto de `ApiError`, sempre do catálogo
       // público. Nada do servidor chega à tela.
       setSessionValidationError(getApiErrorMessage(erro));
@@ -201,6 +213,51 @@ export const AuthProvider = ({ children }) => {
   }, [carregarConfiguracoes, restaurarSessao]);
 
   /**
+   * D-PROD-287: aberto sem internet, revalida em segundo plano — sem tela de
+   * carregamento, para não tirar a pessoa do que está fazendo. Servidor
+   * confirmou: sai do modo offline e renova. Servidor recusou: volta ao login.
+   * Ainda sem resposta: continua como está e tenta de novo depois.
+   */
+  const revalidarEmSegundoPlano = useCallback(async () => {
+    if (revalidandoRef.current) return;
+    revalidandoRef.current = true;
+    try {
+      const veredito = await restaurarSessaoNativaAtual();
+      if (veredito.autenticado && veredito.contexto) {
+        if (veredito.offline === true) return;
+        const login = veredito.contexto.login ?? '';
+        setUser({ id: veredito.contexto.usuario_id, login, email: login });
+        setClienteId(veredito.contexto.cliente_id);
+        setSessaoOffline(false);
+        renovarSessaoNativaAtual();
+        return;
+      }
+      resetAppQueryCache();
+      setUser(null);
+      setClienteId(null);
+      setSessaoOffline(false);
+      setSessionState(ESTADOS_DE_SESSAO.NAO_AUTENTICADA);
+    } catch {
+      // Ainda sem servidor: fica com os dados salvos.
+    } finally {
+      revalidandoRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!sessaoOffline || typeof window === 'undefined') return undefined;
+    const aoVoltarARede = () => {
+      revalidarEmSegundoPlano();
+    };
+    window.addEventListener('online', aoVoltarARede);
+    const intervalo = window.setInterval(aoVoltarARede, 60_000);
+    return () => {
+      window.removeEventListener('online', aoVoltarARede);
+      window.clearInterval(intervalo);
+    };
+  }, [sessaoOffline, revalidarEmSegundoPlano]);
+
+  /**
    * Entra com credenciais nativas.
    *
    * Repassa o erro em vez de engoli-lo: quem chama é o formulário, e é ele que
@@ -209,7 +266,8 @@ export const AuthProvider = ({ children }) => {
    * @param {{login: string, senha: string, lembrar?: boolean}} credenciais
    */
   const entrar = useCallback(async (credenciais) => {
-    const resultado = await entrarComSessaoNativa(credenciais);
+    // No app Android/iOS a sessão fica no aparelho até a pessoa sair (D-PROD-287).
+    const resultado = await entrarComSessaoNativa(isAppNativo() ? { ...credenciais, lembrar: true } : credenciais);
     // S04-P2: senha temporária. Não há sessão: nada de usuário, tenant, cache
     // ou estado autenticado — o formulário abre a troca obrigatória.
     if (resultado?.trocaSenhaObrigatoria === true) return resultado;
@@ -221,6 +279,7 @@ export const AuthProvider = ({ children }) => {
     });
     resetAppQueryCache();
     setClienteId(sessao.clienteId);
+    setSessaoOffline(false);
     setSessionState(ESTADOS_DE_SESSAO.AUTENTICADA);
     setSessionValidationError(null);
     setAuthError(null);
@@ -240,6 +299,7 @@ export const AuthProvider = ({ children }) => {
     limparEmpresaSelecionadaSessao();
     setUser(null);
     setClienteId(null);
+    setSessaoOffline(false);
     setSessionValidationError(null);
     setSessionState(ESTADOS_DE_SESSAO.NAO_AUTENTICADA);
   }, []);
@@ -256,6 +316,7 @@ export const AuthProvider = ({ children }) => {
         isLoadingAuth: sessionState === ESTADOS_DE_SESSAO.CARREGANDO,
         isLoadingPublicSettings,
         sessionValidationError,
+        sessaoOffline,
         authError,
         appPublicSettings,
         entrar,

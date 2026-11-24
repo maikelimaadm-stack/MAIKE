@@ -15,6 +15,7 @@ export {
   login as loginNativo,
   obterContexto as obterContextoNativo,
   restaurarSessao as restaurarSessaoNativa,
+  renovar as renovarSessaoNativa,
   logout as logoutNativo,
   temSessaoLocal as temSessaoNativaLocal,
   concluirTrocaSenhaInicial as concluirTrocaSenhaInicialNativa,

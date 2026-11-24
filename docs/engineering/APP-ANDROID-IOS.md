@@ -36,8 +36,15 @@ O APK sai em `android/app/build/outputs/apk/release/app-release.apk` e instala p
 
 `npm run app:build` atualiza `ios/`. O build do iOS (IPA) só roda num Mac com Xcode: abrir `ios/App/App.xcworkspace`, escolher a equipe de assinatura e rodar no aparelho ou exportar.
 
+## Login (D-PROD-287)
+
+- No app o login fica guardado no aparelho até a pessoa tocar em "Sair" (a opção "Manter conectado" não aparece: vale sempre).
+- Com internet, o app troca o login por um novo de 30 dias (`POST /auth/renovar`). Quem abre o app ao menos uma vez a cada 30 dias com internet não precisa entrar de novo.
+- Suspender a conta, trocar a senha ou o papel derruba a sessão do app na próxima vez que ele falar com o servidor.
+
 ## Sem internet
 
-- Abre: telas, código e ícones estão dentro do app.
+- Abre: telas, código e ícones estão dentro do app, e o login guardado vale (aviso "Sem internet — mostrando dados salvos").
 - Mostra: os dados do mapa já guardados no aparelho (`mapaCacheService`, IndexedDB).
+- Quando a rede volta, o app confere o login no servidor sozinho.
 - Precisa de internet: o primeiro login, satélite de áreas nunca abertas e gravar no servidor.

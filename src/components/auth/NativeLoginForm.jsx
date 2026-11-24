@@ -30,6 +30,7 @@ import { AlertCircle, Eye, EyeOff, Loader2, Lock, User } from 'lucide-react';
 import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import ToggleSwitch from '@/components/common/ToggleSwitch';
 import TrocaSenhaObrigatoriaForm from '@/components/auth/TrocaSenhaObrigatoriaForm';
+import { isAppNativo } from '@/config/runtimeConfig';
 
 /** Preferências da tela (não é sessão nem segredo): usuário e "Manter conectado". */
 const CHAVE_PREFERENCIAS = 'maike_login_preferencias';
@@ -279,7 +280,8 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
                 ) : null}
               </div>
 
-              {/* A linha inteira liga e desliga (alvo de toque grande), não só a chave. */}
+              {/* No app Android/iOS a sessão sempre fica no aparelho (D-PROD-287): sem a opção. */}
+              {!isAppNativo() && (
               <div
                 onClick={(evento) => {
                   if (!(evento.target instanceof Element) || !evento.target.closest('[role="switch"]')) setLembrar((v) => !v);
@@ -294,6 +296,7 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
                 </div>
                 <ToggleSwitch checked={lembrar} onChange={setLembrar} ariaLabel="Manter conectado" />
               </div>
+              )}
             </div>
 
             {aviso ? (

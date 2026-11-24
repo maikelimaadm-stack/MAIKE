@@ -28,8 +28,16 @@
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import { ApiError, API_ERROR_CODES, isApiError, hasApiErrorCode } from '../_core/ApiError.js';
-import { hasNativeToken, setNativeToken, clearNativeToken, descartarTokenRecusado } from '@/lib/auth/nativeTokenStorage';
-import { setOfflineTenant, clearOfflineTenant } from '@/lib/offline/offlineTenant';
+import {
+  hasNativeToken,
+  setNativeToken,
+  clearNativeToken,
+  descartarTokenRecusado,
+  tokenLembrado,
+  validadeLocalDoToken,
+} from '@/lib/auth/nativeTokenStorage';
+import { setOfflineTenant, clearOfflineTenant, getOfflineTenant } from '@/lib/offline/offlineTenant';
+import { lembrarSessaoOffline, lerSessaoOffline, esquecerSessaoOffline } from '@/lib/auth/sessaoOfflineLocal';
 
 const RESOURCE = 'SessaoNativa';
 const ctx = (operation) => ({ operation, resource: RESOURCE });
@@ -96,6 +104,7 @@ const contextoValido = (corpo) =>
 const descartarSessaoLocal = () => {
   clearNativeToken();
   clearOfflineTenant();
+  esquecerSessaoOffline();
 };
 
 /**
@@ -254,6 +263,9 @@ export const obterContexto = async () => {
   // campo que o corpo carrega por conveniência; marcá-lo a partir de algo que o
   // navegador escolheu seria a R11 pelo avesso.
   setOfflineTenant(corpo.cliente_id);
+  // D-PROD-287: só a sessão guardada no aparelho abre sem internet.
+  if (tokenLembrado()) lembrarSessaoOffline(corpo);
+  else esquecerSessaoOffline();
 
   return corpo;
 };
@@ -340,9 +352,55 @@ export const restaurarSessao = async () => {
       return { autenticado: false, contexto: null };
     }
 
+    // D-PROD-287: sessão guardada com "Manter conectado" (sempre, no app) abre
+    // sem internet com o último contexto que o SERVIDOR confirmou, desde que o
+    // token ainda não tenha vencido pelo relógio do aparelho. É só leitura dos
+    // dados salvos: toda gravação continua passando pelo servidor, que recusa
+    // o que o token não permitir. Quando a rede volta, a tela revalida.
+    const offline = sessaoOfflineUtilizavel();
+    if (offline) return { autenticado: true, contexto: offline, offline: true };
+
     // Indisponibilidade: o token continua onde está. Ele pode estar
     // perfeitamente válido — ninguém perguntou ao servidor ainda.
     throw isApiError(erro) ? erro : new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, ctx('restaurarSessao'));
+  }
+};
+
+/**
+ * Contexto para abrir sem internet, ou `null` (D-PROD-287). Exige as três
+ * coisas: token guardado no aparelho, ainda no prazo pelo relógio local, e o
+ * último contexto confirmado ser do mesmo tenant dono do armazenamento offline.
+ *
+ * @returns {ContextoDeSessao|null}
+ */
+const sessaoOfflineUtilizavel = () => {
+  if (!tokenLembrado()) return null;
+  const validade = validadeLocalDoToken();
+  if (validade === null || validade <= Date.now()) return null;
+  const salvo = lerSessaoOffline();
+  if (!salvo || salvo.cliente_id !== getOfflineTenant()) return null;
+  return salvo;
+};
+
+/**
+ * Renova a sessão guardada no aparelho (D-PROD-287): troca o token por um novo
+ * de validade longa, para o app ficar conectado até a pessoa sair. Só roda com
+ * "Manter conectado"; sessão de aba não é estendida.
+ *
+ * Nunca derruba a sessão: falha de rede deixa o token como está, e recusa do
+ * servidor é tratada pela validação normal (`restaurarSessao`).
+ *
+ * @returns {Promise<boolean>} se o token foi trocado
+ */
+export const renovar = async () => {
+  if (!tokenLembrado()) return false;
+  try {
+    const corpo = await nativeRequest('/auth/renovar', { method: 'POST', body: { lembrar: true }, autenticado: true }, ctx('renovar'));
+    if (!ehObjeto(corpo) || texto(corpo.token) === '') return false;
+    setNativeToken(corpo.token, { lembrar: true });
+    return true;
+  } catch {
+    return false;
   }
 };
 

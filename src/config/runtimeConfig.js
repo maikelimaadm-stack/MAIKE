@@ -122,6 +122,9 @@ export const isAssistenteLigado = () => lerAssistenteLigado() === 'true';
 
 export const getGoogleMapsApiKey = () => lerGoogleMapsApiKey();
 
+/** A página roda dentro do app Android/iOS (Capacitor)? */
+export const isAppNativo = () => rodandoNoAppNativo();
+
 /** O Google Maps está configurado? */
 export const isGoogleMapsConfigured = () => getGoogleMapsApiKey() !== null;
 
