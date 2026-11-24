@@ -62,10 +62,18 @@
     "gate:indices": "node scripts/gates/gate-indices.mjs",
     "gate:types": "node scripts/gates/gate-typecheck-ratchet.mjs",
     "gate:admin-isolation": "node scripts/gates/gate-admin-isolation.mjs",
-    "verify:all": "node scripts/gates/verify-all.mjs"
+    "verify:all": "node scripts/gates/verify-all.mjs",
+    "app:build": "vite build && node scripts/app/versao-do-pacote.mjs dist && cap sync",
+    "app:pacote": "node scripts/app/pacote-atualizacao.mjs",
+    "app:apk": "npm run app:build && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.10.0",
+    "@capacitor/android": "8.6.2",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.2",
+    "@capacitor/ios": "8.6.2",
+    "@capgo/capacitor-updater": "8.54.2",
     "@fastify/cors": "^11.3.0",
     "@fastify/jwt": "^10.2.2",
     "@hello-pangea/dnd": "^17.0.0",
@@ -109,6 +117,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.6.2",
     "@eslint/js": "^9.19.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
@@ -120,6 +129,8 @@
     "eslint": "^9.19.0",
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^5.0.0",
+    "fake-indexeddb": "6.0.1",
+    "fflate": "0.8.2",
     "globals": "^15.14.0",
     "jsdom": "^25.0.1",
     "postcss": "^8.5.3",

@@ -81,6 +81,16 @@ const ehSplitDevLocal = (origem, daEnv) =>
   /localhost/i.test(daEnv) &&
   origem !== daEnv;
 
+/** A página roda dentro do app nativo (Capacitor injeta `window.Capacitor`)? */
+const rodandoNoAppNativo = () => {
+  if (!hasWindow()) return false;
+  try {
+    return /** @type {any} */ (window).Capacitor?.isNativePlatform?.() === true;
+  } catch {
+    return false;
+  }
+};
+
 const lerOrigemDoNavegador = () => {
   if (!hasWindow()) return null;
   try {
@@ -107,10 +117,29 @@ const lerAssistenteLigado = () => {
   }
 };
 
+/**
+ * Chave da MapTiler (satélite do app Android/iOS que fica no aparelho para usar
+ * sem internet, D-PROD-294). Pública por definição, como a do Google: a
+ * proteção é a restrição de origem no painel da MapTiler.
+ */
+const lerMapTilerKey = () => {
+  try {
+    return normalizarEnv(import.meta.env.VITE_MAPTILER_KEY);
+  } catch {
+    return null;
+  }
+};
+
+/** @returns {string|null} */
+export const getMapTilerKey = () => lerMapTilerKey();
+
 /** @returns {boolean} */
 export const isAssistenteLigado = () => lerAssistenteLigado() === 'true';
 
 export const getGoogleMapsApiKey = () => lerGoogleMapsApiKey();
+
+/** A página roda dentro do app Android/iOS (Capacitor)? */
+export const isAppNativo = () => rodandoNoAppNativo();
 
 /** O Google Maps está configurado? */
 export const isGoogleMapsConfigured = () => getGoogleMapsApiKey() !== null;
@@ -138,6 +167,10 @@ export const getNativeApiUrl = () => {
 
   if (bruta && !daEnv) return null;
 
+  // App Android/iOS (Capacitor): a página roda em `https://localhost` (Android)
+  // ou `capacitor://localhost` (iOS), onde não há API. Vale a URL do build.
+  if (daEnv && rodandoNoAppNativo()) return daEnv;
+
   if (origem && daEnv && origem !== daEnv) {
     if (ehSplitDevLocal(origem, daEnv)) return daEnv;
     if (origem.startsWith('https://')) return origem;
@@ -147,6 +180,15 @@ export const getNativeApiUrl = () => {
 
   return daEnv;
 };
+
+/**
+ * Origem de onde o app Android/iOS busca as atualizações automáticas
+ * (`/app-atualizacao/ultima.json`, D-PROD-294): o mesmo servidor do build.
+ * Fora do app nativo não há atualização: `null`.
+ *
+ * @returns {string|null}
+ */
+export const getOrigemDasAtualizacoesDoApp = () => (rodandoNoAppNativo() ? getNativeApiUrl() : null);
 
 /** O backend nativo está configurado? */
 export const isNativeApiConfigured = () => getNativeApiUrl() !== null;

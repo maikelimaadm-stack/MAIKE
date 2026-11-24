@@ -59,6 +59,16 @@ const CHAVE_TOKEN = 'maike_native_access_token';
  */
 let tokenEmMemoria = null;
 
+/**
+ * Geração da sessão: muda a cada gravação ou descarte do token. Uma renovação
+ * iniciada numa geração só grava se a geração ainda for a mesma (D-PROD-294):
+ * sair da conta durante a renovação não traz o login de volta.
+ */
+let geracao = 0;
+
+/** @returns {number} */
+export const geracaoDoToken = () => geracao;
+
 const temWindow = () => typeof window !== 'undefined';
 
 /**
@@ -133,6 +143,7 @@ export const setNativeToken = (token, opcoes = {}) => {
     return;
   }
   tokenEmMemoria = valor;
+  geracao += 1;
   const lembrar = opcoes?.lembrar === true;
   try {
     if (lembrar === true) {
@@ -151,6 +162,7 @@ export const setNativeToken = (token, opcoes = {}) => {
 /** Descarta o token da memória, do `sessionStorage` e do armazenamento persistente. */
 export const clearNativeToken = () => {
   tokenEmMemoria = null;
+  geracao += 1;
   try {
     storage()?.removeItem(CHAVE_TOKEN);
   } catch {
@@ -184,6 +196,42 @@ export const descartarTokenRecusado = () => {
     }
   }
   return getNativeToken() !== null;
+};
+
+/**
+ * O token atual foi guardado com "Manter conectado" (no aparelho)? Só esses
+ * renovam sozinhos e abrem sem internet (D-PROD-294).
+ *
+ * @returns {boolean}
+ */
+export const tokenLembrado = () => {
+  const atual = getNativeToken();
+  if (!atual) return false;
+  try {
+    return normalizar(armazenamentoPersistente()?.getItem(CHAVE_TOKEN) ?? null) === atual;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Validade do token pelo relógio do aparelho (`exp`), em milissegundos, ou
+ * `null` quando não dá para ler. NÃO prova que o token vale: só o servidor
+ * decide. Serve para não abrir sem internet com um token já vencido.
+ *
+ * @returns {number|null}
+ */
+export const validadeLocalDoToken = () => {
+  const atual = getNativeToken();
+  const meio = atual ? atual.split('.')[1] : null;
+  if (!meio) return null;
+  try {
+    const base64 = meio.replace(/-/g, '+').replace(/_/g, '/');
+    const exp = JSON.parse(atob(base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')))?.exp;
+    return Number.isFinite(exp) ? exp * 1000 : null;
+  } catch {
+    return null;
+  }
 };
 
 /** Existe token guardado? Não diz nada sobre ele ser válido. */

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { AlertTriangle, Info, X } from "lucide-react";
+import { Info } from "lucide-react";
 
 /** Acima disto, o texto completo fica atrás do ⓘ "Fontes de dados". */
 const LIMITE_TEXTO_CURTO = 48;
@@ -14,17 +14,18 @@ const LIMITE_TEXTO_CURTO = 48;
  * inteiro (sem cortar) ao tocar em "ⓘ Fontes de dados". Texto curto aparece
  * direto. Fica acima da linha de atribuição nativa, à esquerda do zoom.
  *
+ * D-PROD-294 (pedido do proprietário): sem avisos do satélite no mapa — nem
+ * "Carregando satélite…" nem "Satélite indisponível". Sem satélite (sem
+ * internet, cota, chave), o mapa segue com o fundo normal, em silêncio.
+ * `status`, `mensagem` e `onRetry` continuam aceitos pelas telas, sem uso.
+ *
  * @param {{ atribuicao?: string | null, status?: string, mensagem?: string | null, onRetry?: () => void, className?: string }} props
  */
-export default function BasemapAtribuicao({ atribuicao, status, mensagem, onRetry, className = "" }) {
+export default function BasemapAtribuicao({ atribuicao, className = "" }) {
   const [aberto, setAberto] = useState(false);
-  const [avisoFechado, setAvisoFechado] = useState(false);
   useEffect(() => {
     if (!atribuicao) setAberto(false);
   }, [atribuicao]);
-  useEffect(() => {
-    setAvisoFechado(false);
-  }, [status, mensagem]);
 
   const longo = (atribuicao || "").length > LIMITE_TEXTO_CURTO;
 
@@ -58,30 +59,6 @@ export default function BasemapAtribuicao({ atribuicao, status, mensagem, onRetr
               <span data-testid="basemap-atribuicao-texto">{atribuicao}</span>
             )}
           </div>
-        </div>
-      ) : null}
-      {status === "carregando" ? (
-        <div role="status" className="mk-mapa-aviso mk-mapa-aviso--info">
-          <span className="mk-mapa-aviso__spin" aria-hidden />
-          Carregando satélite…
-        </div>
-      ) : null}
-      {status === "erro" && mensagem && !avisoFechado ? (
-        <div role="alert" className="mk-mapa-aviso">
-          <AlertTriangle size={15} className="mk-mapa-aviso__ic" aria-hidden />
-          <span className="mk-mapa-aviso__txt">
-            <strong>Satélite indisponível</strong>
-            <span title={`${mensagem} Exibindo o mapa de ruas.`}>{mensagem} Exibindo o mapa de ruas.</span>
-          </span>
-          {onRetry ? (
-            <button type="button" onClick={onRetry} className="mk-mapa-aviso__btn" aria-label="Tentar novamente">
-              <span className="mk-mapa-aviso__longo">Tentar novamente</span>
-              <span className="mk-mapa-aviso__curto" aria-hidden>Tentar</span>
-            </button>
-          ) : null}
-          <button type="button" onClick={() => setAvisoFechado(true)} className="mk-mapa-aviso__x" aria-label="Fechar aviso" title="Fechar aviso">
-            <X size={14} aria-hidden />
-          </button>
         </div>
       ) : null}
     </>

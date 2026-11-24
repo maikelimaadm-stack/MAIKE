@@ -12,6 +12,8 @@
  *   e mensagem visível — nunca deixa "Satélite" ativo sem imagem.
  */
 import { BASEMAP_IDS, getSatelliteProvider, PROVIDER_RUAS } from "./basemap.js";
+import { getMapTilerKey, isAppNativo } from "@/config/runtimeConfig";
+import { ATRIBUICAO_MAPTILER_TEXTO, fonteRasterMapTiler } from "./sateliteGuardado.js";
 import {
   ATRIBUICAO_GOOGLE,
   SAT_LAYER_ID,
@@ -32,14 +34,20 @@ export const PREFIXOS_FONTES_NEGOCIO = Object.freeze(["m1-", "maike-", "mg-", "s
  * @typedef {{
  *   basemapId: string,
  *   status: "pronto" | "carregando" | "erro",
- *   provedor: "openfreemap" | "google-map-tiles" | "estilo-licenciado" | "indisponivel",
+ *   provedor: "openfreemap" | "google-map-tiles" | "maptiler" | "estilo-licenciado" | "indisponivel",
  *   mensagem: string | null,
  *   atribuicao: string | null,
  * }} EstadoBasemap
  */
 
-/** Provedor de satélite que será usado neste build. */
+/**
+ * Provedor de satélite que será usado neste build.
+ * D-PROD-294: no app Android/iOS com chave da MapTiler, o satélite é da
+ * MapTiler — o único cujos termos permitem guardar no aparelho o que já foi
+ * visto, para mostrar sem internet. No site continua o Google.
+ */
 export function provedorSatelite() {
+  if (isAppNativo() && getMapTilerKey()) return "maptiler";
   if (mapTilesConfigurado()) return "google-map-tiles";
   if (getSatelliteProvider().configured) return "estilo-licenciado";
   return "indisponivel";
@@ -115,6 +123,8 @@ export function createBasemapController(map, opts = {}) {
 
   const atualizarAtribuicao = () => {
     if (disposed || !sessaoAtiva || estado.basemapId !== BASEMAP_IDS.SATELITE || !fetchImpl) return;
+    // Copyright dinâmico é só do Google (endpoint de viewport).
+    if (estado.provedor !== "google-map-tiles") return;
     if (viewportTimer) clearTimeout(viewportTimer);
     viewportTimer = setTimeout(async () => {
       viewportTimer = null;
@@ -175,6 +185,9 @@ export function createBasemapController(map, opts = {}) {
 
   const onMapError = (e) => {
     if (disposed || !ehErroDoSatelite(e)) return;
+    // Sem internet, imagem não guardada falha: não é motivo para tirar o
+    // satélite — as que estão no aparelho continuam aparecendo (D-PROD-294).
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
     if (prova.pedido !== pedido || prova.pedido < 0) return;
     const status = statusDoErro(e);
     prova.erros += 1;
@@ -203,8 +216,51 @@ export function createBasemapController(map, opts = {}) {
     prova.errosSeguidos = 0;
     if (estado.status === "carregando") {
       limparProvaTimer();
-      emit({ basemapId: BASEMAP_IDS.SATELITE, status: "pronto", mensagem: null, atribuicao: estado.atribuicao || ATRIBUICAO_GOOGLE });
+      emit({ basemapId: BASEMAP_IDS.SATELITE, status: "pronto", mensagem: null, atribuicao: estado.atribuicao || atribuicaoPadrao() });
       atualizarAtribuicao();
+    }
+  };
+
+  const atribuicaoPadrao = () => (estado.provedor === "maptiler" ? ATRIBUICAO_MAPTILER_TEXTO : ATRIBUICAO_GOOGLE);
+
+  /** D-PROD-294: satélite MapTiler (sem sessão; imagens guardadas no aparelho). */
+  const ativarSateliteMapTiler = () => {
+    const meu = ++pedido;
+    limparProvaTimer();
+    emit({ status: "carregando", provedor: "maptiler", mensagem: null, atribuicao: null });
+    try {
+      const src = map.getSource(SAT_SOURCE_ID);
+      const mesmaFonte = sessaoAtiva && sessaoAtiva.session === "maptiler";
+      if (src && !mesmaFonte) {
+        if (map.getLayer(SAT_LAYER_ID)) map.removeLayer(SAT_LAYER_ID);
+        map.removeSource(SAT_SOURCE_ID);
+      }
+      if (!map.getSource(SAT_SOURCE_ID)) map.addSource(SAT_SOURCE_ID, /** @type {any} */ (fonteRasterMapTiler(String(getMapTilerKey()))));
+      if (!map.getLayer(SAT_LAYER_ID)) {
+        map.addLayer(
+          { id: SAT_LAYER_ID, type: "raster", source: SAT_SOURCE_ID, paint: { "raster-fade-duration": 0 } },
+          primeiraCamadaDeNegocio(map, opts.prefixosNegocio)
+        );
+      }
+      sessaoAtiva = { session: "maptiler", key: "" };
+      // `renovou: true`: não há sessão para renovar; 401/403 é chave recusada.
+      prova = { pedido: meu, ok: 0, erros: 0, errosSeguidos: 0, renovou: true };
+      setSatVisivel(true);
+      if (mesmaFonte && map.isSourceLoaded?.(SAT_SOURCE_ID)) {
+        prova.ok = 1;
+        emit({ basemapId: BASEMAP_IDS.SATELITE, status: "pronto", mensagem: null, atribuicao: ATRIBUICAO_MAPTILER_TEXTO });
+        return;
+      }
+      provaTimer = setTimeout(() => {
+        provaTimer = null;
+        if (disposed || meu !== pedido || prova.ok > 0) return;
+        // Sem internet e nada guardado aqui: mantém a camada (o que estiver no
+        // aparelho aparece ao mover o mapa), sem dar erro.
+        if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+        falhar("Satélite indisponível: as imagens não chegaram a tempo (rede ou provedor).");
+      }, opts.timeoutProvaMs ?? 15000);
+    } catch (err) {
+      falhar(err instanceof Error && err.message ? `Satélite indisponível: ${err.message}` : "Satélite indisponível.");
     }
   };
 
@@ -250,6 +306,8 @@ export function createBasemapController(map, opts = {}) {
       provaTimer = setTimeout(() => {
         provaTimer = null;
         if (disposed || meu !== pedido || prova.ok > 0) return;
+        // Sem internet: mantém a camada; as imagens ainda no cache aparecem.
+        if (typeof navigator !== "undefined" && navigator.onLine === false) return;
         falhar("Satélite indisponível: as imagens não chegaram a tempo (rede ou provedor).");
       }, opts.timeoutProvaMs ?? 15000);
     } catch (err) {
@@ -286,6 +344,10 @@ export function createBasemapController(map, opts = {}) {
     if (disposed) return;
     if (id === BASEMAP_IDS.SATELITE) {
       const prov = provedorSatelite();
+      if (prov === "maptiler") {
+        ativarSateliteMapTiler();
+        return;
+      }
       if (prov === "google-map-tiles") {
         void ativarSateliteGoogle(!!o.forcar);
         return;

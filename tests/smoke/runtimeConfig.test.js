@@ -98,6 +98,32 @@ describe('ENV — variáveis de build com referência estática', () => {
     expect(getNativeApiUrl()).toBe('https://exemplo.invalido/api');
   });
 
+  it('ENV13 — no app Android/iOS (Capacitor) vale a URL do build, não a origem da página', async () => {
+    vi.stubEnv('VITE_MAIKE_API_URL', 'https://api.exemplo.invalido');
+    const anterior = /** @type {any} */ (window).Capacitor;
+    /** @type {any} */ (window).Capacitor = { isNativePlatform: () => true };
+    try {
+      const { getNativeApiUrl } = await carregarConfig();
+      expect(getNativeApiUrl()).toBe('https://api.exemplo.invalido');
+    } finally {
+      /** @type {any} */ (window).Capacitor = anterior;
+    }
+  });
+
+  it('ENV14 — fora do app nativo a regra da origem da página não muda', async () => {
+    vi.stubEnv('VITE_MAIKE_API_URL', 'https://api.exemplo.invalido');
+    const anterior = /** @type {any} */ (window).Capacitor;
+    /** @type {any} */ (window).Capacitor = { isNativePlatform: () => false };
+    try {
+      const semApp = (await carregarConfig()).getNativeApiUrl();
+      /** @type {any} */ (window).Capacitor = undefined;
+      const semCapacitor = (await carregarConfig()).getNativeApiUrl();
+      expect(semApp).toBe(semCapacitor);
+    } finally {
+      /** @type {any} */ (window).Capacitor = anterior;
+    }
+  });
+
   it('ENV12 — nenhum valor de env aparece em describeRuntimeConfig', async () => {
     const chave = 'chave-sintetica-de-teste';
     vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', chave);

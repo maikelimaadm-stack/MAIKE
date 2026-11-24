@@ -6,6 +6,7 @@ import {
   createOfflineEntityAdapter,
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'PontoSuplementacao';
 const CAMINHO = '/pontos-suplementacao';
@@ -66,3 +67,9 @@ export const consultarElegibilidadeExclusaoPontoSuplementacaoNativa = (id) =>
     { autenticado: true },
     ctx('elegibilidadeExclusaoPontoSuplementacao')
   );
+
+// D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/pontos-suplementacao',
+]);

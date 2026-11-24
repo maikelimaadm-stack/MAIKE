@@ -11,6 +11,7 @@ import {
   pendenciasOfflineDoRegistro,
 } from '@/lib/offline/offlineEntityRuntime';
 import { ApiError, API_ERROR_CODES } from '../_core/ApiError.js';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'Lote';
 const CAMINHO = '/lotes';
@@ -154,3 +155,9 @@ export const lotePort = createOfflineEntityAdapter({
   // PR167-R2: exclusão de Lote nunca passa pela fila offline.
   exclusao: 'somente_online',
 });
+
+// D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/lotes',
+]);

@@ -6,6 +6,7 @@ import {
   createOfflineEntityAdapter,
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'SuplementacaoLote';
 const CAMINHO = '/suplementacao-lotes';
@@ -100,3 +101,9 @@ export const suplementacaoLotePort = Object.freeze({
     return Array.isArray(lista) && typeof limite === 'number' && limite > 0 ? lista.slice(0, limite) : lista;
   },
 });
+
+// D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/suplementacao-lotes?limit=500',
+]);

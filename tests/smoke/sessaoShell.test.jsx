@@ -39,6 +39,7 @@ const sessionService = {
   carregarConfiguracoesPublicas: vi.fn(),
   entrarComSessaoNativa: vi.fn(),
   restaurarSessaoNativaAtual: vi.fn(),
+  renovarSessaoNativaAtual: vi.fn(async () => false),
   sairDaSessaoNativa: vi.fn(),
   RAZOES_DE_SESSAO_DO_PRODUTO: RAZOES,
 };
@@ -79,6 +80,7 @@ const Sonda = () => {
       <span data-testid="cliente">{auth.clienteId ?? 'sem-cliente'}</span>
       <span data-testid="estado">{auth.sessionState}</span>
       <span data-testid="erro-validacao">{auth.sessionValidationError ?? 'sem-erro-validacao'}</span>
+      <span data-testid="offline">{String(auth.sessaoOffline)}</span>
       <button type="button" onClick={() => auth.revalidarSessao()}>revalidar</button>
       <button type="button" onClick={() => auth.logout()}>sair</button>
       <button
@@ -189,6 +191,60 @@ describe('AUTH — estados do AuthContext', () => {
     expect(sessionService.restaurarSessaoNativaAtual).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('autenticado')).toHaveTextContent('true');
     expect(screen.getByTestId('usuario')).toHaveTextContent('maria');
+  });
+
+  it('AUTH-OFF1 (D-PROD-294) — sem internet com sessão lembrada: entra com os dados salvos, sem renovar', async () => {
+    sessionService.restaurarSessaoNativaAtual.mockResolvedValue({
+      autenticado: true,
+      offline: true,
+      contexto: { cliente_id: 'cli_9', usuario_id: 'usr_9', login: 'maria' },
+    });
+    await montarAuth();
+    expect(screen.getByTestId('autenticado')).toHaveTextContent('true');
+    expect(screen.getByTestId('offline')).toHaveTextContent('true');
+    expect(screen.getByTestId('cliente')).toHaveTextContent('cli_9');
+    expect(screen.getByTestId('erro-validacao')).toHaveTextContent('sem-erro-validacao');
+    expect(sessionService.renovarSessaoNativaAtual).not.toHaveBeenCalled();
+  });
+
+  it('AUTH-OFF2 (D-PROD-294) — a rede volta: revalida em segundo plano, sai do offline e renova', async () => {
+    sessionService.restaurarSessaoNativaAtual.mockResolvedValueOnce({
+      autenticado: true,
+      offline: true,
+      contexto: { cliente_id: 'cli_9', usuario_id: 'usr_9', login: 'maria' },
+    });
+    await montarAuth();
+    sessionService.restaurarSessaoNativaAtual.mockResolvedValue({
+      autenticado: true,
+      contexto: { cliente_id: 'cli_9', usuario_id: 'usr_9', login: 'maria' },
+    });
+    await act(async () => { window.dispatchEvent(new Event('online')); });
+    await waitFor(() => expect(screen.getByTestId('offline')).toHaveTextContent('false'));
+    expect(screen.getByTestId('autenticado')).toHaveTextContent('true');
+    expect(sessionService.renovarSessaoNativaAtual).toHaveBeenCalledTimes(1);
+  });
+
+  it('AUTH-OFF3 (D-PROD-294) — a rede volta e o servidor recusa: vai para o login', async () => {
+    sessionService.restaurarSessaoNativaAtual.mockResolvedValueOnce({
+      autenticado: true,
+      offline: true,
+      contexto: { cliente_id: 'cli_9', usuario_id: 'usr_9', login: 'maria' },
+    });
+    await montarAuth();
+    sessionService.restaurarSessaoNativaAtual.mockResolvedValue({ autenticado: false, contexto: null });
+    await act(async () => { window.dispatchEvent(new Event('online')); });
+    await waitFor(() => expect(screen.getByTestId('autenticado')).toHaveTextContent('false'));
+    expect(screen.getByTestId('estado')).toHaveTextContent('nao_autenticada');
+  });
+
+  it('AUTH-OFF4 (D-PROD-294) — online, a restauração validada renova a sessão guardada', async () => {
+    sessionService.restaurarSessaoNativaAtual.mockResolvedValue({
+      autenticado: true,
+      contexto: { cliente_id: 'cli_9', usuario_id: 'usr_9', login: 'maria' },
+    });
+    await montarAuth();
+    expect(screen.getByTestId('offline')).toHaveTextContent('false');
+    expect(sessionService.renovarSessaoNativaAtual).toHaveBeenCalledTimes(1);
   });
 
   it('AUTH11 — login recusado NÃO autentica e não cai na Base44', async () => {

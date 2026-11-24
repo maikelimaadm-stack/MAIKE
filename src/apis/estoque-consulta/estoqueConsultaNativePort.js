@@ -5,6 +5,7 @@
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'Estoque';
 
@@ -40,3 +41,10 @@ export const operacoesNativas = Object.freeze({
   /** @param {Record<string, unknown>} filtros */
   opcoesLocais: (filtros) => nativeRequest(comQuery('/estoque/opcoes/locais', filtros), { autenticado: true }, ctx('listOpcoesLocaisEstoque')),
 });
+
+// D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/estoque/opcoes/locais?limit=100',
+  '/estoque/saldo?empresa_id={empresa}&limit=100',
+]);

@@ -223,6 +223,8 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
       };
       const onError = (e) => {
         if (cancelled || !mountedRef.current) return;
+        // D-PROD-294: sem internet o mapa abre com o fundo local; não é falha.
+        if (created?.erroContornado?.()) return;
         const msg = e?.error?.message || e?.message || "Erro de estilo/tiles";
         if (/style|tile|fetch|network|xhr|401|403|404/i.test(String(msg))) {
           setMapError("Falha ao carregar o estilo ou tiles do mapa. Tente novamente.");
