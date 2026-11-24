@@ -36,6 +36,12 @@ O APK sai em `android/app/build/outputs/apk/release/app-release.apk` e instala p
 
 `npm run app:build` atualiza `ios/`. O build do iOS (IPA) só roda num Mac com Xcode: abrir `ios/App/App.xcworkspace`, escolher a equipe de assinatura e rodar no aparelho ou exportar.
 
+## Permissões
+
+- Android (`AndroidManifest.xml`): internet, localização (GPS do mapa: ponto, área e "onde estou") e câmera (fotos dos formulários). O Android pergunta na primeira vez que a função é usada.
+- iOS (`Info.plist`): textos de localização, câmera e fotos.
+- Permissão nova é mudança nativa: exige APK novo (não vai pela atualização automática).
+
 ## Login (D-PROD-287)
 
 - No app o login fica guardado no aparelho até a pessoa tocar em "Sair" (a opção "Manter conectado" não aparece: vale sempre).

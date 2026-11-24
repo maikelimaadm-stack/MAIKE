@@ -66,5 +66,11 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>O MAK Gestão usa sua localização para mostrar onde você está no mapa e marcar pontos e áreas.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>O MAK Gestão usa a câmera para tirar fotos nos registros.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>O MAK Gestão acessa suas fotos para anexar imagens aos registros.</string>
 </dict>
 </plist>
