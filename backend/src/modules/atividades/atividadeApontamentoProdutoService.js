@@ -828,7 +828,7 @@ export const lancarLinhaProduto = async (contexto, atividadeId, apontamentoId, c
   });
 };
 
-/** Campos que a edição troca (o resto vem da linha gravada). D-PROD-295: `lotes`, a escolha nova dos lotes. */
+/** Campos que a edição troca (o resto vem da linha gravada). D-PROD-297: `lotes`, a escolha nova dos lotes. */
 const CAMPOS_EDITAVEIS = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao', 'jato', 'lotes']);
 
 /**

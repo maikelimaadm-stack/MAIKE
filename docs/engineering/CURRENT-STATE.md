@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-24 (missão ativa D-PROD-295; antes D-PROD-294, D-PROD-293, D-PROD-290, D-PROD-288, D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-24 (missão ativa D-PROD-297; antes D-PROD-295, D-PROD-294, D-PROD-293, D-PROD-290, D-PROD-288, D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,16 +9,26 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-24) — MAIKE-ESTOQUE-LOTE-TODAS-TELAS: escolha do lote e aviso de vencido em todas as telas que tiram produto (D-PROD-295)
+## Missão ativa (2026-11-24) — MAIKE-ESTOQUE-LOTE-TODAS-TELAS: escolha do lote e aviso de vencido em todas as telas que tiram produto (D-PROD-297)
 
 | Item | Estado |
 |---|---|
-| Decisão | **D-PROD-295**: cocho, financeiro (venda; lote do fabricante e validade na compra), atividade (linha, registro, jatos) e abastecimento com o mesmo campo "Lote" da Saída (sugestão FEFO, escolher e dividir, vencido pede confirmação); o servidor nunca recusa vencido, só avisa |
+| Decisão | **D-PROD-297**: cocho, financeiro (venda; lote do fabricante e validade na compra), atividade (linha, registro, jatos) e abastecimento com o mesmo campo "Lote" da Saída (sugestão FEFO, escolher e dividir, vencido pede confirmação); o servidor nunca recusa vencido, só avisa |
 | Servidor | atividade e abastecimento passam a aceitar `lotes`; prévia do financeiro diz o controle de lote; leitura dos lotes liberada a quem lança nessas telas |
 | Banco | sem migration |
 | Branch | `claude/estoque-lote-todas-telas` (PR em rascunho) |
 | Relatório | [`MAIKE-ESTOQUE-LOTE-TODAS-TELAS-REPORT.md`](./MAIKE-ESTOQUE-LOTE-TODAS-TELAS-REPORT.md) |
 | Próximas | unidade convertida nessas telas (emenda da SPEC de unidades); lote na retificação do financeiro |
+
+## Missão anterior (2026-11-24) — MAIKE-SINCRONIZACAO-MOTOR: motor genérico de gravação sem internet (D-PROD-295)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-295**: motor por contrato (cada tipo declara `offline`), código único por registro, ordem por recurso, "precisa de atenção", fila antiga passa a ser enviada |
+| Banco | sem migration (deduplicação já existe: `OperacaoIdempotente`) |
+| Próxima | cochos e depósitos no motor |
+| Relatório | [`SINCRONIZACAO-MOTOR-D295-REPORT.md`](./SINCRONIZACAO-MOTOR-D295-REPORT.md) · inventário [`OFFLINE-INVENTARIO.md`](./OFFLINE-INVENTARIO.md) |
+
 ## Missão anterior (2026-11-24) — MAIKE-JATOS-FECHAMENTO: tipo "por jato" editável, "Fez o pasto todo?", várias máquinas e jato na linha avulsa (D-PROD-291 a 293)
 
 | Item | Estado |

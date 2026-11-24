@@ -65,7 +65,7 @@ export const ESQUEMA_ITEM_PRODUTO = Object.freeze({
   required: ['produto_id', 'local_estoque_id', 'quantidade'],
   additionalProperties: false,
   // D-PROD-293: o número do jato (texto "1".."999") também na linha avulsa (lançar e editar).
-  // D-PROD-295: `lotes` (a escolha manual de produto que controla lote; sem ela, FEFO) em toda linha de produto —
+  // D-PROD-297: `lotes` (a escolha manual de produto que controla lote; sem ela, FEFO) em toda linha de produto —
   // lançar, editar e os `produtos[]` do lançamento, do registro e dos "Jatos de hoje".
   properties: { produto_id: ID, local_estoque_id: ID, quantidade: DECIMAL, observacao: OBSERVACAO, jato: JATO, lotes: LOTES_ESCOLHIDOS },
 });

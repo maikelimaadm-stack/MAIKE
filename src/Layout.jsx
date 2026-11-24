@@ -52,6 +52,8 @@ import { assistenteLigado } from "@/components/assistente/assistenteLigado";
 import { DEFAULT_MENU, PAGINAS_SO_ADMINISTRADOR, flattenMenuPages, findMenuItemByUrl, getAllPages } from "@/lib/menuConfig";
 import { ACTION_LABELS, canAccessModule, canAccessPage, canPerformAction, detectPermissionAction, normalizePermissionRecord } from "@/lib/permissions";
 import { deveBloquearCliqueMenu } from "@/lib/menuNavigation";
+import { useFilaDeEnvio } from "@/hooks/useFilaDeEnvio";
+import { confirmar } from "@/lib/maikeConfirmar";
 
 const PRIMARY_PAGE = "MapaGeral";
 
@@ -264,7 +266,22 @@ function LayoutShell({ children, currentPageName }) {
   // Base44, que descartava o token do SDK; desde que a autenticação do
   // aplicativo é própria, era esse o token que continuaria válido — o botão
   // pareceria funcionar e a sessão sobreviveria.
-  const { logout: handleLogout } = useAuth();
+  const { logout: sairDaConta } = useAuth();
+  // D-PROD-295: registros feitos sem internet que ainda não chegaram ao sistema.
+  const filaEnvio = useFilaDeEnvio();
+  const naoEnviados = filaEnvio.aguardando + filaEnvio.atencao;
+  const handleLogout = React.useCallback(async () => {
+    if (naoEnviados > 0) {
+      const ok = await confirmar({
+        titulo: "Há registros não enviados",
+        descricao: `${naoEnviados} registro(s) feitos sem internet ainda não chegaram ao sistema. Eles ficam guardados neste celular e só serão enviados quando você entrar de novo com esta mesma conta.`,
+        textoConfirmar: "Sair mesmo assim",
+        perigo: true,
+      });
+      if (!ok) return;
+    }
+    sairDaConta();
+  }, [naoEnviados, sairDaConta]);
 
   const normalizedPermissions = React.useMemo(() => normalizePermissionRecord(userPermissions), [userPermissions]);
   // Papel real da conta na fazenda, vindo do servidor (D-PROD-77) — nunca `is_admin`.
@@ -482,9 +499,14 @@ function LayoutShell({ children, currentPageName }) {
         <ItemDoMenu onClick={abrirDadosOffline} className="text-xs">
           <CloudDownload className="w-3 h-3 mr-2" />
           Dados sem internet
+          {naoEnviados > 0 &&
+          <span className={`ml-auto rounded-full px-1.5 text-[10px] font-semibold ${filaEnvio.atencao > 0 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`} title="Aguardando envio">
+              {naoEnviados}
+            </span>
+          }
         </ItemDoMenu>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout} className="text-xs text-red-600">
+        <DropdownMenuItem onClick={() => { void handleLogout(); }} className="text-xs text-red-600">
           <LogOut className="w-3 h-3 mr-2" />
           Sair
         </DropdownMenuItem>
