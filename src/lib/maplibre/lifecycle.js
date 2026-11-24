@@ -28,19 +28,38 @@ import {
 } from "./estiloAreas.js";
 
 /**
+ * Fundo do mapa SEM internet (D-PROD-294): estilo local, sem nenhum recurso de
+ * rede. O estilo-base (OpenFreeMap) vem da internet; sem ela, o mapa abria com
+ * "Mapa indisponível" e escondia áreas, lotes e pontos, que estão no aparelho.
+ * Com este fundo as camadas de negócio aparecem sobre uma cor neutra.
+ * O id não usa os prefixos de negócio (`maike-`, `m1-`…): é estilo-base.
+ */
+export const ESTILO_SEM_INTERNET = Object.freeze({
+  version: 8,
+  name: "Sem internet",
+  sources: {},
+  layers: [{ id: "fundo-sem-internet", type: "background", paint: { "background-color": "#dfe7dc" } }],
+});
+
+const semInternetAgora = () => typeof navigator !== "undefined" && navigator.onLine === false;
+
+/**
  * @param {HTMLElement} container
  * @param {{ basemapId?: string, center?: { lat: number, lng: number }, zoom?: number }} [opts]
- * @returns {{ map: import('maplibre-gl').Map, dispose: () => void, getCancelled: () => boolean }}
+ * @returns {{ map: import('maplibre-gl').Map, dispose: () => void, getCancelled: () => boolean, usandoFundoSemInternet: () => boolean, erroContornado: () => boolean }}
  */
 export function createEditorMap(container, opts = {}) {
   let cancelled = false;
   const provider = resolveBasemapProvider(opts.basemapId || BASEMAP_IDS.RUAS);
   const center = opts.center || CENTRO_PADRAO;
   const zoom = opts.zoom ?? ZOOM_PADRAO;
+  // Sem internet já na abertura: nem tenta o estilo remoto.
+  let fundoSemInternet = semInternetAgora() || !provider.styleUrl;
+  let estiloCarregou = false;
 
   const map = new maplibregl.Map({
     container,
-    style: provider.styleUrl,
+    style: fundoSemInternet ? /** @type {any} */ (ESTILO_SEM_INTERNET) : provider.styleUrl,
     center: [center.lng, center.lat],
     zoom,
     attributionControl: { compact: true },
@@ -51,6 +70,22 @@ export function createEditorMap(container, opts = {}) {
   });
 
   map.touchZoomRotate.disableRotation();
+
+  map.on("style.load", () => {
+    estiloCarregou = true;
+  });
+  // O estilo remoto não veio (rede caída no meio, servidor fora): troca para o
+  // fundo local uma vez, em vez de deixar o mapa sem abrir. Erro de tile de uma
+  // fonte (`sourceId`) não derruba o estilo e não entra aqui.
+  map.on("error", (e) => {
+    if (estiloCarregou || fundoSemInternet || /** @type {any} */ (e)?.sourceId) return;
+    fundoSemInternet = true;
+    try {
+      map.setStyle(/** @type {any} */ (ESTILO_SEM_INTERNET));
+    } catch {
+      /* best-effort */
+    }
+  });
 
   const dispose = () => {
     cancelled = true;
@@ -65,6 +100,10 @@ export function createEditorMap(container, opts = {}) {
     map,
     dispose,
     getCancelled: () => cancelled,
+    usandoFundoSemInternet: () => fundoSemInternet,
+    // Falha de rede de estilo ou tile não é "mapa indisponível" quando o mapa
+    // já abriu ou caiu no fundo local: as camadas do aparelho continuam.
+    erroContornado: () => estiloCarregou || fundoSemInternet,
   };
 }
 

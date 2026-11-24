@@ -13,6 +13,7 @@ import {
   createOfflineEntityAdapter,
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'EstoqueLoteNota';
 const CAMINHO = '/estoque-lotes-nota';
@@ -66,3 +67,9 @@ export const estoqueLoteNotaPort = offlineStorageDisponivel()
       tenantScoped: true,
     })
   : operacoesNativas;
+
+// D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/estoque-lotes-nota',
+]);

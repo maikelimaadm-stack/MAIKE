@@ -4,12 +4,16 @@ import App from '@/App.jsx'
 import '@/index.css'
 import '@/lib/installToastsDoSistema'
 import '@/lib/installDeleteDialogInterceptor'
+import { iniciarAtualizacaoAutomatica } from '@/lib/app/atualizacaoAutomatica'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   // <React.StrictMode>
   <App />
   // </React.StrictMode>,
 )
+
+// D-PROD-294: app Android/iOS — avisa que este pacote abriu e confere versão nova.
+iniciarAtualizacaoAutomatica()
 
 if (import.meta.hot) {
   import.meta.hot.on('vite:beforeUpdate', () => {

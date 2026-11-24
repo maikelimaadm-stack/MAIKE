@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import MaikeSonnerToaster from "@/components/common/MaikeSonnerToaster";
 import GlobalRequiredFieldsGuard from '@/components/common/GlobalRequiredFieldsGuard';
@@ -16,6 +16,9 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import NativeLoginForm from '@/components/auth/NativeLoginForm';
 import NativeSessionUnavailable from '@/components/auth/NativeSessionUnavailable';
+import DadosOffline from '@/components/offline/DadosOffline';
+import PreparoDoApp from '@/components/offline/PreparoDoApp';
+import { appPrecisaPreparar } from '@/services/dadosOfflineService';
 import SplashScreen from '@/components/common/SplashScreen';
 import { BootSplashProvider, useBootSplash } from '@/lib/bootSplashContext';
 import { normalizeAppPathname } from '@/lib/navigation/normalizeAppPathname';
@@ -68,7 +71,11 @@ const AuthenticatedApp = () => {
     sessionValidationError,
     revalidarSessao,
     encerrarValidacaoEIrParaLogin,
+    clienteId,
   } = useAuth();
+  // D-PROD-294: no app, a primeira entrada baixa tudo ANTES de abrir o sistema.
+  const [preparoConcluido, setPreparoConcluido] = useState(/** @type {string|null} */ (null));
+  const concluirPreparo = useCallback(() => setPreparoConcluido(clienteId), [clienteId]);
   const { layoutBootReady, resetLayoutBoot } = useBootSplash();
 
   useEffect(() => {
@@ -78,6 +85,7 @@ const AuthenticatedApp = () => {
   }, [isAuthenticated, resetLayoutBoot]);
 
   const authBooting = isLoadingPublicSettings || isLoadingAuth;
+  const precisaPreparar = isAuthenticated && !!clienteId && preparoConcluido !== clienteId && appPrecisaPreparar();
   const showMainApp =
     isAuthenticated && authError?.type !== 'user_not_registered';
   const showBootSplash =
@@ -115,6 +123,11 @@ const AuthenticatedApp = () => {
     return <NativeLoginForm entrar={entrar} onAutenticado={() => {}} />;
   }
 
+  // D-PROD-294: primeira entrada no app — prepara antes de abrir (sem splash por cima).
+  if (precisaPreparar) {
+    return <PreparoDoApp aoConcluir={concluirPreparo} />;
+  }
+
   // A recusa do provider de dados legado continua tendo tela própria — ela
   // descreve o acesso do usuário às capacidades ainda não migradas, e não a
   // sessão do aplicativo.
@@ -127,6 +140,7 @@ const AuthenticatedApp = () => {
   return (
     <>
       <SplashScreen visible={showBootSplash} />
+      {showMainApp && <DadosOffline />}
       {showMainApp && (
         <Routes>
           <Route path="/" element={<Navigate to={createPageUrl(mainPage)} replace />} />

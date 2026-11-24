@@ -6,6 +6,7 @@ import {
   createOfflineEntityAdapter,
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'BebedouroHistorico';
 const CAMINHO = '/bebedouros-historico';
@@ -49,3 +50,9 @@ const operacoesNativas = Object.freeze({
 });
 
 export const bebedouroHistoricoPort = operacoesNativas;
+
+// D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/bebedouros-historico',
+]);

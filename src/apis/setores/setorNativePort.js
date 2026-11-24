@@ -47,6 +47,7 @@ import {
   createOfflineEntityAdapter,
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'Setor';
 const CAMINHO = '/setores';
@@ -179,3 +180,10 @@ export const setorPort = createOfflineEntityAdapter({
   // que entrasse depois no mesmo navegador. Ver D-PROD-25 §L.
   tenantScoped: true,
 });
+
+// D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/setores',
+  '/setores/page?empresa_id={empresa}&limit=100',
+]);

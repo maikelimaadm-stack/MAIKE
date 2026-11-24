@@ -1,0 +1,24 @@
+{
+  "appId": "com.makgestao.app",
+  "appName": "MAK Gestão",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https",
+    "iosScheme": "capacitor"
+  },
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "appReadyTimeout": 15000,
+      "resetWhenUpdate": true,
+      "autoDeletePrevious": true,
+      "autoDeleteFailed": true,
+      "statsUrl": "",
+      "channelUrl": "",
+      "updateUrl": ""
+    }
+  }
+}

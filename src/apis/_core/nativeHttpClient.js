@@ -29,6 +29,8 @@ import { comPrefixoApiNativa } from '@/config/nativeApiPath.js';
 import { getNativeApiUrl } from '@/config/runtimeConfig';
 import { ApiError, API_ERROR_CODES } from './ApiError.js';
 import { getNativeToken } from '@/lib/auth/nativeTokenStorage';
+import { getOfflineTenant } from '@/lib/offline/offlineTenant';
+import { guardarResposta, lerResposta } from '@/lib/offline/respostasOffline';
 
 /** Requisição sem resposta em 20 s é tratada como indisponibilidade. */
 const TIMEOUT_MS = 20000;
@@ -248,7 +250,7 @@ const lerCorpo = async (resposta) => {
  * @param {{operation: string, resource: string, details?: object}} contexto
  * @returns {Promise<unknown>}
  */
-export const nativeRequest = async (caminho, opcoes, contexto) => {
+const requisitarNaRede = async (caminho, opcoes, contexto) => {
   const { method = 'GET', body = null, autenticado = false } = opcoes;
   const limiteMs =
     Number.isFinite(opcoes.timeoutMs) && /** @type {number} */ (opcoes.timeoutMs) > 0
@@ -350,6 +352,54 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
     // enumerável — some de `JSON.stringify`, inclusive a `message` do servidor.
     cause: corpo,
   });
+};
+
+const semInternetAgora = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+
+/** Leitura com cópia no aparelho espera a rede no máximo isto (D-PROD-294). */
+const TIMEOUT_COM_COPIA_MS = 6000;
+
+/**
+ * Requisição ao backend nativo (contrato acima).
+ *
+ * D-PROD-294 — leitura autenticada (`GET`) funciona sem internet: a resposta
+ * que o servidor deu fica guardada no aparelho (por tenant e caminho) e volta
+ * quando a rede falha ou o aparelho está sem sinal. Gravações (POST/PUT/PATCH/
+ * DELETE) nunca usam o guardado. Sem resposta guardada, a falha de rede segue
+ * como sempre (indisponibilidade).
+ *
+ * @param {string} caminho
+ * @param {{method?: 'GET'|'POST'|'PUT'|'PATCH'|'DELETE', body?: object|null, autenticado?: boolean, tokenDeEtapa?: string, timeoutMs?: number, signal?: AbortSignal, somenteRede?: boolean}} opcoes
+ * @param {{operation: string, resource: string, details?: object}} contexto
+ * @returns {Promise<unknown>}
+ */
+export const nativeRequest = async (caminho, opcoes, contexto) => {
+  // `/auth/*` nunca: a sessão é decidida pelo servidor (ou pela regra própria
+  // de abertura sem internet, em `nativeSessionApi`), nunca por resposta velha.
+  const leitura = (opcoes.method ?? 'GET') === 'GET' && opcoes.autenticado === true && !caminho.startsWith('/auth/');
+  const tenant = leitura ? getOfflineTenant() : null;
+  if (!tenant) return requisitarNaRede(caminho, opcoes, contexto);
+
+  // `somenteRede` (baixar dados): a leitura precisa vir do servidor agora.
+  const podeUsarGuardado = opcoes.somenteRede !== true;
+  const guardada = podeUsarGuardado ? await lerResposta(tenant, caminho) : undefined;
+  if (guardada && semInternetAgora()) return guardada.corpo;
+
+  // Internet fraca (campo): com uma cópia guardada, não espera os 20 s do
+  // servidor — em 6 s sem resposta, a tela abre com a cópia do aparelho.
+  const opcoesDaRede = guardada
+    ? { ...opcoes, timeoutMs: Math.min(opcoes.timeoutMs ?? TIMEOUT_COM_COPIA_MS, TIMEOUT_COM_COPIA_MS) }
+    : opcoes;
+  try {
+    const corpo = await requisitarNaRede(caminho, opcoesDaRede, contexto);
+    guardarResposta(tenant, caminho, corpo).catch(() => {});
+    return corpo;
+  } catch (erro) {
+    if (guardada && /** @type {any} */ (erro)?.code === API_ERROR_CODES.PROVIDER_UNAVAILABLE && !opcoes.signal?.aborted) {
+      return guardada.corpo;
+    }
+    throw erro;
+  }
 };
 
 /**

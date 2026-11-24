@@ -390,7 +390,7 @@ export const formularioDaLinhaProduto = (l) => ({
   quantidade: paraEdicao(l?.quantidade),
   observacao: typeof l?.observacao === 'string' ? l.observacao : '',
   ...(Number.isInteger(l?.jato) && l.jato > 0 ? { jato: l.jato } : {}),
-  // D-PROD-294: a saída gravada da linha de produto com lote — editar sem escolher lotes e sem trocar produto, local nem
+  // D-PROD-295: a saída gravada da linha de produto com lote — editar sem escolher lotes e sem trocar produto, local nem
   // quantidade mantém os mesmos lotes (o servidor reaproveita as fatias da linha).
   ...(l?.produto?.controla_lote === true && l?.id
     ? { saidaGravada: { produto_id: String(l.produto_id), local_estoque_id: texto(l?.local_estoque_id) || null, quantidade: texto(l?.quantidade) || null } }
@@ -449,7 +449,7 @@ export const validarLinhaProduto = (form, ctx = {}) => {
  * @param {FormularioLinhaProduto} form
  */
 export const corpoDaLinhaProduto = (form) => {
-  // D-PROD-294: `lotes` só com produto que controla lote e escolha manual (sem ela, o servidor aplica o FEFO).
+  // D-PROD-295: `lotes` só com produto que controla lote e escolha manual (sem ela, o servidor aplica o FEFO).
   const lotes = form.produto?.controla_lote ? corpoDaEscolha(form.lotes) : null;
   return {
     produto_id: form.produto?.id ?? null,

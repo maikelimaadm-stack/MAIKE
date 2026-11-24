@@ -31,6 +31,7 @@ import {
   RAZOES_DE_SESSAO,
   loginNativo,
   restaurarSessaoNativa,
+  renovarSessaoNativa,
   concluirTrocaSenhaInicialNativa,
   descartarTrocaSenhaPendenteNativa,
   logoutNativo,
@@ -39,6 +40,7 @@ import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { normalizePermissionRecord } from '@/lib/permissions';
 import { getOfflineTenant } from '@/lib/offline/offlineTenant';
 import { esquecerCacheDoTenant } from '@/services/mapaCacheService';
+import { esquecerRespostasDoTenant } from '@/lib/offline/respostasOffline';
 
 const OFFLINE_USER_KEY = 'offline_current_user';
 
@@ -173,10 +175,17 @@ export const descartarTrocaSenhaPendente = () => descartarTrocaSenhaPendenteNati
  * o defeito corrigido. Token recusado é descartado pela camada de sessão;
  * indisponibilidade preserva o token. Ver `nativeSessionApi.restaurarSessao`.
  *
- * @returns {Promise<{autenticado: boolean, contexto: object|null}>}
+ * @returns {Promise<{autenticado: boolean, contexto: object|null, offline?: boolean}>}
  * @throws {ApiError} indisponibilidade — a sessão não foi validada nem negada
  */
 export const restaurarSessaoNativaAtual = () => restaurarSessaoNativa();
+
+/**
+ * Renova a sessão guardada no aparelho (D-PROD-294). Nunca lança.
+ *
+ * @returns {Promise<boolean>}
+ */
+export const renovarSessaoNativaAtual = () => renovarSessaoNativa();
 
 /**
  * Encerra a sessão nativa.
@@ -198,6 +207,13 @@ export const sairDaSessaoNativa = () => {
   }
   // IndexedDB é assíncrono e pode faltar: o logout não espera nem falha por isso.
   esquecerCacheDoTenant(tenantQueSai).catch(() => {});
+  // D-PROD-294: as leituras guardadas para usar sem internet saem junto.
+  esquecerRespostasDoTenant(tenantQueSai).catch(() => {});
+  try {
+    if (tenantQueSai) localStorage.removeItem(`maike_dados_offline_em:${tenantQueSai}`);
+  } catch {
+    // ignora
+  }
 };
 
 /** Permissão do usuário informado, ou `null`. */

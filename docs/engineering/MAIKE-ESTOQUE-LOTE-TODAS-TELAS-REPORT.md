@@ -1,6 +1,6 @@
 # MAIKE-ESTOQUE-LOTE-TODAS-TELAS — relatório
 
-**Decisão:** [D-PROD-294](./DECISIONS.md) · **Data:** 2026-11-24 · **Branch:** `claude/estoque-lote-todas-telas` · **Migration:** nenhuma · base: [D-PROD-282](./DECISIONS.md) (controle de lote por produto)
+**Decisão:** [D-PROD-295](./DECISIONS.md) · **Data:** 2026-11-24 · **Branch:** `claude/estoque-lote-todas-telas` · **Migration:** nenhuma · base: [D-PROD-282](./DECISIONS.md) (controle de lote por produto)
 
 ## O que mudou, tela por tela
 

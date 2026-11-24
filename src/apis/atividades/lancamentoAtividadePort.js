@@ -21,6 +21,7 @@
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'Atividade';
 const RESOURCE_APONTAMENTO = 'AtividadeApontamento';
@@ -157,7 +158,7 @@ export const CAMPOS_DO_APONTAMENTO = Object.freeze([
  * (FIFO) e a dose/ha são do servidor e nunca vão.
  */
 // D-PROD-293: e o número do jato (texto), também na linha avulsa.
-// D-PROD-294: `lotes` (a escolha manual dos lotes de produto que controla lote; sem ela, FEFO).
+// D-PROD-295: `lotes` (a escolha manual dos lotes de produto que controla lote; sem ela, FEFO).
 export const CAMPOS_DA_LINHA_PRODUTO = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao', 'jato', 'lotes']);
 /**
  * D-PROD-274 — a linha de insumo DENTRO do lançamento (`produtos[]` do apontamento, do duplicar e do registro de campo):
@@ -619,3 +620,10 @@ export const operacoesNativas = Object.freeze({
   opcoes: (recurso, filtros = {}) =>
     nativeRequest(montarCaminhoOpcoes(recurso, filtros), { autenticado: true }, ctx('listOpcoesAtividade', { recurso })),
 });
+
+// D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/atividades?empresa_id={empresa}&limit=100',
+  '/planejamentos?empresa_id={empresa}',
+]);

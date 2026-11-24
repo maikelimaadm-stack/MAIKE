@@ -420,7 +420,7 @@ describe("S — satélite via Google Map Tiles API", () => {
     c.dispose();
   });
 
-  it("S04 — chave fora do bundle de logs; sessão só em memória; expiry respeitado", async () => {
+  it("S04 — chave fora do bundle de logs; nenhuma imagem guardada (só a sessão, no app, D-PROD-294); expiry respeitado", async () => {
     const mod = await import("@/lib/maplibre/googleMapTiles.js");
     expect(mod.expiryParaMs("100", 0)).toBe(100000);
     expect(mod.expiryParaMs("x", 0)).toBe(3600000);
@@ -428,7 +428,9 @@ describe("S — satélite via Google Map Tiles API", () => {
       /zoom=22&north=89\.999&south=-89\.999&east=179\.999&west=-179\.999/
     );
     const fonte = readFileSync("src/lib/maplibre/googleMapTiles.js", "utf8");
-    expect(fonte).not.toMatch(/console\.|localStorage|sessionStorage|indexedDB|caches\./);
+    expect(fonte).not.toMatch(/console\.|sessionStorage|indexedDB|caches\./);
+    // D-PROD-294: o único armazenamento é a sessão (autorização), por uma chave fixa.
+    expect([...fonte.matchAll(/localStorage\.(\w+)\(([^,)]*)/g)].every((m) => m[2].trim() === "CHAVE_SESSAO_GUARDADA")).toBe(true);
   });
 });
 

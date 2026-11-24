@@ -4,6 +4,7 @@
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
+import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
 
 const RESOURCE = 'CentroCusto';
 const CAMINHO = '/centros-custo';
@@ -49,3 +50,9 @@ export const operacoesNativas = Object.freeze({
   definirVinculos: (id, corpo) =>
     nativeRequest(`${doId(id)}/centros-resultado`, { method: 'PUT', body: corpo, autenticado: true }, ctx('definirVinculosCentroCusto', { id })),
 });
+
+// D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
+// de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+registrarLeiturasOffline([
+  '/centros-custo?empresa_id={empresa}&limit=100&ativo=true',
+]);
