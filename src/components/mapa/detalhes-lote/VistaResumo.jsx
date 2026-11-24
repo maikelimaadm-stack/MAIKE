@@ -1,8 +1,9 @@
 import React from "react";
 import { Item, Kpis, ListaItens } from "@/components/mapa/detalhes-lote/blocos";
 import { IconeCategoria } from "@/components/mapa/detalhes-lote/pecas";
-import { ChipSituacao } from "@/components/mapa/detalhes-lote/BlocosLote";
+import { BarrasParticipacao, ChipSituacao } from "@/components/mapa/detalhes-lote/BlocosLote";
 import { ordenarLotes } from "@/components/mapa/detalhes-lote/catalogo";
+import "@/styles/mk-dp-lotes.css";
 import { usePasto } from "@/components/mapa/detalhes-lote/pastoContexto";
 
 /** @typedef {import('@/components/mapa/detalhes-lote/catalogo').ModeloDetalhes} ModeloDetalhes */
@@ -21,14 +22,13 @@ export function VistaResumo() {
   return (
     <>
       <Kpis
-        textoAutomatico
         colunas={5}
         className="mk-dp-resumo-indicadores"
         distribuicao="var(--mk-dp-resumo-colunas)"
         itens={[
           { chave: "cab", rotulo: "Cabeças", valor: m.resumo.cab },
           { chave: "peso", rotulo: "Peso médio (kg)", valor: m.resumo.pesoMedio },
-          { chave: "projetado", rotulo: "Peso médio projetado (kg)", valor: m.resumo.pesoMedioProjetado },
+          { chave: "projetado", rotulo: <span title="Peso médio projetado (kg)">Projetado (kg)</span>, valor: m.resumo.pesoMedioProjetado },
           { chave: "uaha", rotulo: "UA/ha", valor: m.resumo.uaHa },
           { chave: "kgpvha", rotulo: "kg PV/ha", valor: m.resumo.kgPvHa },
         ]}
@@ -47,6 +47,7 @@ export function VistaResumo() {
             titulo={l.nome}
             title={`${l.nome}: ${l.textos.meta.replace(" cb ·", " cab ·")} · ${l.textos.pesoKg}`}
             meta={`${l.nome === l.categoria ? l.textos.meta.replace(" cb ·", " cab ·").replace(` · ${l.categoria}`, "") : l.textos.meta.replace(" cb ·", " cab ·")} · ${l.textos.pesoKg}`}
+            sub={<BarrasParticipacao curto cab={l.valores?.partCab} ua={l.valores?.partUA} />}
             chip={<ChipSituacao situacao={l.situacao} />}
             chevron
             onClick={() => empurrar({ tipo: "lote", loteId: l.id })}

@@ -1,6 +1,8 @@
 # Estado Atual
 
 **Atualizado em:** 2026-11-23 (missão ativa D-PROD-281; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+
+**Atualizado em:** 2026-11-23 (missão ativa D-PROD-280; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -18,6 +20,17 @@ rollout pausado **D-PROD-41**)
 | Mudança | Nomes: "+ Nova atividade", "+ Lançamento" / "Novo lançamento", "Finalizar", "Finalizada", "Finalizou a atividade hoje?", "Tudo feito · falta finalizar", "Planejar atividade". Bloco "Atividades em andamento" no topo da lista. "Novo lançamento" curto (hectares opcionais, escolha obrigatória, "Vai junto" + "Mudar"). Horímetro: só "Horímetro agora" e "Horímetro quebrado?" |
 | Migration | Nenhuma. Servidor sem mudança (vários lançamentos no mesmo dia já funcionavam; teste novo contra Postgres) |
 | Relatório | [`MAIKE-ENTREGA-A-LANCAMENTO-SIMPLES-REPORT.md`](./MAIKE-ENTREGA-A-LANCAMENTO-SIMPLES-REPORT.md) |
+
+## Missão anterior (2026-11-23) — MAIKE-DETALHES-LOTE-V13: telas do pasto redesenhadas no celular (D-PROD-280)
+
+| Campo | Valor |
+|---|---|
+| Decisão | **D-PROD-280**, pedido e aprovação do proprietário, tela a tela (atual × proposto) |
+| Branch / PR | `claude/kind-knuth-tztu1v` · PR **#367** |
+| Mudança | Só apresentação do Detalhes do Lote: abas, seletor, rodapé, Detalhes (capim, régua de UA/ha, grade), Lotes (barras, grade, tabela compacta), Histórico (cartões curtos), Suplementação (réguas, barras, gráfico) e Manejos (frase por quadro, ícone do Mover visível) |
+| Migration | Nenhuma |
+| Relatório | [`MAIKE-DETALHES-LOTE-V13-REPORT.md`](./MAIKE-DETALHES-LOTE-V13-REPORT.md) |
+| Próximas | Forragem dentro do Detalhes do Lote; ordem padrão das colunas da Lista |
 
 ## Missão anterior (2026-11-23) — MAIKE-TIPO-IMPLEMENTO-PRODUTO: o tipo de implemento diz se usa produto, como conta e a capacidade (D-PROD-279)
 

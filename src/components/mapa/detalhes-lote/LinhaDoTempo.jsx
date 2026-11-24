@@ -59,10 +59,79 @@ const ROTULOS_DE_TEXTO = /^(descrição|observaç(ão|ões)|detalhe|motivo)$/i;
  */
 const textoLongo = (rotulo, valor) => ROTULOS_DE_TEXTO.test(String(rotulo ?? "").trim()) || (typeof valor === "string" && valor.length > 28);
 
-export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto", textoAutomatico = false }) {
+/**
+ * Cartão curto do histórico do pasto (v13): tira das linhas o que sobe para o cabeçalho — o
+ * lote (subtítulo), a quantidade em destaque à direita e a rota "De → Até" — e devolve o resto
+ * para continuar como linha rótulo/valor. Nada some: o que não tem lugar no cabeçalho fica em `resto`.
+ *  - Movimentação · entrada → "+N cab" (tom "entrada"); · saída → "−N cab" (tom "saida").
+ *  - Pesagem → "N kg" (o peso médio); as cabeças pesadas continuam como linha.
+ *  - Demais com "Quantidade"/"Cabeças" → "N cab".
+ * @param {{ titulo?: string, icone?: string, linhas?: Array<{ rotulo: string, valor: any }> }} cartao
+ * @returns {{ lote: any, destaque: null | { texto: string, tom: "entrada" | "saida" | "neutro", rotulo: string }, rota: null | { de: any, ate: any }, resto: Array<{ rotulo: string, valor: any }> }}
+ */
+export function resumoDoCartao(cartao) {
+  const linhas = Array.isArray(cartao?.linhas) ? cartao.linhas : [];
+  const usadas = new Set();
+  /** @param {string} rotulo */
+  const achar = (rotulo) => {
+    const i = linhas.findIndex((l, k) => !usadas.has(k) && l?.rotulo === rotulo);
+    return i >= 0 ? { i, valor: linhas[i].valor } : null;
+  };
+  /** Só texto/número com conteúdo sobe para o cabeçalho ("—" fica como linha). @param {any} v */
+  const temValor = (v) => (typeof v === "string" || typeof v === "number") && String(v).trim() !== "" && String(v).trim() !== "—";
+  const titulo = String(cartao?.titulo ?? "");
+
+  let lote = null;
+  /** @type {null | { texto: string, tom: "entrada" | "saida" | "neutro", rotulo: string }} */
+  let destaque = null;
+  const lLote = achar("Lote");
+  if (lLote && temValor(lLote.valor)) {
+    lote = lLote.valor;
+    usadas.add(lLote.i);
+  }
+
+  if (cartao?.icone === "pesagem") {
+    const peso = achar("Peso médio (kg)");
+    if (peso && temValor(peso.valor)) {
+      destaque = { texto: `${peso.valor} kg`, tom: "neutro", rotulo: `Peso médio: ${peso.valor} kg` };
+      usadas.add(peso.i);
+    }
+  } else if (cartao?.icone !== "suplementacao") {
+    const qtd = achar("Cabeças") ?? achar("Quantidade");
+    if (qtd && temValor(qtd.valor)) {
+      const entrada = cartao?.icone === "movimentacao" && /·\s*entrada$/i.test(titulo);
+      const saida = cartao?.icone === "movimentacao" && /·\s*saída$/i.test(titulo);
+      const sinal = entrada ? "+" : saida ? "−" : "";
+      destaque = {
+        texto: `${sinal}${qtd.valor} cab`,
+        tom: entrada ? "entrada" : saida ? "saida" : "neutro",
+        rotulo: `${entrada ? "Entraram" : saida ? "Saíram" : "Quantidade:"} ${qtd.valor} cabeças`,
+      };
+      usadas.add(qtd.i);
+    }
+  }
+
+  let rota = null;
+  const de = achar("De");
+  const ate = achar("Até");
+  if (de && ate) {
+    rota = { de: de.valor, ate: ate.valor };
+    usadas.add(de.i);
+    usadas.add(ate.i);
+  }
+
+  return { lote, destaque, rota, resto: linhas.filter((_, k) => !usadas.has(k)) };
+}
+
+/**
+ * `compacto` (v13, só a aba Histórico do pasto/área passa): cartão curto — tipo e lote à
+ * esquerda, quantidade em destaque à direita, "De → Até" numa linha; o resto continua em
+ * linhas rótulo/valor. Sem `compacto` o cartão é o de sempre (cocho, depósito, bebedouro, tarefa).
+ */
+export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto", textoAutomatico = false, compacto = false }) {
   const lista = Array.isArray(dias) ? dias : [];
   return (
-    <ol className="mk-dp-tl" aria-label={rotulo}>
+    <ol className={compacto ? "mk-dp-tl mk-dp-tl--curto" : "mk-dp-tl"} aria-label={rotulo}>
       {lista.map((dia) => (
         <li key={dia.chave} className="mk-dp-tl__grupo">
           <h3 className="mk-dp-tl__dia">
@@ -74,6 +143,52 @@ export default function LinhaDoTempo({ dias, rotulo = "Registros do pasto", text
               // `Icone` (componente lucide) vale sobre a chave `icone`: as linhas do
               // tempo do depósito, do bebedouro e da tarefa (D-PROD-220) têm desenhos próprios.
               const Icone = c.Icone ?? ICONES[c.icone] ?? History;
+              if (compacto) {
+                const r = resumoDoCartao(c);
+                return (
+                  <li key={c.chave} className="mk-dp-tl__card mk-dp-tl__card--curto">
+                    <div className="mk-dp-tl__cab">
+                      <Icone className="mk-dp-tl__ic" size={20} aria-hidden="true" />
+                      <div className="mk-dp-tl__quem">
+                        <strong className="mk-dp-tl__titulo">{textoAutomatico ? <TextoDeslizante>{c.titulo}</TextoDeslizante> : c.titulo}</strong>
+                        {r.lote != null ? (
+                          <span className="mk-dp-tl__lote">
+                            <span className="mk-dp-tl__sr">Lote: </span>
+                            {textoAutomatico ? <TextoDeslizante>{r.lote}</TextoDeslizante> : r.lote}
+                          </span>
+                        ) : null}
+                      </div>
+                      {r.destaque ? (
+                        <span className="mk-dp-tl__qtd" data-tom={r.destaque.tom} aria-label={r.destaque.rotulo}>
+                          {r.destaque.texto}
+                        </span>
+                      ) : null}
+                    </div>
+                    {r.rota ? (
+                      <div className="mk-dp-tl__rota">
+                        <span className="mk-dp-tl__ponta">
+                          <span className="mk-dp-tl__rotulo">De</span> <b>{r.rota.de}</b>
+                        </span>
+                        <span className="mk-dp-tl__seta" aria-hidden="true">→</span>
+                        <span className="mk-dp-tl__ponta mk-dp-tl__ponta--fim">
+                          <span className="mk-dp-tl__rotulo">Até</span> <b>{r.rota.ate}</b>
+                        </span>
+                      </div>
+                    ) : null}
+                    {r.resto.length ? (
+                      <dl className="mk-dp-tl__linhas">
+                        {r.resto.map((l, i) => (
+                          <div key={`${l.rotulo}-${i}`} className={textoLongo(l.rotulo, l.valor) ? "mk-dp-tl__row mk-dp-tl__row--larga" : "mk-dp-tl__row"}>
+                            <dt>{textoAutomatico ? <TextoDeslizante>{l.rotulo}</TextoDeslizante> : l.rotulo}</dt>
+                            <dd>{textoAutomatico ? <TextoDeslizante>{l.valor}</TextoDeslizante> : l.valor}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    ) : null}
+                    {c.acoes != null && c.acoes !== false ? <div className="mk-dp-tl__acoes">{c.acoes}</div> : null}
+                  </li>
+                );
+              }
               return (
                 <li key={c.chave} className="mk-dp-tl__card">
                   <div className="mk-dp-tl__cab">

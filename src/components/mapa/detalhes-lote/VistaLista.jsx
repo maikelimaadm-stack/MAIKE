@@ -43,8 +43,12 @@ export function VistaLista() {
     else grupos[grupos.length - 1].span += 1;
   });
 
-  const larguraNome = modo === "celular" ? "138px" : "170px";
-  const trilhas = [larguraNome, ...cols.map((c) => c.largura)].join(" ");
+  // Celular (v13): colunas compactas para caberem ~6 sem cortar; as de largura fixa encolhem um pouco.
+  const compacta = modo === "celular";
+  const larguraNome = compacta ? "116px" : "170px";
+  const trilhas = [larguraNome, ...cols.map((c) => larguraDaColuna(c.largura, compacta))].join(" ");
+  const [rolo, setRolo] = React.useState(/** @type {HTMLDivElement | null} */ (null));
+  const rolaParaOLado = useRolagemLateral(rolo, `${trilhas}|${lotes.length}`);
   const n = m.lotes.length;
   const titulo = `${fmtInt(n)} ${n === 1 ? "lote" : "lotes"} · ${m.resumo.cab} cab`;
 
@@ -53,8 +57,8 @@ export function VistaLista() {
       <TituloBloco link="Configurar tabela" onLink={() => empurrar({ tipo: "configurarTabela" })}>
         {titulo}
       </TituloBloco>
-      <div className="mk-dp-tabela">
-        <div className="mk-dp-tabela__rolo">
+      <div className={cls("mk-dp-tabela", compacta && "mk-dp-tabela--compacta")}>
+        <div className="mk-dp-tabela__rolo" ref={setRolo}>
           <div className="mk-dp-tabela__in" role="table" aria-label="Lotes do pasto" style={{ gridTemplateColumns: trilhas }}>
             <div role="row" className="mk-dp-tabela__linha">
               <div role="columnheader" className="mk-dp-tabela__g mk-dp-fixo">
@@ -86,8 +90,8 @@ export function VistaLista() {
                 />
               ))}
             </div>
-            {lotes.map((l) => (
-              <LinhaDaTabela key={l.id} lote={l} cols={cols} onAbrir={() => empurrar({ tipo: "lote", loteId: l.id })} />
+            {lotes.map((l, i) => (
+              <LinhaDaTabela key={l.id} lote={l} cols={cols} zebra={i % 2 === 1} onAbrir={() => empurrar({ tipo: "lote", loteId: l.id })} />
             ))}
             <div role="row" className="mk-dp-tabela__linha">
               <div role="rowheader" className="mk-dp-tabela__tot mk-dp-fixo">
@@ -102,8 +106,41 @@ export function VistaLista() {
           </div>
         </div>
       </div>
+      {rolaParaOLado ? <p className="mk-dp-tabela__dica">Arraste para o lado para ver as outras colunas →</p> : null}
     </>
   );
+}
+
+/**
+ * Largura de uma coluna: no celular as flexíveis ficam do tamanho do conteúdo até 84 px (o rótulo
+ * do cabeçalho quebra em vez de alargar a coluna) e as fixas encolhem 15%.
+ * @param {string} largura
+ * @param {boolean} compacta
+ */
+export function larguraDaColuna(largura, compacta) {
+  if (!compacta) return largura;
+  const fixa = /^(\d+(?:\.\d+)?)px$/.exec(String(largura));
+  if (fixa) return `${Math.round(Number(fixa[1]) * 0.85)}px`;
+  return "fit-content(84px)";
+}
+
+/**
+ * A tabela passa da largura visível? (A dica de arrastar só aparece quando há o que ver ao lado.)
+ * @param {HTMLElement | null} rolo
+ * @param {string} chave muda quando as colunas ou as linhas mudam
+ */
+function useRolagemLateral(rolo, chave) {
+  const [rola, setRola] = React.useState(false);
+  React.useEffect(() => {
+    if (!rolo) return undefined;
+    const medir = () => setRola(rolo.scrollWidth - rolo.clientWidth > 1);
+    medir();
+    if (typeof ResizeObserver !== "function") return undefined;
+    const ro = new ResizeObserver(medir);
+    ro.observe(rolo);
+    return () => ro.disconnect();
+  }, [rolo, chave]);
+  return rola;
 }
 
 /**
@@ -147,13 +184,13 @@ function CabecalhoColuna({ chave, rotulo, dica, ordem, onOrdenar, className }) {
  * Uma linha de lote: célula do nome (bolinha da situação, nome e "CATEGORIA ·
  * SEXO"; abre a tela do lote) e uma célula por coluna, com cor, bolinha e
  * mini barra vindas de `lote.valores[chave]`.
- * @param {{ lote: LoteVm, cols: CampoDef[], onAbrir: () => void }} props
+ * @param {{ lote: LoteVm, cols: CampoDef[], onAbrir: () => void, zebra?: boolean }} props
  */
-function LinhaDaTabela({ lote, cols, onAbrir }) {
+function LinhaDaTabela({ lote, cols, onAbrir, zebra = false }) {
   const corSituacao = (TONS[lote.situacao?.tom] || TONS.neutro).texto;
   return (
     <div role="row" className="mk-dp-tabela__linha">
-      <div role="rowheader" className="mk-dp-tabela__nome mk-dp-fixo">
+      <div role="rowheader" className={cls("mk-dp-tabela__nome mk-dp-fixo", zebra && "is-zebra")}>
         <button type="button" className="mk-dp-tabela__abrir" onClick={onAbrir}>
           <span className="mk-dp-tabela__bolinha" style={{ background: corSituacao }} aria-hidden="true" />
           <span className="mk-dp-tabela__nome-txt">
@@ -169,7 +206,7 @@ function LinhaDaTabela({ lote, cols, onAbrir }) {
           <div
             key={c.chave}
             role="cell"
-            className={cls("mk-dp-tabela__td", cel?.dot && "com-bolinha", cel?.quebra && "is-quebra", abreSecao(cols, i) && "mk-dp-sep")}
+            className={cls("mk-dp-tabela__td", zebra && "is-zebra", cel?.dot && "com-bolinha", cel?.quebra && "is-quebra", abreSecao(cols, i) && "mk-dp-sep")}
             style={cel?.cor ? { color: cel.cor } : undefined}
           >
             {cel?.dot ? <span className="mk-dp-tabela__bolinha mk-dp-tabela__bolinha--p" style={{ background: cel.dot }} aria-hidden="true" /> : null}

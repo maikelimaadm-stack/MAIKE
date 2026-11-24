@@ -292,8 +292,23 @@ describe("aba Histórico do pasto — dados", () => {
     expect(titulos()).toEqual(["Suplementação", "Movimentação · entrada", "Pesagem", "Pesagem", "Morte", "Nascimento", "Movimentação · saída"]);
     const linhaDoTempo = screen.getByRole("list", { name: "Registros do pasto" });
     const entrada = within(linhaDoTempo).getByText("Movimentação · entrada").closest("li");
-    expect([...entrada.querySelectorAll("dt")].map((n) => n.textContent)).toEqual(["Lote", "Cabeças", "De", "Até"]);
-    expect([...entrada.querySelectorAll("dd")].map((n) => n.textContent)).toEqual(["L-2026-027", "33", "Pasto 04", "Pasto 07"]);
+    // v13 — cartão curto: lote sob o título, "+33 cab" em destaque (entrada) e "De → Até" numa linha; nada vira linha rótulo/valor.
+    expect(entrada.className).toContain("mk-dp-tl__card--curto");
+    expect(entrada.querySelector(".mk-dp-tl__lote").textContent).toBe("Lote: L-2026-027");
+    const qtd = entrada.querySelector(".mk-dp-tl__qtd");
+    expect(qtd.textContent).toBe("+33 cab");
+    expect(qtd.getAttribute("data-tom")).toBe("entrada");
+    expect(qtd.getAttribute("aria-label")).toBe("Entraram 33 cabeças");
+    expect(entrada.querySelector(".mk-dp-tl__rota").textContent.replace(/\s+/g, " ").trim()).toBe("De Pasto 04→Até Pasto 07");
+    expect(entrada.querySelectorAll("dt").length).toBe(0);
+    // Saída: sinal de menos e tom próprio. Pesagem: o peso em destaque, cabeças pesadas e origem seguem em linha.
+    const saida = within(linhaDoTempo).getByText("Movimentação · saída").closest("li");
+    expect(saida.querySelector(".mk-dp-tl__qtd").textContent).toBe("−72 cab");
+    expect(saida.querySelector(".mk-dp-tl__qtd").getAttribute("data-tom")).toBe("saida");
+    const pesagem = within(linhaDoTempo).getAllByText("Pesagem")[0].closest("li");
+    expect(pesagem.querySelector(".mk-dp-tl__qtd").textContent).toBe("449,5 kg");
+    expect([...pesagem.querySelectorAll("dt")].map((n) => n.textContent)).toEqual(["Cabeças pesadas", "Origem"]);
+    expect([...pesagem.querySelectorAll("dd")].map((n) => n.textContent)).toEqual(["38", "MEDIDO"]);
     const supl = within(linhaDoTempo).getByText("Suplementação").closest("li");
     expect([...supl.querySelectorAll("dd")].map((n) => n.textContent)).toEqual(["Cocho 07", "SAL MINERAL 80", "400,00", "16,00"]);
     expect(screen.queryByText("Cocho 01")).toBeNull();

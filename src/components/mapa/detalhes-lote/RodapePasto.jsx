@@ -31,6 +31,6 @@ export default function RodapePasto({ tela, temLote, podeMover, podePesar, onMov
   const itens = [];
   if (podeMover) itens.push({ chave: "mover", rotulo: doPasto ? "Mover lotes" : "Mover", icone: ArrowRightLeft, onClick: onMover, desabilitado });
   if (podePesar) itens.push({ chave: "pesar", rotulo: "Pesar", icone: Scale, onClick: onPesar, desabilitado });
-  itens.push({ chave: "manejos", rotulo: "Manejos", icone: LayoutGrid, onClick: onManejos, desabilitado });
+  itens.push({ chave: "manejos", rotulo: "Manejos", icone: LayoutGrid, onClick: onManejos, desabilitado, principal: true });
   return <RodapePilulas itens={itens} className={className} />;
 }
