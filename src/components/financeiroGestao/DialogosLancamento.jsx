@@ -155,7 +155,7 @@ function AvisoDoEnvio({ estado, onConsultar = null }) {
  *   fusoConfigurado: boolean,
  *   podeLiquidar: boolean,
  *   onFechar: () => void,
- *   onConfirmar: (p: { baixa_no_ato: { metodo: string, data: string, referencia?: string } | null }, opcoes: { retentativa: boolean }) => Promise<unknown>,
+ *   onConfirmar: (p: { baixa_no_ato: { metodo: string, data: string, referencia?: string } | null, lotes_por_item?: Array<Record<string, unknown>> }, opcoes: { retentativa: boolean }) => Promise<unknown>,
  *   onConsultar: () => void,
  * }} props
  */

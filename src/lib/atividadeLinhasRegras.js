@@ -350,9 +350,13 @@ export const textoDaLeituraVigente = (medidor) => {
 // ─── Linha de PRODUTO (janela e "Repetir") ───────────────────────────────
 
 /**
- * @typedef {{ id: string, rotulo: string, unidade_principal_estoque: string|null, carencia_dias?: number|null } | null} ProdutoEscolhido
- * @typedef {{ produto: ProdutoEscolhido, local_estoque_id: string|null, quantidade: string, observacao: string, vc?: string }} FormularioLinhaProduto
+ * @typedef {{ id: string, rotulo: string, unidade_principal_estoque: string|null, carencia_dias?: number|null, controla_lote?: boolean } | null} ProdutoEscolhido
+ * @typedef {{ produto: ProdutoEscolhido, local_estoque_id: string|null, quantidade: string, observacao: string, vc?: string,
+ *   lotes?: Array<{ id: string, quantidade: string }>|null, confirmaVencido?: boolean, loteVencido?: boolean, erroLote?: string,
+ *   saidaGravada?: { produto_id: string, local_estoque_id: string|null, quantidade: string|null } }} FormularioLinhaProduto
  *   D-PROD-274: `carencia_dias` (a carência da bula, para o "Pasto liberado em") e `vc` (o VC % digitado, Plantio).
+ *   D-PROD-282 em todas as telas: `controla_lote` do produto e a escolha do lote (`lotes`, `confirmaVencido`; o campo
+ *   devolve `loteVencido` e `erroLote`); `saidaGravada` na edição (mantém os lotes da linha).
  */
 
 /** A opção do seletor (ou o resumo gravado) como o formulário guarda. @param {any} o @returns {ProdutoEscolhido} */
