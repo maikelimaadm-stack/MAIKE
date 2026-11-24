@@ -4,13 +4,12 @@
  * Com internet, baixa de uma vez o que o app precisa para abrir no campo:
  *   1. mapa (áreas, pontos, linhas, ícones, lotes e o que o mapa mostra);
  *   2. cadastros e demais entidades com cache no aparelho;
- *   3. as leituras que cada tela faz ao abrir (`LEITURAS_PARA_OFFLINE`) e as
- *      já guardadas no aparelho.
+ *   3. as telas já abertas com internet (cada leitura guardada é refeita).
  * Depois disso, sem internet, as telas leem do aparelho. Só leitura: gravar
  * sem internet é outra etapa (sincronização), fora deste serviço.
  */
 
-import { baixarLeiturasDasTelas, baixarEntidadesParaOffline } from '@/apis/offline';
+import { atualizarLeiturasGuardadas, baixarEntidadesParaOffline } from '@/apis/offline';
 import { CACHE_KEYS, refreshMapaCacheEntryDetalhado } from '@/services/mapaCacheService';
 import { getOfflineTenant } from '@/lib/offline/offlineTenant';
 import { esquecerRespostasDoTenant } from '@/lib/offline/respostasOffline';
@@ -74,8 +73,8 @@ export const baixarDadosParaOffline = async ({ empresaId, aoAvancar }) => {
   );
   falhas += cadastros.falhas.length;
 
-  const telas = await baixarLeiturasDasTelas(empresaId, (p) =>
-    aoAvancar?.({ etapa: 'telas', titulo: 'Telas e cadastros', feitas: p.feitas, total: p.total })
+  const telas = await atualizarLeiturasGuardadas((p) =>
+    aoAvancar?.({ etapa: 'telas', titulo: 'Telas já abertas', feitas: p.feitas, total: p.total })
   );
   falhas += telas.falhas;
 

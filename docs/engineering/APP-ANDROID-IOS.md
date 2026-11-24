@@ -59,7 +59,7 @@ O APK sai em `android/app/build/outputs/apk/release/app-release.apk` e instala p
 
 ## Sem internet (D-PROD-289)
 
-- **Baixar dados:** depois do primeiro login no app aparece "Dados para usar sem internet" → "Baixar agora". Baixa mapa, áreas, lotes, cadastros e as telas já abertas. Com internet, o app atualiza sozinho a cada 6 h; o menu do usuário → "Dados sem internet" baixa ou atualiza quando quiser.
+- **Baixar dados:** depois do primeiro login no app aparece "Dados para usar sem internet" → "Baixar agora". Baixa mapa, áreas, lotes e cadastros, e atualiza as telas já abertas com internet (cada tela aberta uma vez com internet passa a abrir sem internet). Com internet, o app atualiza sozinho a cada 6 h; o menu do usuário → "Dados sem internet" baixa ou atualiza quando quiser.
 - **Abre:** telas, código e ícones estão dentro do app, e o login guardado vale (aviso "Sem internet — mostrando dados salvos").
 - **Mapa:** sem internet, fundo liso local com áreas, pontos e lotes por cima. Satélite sem internet não existe (licença do Google).
 - **Mostra:** tudo o que foi baixado ou visto com internet (leituras guardadas no aparelho, por fazenda).

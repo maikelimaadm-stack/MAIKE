@@ -4,36 +4,29 @@
  * Duas leituras em lote, as duas só de leitura:
  *  - `baixarEntidadesParaOffline`: todas as entidades com adaptador offline
  *    (cadastros, áreas, lotes, pontos…) vão para o cache do aparelho;
- *  - `baixarLeiturasDasTelas`: as leituras que cada tela faz ao abrir
- *    (`LEITURAS_PARA_OFFLINE`) e as já guardadas no aparelho.
+ *  - `atualizarLeiturasGuardadas`: refaz cada leitura já guardada no
+ *    aparelho (telas abertas antes com internet).
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import { getOfflineTenant } from '@/lib/offline/offlineTenant';
 import { listarCaminhosGuardados } from '@/lib/offline/respostasOffline';
 import { baixarEntidadesParaOffline } from '@/lib/offline/offlineEntityRuntime';
-import { LEITURAS_PARA_OFFLINE } from '@/config/leiturasParaOffline';
 import { API_ERROR_CODES } from '../_core/ApiError.js';
 
 const CONCORRENCIA = 4;
 
 /**
- * Leituras das telas (lista fixa, com a empresa) + todas as já guardadas no
- * aparelho, sem repetir. Cada uma vai ao servidor e a resposta fica guardada
- * (o `nativeRequest` guarda toda leitura). Sem permissão para uma tela (403)
- * não é falha: a pessoa não a usa.
+ * Refaz, com internet, toda leitura já guardada no aparelho (as telas que a
+ * pessoa abriu com internet), para elas abrirem atualizadas sem internet.
+ * Os caminhos vêm do que as próprias portas pediram: nada é montado aqui.
+ * Sem permissão para uma tela (403) não é falha: a pessoa não a usa.
  *
- * @param {string|null} empresaId
  * @param {(p: {feitas: number, total: number}) => void} [aoAvancar]
  * @returns {Promise<{total: number, ok: number, falhas: number}>}
  */
-export const baixarLeiturasDasTelas = async (empresaId, aoAvancar) => {
-  const empresa = empresaId ? encodeURIComponent(empresaId) : null;
-  const fixas = LEITURAS_PARA_OFFLINE.filter((c) => empresa || !c.includes('{empresa}')).map((c) =>
-    empresa ? c.split('{empresa}').join(empresa) : c
-  );
-  const guardadas = await listarCaminhosGuardados(getOfflineTenant());
-  const caminhos = [...new Set([...fixas, ...guardadas])];
+export const atualizarLeiturasGuardadas = async (aoAvancar) => {
+  const caminhos = await listarCaminhosGuardados(getOfflineTenant());
   let feitas = 0;
   let falhas = 0;
   const fila = [...caminhos];

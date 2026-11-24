@@ -118,32 +118,28 @@ describe('D-PROD-289 — leitura sem internet', () => {
 });
 
 describe('D-PROD-289 — baixar dados', () => {
-  it('DB-01 baixa as leituras de todas as telas (com a empresa) e refaz as já guardadas', async () => {
-    const { guardarResposta, listarCaminhosGuardados } = await carregar();
-    await guardarResposta('cli_1', '/tela-aberta-antes', [{ id: 'velho' }]);
+  it('DB-01 refaz com internet cada leitura já guardada (telas abertas antes)', async () => {
+    const { guardarResposta } = await carregar();
+    await guardarResposta('cli_1', '/setores', [{ id: 'velho' }]);
+    await guardarResposta('cli_1', '/culturas?empresa_id=emp', [{ id: 'velho' }]);
     const fetchMock = vi.fn().mockResolvedValue(respostaJson(200, [{ id: 'novo' }]));
     vi.stubGlobal('fetch', fetchMock);
 
-    const { baixarLeiturasDasTelas } = await import('@/apis/offline');
-    const { LEITURAS_PARA_OFFLINE } = await import('@/config/leiturasParaOffline');
-    const r = await baixarLeiturasDasTelas('emp 1');
-    expect(r.falhas).toBe(0);
-    expect(r.total).toBe(LEITURAS_PARA_OFFLINE.length + 1);
-    const urls = fetchMock.mock.calls.map((c) => c[0]);
-    expect(urls).toContain(`${API}/api/native/tela-aberta-antes`);
-    expect(urls).toContain(`${API}/api/native/culturas?empresa_id=emp%201`);
-    expect(urls.some((u) => u.includes('{empresa}'))).toBe(false);
-    await new Promise((res) => setTimeout(res, 100));
-    expect(await listarCaminhosGuardados('cli_1')).toContain('/culturas?empresa_id=emp%201');
+    const { atualizarLeiturasGuardadas } = await import('@/apis/offline');
+    expect(await atualizarLeiturasGuardadas()).toEqual({ total: 2, ok: 2, falhas: 0 });
+    const urls = fetchMock.mock.calls.map((c) => c[0]).sort();
+    expect(urls).toEqual([`${API}/api/native/culturas?empresa_id=emp`, `${API}/api/native/setores`]);
   });
 
-  it('DB-01b sem permissão para uma tela (403) não conta como falha; rede caída conta', async () => {
-    await carregar();
-    const { baixarLeiturasDasTelas } = await import('@/apis/offline');
+  it('DB-01b sem permissão (403) não conta como falha; rede caída conta e não usa o guardado velho', async () => {
+    // Fazenda própria: o IndexedDB em memória é compartilhado entre os casos.
+    const { guardarResposta } = await carregar({ tenant: 'cli_db01b' });
+    await guardarResposta('cli_db01b', '/setores', [{ id: 'velho' }]);
+    const { atualizarLeiturasGuardadas } = await import('@/apis/offline');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(respostaJson(403, { code: 'FORBIDDEN' })));
-    expect((await baixarLeiturasDasTelas('emp')).falhas).toBe(0);
+    expect((await atualizarLeiturasGuardadas()).falhas).toBe(0);
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
-    expect((await baixarLeiturasDasTelas('emp')).falhas).toBeGreaterThan(0);
+    expect((await atualizarLeiturasGuardadas()).falhas).toBe(1);
   });
 
   it('DB-02 sem internet não baixa nada nem marca data', async () => {
