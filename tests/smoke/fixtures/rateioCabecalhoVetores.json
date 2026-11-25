@@ -5,7 +5,7 @@
     "esperado_ok": "valor_bruto, valor_total, itens [{ordem, valor_total, valor_desconto_rateado, valor_acrescimo_rateado, valor_liquido, quantidade_estoque, custo_kg, residuo_custo}], residuo_total (Σ dos resíduos das linhas PAGAR+MERCADORIA; null se não houver nenhuma) e avisos (códigos, na ordem)",
     "esperado_erro": "valor_bruto e valor_total do documento (para montar a parcela) e erro {status, code, field, reason, details} — details são os campos de details da resposta além de field/reason",
     "efeitos_estoque_chaves": {
-      "$comentario": "chaves EXATAS de plano.efeitos_estoque na prévia (operacaoFinanceiraService.serializarPlano): o backend PG e o backend falso conferem as duas listas",
+      "$comentario": "chaves EXATAS de plano.efeitos_estoque na prévia (operacaoFinanceiraService.serializarPlano): o backend PG e o backend falso conferem as duas listas. controla_lote/controla_validade (D-PROD-282 em todas as telas): o cadastro do produto, para a confirmação pedir o lote (compra) ou deixar escolher (venda)",
       "entradas": [
         "item_ordem",
         "produto_id",
@@ -13,7 +13,9 @@
         "local_estoque_id",
         "local_nome",
         "kg",
-        "custo_kg"
+        "custo_kg",
+        "controla_lote",
+        "controla_validade"
       ],
       "saidas": [
         "item_ordem",
@@ -24,6 +26,8 @@
         "kg",
         "disponivel",
         "custo_total",
+        "controla_lote",
+        "controla_validade",
         "fatias"
       ]
     }

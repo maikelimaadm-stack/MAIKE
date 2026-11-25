@@ -21,6 +21,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { TELAS_GESTAO } from "@/lib/gestaoPermissions";
 import { ehNaoEncontradoGestao, lerErroGestao, mensagemErroGestao } from "@/lib/gestaoErros";
 import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
+import { mensagemDeLoteVencido } from "@/lib/estoqueLotesRegras";
 import { hojeNoFuso } from "@/lib/diaCivil";
 import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import {
@@ -970,11 +971,14 @@ export default function LancamentosFinanceirosTela() {
           podeLiquidar={Boolean(acoes.liquidar)}
           onFechar={fecharDialogo}
           onConsultar={() => consultarDepoisDeIncerto("confirmar", String(dialogo.registro.id))}
-          onConfirmar={async ({ baixa_no_ato }, { retentativa }) => {
+          onConfirmar={async ({ baixa_no_ato, lotes_por_item }, { retentativa }) => {
             try {
-              const r = await confirmarLancamento(emp, String(dialogo.registro.id), { versao: dialogo.registro.versao, baixa_no_ato, escopo, retentativa });
+              const r = await confirmarLancamento(emp, String(dialogo.registro.id), { versao: dialogo.registro.versao, baixa_no_ato, lotes_por_item, escopo, retentativa });
               avisarEstoqueAlterado(r, emp);
               concluirComando(r, emp, baixa_no_ato ? "Lançamento confirmado e baixa registrada" : "Lançamento confirmado");
+              // D-PROD-282: o servidor nunca recusa lote vencido na venda; quando saiu de um, avisa.
+              const alertaVencido = mensagemDeLoteVencido(/** @type {any} */ (r)?.avisos);
+              if (alertaVencido) notifyWarning("Lote vencido", alertaVencido);
             } catch (err) {
               reagirAoErro(err, emp);
               throw err;

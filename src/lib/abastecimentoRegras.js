@@ -24,6 +24,7 @@
  */
 import { comparar, ehCanonico, ehPositivo, formatarMoeda, formatarNumero, lerNumeroLocal, somar } from './dinheiroDecimal.js';
 import { ehDiaValido, formatarDia } from './diaCivil.js';
+import { corpoDaEscolha, pendenciaDoLote } from './estoqueLotesRegras.js';
 
 export const LOCALE_ABASTECIMENTO = 'pt-BR';
 
@@ -301,7 +302,19 @@ export const validarFormulario = (form, ctx = {}) => {
   }
   if (texto(form?.observacao).length > 500) erros.observacao = 'No máximo 500 caracteres.';
   if (texto(form?.referencia_externa).length > 64) erros.referencia_externa = 'No máximo 64 caracteres.';
+  // D-PROD-282 em todas as telas: combustível com lote, do estoque — a soma dos lotes e a confirmação do vencido.
+  if (!ehExterno(form) && !erros.quantidade) {
+    const pendencia = pendenciaDoLote({ produto: form?.produto, erroLote: form?.erroLote, loteVencido: form?.loteVencido, confirmaVencido: form?.confirmaVencido });
+    if (pendencia) erros.lotes = pendencia;
+  }
   return { erros };
+};
+
+/** D-PROD-282 — a escolha manual dos lotes que vai no corpo (só do estoque, com produto que controla lote). @param {any} form */
+const lotesDoFormulario = (form) => {
+  if (ehExterno(form) || !form?.produto?.controla_lote) return null;
+  const lotes = corpoDaEscolha(form?.lotes);
+  return lotes && lotes.length ? lotes : null;
 };
 
 /**
@@ -342,6 +355,9 @@ export const montarCorpoPrevia = (empresaId, form) => {
   // Ligado a um lançamento da atividade: só o `apontamento_id` (a atividade o servidor deriva; nunca vai).
   const apontamentoId = idDe(form?.apontamento_id);
   if (apontamentoId) corpo.apontamento_id = apontamentoId;
+  // D-PROD-282 em todas as telas: a escolha manual dos lotes (sem ela, o servidor aplica o FEFO).
+  const lotes = lotesDoFormulario(form);
+  if (lotes) corpo.lotes = lotes;
   return corpo;
 };
 
@@ -383,6 +399,8 @@ export const assinaturaDoFormulario = (form) =>
     form?.tanque_cheio === true,
     texto(form?.observacao),
     texto(form?.referencia_externa),
+    // D-PROD-282: a escolha dos lotes (só quando há) — mudou depois da revisão, revisa de novo.
+    ...(lotesDoFormulario(form) ? [JSON.stringify(lotesDoFormulario(form))] : []),
   ]);
 
 // ─── Exibição (texto canônico → pt-BR, sem float) ───────────────────────

@@ -17,6 +17,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { notifySuccess, notifyWarning } from '@/lib/maikeNotify';
 import { lerErroGestao } from '@/lib/gestaoErros';
 import { mensagemErroAbastecimento } from '@/lib/patrimonioErros';
+import { mensagemDeLoteVencido } from '@/lib/estoqueLotesRegras';
 import {
   assinaturaDoFormulario,
   canonicoDoDigitado,
@@ -256,6 +257,9 @@ export function useFluxoAbastecimento({ empresaId, hoje, podeCriar, escopo, onCo
     try {
       const registro = await confirmarAbastecimento(emp, p.form, p.resposta.plano, { escopo, retentativa });
       concluirComando(registro, emp, 'confirmar');
+      // D-PROD-282: o servidor nunca recusa lote vencido; quando o abastecimento saiu de um, avisa.
+      const alertaVencido = mensagemDeLoteVencido(/** @type {any} */ (registro)?.avisos);
+      if (alertaVencido) notifyWarning('Lote vencido', alertaVencido);
     } catch (erro) {
       reagirAoErro(erro, emp);
       throw erro;
