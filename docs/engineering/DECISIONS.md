@@ -9834,6 +9834,7 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Decisão (banco, EXPAND, aplicar antes do merge):** 5 `CREATE INDEX` não-únicos, tenant primeiro (R10): `(cliente_id, updatedAt, id)` em `Lote`, `PontoSuplementacao`, `LEITURACOCHO` e `SuplementacaoEvento`; `(cliente_id, entidade, acao, createdAt, id)` em `AuditLog`. Sem `CONCURRENTLY`, que o classificador não aceita. Ordem das travas: domínio primeiro e `AuditLog` por último, como os comandos. Nenhuma tabela, coluna, constraint, dado, RLS ou GRANT muda; nenhum código de aplicação muda.
 - **Governança:** checksum `a1cdcd2f…fc3c` no manifesto; B47a/b/c; contagens e posições dos testes pinados atualizadas; espelhos dos "dias" antigos sem os índices (`schemaSemIndicesDaSincronizacao`). O preflight de schema do deploy não muda, porque o código funciona sem os índices.
 - **Prova:** `EXPLAIN` das 5 consultas usa os índices novos (MU-09); `prisma migrate diff` vazio.
+- **Produção:** aplicada em 2026-11-25 pelo caminho B, com o GO do proprietário ("Pode aplicar por favor"), antes do merge. Pós-checagem: 82 concluídas e 0 ruins, a nova com `a1cdcd2f…fc3c`, os 5 índices válidos.
 - **Fora:** índices para as outras listas, quando entrarem na sincronização incremental (Etapa 5).
 
 <!-- Próxima decisão: D-PROD-316 -->

@@ -14,7 +14,7 @@ rollout pausado **D-PROD-41**)
 | Item | Estado |
 |---|---|
 | Decisão | **D-PROD-315**: 5 índices não-únicos, tenant primeiro: `(cliente_id, updatedAt, id)` em Lote, PontoSuplementacao, LEITURACOCHO e SuplementacaoEvento, e `(cliente_id, entidade, acao, createdAt, id)` em AuditLog |
-| Banco | migration EXPAND `20261126300000_sincronizacao_incremental_indices`; **não aplicada em produção** (aguarda o GO "aplica") |
+| Banco | migration EXPAND `20261126300000_sincronizacao_incremental_indices`; **aplicada em produção em 2026-11-25** (caminho B, GO do proprietário; pós-checagem 82/0, os 5 índices válidos) |
 | Relatório | [`MAIKE-SINCRONIZACAO-INDICES-REPORT.md`](./MAIKE-SINCRONIZACAO-INDICES-REPORT.md) · runbook [`MAIKE-SINCRONIZACAO-INDICES-RUNBOOK-RELEASE.md`](./MAIKE-SINCRONIZACAO-INDICES-RUNBOOK-RELEASE.md) |
 | Próximas | Etapa 3 da sincronização (versão por registro e quem alterou) |
 

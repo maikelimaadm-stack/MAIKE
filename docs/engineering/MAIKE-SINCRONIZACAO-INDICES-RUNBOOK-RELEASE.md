@@ -1,6 +1,7 @@
 # MAIKE — Índices da sincronização incremental: runbook de release (D-PROD-315)
 
-> **Estado: `SCHEMA_APPLIED_PROD: NÃO`.** Plano preparado e ensaiado só no PostgreSQL local.
+> **Estado: `SCHEMA_APPLIED_PROD: SIM` (2026-11-25, caminho B, GO do proprietário, antes do merge da PR #404).**
+> Pós-checagem do §4 conferida. Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário ("aplica") e para no primeiro desvio com
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de leituras reais, nunca copiados deste
@@ -165,3 +166,4 @@ nos primeiros dias, o que é esperado.
 |---|---|---|
 | 2026-11-25 | Claude (sessão D-PROD-315) | plano preparado; migration aplicada e testada só no PostgreSQL local |
 | 2026-11-25 | Claude (sessão D-PROD-315), só leitura | preflight do §2 em produção: `sid` 7692130048193495360, 81 concluídas e 0 ruins, a anterior com `3644b7fd…f169`, esta não registrada, nenhum dos 5 índices existe, 112 tabelas. Volume: `AuditLog` 1.303 linhas (5,9 MB), `Lote` 84, `SuplementacaoEvento` 5, `LEITURACOCHO` 2 e `PontoSuplementacao` 2. A construção leva milissegundos |
+| 2026-11-25 | Claude, com o GO do proprietário ("Pode aplicar por favor") | **aplicada em produção pelo caminho B** (desvio da D-PROD-74 autorizado), numa transação só, antes do merge da PR #404. Guardas do §3 ok. Depois: 82 concluídas e 0 ruins; a nova com `a1cdcd2f…fc3c` e 1 passo; os 5 índices válidos e não únicos; 112 tabelas. `get_advisors`: security sem alerta; performance só com os INFO de sempre (`unused_index` inclui os índices novos, o que é esperado) |

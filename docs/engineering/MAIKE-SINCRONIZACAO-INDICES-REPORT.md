@@ -50,6 +50,6 @@ construção leva milissegundos. Mesmo assim, a aplicação deve ser feita fora 
 - Suítes de migration do backend (`*Migration*.test.mjs` e as que usam os espelhos e os ensaios): 230 de 230. O retrato estrutural do Patrimônio (`ensaio-patrimonio-simplifica`) passou a desconsiderar os 5 índices, que sobem no GREEN, como já fazia com as colunas posteriores.
 - Gates: os 30 e `typecheck:backend`.
 
-## Pendente
+## Produção
 
-- Aplicar em produção (runbook §3), com o GO do proprietário ("aplica"), antes do merge.
+Aplicada em 2026-11-25 pelo caminho B, com o GO do proprietário ("Pode aplicar por favor"), antes do merge. A pós-checagem deu 82 concluídas e 0 ruins, a nova com o checksum pinado e os 5 índices válidos e não únicos (runbook §7).
