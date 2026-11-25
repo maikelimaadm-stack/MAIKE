@@ -646,7 +646,7 @@ export const lancamentoAguardandoParaEditar = async (evento) => {
   if (!registro.podeAlterar) {
     throw naoDaMais(
       registro.progresso?.saida_feita
-        ? 'A baixa deste lançamento já foi feita no estoque: não dá mais para editar. Use "Tentar de novo" em Dados sem internet.'
+        ? 'A baixa deste lançamento já foi feita no estoque: não dá mais para editar. Use "Tentar de novo" em Sincronização.'
         : 'Este lançamento está sendo enviado agora. Espere confirmar.'
     );
   }

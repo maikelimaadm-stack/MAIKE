@@ -53,6 +53,8 @@ export const movimentacaoPecuariaPort = operacoesNativas;
 
 // D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
 // de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+// D-PROD-300: o lançamento do cocho lê a lista sem limite (pente-fino).
 registrarLeiturasOffline([
   '/movimentacoes-pecuaria?limit=5000',
+  '/movimentacoes-pecuaria',
 ]);

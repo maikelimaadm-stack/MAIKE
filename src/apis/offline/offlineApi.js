@@ -19,6 +19,18 @@ import { API_ERROR_CODES } from '../_core/ApiError.js';
 const CONCORRENCIA = 8;
 
 /**
+ * D-PROD-300 — todas as portas de módulo. Cada porta registra as suas leituras
+ * ao carregar; sem isto, a lista dependia de quais telas já tinham sido abertas
+ * (e um módulo ainda não carregado ficava de fora da baixa, em silêncio).
+ */
+const PORTAS = import.meta.glob('../*/*Port.js');
+
+/** Carrega todas as portas (registram as leituras delas). Nunca lança. */
+export const carregarTodasAsPortas = async () => {
+  await Promise.all(Object.values(PORTAS).map((carregar) => carregar().catch(() => null)));
+};
+
+/**
  * Leituras das telas (registradas por cada porta de módulo, com a empresa) e
  * todas as já guardadas no aparelho, sem repetir. Cada uma vai ao servidor e a
  * resposta fica guardada (o `nativeRequest` guarda toda leitura). Nenhum
@@ -29,6 +41,7 @@ const CONCORRENCIA = 8;
  * @returns {Promise<{total: number, ok: number, falhas: number}>}
  */
 export const baixarLeiturasDasTelas = async (empresaId, aoAvancar) => {
+  await carregarTodasAsPortas();
   const guardadas = await listarCaminhosGuardados(getOfflineTenant());
   const caminhos = [...new Set([...leiturasOfflineRegistradas(empresaId), ...guardadas])];
   let feitas = 0;

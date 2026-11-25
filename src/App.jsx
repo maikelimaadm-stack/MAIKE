@@ -17,6 +17,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import NativeLoginForm from '@/components/auth/NativeLoginForm';
 import NativeSessionUnavailable from '@/components/auth/NativeSessionUnavailable';
 import DadosOffline from '@/components/offline/DadosOffline';
+import AvisoDeSincronizacao from '@/components/offline/AvisoDeSincronizacao';
 import PreparoDoApp from '@/components/offline/PreparoDoApp';
 import { appPrecisaPreparar } from '@/services/dadosOfflineService';
 import SplashScreen from '@/components/common/SplashScreen';
@@ -141,6 +142,7 @@ const AuthenticatedApp = () => {
     <>
       <SplashScreen visible={showBootSplash} />
       {showMainApp && <DadosOffline />}
+      {showMainApp && <AvisoDeSincronizacao />}
       {showMainApp && (
         <Routes>
           <Route path="/" element={<Navigate to={createPageUrl(mainPage)} replace />} />

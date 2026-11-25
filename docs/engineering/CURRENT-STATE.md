@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-25 (missão ativa D-PROD-299; antes D-PROD-298; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-300; antes D-PROD-299, D-PROD-298; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,15 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-25) — MAIKE-SALDO-LOTES-TEXTO: saldo do formulário de Entrada/Saída do depósito (D-PROD-299)
+## Missão ativa (2026-11-25) — MAIKE-SINCRONIZACAO-ORGANIZADA (D-PROD-300)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-300**: janela "Sincronização" + ícone no topo + aviso de envio; histórico do depósito com o que espera envio; consultas rodam sem internet (`networkMode: 'always'`); pente-fino das leituras dos formulários |
+| Banco | sem migration |
+| Relatório | [`SINCRONIZACAO-ORGANIZADA-D300-REPORT.md`](./SINCRONIZACAO-ORGANIZADA-D300-REPORT.md) · inventário [`OFFLINE-INVENTARIO.md`](./OFFLINE-INVENTARIO.md) |
+
+## Missão anterior (2026-11-25) — MAIKE-SALDO-LOTES-TEXTO: saldo do formulário de Entrada/Saída do depósito (D-PROD-299)
 
 | Item | Estado |
 |---|---|

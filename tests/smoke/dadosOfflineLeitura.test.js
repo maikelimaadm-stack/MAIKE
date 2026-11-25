@@ -175,6 +175,20 @@ describe('D-PROD-294 — baixar dados', () => {
     expect(lista.some((c) => c.includes('{empresa}'))).toBe(false);
   });
 
+  it('DB-04 D-PROD-300: a baixa guarda como veio cada parte (mapa, cadastros, telas), e sair da conta esquece', async () => {
+    await carregar({ tenant: 'cli_db04' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(respostaJson(200, [])));
+    const { baixarDadosParaOffline, situacaoDaBaixa, esquecerDadosOfflineDoTenant } = await import('@/services/dadosOfflineService');
+    const r = await baixarDadosParaOffline({ empresaId: 'emp_1' });
+    expect(r.em).toEqual(expect.any(Number));
+    const partes = situacaoDaBaixa();
+    for (const nome of ['mapa', 'cadastros', 'telas']) {
+      expect(partes[nome]).toMatchObject({ em: expect.any(Number), total: expect.any(Number), falhas: expect.any(Number) });
+    }
+    esquecerDadosOfflineDoTenant('cli_db04');
+    expect(situacaoDaBaixa()).toBeNull();
+  });
+
   it('DB-02 sem internet não baixa nada nem marca data', async () => {
     await carregar();
     online = false;

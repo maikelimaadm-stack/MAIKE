@@ -51,6 +51,7 @@ import { leiturasAguardandoEnvio } from '@/services/leituraCochoService';
 import { comEstoqueAguardandoEnvio } from '@/services/estoqueAguardandoEnvioService';
 import { comLancamentosAguardandoEnvio } from '@/services/lancamentoCochoAguardandoService';
 import { comTransferenciasCanceladasAguardando } from '@/services/cancelamentosAguardandoService';
+import { movimentacoesAguardandoEnvio } from '@/services/historicoAguardandoEnvioService';
 import { listMedicoesForragem, listDescansoPastos } from '@/apis/medicoes-forragem';
 import {
   listAplicacoesMedicamento,
@@ -191,7 +192,9 @@ const VISAO_DO_QUE_ESPERA_ENVIO = {
   eventosSuplementacao: (itens, empresaId) => comLancamentosAguardandoEnvio(SEM_MARCAS(itens), empresaId),
   estoqueLotes: async (itens, empresaId) =>
     (await comEstoqueAguardandoEnvio(SEM_MARCAS(itens))).filter((l) => !empresaId || l.empresa_id === empresaId),
-  movimentacaoEstoque: (itens) => comTransferenciasCanceladasAguardando(itens),
+  // D-PROD-300: o que espera envio também aparece no histórico do depósito.
+  movimentacaoEstoque: async (itens, empresaId) =>
+    comTransferenciasCanceladasAguardando([...(await movimentacoesAguardandoEnvio(empresaId)), ...SEM_MARCAS(itens)]),
 };
 
 /**

@@ -5,14 +5,16 @@ import { lerFilaDeEnvio, eventosDaFilaDeEnvio } from '@/services/sincronizacaoSe
  * D-PROD-295 — a fila de envio desta sessão, sempre atual (escuta as mudanças
  * das duas filas e a volta da internet).
  *
- * @returns {{aguardando: number, atencao: number, enviando: boolean, itens: any[], outrosAguardando: number, recarregar: () => void}}
+ * `carregado`: já leu a fila uma vez (antes disso os números são 0 só por não ter lido).
+ *
+ * @returns {{aguardando: number, atencao: number, enviando: boolean, itens: any[], outrosAguardando: number, carregado: boolean, recarregar: () => void}}
  */
 export function useFilaDeEnvio() {
-  const [estado, setEstado] = useState({ aguardando: 0, atencao: 0, enviando: false, itens: /** @type {any[]} */ ([]), outrosAguardando: 0 });
+  const [estado, setEstado] = useState({ aguardando: 0, atencao: 0, enviando: false, itens: /** @type {any[]} */ ([]), outrosAguardando: 0, carregado: false });
 
   const recarregar = useCallback(() => {
     lerFilaDeEnvio()
-      .then(setEstado)
+      .then((r) => setEstado({ ...r, carregado: true }))
       .catch(() => {});
   }, []);
 
