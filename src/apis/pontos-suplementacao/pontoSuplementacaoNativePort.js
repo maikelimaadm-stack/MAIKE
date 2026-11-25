@@ -1,6 +1,7 @@
 /**
  * Porta nativa de PontoSuplementacao (P5.4).
  */
+import { registrarListaIncremental, ordemPorCriacao } from '@/lib/offline/sincronizacaoIncremental';
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import {
   createOfflineEntityAdapter,
@@ -79,3 +80,7 @@ export const consultarElegibilidadeExclusaoPontoSuplementacaoNativa = (id) =>
 registrarLeiturasOffline([
   '/pontos-suplementacao',
 ]);
+
+// D-PROD-309: a lista inteira (sem filtros) sincroniza só o que mudou desde a última vez
+// (`nativeRequest` usa `${CAMINHO}/mudancas` e junta com a cópia do aparelho).
+registrarListaIncremental(CAMINHO, { mudancas: `${CAMINHO}/mudancas`, ordem: ordemPorCriacao });

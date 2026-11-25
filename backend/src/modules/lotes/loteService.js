@@ -7,6 +7,7 @@
 
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { consultarMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
 import { AppError, loteNotFound, loteDeleteBlocked, loteUpdateBlocked, setorNotFound, areaNotFound } from '../../shared/errors/AppError.js';
@@ -245,6 +246,24 @@ export const listar = async (contexto) => {
   const auth = exigirAuthContext(contexto?.auth);
   const registros = await listarLotes(auth.clienteId);
   return registros.map(comoLotePublico);
+};
+
+/**
+ * D-PROD-309 — o que mudou nos lotes desde a última sincronização do aparelho (o lote
+ * excluído logicamente sai da lista: vem em `excluidos`).
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{desde?: string, cursor?: string, limite?: number}} query
+ */
+export const mudancas = async (contexto, query) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  return consultarMudancas({
+    clienteId: auth.clienteId,
+    query,
+    modelo: 'lote',
+    entidadeAuditoria: 'Lote',
+    publico: comoLotePublico,
+    excluido: (r) => Boolean(/** @type {any} */ (r).excluido_em),
+  });
 };
 
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {Record<string, unknown>} entrada */

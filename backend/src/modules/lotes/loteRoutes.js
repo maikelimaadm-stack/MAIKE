@@ -4,7 +4,8 @@
 
 import { SCHEMA_ID_DO_APARELHO } from '../../shared/idempotency/idDoAparelho.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { listar, criar, atualizar, excluir, buscarPorId, elegibilidadeExclusao, comoLotePublico } from './loteService.js';
+import { listar, criar, atualizar, excluir, buscarPorId, elegibilidadeExclusao, comoLotePublico, mudancas } from './loteService.js';
+import { schemaMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { elegibilidadeCorrecaoEntrada, corrigirEntradaLote, CAMPOS_ADMINISTRATIVOS_DA_ENTRADA } from './loteCorrecaoEntradaService.js';
 import { autorizar, porTela, telaPermite, mapaPermite, TELAS } from '../../shared/auth/autorizacaoTela.js';
 
@@ -164,6 +165,12 @@ export const registrarLoteRoutes = async (app) => {
   app.get('/lotes', { onRequest: [app.autenticar] }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     return listar(request.contexto);
+  });
+
+  // D-PROD-309: o que mudou desde a última sincronização (mesma permissão da listagem).
+  app.get('/lotes/mudancas', { onRequest: [app.autenticar], schema: schemaMudancas() }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    return mudancas(request.contexto, /** @type {any} */ (request.query ?? {}));
   });
 
   // MAIKE-LOTES-R1: leitura por id (inclui excluído logicamente) e elegibilidade de exclusão.

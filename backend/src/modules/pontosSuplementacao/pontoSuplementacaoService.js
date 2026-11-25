@@ -3,6 +3,7 @@
  */
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { consultarMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
@@ -79,6 +80,16 @@ export const listar = async (contexto, filtros = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
   const registros = await listarRegistros(auth.clienteId, filtros);
   return registros.map(comoPublico);
+};
+
+/**
+ * D-PROD-309 — o que mudou nos cochos/depósitos desde a última sincronização do aparelho.
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{desde?: string, cursor?: string, limite?: number}} query
+ */
+export const mudancas = async (contexto, query) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  return consultarMudancas({ clienteId: auth.clienteId, query, modelo: 'pontoSuplementacao', entidadeAuditoria: 'PontoSuplementacao', publico: comoPublico });
 };
 
 /**

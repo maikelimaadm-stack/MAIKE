@@ -3,6 +3,7 @@
  */
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { consultarMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { documentoComoPublico, montarDocumento } from '../../shared/jsonDocument/jsonDocumentPublic.js';
@@ -31,6 +32,24 @@ export const listar = async (contexto, filtros = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
   const registros = await listarRegistros(auth.clienteId, filtros);
   return registros.map(documentoComoPublico);
+};
+
+/**
+ * D-PROD-309 — o que mudou nos lançamentos de cocho desde a última sincronização do aparelho.
+ * O cancelado sai da lista (D-PROD-268): vem em `excluidos`.
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{desde?: string, cursor?: string, limite?: number}} query
+ */
+export const mudancas = async (contexto, query) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  return consultarMudancas({
+    clienteId: auth.clienteId,
+    query,
+    modelo: 'suplementacaoEvento',
+    entidadeAuditoria: ENTIDADE,
+    publico: documentoComoPublico,
+    excluido: (r) => String(/** @type {any} */ (r).dados?.situacao ?? '') === 'cancelado',
+  });
 };
 
 /**

@@ -9665,4 +9665,50 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - App: `tests/smoke/envioSemPerdaSemDuplicar.test.js` (IA-01..11, EN-01..09, OR-01, AB-01..02).
   - `tests/smoke/lancamentoCochoOffline.test.js`: isolamento; o envio agendado por um teste não dispara no seguinte.
 
-<!-- Próxima decisão: D-PROD-309 -->
+## D-PROD-309 — Sincronização profissional, Etapa 2: só o que mudou (rotas `/mudancas` e leitura incremental no app)
+
+**Data:** 2026-11-25 · **Origem:** plano de 5 etapas aprovado pelo proprietário (SaaS com milhões de registros, vários clientes e usuários) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Relatório:** [`SINCRONIZACAO-ETAPA2-D309-REPORT.md`](./SINCRONIZACAO-ETAPA2-D309-REPORT.md)
+
+- **Contexto:** a cada sincronização o app baixava as listas inteiras, e a mesma lista era pedida até 3 vezes (cache das entidades, mapa e telas). Com milhões de registros por cliente, isso não escala.
+- **Decisão — servidor:**
+  1. **Helper comum** `shared/sincronizacao/mudancasIncrementais.js` (`consultarMudancas`). A resposta traz:
+     - `agora`: a próxima marca do aparelho;
+     - `itens`: a mesma forma pública da listagem;
+     - `excluidos`;
+     - `proximo`: o cursor;
+     - `recarregar`.
+  2. **Regras da consulta:**
+     - Páginas em ordem `(updatedAt, id)` crescente, com cursor keyset.
+     - Com `desde`, vem o que tem `updatedAt >= desde − 60 s`. A margem cobre transações gravadas antes e visíveis depois; o reenvio é inofensivo porque o aparelho junta pelo id.
+     - Sem `desde`, vem tudo, em páginas.
+     - Exclusões físicas vêm do histórico de auditoria (`AuditLog` `delete`), só na 1ª página. Acima de 5000 no período, a resposta pede `recarregar`.
+     - Exclusão lógica (lote `excluido_em`) e cancelamento (lançamento `cancelado`) também saem em `excluidos`.
+     - O tenant vem só da autenticação (R11).
+  3. **Rotas:** `GET /lotes/mudancas`, `/pontos-suplementacao/mudancas`, `/leituras-cocho/mudancas` e `/suplementacao-eventos/mudancas`, com a mesma permissão das listagens e o service de cada módulo (camadas).
+- **Decisão — app:**
+  1. **Um ponto só:** `nativeRequest` (`lib/offline/sincronizacaoIncremental.js`). As três camadas ganham juntas, sem mexer em tela.
+  2. **Leitura incremental:** o GET exato de `/lotes`, `/pontos-suplementacao`, `/leituras-cocho` ou `/suplementacao-eventos` usa a cópia guardada e a marca, que ficam em `respostasOffline` com `marca` e `formato`, por conta e caminho.
+     - Pede só `/…/mudancas?desde=marca`.
+     - Junta pelo id, tira os excluídos e ordena como a listagem do servidor.
+     - Grava a lista e a nova marca, e devolve a lista inteira. Quem chama não percebe diferença.
+  3. **Começa do zero:** sem marca (cópia de uma leitura comum), com formato antigo, ou quando o servidor pede `recarregar`.
+  4. **Falhas:**
+     - Sem rede, a cópia, como sempre.
+     - Qualquer outra falha da rota de mudanças (por exemplo, servidor sem a rota, com versões fora de ordem, ou resposta fora do contrato) volta para a lista inteira, como antes.
+  5. **Revisão independente (achados corrigidos):**
+     - **Uma sincronização por lista e conta, e uma na espera:** quem pede antes de a sincronização ir à rede entra nela. Quem pede depois recebe a seguinte, então a tela que acabou de salvar vê o que salvou.
+     - **Espera de 6 s no total:** com cópia no aparelho, a tela espera no máximo 6 s no total, não por página (D-PROD-294). Depois abre com a cópia e a sincronização termina por trás.
+     - **Trabalho compartilhado:** usa o timeout normal por página e não carrega o `signal` de quem pediu primeiro.
+     - **Troca de conta:** se a conta trocou no meio das páginas, nada é gravado.
+     - **WebView antigo:** `hasOwnProperty.call` em vez de `Object.hasOwn`.
+- **Migration:** nenhuma nesta PR. Os índices `(cliente_id, updatedAt, id)` nas 4 tabelas e `(cliente_id, entidade, acao, createdAt)` em `AuditLog` entram numa missão própria (EXPAND só de índices, com o manifesto, os testes pinados das migrations e o runbook de liberação). Sem eles o código é o mesmo, só mais lento com muito volume.
+- **Fora (próximas etapas):**
+  - Os índices (missão própria, a seguir).
+  - Levar o incremental a outras listas (Etapa 5).
+  - A versão por registro e quem alterou (Etapa 3).
+  - Mostrar o enviado sem "piscar" (Etapa 4).
+- **Testes:**
+  - Backend: `backend/tests/sincronizacaoIncremental.test.mjs` (MU-01..08).
+  - App: `tests/smoke/sincronizacaoIncremental.test.js` (SI-01..11).
+
+<!-- Próxima decisão: D-PROD-310 -->
