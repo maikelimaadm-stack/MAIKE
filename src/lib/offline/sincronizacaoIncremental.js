@@ -62,7 +62,9 @@ const respostaValida = (r) =>
   (r.proximo === null || typeof r.proximo === 'string');
 
 /** @param {string} caminho */
-export const incrementalDe = (caminho) => (Object.hasOwn(CAMINHOS_INCREMENTAIS, caminho) ? CAMINHOS_INCREMENTAIS[caminho] : null);
+// `hasOwnProperty.call` (não `Object.hasOwn`): roda em WebView Android antigo (Chrome < 93).
+export const incrementalDe = (caminho) =>
+  Object.prototype.hasOwnProperty.call(CAMINHOS_INCREMENTAIS, caminho) ? CAMINHOS_INCREMENTAIS[caminho] : null;
 
 /**
  * Lê a lista pelo que mudou desde a marca guardada.

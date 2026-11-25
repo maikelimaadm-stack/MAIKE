@@ -9,6 +9,10 @@
  * SI-06 três leituras ao mesmo tempo (cadastros, mapa, telas): uma sincronização só
  * SI-07 cópia gravada por leitura comum (sem marca) ou de formato antigo: começa do zero
  * SI-08 cada conta tem a sua marca
+ * Revisão independente:
+ * SI-09 a tela que acabou de salvar vê o que salvou (não pega carona numa sincronização de antes)
+ * SI-10 com cópia, a tela espera no máximo 6 s no total (não por página); a sincronização termina por trás
+ * SI-11 a conta trocou no meio das páginas: nada é gravado na cópia da conta anterior
  */
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -215,5 +219,72 @@ describe('D-PROD-309 — leitura incremental', () => {
     srv.chamadas.length = 0;
     await dois.ler();
     expect(srv.chamadas[0]).not.toMatch(/desde=/);
+  });
+
+  it('SI-09 a tela que acabou de salvar vê o que salvou', async () => {
+    const srv = servidor();
+    srv.gravar({ id: 'a', nome: 'A' });
+    let soltar;
+    const original = srv.fetch.getMockImplementation();
+    let segurar = true;
+    srv.fetch.mockImplementation(async (url) => {
+      if (segurar && String(url).includes('/lotes/mudancas')) {
+        segurar = false;
+        await new Promise((r) => (soltar = r));
+      }
+      return original(url);
+    });
+    vi.stubGlobal('fetch', srv.fetch);
+    const { ler } = await carregar();
+    const antiga = ler(); // o mapa abriu: sincronização no ar
+    await vi.waitFor(() => expect(soltar).toBeTypeOf('function'));
+    srv.gravar({ id: 'b', nome: 'SALVO AGORA' }); // a pessoa salvou
+    const depoisDeSalvar = ler(); // a tela relê
+    soltar();
+    await antiga;
+    expect((await depoisDeSalvar).map((l) => l.id)).toContain('b');
+  });
+
+  it('SI-10 com cópia, no máximo 6 s no total; a sincronização termina por trás', async () => {
+    const srv = servidor();
+    srv.gravar({ id: 'a', nome: 'A' });
+    vi.stubGlobal('fetch', srv.fetch);
+    const { ler } = await carregar();
+    await ler();
+    srv.avancar(10 * 60 * 1000);
+    srv.gravar({ id: 'b', nome: 'B' });
+    let soltar;
+    const original = srv.fetch.getMockImplementation();
+    srv.fetch.mockImplementation(async (url) => {
+      await new Promise((r) => (soltar = r)); // rede muito lenta
+      return original(url);
+    });
+    const inicio = Date.now();
+    const lista = await ler();
+    expect(Date.now() - inicio).toBeLessThan(9000);
+    expect(lista.map((l) => l.id)).toEqual(['a']); // a cópia
+    soltar();
+    const { lerResposta } = await import('@/lib/offline/respostasOffline');
+    await vi.waitFor(async () => expect((await lerResposta(contaDoTeste, '/lotes')).corpo.map((l) => l.id)).toEqual(['b', 'a']));
+  }, 20000);
+
+  it('SI-11 a conta trocou no meio das páginas: nada gravado na cópia da conta anterior', async () => {
+    const srv = servidor();
+    for (let i = 1; i <= 1500; i += 1) srv.gravar({ id: `l${String(i).padStart(5, '0')}`, nome: `L${i}` });
+    const original = srv.fetch.getMockImplementation();
+    let paginas = 0;
+    const { setOfflineTenant } = await import('@/lib/offline/offlineTenant');
+    srv.fetch.mockImplementation(async (url) => {
+      paginas += 1;
+      const r = await original(url);
+      if (paginas === 1) setOfflineTenant('outra_conta'); // saiu e outra conta entrou
+      return r;
+    });
+    vi.stubGlobal('fetch', srv.fetch);
+    const { ler } = await carregar();
+    await expect(ler()).rejects.toBeTruthy();
+    const { lerResposta } = await import('@/lib/offline/respostasOffline');
+    expect(await lerResposta(contaDoTeste, '/lotes')).toBeUndefined();
+    expect(paginas).toBe(1);
   });
 });

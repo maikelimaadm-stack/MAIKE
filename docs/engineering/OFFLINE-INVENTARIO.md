@@ -1,6 +1,6 @@
 # Inventário: o que funciona sem internet (app)
 
-Situação em 2026-11-25, depois da D-PROD-308 (Etapa 1: nada se perde, nada duplica). Atualizar
+Situação em 2026-11-25, depois da D-PROD-309 (Etapa 2: só o que mudou). Atualizar
 a cada manejo ligado ao motor.
 
 ## Funciona sem internet
@@ -19,6 +19,7 @@ a cada manejo ligado ao motor.
 | Criar cocho ou lote sem internet e já lançar nele | o registro nasce com o id definitivo do aparelho; a leitura/lançamento espera a criação subir e vai com o mesmo id | D-PROD-308 |
 | Envio com internet que cai no meio (ou app fechado) | gravado no aparelho antes de sair; termina depois com o mesmo código, sem duplicar | D-PROD-308 |
 | Duas abas abertas no navegador | uma sincroniza de cada vez (`navigator.locks`) | D-PROD-308 |
+| Sincronizar lotes, cochos, leituras e lançamentos | só o que mudou desde a última vez (inclusive exclusões); com internet fraca, a tela abre com a cópia em até 6 s e a sincronização termina por trás | D-PROD-309 |
 
 ## Grava sem internet e envia depois
 
