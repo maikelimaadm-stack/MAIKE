@@ -142,3 +142,26 @@ describe('D-PROD-304 — a pessoa fica sabendo da atualização', () => {
     expect(await m.versaoDoApp()).toEqual({ apk: '1.0.4', pacote: 'abc123def456' });
   });
 });
+
+describe('D-PROD-305 — "App atualizado" também na primeira versão com o aviso', () => {
+  it('AV-05 sem registro da versão anterior: avisa e guarda (a próxima abertura com a mesma versão não avisa)', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('fetch', respostas({ versao: 'v2', url: '/x.zip', nativoMinimo: 1 }, { versao: 'v2' }));
+      let m = await carregar();
+      const avisos = [];
+      window.addEventListener(m.EVENTO_APP_ATUALIZADO, (e) => avisos.push(e.detail));
+      m.iniciarAtualizacaoAutomatica();
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(avisos).toEqual([{ versao: 'v2' }]);
+      expect(m.pegarAvisoDeAtualizacao()).toEqual({ versao: 'v2' });
+      expect(m.pegarAvisoDeAtualizacao()).toBeNull();
+      m = await carregar();
+      m.iniciarAtualizacaoAutomatica();
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(avisos).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

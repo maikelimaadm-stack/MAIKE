@@ -101,13 +101,27 @@ export const versaoDoApp = async () => {
  * Ao abrir: este pacote é diferente do que estava em uso neste celular? Avisa
  * uma vez ("App atualizado") e esquece a versão baixada que já entrou.
  */
+/** Aviso "App atualizado" que ainda não foi mostrado (a tela pode montar depois). */
+let atualizacaoPorAvisar = /** @type {{ versao: string }|null} */ (null);
+
+/** A tela pega (uma vez) o "App atualizado" que chegou antes de ela montar. */
+export const pegarAvisoDeAtualizacao = () => {
+  const aviso = atualizacaoPorAvisar;
+  atualizacaoPorAvisar = null;
+  return aviso;
+};
+
 const conferirSeAtualizou = async () => {
   const atual = await versaoCarregada();
   if (!atual) return;
   const anterior = lerLocal(CHAVE_EM_USO);
   gravarLocal(CHAVE_EM_USO, atual);
   if (versaoBaixadaEsperando()?.versao === atual) gravarLocal(CHAVE_BAIXADA, null);
-  if (anterior && anterior !== atual) avisar(EVENTO_APP_ATUALIZADO, { versao: atual });
+  // Sem registro anterior (a 1ª versão com o aviso, ou app recém-instalado) também avisa:
+  // a pessoa precisa ver que a atualização entrou.
+  if (anterior === atual) return;
+  atualizacaoPorAvisar = { versao: atual };
+  avisar(EVENTO_APP_ATUALIZADO, { versao: atual });
 };
 
 const semInternet = () => typeof navigator !== 'undefined' && navigator.onLine === false;
