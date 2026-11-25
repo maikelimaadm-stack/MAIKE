@@ -87,6 +87,9 @@ let contaDoTeste = 'cli_0';
 const carregar = async (tenant = contaDoTeste) => {
   (await import('@/lib/auth/nativeTokenStorage')).setNativeToken('jwt.sintetico', { lembrar: true });
   (await import('@/lib/offline/offlineTenant')).setOfflineTenant(tenant);
+  // A porta de lotes registra a lista (aqui, direto: o teste não carrega a porta inteira).
+  const inc = await import('@/lib/offline/sincronizacaoIncremental');
+  inc.registrarListaIncremental('/lotes', { mudancas: '/lotes/mudancas', ordem: inc.ordemPorCriacao });
   const { nativeRequest } = await import('@/apis/_core/nativeHttpClient.js');
   const ler = () => nativeRequest('/lotes', { autenticado: true }, { operation: 'listLotes', resource: 'Lote' });
   return { nativeRequest, ler };
@@ -286,5 +289,17 @@ describe('D-PROD-309 — leitura incremental', () => {
     const { lerResposta } = await import('@/lib/offline/respostasOffline');
     expect(await lerResposta(contaDoTeste, '/lotes')).toBeUndefined();
     expect(paginas).toBe(1);
+  });
+
+  it('SI-12 as quatro portas registram a sua lista', async () => {
+    await import('@/apis/lotes/loteNativePort');
+    await import('@/apis/pontos-suplementacao/pontoSuplementacaoNativePort');
+    await import('@/apis/leituras-cocho/leituraCochoNativePort');
+    await import('@/apis/suplementacao-eventos/suplementacaoEventoNativePort');
+    const { incrementalDe } = await import('@/lib/offline/sincronizacaoIncremental');
+    for (const caminho of ['/lotes', '/pontos-suplementacao', '/leituras-cocho', '/suplementacao-eventos']) {
+      expect(incrementalDe(caminho)?.mudancas).toBe(`${caminho}/mudancas`);
+    }
+    expect(incrementalDe('/suplementacao-lotes?limit=500')).toBeNull();
   });
 });

@@ -28,24 +28,28 @@ const desc = (a, b) => (a < b ? 1 : a > b ? -1 : 0);
 const texto = (v) => (v === null || v === undefined ? '' : String(v));
 
 /** Ordem da listagem do servidor: createdAt DESC, id DESC. */
-const porCriacao = (/** @type {any} */ a, /** @type {any} */ b) =>
+export const ordemPorCriacao = (/** @type {any} */ a, /** @type {any} */ b) =>
   desc(texto(a?.created_date), texto(b?.created_date)) || desc(texto(a?.id), texto(b?.id));
+
+/** Ordem das leituras de cocho: dia da leitura DESC, depois createdAt DESC, id DESC. */
+export const ordemPorDiaDaLeitura = (/** @type {any} */ a, /** @type {any} */ b) =>
+  desc(texto(a?.data_leitura), texto(b?.data_leitura)) || ordemPorCriacao(a, b);
 
 /**
  * Caminhos com sincronização incremental: a lista (sem filtros) → a rota de mudanças e a
- * ordem da listagem do servidor.
- * @type {Readonly<Record<string, {mudancas: string, ordem: (a: any, b: any) => number}>>}
+ * ordem da listagem do servidor. Cada PORTA registra o seu (o caminho do recurso vive só na
+ * porta do módulo — gates `lote-native` e afins), como `registrarLeiturasOffline`.
+ * @type {Map<string, {mudancas: string, ordem: (a: any, b: any) => number}>}
  */
-export const CAMINHOS_INCREMENTAIS = Object.freeze({
-  '/lotes': { mudancas: '/lotes/mudancas', ordem: porCriacao },
-  '/pontos-suplementacao': { mudancas: '/pontos-suplementacao/mudancas', ordem: porCriacao },
-  '/suplementacao-eventos': { mudancas: '/suplementacao-eventos/mudancas', ordem: porCriacao },
-  // Leituras: dia da leitura DESC, depois createdAt DESC, id DESC.
-  '/leituras-cocho': {
-    mudancas: '/leituras-cocho/mudancas',
-    ordem: (a, b) => desc(texto(a?.data_leitura), texto(b?.data_leitura)) || porCriacao(a, b),
-  },
-});
+const CAMINHOS_INCREMENTAIS = new Map();
+
+/**
+ * @param {string} caminho a lista, exatamente como a porta a pede (sem query)
+ * @param {{mudancas: string, ordem: (a: any, b: any) => number}} definicao
+ */
+export const registrarListaIncremental = (caminho, definicao) => {
+  CAMINHOS_INCREMENTAIS.set(caminho, Object.freeze({ ...definicao }));
+};
 
 /**
  * A resposta de `/…/mudancas` tem a forma do contrato? (Senão, quem chama cai na lista inteira.)
@@ -62,9 +66,7 @@ const respostaValida = (r) =>
   (r.proximo === null || typeof r.proximo === 'string');
 
 /** @param {string} caminho */
-// `hasOwnProperty.call` (não `Object.hasOwn`): roda em WebView Android antigo (Chrome < 93).
-export const incrementalDe = (caminho) =>
-  Object.prototype.hasOwnProperty.call(CAMINHOS_INCREMENTAIS, caminho) ? CAMINHOS_INCREMENTAIS[caminho] : null;
+export const incrementalDe = (caminho) => CAMINHOS_INCREMENTAIS.get(caminho) ?? null;
 
 /**
  * Lê a lista pelo que mudou desde a marca guardada.

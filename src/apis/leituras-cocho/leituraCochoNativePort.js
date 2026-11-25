@@ -6,6 +6,7 @@
  * servidor no replay. O servidor tem o corpo FECHADO; por isso o `create` envia
  * só os campos da leitura (o replay acrescenta `created_date`, `updated_date`…).
  */
+import { registrarListaIncremental, ordemPorDiaDaLeitura } from '@/lib/offline/sincronizacaoIncremental';
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import {
   createOfflineEntityAdapter,
@@ -57,6 +58,10 @@ export const leituraCochoPort = offlineStorageDisponivel()
 registrarLeiturasOffline([
   '/leituras-cocho',
 ]);
+
+// D-PROD-309: a lista inteira (sem filtros) sincroniza só o que mudou desde a última vez
+// (`nativeRequest` usa `${CAMINHO}/mudancas` e junta com a cópia do aparelho).
+registrarListaIncremental(CAMINHO, { mudancas: `${CAMINHO}/mudancas`, ordem: ordemPorDiaDaLeitura });
 
 /**
  * D-PROD-296 — a leitura pelo motor de sincronização: com internet vai direto;
