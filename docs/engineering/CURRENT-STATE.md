@@ -16,7 +16,7 @@ rollout pausado **D-PROD-41**)
 | Decisão | **D-PROD-314**: movimento de estoque só sai sem registro posterior que ainda vale no mesmo produto e depósito (transferência: origem e destino); 409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR` diz qual excluir antes; substitui a "exclusão com recálculo" da D-PROD-273 (emenda constitucional nova); pares já excluídos saem da conta junto |
 | Banco | sem migration |
 | Relatório | [`SO-O-ULTIMO-ESTOQUE-D314-REPORT.md`](./SO-O-ULTIMO-ESTOQUE-D314-REPORT.md) |
-| Próximas | decisão do proprietário sobre a edição da linha de produto da atividade com movimento depois; índices da sincronização incremental; Etapa 3 |
+| Próximas | índices da sincronização incremental; Etapa 3 (a edição da linha da atividade já segue a regra, por escolha do proprietário) |
 
 ## Missão anterior (2026-11-25) — MAIKE-UNIDADE-DIGITADA-HISTORICO: a unidade digitada na lista de movimentos e no histórico do depósito (D-PROD-313)
 

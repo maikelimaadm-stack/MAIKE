@@ -206,7 +206,7 @@ const diaBr = (d) => (d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOS
  * 409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR` (D-PROD-314): há um registro depois deste movimento, no mesmo produto e
  * depósito, que ainda vale. Exclua primeiro o mais recente.
  * @param {NonNullable<Awaited<ReturnType<typeof buscarRegistroPosteriorValendo>>>} p
- * @param {{ movimento_id?: string }} [extra]
+ * @param {{ movimento_id?: string, linha_id?: string }} [extra]
  */
 export const recusaRegistroPosterior = (p, extra = {}) => {
   const dia = diaBr(p.data_movimentacao);

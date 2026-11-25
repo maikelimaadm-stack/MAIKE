@@ -86,10 +86,10 @@ Nova emenda D-PROD-314 em `00-CONSTITUICAO.md` §1 e nota em `07-DO-NOT-DO.md`. 
   - Os 20 arquivos do estoque, rodados juntos: 272 de 272 passam.
   - O resto do backend passa, menos os 3 testes de `transporteNativo` e o RX1 de `estoqueP0ReconciliacaoR2`. Esses 4 falham neste ambiente local também sem a mudança.
 
-## Para decisão do proprietário
+## Escolhas do proprietário (2026-11-25)
 
-1. **Edição da linha de produto da atividade** com movimento depois no depósito: continua como antes, com estorno exato da linha antiga e lançamento da nova, sem recalcular. A edição da entrada e da saída manual (D-PROD-271) já exigia "nada depois". A pergunta é se a edição da atividade deve seguir a mesma regra.
-2. **Cancelar a atividade ou o apontamento** cancela os abastecimentos e as linhas ligados. Com a regra nova, isso é recusado se houver um abastecimento ou consumo posterior no mesmo tanque ou depósito. É a regra pedida, mas muda o dia a dia: para corrigir uma atividade antiga, é preciso excluir antes o que veio depois naquele depósito.
+1. **Edição da linha de produto da atividade com movimento depois no depósito:** agora também é recusada, com o mesmo 409 e a mesma mensagem. Antes, a edição fazia o estorno exato e lançava a linha de novo. Teste: `atividadeLinhaProduto`, "D-PROD-314: editar a linha com outra saída depois…". Com outra saída depois, a edição recusa e nada é gravado; a mais recente edita e cancela, e depois a primeira edita.
+2. **Cancelar a atividade ou o apontamento com consumo posterior no mesmo tanque ou depósito:** é recusado, como a regra pede. Para corrigir uma atividade antiga, exclui-se antes o que veio depois.
 
 ## Observações
 

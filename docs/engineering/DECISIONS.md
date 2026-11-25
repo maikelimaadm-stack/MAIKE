@@ -9820,6 +9820,8 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   4. A prévia (`GET /estoque/movimentos/:id/exclusao/previa`) e a elegibilidade do cancelamento do cocho devolvem a mesma recusa, então o botão já mostra qual registro excluir antes.
   5. Mantém-se a recusa com contagem de inventário posterior (2026-11-23) e todas as outras.
 - **Decisão — app:** `mensagemRecalculoDaExclusao` traduz o código novo em todas as telas de exclusão do estoque, do cocho, do depósito, da atividade e do patrimônio: "Há registro lançado depois deste no depósito X. Exclua primeiro o mais recente: o lançamento no cocho nº 42 de 12/11. Nada foi alterado."
-- **Fora (para decisão do proprietário):** a **edição** da linha de produto da atividade quando há movimento depois no depósito continua como antes: estorno exato da linha antiga e lançamento da nova, sem recalcular. A edição completa da entrada e da saída manual (D-PROD-271) já exigia "nada depois", e o abastecimento só se cancela. Lista no relatório.
+- **Escolhas do proprietário (2026-11-25, "vou seguir sua sugestão"):**
+  1. **Edição da linha de produto da atividade:** segue a mesma regra. Com registro posterior que ainda vale no depósito da linha, a edição é recusada com o mesmo 409, antes de qualquer escrita (`estornarLinhasProduto` sem `recalcular`). Antes, a edição fazia o estorno exato e relançava a linha. A edição da entrada e da saída manual (D-PROD-271) já exigia "nada depois", e o abastecimento só se cancela.
+  2. **Cancelar a atividade ou o apontamento:** a cascata que cancela os abastecimentos e as linhas ligados é recusada se houver consumo posterior no mesmo tanque ou depósito. Para corrigir uma atividade antiga, exclui-se antes o que veio depois naquele depósito. Isso confirma a regra, sem mudança de código.
 
 <!-- Próxima decisão: D-PROD-315 -->
