@@ -46,7 +46,10 @@ beforeEach(async () => {
 /** Os campos da linha de produto, na ordem da forma pública. */
 const CAMPOS_LINHA = [
   'id', 'empresa_id', 'apontamento_id', 'ordem', 'status', 'produto_id', 'produto', 'local_estoque_id', 'local_estoque',
-  'quantidade', 'unidade', 'dose_ha',
+  'quantidade', 'unidade',
+  // D-PROD-310: a quantidade digitada numa unidade de conversão (sigla, quantidade e fator; nulas sem conversão).
+  'unidade_lancamento', 'quantidade_lancamento', 'fator_lancamento',
+  'dose_ha',
   // D-PROD-274: o VC (%) da semente (só a linha do lançamento que o trouxe; nulo aqui).
   'vc_percentual',
   // D-PROD-283: o número do jato (só a linha de um jato; nulo aqui).
@@ -601,7 +604,7 @@ describe('seletores', () => {
     await s.lancarLinhaOk(a, ap, { produto_id: s.adubo.id, quantidade: '1' });
     const r = await H.ok(H.req('GET', `/atividades-opcoes/produtos?empresa_id=${s.e1.id}&atividade_id=${a.id}`, s.token));
     assert.deepEqual(Object.keys(r), ['itens', 'has_more', 'next_cursor']);
-    assert.deepEqual(r.itens[0], { id: s.adubo.id, numero: s.adubo.numero_produto, nome: 'Adubo NPK (saco)', unidade: 'KG', unidade_principal_estoque: 'SACO', estoque_atual: '199.0000', carencia_dias: null, controla_lote: false, favorito: true });
+    assert.deepEqual(r.itens[0], { id: s.adubo.id, numero: s.adubo.numero_produto, nome: 'Adubo NPK (saco)', unidade: 'KG', unidade_principal_estoque: 'SACO', estoque_atual: '199.0000', carencia_dias: null, controla_lote: false, unidades_conversao: [], favorito: true }); // D-PROD-310: sem conversão cadastrada
     const ids = r.itens.map((x) => x.id);
     assert.equal(ids.filter((id) => id === s.adubo.id).length, 1, 'o favorito não se repete');
     assert.ok(ids.includes(s.herbicida.id));

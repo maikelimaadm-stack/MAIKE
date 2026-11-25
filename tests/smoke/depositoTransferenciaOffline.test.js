@@ -209,3 +209,27 @@ describe('D-PROD-301 — o que espera envio aparece no histórico do depósito',
     expect(depois.filter((m) => m._aguardandoEnvio)).toEqual([]);
   });
 });
+
+describe('D-PROD-310 — a unidade de conversão na transferência sem internet', () => {
+  it('ET-09 a fila guarda a unidade e a quantidade digitada (aditivas), a edição reabre nelas e o envio sobe igual', async () => {
+    const { estoque, motor } = await carregar();
+    online = false;
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const r = await transferir(estoque, { quantidade: 50, unidadeLancamento: 'SACO', quantidadeLancamento: '2' });
+    expect(r.aguardandoEnvio).toBe(true);
+    const item = (await estoque.transferenciasAguardandoDoLocal('galpao')).find((t) => t.operationId === r.operation_id);
+    expect(item).toMatchObject({ quantidade: 50, unidade_lancamento: 'SACO', quantidade_lancamento: '2' });
+    // Sem unidade: nada novo no registro.
+    const s = await transferir(estoque, { quantidade: 10 });
+    const semUnidade = (await estoque.transferenciasAguardandoDoLocal('galpao')).find((t) => t.operationId === s.operation_id);
+    expect(semUnidade).toMatchObject({ unidade_lancamento: null, quantidade_lancamento: null });
+    online = true;
+    fetchMock.mockResolvedValue(respostaJson(201, { committed: true }));
+    await motor.sincronizar();
+    const corpos = fetchMock.mock.calls.map((c) => JSON.parse(c[1].body));
+    expect(corpos.find((c) => c.operation_id === r.operation_id)).toMatchObject({ quantidade: 50, unidade_lancamento: 'SACO', quantidade_lancamento: '2' });
+    expect(corpos.find((c) => c.operation_id === s.operation_id)).not.toHaveProperty('unidade_lancamento');
+  });
+});
+

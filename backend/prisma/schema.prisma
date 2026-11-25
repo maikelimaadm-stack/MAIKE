@@ -1860,6 +1860,13 @@ model MovimentacaoEstoque {
   is_registro_principal       Boolean   @default(false)
   modo_saida_fifo             String?   @db.VarChar(32)
   lotes_consumidos            Json?
+  // MAIKE-UNIDADE-CONVERTIDA
+  /// D-PROD-310: a quantidade digitada numa unidade de conversão do produto (cocho e transferência; a saída da linha de
+  /// produto da atividade também): a sigla, a quantidade nela e o fator efetivo (multiplicador, 4 casas). A `quantidade`
+  /// do movimento continua na unidade de estoque. Anuláveis, sem CHECK (a API confere): nulo = sem conversão.
+  unidade_lancamento          String?   @db.VarChar(8)
+  quantidade_lancamento       Decimal?  @db.Decimal(14, 4)
+  fator_lancamento            Decimal?  @db.Decimal(14, 4)
   createdAt                   DateTime  @default(now())
   updatedAt                   DateTime  @updatedAt
 
@@ -3672,6 +3679,13 @@ model AtividadeApontamentoProduto {
   /// MAIKE-INSUMO-POR-JATO — o número do jato no dia (1..999) quando o insumo foi lançado por jato; nulo = sem jato.
   /// Sem CHECK (allowlist EXPAND): a API confere a faixa.
   jato                     Int?
+  // MAIKE-UNIDADE-CONVERTIDA
+  /// D-PROD-310: a quantidade digitada numa unidade de conversão do produto: a sigla, a quantidade nela e o fator
+  /// efetivo (4 casas). `quantidade` e `unidade` continuam na unidade de estoque. Sem CHECK (allowlist EXPAND): a API
+  /// confere. Nulo = sem conversão.
+  unidade_lancamento       String?   @db.VarChar(8)
+  quantidade_lancamento    Decimal?  @db.Decimal(14, 4)
+  fator_lancamento         Decimal?  @db.Decimal(14, 4)
   custo_unitario           Decimal   @db.Decimal(14, 4)
   custo_total              Decimal   @db.Decimal(14, 4)
   operation_id             String    @db.VarChar(128)

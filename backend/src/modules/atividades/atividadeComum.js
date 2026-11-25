@@ -876,8 +876,8 @@ export const recusarCoercaoNasListas = (corpo, listas) => {
 };
 
 /** Decimais da linha de PRODUTO (corpo da linha e itens de `produtos[]`). */
-/** D-PROD-283: o `jato` também chega em texto ("2"), nunca número. */
-export const DECIMAIS_DA_LINHA_PRODUTO = Object.freeze(['quantidade', 'vc_percentual', 'jato']);
+/** D-PROD-283: o `jato` também chega em texto ("2"), nunca número. D-PROD-310: e a quantidade digitada na unidade de conversão. */
+export const DECIMAIS_DA_LINHA_PRODUTO = Object.freeze(['quantidade', 'vc_percentual', 'jato', 'quantidade_lancamento']);
 
 /** Resumos das linhas (só exibição), no formato do `select` do Prisma. */
 export const PRODUTO_RESUMO = Object.freeze({ select: { id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true, carencia_dias: true, controla_lote: true } });
@@ -916,6 +916,10 @@ export const comoLinhaProdutoPublica = (r) => ({
   local_estoque: localPublico(r.localEstoque),
   quantidade: t4(r.quantidade),
   unidade: r.unidade,
+  // D-PROD-310: a quantidade digitada numa unidade de conversão (sigla, quantidade nela e fator; nulas sem conversão).
+  unidade_lancamento: r.unidade_lancamento ?? null,
+  quantidade_lancamento: t4(r.quantidade_lancamento),
+  fator_lancamento: t4(r.fator_lancamento),
   dose_ha: t4(r.dose_ha),
   // MAIKE-ENTREGA2 (D-PROD-274): o VC (%) do saco de semente, 2 casas (nulo sem VC).
   vc_percentual: r.vc_percentual === null || r.vc_percentual === undefined ? null : dec(r.vc_percentual).toFixed(2),

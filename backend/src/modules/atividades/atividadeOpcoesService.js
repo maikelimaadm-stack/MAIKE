@@ -33,6 +33,7 @@ import { opcoesResponsaveis } from '../patrimonio/bemPatrimonialOpcoesService.js
 import { paginacaoOpcoes, paginarPorNome } from '../patrimonio/patrimonioComum.js';
 import { UNIDADES_PRODUTO_TANQUE, unidadeEfetivaDoEstoque } from '../patrimonio/patrimonioDominio.js';
 import { bemPublico, t4 } from './atividadeComum.js';
+import { SELECT_CONVERSOES, listarConversoesPublicas } from '../produtos/produtoUnidadesConversao.js';
 import { produtosUsadosNaAtividade } from './atividadeApontamentoProdutoRepository.js';
 import { paginarBensAtivos } from './atividadeRepository.js';
 import { PAPEL_PRESTADOR } from './atividadeApontamentoServicoService.js';
@@ -77,7 +78,11 @@ const produtosAceitos = (clienteId, empresaId) => ({
   tanquesAceitos: { none: { ativo: true, tanque: { ativo: true, bem: { ativo: true } } } },
 });
 
-const SELECT_PRODUTO = Object.freeze({ id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true, estoque_atual: true, carencia_dias: true, controla_lote: true });
+const SELECT_PRODUTO = Object.freeze({
+  id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true, estoque_atual: true, carencia_dias: true, controla_lote: true,
+  // D-PROD-310: as unidades de conversão do cadastro (a linha pode ser digitada numa delas).
+  peso_por_saco_kg: true, unidadesConversao: SELECT_CONVERSOES,
+});
 
 /** @param {any} p @param {boolean} favorito */
 const opcaoDeProduto = (p, favorito) => ({
@@ -91,6 +96,8 @@ const opcaoDeProduto = (p, favorito) => ({
   carencia_dias: p.carencia_dias ?? null,
   // D-PROD-282 em todas as telas: produto com lote mostra o campo "Lote" na linha.
   controla_lote: p.controla_lote === true,
+  // D-PROD-310: as conversões ATIVAS com uso em saída (a linha de produto tira do estoque), com a equivalência.
+  unidades_conversao: listarConversoesPublicas(p).filter((c) => c.ativa && c.uso_venda),
   favorito,
 });
 

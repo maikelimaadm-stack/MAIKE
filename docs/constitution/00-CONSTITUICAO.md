@@ -151,6 +151,19 @@ duas"), na PR #347 (§4).
 
 **Emenda aprovada pelo proprietário (D-PROD-282):** **Estoque — controle de lote por produto.** Produto que controla lote usa o custo do lote escolhido; os demais seguem no custo médio do depósito (D-PROD-256). O produto pode ser marcado "Controla lote" e "Controla validade" (padrão Não); cada entrada dele cria a sua camada com o lote do fabricante, a validade e o custo da nota; a saída sai do lote que o usuário escolher (sugestão: o que vence primeiro), pelo custo dessa camada, que nunca é reavaliada. A troca da marcação só é aceita com saldo zero em todos os depósitos. Texto **aprovado pelo proprietário** em 2026-11-23.
 
+**Emenda aprovada pelo proprietário (D-PROD-310):** **Unidade de conversão no cocho, na transferência e na atividade.**
+"Na linha de produto da atividade, no cocho e na transferência, a quantidade pode ser digitada numa unidade de conversão do
+cadastro do produto (D-PROD-288); o servidor converte para a unidade de estoque pelo fator cadastrado e grava a unidade, a
+quantidade e o fator. O abastecimento continua sem conversão." Onde as expansões D-PROD-193 e D-PROD-202 abaixo dizem que
+a linha de produto baixa "**exatamente** a quantidade digitada, na unidade de estoque do Produto", vale: baixa a
+quantidade digitada na unidade de estoque **ou** a quantidade digitada numa unidade de conversão do cadastro, convertida
+pelo servidor para a unidade de estoque pelo fator cadastrado (o mesmo motor da compra do financeiro), com a unidade, a
+quantidade digitada e o fator gravados; editar mantém o fator gravado. O mesmo vale para o cocho e a transferência entre
+depósitos. A quantidade do movimento continua sempre na unidade de estoque. Nada muda no abastecimento: a revisão
+D-PROD-162 acima ("exatamente a quantidade digitada, na unidade de estoque do Produto (litros `L` ou quilos `KG`), sem
+nenhuma conversão entre unidades") continua valendo para ele, inteira. Texto proposto na SPEC de unidades (§7) e **aprovado
+pelo proprietário em 2026-11-25** ("Aprovo: cocho, transferência e atividade").
+
 **Expansão autorizada pelo proprietário (D-PROD-193):** **Apontamento de Atividade — itens** (página
 `ApontamentosAtividade`, Fatia D do apontamento). O apontamento confirmado recebe itens de custo. O item
 **PRODUTO** baixa do estoque **exatamente** a quantidade digitada, na unidade de estoque do Produto, pelo motor de

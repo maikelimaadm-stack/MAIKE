@@ -40,6 +40,7 @@ import {
   subtrair,
 } from './dinheiroDecimal.js';
 import { corpoDaEscolha, pendenciaDoLote } from './estoqueLotesRegras.js';
+import { gravadoDe, quantidadeEmEstoque } from './unidadeLancamentoRegras.js';
 import {
   MEDIDORES_CONTADOR,
   ROTULO_LEITURA,
@@ -350,13 +351,16 @@ export const textoDaLeituraVigente = (medidor) => {
 // ─── Linha de PRODUTO (janela e "Repetir") ───────────────────────────────
 
 /**
- * @typedef {{ id: string, rotulo: string, unidade_principal_estoque: string|null, carencia_dias?: number|null, controla_lote?: boolean } | null} ProdutoEscolhido
+ * @typedef {{ id: string, rotulo: string, unidade_principal_estoque: string|null, carencia_dias?: number|null, controla_lote?: boolean, unidades_conversao?: any[] } | null} ProdutoEscolhido
  * @typedef {{ produto: ProdutoEscolhido, local_estoque_id: string|null, quantidade: string, observacao: string, vc?: string, jato?: number|null,
+ *   unidade?: string, gravado?: { unidade: string, fator: string }|null,
  *   lotes?: Array<{ id: string, quantidade: string }>|null, confirmaVencido?: boolean, loteVencido?: boolean, erroLote?: string,
  *   saidaGravada?: { produto_id: string, local_estoque_id: string|null, quantidade: string|null, fatias?: Array<{ lote_id: string, quantidade: string }> } }} FormularioLinhaProduto
  *   D-PROD-274: `carencia_dias` (a carência da bula, para o "Pasto liberado em") e `vc` (o VC % digitado, Plantio).
  *   D-PROD-282 em todas as telas: `controla_lote` do produto e a escolha do lote (`lotes`, `confirmaVencido`; o campo
  *   devolve `loteVencido` e `erroLote`); `saidaGravada` na edição (mantém os lotes da linha).
+ *   D-PROD-310: `unidade` ('' = a de estoque; senão a sigla de uma conversão do produto, de `produto.unidades_conversao`)
+ *   — então `quantidade` é a quantidade DIGITADA nessa unidade; `gravado` (edição): a unidade e o fator da linha gravada.
  */
 
 /** A opção do seletor (ou o resumo gravado) como o formulário guarda. @param {any} o @returns {ProdutoEscolhido} */
@@ -370,6 +374,8 @@ export const produtoEscolhido = (o) =>
         ...(Number.isInteger(o.carencia_dias) ? { carencia_dias: o.carencia_dias } : {}),
         // D-PROD-282 em todas as telas: produto com lote mostra o campo "Lote" (sem a marca, como sempre).
         ...(o.controla_lote === true ? { controla_lote: true } : {}),
+        // D-PROD-310: as unidades de conversão do cadastro (as ativas com uso em saída), quando a opção as traz.
+        ...(Array.isArray(o.unidades_conversao) && o.unidades_conversao.length ? { unidades_conversao: o.unidades_conversao } : {}),
       }
     : null;
 
@@ -387,7 +393,9 @@ export const formularioDaLinhaProduto = (l) => ({
       }
     : null,
   local_estoque_id: texto(l?.local_estoque_id) || null,
-  quantidade: paraEdicao(l?.quantidade),
+  // D-PROD-310: a linha numa unidade de conversão reabre nela (a quantidade digitada e o fator GRAVADO).
+  quantidade: paraEdicao(gravadoDe(l) ? l.quantidade_lancamento : l?.quantidade),
+  ...(gravadoDe(l) ? { unidade: String(l.unidade_lancamento), gravado: gravadoDe(l) } : {}),
   observacao: typeof l?.observacao === 'string' ? l.observacao : '',
   ...(Number.isInteger(l?.jato) && l.jato > 0 ? { jato: l.jato } : {}),
   // D-PROD-300: a saída gravada da linha de produto com lote — editar sem escolher lotes e sem trocar produto, local nem
@@ -416,7 +424,7 @@ export const lotesDevolvidosNaEdicao = (form) => {
 export const mantemLotesDaLinha = (form) => {
   const g = form?.saidaGravada;
   if (!g || Array.isArray(form?.lotes)) return false;
-  const q = lerDecimal(form?.quantidade, '').valor;
+  const q = quantidadeDaLinhaEmEstoque(form);
   return String(form?.produto?.id ?? '') === g.produto_id && (form?.local_estoque_id ?? null) === g.local_estoque_id
     && ehCanonico(q) && ehCanonico(g.quantidade) && comparar(/** @type {string} */ (q), g.quantidade) === 0;
 };
@@ -428,6 +436,18 @@ export const mantemLotesDaLinha = (form) => {
  * @param {FormularioLinhaProduto} form @param {{ disponivel?: string|null }} [ctx]
  * @returns {{ erros: Record<string, string>, aviso: string|null }}
  */
+/**
+ * D-PROD-310 — a quantidade da linha na unidade de ESTOQUE (texto canônico): a digitada, ou a conta da unidade de
+ * conversão (a mesma do servidor; na edição na mesma unidade, o fator gravado). null se ainda não dá para saber.
+ * @param {FormularioLinhaProduto} form
+ * @returns {string|null}
+ */
+export const quantidadeDaLinhaEmEstoque = (form) => {
+  const q = lerDecimal(form?.quantidade, '').valor;
+  if (!q || !form?.unidade) return q;
+  return quantidadeEmEstoque(form.produto, form.unidade, q, { uso: 'venda', gravado: form.gravado ?? null });
+};
+
 export const validarLinhaProduto = (form, ctx = {}) => {
   /** @type {Record<string, string>} */
   const erros = {};
@@ -440,9 +460,14 @@ export const validarLinhaProduto = (form, ctx = {}) => {
   if (q.erro) erros.quantidade = q.erro;
   else if (!q.valor) erros.quantidade = 'Informe a quantidade.';
   else if (!ehPositivo(q.valor)) erros.quantidade = 'Informe uma quantidade maior que zero.';
-  else if (ehCanonico(ctx.disponivel) && comparar(q.valor, /** @type {string} */ (ctx.disponivel)) > 0) {
+  else {
+    // D-PROD-310: numa unidade de conversão, o saldo se compara na unidade de ESTOQUE (a conta da tela).
+    const emEstoque = quantidadeDaLinhaEmEstoque(form);
     const u = rotuloDaUnidade(unidadeDoProduto(form.produto));
-    aviso = `Saldo insuficiente neste local: disponível ${formatarDecimalLinha(ctx.disponivel)}${u ? ` ${u}` : ''}, pedido ${formatarDecimalLinha(q.valor)}${u ? ` ${u}` : ''}. O servidor recusa a baixa acima do saldo.`;
+    if (!emEstoque || !ehPositivo(emEstoque)) erros.quantidade = `A quantidade em ${u || 'estoque'} (4 casas) dá zero.`;
+    else if (ehCanonico(ctx.disponivel) && comparar(emEstoque, /** @type {string} */ (ctx.disponivel)) > 0) {
+      aviso = `Saldo insuficiente neste local: disponível ${formatarDecimalLinha(ctx.disponivel)}${u ? ` ${u}` : ''}, pedido ${formatarDecimalLinha(emEstoque)}${u ? ` ${u}` : ''}. O servidor recusa a baixa acima do saldo.`;
+    }
   }
   if (tamanho(texto(form?.observacao)) > MAX_OBSERVACAO_LINHA) erros.observacao = `No máximo ${MAX_OBSERVACAO_LINHA} caracteres.`;
   // D-PROD-282 em todas as telas: produto com lote — a soma dos lotes escolhidos e a confirmação do vencido (o campo
@@ -456,20 +481,24 @@ export const validarLinhaProduto = (form, ctx = {}) => {
 
 /**
  * Corpo da linha de produto (formulário JÁ VALIDADO): produto, local, quantidade em texto canônico e observação
- * (vazia = null). A unidade, o custo e a dose são do servidor.
+ * (vazia = null). A unidade, o custo e a dose são do servidor. D-PROD-310: numa unidade de conversão, `quantidade` é a
+ * conta na unidade de ESTOQUE (o servidor confere) e vão também `unidade_lancamento` e `quantidade_lancamento` (a
+ * digitada); sem conversão, o corpo de sempre.
  * @param {FormularioLinhaProduto} form
  */
 export const corpoDaLinhaProduto = (form) => {
   // D-PROD-300: `lotes` só com produto que controla lote e escolha manual (sem ela, o servidor aplica o FEFO).
   const lotes = form.produto?.controla_lote ? corpoDaEscolha(form.lotes) : null;
+  const digitada = lerDecimal(form.quantidade, '').valor;
   return {
     produto_id: form.produto?.id ?? null,
     local_estoque_id: form.local_estoque_id ?? null,
-    quantidade: lerDecimal(form.quantidade, '').valor,
+    quantidade: quantidadeDaLinhaEmEstoque(form),
     observacao: texto(form.observacao) || null,
     // D-PROD-293: o número do jato, em texto, só na linha de um jato.
     ...(Number.isInteger(form.jato) && form.jato > 0 ? { jato: String(form.jato) } : {}),
     ...(lotes && lotes.length ? { lotes } : {}),
+    ...(form.unidade && digitada ? { unidade_lancamento: form.unidade, quantidade_lancamento: digitada } : {}),
   };
 };
 
@@ -976,7 +1005,26 @@ export const corpoDaLinhaServico = (form) => ({
 
 // ─── PATCH mínimo das linhas ─────────────────────────────────────────────
 
-const DECIMAIS_DA_LINHA = Object.freeze(['quantidade', 'leitura_inicial', 'leitura_final', 'quantidade_uso', 'custo_unitario', 'valor_unitario']);
+const DECIMAIS_DA_LINHA = Object.freeze(['quantidade', 'quantidade_lancamento', 'leitura_inicial', 'leitura_final', 'quantidade_uso', 'custo_unitario', 'valor_unitario']);
+
+/**
+ * D-PROD-310 — o PATCH mínimo da linha de PRODUTO: a unidade de conversão e a quantidade nela vão SEMPRE juntas (e
+ * com a quantidade de estoque que a tela mostrou) quando alguma das três mudou; a linha gravada numa conversão que
+ * volta para a unidade de estoque manda a `quantidade` (só ela = "na unidade de estoque": o servidor tira a conversão).
+ * @param {any} linha @param {Record<string, any>} corpo
+ */
+export const camposAlteradosDaLinhaProduto = (linha, corpo) => {
+  const saida = camposAlteradosDaLinha(linha, corpo);
+  const tem = (/** @type {string} */ k) => Object.prototype.hasOwnProperty.call(saida, k);
+  if (corpo.unidade_lancamento) {
+    if (tem('unidade_lancamento') || tem('quantidade_lancamento') || tem('quantidade')) {
+      Object.assign(saida, { unidade_lancamento: corpo.unidade_lancamento, quantidade_lancamento: corpo.quantidade_lancamento, quantidade: corpo.quantidade });
+    }
+  } else if (linha?.unidade_lancamento) {
+    saida.quantidade = corpo.quantidade;
+  }
+  return saida;
+};
 
 /**
  * D-PROD-282 — a escolha (`[{ estoque_lote_nota_id, quantidade }]`) é a das fatias gravadas (`[{ lote_id, quantidade }]`)?
