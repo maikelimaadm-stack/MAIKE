@@ -5,7 +5,7 @@
  */
 // Só imports relativos e sem efeitos de tela: as regras de abastecimento e de atividade (que o backend também carrega,
 // nos testes de contrato da tela) importam este módulo direto pelo Node, sem o alias `@/`.
-import { lerNumeroLocal } from './dinheiroDecimal.js';
+import { dividirArredondar, lerNumeroLocal, multiplicarArredondar } from './dinheiroDecimal.js';
 
 /** Locale e limites das quantidades de lote: os mesmos da Entrada (`estoqueEntradasRegras`: pt-BR, 10 inteiros e 4 casas). */
 const LOCALE_ENTRADA = 'pt-BR';
@@ -52,12 +52,23 @@ export const sugestaoFefo = (lotes, quantidade) => {
   return { fatias, suficiente: resta <= 0 };
 };
 
-/** Quantidade da linha na unidade de ESTOQUE (SACO → kg pelo peso do saco). @param {any} linha */
+/** Quantidade da linha na unidade de ESTOQUE: conversão do cadastro (D-PROD-288/310) pelo fator, ou SACO legado pelo peso do saco. @param {any} linha */
 export const quantidadeDeEstoque = (linha) => {
   const r = lerNumeroLocal(linha?.quantidade, LOCALE_ENTRADA, LIMITES_ENTRADA);
   if (!r.ok) return 0;
   const q = num(r.valor);
-  return linha?.unidade === 'SACO' ? q4(q * num(linha?.produto?.peso_por_saco_kg)) : q;
+  const unidade = String(linha?.unidade ?? '');
+  // D-PROD-288/310: unidade de conversão do cadastro, pela mesma conta do servidor (multiplica ou divide, 4 casas).
+  const conversoes = Array.isArray(linha?.produto?.unidades_conversao) ? linha.produto.unidades_conversao : [];
+  const c = conversoes.find((x) => x && x.ativa !== false && x.sigla === unidade);
+  if (c && num(c.fator) > 0) {
+    try {
+      return num(c.operacao === 'DIVIDE' ? dividirArredondar(String(r.valor), String(c.fator), 4) : multiplicarArredondar(String(r.valor), String(c.fator), 4));
+    } catch {
+      return 0;
+    }
+  }
+  return unidade === 'SACO' ? q4(q * num(linha?.produto?.peso_por_saco_kg)) : q;
 };
 
 /**
