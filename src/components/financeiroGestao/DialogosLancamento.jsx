@@ -504,7 +504,9 @@ export function DialogoLiquidacao({ aberto, titulo, registro, perfil, hoje, fuso
  *   mensagemDoErro?: ((erro: unknown) => string) | null,
  *   rotuloEnviando?: string,
  *   rotuloMotivo?: string,
- * }} props `icone` (opcional): o selo ao lado do título (o "Concluir atividade" da D-PROD-232); `iconeBotao`: o ícone
+ *   bloqueio?: string,
+ * }} props `bloqueio` (D-PROD-306): texto de uma pendência de quem abre o diálogo (o lote da correção); com ele, o botão
+ *   de envio fica desabilitado (o texto aparece no próprio `conteudo`). `icone` (opcional): o selo ao lado do título (o "Concluir atividade" da D-PROD-232); `iconeBotao`: o ícone
  *   do botão de envio. Sem eles, o diálogo fica como sempre foi. `janelaBase1` (D-PROD-252, emenda 3): o diálogo vira a
  *   janela padrão do Base1 (`B1Janela`: 680px, corpo que rola, título e ✕ em cima, botões embaixo; tela cheia no
  *   celular), do mesmo tamanho das janelas de lançamento, em vez da caixa pequena do shadcn. Vocabulário da tela que
@@ -532,13 +534,14 @@ export function DialogoAcao({
   mensagemDoErro = null,
   rotuloEnviando = "Enviando…",
   rotuloMotivo = "Motivo",
+  bloqueio = "",
 }) {
   const celular = useCelular();
   const [motivo, setMotivo] = useState("");
   const [ciente, setCiente] = useState(false);
   const { estado, disparar } = useEnvioUnico(onEnviar, contexto, undefined, mensagemDoErro);
   const enviando = estado.fase === "enviando";
-  const semMotivo = (comMotivo && !motivo.trim()) || (Boolean(confirmacaoExplicita) && !ciente);
+  const semMotivo = (comMotivo && !motivo.trim()) || (Boolean(confirmacaoExplicita) && !ciente) || Boolean(bloqueio);
   if (janelaBase1) {
     return (
       <B1Janela

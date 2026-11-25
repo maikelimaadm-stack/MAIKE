@@ -331,6 +331,25 @@ export const descreverMudancasFisicas = (diferencas) => {
   return `${unicos.slice(0, 4).join('; ')}${unicos.length > 4 ? '…' : ''}`;
 };
 
+/**
+ * D-PROD-306 — os efeitos de estoque que a correção vai gravar, no formato da prévia (`efeitos_estoque`): por item
+ * MERCADORIA, a ordem (a mesma do corpo: posição na lista + 1), produto, depósito e a quantidade em kg (ou L) do
+ * resumo. É o que o diálogo "Salvar correção" usa para pedir o lote (compra) ou deixar escolher (venda) — a prévia do
+ * servidor só existe para rascunho. O controle de lote do produto vem da leitura dos lotes, no diálogo.
+ * @param {any} form @param {{ itens: Array<{ kg?: string|null }> }} resumo
+ * @returns {Array<{ item_ordem: number, produto_id: string, produto_nome: string, local_estoque_id: string, local_nome: string, kg: string }>}
+ */
+export const mercadoriasDaCorrecao = (form, resumo) => {
+  if (form?.conteudo !== 'COM_PRODUTOS' || !Array.isArray(form.itens)) return [];
+  return form.itens.flatMap((/** @type {any} */ item, /** @type {number} */ k) => {
+    const kg = resumo?.itens?.[k]?.kg;
+    if (item?.tipo_item !== 'MERCADORIA' || !item.produto?.id || !item.local?.id || kg == null) return [];
+    return [{
+      item_ordem: k + 1, produto_id: String(item.produto.id), produto_nome: t(item.produto.rotulo), local_estoque_id: String(item.local.id), local_nome: t(item.local.rotulo), kg: t(kg),
+    }];
+  });
+};
+
 const CAMPO_DA_REFERENCIA = /** @type {Record<string, string>} */ ({
   produto_id: 'produto',
   local_estoque_id: 'local',

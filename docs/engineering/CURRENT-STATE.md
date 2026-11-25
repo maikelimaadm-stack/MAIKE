@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-25 (missão ativa D-PROD-305; antes D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-306; antes D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,18 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-25) — MAIKE-MAPA-VIVO: o mapa volta na hora entre menus (D-PROD-305)
+## Missão ativa (2026-11-25) — MAIKE-FINANCEIRO-RETIFICACAO-LOTE: o lote na correção por substituição do lançamento financeiro (D-PROD-306)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-306**: a retificação aceita `lotes_por_item` (o contrato da confirmação) e o usa na SUBSTITUIÇÃO; o diálogo "Salvar correção" pede o lote quando o estoque muda (compra: lote e validade pré-preenchidos com os da versão anterior; venda: o campo "Lote"); NO_LUGAR não mexe em lote |
+| Servidor | rota `RETIFICAR` com `LOTES_POR_ITEM`; fingerprint com o campo só quando vem; `avisos` de vencido na resposta da substituição |
+| Banco | sem migration |
+| Branch | `claude/financeiro-retificacao-lote` (PR em rascunho) |
+| Relatório | [`MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md`](./MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md) |
+| Próximas | unidade convertida nas telas que tiram produto (emenda da SPEC de unidades) |
+
+## Missão anterior (2026-11-25) — MAIKE-MAPA-VIVO: o mapa volta na hora entre menus (D-PROD-305)
 
 | Item | Estado |
 |---|---|
@@ -48,9 +59,9 @@ rollout pausado **D-PROD-41**)
 | Decisão | **D-PROD-300**: cocho, financeiro (venda; lote do fabricante e validade na compra), atividade (linha, registro, jatos) e abastecimento com o mesmo campo "Lote" da Saída (sugestão FEFO, escolher e dividir, vencido pede confirmação); o servidor nunca recusa vencido, só avisa |
 | Servidor | atividade e abastecimento passam a aceitar `lotes`; prévia do financeiro diz o controle de lote; leitura dos lotes liberada a quem lança nessas telas |
 | Banco | sem migration |
-| Branch | `claude/estoque-lote-todas-telas` (PR em rascunho) |
+| Branch | `claude/estoque-lote-todas-telas` (PR #383, mergeada) |
 | Relatório | [`MAIKE-ESTOQUE-LOTE-TODAS-TELAS-REPORT.md`](./MAIKE-ESTOQUE-LOTE-TODAS-TELAS-REPORT.md) |
-| Próximas | unidade convertida nessas telas (emenda da SPEC de unidades); lote na retificação do financeiro |
+| Próximas | unidade convertida nessas telas (emenda da SPEC de unidades); lote na retificação do financeiro (feito na D-PROD-304) |
 
 ## Missão anterior (2026-11-25) — MAIKE-SALDO-LOTES-TEXTO: saldo do formulário de Entrada/Saída do depósito (D-PROD-299)
 
