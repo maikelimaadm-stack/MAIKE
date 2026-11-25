@@ -9477,8 +9477,6 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Formulação do lançamento do cocho:** a mesma soma escondia a formulação ("só as com saldo no depósito": o texto colado virava `NaN`, que nunca é > 0) quando o depósito tinha 2 lotes ou mais, com ou sem internet. E a leitura que o formulário faz (`/formulacoes/opcoes-lancamento`) não estava na lista do que o app baixa para usar sem internet (só `/formulacoes`); passa a estar.
 - **Testes:** `tests/smoke/saldoLotesDecimalTexto.test.js` (SD-01..04).
 
-<!-- Próxima decisão: D-PROD-301 -->
-
 ## D-PROD-300 — Estoque: escolha do lote e aviso de lote vencido em todas as telas que tiram produto; lote e validade na compra do financeiro
 
 **Data:** 2026-11-24 · **Origem:** pedido do proprietário (o módulo de estoque completo: cada tela que tira produto escolhe o lote como a Saída; a compra pelo financeiro grava o lote), plano aprovado · **Branch:** `claude/estoque-lote-todas-telas` · **Relatório:** [`MAIKE-ESTOQUE-LOTE-TODAS-TELAS-REPORT.md`](./MAIKE-ESTOQUE-LOTE-TODAS-TELAS-REPORT.md)
