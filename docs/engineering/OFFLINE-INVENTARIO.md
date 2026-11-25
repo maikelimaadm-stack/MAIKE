@@ -1,6 +1,6 @@
 # Inventário: o que funciona sem internet (app)
 
-Situação em 2026-11-25, depois da D-PROD-309 (Etapa 2: só o que mudou). Atualizar
+Situação em 2026-11-25, depois da D-PROD-311 (só o último da sequência). Atualizar
 a cada manejo ligado ao motor.
 
 ## Funciona sem internet
@@ -34,7 +34,7 @@ a cada manejo ligado ao motor.
 | `cocho.cancelamento` | `CancelarLancamentoCocho` (sem internet) | o lançamento some do cocho; o período que ele fechou reabre; o produto volta ao depósito |
 | `deposito.cancelamento-transferencia` | `CancelarTransferenciaDeposito` (sem internet) | as duas pernas somem do histórico; o saldo volta |
 
-Corrigir antes de subir (D-PROD-298): o lançamento do cocho e a transferência que esperam envio têm **Editar** e **Excluir** (no cocho, no depósito e na janela "Sincronização"); a leitura de cocho tem **Excluir**. Nada disso deixa rastro no banco.
+Corrigir antes de subir (D-PROD-298): o lançamento do cocho e a transferência que esperam envio têm **Editar** e **Excluir** (no cocho, no depósito e na janela "Sincronização"); a leitura de cocho tem **Excluir**. Nada disso deixa rastro no banco. Desde a D-PROD-311, só o **último** de cada sequência (o mais recente do cocho, ou do mesmo estoque) se edita ou exclui; a tela diz qual excluir antes.
 
 ### Fila antiga por entidade (`offlineEntityRuntime`)
 

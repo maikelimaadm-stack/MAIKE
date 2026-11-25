@@ -163,14 +163,19 @@ export const aplicarMovimentosAosLotes = (lotes, movimentos) => {
         referencia = referencia ?? lote;
       }
     }
-    if (mov.local_destino_id) {
+    // D-PROD-311: o destino recebe só o que de fato saiu da origem. Antes recebia a quantidade
+    // inteira mesmo quando a origem não tinha tudo (ex.: desfazer sem internet uma transferência
+    // cujo estoque o destino já usou) — o total crescia e dava para lançar com estoque que não
+    // existe. A origem que não aparece nos lotes do aparelho (sem origem) não limita.
+    const entrou = mov.local_origem_id ? mov.quantidade - Math.max(0, restante) : mov.quantidade;
+    if (mov.local_destino_id && entrou > 0) {
       resultado.push({
         ...(referencia ? { custo_unitario: referencia.custo_unitario, produto_nome: referencia.produto_nome, numero_documento: referencia.numero_documento } : {}),
         id: `aguardando:${mov.operationId}`,
         empresa_id: mov.empresa_id,
         produto_id: mov.produto_id,
         local_estoque_id: mov.local_destino_id,
-        quantidade_disponivel: mov.quantidade,
+        quantidade_disponivel: entrou,
         status: 'Disponivel',
         data_documento: mov.data || new Date().toISOString().slice(0, 10),
         _aguardandoEnvio: true,

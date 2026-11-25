@@ -23,6 +23,7 @@ import { updateMapaCachedData } from "@/services/mapaCacheService";
 import { tipoTemExclusao } from "@/domain/lotes/situacaoMovimento";
 import { confirmar as pedirConfirmacao } from "@/lib/maikeConfirmar";
 import { aposEscritaNoRebanho } from "@/components/mapa/invalidarCachesMapa";
+import { nutricaoAguardandoEnvio } from "@/services/sincronizacaoService";
 
 // Componentes de `ui/*` são forwardRef sem tipos de props: o checkJs não enxerga `children`.
 /** @type {React.ComponentType<any>} */ const Button = ButtonUi;
@@ -56,6 +57,8 @@ export const MENSAGENS_RECUSA = Object.freeze({
   EXCLUSAO_MOVIMENTO_CANCELADO: "Esta movimentação é de um registro antigo e não pode ser excluída. Nada foi alterado.",
   EXCLUSAO_REFERENCIA_DOCUMENTAL: "Há registros de outros módulos que citam esta movimentação. Trate-os antes. Nada foi alterado.",
   REBANHO_CANCELAMENTO_VINCULO_POSTERIOR: "Há lançamentos de outros módulos (tarefa, suplementação, sanidade...) ligados a esta movimentação. Trate-os antes. Nada foi alterado.",
+  // D-PROD-311: nada depois, na origem nem no destino — exclui-se sempre o mais recente primeiro.
+  REBANHO_EXCLUSAO_REGISTRO_POSTERIOR: "Há registro posterior na origem ou no destino desta movimentação. Exclua primeiro o mais recente. Nada foi alterado.",
   CANCELAMENTO_SALDO_HISTORICO_NEGATIVO: "Um registro posterior usa estas cabeças. Exclua-o antes, do mais recente para o mais antigo. Nada foi alterado.",
   REBANHO_DEPENDENCIA_FATO_SEM_SALDO: "Uma pesagem ou nascimento posterior depende deste registro. Exclua-o antes, do mais recente para o mais antigo. Nada foi alterado.",
   REBANHO_PESO_DEPENDENCIA_CAUSAL: "Um registro posterior calculou o peso a partir deste. Exclua-o antes, do mais recente para o mais antigo. Nada foi alterado.",
@@ -69,6 +72,23 @@ export const MENSAGENS_RECUSA = Object.freeze({
 });
 
 const diaBR = (d) => String(d ?? "").split("-").reverse().join("/");
+/** D-PROD-311: o que bloqueia, no nome que a pessoa conhece. */
+const NOMES_DE_BLOQUEADOR = Object.freeze({
+  SuplementacaoLote: "Nutrição",
+  SuplementacaoEvento: "Nutrição",
+  AplicacaoMedicamento: "Medicamento",
+  EventoSanitario: "Sanidade",
+  ManejoTecnicoRebanho: "Manejo técnico",
+  MovimentacaoPecuaria: "Movimentação",
+  LancamentoTarefa: "Tarefa",
+  TRANSFERENCIA: "Movimentação",
+  JUNCAO: "Junção",
+  PESAGEM: "Pesagem",
+  NASCIMENTO: "Nascimento",
+  MORTE: "Morte",
+});
+const nomeDoBloqueador = (b) =>
+  NOMES_DE_BLOQUEADOR[b?.evento_tipo] ?? NOMES_DE_BLOQUEADOR[b?.tipo] ?? (b?.tipo === "EventoRebanho" ? "Movimentação" : String(b?.tipo ?? "Registro"));
 /** Recusa com o detalhe do servidor (data/área/peso) quando houver. */
 export const mensagemDeRecusa = (codigo, detalhes) => {
   const d = detalhes && typeof detalhes === "object" ? detalhes : null;
@@ -84,8 +104,8 @@ export const mensagemDeRecusa = (codigo, detalhes) => {
     const kg = (v) => (v === null || v === undefined ? "desconhecido" : `${Number(v).toLocaleString("pt-BR")} kg`);
     return `O registro do dia ${diaBR(d.data)} calculou o peso a partir deste (registrado ${kg(d.peso_registrado_kg)}; passaria a ${kg(d.peso_recalculado_kg)}). Exclua-o antes. Nada foi alterado.`;
   }
-  if ((codigo === "REBANHO_CANCELAMENTO_VINCULO_POSTERIOR" || codigo === "EXCLUSAO_REFERENCIA_DOCUMENTAL") && Array.isArray(d?.bloqueadores) && d.bloqueadores.length) {
-    const lista = d.bloqueadores.slice(0, 3).map((b) => `${b.tipo}${b.data ? ` de ${diaBR(b.data)}` : ""}`).join(", ");
+  if ((codigo === "REBANHO_CANCELAMENTO_VINCULO_POSTERIOR" || codigo === "EXCLUSAO_REFERENCIA_DOCUMENTAL" || codigo === "REBANHO_EXCLUSAO_REGISTRO_POSTERIOR") && Array.isArray(d?.bloqueadores) && d.bloqueadores.length) {
+    const lista = d.bloqueadores.slice(0, 3).map((b) => `${nomeDoBloqueador(b)}${b.data ? ` de ${diaBR(b.data)}` : ""}`).join(", ");
     return `${MENSAGENS_RECUSA[codigo]} (${lista}${d.bloqueadores.length > 3 ? "..." : ""})`;
   }
   return MENSAGENS_RECUSA[codigo] || "Não foi possível excluir. Nada foi alterado.";
@@ -383,7 +403,10 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
     queryFn: async () => {
       const lidas = await pendenciasOfflineDaMovimentacao(movimento.id);
       if (!Array.isArray(lidas)) throw new Error("formato inesperado da fila offline");
-      return lidas;
+      // D-PROD-311: nutrição feita sem internet nesta fazenda, ainda não enviada, também bloqueia
+      // (o servidor não a vê; ela subiria citando o lote que a exclusão desfez).
+      const nutricao = await nutricaoAguardandoEnvio(movimento.empresa_id);
+      return [...lidas, ...nutricao];
     },
     enabled: !excluida && suportado && autorizado && !!usuario && (visivel || aberto),
     staleTime: ELEGIBILIDADE_STALE_MS,
@@ -600,7 +623,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
           )}
           {pendenciasNaFila.length > 0 && (
             <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
-              Há operação offline ainda não sincronizada para este registro. Sincronize antes de excluir.
+              Há operação feita sem internet (neste registro ou nutrição desta fazenda) ainda não sincronizada. Sincronize antes de excluir.
             </div>
           )}
           {filaFalhou && (

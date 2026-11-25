@@ -7,6 +7,7 @@
  */
 
 import {
+  registrosAguardandoDoTipo,
   resumoDaFila,
   tentarDeNovo,
   descartarDaFila,
@@ -15,6 +16,7 @@ import {
   EVENTO_FILA_DE_ENVIO,
 } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { sincronizarTudo, iniciarSincronizacaoAutomatica } from '@/lib/offline/sincronizacao/gatilhosDeSincronizacao';
+import { TIPO_LANCAMENTO_COCHO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
 import {
   contarPendenciasDaFilaDeEntidades,
   getOfflineSyncEventName,
@@ -109,3 +111,16 @@ export const ligarEnvioDaSessao = (sessao) => {
     void sincronizarTudo();
   }
 };
+
+/**
+ * D-PROD-311 — nutrição feita sem internet (lançamento de cocho, com rateio aos lotes) que ainda
+ * não chegou ao servidor, desta fazenda. A exclusão de uma movimentação de lote fica bloqueada
+ * enquanto houver: o servidor não vê o que está só no aparelho, e o lançamento subiria citando
+ * um lote que a exclusão desfez.
+ * @param {string|null|undefined} empresaId
+ * @returns {Promise<Array<{id: string, rotulo: string}>>}
+ */
+export const nutricaoAguardandoEnvio = async (empresaId) =>
+  (await registrosAguardandoDoTipo(TIPO_LANCAMENTO_COCHO))
+    .filter((r) => !empresaId || /** @type {any} */ (r.payload)?.evento?.empresa_id === empresaId)
+    .map((r) => ({ id: r.operationId, rotulo: 'Nutrição aguardando envio' }));

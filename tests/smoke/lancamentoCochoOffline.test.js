@@ -345,8 +345,8 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
       { saida: null, evento: evento({ data_lancamento: '2026-11-14' }), lotes: [], eventoAnterior: ultimo, fechamento: fechamento() },
       { operationId: 'op-lanc-0013' }
     );
-    const edicao = await sup.lancamentoAguardandoParaEditar(primeiro.evento);
-    expect(sup.idDoAnteriorCitado(edicao.payload.evento_anterior_id)).toBe('ev-1');
+    // D-PROD-311: o 1º não se edita enquanto o 2º (feito em cima dele) está na fila.
+    await expect(sup.lancamentoAguardandoParaEditar(primeiro.evento)).rejects.toThrow(/Só o último lançamento deste cocho/);
     const edicao2 = await sup.lancamentoAguardandoParaEditar({ _operationId: 'op-lanc-0013' });
     expect(sup.idDoAnteriorCitado(edicao2.payload.evento_anterior_id)).toBe('aguardando:op-lanc-0012');
   });

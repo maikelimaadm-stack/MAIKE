@@ -30,6 +30,8 @@ import {
   registrosAguardandoDoTipo,
   situacaoNaFila,
   descartarDaFila,
+  dependentesNaFila,
+  pendentesNosRecursos,
   registroNaFila,
 } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { TIPO_TRANSFERENCIA_DEPOSITO, TIPO_CANCELAMENTO_TRANSFERENCIA } from '@/lib/offline/sincronizacao/tiposDeEnvio';
@@ -344,6 +346,12 @@ export const descartarTransferenciaAguardando = async (operationId) => {
   const situacao = await situacaoNaFila(operationId);
   if (situacao === 'confirmando') throw indisponivel('Esta transferência está sendo enviada agora. Espere confirmar para excluir.');
   if (situacao === 'enviado') throw indisponivel('Esta transferência já chegou ao sistema. Atualize a tela.');
+  // D-PROD-311: o que veio depois no mesmo estoque (outra transferência, o lançamento de cocho
+  // que tirou dele) depende desta: exclui-se primeiro o mais recente.
+  const dependentes = situacao ? await dependentesNaFila(operationId) : [];
+  if (dependentes.length) {
+    throw indisponivel(`Esta transferência tem registro posterior no mesmo estoque. Exclua antes: ${dependentes.map((d) => d.rotulo).join('; ')}.`);
+  }
   if (situacao && !(await descartarDaFila(operationId))) throw indisponivel('Não foi possível excluir esta transferência agora.');
 };
 
@@ -355,7 +363,41 @@ export const transferenciaAguardandoPodeEditar = async (operationId) => {
   const registro = await registroNaFila(operationId);
   if (!registro) throw indisponivel('Esta transferência já chegou ao sistema. Atualize a tela.');
   if (!registro.podeAlterar) throw indisponivel('Esta transferência está sendo enviada agora. Espere confirmar.');
+  // D-PROD-311: o que veio depois no mesmo estoque foi feito contando com esta.
+  const dependentes = await dependentesNaFila(operationId);
+  if (dependentes.length) {
+    throw indisponivel(`Esta transferência tem registro posterior no mesmo estoque. Exclua antes: ${dependentes.map((d) => d.rotulo).join('; ')}.`);
+  }
   return true;
+};
+
+/**
+ * D-PROD-311 — há, no histórico guardado no aparelho, movimento ativo do mesmo produto num dos
+ * dois estoques da transferência DEPOIS dela (fora as pernas dela mesma)?
+ * @param {any} movimento
+ * @param {string|null} empresaId
+ */
+const movimentoPosteriorNoHistorico = async (movimento, empresaId) => {
+  try {
+    const { getMapaCachedData } = await import('@/services/mapaCacheService');
+    const lista = (await getMapaCachedData('movimentacaoEstoque', empresaId)) ?? [];
+    const locais = new Set([movimento?.local_estoque_origem, movimento?.local_estoque_destino].filter(Boolean));
+    const proprias = new Set([movimento?.id, movimento?.movimento_pai_id, movimento?.movimento_filho_id].filter(Boolean));
+    const grupo = movimento?.movimentacao_grupo_id ?? null;
+    const dia = String(movimento?.data_movimentacao ?? '').slice(0, 10);
+    const criado = String(movimento?.created_date ?? '');
+    return (Array.isArray(lista) ? lista : []).some((m) => {
+      if (!m || proprias.has(m.id) || (grupo && m.movimentacao_grupo_id === grupo)) return false;
+      if (m.produto_id !== movimento?.produto_id) return false;
+      if (['Estornada', 'Cancelada', 'Cancelado'].includes(String(m.status ?? ''))) return false;
+      const noEstoque = [m.local_estoque_origem, m.local_estoque_destino, m.local_estoque_id].some((l) => l && locais.has(l));
+      if (!noEstoque) return false;
+      const d = String(m.data_movimentacao ?? '').slice(0, 10);
+      return d > dia || (d === dia && String(m.created_date ?? '') > criado);
+    });
+  } catch {
+    return false;
+  }
 };
 
 // ── D-PROD-298: excluir sem internet a transferência que já está no servidor ──
@@ -386,6 +428,20 @@ registrarTipoDeEnvio({
  * @param {{ movimento: any, empresaId: string, motivo: string, operationId: string }} p
  */
 export const cancelarTransferenciaSemInternet = async ({ movimento, empresaId, motivo, operationId }) => {
+  // D-PROD-311: sem internet, o servidor não confere agora — o aparelho confere o que sabe. Se
+  // depois da transferência houve outro movimento do produto em um dos dois estoques (no
+  // histórico do aparelho) ou há algo aguardando envio neles, ela não sai: exclui-se primeiro
+  // o mais recente.
+  const origem = movimento?.local_estoque_origem ?? null;
+  const destino = movimento?.local_estoque_destino ?? null;
+  const pendentes = await pendentesNosRecursos([origem, destino].filter(Boolean).map((l) => `estoque:${l}`));
+  if (pendentes.length) {
+    throw indisponivel(`Há registro feito depois desta transferência no mesmo estoque, aguardando envio. Exclua antes: ${pendentes.map((d) => d.rotulo).join('; ')}.`);
+  }
+  const posterior = await movimentoPosteriorNoHistorico(movimento, empresaId);
+  if (posterior) {
+    throw indisponivel('Depois desta transferência houve outra movimentação deste produto no mesmo estoque. Exclua primeiro a mais recente.');
+  }
   const r = await enviarOuGuardar(
     TIPO_CANCELAMENTO_TRANSFERENCIA,
     {
