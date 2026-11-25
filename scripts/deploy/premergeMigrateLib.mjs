@@ -231,6 +231,10 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // (MovimentacaoEstoque e AtividadeApontamentoProduto: unidade_lancamento, quantidade_lancamento e fator_lancamento);
   // sem CHECK (a API confere: conversão ativa do próprio produto; a quantidade do movimento fica na unidade de estoque).
   '20261126200000_unidade_convertida_lancamentos': '3644b7fd9aef0362ecfb8584904aaee6c3844cd1ca981c9691c3db8a1ccbf169',
+  // MAIKE-SINCRONIZACAO-INDICES (D-PROD-315): EXPAND — os 5 índices não-únicos da sincronização incremental, tenant
+  // primeiro: (cliente_id, updatedAt, id) em Lote, PontoSuplementacao, LEITURACOCHO e SuplementacaoEvento, e
+  // (cliente_id, entidade, acao, createdAt, id) em AuditLog; nenhuma tabela, coluna, constraint ou dado muda.
+  '20261126300000_sincronizacao_incremental_indices': 'a1cdcd2f6f4b21499f5d1b1b5a905abeb1ef84e426d85c460bb03a8edb5ffc3c',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
