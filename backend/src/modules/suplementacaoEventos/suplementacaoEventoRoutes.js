@@ -3,7 +3,8 @@
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js';
-import { listar, criar, atualizar, excluir } from './suplementacaoEventoService.js';
+import { listar, criar, atualizar, excluir, mudancas } from './suplementacaoEventoService.js';
+import { schemaMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { comandoLancamentoComLotes } from './suplementacaoEventoComandoService.js';
 import { cancelarLancamentoCocho, elegibilidadeCancelamentoCocho, MOTIVO_MAX, MOTIVO_MIN } from './suplementacaoEventoCancelamentoService.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
@@ -62,6 +63,12 @@ export const registrarSuplementacaoEventoRoutes = async (app) => {
     exigirAuthContext(request.contexto.auth);
     const query = /** @type {Record<string, string>} */ (request.query ?? {});
     return listar(request.contexto, query);
+  });
+
+  // D-PROD-309: o que mudou desde a última sincronização (mesma permissão da listagem).
+  app.get('/suplementacao-eventos/mudancas', { onRequest: [app.autenticar], schema: schemaMudancas() }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    return mudancas(request.contexto, /** @type {any} */ (request.query ?? {}));
   });
 
   app.post('/suplementacao-eventos', { onRequest: [app.autenticar], preHandler: [GUARDAS.suplementacaoEvento.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {

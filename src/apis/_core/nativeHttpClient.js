@@ -31,6 +31,7 @@ import { ApiError, API_ERROR_CODES } from './ApiError.js';
 import { getNativeToken } from '@/lib/auth/nativeTokenStorage';
 import { getOfflineTenant } from '@/lib/offline/offlineTenant';
 import { guardarResposta, lerResposta } from '@/lib/offline/respostasOffline';
+import { FORMATO_INCREMENTAL, incrementalDe, lerIncremental } from '@/lib/offline/sincronizacaoIncremental';
 import { registrarCopiaServida } from '@/lib/offline/copiasDoAparelho';
 
 /** Requisição sem resposta em 20 s é tratada como indisponibilidade. */
@@ -357,6 +358,55 @@ const requisitarNaRede = async (caminho, opcoes, contexto) => {
 
 const semInternetAgora = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
+/**
+ * D-PROD-309: no máximo UMA sincronização incremental rodando por lista e conta, e UMA esperando.
+ *  - quem pede antes de a sincronização em curso ir à rede entra nela (telas abrindo juntas);
+ *  - quem pede DEPOIS espera ela acabar e recebe a SEGUINTE, que começa depois do pedido — a
+ *    tela que acabou de salvar sempre vê o que salvou;
+ *  - quem chega enquanto a seguinte ainda espera recebe a mesma.
+ * @type {Map<string, {rodando: Promise<unknown>|null, foiARede: boolean, proxima: Promise<unknown>|null}>}
+ */
+const incrementais = new Map();
+/**
+ * @template T
+ * @param {string} chave
+ * @param {(marcarIdaARede: () => void) => Promise<T>} fazer
+ * @returns {Promise<T>}
+ */
+const naVezDaLista = (chave, fazer) => {
+  let e = incrementais.get(chave);
+  if (!e) {
+    e = { rodando: null, foiARede: false, proxima: null };
+    incrementais.set(chave, e);
+  }
+  const estado = e;
+  const rodar = () => {
+    estado.foiARede = false;
+    const p = fazer(() => {
+      if (estado.rodando === p) estado.foiARede = true;
+    }).finally(() => {
+      if (estado.rodando === p) estado.rodando = null;
+    });
+    estado.rodando = p;
+    return p;
+  };
+  if (!estado.rodando) return /** @type {Promise<T>} */ (rodar());
+  if (!estado.foiARede) return /** @type {Promise<T>} */ (estado.rodando);
+  if (!estado.proxima) {
+    estado.proxima = estado.rodando
+      .catch(() => undefined)
+      .then(() => {
+        estado.proxima = null;
+        return rodar();
+      });
+  }
+  return /** @type {Promise<T>} */ (estado.proxima);
+};
+
+const SEM_RESPOSTA_A_TEMPO = Symbol('sem-resposta-a-tempo');
+/** @param {number} ms */
+const esperar = (ms) => new Promise((r) => setTimeout(() => r(SEM_RESPOSTA_A_TEMPO), ms));
+
 /** Leitura com cópia no aparelho espera a rede no máximo isto (D-PROD-294). */
 const TIMEOUT_COM_COPIA_MS = 6000;
 
@@ -398,6 +448,51 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
     ? { ...opcoes, timeoutMs: Math.min(opcoes.timeoutMs ?? TIMEOUT_COM_COPIA_MS, TIMEOUT_COM_COPIA_MS) }
     : opcoes;
   try {
+    // D-PROD-309: listas grandes — só o que mudou desde a última vez (ver `sincronizacaoIncremental`).
+    if (incrementalDe(caminho)) {
+      const contaTrocou = () => getOfflineTenant() !== tenant;
+      // O trabalho é compartilhado entre telas: sem o `signal` de quem pediu primeiro (se ele
+      // desistir, as outras continuam) e com o timeout normal por página.
+      const { signal: _sinalDeQuemPediu, ...opcoesCompartilhadas } = opcoes;
+      const sincronia = naVezDaLista(`${tenant}\u0000${caminho}`, async (marcarIdaARede) => {
+        // Lida AQUI (não antes): a sincronização anterior pode ter acabado de gravar a marca.
+        const comMarca = await lerResposta(tenant, caminho);
+        const { corpo, marca } = await lerIncremental({
+          caminho,
+          guardada: comMarca,
+          pedir: (c) => {
+            // Saiu da conta (ou entrou outra) no meio das páginas: para; nada é misturado.
+            if (contaTrocou()) throw new Error('incremental: a conta trocou durante a sincronização');
+            marcarIdaARede();
+            return requisitarNaRede(c, opcoesCompartilhadas, contexto);
+          },
+        });
+        if (contaTrocou()) throw new Error('incremental: a conta trocou durante a sincronização');
+        await guardarResposta(tenant, caminho, corpo, { marca, formato: FORMATO_INCREMENTAL }).catch(() => {});
+        return corpo;
+      });
+      try {
+        // Com cópia no aparelho, a tela espera no máximo os mesmos 6 s de sempre (D-PROD-294),
+        // não 6 s por página: depois disso abre com a cópia e a sincronização termina por trás.
+        if (guardada) {
+          const r = await Promise.race([sincronia, esperar(TIMEOUT_COM_COPIA_MS)]);
+          if (r === SEM_RESPOSTA_A_TEMPO) {
+            sincronia.catch(() => undefined);
+            return daCopia(guardada.corpo);
+          }
+          return r;
+        }
+        return await sincronia;
+      } catch (erroIncremental) {
+        // Sem rede: segue o caminho de sempre (a cópia, abaixo). Conta trocada: não grava nada
+        // nesta conta. Qualquer outra falha (servidor sem a rota de mudanças — versões fora de
+        // ordem —, resposta inesperada): a lista inteira, como antes. A sincronização
+        // incremental nunca deixa a tela sem dados.
+        if (/** @type {any} */ (erroIncremental)?.code === API_ERROR_CODES.PROVIDER_UNAVAILABLE || opcoes.signal?.aborted || contaTrocou()) {
+          throw erroIncremental;
+        }
+      }
+    }
     const corpo = await requisitarNaRede(caminho, opcoesDaRede, contexto);
     guardarResposta(tenant, caminho, corpo).catch(() => {});
     return corpo;

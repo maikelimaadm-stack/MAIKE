@@ -2,7 +2,8 @@
  * Rotas de PontoSuplementacao (P5.4).
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { listar, criar, atualizar, excluir, elegibilidadeExclusao } from './pontoSuplementacaoService.js';
+import { listar, criar, atualizar, excluir, elegibilidadeExclusao, mudancas } from './pontoSuplementacaoService.js';
+import { schemaMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const ID_SCHEMA = {
@@ -41,6 +42,12 @@ export const registrarPontoSuplementacaoRoutes = async (app) => {
     let registros = await listar(request.contexto, query);
 
     return registros;
+  });
+
+  // D-PROD-309: o que mudou desde a última sincronização (mesma permissão da listagem).
+  app.get('/pontos-suplementacao/mudancas', { onRequest: [app.autenticar], schema: schemaMudancas() }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    return mudancas(request.contexto, /** @type {any} */ (request.query ?? {}));
   });
 
   // Só leitura: a tela pergunta antes de excluir o ponto do mapa (cocho/depósito com histórico não sai).

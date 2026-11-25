@@ -2,6 +2,7 @@
  * Porta nativa de Lote (P5.1, D-PROD-47).
  */
 
+import { registrarListaIncremental, ordemPorCriacao } from '@/lib/offline/sincronizacaoIncremental';
 import { eIdDoAparelho } from '@/lib/offline/idDoAparelho';
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import {
@@ -172,3 +173,7 @@ export const lotePort = createOfflineEntityAdapter({
 registrarLeiturasOffline([
   '/lotes',
 ]);
+
+// D-PROD-309: a lista inteira (sem filtros) sincroniza só o que mudou desde a última vez
+// (`nativeRequest` usa `${CAMINHO}/mudancas` e junta com a cópia do aparelho).
+registrarListaIncremental(CAMINHO, { mudancas: `${CAMINHO}/mudancas`, ordem: ordemPorCriacao });

@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-25 (missão ativa D-PROD-310; antes D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-310; antes D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -19,6 +19,15 @@ rollout pausado **D-PROD-41**)
 | Branch | `claude/unidade-convertida-lancamentos` (PR em rascunho) |
 | Relatório | [`MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md`](./MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md) · runbook [`MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-RUNBOOK-RELEASE.md`](./MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-RUNBOOK-RELEASE.md) |
 | Próximas | aplicar a migration (GO); mostrar a unidade digitada na lista de movimentos e no histórico do depósito |
+
+## Missão anterior (2026-11-25) — MAIKE-SINCRONIZACAO-ETAPA2: só o que mudou (D-PROD-309)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-309**: rotas `/…/mudancas` (lotes, cochos, leituras, lançamentos) com cursor, margem de 60 s e exclusões do histórico de auditoria; o app lê essas listas pelo que mudou desde a marca guardada, num ponto só (`nativeRequest`) |
+| Banco | sem migration nesta PR; os índices por `updatedAt` vão numa missão própria |
+| Relatório | [`SINCRONIZACAO-ETAPA2-D309-REPORT.md`](./SINCRONIZACAO-ETAPA2-D309-REPORT.md) |
+| Próximas | índices da sincronização incremental (EXPAND); Etapa 3: versão por registro e quem alterou |
 
 ## Missão anterior (2026-11-25) — MAIKE-SINCRONIZACAO-ETAPA1: nada se perde, nada duplica (D-PROD-308)
 

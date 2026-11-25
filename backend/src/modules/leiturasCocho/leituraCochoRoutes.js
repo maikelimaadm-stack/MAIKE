@@ -11,7 +11,8 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js';
-import { listar, criar, excluir, ESCORES, ACESSOS, ESTRUTURAS } from './leituraCochoService.js';
+import { listar, criar, excluir, ESCORES, ACESSOS, ESTRUTURAS, mudancas } from './leituraCochoService.js';
+import { schemaMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 
@@ -52,6 +53,12 @@ export const registrarLeituraCochoRoutes = async (app) => {
   app.get('/leituras-cocho', { onRequest: [app.autenticar], schema: LISTAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     return listar(request.contexto, comoObjeto(request.query));
+  });
+
+  // D-PROD-309: o que mudou desde a última sincronização (mesma permissão da listagem).
+  app.get('/leituras-cocho/mudancas', { onRequest: [app.autenticar], schema: schemaMudancas() }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    return mudancas(request.contexto, /** @type {any} */ (request.query ?? {}));
   });
 
   app.post('/leituras-cocho', { onRequest: [app.autenticar], preHandler: [guarda.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {

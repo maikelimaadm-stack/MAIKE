@@ -78,10 +78,16 @@ const comLoja = async (modo, operar) => {
  * @param {string|null} tenant
  * @param {string} caminho
  * @param {unknown} corpo
+ * @param {{marca?: string, formato?: number}} [extra]
  */
-export const guardarResposta = async (tenant, caminho, corpo) => {
+export const guardarResposta = async (tenant, caminho, corpo, extra = undefined) => {
   if (!tenant || !caminho) return;
-  await comLoja('readwrite', (loja) => loja.put({ chave: chaveDe(tenant, caminho), tenant, caminho, corpo, em: Date.now() }));
+  // D-PROD-309: `extra.marca` (instante do servidor da última sincronização incremental) e
+  // `extra.formato` vão junto; uma leitura comum (sem `extra`) apaga a marca — a próxima
+  // sincronização incremental começa do zero, nunca de uma marca que não bate com o corpo.
+  await comLoja('readwrite', (loja) =>
+    loja.put({ chave: chaveDe(tenant, caminho), tenant, caminho, corpo, em: Date.now(), ...(extra ?? {}) })
+  );
   await podarSePreciso();
 };
 
@@ -90,12 +96,14 @@ export const guardarResposta = async (tenant, caminho, corpo) => {
  *
  * @param {string|null} tenant
  * @param {string} caminho
- * @returns {Promise<{corpo: unknown, em: number}|undefined>}
+ * @returns {Promise<{corpo: unknown, em: number, marca: string|null, formato: number|null}|undefined>}
  */
 export const lerResposta = async (tenant, caminho) => {
   if (!tenant || !caminho) return undefined;
   const registro = /** @type {any} */ (await comLoja('readonly', (loja) => loja.get(chaveDe(tenant, caminho))));
-  return registro ? { corpo: registro.corpo, em: registro.em } : undefined;
+  return registro
+    ? { corpo: registro.corpo, em: registro.em, marca: registro.marca ?? null, formato: registro.formato ?? null }
+    : undefined;
 };
 
 /**
