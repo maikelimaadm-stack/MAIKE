@@ -126,6 +126,19 @@ export const emEstoqueNoCampo = (canonico) => (canonico == null ? '' : paraCampo
 /** A frase dos lotes com a unidade de conversão: os lotes são na unidade de estoque. @param {any} produto */
 export const avisoLotesEmEstoque = (produto) => `As quantidades dos lotes são em ${rotuloDoEstoque(produto)} (a unidade de estoque).`;
 
+/**
+ * D-PROD-313 — a quantidade como foi DIGITADA ("3 SC", "2,5 CX") a partir de um registro gravado (movimento do estoque
+ * ou linha da atividade) com `unidade_lancamento` e `quantidade_lancamento`; '' sem conversão (a quantidade do
+ * registro, na unidade de estoque, é a que vale e já aparece).
+ * @param {any} r
+ */
+export const textoDaUnidadeDigitada = (r) => {
+  const unidade = typeof r?.unidade_lancamento === 'string' ? r.unidade_lancamento.trim() : '';
+  const n = Number(r?.quantidade_lancamento);
+  if (!unidade || r?.quantidade_lancamento == null || r.quantidade_lancamento === '' || !Number.isFinite(n) || n <= 0) return '';
+  return `${n.toLocaleString('pt-BR', { maximumFractionDigits: 4 })} ${unidade}`;
+};
+
 /** A unidade gravada na edição (`{ unidade, fator }`) a partir de um registro com as 3 colunas; null sem conversão. @param {any} r */
 export const gravadoDe = (r) => (r?.unidade_lancamento && r?.fator_lancamento ? { unidade: String(r.unidade_lancamento), fator: String(r.fator_lancamento) } : null);
 

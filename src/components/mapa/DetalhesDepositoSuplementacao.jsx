@@ -27,6 +27,7 @@ import { calcularNivelCocho, formatarKgNivel } from "@/domain/suplementacao/nive
 import { descreverFarol, farolDoCocho } from "@/domain/suplementacao/leituraCocho";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { useDiaCivil } from "@/hooks/useDiaCivil";
+import { textoDaUnidadeDigitada } from "@/lib/unidadeLancamentoRegras";
 import "@/styles/mk-dp-deposito.css";
 import "@/styles/mk-dp-historico.css";
 import "@/styles/mk-dp-deposito-v13.css";
@@ -710,11 +711,15 @@ function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId,
   // D-PROD-301: o que espera envio vem sem o nome do produto (o envio não leva): pelo cadastro.
   const nomeDoProduto = mov?.produto_nome || produtosPorId.get(mov?.produto_id)?.nome_produto || "";
   const pesoPorSaco = emLitros ? 0 : Number(produtosPorId.get(mov?.produto_id)?.peso_por_saco_kg || 0);
+  // D-PROD-313: digitada numa unidade de conversão (D-PROD-310) → "3 SC" no lugar dos sacos pelo peso do cadastro.
+  const digitada = textoDaUnidadeDigitada(mov);
   const linhas = [
     entrada ? { rotulo: "Origem", valor: mov?.local_origem || VAZIO } : { rotulo: "Destino", valor: destinoDaSaida(mov, cochosPorId) },
     { rotulo: "Produto", valor: nomeDoProduto || VAZIO },
     { rotulo: emLitros ? "Quantidade (L)" : "Quantidade (kg)", valor: fmtNumero(mov?.quantidade ?? 0, 2) },
-    { rotulo: "Sacos", valor: pesoPorSaco > 0 ? fmtNumero(kgParaSacos(mov?.quantidade, pesoPorSaco), 2) : VAZIO },
+    digitada
+      ? { rotulo: "Digitado como", valor: digitada }
+      : { rotulo: "Sacos", valor: pesoPorSaco > 0 ? fmtNumero(kgParaSacos(mov?.quantidade, pesoPorSaco), 2) : VAZIO },
   ];
   const observacoes = typeof mov?.observacoes === "string" ? mov.observacoes.trim() : "";
   if (observacoes) linhas.push({ rotulo: "Observações", valor: observacoes });
@@ -722,7 +727,7 @@ function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId,
   // os sacos embaixo dela, e na linha de baixo do título o produto com a origem/destino.
   const unidade = emLitros ? "L" : "kg";
   const qtdTexto = `${entrada ? "+" : "−"}${fmtNumero(mov?.quantidade ?? 0, 2).replace(/,00$/, "")} ${unidade}`;
-  const sacos = pesoPorSaco > 0 ? `${fmtNumero(kgParaSacos(mov?.quantidade, pesoPorSaco), 2)} sacos` : null;
+  const sacos = digitada || (pesoPorSaco > 0 ? `${fmtNumero(kgParaSacos(mov?.quantidade, pesoPorSaco), 2)} sacos` : null);
   const lugar = entrada ? (mov?.local_origem ? `de ${mov.local_origem}` : "") : destinoDaSaida(mov, cochosPorId);
   const resumo = [nomeDoProduto, lugar && lugar !== VAZIO ? lugar : ""].filter(Boolean).join(" · ") || VAZIO;
   return {

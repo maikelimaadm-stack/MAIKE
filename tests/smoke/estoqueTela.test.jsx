@@ -233,6 +233,21 @@ describe('D-PROD-255 — Movimentos e a janela do movimento', () => {
     await waitFor(() => expect(screen.queryByTestId('janela-movimento-estoque')).toBeNull());
   });
 
+  it('D-PROD-313: transferência digitada em saco mostra "(12 SC)" na grade e "Digitado como" na janela; sem conversão, nada', async () => {
+    await abrirMovimentos();
+    expect(screen.getByText('− 300 kg (12 SC)')).toBeTruthy();
+    fireEvent.doubleClick(screen.getByText('104').closest('tr'));
+    const janela = await screen.findByTestId('janela-movimento-estoque');
+    expect(within(janela).getByTestId('movimento-quantidade').textContent).toBe('− 300 kg');
+    expect(within(janela).getByTestId('movimento-digitado').textContent).toBe('12 SC');
+    fireEvent.click(within(janela).getByRole('button', { name: 'Fechar' }));
+    await waitFor(() => expect(screen.queryByTestId('janela-movimento-estoque')).toBeNull());
+    fireEvent.doubleClick(screen.getByText('105').closest('tr'));
+    const outra = await screen.findByTestId('janela-movimento-estoque');
+    await within(outra).findByTestId('movimento-camada-0');
+    expect(within(outra).queryByTestId('movimento-digitado')).toBeNull();
+  });
+
   it('o estorno (com "Mostrar excluídos") mostra o movimento original no detalhe e a situação "Estorno da exclusão"', async () => {
     await abrirMovimentos();
     await mostrarExcluidos();

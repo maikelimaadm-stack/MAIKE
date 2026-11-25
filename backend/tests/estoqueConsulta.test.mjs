@@ -334,6 +334,19 @@ describe('D-PROD-255 — Movimentos (E2, P1-04)', () => {
     assert.equal(o.data, '2026-11-10');
   });
 
+  test('unidade digitada (D-PROD-313): lista e detalhe trazem unidade, quantidade digitada e fator; sem conversão, nulos', async () => {
+    const x = await cenario();
+    const comSaco = await movimento(x.c, x.e.id, x.ureia, { quantidade: '75', unidade_lancamento: 'SC', quantidade_lancamento: '3', fator_lancamento: '25' });
+    const semConversao = await movimento(x.c, x.e.id, x.ureia, { quantidade: '10' });
+    const lista = (await get(`/estoque/movimentos${qs({ empresa_id: x.e.id })}`, x.token)).json().items;
+    const a = lista.find((i) => i.id === comSaco.id);
+    const b = lista.find((i) => i.id === semConversao.id);
+    assert.deepEqual([a.quantidade, a.unidade_lancamento, a.quantidade_lancamento, a.fator_lancamento], ['75.0000', 'SC', '3.0000', '25.0000']);
+    assert.deepEqual([b.unidade_lancamento, b.quantidade_lancamento, b.fator_lancamento], [null, null, null]);
+    const det = (await get(`/estoque/movimentos/${comSaco.id}${qs({ empresa_id: x.e.id })}`, x.token)).json();
+    assert.deepEqual([det.unidade_lancamento, det.quantidade_lancamento, det.fator_lancamento], ['SC', '3.0000', '25.0000']);
+  });
+
   test('detalhe: saldo antes/depois, custo, camadas consumidas com a nota, par original ↔ estorno; 404 de outro tenant e de outra empresa', async () => {
     const x = await cenario();
     const lote = await camada(x.c, x.e.id, x.diesel, x.tanque, '10', '5.0000', { numero_documento: 'NF-900', fornecedor_nome: 'Posto Boa Vista' });

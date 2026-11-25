@@ -227,6 +227,14 @@ describe('D-PROD-310 — a unidade de conversão na transferência sem internet'
     const s = await transferir(estoque, { quantidade: 10 });
     const semUnidade = (await estoque.transferenciasAguardandoDoLocal('galpao')).find((t) => t.operationId === s.operation_id);
     expect(semUnidade).toMatchObject({ unidade_lancamento: null, quantidade_lancamento: null });
+    // D-PROD-313: o histórico do depósito (o que espera envio) também mostra a digitada, nas duas pernas.
+    const { movimentacoesAguardandoEnvio } = await import('@/services/historicoAguardandoEnvioService');
+    const pendentes = await movimentacoesAguardandoEnvio();
+    const pernas = pendentes.filter((m) => m._operationId === r.operation_id);
+    expect(pernas.map((m) => [m.tipo_detalhado, m.unidade_lancamento, m.quantidade_lancamento])).toEqual([
+      ['transferencia_enviada', 'SACO', '2'], ['transferencia_recebida', 'SACO', '2'],
+    ]);
+    expect(pendentes.filter((m) => m._operationId === s.operation_id).every((m) => m.unidade_lancamento === null && m.quantidade_lancamento === null)).toBe(true);
     online = true;
     fetchMock.mockResolvedValue(respostaJson(201, { committed: true }));
     await motor.sincronizar();
