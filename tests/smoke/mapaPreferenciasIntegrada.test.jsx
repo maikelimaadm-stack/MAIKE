@@ -115,9 +115,10 @@ vi.mock('@/lib/maplibre/lifecycle.js', async (importOriginal) => {
   };
   return {
     ...real,
-    createEditorMap: () => {
+    createEditorMap: (_el, opcoes) => {
       const map = criarMapaFalso();
       mapa.atual = map;
+      mapa.opcoesDeCriacao = opcoes;
       return { map, dispose: () => {}, getCancelled: () => false };
     },
   };
@@ -351,6 +352,29 @@ describe('PREF-06 — vista salva só depois de enquadrar a empresa atual', () =
 
     await act(async () => { mapa.atual.arrastar(-20.002, -50.002); });
     expect(JSON.parse(localStorage.getItem('mapa_geral_view_emp-2') || 'null')?.center).toEqual({ lat: -20.002, lng: -50.002 });
+  });
+});
+
+describe('D-PROD-302 — o mapa abre direto na fazenda', () => {
+  it('MO-01 com vista salva, o mapa já nasce nela (não no centro padrão para depois pular)', async () => {
+    localStorage.setItem('mapa_geral_view_emp-1', JSON.stringify({ center: { lat: -15.01, lng: -47.01 }, zoom: 16 }));
+    const { default: MapaGeral } = await import('@/pages/MapaGeral');
+    client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    await act(async () => {
+      render(<MemoryRouter><QueryClientProvider client={client}><MapaGeral /></QueryClientProvider></MemoryRouter>);
+    });
+    // Com vista salva não há enquadramento: espera o mapa nascer.
+    await waitFor(() => expect(mapa.opcoesDeCriacao).toBeTruthy(), { timeout: 8000 });
+    await assentar();
+    expect(mapa.atual?.fits.length, 'não enquadrou por cima da vista salva').toBe(0);
+    expect(mapa.opcoesDeCriacao).toEqual({ center: { lat: -15.01, lng: -47.01 }, zoom: 16 });
+    expect(screen.getByTestId('mapa-geral-maplibre').style.visibility).toBe('visible');
+  });
+
+  it('MO-02 sem vista salva, o mapa fica escondido até enquadrar as áreas da fazenda', async () => {
+    await abrir();
+    expect(mapa.atual?.fits.length, 'enquadrou a emp-1').toBe(1);
+    expect(screen.getByTestId('mapa-geral-maplibre').style.visibility).toBe('visible');
   });
 });
 
