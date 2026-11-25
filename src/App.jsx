@@ -18,6 +18,7 @@ import NativeLoginForm from '@/components/auth/NativeLoginForm';
 import NativeSessionUnavailable from '@/components/auth/NativeSessionUnavailable';
 import DadosOffline from '@/components/offline/DadosOffline';
 import AvisoDeSincronizacao from '@/components/offline/AvisoDeSincronizacao';
+import AvisoDeVersao from '@/components/offline/AvisoDeVersao';
 import PreparoDoApp from '@/components/offline/PreparoDoApp';
 import { appPrecisaPreparar } from '@/services/dadosOfflineService';
 import SplashScreen from '@/components/common/SplashScreen';
@@ -143,6 +144,7 @@ const AuthenticatedApp = () => {
       <SplashScreen visible={showBootSplash} />
       {showMainApp && <DadosOffline />}
       {showMainApp && <AvisoDeSincronizacao />}
+      {showMainApp && <AvisoDeVersao />}
       {showMainApp && (
         <Routes>
           <Route path="/" element={<Navigate to={createPageUrl(mainPage)} replace />} />

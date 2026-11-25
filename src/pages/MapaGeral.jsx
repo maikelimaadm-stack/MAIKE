@@ -14,16 +14,8 @@ import { podeExcluirLancamentoBebedouro, podeLancarNoBebedouro } from "@/lib/beb
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import MapaFiltrosPainel from "@/components/mapa/MapaFiltrosPainel";
-import DetalhesLote from "../components/mapa/DetalhesLote";
-import PainelResumoRebanho from "@/components/mapa/resumo-rebanho/PainelResumoRebanho";
-import DetalhesArea from "../components/mapa/DetalhesArea";
 import { acaoDoCliqueNaArea } from "@/domain/mapa/cliqueArea";
-import DetalhesPontoSuplementacao from "../components/mapa/DetalhesPontoSuplementacao";
-import DetalhesBebedouro from "../components/bebedouros/DetalhesBebedouro";
-import TarefasMapaPanel from "../components/mapa/TarefasMapaPanel";
-import DetalhesTarefaMapa from "../components/mapa/DetalhesTarefaMapa";
 import { LancLoteDialogo } from "../components/lotes/LancamentoLoteUi";
-import MapaInsights from "../components/mapa/MapaInsights";
 import MapaControlesMobile from "../components/mapa/MapaControlesMobile";
 import MapaFiltrosAvancados, {
   CORES_TIPO_CULTURA, CORES_APROVEITAMENTO, CORES_OCUPACAO, CORES_CATEGORIA_GADO,
@@ -56,6 +48,18 @@ import { useAuth } from "@/lib/AuthContext";
 import { useFiltroDoAssistente } from "@/hooks/useFiltroDoAssistente";
 import { casarNomes } from "@/domain/assistente/filtroTela";
 import { mensagemFalhaMapa, navegadorTemWebGL, MENSAGEM_WEBGL_DESLIGADO } from "@/lib/maplibre/falhaWebGL";
+import { componenteSobDemanda } from "@/lib/paginaSobDemanda.jsx";
+
+// D-PROD-304: as janelas de detalhe e os painéis só carregam quando abertos (o mapa abre mais leve).
+const DetalhesLote = componenteSobDemanda(() => import("../components/mapa/DetalhesLote"));
+const PainelResumoRebanho = componenteSobDemanda(() => import("@/components/mapa/resumo-rebanho/PainelResumoRebanho"));
+const DetalhesArea = componenteSobDemanda(() => import("../components/mapa/DetalhesArea"));
+const DetalhesPontoSuplementacao = componenteSobDemanda(() => import("../components/mapa/DetalhesPontoSuplementacao"));
+const DetalhesBebedouro = componenteSobDemanda(() => import("../components/bebedouros/DetalhesBebedouro"));
+const TarefasMapaPanel = componenteSobDemanda(() => import("../components/mapa/TarefasMapaPanel"));
+const DetalhesTarefaMapa = componenteSobDemanda(() => import("../components/mapa/DetalhesTarefaMapa"));
+const MapaInsights = componenteSobDemanda(() => import("../components/mapa/MapaInsights"));
+
 
 export default function MapaGeral() {
   const queryClient = useQueryClient();

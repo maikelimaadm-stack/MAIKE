@@ -26,6 +26,7 @@ import {
 "@/components/ui/dropdown-menu";
 import { abrirDadosOffline } from "@/components/offline/DadosOffline";
 import BotaoSincronizacao from "@/components/offline/BotaoSincronizacao";
+import { EVENTO_APP_ATUALIZADO, versaoDoApp } from "@/lib/app/atualizacaoAutomatica";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -270,6 +271,15 @@ function LayoutShell({ children, currentPageName }) {
   const { logout: sairDaConta } = useAuth();
   // D-PROD-295: registros feitos sem internet que ainda não chegaram ao sistema.
   const filaEnvio = useFilaDeEnvio();
+  // D-PROD-304: a versão do app (APK · pacote) no menu do usuário — dá para saber se atualizou.
+  const [versaoApp, setVersaoApp] = React.useState(/** @type {{ apk: string|null, pacote: string|null }|null} */ (null));
+  React.useEffect(() => {
+    let vivo = true;
+    versaoDoApp().then((v) => { if (vivo) setVersaoApp(v); }).catch(() => {});
+    const recarregar = () => { versaoDoApp().then((v) => { if (vivo) setVersaoApp(v); }).catch(() => {}); };
+    window.addEventListener(EVENTO_APP_ATUALIZADO, recarregar);
+    return () => { vivo = false; window.removeEventListener(EVENTO_APP_ATUALIZADO, recarregar); };
+  }, []);
   const naoEnviados = filaEnvio.aguardando + filaEnvio.atencao;
   const handleLogout = React.useCallback(async () => {
     if (naoEnviados > 0) {
@@ -511,6 +521,11 @@ function LayoutShell({ children, currentPageName }) {
           <LogOut className="w-3 h-3 mr-2" />
           Sair
         </DropdownMenuItem>
+        {versaoApp ?
+        <div className="px-2 pb-1 pt-1.5 text-[10px] text-slate-400" data-testid="versao-do-app">
+            Versão do app {versaoApp.apk || "-"}{versaoApp.pacote ? ` · ${String(versaoApp.pacote).slice(0, 7)}` : ""}
+          </div> :
+        null}
       </DropdownMenuContent>
     </DropdownMenu>;
 

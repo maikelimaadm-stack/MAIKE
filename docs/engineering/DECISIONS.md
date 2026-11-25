@@ -9528,4 +9528,18 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Decisão:** o detalhe do cocho lia o cadastro de produtos SÓ com internet (sem sinal devolvia lista vazia de propósito; o cocho ficava sem os sacos). Agora lê do celular como as outras telas. O pente-fino (`penteFinoOffline.test.js`) passa a cobrir também as leituras do detalhe do cocho (lançamentos, cochos, áreas, leituras e produtos).
 - **Testes:** `tests/smoke/penteFinoOffline.test.js` (PF-01 com o detalhe do cocho).
 
-<!-- Próxima decisão: D-PROD-304 -->
+## D-PROD-304 — Aviso de versão do app e app mais leve (telas e janelas carregadas quando abertas)
+
+- **Contexto:** o proprietário não percebia quando o app atualizava ("não mostra nada") e pediu o app mais leve. A atualização automática (D-PROD-294) baixa a versão nova em silêncio e só a usa na abertura seguinte; o pacote inicial tinha 5,4 MB (1,55 MB comprimido) com todas as telas dentro.
+- **Decisão — versão:**
+  1. Versão nova baixada: aviso "Versão nova do app pronta — toque para atualizar agora; ou ela entra sozinha na próxima vez que abrir". Tocar troca na hora (`CapacitorUpdater.set`). Um aviso por versão; a versão já baixada não é baixada de novo (só lembra).
+  2. Ao abrir com o pacote novo: "App atualizado" uma vez (compara com a versão em uso guardada no celular).
+  3. Menu do usuário: "Versão do app 1.0.4 · abc1234" (APK · pacote), para conferir se atualizou.
+- **Decisão — mais leve:**
+  1. Só o Mapa Geral (a superfície primária) vem no pacote inicial; as outras 32 telas carregam quando abertas (`paginaSobDemanda`, `React.lazy`). No site, se o pedaço de uma tela sumir depois de uma publicação, a página recarrega uma vez.
+  2. No Mapa Geral, as janelas de detalhe e os painéis (lote, área, cocho/depósito, bebedouro, tarefas, insights, resumo do rebanho) carregam no primeiro toque (`componenteSobDemanda`).
+  3. Resultado do build: pacote inicial de 5,4 MB para 2,35 MB (1,55 MB para 677 KB comprimido).
+  4. Sem internet não muda nada: no app os pedaços estão dentro do pacote. "Baixar dados" carrega todas as portas dos módulos antes de baixar (entidades e leituras), porque elas não vêm mais junto com as telas.
+- **Testes:** `tests/smoke/atualizacaoAutomaticaApp.test.js` (AV-01..04), `tests/smoke/avisoDeVersao.test.jsx` (VS-01..02).
+
+<!-- Próxima decisão: D-PROD-305 -->

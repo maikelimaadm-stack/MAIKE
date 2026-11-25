@@ -22,6 +22,94 @@ import { getOrigemDasAtualizacoesDoApp, isAppNativo } from '@/config/runtimeConf
 let conferindo = false;
 let iniciado = false;
 
+/**
+ * D-PROD-304 — a pessoa fica sabendo da atualização:
+ *  - `EVENTO_VERSAO_BAIXADA` (detalhe `{ versao, id }`): versão nova baixada, entra
+ *    na próxima abertura (ou já, com `aplicarVersaoBaixada`);
+ *  - `EVENTO_APP_ATUALIZADO` (detalhe `{ versao }`): este pacote é novo neste celular.
+ */
+export const EVENTO_VERSAO_BAIXADA = 'maike:versao-baixada';
+export const EVENTO_APP_ATUALIZADO = 'maike:app-atualizado';
+const CHAVE_EM_USO = 'maike_app_versao_em_uso';
+const CHAVE_BAIXADA = 'maike_app_versao_baixada';
+
+/** @param {string} chave */
+const lerLocal = (chave) => {
+  try {
+    return window.localStorage.getItem(chave);
+  } catch {
+    return null;
+  }
+};
+/** @param {string} chave @param {string|null} valor */
+const gravarLocal = (chave, valor) => {
+  try {
+    if (valor === null) window.localStorage.removeItem(chave);
+    else window.localStorage.setItem(chave, valor);
+  } catch {
+    // sem armazenamento: só não lembra
+  }
+};
+/** @param {string} nome @param {Record<string, unknown>} detalhe */
+const avisar = (nome, detalhe) => {
+  try {
+    window.dispatchEvent(new CustomEvent(nome, { detail: detalhe }));
+  } catch {
+    // sem window: nada a avisar
+  }
+};
+
+/** Versão baixada esperando a próxima abertura (para a tela mostrar de novo), ou `null`. */
+export const versaoBaixadaEsperando = () => {
+  try {
+    const v = JSON.parse(lerLocal(CHAVE_BAIXADA) || 'null');
+    return v && typeof v.versao === 'string' && typeof v.id === 'string' ? v : null;
+  } catch {
+    return null;
+  }
+};
+
+/** "Atualizar agora": troca para a versão baixada na hora (o app recarrega). */
+export const aplicarVersaoBaixada = async () => {
+  const baixada = versaoBaixadaEsperando();
+  if (!baixada) return false;
+  try {
+    await CapacitorUpdater.set({ id: baixada.id });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Versão do app para mostrar (menu): a do APK (`versionName`) e a do pacote
+ * carregado (commit). Fora do app nativo: `null`.
+ * @returns {Promise<{ apk: string|null, pacote: string|null }|null>}
+ */
+export const versaoDoApp = async () => {
+  if (!isAppNativo()) return null;
+  let apk = null;
+  try {
+    apk = (await App.getInfo())?.version ?? null;
+  } catch {
+    apk = null;
+  }
+  return { apk, pacote: await versaoCarregada() };
+};
+
+/**
+ * Ao abrir: este pacote é diferente do que estava em uso neste celular? Avisa
+ * uma vez ("App atualizado") e esquece a versão baixada que já entrou.
+ */
+const conferirSeAtualizou = async () => {
+  const atual = await versaoCarregada();
+  if (!atual) return;
+  const anterior = lerLocal(CHAVE_EM_USO);
+  gravarLocal(CHAVE_EM_USO, atual);
+  if (versaoBaixadaEsperando()?.versao === atual) gravarLocal(CHAVE_BAIXADA, null);
+  if (anterior && anterior !== atual) avisar(EVENTO_APP_ATUALIZADO, { versao: atual });
+};
+
 const semInternet = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
 /** Versão do pacote carregado agora (gravada no build em `app-versao.json`). */
@@ -51,11 +139,19 @@ export const conferirAtualizacao = async () => {
     const ultima = await resposta.json();
     if (!ultima?.versao || !ultima?.url) return 'falhou';
     if (ultima.versao === (await versaoCarregada())) return 'atual';
+    // Já baixada, esperando a próxima abertura: não baixa de novo; só lembra a pessoa.
+    const esperando = versaoBaixadaEsperando();
+    if (esperando?.versao === String(ultima.versao)) {
+      avisar(EVENTO_VERSAO_BAIXADA, esperando);
+      return 'baixada';
+    }
     const info = await App.getInfo();
     if (Number(info.build) < Number(ultima.nativoMinimo || 0)) return 'nativo-antigo';
     const url = new URL(ultima.url, origem).toString();
     const pacote = await CapacitorUpdater.download({ url, version: String(ultima.versao), checksum: ultima.checksum || undefined });
     await CapacitorUpdater.next({ id: pacote.id });
+    gravarLocal(CHAVE_BAIXADA, JSON.stringify({ versao: String(ultima.versao), id: pacote.id }));
+    avisar(EVENTO_VERSAO_BAIXADA, { versao: String(ultima.versao), id: pacote.id });
     return 'baixada';
   } catch {
     return 'falhou';
@@ -70,6 +166,10 @@ export const iniciarAtualizacaoAutomatica = () => {
   iniciado = true;
   // Primeiro: este pacote abriu. Sem isso o plugin volta ao anterior.
   CapacitorUpdater.notifyAppReady().catch(() => {});
+  // D-PROD-304: dá tempo da tela montar (quem mostra o aviso escuta o evento).
+  setTimeout(() => {
+    conferirSeAtualizou();
+  }, 2500);
   setTimeout(() => {
     conferirAtualizacao();
   }, 5000);
