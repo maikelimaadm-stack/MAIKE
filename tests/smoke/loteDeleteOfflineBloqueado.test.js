@@ -183,7 +183,7 @@ describe('PR167-R2 — sem regressão: criar e editar Lote offline continuam na 
 });
 
 describe('PR167-R2 F — corrida com outra aba (sem mutex entre IndexedDB e HTTP)', () => {
-  it('outra aba grava edição offline do lote DEPOIS da checagem e da exclusão: o replay falha de forma recuperável, sem perder a fila', async () => {
+  it('outra aba grava edição offline do lote DEPOIS da checagem e da exclusão: a edição fica retida com o motivo, sem perder a fila e sem travar o resto (D-PROD-307)', async () => {
     const { excluirLotes } = await import('@/services/loteCadastroService');
     // Esta aba: checagem sem pendência → DELETE 204.
     const r = await excluirLotes([X.id], { lotes: [X, Y] });
@@ -195,9 +195,17 @@ describe('PR167-R2 F — corrida com outra aba (sem mutex entre IndexedDB e HTTP
     // Replay: o servidor responde 404 ao PATCH do lote excluído.
     http.respostas[`PATCH /lotes/${X.id}`] = Object.assign(new Error('x'), { code: 'API_OPERATION_FAILED', cause: { code: 'LOTE_NOT_FOUND' } });
     const s = await runtime.syncOfflineEntityQueue();
-    expect(s.success).toBe(false);
-    expect(s.error?.cause?.code).toBe('LOTE_NOT_FOUND');
-    expect(fila().map((f) => [f.operation, f.record_id])).toEqual([['update', X.id]]); // nada descartado em silêncio
+    // D-PROD-307: recusa definitiva do servidor não trava mais a fila inteira — o item fica
+    // retido com o motivo (a pessoa decide na janela "Sincronização") e o resto segue.
+    expect(s.success).toBe(true);
+    expect(s.recusados).toBe(1);
+    expect(fila().map((f) => [f.operation, f.record_id, f.quarentena?.codigo])).toEqual([['update', X.id, 'RECUSADO_PELO_SERVIDOR']]); // nada descartado em silêncio
+    // na próxima passada não é reenviado
+    const patches = () => http.chamadas.filter((c) => c.startsWith('PATCH')).length;
+    const antes = patches();
+    const s2 = await runtime.syncOfflineEntityQueue();
+    expect(s2.success).toBe(true);
+    expect(patches()).toBe(antes);
     expect(deletesHttp()).toEqual([`DELETE /lotes/${X.id}`]); // só o DELETE online confirmado
   });
 });

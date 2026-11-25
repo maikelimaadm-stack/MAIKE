@@ -17,6 +17,7 @@
 import { App } from '@capacitor/app';
 import { isAppNativo } from '@/config/runtimeConfig';
 import { syncOfflineEntityQueue, contarPendenciasDaFilaDeEntidades } from '@/lib/offline/offlineEntityRuntime';
+import { naVezDaSincronia } from './vezDaSincronia.js';
 import { sincronizar, resumoDaFila, EVENTO_FILA_DE_ENVIO } from './motorDeSincronizacao.js';
 
 const INTERVALO_MS = 60_000;
@@ -33,7 +34,8 @@ const estaOnline = () => (typeof navigator === 'undefined' ? true : navigator.on
  */
 export const sincronizarTudo = () => {
   if (!emCurso) {
-    emCurso = (async () => {
+    // D-PROD-307: na vez — nunca junto com uma baixa de dados (`vezDaSincronia`).
+    emCurso = naVezDaSincronia(async () => {
       if (!estaOnline()) return;
       try {
         await sincronizar();
@@ -45,7 +47,7 @@ export const sincronizarTudo = () => {
       } catch {
         // idem
       }
-    })().finally(() => {
+    }).finally(() => {
       emCurso = null;
     });
   }

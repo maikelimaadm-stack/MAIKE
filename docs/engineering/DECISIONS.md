@@ -9563,4 +9563,49 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** nenhuma regra nova (a emenda da D-PROD-282 cobre).
 - **Fora:** a correção que a tela prevê sem mudança no estoque mas o servidor faz por substituição (previsão diferente do servidor) segue sem os campos: a compra com lote é recusada com 422 e a pessoa corrige de novo; a direção trocada (compra ↔ venda) com produto de lote não tem tratamento especial.
 
-<!-- Próxima decisão: D-PROD-307 -->
+## D-PROD-307 — Auditoria da sincronização: várias ao mesmo tempo, cópia do aparelho, conta e recusas
+
+**Data:** 2026-11-25 · **Origem:** pedido do proprietário ("analise tudo sobre as sincronizações, carregamentos de dados, lançamentos… várias sincronizações ao mesmo tempo não vai dar complicação?") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Relatório:** [`AUDITORIA-SINCRONIZACAO-D307-REPORT.md`](./AUDITORIA-SINCRONIZACAO-D307-REPORT.md)
+
+> **Numeração:** o código nasceu D-PROD-306. Antes do push, a `main` deu a D-PROD-306 à retificação com lote do financeiro (PR #390) e passou a indicar `Próxima decisão: D-PROD-307`, que é esta. O marcador passa a D-PROD-308.
+
+- **Contexto:** auditoria das duas filas (motor e fila antiga por entidade), da baixa de dados, do cache do mapa e do lançamento do cocho, com foco no que acontece quando várias sincronizações rodam juntas. Achados graves e médios corrigidos aqui; a parte estrutural (que mexe no servidor) fica para a próxima missão.
+- **Decisão:**
+  1. **Uma sincronização de cada vez** (`vezDaSincronia`): o envio (`sincronizarTudo`) e a baixa de dados usam a mesma vez, uma depois da outra. Antes a baixa podia gravar uma resposta de antes de um envio por cima do que acabou de subir.
+  2. **Uma baixa de cada vez:** quem pede uma baixa durante outra recebe a mesma e acompanha o progresso dela (a automática de 6 h e o "Sincronizar agora" baixavam juntas). Se a fazenda pedida é outra, espera e baixa a pedida. A baixa primeiro envia o que está no aparelho. Se outra conta entrar no meio, ela para e não marca nada. Se nada veio, não marca "baixado". "Sincronizar agora" chama só a baixa, que já envia antes; antes havia dois envios em paralelo.
+  3. **Leitura forçada em sequência** (`mapaCacheService`): uma leitura forçada nunca reaproveita outra que saiu antes. Ela espera a anterior e lê de novo, e pedidos forçados repetidos enquanto isso viram um só.
+  4. **Cópia do aparelho não vira resposta do servidor** (`copiasDoAparelho`):
+     - Com internet fraca, o `nativeRequest` devolve a cópia guardada depois de 6 s.
+     - O cache do mapa e o das entidades não gravam essa cópia por cima do que a tela acabou de gravar.
+     - A baixa conta a cópia como falha.
+     - O fechamento do período no lançamento do cocho não decide com ela: sem rede ou com cópia, o lançamento fica na fila e fecha na próxima passada, sem repetir a baixa nem o lançamento.
+     - Sem internet, o cache do mapa mostra o que tem e não grava.
+  5. **Fila antiga, recusa definitiva:** quando o servidor responde com código de recusa (registro que já não existe, dado inválido), o item fica retido com o motivo e a fila segue. Antes ele voltava a cada minuto e travava a fila inteira, de todas as entidades. A janela "Sincronização" mostra esse item em "precisa de atenção", com **Tentar de novo** e **Descartar**. Sem rede, conta trocada ou erro sem código param a passada, como antes.
+  6. **Motor:**
+     - Erro sem código conta como erro do servidor (tenta de novo), não como recusa.
+     - Falha passageira no envio direto guarda o item na fila.
+     - Edição na fila volta o item a "aguardando".
+     - Pedido de sincronização durante uma passada roda logo depois dela.
+     - Item já enviado entra no resultado da passada.
+  7. **Conta:**
+     - Oito portas nativas passam a guardar cache e fila por conta (`tenantScoped`): categorias de manejo, bebedouros, aplicações de medicamento, manejos técnicos, eventos sanitários, fornecedores, pontos de suplementação e permissões.
+     - O que a versão anterior deixou na fila sem dono é adotado pela sessão (`adotarFilaSemDono`), não descartado.
+     - A fila antiga para no meio se a conta trocar.
+     - Com o novo formato do cache (`FORMATO_DOS_DADOS = 2`), a primeira abertura com internet depois da atualização baixa tudo de novo, sem esperar as 6 h.
+  8. **Lista sem duplicado:** um item criado sem internet aparece uma vez só na lista, mesmo se o cache já tiver o mesmo id.
+- **Migration:** nenhuma. **Servidor:** sem mudança.
+- **Fora (próxima missão, estrutural):**
+  - O envio direto do motor ainda não é gravado na fila antes de sair.
+  - Falta trava entre abas do navegador (`navigator.locks`).
+  - As criações da fila antiga ainda não levam `operation_id` (idempotência no servidor).
+  - Falta uma política única de overlay para o que já tentou subir.
+  - Falta o remapeamento de ids `offline_` entre a fila antiga e o motor.
+  - Falta tratar o intervalo entre "enviado" e a próxima leitura.
+  - O cancelamento do cocho sem internet ainda não aparece no histórico do depósito.
+- **Testes:**
+  - `tests/smoke/auditoriaSincronizacao.test.js` (AU-01..12).
+  - `tests/smoke/baixaUmaDeCada.test.js` (BX-01..05).
+  - `tests/smoke/lancamentoCochoOffline.test.js` (LCO-15).
+  - Contratos atualizados: `sincronizacaoOrganizada.test.jsx` (SO-05), `loteDeleteOfflineBloqueado.test.js` (PR167-R2 F) e `categoriaManejoCriacaoOnline.test.js` (e).
+
+<!-- Próxima decisão: D-PROD-308 -->

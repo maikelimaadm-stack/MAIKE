@@ -52,6 +52,9 @@ export const bebedouroPort = offlineStorageDisponivel()
       entityName: ENTIDADE_OFFLINE,
       operations: operacoesNativas,
       enabled: true,
+      // D-PROD-307: cache e fila por conta (antes, duas contas no mesmo celular se misturavam).
+      tenantScoped: true,
+      adotarFilaSemDono: true,
     })
   : operacoesNativas;
 

@@ -300,6 +300,9 @@ class ErroDeReferencia extends Error {
 export const classificarFalhaDeEnvio = (erro) => {
   const codigo = /** @type {any} */ (erro)?.code;
   const doServidor = /** @type {any} */ (erro)?.cause?.code;
+  // D-PROD-307: erro sem código (não veio do servidor: falha inesperada no aparelho) não é
+  // recusa do servidor — tenta mais algumas vezes antes de pedir atenção.
+  if (!codigo) return 'servidor';
   if (codigo === API_ERROR_CODES.PROVIDER_UNAVAILABLE) return 'rede';
   if (codigo === API_ERROR_CODES.TENANT_CONTEXT_REQUIRED) return 'sessao';
   // Passageiro do lado do servidor (a mesma operação ainda em processamento,
@@ -489,7 +492,11 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
   } catch (erro) {
     // A rede caiu no meio: o servidor pode ter gravado ou não. Na fila, com o
     // MESMO código, o reenvio é deduplicado — nunca duas vezes.
-    if (classificarFalhaDeEnvio(erro) === 'rede' && podeGuardar) return guardar('pendente', undefined, true, progressoDoEnvio);
+    // D-PROD-307: também erro passageiro do servidor e sessão vencida — o que já foi feito
+    // (a baixa do estoque, o lançamento) não se perde: fica na fila com o progresso e o motor
+    // termina depois. Só a recusa do servidor volta para a tela decidir.
+    const tipoDeFalha = classificarFalhaDeEnvio(erro);
+    if (tipoDeFalha !== 'recusado' && podeGuardar) return guardar('pendente', undefined, true, progressoDoEnvio);
     throw erro;
   }
 };
@@ -512,7 +519,15 @@ export const agendarSincronizacao = (atrasoMs = 1500) => {
  *
  * @returns {Promise<ResumoDaFila>}
  */
+/** D-PROD-307: alguém pediu uma passada enquanto outra rodava (registro novo, "tentar de novo"). */
+let pedidaDuranteAPassada = false;
+
 export const sincronizar = () => {
+  if (passadaEmCurso) {
+    // A passada em curso já leu a fila: o que entrou agora só sairia na próxima (até 60 s).
+    pedidaDuranteAPassada = true;
+    return passadaEmCurso;
+  }
   if (!passadaEmCurso) {
     let atualizar = /** @type {string[]} */ ([]);
     passadaEmCurso = passada()
@@ -523,6 +538,10 @@ export const sincronizar = () => {
       .finally(() => {
         passadaEmCurso = null;
         emitir(atualizar);
+        if (pedidaDuranteAPassada) {
+          pedidaDuranteAPassada = false;
+          agendarSincronizacao(200);
+        }
       });
     emitir();
   }
@@ -565,7 +584,12 @@ const passada = async () => {
     /** @type {ItemDaFila|undefined} */
     let item = await fila.ler(doRetrato.id);
     if (!item || !eDaSessao(item)) continue;
-    if (item.estado === 'enviado') continue;
+    if (item.estado === 'enviado') {
+      // D-PROD-307: enviado depois do retrato (outra janela, ou o envio direto): quem vem
+      // atrás e cita este registro precisa do resultado (senão iria para "atenção").
+      resultados.set(item.id, item.resultado);
+      continue;
+    }
     if (item.estado === 'atencao') {
       parar(item);
       continue;
@@ -869,6 +893,10 @@ const alterarNaFilaJa = async (id, payload, opcoes) => {
     referencias,
     rotulo: typeof opcoes.rotulo === 'string' && opcoes.rotulo.trim() ? opcoes.rotulo.trim().slice(0, 160) : rotuloDe(def, payload),
     estado: 'pendente',
+    // D-PROD-307: corrigido, é um registro que o servidor ainda não tem (`podeAlterar` exige
+    // que nada tenha sido confirmado): volta a "aguardando" — editável e excluível — em vez de
+    // ficar em "confirmando envio" (preso até um envio responder, dias sem internet).
+    tentado: false,
     revisao: (item.revisao ?? 0) + 1,
     tentativas: 0,
     proxima_tentativa_em: 0,

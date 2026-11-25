@@ -34,6 +34,7 @@ import { comandoLancamentoComLotes } from '@/apis/suplementacao-eventos';
 import { listarPosicoesRebanhoServidor } from '@/apis/lotes';
 import { listFormulacoesOpcoesLancamento } from '@/apis/formulacoes';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
+import { contadorDeCopiasDoAparelho } from '@/lib/offline/copiasDoAparelho';
 import { getMapaCachedData } from '@/services/mapaCacheService';
 import { calcularNivelCocho } from '@/domain/suplementacao/nivelSuplementacao';
 import { somarDias } from '@/lib/diaCivil';
@@ -452,6 +453,13 @@ const custoDaSaida = (movimento) => {
  * @param {any} p payload do lançamento
  * @param {{ operationId: string, registrarProgresso?: (progresso: Record<string, unknown>) => Promise<void> }} ctx
  */
+/** Falta de rede no fechamento (o motor guarda e tenta de novo). */
+const semRedeNoFechamento = () =>
+  new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, {
+    operation: 'fecharPeriodoDoLancamento',
+    resource: 'SuplementacaoEvento',
+  });
+
 const executarLancamentoDoCocho = async (p, { operationId, registrarProgresso }) => {
   let movimentacao = null;
   /** @type {any[]} */
@@ -486,8 +494,16 @@ const executarLancamentoDoCocho = async (p, { operationId, registrarProgresso })
 
   let fechamento = /** @type {'nenhum'|'feito'|'ja_fechado'|'falhou'} */ ('nenhum');
   if (p.fechamento && p.evento_anterior_id) {
+    // D-PROD-307: o fechamento lê e grava pelo servidor. Sem internet agora, as gravações
+    // iriam para a fila antiga (fora de ordem) e as leituras viriam da cópia do aparelho:
+    // o motor tenta tudo de novo (os passos 1 e 2 são deduplicados pelo código).
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) throw semRedeNoFechamento();
+    const copiasAntes = contadorDeCopiasDoAparelho();
     try {
       const anterior = (await listEventos()).find((e) => e?.id === p.evento_anterior_id) || null;
+      // Leu a cópia do aparelho (a rede não respondeu a tempo): ela pode não ter o anterior,
+      // ou tê-lo aberto quando já foi fechado. Não decide com ela.
+      if (contadorDeCopiasDoAparelho() !== copiasAntes) throw semRedeNoFechamento();
       const aberto = anterior && (anterior.dias_periodo === null || anterior.dias_periodo === undefined || anterior.fechado_por_evento_id === novoEvento?.id);
       if (aberto) {
         const { dataFim: _dataFim, ...paraFechar } = p.fechamento;
@@ -497,7 +513,11 @@ const executarLancamentoDoCocho = async (p, { operationId, registrarProgresso })
         fechamento = 'ja_fechado';
       }
     } catch (erro) {
-      if (classificarFalhaDeEnvio(erro) === 'rede') throw erro;
+      // D-PROD-307: só a RECUSA do servidor deixa o fechamento para trás (como na tela com
+      // internet). Rede, sessão vencida ou erro passageiro do servidor (trava concorrente,
+      // erro interno): o motor tenta de novo — antes o lançamento era dado como enviado e o
+      // período anterior ficava aberto sem aviso.
+      if (classificarFalhaDeEnvio(erro) !== 'recusado') throw erro;
       fechamento = 'falhou';
     }
   }
