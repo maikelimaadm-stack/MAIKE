@@ -41,16 +41,13 @@ export const idDoAparelhoDe = (valor) => {
   return PADRAO_UUID.test(id) ? id : null;
 };
 
-/** @param {unknown} erro */
-const conflitoDeId = (erro) => {
-  const e = /** @type {{code?: string, meta?: {target?: unknown}}} */ (erro);
-  if (e?.code !== 'P2002') return false;
-  const alvo = e.meta?.target;
-  // Sem alvo (alguns drivers), trata como conflito do id: a releitura confirma.
-  if (alvo === undefined || alvo === null) return true;
-  const campos = Array.isArray(alvo) ? alvo.map(String) : [String(alvo)];
-  return campos.some((c) => c === 'id' || c.endsWith('_pkey'));
-};
+/**
+ * Violação de unique (P2002). O alvo do erro NÃO é lido (D-PROD-253: sob o papel da
+ * aplicação ele pode não vir): quem decide é a releitura pelo id — se o registro com este
+ * id existe, foi a criação concorrente; se não existe, o erro era de outra unique e sobe.
+ * @param {unknown} erro
+ */
+const violacaoDeUnique = (erro) => /** @type {{code?: string}} */ (erro)?.code === 'P2002';
 
 /**
  * @typedef {{ cliente_id: string, excluido?: boolean, registro: unknown }} Existente
@@ -95,7 +92,7 @@ export const criarComIdDoAparelho = async ({ id, clienteId, entidade, buscar, cr
   try {
     return { registro: await criar(id), repetido: false };
   } catch (erro) {
-    if (!conflitoDeId(erro)) throw erro;
+    if (!violacaoDeUnique(erro)) throw erro;
     const depois = await buscar(id);
     if (!depois) throw erro;
     return resolverExistente(depois, clienteId, id, entidade);
