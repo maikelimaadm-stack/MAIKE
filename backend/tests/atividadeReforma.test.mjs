@@ -380,7 +380,7 @@ describe('o custo da reforma (calculado na leitura) e o filtro "Reforma" da list
     const apl = await s.ok({ data_operacional: '2027-06-03', tipo_atividade_id: s.aplicacao.id, area_executada_dia: '40', produtos: insumo('10'), planejamento_id: ref.id });
     // Uma realização da área FORA da reforma (o "tirar"): não entra.
     await s.ok({ data_operacional: '2027-06-06', tipo_atividade_id: s.rocada.id, area_id: s.sede.id, area_executada_dia: '1', produtos: insumo('6') });
-    // D-PROD-313: a Roçada cancelada é a ÚLTIMA lançada no depósito do herbicida (com outra linha de produto lançada
+    // D-PROD-314: a Roçada cancelada é a ÚLTIMA lançada no depósito do herbicida (com outra linha de produto lançada
     // depois no mesmo depósito, o cancelamento seria 409 ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR).
     const roc = await s.ok({ data_operacional: '2027-06-09', tipo_atividade_id: s.rocada.id, area_executada_dia: '2', produtos: insumo('4'), planejamento_id: ref.id });
     const rocAtual = await s.atividade(roc.registro.atividade_id);

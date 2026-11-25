@@ -6,7 +6,7 @@
  * custo de tudo que veio depois é recalculado, com os dependentes. Saldo negativo em qualquer ponto → 409
  * `ESTOQUE_EXCLUSAO_SALDO_NEGATIVO`, nada gravado. Sem estorno exato como saída. Números à mão em cada cenário; no fim de
  * cada um, o replay completo do produto bate com o gravado (`auditarReplayDoProduto`).
- * D-PROD-313 (só o último): com registro depois que ainda vale, no mesmo produto e depósito (origem ou destino), a
+ * D-PROD-314 (só o último): com registro depois que ainda vale, no mesmo produto e depósito (origem ou destino), a
  * exclusão é recusada antes de tudo (409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR`, nada gravado) e exclui-se do mais
  * recente para o mais antigo; só os pares já excluídos depois sobram para o recálculo, que os tira da sequência.
  */
@@ -132,7 +132,7 @@ const foto = async (x) => {
   ]);
 };
 /**
- * D-PROD-313 — a resposta é a recusa do registro posterior que ainda vale (um dos `posteriores`: o mais recente no
+ * D-PROD-314 — a resposta é a recusa do registro posterior que ainda vale (um dos `posteriores`: o mais recente no
  * depósito), com o código, o motivo e o depósito; devolve o corpo.
  */
 const exigirRegistroPosterior = (r, posteriores, local) => {
@@ -177,7 +177,7 @@ const cenarioBase = async (x) => {
 };
 
 describe('D-PROD-273 fatia 5 — entrada documentada', () => {
-  test('D-PROD-313: excluir a E1 com S1, E3 e S2 depois → 409 registro posterior (S2); nada gravado, nem pela prévia; do mais recente ao mais antigo (S2 pelo estorno exato, E3, S1, E2) a E1 sai; a L1 fica Estornado; o estorno leva o valor de compra; o kardex esconde os pares', async () => {
+  test('D-PROD-314: excluir a E1 com S1, E3 e S2 depois → 409 registro posterior (S2); nada gravado, nem pela prévia; do mais recente ao mais antigo (S2 pelo estorno exato, E3, S1, E2) a E1 sai; a L1 fica Estornado; o estorno leva o valor de compra; o kardex esconde os pares', async () => {
     const x = await montar();
     const c = await cenarioBase(x);
     const [m1, ms1, me3, ms2] = await Promise.all([movDoItem(c.e1), movDoItem(c.s1), movDoItem(c.e3), movDoItem(c.s2)]);
@@ -217,7 +217,7 @@ describe('D-PROD-273 fatia 5 — entrada documentada', () => {
     assert.deepEqual([k.total, k.items.length], [0, 0]);
   });
 
-  test('excluir a entrada com saída e entrada depois → D-PROD-313: 409 registro posterior (a entrada mais nova); nada gravado; a prévia diz o mesmo', async () => {
+  test('excluir a entrada com saída e entrada depois → D-PROD-314: 409 registro posterior (a entrada mais nova); nada gravado; a prévia diz o mesmo', async () => {
     const x = await montar();
     const A = x.local;
     await entrar(x, A, '100', '4');
@@ -226,7 +226,7 @@ describe('D-PROD-273 fatia 5 — entrada documentada', () => {
     const e4 = await entrar(x, A, '200', '5');
     const me4 = await movDoItem(e4);
     const antes = await foto(x);
-    // D-PROD-313: a recusa por saldo negativo (sem E2, só 100 kg antes da saída de 150 → −50) agora é precedida pela do
+    // D-PROD-314: a recusa por saldo negativo (sem E2, só 100 kg antes da saída de 150 → −50) agora é precedida pela do
     // registro posterior; com só pares já excluídos depois, a entrada de camada inteira sai pelo estorno exato (achado (3))
     await exigirPreviaRegistroPosterior(x, e2.itens[0].movimentacao_estoque_id, [me4.id]);
     const b = exigirRegistroPosterior(await excluirEntrada(x, e2), [me4.id], A);
@@ -250,7 +250,7 @@ describe('D-PROD-273 fatia 5 — entrada documentada', () => {
 
 // ─── compra do financeiro ───────────────────────────────────────────────────
 describe('D-PROD-273 fatia 5 — compra do financeiro', () => {
-  test('D-PROD-313: cancelar a compra com entrada e saída depois → 409 registro posterior (a saída); nada gravado, o lançamento continua CONFIRMADO; excluídas a saída e a entrada, a compra cancela: camada Estornado, valor de compra igual', async () => {
+  test('D-PROD-314: cancelar a compra com entrada e saída depois → 409 registro posterior (a saída); nada gravado, o lançamento continua CONFIRMADO; excluídas a saída e a entrada, a compra cancela: camada Estornado, valor de compra igual', async () => {
     const x = await montar();
     const A = x.local;
     // C: compra de 100 kg a R$ 4 (LC); E2 100 kg a R$ 6 (L2): 200 kg, médio 5; S 50 kg a 5 = 250 (LC)
@@ -281,12 +281,12 @@ describe('D-PROD-273 fatia 5 — compra do financeiro', () => {
     await provarReplay(x);
   });
 
-  test('cancelar a compra cujo estoque foi todo usado (só ela no depósito) → D-PROD-313: 409 registro posterior (a saída); nada gravado; o lançamento continua CONFIRMADO; excluída a saída, a compra cancela', async () => {
+  test('cancelar a compra cujo estoque foi todo usado (só ela no depósito) → D-PROD-314: 409 registro posterior (a saída); nada gravado; o lançamento continua CONFIRMADO; excluída a saída, a compra cancela', async () => {
     const x = await montar();
     const { operacao: c } = await x.compraP3(x.e1, x.sal, x.local, { quantidade: '100', preco: '4', dia: hoje() });
     const s = await sair(x, x.local, '30');
     const antes = await foto(x);
-    // D-PROD-313: a recusa por saldo negativo (sem a compra, a saída de 30 deixaria −30) agora é precedida pela do registro posterior
+    // D-PROD-314: a recusa por saldo negativo (sem a compra, a saída de 30 deixaria −30) agora é precedida pela do registro posterior
     exigirRegistroPosterior(await cancelarLancamento(x, c.id), [s.itens[0].movimentacao_estoque_id], x.local);
     assert.equal(await foto(x), antes);
     assert.equal((await prisma().operacaoFinanceira.findUnique({ where: { id: c.id } })).status, 'CONFIRMADO');
@@ -300,7 +300,7 @@ describe('D-PROD-273 fatia 5 — compra do financeiro', () => {
 
 // ─── transferência ──────────────────────────────────────────────────────────
 describe('D-PROD-273 fatia 5 — cancelamento da transferência', () => {
-  test('D-PROD-313: com consumo depois na origem e no destino → 409 registro posterior; a elegibilidade diz o mesmo sem gravar; excluídas SB, SA e E3, a transferência cancela: A volta a 200 kg a 5, B a 40 a 8; a camada recebida fica Estornado', async () => {
+  test('D-PROD-314: com consumo depois na origem e no destino → 409 registro posterior; a elegibilidade diz o mesmo sem gravar; excluídas SB, SA e E3, a transferência cancela: A volta a 200 kg a 5, B a 40 a 8; a camada recebida fica Estornado', async () => {
     const x = await montar();
     const A = x.local;
     const B = x.local2;
@@ -351,7 +351,7 @@ describe('D-PROD-273 fatia 5 — cancelamento da transferência', () => {
     await provarReplay(x);
   });
 
-  test('cancelar com o recebido já saído do destino → D-PROD-313: 409 registro posterior (a saída em B); nada gravado; a elegibilidade diz o mesmo; excluída a saída, a transferência cancela', async () => {
+  test('cancelar com o recebido já saído do destino → D-PROD-314: 409 registro posterior (a saída em B); nada gravado; a elegibilidade diz o mesmo; excluída a saída, a transferência cancela', async () => {
     const x = await montar();
     const A = x.local;
     const B = x.local2;
@@ -359,7 +359,7 @@ describe('D-PROD-273 fatia 5 — cancelamento da transferência', () => {
     const t = await transferir(x, A, B, '50');
     const sb = await sair(x, B, '20');
     const antes = await foto(x);
-    // D-PROD-313: a recusa por saldo negativo no destino (sem a transferência, a saída de 20 deixaria B em −20) agora é
+    // D-PROD-314: a recusa por saldo negativo no destino (sem a transferência, a saída de 20 deixaria B em −20) agora é
     // precedida pela do registro posterior: a saída em B ainda vale
     exigirRegistroPosterior(await cancelarTransferencia(x, t.s.id), [sb.itens[0].movimentacao_estoque_id], B);
     assert.equal(await foto(x), antes);
@@ -383,7 +383,7 @@ describe('D-PROD-273 fatia 5 — cancelamento da transferência', () => {
 
 // ─── ajuste de inventário ───────────────────────────────────────────────────
 describe('D-PROD-273 fatia 5 — exclusão do ajuste de inventário', () => {
-  test('D-PROD-313: SOBRA com movimentos depois (E1 100 a 4, sobra 20 a 4, E2 60 a 10, S 90 × 6 = 540) → 409 registro posterior (S); nada gravado, nem pela prévia; excluídas S e E2, o ajuste sai: a camada da sobra fica Estornado', async () => {
+  test('D-PROD-314: SOBRA com movimentos depois (E1 100 a 4, sobra 20 a 4, E2 60 a 10, S 90 × 6 = 540) → 409 registro posterior (S); nada gravado, nem pela prévia; excluídas S e E2, o ajuste sai: a camada da sobra fica Estornado', async () => {
     const x = await montar();
     const A = x.local;
     await entrar(x, A, '100', '4');
@@ -411,7 +411,7 @@ describe('D-PROD-273 fatia 5 — exclusão do ajuste de inventário', () => {
     await provarReplay(x);
   });
 
-  test('D-PROD-313: FALTA com movimentos depois (E1 100 a 4, E2 100 a 6, falta 50 a 5, E3 50 a 9, S 80 × 6 = 480) → 409 registro posterior (S); nada gravado; excluídas S e E3, o ajuste sai e o estoque volta a 200 kg', async () => {
+  test('D-PROD-314: FALTA com movimentos depois (E1 100 a 4, E2 100 a 6, falta 50 a 5, E3 50 a 9, S 80 × 6 = 480) → 409 registro posterior (S); nada gravado; excluídas S e E3, o ajuste sai e o estoque volta a 200 kg', async () => {
     const x = await montar();
     const A = x.local;
     await entrar(x, A, '100', '4');
@@ -495,7 +495,7 @@ const lancarCocho = async (x, local, { ponto, kg, data }) => {
 };
 
 describe('D-PROD-273 fatia 5 — cascata, dependentes e concorrência', () => {
-  test('cascata — D-PROD-313: a transferência depois prende a E1 (409 registro posterior) e a saída em B prende a transferência; nada gravado; do mais recente ao mais antigo (SB, a transferência, E2) a E1 sai; as camadas de destino ficam Estornado; sem nada depois da transferência, ela e a E1 saem', async () => {
+  test('cascata — D-PROD-314: a transferência depois prende a E1 (409 registro posterior) e a saída em B prende a transferência; nada gravado; do mais recente ao mais antigo (SB, a transferência, E2) a E1 sai; as camadas de destino ficam Estornado; sem nada depois da transferência, ela e a E1 saem', async () => {
     const x = await montar();
     const A = x.local;
     const B = x.local2;
@@ -548,7 +548,7 @@ describe('D-PROD-273 fatia 5 — cascata, dependentes e concorrência', () => {
     await provarReplay(y);
   });
 
-  test('cocho e atividade depois da entrada — D-PROD-313: excluir a E1 → 409 registro posterior (a linha da atividade); nada gravado (o cocho e a linha ficam com o custo de antes); cancelados a linha e o cocho, a E2 (camada reavaliada) sai e então a E1', async () => {
+  test('cocho e atividade depois da entrada — D-PROD-314: excluir a E1 → 409 registro posterior (a linha da atividade); nada gravado (o cocho e a linha ficam com o custo de antes); cancelados a linha e o cocho, a E2 (camada reavaliada) sai e então a E1', async () => {
     const x = await montar();
     const A = x.local;
     // E1 50 a 2 (L1), E2 150 a 6 (L2): 200 kg, R$ 1.000, médio 5. Cocho 30 × 5 = 150 (L1 30); linha 60 × 5 = 300 (L1 20 + L2 40)
@@ -589,7 +589,7 @@ describe('D-PROD-273 fatia 5 — cascata, dependentes e concorrência', () => {
     await provarReplay(x);
   });
 
-  test('concorrência: duas exclusões de entrada no mesmo produto (a trava do produto as enfileira) passam uma depois da outra — D-PROD-313: cada uma é a última no seu depósito, pelo estorno exato; a que tem algo depois no depósito recusa', async () => {
+  test('concorrência: duas exclusões de entrada no mesmo produto (a trava do produto as enfileira) passam uma depois da outra — D-PROD-314: cada uma é a última no seu depósito, pelo estorno exato; a que tem algo depois no depósito recusa', async () => {
     const x = await montar();
     const A = x.local;
     const B = x.local2;
@@ -670,7 +670,7 @@ const esperarNaFila = async (n) => {
 };
 
 describe('D-PROD-273 fatia 5 — achados da revisão', () => {
-  test('(1) corrida: cancelar a venda enquanto a exclusão da E1 espera a trava — D-PROD-313: a exclusão recusa (registro posterior: a venda ou a saída) sem gravar e a venda cancela; depois, do mais recente ao mais antigo, a E1 sai; replay = gravado', async () => {
+  test('(1) corrida: cancelar a venda enquanto a exclusão da E1 espera a trava — D-PROD-314: a exclusão recusa (registro posterior: a venda ou a saída) sem gravar e a venda cancela; depois, do mais recente ao mais antigo, a E1 sai; replay = gravado', async () => {
     const x = await montar();
     const A = x.local;
     // E1 100 a 4, E2 100 a 6, E3 100 a 8; S 100 a 6 = 600 (L1); venda 50 a 7 = 350 (L2)
@@ -709,7 +709,7 @@ describe('D-PROD-273 fatia 5 — achados da revisão', () => {
     await provarReplay(x);
   });
 
-  test('(2) "camada intocada" (custo voltou ao do movimento) mas a entrada entrou no médio de S1 e S2: a exclusão RECUSA (nunca o estorno exato); a prévia diz o mesmo — D-PROD-313: pelo registro posterior (S2), antes do recálculo', async () => {
+  test('(2) "camada intocada" (custo voltou ao do movimento) mas a entrada entrou no médio de S1 e S2: a exclusão RECUSA (nunca o estorno exato); a prévia diz o mesmo — D-PROD-314: pelo registro posterior (S2), antes do recálculo', async () => {
     const x = await montar();
     const A = x.local;
     // L0 100 a 5, E 100 a 5, X 100 a 11 → 300 kg, médio 7; S1 50 × 7 = 350 (L0); Y 250 a 3 → 500 kg, médio 5; S2 10 × 5 = 50; E volta a custo 5
@@ -722,9 +722,9 @@ describe('D-PROD-273 fatia 5 — achados da revisão', () => {
     const mE = await movDoItem(e);
     const mS2 = s2.itens[0].movimentacao_estoque_id;
     assert.deepEqual(await camada(await camadaDaEntrada(e)), { disp: '100.0000', custo: '5.0000', status: 'Disponivel', entrada: '100.0000' });
-    // D-PROD-313: a prévia já não oferece o recálculo; recusa pela S2, a mais recente que vale
+    // D-PROD-314: a prévia já não oferece o recálculo; recusa pela S2, a mais recente que vale
     await exigirPreviaRegistroPosterior(x, mE.id, [mS2]);
-    // com o grupo legado no movimento da entrada (antes, uma recusa contornável do recálculo): D-PROD-313 — a recusa
+    // com o grupo legado no movimento da entrada (antes, uma recusa contornável do recálculo): D-PROD-314 — a recusa
     // grupo_legado_preenchido agora é precedida pela do registro posterior; nunca o estorno exato
     await prisma().movimentacaoEstoque.update({ where: { id: mE.id }, data: { movimentacao_grupo_id: 'legado-x' } });
     const antes = await foto(x);

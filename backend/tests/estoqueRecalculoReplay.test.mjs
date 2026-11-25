@@ -167,7 +167,7 @@ const excluirSaida = (x, doc) =>
   H.req('POST', `/estoque/saidas/${doc.id}/excluir`, x.token, { empresa_id: x.e1.id, versao: doc.versao ?? 1, motivo: 'lançada errada', operation_id: `ex-${randomUUID()}` });
 const excluirEntrada = (x, doc) =>
   H.req('POST', `/estoque/entradas/${doc.id}/excluir`, x.token, { empresa_id: x.e1.id, versao: doc.versao ?? 1, motivo: 'nota errada', operation_id: `ex-${randomUUID()}` });
-/** D-PROD-313 — a recusa do registro posterior na prévia: permitido false, modo null e o mais recente que ainda vale. */
+/** D-PROD-314 — a recusa do registro posterior na prévia: permitido false, modo null e o mais recente que ainda vale. */
 const recusaPosterior = (p) => [p.permitido, p.modo, p.recusa?.code, p.recusa?.reason, p.recusa?.posterior_id, p.recusa?.posterior_numero, p.recusa?.local_estoque_id];
 const movDoItem = async (doc) => (await prisma().movimentacaoEstoque.findUnique({ where: { id: doc.itens[0].movimentacao_estoque_id } }));
 
@@ -270,7 +270,7 @@ describe('D-PROD-273 fatia 3 — estorno em lote do financeiro', () => {
 });
 
 describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
-  test('D-PROD-313: excluir uma saída antiga com movimentos depois → a prévia e a exclusão recusam ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR (o mais recente); nada é gravado; do mais recente para o mais antigo, ela sai', async () => {
+  test('D-PROD-314: excluir uma saída antiga com movimentos depois → a prévia e a exclusão recusam ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR (o mais recente); nada é gravado; do mais recente para o mais antigo, ela sai', async () => {
     const x = await montar();
     const A = x.local;
     await entrar(x, x.sal, A, '100', '3');
@@ -305,7 +305,7 @@ describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
     await provarReplay(x, x.sal);
   });
 
-  test('excluir uma entrada consumida por uma saída depois → D-PROD-313: recusa ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR com a saída, o depósito e o movimento', async () => {
+  test('excluir uma entrada consumida por uma saída depois → D-PROD-314: recusa ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR com a saída, o depósito e o movimento', async () => {
     const x = await montar();
     const A = x.local;
     await entrar(x, x.sal, A, '100', '3');
@@ -315,14 +315,14 @@ describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
     const antes = await retrato(x);
     const p = ok(await previa(x, e2.itens[0].movimentacao_estoque_id));
     assert.equal(await retrato(x), antes);
-    // D-PROD-313: o saldo negativo (sem a entrada, a saída de 120 deixaria −20) agora é precedido pela recusa do
+    // D-PROD-314: o saldo negativo (sem a entrada, a saída de 120 deixaria −20) agora é precedido pela recusa do
     // registro posterior: a saída ainda vale e tem de sair primeiro.
     assert.deepEqual(recusaPosterior(p), [false, null, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', ms.id, ms.numero_movimentacao, A.id]);
     assert.equal(p.recusa.movimento_id, e2.itens[0].movimentacao_estoque_id);
     assert.deepEqual([p.movimentos, p.dependentes], [[], []]);
   });
 
-  test('D-PROD-313 — transferência em cascata: a saída antiga na origem e a própria transferência recusam ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR (origem e destino); nada é gravado; do mais recente para o mais antigo, saem', async () => {
+  test('D-PROD-314 — transferência em cascata: a saída antiga na origem e a própria transferência recusam ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR (origem e destino); nada é gravado; do mais recente para o mais antigo, saem', async () => {
     const x = await montar();
     const A = x.local;
     const B = x.local2;
@@ -382,7 +382,7 @@ describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
     assert.deepEqual(codigo(await previa(x, 'nao-existe')), [404, 'MOVIMENTACAO_ESTOQUE_NOT_FOUND', undefined]);
     const s2 = await sair(x, x.sal, A, '5');
     const m2 = await movDoItem(s2);
-    // D-PROD-273 (fatia 4): sem nada depois a prévia diz "estorno exato" sem ler o histórico. D-PROD-313: uma saída
+    // D-PROD-273 (fatia 4): sem nada depois a prévia diz "estorno exato" sem ler o histórico. D-PROD-314: uma saída
     // depois que ainda vale é recusa (registro posterior); já excluída (par), ela faz a prévia de m2 passar pelo
     // recálculo (tetos e prova replay = gravado)
     const s3 = await sair(x, x.sal, A, '1');
@@ -398,7 +398,7 @@ describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
     // teto fail-closed (serviço com teto pequeno): nada é processado
     // (entrada, S e o estorno dela, S2, S3 e o estorno dela)
     await assert.rejects(previaExclusao(x.ctx, m2.id, { empresa_id: x.e1.id }, { teto: 3 }), (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO' && e.details.movimentos === 6);
-    // D-PROD-313: depois de m2 só o par já excluído de S3, que sai da sequência junto com m2 — nenhum movimento
+    // D-PROD-314: depois de m2 só o par já excluído de S3, que sai da sequência junto com m2 — nenhum movimento
     // afetado, então nem o teto de afetados 0 é atingido (o teto continua provado no planejador, em
     // estoqueExclusaoRecalculoSaidas: `provarExclusaoComRecalculo` com tetoAfetados)
     const semAfetados = await previaExclusao(x.ctx, m2.id, { empresa_id: x.e1.id }, { tetoAfetados: 0 });

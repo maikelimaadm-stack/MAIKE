@@ -332,10 +332,10 @@ describe('C3 — abastecimento × venda P3 do mesmo produto', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('C4 — abastecimento × cancelamento/retificação/exclusão P3 do mesmo produto', () => {
-  test('compra: cancelar e retificar nas duas ordens → sem ciclo; quem chega depois vê o efeito do outro (409 registro posterior (D-PROD-313) / OPERACAO_RETIFICACAO_BLOQUEADA, 422 sem saldo, ou 2xx coerente)', async () => {
+  test('compra: cancelar e retificar nas duas ordens → sem ciclo; quem chega depois vê o efeito do outro (409 registro posterior (D-PROD-314) / OPERACAO_RETIFICACAO_BLOQUEADA, 422 sem saldo, ou 2xx coerente)', async () => {
     const s = await montarAbastecimento(app, { lotes: false });
     const cx = await confirmadoP3(s, 'PAGAR', '100', '6.00');
-    // R1: abastecimento segura o produto; cancelar a compra espera → o lote já foi consumido. D-PROD-313: o abastecimento
+    // R1: abastecimento segura o produto; cancelar a compra espera → o lote já foi consumido. D-PROD-314: o abastecimento
     // que venceu a corrida é registro posterior que ainda vale → 409 registro posterior apontando ele (a recusa por
     // saldo negativo, que viria do recálculo, agora é precedida por esta), nada muda
     const r1 = await corrida(s, NO_MOVIMENTO_DO_ABASTECIMENTO, () => A.confirmar(s.operador.token, corpoAbastecimento(s)), () => cancelarP3(s, cx));
@@ -466,7 +466,7 @@ describe('C6 — abastecimento × PATCH do bem', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('C8 — confirmar × cancelar e cancelar × cancelar', () => {
-  test('cancelar × cancelar (chaves diferentes): 200 e 409 ABASTECIMENTO_STATUS_INVALIDO; confirmar × cancelar do mesmo bem nas duas ordens: confirmar primeiro → o cancelamento vê o novo e recusa 409 registro posterior (D-PROD-313); cancelar primeiro → ambos aplicam, estoque exato', async () => {
+  test('cancelar × cancelar (chaves diferentes): 200 e 409 ABASTECIMENTO_STATUS_INVALIDO; confirmar × cancelar do mesmo bem nas duas ordens: confirmar primeiro → o cancelamento vê o novo e recusa 409 registro posterior (D-PROD-314); cancelar primeiro → ambos aplicam, estoque exato', async () => {
     const s = await montarAbastecimento(app);
     // 60 L por abastecimento: dois cabem nos 150 L (o 3º só depois de um cancelamento)
     const c60 = () => corpoAbastecimento(s, { quantidade: '60' });
@@ -477,7 +477,7 @@ describe('C8 — confirmar × cancelar e cancelar × cancelar', () => {
     assert.deepEqual(erro(cc.r2), [409, 'ABASTECIMENTO_STATUS_INVALIDO', 'status', 'status_invalido'], cc.r2.body);
     assert.equal(await contar(s, 'movimentacaoEstoque', { tipo_detalhado: 'estorno_abastecimento' }), 1, 'um estorno só');
     assert.equal(await coerente(s, s.diesel, 'C8 cancelar×cancelar'), '150.0000');
-    // confirmar A3 segura o Bem; cancelar A2 espera. D-PROD-313: o A3 foi gravado depois do A2 no mesmo depósito e ainda
+    // confirmar A3 segura o Bem; cancelar A2 espera. D-PROD-314: o A3 foi gravado depois do A2 no mesmo depósito e ainda
     // vale → o cancelamento do A2 recusa 409 registro posterior apontando o A3; nada do cancelamento é gravado
     const a2 = await A.confirmarOk(s.operador.token, c60());
     const x = await corrida(s, NO_MOVIMENTO_DO_ABASTECIMENTO, () => A.confirmar(s.operador.token, c60()), () => A.cancelar(s.contaCancelar.token, a2.id, corpoCancelar()));

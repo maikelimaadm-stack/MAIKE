@@ -1,6 +1,6 @@
-# Relatório — Estoque: só o último sai (D-PROD-313)
+# Relatório — Estoque: só o último sai (D-PROD-314)
 
-**Data:** 2026-11-25 · **Branch:** `claude/nifty-feynman-rh0kdn` · **Decisão:** [D-PROD-313](./DECISIONS.md) · **Migration:** nenhuma
+**Data:** 2026-11-25 · **Branch:** `claude/nifty-feynman-rh0kdn` · **Decisão:** [D-PROD-314](./DECISIONS.md) · **Migration:** nenhuma
 
 ## Pedido do proprietário
 
@@ -10,7 +10,7 @@ Na D-PROD-311 (lote e cocho), sobrou uma pergunta: cancelar uma transferência o
 
 ### Servidor
 
-| Antes (D-PROD-273) | Agora (D-PROD-313) |
+| Antes (D-PROD-273) | Agora (D-PROD-314) |
 |---|---|
 | Qualquer movimento podia sair com algo depois; o custo médio de tudo o que veio depois era recalculado | Com um registro depois que ainda vale, no mesmo produto e depósito (na transferência, origem ou destino): **409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR`**, nada gravado |
 | Abastecimento, atividade, venda e "camada intocada" saíam pelo estorno exato mesmo com algo depois | Também recusados |
@@ -47,7 +47,7 @@ Na D-PROD-311 (lote e cocho), sobrou uma pergunta: cancelar uma transferência o
 
 ### Constituição
 
-Nova emenda D-PROD-313 em `00-CONSTITUICAO.md` §1 e nota em `07-DO-NOT-DO.md`. Para movimento com registro posterior, ela substitui a "exclusão com recálculo" da emenda D-PROD-273. O "some das telas" e a trilha de auditoria continuam valendo.
+Nova emenda D-PROD-314 em `00-CONSTITUICAO.md` §1 e nota em `07-DO-NOT-DO.md`. Para movimento com registro posterior, ela substitui a "exclusão com recálculo" da emenda D-PROD-273. O "some das telas" e a trilha de auditoria continuam valendo.
 
 ## Testes
 

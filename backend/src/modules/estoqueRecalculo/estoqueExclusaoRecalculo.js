@@ -62,7 +62,7 @@ const AMOSTRA = 20;
 /**
  * @typedef {{ produtoId: string, excluirIds: string[], posteriores: number, dispensa: null | { code: string, reason: string|null },
  *   estornoExatoSeInviavel?: boolean, camadaIntocada?: boolean, paresForaDaSequencia?: Array<[string, string]> }} PlanoRecalculo
- * `paresForaDaSequencia` (D-PROD-313): pares já excluídos pelo estorno exato, lançados depois, que saem da sequência
+ * `paresForaDaSequencia` (D-PROD-314): pares já excluídos pelo estorno exato, lançados depois, que saem da sequência
  * junto com o movimento (marcados no `aplicar`); são os únicos "posteriores" que a regra do último deixa passar.
  * `dispensa`: o recálculo não é possível e a origem contorna com o estorno exato (só a trilha é gravada).
  * `camadaIntocada` (fatia 5): as entradas do produto que têm algo depois passam em `entradaIntocada` (camada inteira e
@@ -209,7 +209,7 @@ export const planejarExclusaoComRecalculo = async (tx, cli, a) => {
         desde: { createdAt: ref.createdAt, numero: ref.numero_movimentacao }, ignorarParesNeutros: a.ignorarParesNeutros === true,
       });
       if (depois) {
-        // D-PROD-313 — só o último: um registro depois, no mesmo produto e depósito, que ainda vale (não é um par já
+        // D-PROD-314 — só o último: um registro depois, no mesmo produto e depósito, que ainda vale (não é um par já
         // excluído) vinculou o saldo e o médio deste movimento. Recusa antes de qualquer escrita, em todas as origens e
         // sem o estorno exato como saída. Sobram só os pares já excluídos depois: o recálculo de sempre os tira da sequência.
         const valendo = await buscarRegistroPosteriorValendo(tx, cli, {
@@ -533,7 +533,7 @@ const aplicarUm = async (tx, contexto, cli, plano, a) => {
       });
       if (o.count !== 1 || e.count !== 1) throw conflito({ movimento_id: originalId });
     }
-    // 1b. D-PROD-313: os pares já excluídos pelo estorno exato que vinham depois saem da sequência junto (a mesma marca).
+    // 1b. D-PROD-314: os pares já excluídos pelo estorno exato que vinham depois saem da sequência junto (a mesma marca).
     for (const [originalId, estornoId] of plano.paresForaDaSequencia ?? []) {
       const marca = marcaDoPar(originalId);
       const o = await tx.movimentacaoEstoque.updateMany({

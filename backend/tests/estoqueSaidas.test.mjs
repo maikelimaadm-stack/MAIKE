@@ -73,7 +73,7 @@ const excluirSaida = (x, s, extra = {}, token = x.token) =>
   chamar('POST', `/estoque/saidas/${s.id}/excluir`, token, { empresa_id: x.e.id, versao: s.versao, motivo: 'lançada por engano', operation_id: `ex-${randomUUID()}`, ...extra });
 const excluirEntrada = (x, ent, token = x.token) =>
   chamar('POST', `/estoque/entradas/${ent.id}/excluir`, token, { empresa_id: x.e.id, versao: ent.versao ?? 1, motivo: 'lançada por engano', operation_id: `ex-${randomUUID()}` });
-/** D-PROD-313 — retrato do que a exclusão recusada não pode gravar: saldo, movimentos, camadas e documentos. */
+/** D-PROD-314 — retrato do que a exclusão recusada não pode gravar: saldo, movimentos, camadas e documentos. */
 const foto = async (x) => ({
   estoque: Number((await prisma().produto.findUnique({ where: { id: x.ureia.id } })).estoque_atual),
   movimentos: JSON.stringify(await prisma().movimentacaoEstoque.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' },
@@ -256,7 +256,7 @@ describe('D-PROD-264 — excluir: estorno integral, só sem movimento depois', (
     await reconciliacaoLimpa(x);
   });
 
-  test('D-PROD-313: outro movimento do produto NO MESMO depósito depois (entrada ou outra saída) → 409 registro posterior e nada gravado; exclui o mais recente primeiro; em outro depósito não conta', async () => {
+  test('D-PROD-314: outro movimento do produto NO MESMO depósito depois (entrada ou outra saída) → 409 registro posterior e nada gravado; exclui o mais recente primeiro; em outro depósito não conta', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
     await entrar(x, x.ureia, '100', '3', x.barracao);
@@ -315,11 +315,11 @@ describe('D-PROD-264 — excluir: estorno integral, só sem movimento depois', (
     assert.equal(await estoqueAtual(x.ureia), 100);
   });
 
-  test('a saída que consumiu a camada de uma entrada impede excluir a entrada quando ela é o único estoque (D-PROD-313: registro posterior; a saída sai primeiro)', async () => {
+  test('a saída que consumiu a camada de uma entrada impede excluir a entrada quando ela é o único estoque (D-PROD-314: registro posterior; a saída sai primeiro)', async () => {
     const x = await cenario();
     const ent = await entrar(x, x.ureia, '100', '3');
     const s = (await sair(x)).json();
-    // D-PROD-313: o saldo negativo (D-PROD-273 fatia 5) agora é precedido pela recusa do registro posterior: a saída vale.
+    // D-PROD-314: o saldo negativo (D-PROD-273 fatia 5) agora é precedido pela recusa do registro posterior: a saída vale.
     const antes = await foto(x);
     const r = await excluirEntrada(x, ent);
     assert.deepEqual([r.statusCode, r.json().code, r.json().details?.posterior_id], [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', s.itens[0].movimentacao_estoque_id], r.body);

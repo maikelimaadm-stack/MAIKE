@@ -204,7 +204,7 @@ describe('P1-02 — consumo pelo método do tanque cheio', () => {
 });
 
 describe('P1-02 — série monotônica do medidor (D4)', () => {
-  test('M4: regressão ao cadastro e a abastecimento; acima de ponto posterior; retroativo coerente; mesma data; data futura; só CONFIRMADOS contam (D-PROD-313: cancelados do mais recente para o mais antigo)', async () => {
+  test('M4: regressão ao cadastro e a abastecimento; acima de ponto posterior; retroativo coerente; mesma data; data futura; só CONFIRMADOS contam (D-PROD-314: cancelados do mais recente para o mais antigo)', async () => {
     const s = await montarAbastecimento(app);
     const c = (extra) => corpoAbastecimento(s, { quantidade: '10', ...extra });
     const recusa = async (corpo, esperado) => {
@@ -243,7 +243,7 @@ describe('P1-02 — série monotônica do medidor (D4)', () => {
 
     // só CONFIRMADOS: cancelado o de hoje, 1570 em 06-14 passa a ser coerente
     await recusa(c({ data_operacional: '2027-06-14', medidor_leitura: '1590' }), [422, 'MEDIDOR_LEITURA_ACIMA_POSTERIOR', 'medidor_leitura', 'leitura_acima_posterior']);
-    // D-PROD-313: o de hoje não é o último lançado no tanque → 409 registro posterior (o mais recente) e nada muda
+    // D-PROD-314: o de hoje não é o último lançado no tanque → 409 registro posterior (o mais recente) e nada muda
     const antesCanc = await fotoAbastecimento(s.c);
     const rc = await A.cancelar(s.contaCancelar.token, hoje.id, { empresa_id: s.e1.id, versao: 1, motivo: 'leitura lançada errada', operation_id: opId() });
     const movMesma = (await prisma().abastecimentoBem.findUnique({ where: { id: mesma.id } })).movimentacao_estoque_id;

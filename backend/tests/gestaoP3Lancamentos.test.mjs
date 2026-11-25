@@ -290,7 +290,7 @@ describe('aceite — fluxos da Central Única de Lançamentos', () => {
     assert.deepEqual([a2.status, a2.quantidade_disponivel.toFixed(4), b2.status, b2.quantidade_disponivel.toFixed(4)], ['Disponivel', '3.0000', 'Disponivel', '4.0000']);
     assert.equal((await prisma().produto.findUnique({ where: { id: s.sal.id } })).estoque_atual.toFixed(4), '7.0000');
     // comprar e consumir: cancelar a COMPRA consumida pela venda de depois → 409 registro posterior, nada muda.
-    // D-PROD-313: o saldo negativo (D-PROD-273 fatia 5: sem a compra, a venda de 7,5 kg de 8 deixaria −0,5) agora é
+    // D-PROD-314: o saldo negativo (D-PROD-273 fatia 5: sem a compra, a venda de 7,5 kg de 8 deixaria −0,5) agora é
     // precedido pela recusa do registro posterior: a venda ainda vale e tem de sair primeiro.
     const compra3 = await comprarEConfirmar(s, { quantidade: '1', valorUnitario: '10', total: '10.00', dia: '2027-06-02' });
     const venda2 = await comprarEConfirmar(s, { direcao: 'RECEBER', quantidade: '7.5', valorUnitario: '20', total: '150.00' });

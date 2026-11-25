@@ -175,7 +175,7 @@ describe('D-PROD-271 — substituição da saída: quantidade, produto, depósit
 });
 
 describe('D-PROD-271 — "se nada mexeu depois", versão e idempotência', () => {
-  test('outro movimento do produto no depósito depois da saída → a EDIÇÃO recusa 409 SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR e nada muda; D-PROD-313: a exclusão recusa 409 registro posterior e sai depois do mais recente', async () => {
+  test('outro movimento do produto no depósito depois da saída → a EDIÇÃO recusa 409 SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR e nada muda; D-PROD-314: a exclusão recusa 409 registro posterior e sai depois do mais recente', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
     const s = await sair(x);
@@ -185,7 +185,7 @@ describe('D-PROD-271 — "se nada mexeu depois", versão e idempotência', () =>
     assert.deepEqual([r.statusCode, r.json().code, razao(r), r.json().details?.item_ordem], [409, 'SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR', 'movimento_posterior', 1], r.body);
     assert.match(r.json().message, /a edição não é possível/);
     assert.deepEqual(await fotografia(x, s.id), antes);
-    // D-PROD-313: a EXCLUSÃO também recusa enquanto a saída de depois valer (não há mais recálculo); nada muda
+    // D-PROD-314: a EXCLUSÃO também recusa enquanto a saída de depois valer (não há mais recálculo); nada muda
     const ex = await chamar('POST', `/estoque/saidas/${s.id}/excluir`, x.token, { empresa_id: x.e.id, versao: 1, motivo: 'teste', operation_id: `ex-${randomUUID()}` });
     assert.deepEqual([ex.statusCode, ex.json().code, razao(ex), ex.json().details?.posterior_id], [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', depois.itens[0].movimentacao_estoque_id], ex.body);
     assert.deepEqual(await fotografia(x, s.id), antes);
@@ -284,7 +284,7 @@ describe('D-PROD-271 — METADADOS pela versão completa, tenant, permissão e e
     await reconciliacaoLimpa(x);
   });
 
-  test('empate de createdAt entre o estorno da linha substituída e a linha nova (mesmo milissegundo) não trava a exclusão; um movimento de fato posterior trava a edição e, D-PROD-313, a exclusão (409 registro posterior; exclui o mais recente primeiro)', async () => {
+  test('empate de createdAt entre o estorno da linha substituída e a linha nova (mesmo milissegundo) não trava a exclusão; um movimento de fato posterior trava a edição e, D-PROD-314, a exclusão (409 registro posterior; exclui o mais recente primeiro)', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
     const s = await sair(x);
@@ -297,7 +297,7 @@ describe('D-PROD-271 — METADADOS pela versão completa, tenant, permissão e e
     // a edição com um movimento de fato posterior continua travada (regra da D-PROD-271, fatia 5)
     const travada = await editar(x, { ...s, versao: 2 }, {}, [{ produto_id: x.ureia.id, local_estoque_id: x.galpao.id, unidade: 'KG', quantidade: '21' }]);
     assert.deepEqual([travada.statusCode, travada.json().code], [409, 'SAIDA_ESTOQUE_MOVIMENTO_POSTERIOR'], travada.body);
-    // D-PROD-313: a exclusão com o posterior de fato recusa e aponta para ELE (o estorno empatado da linha
+    // D-PROD-314: a exclusão com o posterior de fato recusa e aponta para ELE (o estorno empatado da linha
     // substituída é um par já excluído: não conta como "depois"); nada muda
     const antes = await fotografia(x, s.id);
     const exclusao = await chamar('POST', `/estoque/saidas/${s.id}/excluir`, x.token, { empresa_id: x.e.id, versao: 2, motivo: 'teste', operation_id: `ex-${randomUUID()}` });

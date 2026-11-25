@@ -145,7 +145,7 @@ export const buscarMovimentoPosteriorA = async (tx, clienteId, a) => {
 };
 
 /**
- * D-PROD-313 — "só o último" no estoque: o primeiro REGISTRO POSTERIOR QUE AINDA VALE, no produto e nos `locais`
+ * D-PROD-314 — "só o último" no estoque: o primeiro REGISTRO POSTERIOR QUE AINDA VALE, no produto e nos `locais`
  * (origem OU destino), depois da referência `desde` (o mesmo critério fail-closed de "depois" de
  * `buscarMovimentoPosterior`), fora de `ignorarIds`. Não contam (não vinculam nada ao movimento de referência):
  *  - os pares excluídos com recálculo (`MARCA_EXCLUSAO_RECALCULO`);
@@ -203,7 +203,7 @@ const nomeDoRegistro = (m) => {
 const diaBr = (d) => (d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOString().slice(0, 10).split('-').reverse().join('/') : null);
 
 /**
- * 409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR` (D-PROD-313): há um registro depois deste movimento, no mesmo produto e
+ * 409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR` (D-PROD-314): há um registro depois deste movimento, no mesmo produto e
  * depósito, que ainda vale. Exclua primeiro o mais recente.
  * @param {NonNullable<Awaited<ReturnType<typeof buscarRegistroPosteriorValendo>>>} p
  * @param {{ movimento_id?: string }} [extra]
@@ -223,7 +223,7 @@ export const recusaRegistroPosterior = (p, extra = {}) => {
 };
 
 /**
- * D-PROD-313 — os PARES JÁ EXCLUÍDOS pelo estorno exato (sem a marca do recálculo) lançados depois da referência, no
+ * D-PROD-314 — os PARES JÁ EXCLUÍDOS pelo estorno exato (sem a marca do recálculo) lançados depois da referência, no
  * produto e nos `locais`. Quando só eles vêm depois (`buscarRegistroPosteriorValendo` vazio), o recálculo os tira da
  * sequência junto com o movimento excluído (e os marca), em vez de refazê-los: refeitos sem o movimento, a perna de
  * saída do par deixaria um saldo negativo falso no meio da sequência e o movimento nunca mais sairia.

@@ -170,7 +170,7 @@ const nadaDepois = async (tx, cli, m, ids) => {
 };
 
 /**
- * D-PROD-313 — o registro posterior que ainda vale (o mais recente), em algum dos depósitos dos movimentos `ids`
+ * D-PROD-314 — o registro posterior que ainda vale (o mais recente), em algum dos depósitos dos movimentos `ids`
  * (origem ou destino), ignorando os próprios `ids`. A mesma prova do planejador (`planejarExclusaoComRecalculo`).
  */
 const registroPosteriorDe = async (tx, cli, m, ids) => {
@@ -188,7 +188,7 @@ const registroPosteriorDe = async (tx, cli, m, ids) => {
   return null;
 };
 
-/** D-PROD-313 — os pares já excluídos depois dos movimentos `ids` (saem da simulação junto, como no planejador). */
+/** D-PROD-314 — os pares já excluídos depois dos movimentos `ids` (saem da simulação junto, como no planejador). */
 const paresForaDe = async (tx, cli, m, ids) => {
   const lidos = await tx.movimentacaoEstoque.findMany({
     where: { cliente_id: cli, id: { in: ids } }, select: { id: true, numero_movimentacao: true, createdAt: true, local_estoque_origem: true, local_estoque_destino: true },
@@ -292,7 +292,7 @@ export const previaExclusao = async (contexto, movimentoId, query = {}, o = {}) 
       if (ajuste) return recusaDeAjuste(await recusaAjustePosterior(tx, cli, ajuste));
     }
     const ativo = m.status === 'Ativa' && !m.movimento_filho_id && !ehEstorno;
-    // D-PROD-313 — só o último: registro posterior que ainda vale, no produto e depósito → recusa (a mesma do planejador).
+    // D-PROD-314 — só o último: registro posterior que ainda vale, no produto e depósito → recusa (a mesma do planejador).
     const posterior = ativo && juntos.length ? await registroPosteriorDe(tx, cli, m, juntos) : null;
     if (posterior) return recusaDeAjuste(recusaRegistroPosterior(posterior.valendo, { movimento_id: posterior.movimentoId }));
     if (ativo && juntos.length && await nadaDepois(tx, cli, m, juntos)) {

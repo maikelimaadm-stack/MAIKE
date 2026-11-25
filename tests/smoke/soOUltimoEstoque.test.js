@@ -1,5 +1,5 @@
 /**
- * D-PROD-313 — estoque: só o último sai. A recusa do servidor vira a mensagem "exclua primeiro o mais recente".
+ * D-PROD-314 — estoque: só o último sai. A recusa do servidor vira a mensagem "exclua primeiro o mais recente".
  *
  * SE-01 com o tipo, o número, a data e o depósito do registro posterior
  * SE-02 pela origem (abastecimento, atividade, cocho) quando o tipo não diz
@@ -12,7 +12,7 @@ import { mensagemDoCancelamento, MENSAGENS_CODIGO } from '@/components/suplement
 
 const CODIGO = 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR';
 
-describe('D-PROD-313 — mensagem do registro posterior no estoque', () => {
+describe('D-PROD-314 — mensagem do registro posterior no estoque', () => {
   it('SE-01 tipo, número, data e depósito', () => {
     const m = mensagemRecalculoDaExclusao(CODIGO, 'registro_posterior', {
       posterior_tipo: 'transferencia_enviada', posterior_numero: '42', posterior_data: '2026-11-12', local_nome: 'DEP 15',

@@ -9779,11 +9779,23 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - Backend: `exclusaoMovimentacaoLedger` (EX-C reescrito, com a nutrição posterior na origem), `certificacaoManejosExclusoes` (CERT-3/4/5/9 na regra nova), `r2eR5ComandosLedgerConvertidos` (K3) e `r2eR6CutoverAtomicoVinculos` (D2).
   - App: `tests/smoke/soOUltimoDaSequencia.test.js` (NU-01, ES-01, CA-01, TR-01..02, NL-01), `motorSincronizacao` (MS-10, MS-10b, MS-26), `lancamentoCochoOffline` (LCO-12) e `exclusaoMovimentacao` (3b).
 
-## D-PROD-313 — Estoque: só o último sai; o registro que já foi usado depois não pode ser excluído (substitui a exclusão com recálculo da D-PROD-273)
+## D-PROD-312 — Saída manual com lote numa unidade de conversão: os lotes conferem na unidade de estoque
 
-**Data:** 2026-11-25 · **Origem:** pedido do proprietário ("não posso de forma alguma excluir registros posteriores que vincularam algo"), depois da D-PROD-311 (lote e cocho) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SO-O-ULTIMO-ESTOQUE-D313-REPORT.md`](./SO-O-ULTIMO-ESTOQUE-D313-REPORT.md)
+**Data:** 2026-11-25 · **Origem:** achado da D-PROD-310, correção autorizada pelo proprietário ("Pode corrigir") · **Branch:** `claude/saida-lote-unidade-convertida` · **Relatório:** [`MAIKE-SAIDA-LOTE-UNIDADE-CONVERTIDA-REPORT.md`](./MAIKE-SAIDA-LOTE-UNIDADE-CONVERTIDA-REPORT.md)
 
-> **Numeração:** a `main` (`4d90d4df`) indica `Próxima decisão: D-PROD-312`, mas a PR #398 (saída com lote numa unidade de conversão, aberta) já reserva a D-PROD-312 (`node scripts/dev/proxima-decisao.mjs`). Esta é a **D-PROD-313**; o marcador passa a D-PROD-314. Conferir de novo antes do merge (regra A5).
+- **Contexto:** na Saída manual do Estoque, o campo "Lote" (`CampoLotesSaida`) e a conferência antes de gravar (`erroDosLotes`, `lotesUsados`) calculavam a quantidade na unidade de estoque por `quantidadeDeEstoque`. Essa conta só conhecia o SACO legado (peso do saco). Quando a linha estava numa unidade de conversão do cadastro (D-PROD-288, por exemplo 3 SC de 25 kg), os lotes, que são sempre em kg ou L, eram comparados com a quantidade digitada (3). A tela sugeria e conferia o total errado, e o servidor recusava com `lotes_nao_somam`.
+- **Decisão:**
+  - `quantidadeDeEstoque` converte a unidade de conversão ATIVA do produto pela mesma conta do servidor: multiplica ou divide pelo fator, com 4 casas, arredondado uma vez (HALF_UP). Uma conversão SACO do cadastro vale antes do peso do saco legado, como em `emUnidadeDeEstoque`.
+  - Sem conversão, nada muda: unidade de estoque como está e SACO legado pelo peso.
+  - `dividirArredondar` passou para `dinheiroDecimal`, para as regras de lote (que o Node carrega sem o alias `@/`) usarem a mesma divisão. `estoqueEntradasRegras` continua exportando a função.
+- **Migration:** nenhuma. **Constituição:** sem mudança.
+- **Testes:** `tests/smoke/saidaLoteUnidadeConvertida.test.js` (4 casos; 3 vermelhos no código da `main`): multiplica (3 SC = 75 kg e a soma confere), divide (10 CX ÷ 4 = 2,5 L), SACO do cadastro antes do legado, e os casos de sempre.
+
+## D-PROD-314 — Estoque: só o último sai; o registro que já foi usado depois não pode ser excluído (substitui a exclusão com recálculo da D-PROD-273)
+
+**Data:** 2026-11-25 · **Origem:** pedido do proprietário ("não posso de forma alguma excluir registros posteriores que vincularam algo"), depois da D-PROD-311 (lote e cocho) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SO-O-ULTIMO-ESTOQUE-D314-REPORT.md`](./SO-O-ULTIMO-ESTOQUE-D314-REPORT.md)
+
+> **Numeração:** nasceu D-PROD-313 (a `main` `4d90d4df` indicava `Próxima decisão: D-PROD-312`, reservada pela PR #398). Antes do merge, a #398 levou a D-PROD-312 (`1fa95ff5`), a `main` passou a indicar `Próxima decisão: D-PROD-313` e a PR #401 (unidade digitada na lista de movimentos, aberta) já reserva a D-PROD-313 (`node scripts/dev/proxima-decisao.mjs`). Esta é a **D-PROD-314**; o marcador passa a D-PROD-315. Conferir de novo antes do merge (regra A5).
 
 - **Regra do proprietário:** no estoque vale a mesma regra do lote (D-PROD-311): um movimento só sai (é excluído ou cancelado) se nada que ainda vale foi lançado DEPOIS dele no mesmo produto e no mesmo depósito. Exclui-se sempre o mais recente primeiro. Na transferência, valem a origem E o destino.
 - **O que muda:** a D-PROD-273 deixava excluir qualquer movimento com algo depois e recalculava o custo médio de tudo o que veio depois (e dos valores copiados dele: cocho, atividade, abastecimento, venda, transferência). Agora isso é **recusado**: o registro posterior foi lançado com o saldo e o médio que incluíam o movimento excluído. A parte "excluir e recalcular" da D-PROD-273 e a emenda dela na Constituição deixam de valer para quem tem registro posterior; o "some das telas", o replay e a trilha continuam.
@@ -9796,4 +9808,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Decisão — app:** `mensagemRecalculoDaExclusao` traduz o código novo em todas as telas de exclusão do estoque, do cocho, do depósito, da atividade e do patrimônio: "Há registro lançado depois deste no depósito X. Exclua primeiro o mais recente: o lançamento no cocho nº 42 de 12/11. Nada foi alterado."
 - **Fora (para decisão do proprietário):** a **edição** da linha de produto da atividade quando há movimento depois no depósito continua como antes: estorno exato da linha antiga e lançamento da nova, sem recalcular. A edição completa da entrada e da saída manual (D-PROD-271) já exigia "nada depois", e o abastecimento só se cancela. Lista no relatório.
 
-<!-- Próxima decisão: D-PROD-314 -->
+<!-- Próxima decisão: D-PROD-315 -->

@@ -83,7 +83,7 @@ export const MENSAGENS_CODIGO = Object.freeze({
   // D-PROD-273 (fatia 4): recusas do recálculo do que veio depois (a frase com o motivo vem de `mensagemRecalculoDaExclusao`).
   ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL: `A exclusão com recálculo não é segura para este lançamento. ${NADA}`,
   ESTOQUE_EXCLUSAO_SALDO_NEGATIVO: `Sem este lançamento o saldo do depósito ficaria negativo. ${NADA}`,
-  // D-PROD-313: há registro depois no depósito (a frase com qual excluir antes vem de `mensagemRecalculoDaExclusao`).
+  // D-PROD-314: há registro depois no depósito (a frase com qual excluir antes vem de `mensagemRecalculoDaExclusao`).
   ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR: `Há registro lançado depois deste no depósito. Exclua primeiro o mais recente. ${NADA}`,
   ESTOQUE_RECALCULO_VOLUME_EXCEDIDO: `Há movimentos demais deste produto depois deste lançamento para recalcular de uma vez. ${NADA}`,
 });

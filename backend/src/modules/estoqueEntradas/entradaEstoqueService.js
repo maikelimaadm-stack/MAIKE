@@ -452,7 +452,7 @@ const provaDeCamadaIntocada = async (tx, cli, itens, acao = 'exclusão') => {
     if (!lote) throw recusar('camada_inexistente', base);
     if (lote.status !== 'Disponivel' || !dec(lote.quantidade_disponivel).eq(dec(lote.quantidade_entrada)) || !dec(lote.quantidade_entrada).eq(dec(item.quantidade_estoque))) throw recusar('camada_consumida', base);
     if (!dec(lote.custo_unitario).eq(dec(item.custo_kg))) throw recusar('custo_reavaliado', base);
-    // D-PROD-313: a fatia de um dependente cujo movimento é de um par já excluído COM recálculo (fora da sequência)
+    // D-PROD-314: a fatia de um dependente cujo movimento é de um par já excluído COM recálculo (fora da sequência)
     // não é consumo da camada.
     const fatias = /** @type {any[]} */ (await tx.$queryRaw`SELECT (
         (SELECT count(*) FROM "OperacaoFinanceiraConsumoLote" f JOIN "OperacaoFinanceiraItem" i ON i.cliente_id = f.cliente_id AND i.id = f.item_id
@@ -468,7 +468,7 @@ const provaDeCamadaIntocada = async (tx, cli, itens, acao = 'exclusão') => {
     const [{ n: comFatias }] = /** @type {any[]} */ (await tx.$queryRaw`SELECT count(*)::int AS n FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND produto_id = ${item.produto_id} AND lotes_consumidos IS NOT NULL`);
     if (comFatias > TETO_MOVIMENTOS_COM_FATIAS) throw recusar('prova_indeterminada', { ...base, volume: comFatias });
     if (comFatias > 0) {
-      // D-PROD-313: um par já excluído COM recálculo está fora da sequência (o recálculo refez as camadas sem ele): a
+      // D-PROD-314: um par já excluído COM recálculo está fora da sequência (o recálculo refez as camadas sem ele): a
       // fatia que ele ainda guarda não é consumo da camada.
       const citada = /** @type {any[]} */ (await tx.$queryRaw`SELECT 1 FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND produto_id = ${item.produto_id} AND lotes_consumidos IS NOT NULL
         AND NOT starts_with(COALESCE(movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})

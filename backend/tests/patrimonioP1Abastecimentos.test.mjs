@@ -496,7 +496,7 @@ describe('P1-02 — cancelamento bloqueado e efeitos na P3', () => {
     assert.equal(await fotoAbastecimento(s.c), fotoA);
 
     // (b) lote 'Estornado' → a devolução não tem para onde voltar. Com o abastecimento ATIVO depois, cancelar a compra
-    // recusa, nada gravado. D-PROD-313: a recusa do recálculo (replay_diverge_do_gravado, pela reposição feita por fora)
+    // recusa, nada gravado. D-PROD-314: a recusa do recálculo (replay_diverge_do_gravado, pela reposição feita por fora)
     // agora é precedida pela do registro posterior — o abastecimento é o mais recente que ainda vale. O estado "compra
     // cancelada com o lote Estornado" é emulado no banco para manter provada a defesa do cancelamento do abastecimento.
     const fotoAntesCompra = await fotoAbastecimento(s.c);
@@ -535,7 +535,7 @@ describe('P1-02 — cancelamento bloqueado e efeitos na P3', () => {
     assert.equal(await fotoAbastecimento(s.c), fotoC);
   });
 
-  test('AB13: efeitos na P3 (D14) — compra cujo lote o abastecimento consumiu: retificar/excluir 409 e cancelar 409 (D-PROD-313: registro posterior); cancelado o abastecimento (o mais recente), cancelar a compra volta a funcionar e retificar/excluir seguem bloqueados', async () => {
+  test('AB13: efeitos na P3 (D14) — compra cujo lote o abastecimento consumiu: retificar/excluir 409 e cancelar 409 (D-PROD-314: registro posterior); cancelado o abastecimento (o mais recente), cancelar a compra volta a funcionar e retificar/excluir seguem bloqueados', async () => {
     const s = await montarAbastecimento(app);
     const compra = await s.compraP3(s.e1, s.diesel, s.local2, { quantidade: '100.0000', preco: '5.00' });
     const L = compra.lote_id;
@@ -564,7 +564,7 @@ describe('P1-02 — cancelamento bloqueado e efeitos na P3', () => {
     const fotoAntes = await fotoAbastecimento(s.c);
     await bloqueiosP3();
     const cancel1 = await A.req('POST', `/operacoes-financeiras/${compra.operacao.id}/cancelar`, s.token, { empresa_id: s.e1.id, operation_id: opId(), motivo: 'compra devolvida' });
-    // D-PROD-313: com o abastecimento depois (ainda vale), o cancelamento da compra recusa 409 registro posterior
+    // D-PROD-314: com o abastecimento depois (ainda vale), o cancelamento da compra recusa 409 registro posterior
     // apontando o abastecimento, nada muda; exclui-se o mais recente primeiro (o abastecimento, logo abaixo)
     assert.deepEqual(erro(cancel1), [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'movimento_id', 'registro_posterior'], cancel1.body);
     assert.deepEqual([cancel1.json().details.posterior_id, cancel1.json().details.posterior_numero], [d.movimentacao.id, d.movimentacao.numero], cancel1.body);

@@ -9,7 +9,7 @@
  *  - movimento ativo nunca some; 'Estornada' sem estorno e estorno sem pai 'Estornada' aparecem normalmente;
  *  - o `total`, o keyset e o cursor continuam corretos (e o cursor é amarrado ao filtro);
  *  - o saldo exibido de um movimento ativo desconta os excluídos do mesmo produto e depósito lançados antes dele;
- *    desde a D-PROD-313 só se exclui o mais recente (409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR` com algo depois).
+ *    desde a D-PROD-314 só se exclui o mais recente (409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR` com algo depois).
  * Nada é gravado pela consulta.
  */
 import { test, describe, before, after, beforeEach } from 'node:test';
@@ -284,7 +284,7 @@ describe('D-PROD-273 fatia 2 — paginação e cursor sem os excluídos', () => 
 });
 
 describe('D-PROD-273 fatia 2 — saldo exibido sem os excluídos', () => {
-  test('D-PROD-313: entrada depois da excluída → 409 registro posterior; exclui-se a mais recente primeiro e o saldo exibido é o gravado', async () => {
+  test('D-PROD-314: entrada depois da excluída → 409 registro posterior; exclui-se a mais recente primeiro e o saldo exibido é o gravado', async () => {
     const x = await cenario();
     const a = await entrar(x, '100', '2');
     const b = await entrar(x, '50', '3');
@@ -292,7 +292,7 @@ describe('D-PROD-273 fatia 2 — saldo exibido sem os excluídos', () => {
     await entrar(x, '9', '1', x.galpao, x.ureia); // outro produto: também não
     const idA = a.itens[0].movimentacao_estoque_id;
     const idB = b.itens[0].movimentacao_estoque_id;
-    // D-PROD-313: com a entrada B depois, no mesmo produto e depósito, a exclusão de A é recusada; nada é gravado
+    // D-PROD-314: com a entrada B depois, no mesmo produto e depósito, a exclusão de A é recusada; nada é gravado
     const antes = await movimentosDoTenant(x);
     const recusa = await chamar('POST', `/estoque/entradas/${a.id}/excluir`, x.token, { empresa_id: x.e.id, versao: a.versao, motivo: 'lançada errada', operation_id: `ex-${randomUUID()}` });
     assert.equal(recusa.statusCode, 409, recusa.body);

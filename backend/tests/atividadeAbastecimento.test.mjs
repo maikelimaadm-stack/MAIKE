@@ -337,7 +337,7 @@ describe('vínculo com o lançamento (apontamento) e centro de custo', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('cascata: cancelar o apontamento ou a atividade', () => {
-  test('cancelar o apontamento cancela os abastecimentos ligados (ESTOQUE estornado, EXTERNO só status), com motivo derivado e auditoria; os outros ficam; D-PROD-313: com um abastecimento posterior no mesmo tanque, recusa 409 registro posterior e nada muda até ele sair', async () => {
+  test('cancelar o apontamento cancela os abastecimentos ligados (ESTOQUE estornado, EXTERNO só status), com motivo derivado e auditoria; os outros ficam; D-PROD-314: com um abastecimento posterior no mesmo tanque, recusa 409 registro posterior e nada muda até ele sair', async () => {
     const s = await montarLinhasCusto(app);
     const p = prisma();
     const estoqueInicial = await estoqueAtual(s.diesel.id);

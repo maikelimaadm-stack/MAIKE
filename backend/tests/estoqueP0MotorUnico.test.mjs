@@ -192,7 +192,7 @@ describe('EX1 — exemplo da missão (compra 100 sacos → suplementação 20 �
     assert.equal(await estoqueAtual(e.racao), '2200.0000');
 
     // 5. cancelar a compra: com a transferência valendo depois no depósito dela → 409 registro posterior, nada muda.
-    // D-PROD-313: o recálculo inviável (lote legado sem movimento de entrada, replay_diverge_do_gravado) agora é
+    // D-PROD-314: o recálculo inviável (lote legado sem movimento de entrada, replay_diverge_do_gravado) agora é
     // precedido pela recusa do registro posterior: a transferência (a perna mais recente no depósito) sai primeiro.
     const antes = await foto([s.c]);
     const rc = await A.cancelarReq(s.token, compra.id, e.id);
@@ -662,7 +662,7 @@ describe('M — guardas, tenancy, recibo antigo, empate, rollback e data', () =>
     assert.equal((await movimento(ok.json().movimentacao.id)).data_movimentacao.toISOString(), '2027-06-11T12:00:00.000Z');
   });
 
-  test('M6: compra consumida por transferência continua bloqueada para cancelar (D-PROD-313: a transferência é registro posterior; a exclusão do financeiro pela prova = lotes_consumidos)', async () => {
+  test('M6: compra consumida por transferência continua bloqueada para cancelar (D-PROD-314: a transferência é registro posterior; a exclusão do financeiro pela prova = lotes_consumidos)', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
     const compra = await A.criarConfirmar(s.token, docCom(e, s.local, [item(e.sal, '100', '2')]));
@@ -670,7 +670,7 @@ describe('M — guardas, tenancy, recibo antigo, empate, rollback e data', () =>
     assert.equal(t.statusCode, 201, t.body);
     const antes = await foto([s.c]);
     const rc = await A.cancelarReq(s.token, compra.id, e.id);
-    // D-PROD-313: o saldo negativo (D-PROD-273 fatia 5: sem a compra a transferência deixaria o saldo negativo) agora é
+    // D-PROD-314: o saldo negativo (D-PROD-273 fatia 5: sem a compra a transferência deixaria o saldo negativo) agora é
     // precedido pela recusa do registro posterior: a transferência ainda vale no depósito da compra.
     assert.deepEqual([rc.statusCode, codigo(rc), motivo(rc), rc.json().details?.posterior_id], [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', t.json().movimentacao_entrada.id], rc.body);
     assert.equal(await foto([s.c]), antes);

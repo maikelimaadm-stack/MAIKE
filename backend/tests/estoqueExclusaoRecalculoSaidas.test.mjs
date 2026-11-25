@@ -5,7 +5,7 @@
  * custo médio de tudo que veio depois, na ordem do número do movimento, com os dependentes. Números à mão em cada
  * cenário; no fim de cada um, o replay completo do produto tem de bater com o gravado (`auditarReplayDoProduto`).
  *
- * D-PROD-313 — só o último sai: com um registro DEPOIS que ainda vale (no mesmo produto e depósito; na transferência,
+ * D-PROD-314 — só o último sai: com um registro DEPOIS que ainda vale (no mesmo produto e depósito; na transferência,
  * origem ou destino), a exclusão é recusada com 409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR` e nada é gravado; exclui-se
  * do mais recente para o mais antigo. O recálculo só roda quando depois dele restam apenas pares já excluídos.
  */
@@ -104,13 +104,13 @@ const provarReplay = async (x, produto) => {
   assert.deepEqual(r.divergencias, [], JSON.stringify(r.divergencias.slice(0, 5)));
   return r;
 };
-/** D-PROD-313 — exclusão da entrada documentada (a entrada do meio sai antes das mais antigas). */
+/** D-PROD-314 — exclusão da entrada documentada (a entrada do meio sai antes das mais antigas). */
 const excluirEntrada = (x, doc, versao = doc.versao ?? 1) =>
   H.req('POST', `/estoque/entradas/${doc.id}/excluir`, x.token, { empresa_id: x.e1.id, versao, motivo: 'nota errada', operation_id: `ex-${randomUUID()}` });
-/** D-PROD-313 — a recusa do registro posterior: [status, code, reason, posterior_id]. */
+/** D-PROD-314 — a recusa do registro posterior: [status, code, reason, posterior_id]. */
 const POSTERIOR = 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR';
 const recusa = (r) => [r.statusCode, r.json().code, r.json().reason ?? r.json().details?.reason, r.json().details?.posterior_id];
-/** D-PROD-313 — tudo o que uma exclusão recusada não pode gravar: movimentos, camadas, saldos, documentos, cochos e trilha. */
+/** D-PROD-314 — tudo o que uma exclusão recusada não pode gravar: movimentos, camadas, saldos, documentos, cochos e trilha. */
 const fotoGeral = async (x) => {
   const p = prisma();
   const w = { where: { cliente_id: x.c }, orderBy: { id: /** @type {const} */ ('asc') } };
@@ -145,7 +145,7 @@ const cenarioBase = async (x, saidaS1, saidaS2) => {
 };
 
 describe('D-PROD-273 fatia 4 — saída manual', () => {
-  test('D-PROD-313: excluir a saída antiga com outra saída depois → 409 registro posterior (a S2) e nada gravado; do mais recente para o mais antigo (S2, a entrada do meio), a S1 sai pelo estorno do valor gravado', async () => {
+  test('D-PROD-314: excluir a saída antiga com outra saída depois → 409 registro posterior (a S2) e nada gravado; do mais recente para o mais antigo (S2, a entrada do meio), a S1 sai pelo estorno do valor gravado', async () => {
     const x = await montar();
     const c = await cenarioBase(x, (A, kg) => sair(x, x.sal, A, kg), (A, kg) => sair(x, x.sal, A, kg));
     const m1 = await movDoItem(c.s1);
@@ -211,7 +211,7 @@ const cancelarCocho = (x, id) =>
   H.req('POST', `/suplementacao-eventos/${id}/cancelamento`, x.token, { empresa_id: x.e1.id, operation_id: `canc-${randomUUID()}`, motivo: 'lançado em dobro' });
 
 describe('D-PROD-273 fatia 4 — cocho (o caso do dono)', () => {
-  test('D-PROD-313 (o caso do dono): entrada, saída para o cocho, outras saídas depois → a elegibilidade e o cancelamento do cocho recusam (registro posterior: o C4, o mais recente) e nada é gravado; cancelados do mais recente para o mais antigo (C4, C3, C2, a entrada), o C1 sai', async () => {
+  test('D-PROD-314 (o caso do dono): entrada, saída para o cocho, outras saídas depois → a elegibilidade e o cancelamento do cocho recusam (registro posterior: o C4, o mais recente) e nada é gravado; cancelados do mais recente para o mais antigo (C4, C3, C2, a entrada), o C1 sai', async () => {
     const x = await montar();
     const A = x.local;
     await entrar(x, x.sal, A, '100', '4');
@@ -295,7 +295,7 @@ const consumosDoItem = async (itemId) =>
   (await prisma().operacaoFinanceiraConsumoLote.findMany({ where: { item_id: itemId }, orderBy: { estoque_lote_nota_id: 'asc' } })).map((c) => [c.estoque_lote_nota_id, v4(c.quantidade), v4(c.custo_unitario)]);
 
 describe('D-PROD-273 fatia 4 — atividade, abastecimento e venda', () => {
-  test('D-PROD-313 — linha de produto da atividade: cancelar a antiga com a linha posterior valendo → 409 registro posterior e nada gravado; cancelada a posterior e excluída a entrada do meio, a antiga sai', async () => {
+  test('D-PROD-314 — linha de produto da atividade: cancelar a antiga com a linha posterior valendo → 409 registro posterior e nada gravado; cancelada a posterior e excluída a entrada do meio, a antiga sai', async () => {
     const x = await montar();
     const at = await atividade(x);
     let l1;
@@ -316,7 +316,7 @@ describe('D-PROD-273 fatia 4 — atividade, abastecimento e venda', () => {
     await provarReplay(x, x.sal);
   });
 
-  test('D-PROD-313 — abastecimento: cancelar o antigo com o posterior valendo → 409 registro posterior, sem o estorno exato de antes, nada gravado; cancelado o posterior e excluída a entrada do meio, o antigo sai; diesel em L', async () => {
+  test('D-PROD-314 — abastecimento: cancelar o antigo com o posterior valendo → 409 registro posterior, sem o estorno exato de antes, nada gravado; cancelado o posterior e excluída a entrada do meio, o antigo sai; diesel em L', async () => {
     const x = await montar();
     const d = x.diesel;
     const A = x.local;
@@ -342,7 +342,7 @@ describe('D-PROD-273 fatia 4 — atividade, abastecimento e venda', () => {
     await provarReplay(x, d);
   });
 
-  test('D-PROD-313 — venda do financeiro: cancelar a antiga com a posterior valendo → 409 registro posterior, sem o estorno exato de antes, nada gravado; cancelada a posterior e excluída a entrada do meio, a antiga sai', async () => {
+  test('D-PROD-314 — venda do financeiro: cancelar a antiga com a posterior valendo → 409 registro posterior, sem o estorno exato de antes, nada gravado; cancelada a posterior e excluída a entrada do meio, a antiga sai', async () => {
     const x = await montar();
     let v1;
     let v2;
@@ -434,7 +434,7 @@ describe('D-PROD-273 — escolha do proprietário: contagem de inventário depoi
 
 // ─── cascata e concorrência ─────────────────────────────────────────────────
 describe('D-PROD-273 fatia 4 — cascata pela transferência e concorrência', () => {
-  test('D-PROD-313 — cascata pela transferência: a saída antiga na origem recusa (a transferência vale depois no A) e a transferência recusa (a venda vale depois no B); nada gravado; do mais recente para o mais antigo (venda, transferência, entrada), a saída sai', async () => {
+  test('D-PROD-314 — cascata pela transferência: a saída antiga na origem recusa (a transferência vale depois no A) e a transferência recusa (a venda vale depois no B); nada gravado; do mais recente para o mais antigo (venda, transferência, entrada), a saída sai', async () => {
     const x = await montar();
     const A = x.local;
     const B = x.local2;
@@ -474,7 +474,7 @@ describe('D-PROD-273 fatia 4 — cascata pela transferência e concorrência', (
     await provarReplay(x, x.sal);
   });
 
-  test('D-PROD-313 — duas exclusões simultâneas no mesmo produto (a trava do produto as enfileira) com uma saída depois: as duas recusam (registro posterior: a S3), nada gravado; depois, do mais recente para o mais antigo, todas saem e o replay bate', async () => {
+  test('D-PROD-314 — duas exclusões simultâneas no mesmo produto (a trava do produto as enfileira) com uma saída depois: as duas recusam (registro posterior: a S3), nada gravado; depois, do mais recente para o mais antigo, todas saem e o replay bate', async () => {
     const x = await montar();
     const A = x.local;
     await entrar(x, x.sal, A, '100', '4');
@@ -527,10 +527,10 @@ describe('D-PROD-273 fatia 4 — fail-closed', () => {
     s: await prisma().saidaEstoque.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' } }),
   });
 
-  test('histórico que não reproduz o gravado: a saída manual recusa 409 (nada gravado); a venda mantém o estorno exato de antes, sem marca nem recálculo; teto de posteriores → 422 (D-PROD-313: com algo valendo depois a recusa é a do registro posterior; o recálculo só roda com pares já excluídos depois)', async () => {
+  test('histórico que não reproduz o gravado: a saída manual recusa 409 (nada gravado); a venda mantém o estorno exato de antes, sem marca nem recálculo; teto de posteriores → 422 (D-PROD-314: com algo valendo depois a recusa é a do registro posterior; o recálculo só roda com pares já excluídos depois)', async () => {
     const x = await montar();
     const c = await cenarioBase(x, (A, kg) => sair(x, x.sal, A, kg), (A, kg) => sair(x, x.sal, A, kg));
-    // D-PROD-313: com a S2 valendo depois, a recusa é a do registro posterior (antes de ler o histórico)
+    // D-PROD-314: com a S2 valendo depois, a recusa é a do registro posterior (antes de ler o histórico)
     const antes0 = await retrato(x);
     assert.deepEqual(recusa(await excluirSaida(x, c.s1)), [409, POSTERIOR, 'registro_posterior', (await movDoItem(c.s2)).id]);
     assert.equal(await retrato(x), antes0, 'nada gravado');
@@ -552,7 +552,7 @@ describe('D-PROD-273 fatia 4 — fail-closed', () => {
     const v = await vender(x, [[x.sal, c.A, '10', '12']]);
     const eDepois = await entrar(x, x.sal, c.A, '5', '7');
     const mv = await mov(v.itens[0].movimentacao_estoque_id);
-    // D-PROD-313: a entrada depois vale → recusa, sem o estorno exato; excluída ela (a última), a venda cai no estorno exato
+    // D-PROD-314: a entrada depois vale → recusa, sem o estorno exato; excluída ela (a última), a venda cai no estorno exato
     assert.deepEqual(recusa(await cancelarVenda(x, v.id)), [409, POSTERIOR, 'registro_posterior', eDepois.itens[0].movimentacao_estoque_id]);
     ok(await excluirEntrada(x, eDepois));
     ok(await cancelarVenda(x, v.id));
@@ -605,7 +605,7 @@ const montarCocho = async () => {
 };
 
 describe('D-PROD-273 fatia 4 — achados da revisão: depois de um recálculo, as operações seguintes passam', () => {
-  test('(1) D-PROD-313: cancelar C1 com o C2 depois → 409 registro posterior (o C2); na ordem certa — o C2 (o último: estorno exato do valor gravado), a entrada do meio — o C1 sai', async () => {
+  test('(1) D-PROD-314: cancelar C1 com o C2 depois → 409 registro posterior (o C2); na ordem certa — o C2 (o último: estorno exato do valor gravado), a entrada do meio — o C1 sai', async () => {
     const x = await montar();
     const A = x.local;
     await entrar(x, x.sal, A, '100', '4');
@@ -625,7 +625,7 @@ describe('D-PROD-273 fatia 4 — achados da revisão: depois de um recálculo, a
     await provarReplay(x, x.sal);
   });
 
-  test('(2) D-PROD-313: cancelar C1 com a cadeia do cocho 2 depois → 409 (o C4, o mais recente); cancelar o C4 reabre o período de C3 com o custo/kg gravado; depois C3, C2 e a entrada, o C1 sai', async () => {
+  test('(2) D-PROD-314: cancelar C1 com a cadeia do cocho 2 depois → 409 (o C4, o mais recente); cancelar o C4 reabre o período de C3 com o custo/kg gravado; depois C3, C2 e a entrada, o C1 sai', async () => {
     const { x, e3, c1, c2, c3, c4 } = await montarCocho();
     const antes = await fotoGeral(x);
     assert.deepEqual(recusa(await cancelarCocho(x, c1.evento.id)), [409, POSTERIOR, 'registro_posterior', c4.mov.id]);
@@ -644,7 +644,7 @@ describe('D-PROD-273 fatia 4 — achados da revisão: depois de um recálculo, a
     await provarReplay(x, x.sal);
   });
 
-  test('(1) D-PROD-313: excluir S1 com a transferência depois → 409 registro posterior; cancelar a transferência (a última nos dois depósitos) passa; depois a entrada do meio e a S1', async () => {
+  test('(1) D-PROD-314: excluir S1 com a transferência depois → 409 registro posterior; cancelar a transferência (a última nos dois depósitos) passa; depois a entrada do meio e a S1', async () => {
     const x = await montar();
     const A = x.local;
     const B = x.local2;
@@ -669,7 +669,7 @@ describe('D-PROD-273 fatia 4 — achados da revisão: depois de um recálculo, a
     await provarReplay(x, x.sal);
   });
 
-  test('(1) D-PROD-313: excluir S1 com a S2 depois → 409; EDITAR a S2 (D-PROD-271; a última de verdade) passa pelo médio gravado; a S1 continua presa à S2 nova até ela, a entrada do meio e a S1 saírem nessa ordem', async () => {
+  test('(1) D-PROD-314: excluir S1 com a S2 depois → 409; EDITAR a S2 (D-PROD-271; a última de verdade) passa pelo médio gravado; a S1 continua presa à S2 nova até ela, a entrada do meio e a S1 saírem nessa ordem', async () => {
     const x = await montar();
     const c = await cenarioBase(x, (A, kg) => sair(x, x.sal, A, kg), (A, kg) => sair(x, x.sal, A, kg));
     assert.deepEqual(recusa(await excluirSaida(x, c.s1)), [409, POSTERIOR, 'registro_posterior', (await movDoItem(c.s2)).id]);
@@ -691,7 +691,7 @@ describe('D-PROD-273 fatia 4 — achados da revisão: depois de um recálculo, a
 });
 
 describe('D-PROD-273 fatia 4 — achados da revisão: fallback do estorno exato (abastecimento, atividade, venda)', () => {
-  test('(3) venda com cocho posterior cujo fechamento não reproduz → D-PROD-313: o cocho vale depois: 409 registro posterior, sem o estorno exato de antes; nada gravado, nenhuma trilha', async () => {
+  test('(3) venda com cocho posterior cujo fechamento não reproduz → D-PROD-314: o cocho vale depois: 409 registro posterior, sem o estorno exato de antes; nada gravado, nenhuma trilha', async () => {
     const x = await montar();
     const A = x.local;
     await entrar(x, x.sal, A, '100', '4');
@@ -705,7 +705,7 @@ describe('D-PROD-273 fatia 4 — achados da revisão: fallback do estorno exato 
     const m2Antes = valores(await mov(c2.mov.id));
     const antes = await fotoGeral(x);
     const r = await cancelarVenda(x, v.id);
-    // D-PROD-313: o recálculo desfeito (SAVEPOINT) com o estorno exato da venda (cocho_fechamento_nao_reproduzivel) agora é
+    // D-PROD-314: o recálculo desfeito (SAVEPOINT) com o estorno exato da venda (cocho_fechamento_nao_reproduzivel) agora é
     // precedido pela recusa do registro posterior: o lançamento C3 no cocho ainda vale.
     assert.deepEqual(recusa(r), [409, POSTERIOR, 'registro_posterior', c3.mov.id], r.body);
     assert.equal(await fotoGeral(x), antes, 'nada foi gravado');
@@ -718,12 +718,12 @@ describe('D-PROD-273 fatia 4 — achados da revisão: fallback do estorno exato 
     await provarReplay(x, x.sal);
   });
 
-  test('(6) movimento legado com movimentacao_grupo_id preenchido: a saída manual recusa grupo_legado_preenchido; a venda cai no estorno exato (D-PROD-313: só com pares já excluídos depois; com algo valendo, registro posterior)', async () => {
+  test('(6) movimento legado com movimentacao_grupo_id preenchido: a saída manual recusa grupo_legado_preenchido; a venda cai no estorno exato (D-PROD-314: só com pares já excluídos depois; com algo valendo, registro posterior)', async () => {
     const x = await montar();
     const c = await cenarioBase(x, (A, kg) => sair(x, x.sal, A, kg), (A, kg) => sair(x, x.sal, A, kg));
     const m1 = await movDoItem(c.s1);
     await prisma().movimentacaoEstoque.update({ where: { id: m1.id }, data: { movimentacao_grupo_id: 'grupo-legado-1' } });
-    // D-PROD-313: com a S2 valendo depois, a recusa é a do registro posterior
+    // D-PROD-314: com a S2 valendo depois, a recusa é a do registro posterior
     assert.deepEqual(recusa(await excluirSaida(x, c.s1)), [409, POSTERIOR, 'registro_posterior', (await movDoItem(c.s2)).id]);
     // do mais recente para o mais antigo: a entrada do meio leva o par da S2 para fora da sequência (marcados); com o
     // par de uma S4 excluída pelo estorno exato depois, a S1 chega ao recálculo e ao grupo legado
@@ -749,7 +749,7 @@ describe('D-PROD-273 fatia 4 — achados da revisão: fallback do estorno exato 
 });
 
 describe('D-PROD-273 fatia 4 — achados da revisão: a prévia diz o que a exclusão vai fazer', () => {
-  test('(4) nada depois → "estorno exato" mesmo com histórico que não reproduz; venda com recálculo inviável → estorno exato sem recalcular (sem recusa); venda de 2 itens do mesmo produto e depósito → os dois juntos; D-PROD-313: com algo valendo depois, a prévia já diz qual registro excluir antes', async () => {
+  test('(4) nada depois → "estorno exato" mesmo com histórico que não reproduz; venda com recálculo inviável → estorno exato sem recalcular (sem recusa); venda de 2 itens do mesmo produto e depósito → os dois juntos; D-PROD-314: com algo valendo depois, a prévia já diz qual registro excluir antes', async () => {
     const x = await montar();
     const A = x.local;
     await entrar(x, x.sal, A, '100', '4');
@@ -761,7 +761,7 @@ describe('D-PROD-273 fatia 4 — achados da revisão: a prévia diz o que a excl
 
     const v = await vender(x, [[x.sal, A, '5', '12']]);
     const depois = await sair(x, x.sal, A, '3');
-    // D-PROD-313: a saída depois vale → a prévia recusa e aponta para ela
+    // D-PROD-314: a saída depois vale → a prévia recusa e aponta para ela
     const p2r = ok(await previa(x, (await movDoItem(v)).id));
     assert.deepEqual([p2r.permitido, p2r.modo, p2r.recusa?.code, p2r.recusa?.reason, p2r.recusa?.posterior_id, p2r.aviso], [false, null, POSTERIOR, 'registro_posterior', (await movDoItem(depois)).id, null]);
     ok(await excluirSaida(x, depois));

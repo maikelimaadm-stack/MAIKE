@@ -208,14 +208,14 @@ describe('D-PROD-268 depósito — POST cancelar-transferencia', () => {
     await reconciliacaoLimpa(x);
   });
 
-  test('D-PROD-313: com movimento depois nos depósitos (origem OU destino) → 409 registro posterior (ensaio e POST, nada muda), antes do saldo negativo; exclui o mais recente primeiro (pares já excluídos saem da simulação junto); outro produto não conta; cadeia A→B→C sai do último ao primeiro', async () => {
+  test('D-PROD-314: com movimento depois nos depósitos (origem OU destino) → 409 registro posterior (ensaio e POST, nada muda), antes do saldo negativo; exclui o mais recente primeiro (pares já excluídos saem da simulação junto); outro produto não conta; cadeia A→B→C sai do último ao primeiro', async () => {
     const x = await cenario();
     await entrar(x, '100', '2');
     const t1 = await transferir(x, 30);
     await entrar(x, '5', '9', x.galpao, x.outro);
     const sup = await suplementar(x, 5, x.barracao);
     const ret = await retrato(x);
-    // D-PROD-313: o saldo negativo (sem t1 o Barracão ficaria em −5) agora é precedido pela recusa do registro
+    // D-PROD-314: o saldo negativo (sem t1 o Barracão ficaria em −5) agora é precedido pela recusa do registro
     // posterior: a baixa do cocho no DESTINO é o mais recente que ainda vale (a entrada do outro produto não conta).
     const g = (await elegibilidade(x, t1.s.id)).json();
     assert.deepEqual([g.elegivel, g.codigo, g.detalhes.reason, g.detalhes.local_estoque_id, g.detalhes.posterior_id], [false, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', x.barracao.id, sup.id], JSON.stringify(g));
@@ -329,8 +329,8 @@ describe('D-PROD-268 depósito — POST cancelar-transferencia', () => {
     assert.equal((await chamar('GET', `/movimentacoes-estoque/${t.s.id}/elegibilidade-cancelamento-transferencia`, x.token)).statusCode, 400);
     assert.equal((await cancelar(x, t.s.id, { token: null })).statusCode, 401);
     assert.deepEqual(await retrato(x), ret);
-    // D-PROD-313: a baixa do cocho na ORIGEM depois da transferência vincula — 409 registro posterior apontando a
-    // baixa, nada muda (o caminho "exclui o mais recente primeiro" está no teste da D-PROD-313 acima)
+    // D-PROD-314: a baixa do cocho na ORIGEM depois da transferência vincula — 409 registro posterior apontando a
+    // baixa, nada muda (o caminho "exclui o mais recente primeiro" está no teste da D-PROD-314 acima)
     const jc = erro(await cancelar(x, t.s.id), 409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior');
     assert.deepEqual([jc.details.posterior_id, jc.details.local_estoque_id], [sup.id, x.galpao.id]);
     assert.deepEqual(await retrato(x), ret);

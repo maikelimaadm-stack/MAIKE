@@ -200,7 +200,7 @@ describe('D-PROD-272 — excluir: estorno integral, só sem movimento depois', (
     await reconciliacaoLimpa(x);
   });
 
-  test('D-PROD-313: outro movimento do produto no mesmo depósito depois → 409 registro posterior; exclui-se o mais recente primeiro; ajuste só SEM_DIFERENCA exclui sem estorno', async () => {
+  test('D-PROD-314: outro movimento do produto no mesmo depósito depois → 409 registro posterior; exclui-se o mais recente primeiro; ajuste só SEM_DIFERENCA exclui sem estorno', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
     const a = (await ajustar(x, [linhaAjuste(x)])).json(); // falta 10 a 3

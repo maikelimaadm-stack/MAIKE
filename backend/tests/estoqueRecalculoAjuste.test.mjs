@@ -13,7 +13,7 @@
  * `ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL`, `ajuste_de_inventario_posterior`) e nada é gravado: o estoque nunca fica
  * diferente do contado. Ajuste ANTERIOR ao excluído, ajuste já excluído e ajuste no destino antes de a cascata chegar
  * não recusam; neles a sobra segue o médio recalculado (e a linha do ajuste, se mudar, é reescrita).
- * D-PROD-313 (só o último): com registro posterior que ainda vale no depósito do movimento, a exclusão é recusada antes
+ * D-PROD-314 (só o último): com registro posterior que ainda vale no depósito do movimento, a exclusão é recusada antes
  * (409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR`); exclui-se do mais recente para o mais antigo.
  */
 import { test, describe, before, after, beforeEach } from 'node:test';
@@ -113,7 +113,7 @@ const exigirRecusaPorAjuste = async (x, s1, { ajuste, movimentoAjuste, deposito 
   const p = ok(await previa(x, s1.itens[0].movimentacao_estoque_id));
   assert.deepEqual([p.permitido, p.modo, p.recusa?.code, p.recusa?.reason, p.recusa?.ajuste_numero, p.aviso], [false, null, 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', 'ajuste_de_inventario_posterior', ajuste.numero, null]);
 };
-/** D-PROD-313 — a exclusão de S1 é recusada pelo registro posterior que ainda vale (o mais recente); nada gravado. */
+/** D-PROD-314 — a exclusão de S1 é recusada pelo registro posterior que ainda vale (o mais recente); nada gravado. */
 const exigirRecusaPorPosterior = async (x, s1, posteriores, deposito = x.galpao) => {
   const antes = await foto(x);
   const r = await excluirSaida(x, s1);
@@ -272,7 +272,7 @@ describe('D-PROD-273 × D-PROD-272 — escolha do proprietário: com contagem de
     await provarReplay(x, x.ureia);
   });
 
-  test('(e5) cascata: S1 em A, transferência A→B, contagem em B depois dela → D-PROD-313: 409 registro posterior (a transferência em A), nada gravado', async () => {
+  test('(e5) cascata: S1 em A, transferência A→B, contagem em B depois dela → D-PROD-314: 409 registro posterior (a transferência em A), nada gravado', async () => {
     const x = await cenario();
     const A = x.galpao;
     const B = x.barracao;
@@ -281,7 +281,7 @@ describe('D-PROD-273 × D-PROD-272 — escolha do proprietário: com contagem de
     await entrar(x, x.ureia, '50', '5', A); // A: 100 kg a 3,50
     const t = await transferir(x, x.ureia, A, B, '40'); // B: 40 a 3,50
     await ajustar(x, [{ produto_id: x.ureia.id, local_estoque_id: B.id, quantidade_contada: '45' }]); // sobra 5 a 3,50 em B
-    // D-PROD-313: a recusa pela contagem em B (achada pela cascata) agora é precedida pela do registro posterior: a
+    // D-PROD-314: a recusa pela contagem em B (achada pela cascata) agora é precedida pela do registro posterior: a
     // cascata só chega a B por uma transferência depois de S1, e ela ainda vale no depósito A
     await exigirRecusaPorPosterior(x, s1, [t.s.id, t.r.id], A);
     await provarReplay(x, x.ureia);
@@ -289,7 +289,7 @@ describe('D-PROD-273 × D-PROD-272 — escolha do proprietário: com contagem de
 });
 
 describe('D-PROD-273 × D-PROD-272 — ajuste que NÃO recusa: anterior ao excluído, já excluído, ou no destino antes da cascata', () => {
-  test('(e6) ajuste ANTERIOR (entradas → ajuste → S1 → entrada → S2): D-PROD-313: excluir S1 → 409 registro posterior (S2); exclui-se S2, a entrada e S1, do mais recente ao mais antigo; o ajuste não muda', async () => {
+  test('(e6) ajuste ANTERIOR (entradas → ajuste → S1 → entrada → S2): D-PROD-314: excluir S1 → 409 registro posterior (S2); exclui-se S2, a entrada e S1, do mais recente ao mais antigo; o ajuste não muda', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '2');
     await entrar(x, x.ureia, '50', '5'); // 150 kg, R$ 450, médio 3
@@ -314,7 +314,7 @@ describe('D-PROD-273 × D-PROD-272 — ajuste que NÃO recusa: anterior ao exclu
     await provarReplay(x, x.ureia);
   });
 
-  test('(e7) ajuste JÁ EXCLUÍDO depois de S1 (a contagem não vale mais): D-PROD-313: o par do ajuste não prende S1, só S2 e a entrada (que saem antes); os pares já excluídos saem da sequência com o movimento, marcados e com o valor gravado; a linha do ajuste excluído não muda', async () => {
+  test('(e7) ajuste JÁ EXCLUÍDO depois de S1 (a contagem não vale mais): D-PROD-314: o par do ajuste não prende S1, só S2 e a entrada (que saem antes); os pares já excluídos saem da sequência com o movimento, marcados e com o valor gravado; a linha do ajuste excluído não muda', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '2');
     const s1 = await sair(x, x.ureia, '50');
@@ -351,7 +351,7 @@ describe('D-PROD-273 × D-PROD-272 — ajuste que NÃO recusa: anterior ao exclu
     await provarReplay(x, x.ureia);
   });
 
-  test('(e8) contagem em B ANTES da transferência A→B: D-PROD-313: excluir S1 em A → 409 registro posterior (a transferência); cancela-se a transferência e a entrada em A, e S1 sai; a contagem em B não recusa nem muda', async () => {
+  test('(e8) contagem em B ANTES da transferência A→B: D-PROD-314: excluir S1 em A → 409 registro posterior (a transferência); cancela-se a transferência e a entrada em A, e S1 sai; a contagem em B não recusa nem muda', async () => {
     const x = await cenario();
     const A = x.galpao;
     const B = x.barracao;

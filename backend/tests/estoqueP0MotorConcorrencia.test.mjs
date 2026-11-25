@@ -135,7 +135,7 @@ const conferirInvariantes = async (s, rotulo) => {
   assert.equal(new Set(ns).size, ns.length, `${rotulo}: números de movimento únicos`);
 };
 const aceito = (r) => [200, 201, 422].includes(r.statusCode) || (r.statusCode === 409 && corpoDe(r)?.code === 'CONCURRENCY_CONFLICT');
-/** D-PROD-313 — só o último sai: um estorno com registro lançado depois no depósito recebe 409 registro posterior (legítimo). */
+/** D-PROD-314 — só o último sai: um estorno com registro lançado depois no depósito recebe 409 registro posterior (legítimo). */
 const recusaPosterior = (r) => r.statusCode === 409 && corpoDe(r)?.code === 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR';
 const aceitoNoEstorno = (r) => aceito(r) || recusaPosterior(r);
 
@@ -172,7 +172,7 @@ const corpoGerador = (s, extra = {}) => corpoAbastecimento(s, { bem_id: s.gerado
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('K1 — compra × venda × suplementação × transferência × abastecimento × estornos no mesmo produto', () => {
-  test('5 rodadas em paralelo: só 200/201/422/409 CONCURRENCY_CONFLICT (nos estornos também 409 ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR, D-PROD-313; nunca 500), nenhum deadlock, invariantes, numeração limpa e conservação exata', async () => {
+  test('5 rodadas em paralelo: só 200/201/422/409 CONCURRENCY_CONFLICT (nos estornos também 409 ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR, D-PROD-314; nunca 500), nenhum deadlock, invariantes, numeração limpa e conservação exata', async () => {
     const s = await montarAbastecimento(app);
     const p = prisma();
     const inicial = await somaDisponivel({ cliente_id: s.c, produto_id: s.diesel.id });
@@ -203,7 +203,7 @@ describe('K1 — compra × venda × suplementação × transferência × abastec
         const estorno = nome.startsWith('estorno');
         assert.ok(estorno ? aceitoNoEstorno(r) : aceito(r), `rodada ${rodada}: resposta fora do contrato\n${tabela}\n${r.body}`);
       });
-      // D-PROD-313: o estorno recusado pelo registro posterior não grava nada — o documento continua valendo
+      // D-PROD-314: o estorno recusado pelo registro posterior não grava nada — o documento continua valendo
       const k6 = pedidos.findIndex(([nome]) => nome === 'estorno da venda anterior');
       if (k6 >= 0 && recusaPosterior(rs[k6])) assert.equal((await p.operacaoFinanceira.findUnique({ where: { id: vendaAnterior.id } })).status, vendaAnterior.status, `rodada ${rodada}: a venda anterior continua`);
       const k7 = pedidos.findIndex(([nome]) => nome === 'estorno do abastecimento anterior');

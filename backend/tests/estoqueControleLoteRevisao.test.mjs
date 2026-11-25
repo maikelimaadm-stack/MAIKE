@@ -6,9 +6,9 @@
  *     (400 + 300) ÷ 150 = 4,6667/kg → 280,0000).
  *  R2 a troca do flag não é driblada por estorno posterior: estorno/exclusão de movimento cujo modo (LOTE ou não)
  *     diverge do cadastro atual → 409 `ESTOQUE_ESTORNO_MODO_LOTE_DIVERGENTE`, nada gravado (saída manual, entrada,
- *     transferência, atividade, venda do financeiro). D-PROD-313: com registro posterior que ainda vale, a recusa
+ *     transferência, atividade, venda do financeiro). D-PROD-314: com registro posterior que ainda vale, a recusa
  *     `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR` vem antes; excluído o posterior, a defesa do modo divergente segue valendo.
- *  R3 estorno de saída LOTE não reavalia: com a saída manual depois → 409 registro posterior (D-PROD-313); excluída
+ *  R3 estorno de saída LOTE não reavalia: com a saída manual depois → 409 registro posterior (D-PROD-314); excluída
  *     ela, o cancelamento da linha devolve ao L1 a 4 e o L2 fica a 6.
  *  R4 sobra de ajuste: camada Estornada do mesmo lote não dá custo (custo informado obrigatório); com camada vigente,
  *     informar custo → 400 `custo_do_lote_existente` (o custo é o do lote).
@@ -160,7 +160,7 @@ describe('R1 — prévia do financeiro pelo custo do lote (FEFO), igual ao grava
 });
 
 describe('R2 — estorno/exclusão com o modo divergente do cadastro atual → 409, nada gravado', () => {
-  /** D-PROD-313: 409 ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR apontando o registro mais recente que ainda vale. */
+  /** D-PROD-314: 409 ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR apontando o registro mais recente que ainda vale. */
   const POSTERIOR = 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR';
   const recusaPosterior = (r, posteriorMovId) => {
     const b = erro(r, 409, POSTERIOR, 'registro_posterior');
@@ -175,7 +175,7 @@ describe('R2 — estorno/exclusão com o modo divergente do cadastro atual → 4
     const s = await sair(x, x.semLote, x.local, '10');
     await marcarLote(x, x.semLote, true);
     const e2 = await entrar(x, x.semLote, x.local, '10', '8', 'L1');
-    // D-PROD-313: com a entrada L1 depois, a recusa do registro posterior vem antes da do modo divergente; nada gravado
+    // D-PROD-314: com a entrada L1 depois, a recusa do registro posterior vem antes da do modo divergente; nada gravado
     const antes = await camadas(x.semLote);
     recusaPosterior(await excluir(x, 'saidas', s), movDe(e2));
     assert.deepEqual(await camadas(x.semLote), antes);
@@ -195,7 +195,7 @@ describe('R2 — estorno/exclusão com o modo divergente do cadastro atual → 4
     await marcarLote(x, x.semLote, false);
     const e2 = await entrar(x, x.semLote, x.local, '10', '2');
     const e3 = await entrar(x, x.semLote, x.local, '10', '6');
-    // D-PROD-313: as entradas depois recusam primeiro (aponta a mais recente); nada gravado
+    // D-PROD-314: as entradas depois recusam primeiro (aponta a mais recente); nada gravado
     const antes = await camadas(x.semLote);
     recusaPosterior(await excluir(x, 'saidas', s), movDe(e3));
     assert.deepEqual(await camadas(x.semLote), antes);
@@ -207,14 +207,14 @@ describe('R2 — estorno/exclusão com o modo divergente do cadastro atual → 4
     assert.deepEqual(await camadas(x.semLote), semEntradas);
   });
 
-  test('entrada antiga sem lote (já consumida) num produto que passou a controlar lote: recusa (D-PROD-313: registro posterior; a saída que a consumiu fica presa no modo divergente)', async () => {
+  test('entrada antiga sem lote (já consumida) num produto que passou a controlar lote: recusa (D-PROD-314: registro posterior; a saída que a consumiu fica presa no modo divergente)', async () => {
     const x = await montar();
     const e = await entrar(x, x.semLote, x.local, '10', '2');
     const s = await sair(x, x.semLote, x.local, '10');
     await marcarLote(x, x.semLote, true);
     const e2 = await entrar(x, x.semLote, x.local, '10', '8', 'L1');
     const antes = await camadas(x.semLote);
-    // D-PROD-313: a recusa do modo divergente da ENTRADA agora é precedida pela do registro posterior — a saída que a
+    // D-PROD-314: a recusa do modo divergente da ENTRADA agora é precedida pela do registro posterior — a saída que a
     // consumiu (a troca do flag exige saldo zero) é sempre posterior e ainda vale.
     recusaPosterior(await excluir(x, 'entradas', e), movDe(e2));
     assert.deepEqual(await camadas(x.semLote), antes);
@@ -226,7 +226,7 @@ describe('R2 — estorno/exclusão com o modo divergente do cadastro atual → 4
     assert.deepEqual(await camadas(x.semLote), semL1);
   });
 
-  test('entrada com lote (consumida) num produto que voltou a "sem lote": recusa (D-PROD-313: registro posterior; a saída que a consumiu fica presa no modo divergente)', async () => {
+  test('entrada com lote (consumida) num produto que voltou a "sem lote": recusa (D-PROD-314: registro posterior; a saída que a consumiu fica presa no modo divergente)', async () => {
     const x = await montar();
     await marcarLote(x, x.semLote, true);
     // A troca exige saldo zero: L1 entra e sai inteira; depois do "sem lote", entra 5 a 2.
@@ -235,7 +235,7 @@ describe('R2 — estorno/exclusão com o modo divergente do cadastro atual → 4
     await marcarLote(x, x.semLote, false);
     const e2 = await entrar(x, x.semLote, x.local, '5', '2');
     const antes = await camadas(x.semLote);
-    // D-PROD-313: a recusa do modo divergente da entrada agora é precedida pela do registro posterior.
+    // D-PROD-314: a recusa do modo divergente da entrada agora é precedida pela do registro posterior.
     recusaPosterior(await excluir(x, 'entradas', e), movDe(e2));
     assert.deepEqual(await camadas(x.semLote), antes);
     ok(await excluir(x, 'entradas', e2));
@@ -245,7 +245,7 @@ describe('R2 — estorno/exclusão com o modo divergente do cadastro atual → 4
     assert.deepEqual(await camadas(x.semLote), semE2);
   });
 
-  test('transferência antiga (custo médio) num produto que passou a controlar lote: o cancelamento recusa (D-PROD-313: registro posterior; a saída do destino fica presa no modo divergente)', async () => {
+  test('transferência antiga (custo médio) num produto que passou a controlar lote: o cancelamento recusa (D-PROD-314: registro posterior; a saída do destino fica presa no modo divergente)', async () => {
     const x = await montar();
     await entrar(x, x.semLote, x.local, '10', '2');
     const t = await transferir(x, x.semLote, x.local, x.local2, '10');
@@ -253,7 +253,7 @@ describe('R2 — estorno/exclusão com o modo divergente do cadastro atual → 4
     await marcarLote(x, x.semLote, true);
     const antes = await camadas(x.semLote);
     const r = await H.req('POST', `/movimentacoes-estoque/${t.movimentacao_saida.id}/cancelar-transferencia`, x.token, { empresa_id: x.e1.id, motivo: 'depósito errado', operation_id: opId() });
-    // D-PROD-313: a recusa do modo divergente agora é precedida pela do registro posterior (a saída no destino, que
+    // D-PROD-314: a recusa do modo divergente agora é precedida pela do registro posterior (a saída no destino, que
     // zerou o saldo para a troca do flag, ainda vale)
     const b = recusaPosterior(r, movDe(s));
     assert.equal(b.details.local_estoque_id, x.local2.id);
@@ -272,7 +272,7 @@ describe('R2 — estorno/exclusão com o modo divergente do cadastro atual → 4
     await marcarLote(x, x.semLote, true);
     const e2 = await entrar(x, x.semLote, x.local, '10', '8', 'L1');
     const antes = await camadas(x.semLote);
-    // D-PROD-313: a entrada L1 no depósito da linha vem depois dela → registro posterior antes do modo divergente
+    // D-PROD-314: a entrada L1 no depósito da linha vem depois dela → registro posterior antes do modo divergente
     recusaPosterior(await at.cancelar(linha), movDe(e2));
     erro(await H.req('POST', `/operacoes-financeiras/${venda.id}/cancelar`, x.token, { empresa_id: x.e1.id, operation_id: opId(), motivo: 'lançada errada' }), 409, DIVERGENTE, 'movimento_sem_lote');
     assert.deepEqual(await camadas(x.semLote), antes);
@@ -296,7 +296,7 @@ describe('R2 — estorno/exclusão com o modo divergente do cadastro atual → 4
 });
 
 describe('R3 — estorno de saída LOTE com movimento depois não reavalia camada', () => {
-  test('D-PROD-313: L1 10 a 4 e L2 10 a 6; atividade 5 (L1), saída manual 2 depois; cancelar a linha → 409 registro posterior, nada gravado; excluída a saída (a mais recente), a linha sai → L1 10 a 4, L2 10 a 6', async () => {
+  test('D-PROD-314: L1 10 a 4 e L2 10 a 6; atividade 5 (L1), saída manual 2 depois; cancelar a linha → 409 registro posterior, nada gravado; excluída a saída (a mais recente), a linha sai → L1 10 a 4, L2 10 a 6', async () => {
     const x = await montar();
     await entrar(x, x.sal, x.local, '10', '4', 'L1', '2027-09-01');
     await entrar(x, x.sal, x.local, '10', '6', 'L2', '2027-12-01');

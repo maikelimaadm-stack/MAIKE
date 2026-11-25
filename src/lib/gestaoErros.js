@@ -435,7 +435,7 @@ const INVIAVEL_RECALCULO = /** @type {Record<string, string>} */ ({
   recalculo_nao_confere: 'O recálculo não fechou com o gravado.',
 });
 
-/** D-PROD-313: nome do registro posterior na mensagem "exclua primeiro…" (pelo tipo, ou pela origem). */
+/** D-PROD-314: nome do registro posterior na mensagem "exclua primeiro…" (pelo tipo, ou pela origem). */
 const NOME_DO_POSTERIOR = /** @type {Record<string, string>} */ ({
   suplementacao: 'o lançamento no cocho',
   saida_manual: 'a saída',
@@ -469,7 +469,7 @@ export const mensagemRecalculoDaExclusao = (code, reason, details = {}) => {
       ? 'Este movimento foi lançado quando o produto controlava lote, e o produto não controla mais. Ele não pode ser excluído nem estornado. Para corrigir, lance um ajuste ou um movimento novo. Nada foi alterado.'
       : 'Este movimento foi lançado quando o produto não controlava lote, e agora o produto controla. Ele não pode ser excluído nem estornado. Para corrigir, lance um ajuste ou um movimento novo. Nada foi alterado.';
   }
-  // D-PROD-313 — só o último: há registro lançado depois, no mesmo produto e depósito, que ainda vale.
+  // D-PROD-314 — só o último: há registro lançado depois, no mesmo produto e depósito, que ainda vale.
   if (code === 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR') {
     const d = details ?? {};
     const nome = NOME_DA_ORIGEM_POSTERIOR[String(d.posterior_origem)] ?? NOME_DO_POSTERIOR[String(d.posterior_tipo)] ?? 'o movimento';

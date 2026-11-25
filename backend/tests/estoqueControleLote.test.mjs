@@ -226,7 +226,7 @@ describe('L5 — troca do "Controla lote" só com saldo zero', () => {
 });
 
 describe('L6 — exclusões', () => {
-  /** D-PROD-313: 409 ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR apontando o registro mais recente que ainda vale. */
+  /** D-PROD-314: 409 ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR apontando o registro mais recente que ainda vale. */
   const recusaPosterior = (r, posteriorMovId) => {
     const b = erro(r, 409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior');
     assert.equal(b.details.posterior_id, posteriorMovId, r.body);
@@ -240,7 +240,7 @@ describe('L6 — exclusões', () => {
     A: await camada(L.A), B: await camada(L.B), C: await camada(L.C),
   });
 
-  test('D-PROD-313: excluir a saída com outra saída depois → 409 registro posterior, nada gravado; exclui a mais recente primeiro e a saída devolve ao mesmo lote pelo custo dele; replay = gravado', async () => {
+  test('D-PROD-314: excluir a saída com outra saída depois → 409 registro posterior, nada gravado; exclui a mais recente primeiro e a saída devolve ao mesmo lote pelo custo dele; replay = gravado', async () => {
     const x = await montar();
     const L = await tresLotes(x);
     const s1 = ok(await sair(x, x.local, '20', [{ estoque_lote_nota_id: L.A, quantidade: '20' }]), 201);
@@ -256,12 +256,12 @@ describe('L6 — exclusões', () => {
     await provarReplay(x);
   });
 
-  test('excluir a entrada de um lote que já teve saída → 409 (D-PROD-313: registro posterior), nada gravado; excluídas a saída e as entradas do mais recente para o mais antigo, a de um lote intocado sai', async () => {
+  test('excluir a entrada de um lote que já teve saída → 409 (D-PROD-314: registro posterior), nada gravado; excluídas a saída e as entradas do mais recente para o mais antigo, a de um lote intocado sai', async () => {
     const x = await montar();
     const L = await tresLotes(x);
     const s = ok(await sair(x, x.local, '10', [{ estoque_lote_nota_id: L.C, quantidade: '10' }]), 201);
     const antes = await retrato(x, L);
-    // D-PROD-313: a recusa lote_consumido agora é precedida pela do registro posterior (toda saída do lote é posterior à entrada dele).
+    // D-PROD-314: a recusa lote_consumido agora é precedida pela do registro posterior (toda saída do lote é posterior à entrada dele).
     recusaPosterior(await excluirEntrada(x, L.c), s.itens[0].movimentacao_estoque_id);
     // O B não teve saída, mas a entrada C e a saída vieram depois dele no mesmo depósito: a mais recente (a saída) vincula.
     recusaPosterior(await excluirEntrada(x, L.b), s.itens[0].movimentacao_estoque_id);

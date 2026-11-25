@@ -197,6 +197,17 @@ export const multiplicarArredondar = (a, b, casas) => {
   return deUnidades(reescalar(ua * ub, ca + cb, casas), casas);
 };
 
+/** a ÷ b com `casas` decimais, arredondado HALF_UP, em BigInt. @param {string} a @param {string} b @param {number} casas */
+export const dividirArredondar = (a, b, casas) => {
+  const ua = paraUnidades(a, 8);
+  const ub = paraUnidades(b, 8);
+  if (ub === 0n) throw new RangeError('divisao_por_zero');
+  const escala = 10n ** BigInt(casas);
+  const num = ua * escala * 2n;
+  const q = num / ub;
+  return deUnidades((q + (q >= 0n ? 1n : -1n)) / 2n, casas);
+};
+
 /**
  * Soma exata na escala (valores ausentes contam como zero).
  * @param {Array<string|null|undefined>} valores

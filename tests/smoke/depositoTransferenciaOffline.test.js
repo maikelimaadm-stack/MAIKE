@@ -213,6 +213,9 @@ describe('D-PROD-301 — o que espera envio aparece no histórico do depósito',
 describe('D-PROD-310 — a unidade de conversão na transferência sem internet', () => {
   it('ET-09 a fila guarda a unidade e a quantidade digitada (aditivas), a edição reabre nelas e o envio sobe igual', async () => {
     const { estoque, motor } = await carregar();
+    // Fila só deste teste: a limpeza do beforeEach pode ser bloqueada por uma conexão aberta de um teste anterior, e um
+    // item que sobrou dele (mesmo depósito) seguraria estes na ordem por recurso. A fila é por dono (D-PROD-295).
+    motor.definirSessaoDaFila({ cliente_id: 'cli_1', usuario_id: 'usr_et09' });
     online = false;
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);

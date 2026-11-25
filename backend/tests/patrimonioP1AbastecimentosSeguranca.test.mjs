@@ -274,7 +274,7 @@ describe('S5 — falha transacional provocada no meio do efeito', () => {
     const d2 = await A.confirmarOk(s.operador.token, c2);
     assert.equal(await contar(s, 'movimentacaoEstoque', { origem_sistema: 'abastecimento_patrimonio' }), 2, 'uma saída por abastecimento, mesmo depois das falhas');
     assert.equal(await estoqueAtual(s.diesel), '60.0000');
-    // D-PROD-313: só o último sai — cancela-se primeiro o d2 (o último no tanque), depois o d1; o d1 antes do d2 seria
+    // D-PROD-314: só o último sai — cancela-se primeiro o d2 (o último no tanque), depois o d1; o d1 antes do d2 seria
     // 409 ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR sem chegar ao efeito que este teste faz falhar.
     // (3) cancelar d2: falha na auditoria do cancelamento
     const k2 = { empresa_id: s.e1.id, versao: 1, motivo: 'estorno com falha provocada', operation_id: opId() };

@@ -428,7 +428,7 @@ describe('D-PROD-268 — recusas (nada muda)', () => {
     ok(await cancelar(z, q.evento.id));
   });
 
-  test('D-PROD-313: compra ou baixa de outro cocho depois → 409 registro posterior (nada muda); excluído o mais recente, o cancelamento passa pelo estorno exato; camada estornada → lote_indisponivel_para_devolucao', async () => {
+  test('D-PROD-314: compra ou baixa de outro cocho depois → 409 registro posterior (nada muda); excluído o mais recente, o cancelamento passa pelo estorno exato; camada estornada → lote_indisponivel_para_devolucao', async () => {
     const x = await cenario();
     await entrar(x, '100', '2');
     const n = await lancar(x, { kg: 10, data: '2027-06-02' });
@@ -781,7 +781,7 @@ describe('D-PROD-268 — revisão: concorrência real com duas conexões', () =>
     await reconciliacaoLimpa(x);
   });
 
-  test('cancelar × saída de outro cocho no mesmo depósito: saída primeiro → o cancelamento espera, vê a saída e recusa 409 registro posterior (D-PROD-313), nada muda; cancelado o outro cocho, o N sai', async () => {
+  test('cancelar × saída de outro cocho no mesmo depósito: saída primeiro → o cancelamento espera, vê a saída e recusa 409 registro posterior (D-PROD-314), nada muda; cancelado o outro cocho, o N sai', async () => {
     const x = await cenario();
     const { n1, n } = await tresLancamentos(x);
     const chaveOutro = op('outro');
