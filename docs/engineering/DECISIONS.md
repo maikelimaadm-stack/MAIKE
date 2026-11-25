@@ -9824,4 +9824,16 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   1. **Edição da linha de produto da atividade:** segue a mesma regra. Com registro posterior que ainda vale no depósito da linha, a edição é recusada com o mesmo 409, antes de qualquer escrita (`estornarLinhasProduto` sem `recalcular`). Antes, a edição fazia o estorno exato e relançava a linha. A edição da entrada e da saída manual (D-PROD-271) já exigia "nada depois", e o abastecimento só se cancela.
   2. **Cancelar a atividade ou o apontamento:** a cascata que cancela os abastecimentos e as linhas ligados é recusada se houver consumo posterior no mesmo tanque ou depósito. Para corrigir uma atividade antiga, exclui-se antes o que veio depois naquele depósito. Isso confirma a regra, sem mudança de código.
 
-<!-- Próxima decisão: D-PROD-315 -->
+## D-PROD-315 — Índices da sincronização incremental (EXPAND, só CREATE INDEX)
+
+**Data:** 2026-11-25 · **Origem:** a revisão da D-PROD-309 (Etapa 2 da sincronização) e o plano das 5 etapas aprovado pelo proprietário ("isso vai virar um saas com milhões de registros") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** `20261126300000_sincronizacao_incremental_indices` (EXPAND) · **Relatório:** [`MAIKE-SINCRONIZACAO-INDICES-REPORT.md`](./MAIKE-SINCRONIZACAO-INDICES-REPORT.md) · **Runbook:** [`MAIKE-SINCRONIZACAO-INDICES-RUNBOOK-RELEASE.md`](./MAIKE-SINCRONIZACAO-INDICES-RUNBOOK-RELEASE.md)
+
+> **Numeração:** a `main` (`efb23995`) indica `Próxima decisão: D-PROD-315`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-316. O número não está no `migration.sql` (checksum inalterado). Conferir de novo antes do merge (regra A5).
+
+- **Contexto:** `GET /…/mudancas` (D-PROD-309) lê `WHERE cliente_id AND "updatedAt" >= desde ORDER BY "updatedAt", id` nas 4 listas (lotes, pontos, leituras de cocho, lançamentos) e as exclusões do período no `AuditLog` (`entidade`, `acao = 'delete'`, `"createdAt" >= desde`). Sem índice, cada sincronização lia toda a tabela do cliente.
+- **Decisão (banco, EXPAND, aplicar antes do merge):** 5 `CREATE INDEX` não-únicos, tenant primeiro (R10): `(cliente_id, updatedAt, id)` em `Lote`, `PontoSuplementacao`, `LEITURACOCHO` e `SuplementacaoEvento`; `(cliente_id, entidade, acao, createdAt, id)` em `AuditLog`. Sem `CONCURRENTLY`, que o classificador não aceita. Ordem das travas: domínio primeiro e `AuditLog` por último, como os comandos. Nenhuma tabela, coluna, constraint, dado, RLS ou GRANT muda; nenhum código de aplicação muda.
+- **Governança:** checksum `a1cdcd2f…fc3c` no manifesto; B47a/b/c; contagens e posições dos testes pinados atualizadas; espelhos dos "dias" antigos sem os índices (`schemaSemIndicesDaSincronizacao`). O preflight de schema do deploy não muda, porque o código funciona sem os índices.
+- **Prova:** `EXPLAIN` das 5 consultas usa os índices novos (MU-09); `prisma migrate diff` vazio.
+- **Fora:** índices para as outras listas, quando entrarem na sincronização incremental (Etapa 5).
+
+<!-- Próxima decisão: D-PROD-316 -->

@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-25 (missão ativa D-PROD-314; antes D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-315; antes D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-25) — MAIKE-SO-O-ULTIMO-ESTOQUE: no depósito também só o último sai (D-PROD-314)
+## Missão ativa (2026-11-25) — MAIKE-SINCRONIZACAO-INDICES: índices da sincronização incremental (D-PROD-315)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-315**: 5 índices não-únicos, tenant primeiro: `(cliente_id, updatedAt, id)` em Lote, PontoSuplementacao, LEITURACOCHO e SuplementacaoEvento, e `(cliente_id, entidade, acao, createdAt, id)` em AuditLog |
+| Banco | migration EXPAND `20261126300000_sincronizacao_incremental_indices`; **não aplicada em produção** (aguarda o GO "aplica") |
+| Relatório | [`MAIKE-SINCRONIZACAO-INDICES-REPORT.md`](./MAIKE-SINCRONIZACAO-INDICES-REPORT.md) · runbook [`MAIKE-SINCRONIZACAO-INDICES-RUNBOOK-RELEASE.md`](./MAIKE-SINCRONIZACAO-INDICES-RUNBOOK-RELEASE.md) |
+| Próximas | Etapa 3 da sincronização (versão por registro e quem alterou) |
+
+## Missão anterior (2026-11-25) — MAIKE-SO-O-ULTIMO-ESTOQUE: no depósito também só o último sai (D-PROD-314)
 
 | Item | Estado |
 |---|---|
