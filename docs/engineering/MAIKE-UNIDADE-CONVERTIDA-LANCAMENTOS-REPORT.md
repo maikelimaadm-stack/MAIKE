@@ -98,4 +98,22 @@ B46a/b/c, as contagens dos ensaios de migration (81 pastas) e o espelho sem as c
 
 ## 6. Verificação
 
-(preenchido ao final)
+PostgreSQL 16 local (banco de teste `maike_ucl`, nunca produção), depois do merge da `main` `d0843361` (PR #394, D-PROD-308):
+
+| Etapa | Resultado |
+|---|---|
+| `npm run verify:all` | **TODAS AS ETAPAS PASSARAM** (39 etapas, `EXIT 0`, 3.366 s) |
+| `test:gates` | 1.093 / 1.093 |
+| `gate:types` | PASSOU (374 diagnósticos, sem regressão; teto 625) |
+| `typecheck:backend` | 0 diagnóstico |
+| `test:backend` | 2.881 testes: 2.875 passam, 0 falham, 6 `todo` |
+| `test:smoke` | 353 arquivos, 4.353 / 4.353 |
+| `build` / `build:admin` | ok |
+
+A primeira rodada (antes do merge) achou três coisas, corrigidas: um `@param` com nome errado no cocho (`gate:types`); o
+hash "byte a byte" do caminho KG/SACO do financeiro (`gestaoP3UnidadeLitros` U4), que passa a tirar as 3 colunas novas
+(nulas) do movimento antes do hash, como a D-PROD-282 fez com o lote; e o retrato/impressão digital do ensaio do Patrimônio
+(`patrimonioSimplificaMigration` SM-03), que passa a ignorar as 3 colunas posteriores do movimento, como fazia com
+`carencia_dias`.
+
+**Produção:** nada aplicado. A migration espera o GO do proprietário (runbook).
