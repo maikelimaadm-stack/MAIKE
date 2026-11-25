@@ -1,4 +1,4 @@
-# MAIKE — Unidade de conversão no cocho, na transferência e na atividade: runbook de release (D-PROD-309)
+# MAIKE — Unidade de conversão no cocho, na transferência e na atividade: runbook de release (D-PROD-310)
 
 > **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Registro no §7.
 >
@@ -6,7 +6,7 @@
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de leituras reais, nunca copiados deste
 > texto. **Nada foi aplicado em produção nesta missão.**
 
-Decisão: [D-PROD-309](./DECISIONS.md) · Relatório: [`MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md`](./MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md) ·
+Decisão: [D-PROD-310](./DECISIONS.md) · Relatório: [`MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md`](./MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md) ·
 SPEC: [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md) §7.
 Molde: [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md) (D-PROD-288)
 e, para o formato EXPAND sem `--contract`, [`MAIKE-BEM-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md`](./MAIKE-BEM-IMPLEMENTO-PRODUTO-RUNBOOK-RELEASE.md)
@@ -154,5 +154,5 @@ código novo gravou (a unidade e o fator digitados) se perde no DROP; os movimen
 
 | Data | Quem | O quê |
 |---|---|---|
-| 2026-11-25 | Claude (sessão D-PROD-309) | plano preparado; migration aplicada e testada só no PostgreSQL local (`maike_ucl`) |
+| 2026-11-25 | Claude (sessão D-PROD-310) | plano preparado; migration aplicada e testada só no PostgreSQL local (`maike_ucl`) |
 | — | — | **PENDENTE**: aplicação em produção (GO separado do proprietário) |

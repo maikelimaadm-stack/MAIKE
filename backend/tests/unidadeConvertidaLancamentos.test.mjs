@@ -1,5 +1,5 @@
 /**
- * D-PROD-309 — a quantidade digitada numa UNIDADE DE CONVERSÃO do cadastro do produto (D-PROD-288) no cocho, nas duas
+ * D-PROD-310 — a quantidade digitada numa UNIDADE DE CONVERSÃO do cadastro do produto (D-PROD-288) no cocho, nas duas
  * transferências entre depósitos (a do mapa e a da tela Estoque, o mesmo comando) e na linha de produto da atividade.
  * Emenda da Constituição aprovada pelo proprietário em 2026-11-25. PostgreSQL real, pela API.
  *

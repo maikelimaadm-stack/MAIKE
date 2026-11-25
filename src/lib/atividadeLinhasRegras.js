@@ -359,7 +359,7 @@ export const textoDaLeituraVigente = (medidor) => {
  *   D-PROD-274: `carencia_dias` (a carência da bula, para o "Pasto liberado em") e `vc` (o VC % digitado, Plantio).
  *   D-PROD-282 em todas as telas: `controla_lote` do produto e a escolha do lote (`lotes`, `confirmaVencido`; o campo
  *   devolve `loteVencido` e `erroLote`); `saidaGravada` na edição (mantém os lotes da linha).
- *   D-PROD-309: `unidade` ('' = a de estoque; senão a sigla de uma conversão do produto, de `produto.unidades_conversao`)
+ *   D-PROD-310: `unidade` ('' = a de estoque; senão a sigla de uma conversão do produto, de `produto.unidades_conversao`)
  *   — então `quantidade` é a quantidade DIGITADA nessa unidade; `gravado` (edição): a unidade e o fator da linha gravada.
  */
 
@@ -374,7 +374,7 @@ export const produtoEscolhido = (o) =>
         ...(Number.isInteger(o.carencia_dias) ? { carencia_dias: o.carencia_dias } : {}),
         // D-PROD-282 em todas as telas: produto com lote mostra o campo "Lote" (sem a marca, como sempre).
         ...(o.controla_lote === true ? { controla_lote: true } : {}),
-        // D-PROD-309: as unidades de conversão do cadastro (as ativas com uso em saída), quando a opção as traz.
+        // D-PROD-310: as unidades de conversão do cadastro (as ativas com uso em saída), quando a opção as traz.
         ...(Array.isArray(o.unidades_conversao) && o.unidades_conversao.length ? { unidades_conversao: o.unidades_conversao } : {}),
       }
     : null;
@@ -393,7 +393,7 @@ export const formularioDaLinhaProduto = (l) => ({
       }
     : null,
   local_estoque_id: texto(l?.local_estoque_id) || null,
-  // D-PROD-309: a linha numa unidade de conversão reabre nela (a quantidade digitada e o fator GRAVADO).
+  // D-PROD-310: a linha numa unidade de conversão reabre nela (a quantidade digitada e o fator GRAVADO).
   quantidade: paraEdicao(gravadoDe(l) ? l.quantidade_lancamento : l?.quantidade),
   ...(gravadoDe(l) ? { unidade: String(l.unidade_lancamento), gravado: gravadoDe(l) } : {}),
   observacao: typeof l?.observacao === 'string' ? l.observacao : '',
@@ -437,7 +437,7 @@ export const mantemLotesDaLinha = (form) => {
  * @returns {{ erros: Record<string, string>, aviso: string|null }}
  */
 /**
- * D-PROD-309 — a quantidade da linha na unidade de ESTOQUE (texto canônico): a digitada, ou a conta da unidade de
+ * D-PROD-310 — a quantidade da linha na unidade de ESTOQUE (texto canônico): a digitada, ou a conta da unidade de
  * conversão (a mesma do servidor; na edição na mesma unidade, o fator gravado). null se ainda não dá para saber.
  * @param {FormularioLinhaProduto} form
  * @returns {string|null}
@@ -461,7 +461,7 @@ export const validarLinhaProduto = (form, ctx = {}) => {
   else if (!q.valor) erros.quantidade = 'Informe a quantidade.';
   else if (!ehPositivo(q.valor)) erros.quantidade = 'Informe uma quantidade maior que zero.';
   else {
-    // D-PROD-309: numa unidade de conversão, o saldo se compara na unidade de ESTOQUE (a conta da tela).
+    // D-PROD-310: numa unidade de conversão, o saldo se compara na unidade de ESTOQUE (a conta da tela).
     const emEstoque = quantidadeDaLinhaEmEstoque(form);
     const u = rotuloDaUnidade(unidadeDoProduto(form.produto));
     if (!emEstoque || !ehPositivo(emEstoque)) erros.quantidade = `A quantidade em ${u || 'estoque'} (4 casas) dá zero.`;
@@ -481,7 +481,7 @@ export const validarLinhaProduto = (form, ctx = {}) => {
 
 /**
  * Corpo da linha de produto (formulário JÁ VALIDADO): produto, local, quantidade em texto canônico e observação
- * (vazia = null). A unidade, o custo e a dose são do servidor. D-PROD-309: numa unidade de conversão, `quantidade` é a
+ * (vazia = null). A unidade, o custo e a dose são do servidor. D-PROD-310: numa unidade de conversão, `quantidade` é a
  * conta na unidade de ESTOQUE (o servidor confere) e vão também `unidade_lancamento` e `quantidade_lancamento` (a
  * digitada); sem conversão, o corpo de sempre.
  * @param {FormularioLinhaProduto} form
@@ -1008,7 +1008,7 @@ export const corpoDaLinhaServico = (form) => ({
 const DECIMAIS_DA_LINHA = Object.freeze(['quantidade', 'quantidade_lancamento', 'leitura_inicial', 'leitura_final', 'quantidade_uso', 'custo_unitario', 'valor_unitario']);
 
 /**
- * D-PROD-309 — o PATCH mínimo da linha de PRODUTO: a unidade de conversão e a quantidade nela vão SEMPRE juntas (e
+ * D-PROD-310 — o PATCH mínimo da linha de PRODUTO: a unidade de conversão e a quantidade nela vão SEMPRE juntas (e
  * com a quantidade de estoque que a tela mostrou) quando alguma das três mudou; a linha gravada numa conversão que
  * volta para a unidade de estoque manda a `quantidade` (só ela = "na unidade de estoque": o servidor tira a conversão).
  * @param {any} linha @param {Record<string, any>} corpo

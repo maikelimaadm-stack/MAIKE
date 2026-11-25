@@ -340,7 +340,7 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
   })();
   const dose = doseHa(quantidade, areaDoDia);
   const rotuloUnidade = rotuloDaUnidade(unidade);
-  // D-PROD-309: a unidade da quantidade — a de estoque e as conversões ATIVAS do produto com uso em saída (na edição
+  // D-PROD-310: a unidade da quantidade — a de estoque e as conversões ATIVAS do produto com uso em saída (na edição
   // de uma linha numa conversão, a unidade gravada, com o fator gravado).
   const opcoesUnidade = opcoesDeUnidade(form.produto, { uso: "venda", gravado: form.gravado ?? null });
   const unidadeDigitada = conversaoEscolhida(form.produto, form.unidade, { uso: "venda", gravado: form.gravado ?? null });
@@ -1245,7 +1245,7 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
     /** @type {Record<string, any>} */
     let dados = corpoDaLinhaProduto(form);
     if (editando) {
-      // D-PROD-309: a unidade de conversão e as quantidades vão juntas quando alguma mudou.
+      // D-PROD-310: a unidade de conversão e as quantidades vão juntas quando alguma mudou.
       dados = camposAlteradosDaLinhaProduto(linha, dados);
       // D-PROD-293: tirar o jato da linha que tinha um.
       if (Number.isInteger(linha?.jato) && !Number.isInteger(form.jato)) dados.jato = null;

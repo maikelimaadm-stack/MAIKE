@@ -16,7 +16,7 @@
  *        fecha e faz o refresh de hoje (consultas do cocho e `atualizar-mapa`);
  *  LM-5. salvando: ✓ girando com "Registrando...", ✕ desabilitado, o Esc da
  *        tela cheia não fecha, campos travados e o passo no topo;
- *  LM-6. produto em sacos (D-PROD-309): a unidade num seletor ao lado da quantidade
+ *  LM-6. produto em sacos (D-PROD-310): a unidade num seletor ao lado da quantidade
  *        (kg e as conversões do cadastro); a conta "= 200 kg" embaixo; sem conversão, nada novo;
  *  LM-7. avisos e informações em `LancLoteAviso`, no tom de cada um;
  *  LM-8. consumo por lote: um `LancLoteItem` por lote, atrás do Ver/Ocultar;
@@ -291,7 +291,7 @@ describe("D-PROD-222 — Lançar do cocho no desenho do lançamento de manejo", 
     expect(invalidar.mock.calls.some(([o]) => o?.predicate?.({ queryKey: ["mapa-eventos-supl"] }))).toBe(true);
   });
 
-  it("LM-6 — produto em sacos (D-PROD-309): a unidade num seletor ao lado da quantidade (kg e a conversão SACO); 8 SACO = 200 kg, a conta embaixo; a baixa leva a unidade e a quantidade digitada", async () => {
+  it("LM-6 — produto em sacos (D-PROD-310): a unidade num seletor ao lado da quantidade (kg e a conversão SACO); 8 SACO = 200 kg, a conta embaixo; a baixa leva a unidade e a quantidade digitada", async () => {
     largura(1280);
     estado.produtos = [{ ...PRODUTO, unidade_principal_estoque: "SACO", peso_por_saco_kg: 25, unidade_estoque: "KG", unidades_conversao: [{ id: "c1", sigla: "SACO", operacao: "MULTIPLICA", fator: "25.000000", uso_compra: true, uso_venda: true, ativa: true, equivalencia: "1 SACO = 25 KG" }] }];
     await montar();

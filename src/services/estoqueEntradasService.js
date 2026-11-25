@@ -112,7 +112,7 @@ export const editarMotivoEntrada = async (id, dados) => updateMotivoEntrada(id, 
  * Transferência entre depósitos pelo "Novo movimento" (o mesmo comando do Mapa; o servidor confere saldo, locais e a
  * permissão). `quantidade` na unidade de estoque do produto (kg ou L), como número do corpo do comando.
  * @param {string|null} empresaId
- * @param {{ operationId: string, produtoId: string, origemId: string, destinoId: string, quantidade: number, data: string|null, observacao: string|null, lotes?: Array<{ estoque_lote_nota_id: string, quantidade: string }>, unidadeLancamento?: string, quantidadeLancamento?: string }} dados `lotes` (D-PROD-282): só com escolha manual; `unidadeLancamento`/`quantidadeLancamento` (D-PROD-309): só numa unidade de conversão
+ * @param {{ operationId: string, produtoId: string, origemId: string, destinoId: string, quantidade: number, data: string|null, observacao: string|null, lotes?: Array<{ estoque_lote_nota_id: string, quantidade: string }>, unidadeLancamento?: string, quantidadeLancamento?: string }} dados `lotes` (D-PROD-282): só com escolha manual; `unidadeLancamento`/`quantidadeLancamento` (D-PROD-310): só numa unidade de conversão
  */
 export const transferirEntreDepositos = async (empresaId, dados) =>
   comandoTransferenciaEntreLocais({
@@ -125,6 +125,6 @@ export const transferirEntreDepositos = async (empresaId, dados) =>
     data_movimentacao: dados.data,
     observacoes: dados.observacao,
     ...(dados.lotes ? { lotes: dados.lotes } : {}), // D-PROD-282
-    // D-PROD-309: a quantidade digitada numa unidade de conversão (o servidor converte pelo cadastro e confere).
+    // D-PROD-310: a quantidade digitada numa unidade de conversão (o servidor converte pelo cadastro e confere).
     ...(dados.unidadeLancamento ? { unidade_lancamento: dados.unidadeLancamento, quantidade_lancamento: dados.quantidadeLancamento } : {}),
   });

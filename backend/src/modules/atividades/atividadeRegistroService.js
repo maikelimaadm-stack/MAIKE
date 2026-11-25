@@ -483,7 +483,7 @@ const repartirPorQuantidade = (linhas, campo, hectares) => {
 };
 
 /**
- * D-PROD-309 — os insumos por área. Linha digitada numa unidade de conversão (`unidade_lancamento`): com mais de uma
+ * D-PROD-310 — os insumos por área. Linha digitada numa unidade de conversão (`unidade_lancamento`): com mais de uma
  * área, reparte-se a quantidade DIGITADA (`quantidade_lancamento`) e cada parte é convertida pelo servidor (a
  * `quantidade` de estoque do corpo, se veio, valia para o total e sai das partes). O resto, como sempre.
  * @param {any[]} linhas @param {string[]} hectares

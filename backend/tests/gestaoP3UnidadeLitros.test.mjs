@@ -320,7 +320,7 @@ describe('U4 — KG + SACO pela API: resposta e linhas iguais às de antes', () 
         assert.deepEqual([lote_fabricante, data_validade], [null, null], 'produto sem lote: camada sem lote e sem validade');
         return resto;
       }).sort((a, b) => `${a.produto_nome}|${a.quantidade_entrada}`.localeCompare(`${b.produto_nome}|${b.quantidade_entrada}`)),
-      // D-PROD-309: as colunas da unidade de conversão digitada (cocho, transferência, atividade) ficam vazias no
+      // D-PROD-310: as colunas da unidade de conversão digitada (cocho, transferência, atividade) ficam vazias no
       // financeiro e saem da comparação com o HEAD de antes (o resto da linha continua byte a byte o mesmo).
       movimentos: (await p.movimentacaoEstoque.findMany(w)).map(({ unidade_lancamento, quantidade_lancamento, fator_lancamento, ...resto }) => {
         assert.deepEqual([unidade_lancamento, quantidade_lancamento, fator_lancamento], [null, null, null], 'financeiro: sem unidade de conversão no movimento');

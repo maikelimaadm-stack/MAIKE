@@ -260,7 +260,7 @@ export const schemaSemProdutoDoBem = (schema) => {
 };
 
 /**
- * D-PROD-309 — o `schema.prisma` de hoje sem a unidade convertida: as linhas `// MAIKE-UNIDADE-CONVERTIDA` da
+ * D-PROD-310 — o `schema.prisma` de hoje sem a unidade convertida: as linhas `// MAIKE-UNIDADE-CONVERTIDA` da
  * MovimentacaoEstoque e da AtividadeApontamentoProduto, as linhas `///` logo abaixo delas e as 3 colunas de cada
  * (`unidade_lancamento`, `quantidade_lancamento`, `fator_lancamento`). A EXPAND
  * `20261126200000_unidade_convertida_lancamentos` é posterior a todos os "dias" destes espelhos e tem a prova própria em

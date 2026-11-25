@@ -166,10 +166,10 @@ export const normalizarConversoes = (lista, produto) => {
   });
 };
 
-/** A sigla aparece em algum lançamento do produto? (então não se apaga, só se desativa; D-PROD-309: cocho, transferência e atividade também) */
+/** A sigla aparece em algum lançamento do produto? (então não se apaga, só se desativa; D-PROD-310: cocho, transferência e atividade também) */
 const siglaEmUso = async (tx, clienteId, produtoId, sigla) => {
   const onde = { cliente_id: clienteId, produto_id: produtoId, unidade: sigla };
-  // D-PROD-309: o cocho e a transferência gravam a unidade no movimento; a linha de produto da atividade, na linha.
+  // D-PROD-310: o cocho e a transferência gravam a unidade no movimento; a linha de produto da atividade, na linha.
   const ondeLancamento = { cliente_id: clienteId, produto_id: produtoId, unidade_lancamento: sigla };
   const [a, b, c, d, e, f] = await Promise.all([
     tx.entradaEstoqueItem.count({ where: onde }),

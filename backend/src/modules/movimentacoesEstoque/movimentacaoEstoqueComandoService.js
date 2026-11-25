@@ -67,7 +67,7 @@ const parseNumero = (valor) => {
 };
 
 /**
- * D-PROD-309: a quantidade na unidade de ESTOQUE do comando. Sem unidade de conversão, a `quantidade` do corpo (como
+ * D-PROD-310: a quantidade na unidade de ESTOQUE do comando. Sem unidade de conversão, a `quantidade` do corpo (como
  * sempre). Com ela, a conta do servidor pelo cadastro do produto (a `quantidade` do corpo, se vier, tem de bater).
  * Chamada com o produto JÁ travado e lido (o fator é o do cadastro sob a trava do produto).
  * @param {any} tx @param {string} cli @param {any} produto @param {Record<string, unknown>} entrada
@@ -175,7 +175,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
   const localOrigemId = String(entrada.local_origem_id || '').trim();
   const quantidade = parseNumero(entrada.quantidade);
   const lotesEscolhidos = normalizarLotesEscolhidos(entrada.lotes);
-  // D-PROD-309: a quantidade numa unidade de conversão do produto (opcional; sem ela, como sempre).
+  // D-PROD-310: a quantidade numa unidade de conversão do produto (opcional; sem ela, como sempre).
   const unidade = unidadeDoCorpo(entrada);
 
   const payloadCanonico = {
@@ -190,7 +190,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
     observacoes: entrada.observacoes ?? null,
     // D-PROD-282: a escolha de lotes só entra no fingerprint quando vem (o reenvio de antes continua casando).
     ...(lotesEscolhidos ? { lotes: lotesEscolhidos } : {}),
-    // D-PROD-309: a unidade de conversão também só entra quando vem.
+    // D-PROD-310: a unidade de conversão também só entra quando vem.
     ...unidadeNoFingerprint(unidade),
   };
   const fingerprint = fingerprintDePayload(payloadCanonico);
@@ -217,7 +217,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
         // financeiro) ANTES de ler produto e lotes.
         await travarProdutosEstoque(tx, cli, empresaId, [produtoId]);
         const produto = await exigirProdutoDaEmpresa(tx, cli, produtoId, empresaId);
-        // D-PROD-309: o cocho tira produto (uso "saída/venda" da conversão), como a saída manual.
+        // D-PROD-310: o cocho tira produto (uso "saída/venda" da conversão), como a saída manual.
         const { kg, colunas: colunasUnidade } = await quantidadeDoComando(tx, cli, produto, entrada, unidade, 'venda');
         const local = /** @type {{ id: string, nome: string }} */ (locais.get(localOrigemId));
         const saida = await aplicarSaida(tx, contexto, {
@@ -325,7 +325,7 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
   const localDestinoId = String(entrada.local_destino_id || '').trim();
   const quantidade = parseNumero(entrada.quantidade);
   const lotesEscolhidos = normalizarLotesEscolhidos(entrada.lotes);
-  // D-PROD-309: a quantidade numa unidade de conversão do produto (opcional; sem ela, como sempre).
+  // D-PROD-310: a quantidade numa unidade de conversão do produto (opcional; sem ela, como sempre).
   const unidade = unidadeDoCorpo(entrada);
 
   if (localOrigemId === localDestinoId) {
@@ -344,7 +344,7 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
     observacoes: entrada.observacoes ?? null,
     // D-PROD-282: a escolha de lotes só entra no fingerprint quando vem (o reenvio de antes continua casando).
     ...(lotesEscolhidos ? { lotes: lotesEscolhidos } : {}),
-    // D-PROD-309: a unidade de conversão também só entra quando vem.
+    // D-PROD-310: a unidade de conversão também só entra quando vem.
     ...unidadeNoFingerprint(unidade),
   };
   const fingerprint = fingerprintDePayload(payloadCanonico);
@@ -373,7 +373,7 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
         // D-PROD-155 (§3/§8.4): mesma trava do produto antes de ler lotes.
         await travarProdutosEstoque(tx, cli, empresaId, [produtoId]);
         const produto = await exigirProdutoDaEmpresa(tx, cli, produtoId, empresaId);
-        // D-PROD-309: a transferência não é compra nem venda: vale qualquer conversão ATIVA do produto.
+        // D-PROD-310: a transferência não é compra nem venda: vale qualquer conversão ATIVA do produto.
         const { kg, colunas: colunasUnidade } = await quantidadeDoComando(tx, cli, produto, entrada, unidade, null);
         const origem = /** @type {{ id: string, nome: string }} */ (locais.get(localOrigemId));
         const destino = /** @type {{ id: string, nome: string }} */ (locais.get(localDestinoId));
@@ -391,7 +391,7 @@ export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
             observacoes: comporObservacoes(entrada.observacoes, plano.fatias),
             custo_medio_antes: paraBanco(plano.custoMedioAntes, CASAS_CUSTO),
             custo_medio_depois: paraBanco(plano.custoMedioDepois, CASAS_CUSTO),
-            ...colunasUnidade, // D-PROD-309: nas duas pernas
+            ...colunasUnidade, // D-PROD-310: nas duas pernas
           }),
         });
         // Saída = n, entrada = n + 1, reservados no FIM (W24).

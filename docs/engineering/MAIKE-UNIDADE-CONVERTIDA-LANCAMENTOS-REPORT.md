@@ -1,6 +1,6 @@
-# MAIKE — Unidade de conversão no cocho, na transferência e na atividade — relatório (D-PROD-309)
+# MAIKE — Unidade de conversão no cocho, na transferência e na atividade — relatório (D-PROD-310)
 
-Decisão: [D-PROD-309](./DECISIONS.md) · Runbook: [`MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-RUNBOOK-RELEASE.md`](./MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-RUNBOOK-RELEASE.md) ·
+Decisão: [D-PROD-310](./DECISIONS.md) · Runbook: [`MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-RUNBOOK-RELEASE.md`](./MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-RUNBOOK-RELEASE.md) ·
 SPEC: [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md) §3 e §7 · Branch:
 `claude/unidade-convertida-lancamentos` (da `main` `b7a60c48`).
 
@@ -11,10 +11,10 @@ atividade": "Na linha de produto da atividade, no cocho e na transferência, a q
 conversão do cadastro do produto (D-PROD-288); o servidor converte para a unidade de estoque pelo fator cadastrado e grava
 a unidade, a quantidade e o fator. O abastecimento continua sem conversão."
 
-- `docs/constitution/00-CONSTITUICAO.md`: **Emenda aprovada pelo proprietário (D-PROD-309)**, com a data, dizendo onde ela
+- `docs/constitution/00-CONSTITUICAO.md`: **Emenda aprovada pelo proprietário (D-PROD-310)**, com a data, dizendo onde ela
   substitui o "exatamente a quantidade digitada, na unidade de estoque do Produto" das expansões D-PROD-193/202 e que a
   revisão D-PROD-162 (abastecimento) continua inteira.
-- `docs/constitution/07-DO-NOT-DO.md`: nota D-PROD-309 (exceção ao "converter unidade" das notas D-PROD-193/202, só nesses
+- `docs/constitution/07-DO-NOT-DO.md`: nota D-PROD-310 (exceção ao "converter unidade" das notas D-PROD-193/202, só nesses
   três lançamentos). A proibição do abastecimento (nota D-PROD-159/162) **não foi tocada**.
 
 ## 2. Por camada
@@ -93,7 +93,7 @@ B46a/b/c, as contagens dos ensaios de migration (81 pastas) e o espelho sem as c
 - **Saída manual + lote + sigla nova**: o `quantidadeDeEstoque` do campo "Lote" da saída manual (D-PROD-282) só converte o
   SACO pelo peso; numa sigla nova, a soma dos lotes é conferida contra a quantidade digitada (o servidor recusa com
   `lotes_nao_somam`). Achado aqui, fora desta missão.
-- **Limites aceitos**: ver a D-PROD-309 (DIVIDE na edição com outra quantidade; "Repetir" com o fator gravado; item sem
+- **Limites aceitos**: ver a D-PROD-310 (DIVIDE na edição com outra quantidade; "Repetir" com o fator gravado; item sem
   internet com o fator mudado → "precisa de atenção").
 
 ## 6. Verificação

@@ -257,7 +257,7 @@ describe('TM-3 — corpo: LancLoteForm com os campos em LancField', () => {
     expect(campo(dialogo, /^Local de Destino/)).toBeTruthy();
     expect(within(dialogo).queryByLabelText(/^Local de Origem/)).toBeNull();
     cleanup();
-    // Entrada do proteinado (sacos de 30 kg): SACO na unidade (D-PROD-309: a conversão do cadastro) e o rótulo da quantidade nela.
+    // Entrada do proteinado (sacos de 30 kg): SACO na unidade (D-PROD-310: a conversão do cadastro) e o rótulo da quantidade nela.
     const entrada = await montar('Entrada', 1280);
     await escolherLocal(entrada.dialogo, /^Local de Origem/, LOCAL_CENTRAL.nome);
     await escolherNoSelect(entrada.dialogo, /^Produto de Suplementação/, 'PROTEINADO 40 (KG)');
@@ -371,7 +371,7 @@ describe('TM-6 — o ✓ grava como antes', () => {
         localDestinoNome: LOCAL_SEDE.nome,
         observacoes: `Entrada pelo depósito ${DEPOSITO.nome_ponto}`,
         dataMovimentacao: HOJE,
-        // D-PROD-309: a unidade de conversão (SACO) e a quantidade digitada vão junto; o servidor confere os 60 kg.
+        // D-PROD-310: a unidade de conversão (SACO) e a quantidade digitada vão junto; o servidor confere os 60 kg.
         unidadeLancamento: 'SACO',
         quantidadeLancamento: '2',
       });
@@ -468,7 +468,7 @@ describe('TM-7 — o ✕ do cabeçalho cancela', () => {
   });
 });
 
-describe('TM-9 (D-PROD-309) — a unidade de conversão no celular (390 px)', () => {
+describe('TM-9 (D-PROD-310) — a unidade de conversão no celular (390 px)', () => {
   it('SACO no seletor; 2 SACO dá "= 60 kg" numa linha inteira da grade (sem rolagem lateral); o sal, sem conversão, não mostra nada novo', async () => {
     const { dialogo, form } = await montar('Entrada', 390);
     await escolherLocal(dialogo, /^Local de Origem/, LOCAL_CENTRAL.nome);

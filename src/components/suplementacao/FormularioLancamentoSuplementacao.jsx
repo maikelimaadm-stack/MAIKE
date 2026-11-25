@@ -139,7 +139,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       quantidade_total_kg: campo(eventoEmEdicao?.quantidade_total_kg),
       // D-PROD-206: vazio = sobra NÃO medida (o fechamento conta 0 e marca "Aproximado"); 0 digitado = medida.
       sobra_kg: eventoEmEdicao ? (edicao?.payload?.fechamento?.sobraInformada === false ? "" : campo(eventoEmEdicao.sobra_kg)) : "",
-      // D-PROD-309: a unidade da quantidade ('' = kg, a de estoque) e a quantidade nela. O lançamento antigo em sacos
+      // D-PROD-310: a unidade da quantidade ('' = kg, a de estoque) e a quantidade nela. O lançamento antigo em sacos
       // (unidade "SACO" e `quantidade_sacos`) abre na unidade SACO.
       unidade_lancamento: eventoEmEdicao?.unidade_lancamento && eventoEmEdicao.unidade_lancamento !== "KG" ? String(eventoEmEdicao.unidade_lancamento) : "",
       quantidade_digitada: campo(eventoEmEdicao?.quantidade_lancamento ?? eventoEmEdicao?.quantidade_sacos),
@@ -346,7 +346,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const pesoPorSaco = Number(produtoSelecionado?.peso_por_saco_kg || 0);
   const tipoConsumo = produtoSelecionado?.tipo_consumo || null;
 
-  // D-PROD-309: as unidades do produto (a de estoque e as conversões ATIVAS com uso em saída, inclusive o SACO).
+  // D-PROD-310: as unidades do produto (a de estoque e as conversões ATIVAS com uso em saída, inclusive o SACO).
   const opcoesUnidade = useMemo(() => opcoesDeUnidade(produtoSelecionado, { uso: "venda" }), [produtoSelecionado]);
   const unidadeDigitada = conversaoEscolhida(produtoSelecionado, formData.unidade_lancamento, { uso: "venda" });
   // A quantidade digitada na unidade escolhida, em texto canônico (null ilegível).
@@ -464,7 +464,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     setEscolhaLote(ESCOLHA_LOTE_INICIAL);
   }, [produtoSelecionado?.id, depositoVinculado?.local_estoque_id]);
 
-  // D-PROD-309: o produto novo não tem a unidade escolhida → volta para kg (a quantidade digitada fica, em kg).
+  // D-PROD-310: o produto novo não tem a unidade escolhida → volta para kg (a quantidade digitada fica, em kg).
   useEffect(() => {
     if (!produtoSelecionado || !formData.unidade_lancamento) return;
     // Só com o produto lido do cadastro (antes dele chegar, o resumo da formulação não traz as conversões).
@@ -588,13 +588,13 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           pontoSuplementacaoId: ponto.id,
           dataMovimentacao: formData.data_lancamento,
           ...(lotesEscolhidos ? { lotes: lotesEscolhidos } : {}),
-          // D-PROD-309: a unidade de conversão e a quantidade nela (o servidor converte pelo cadastro e confere o kg).
+          // D-PROD-310: a unidade de conversão e a quantidade nela (o servidor converte pelo cadastro e confere o kg).
           ...(unidadeDigitada && quantidadeDigitadaCanonica ? { unidadeLancamento: unidadeDigitada, quantidadeLancamento: quantidadeDigitadaCanonica } : {}),
         });
       }
 
       setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: "Criando evento de suplementação..." });
-      // D-PROD-309: o histórico antigo lê `quantidade_sacos` e `peso_por_saco_kg`; na unidade SACO, eles continuam.
+      // D-PROD-310: o histórico antigo lê `quantidade_sacos` e `peso_por_saco_kg`; na unidade SACO, eles continuam.
       const quantidadeDigitada = unidadeDigitada && quantidadeDigitadaCanonica ? Number(quantidadeDigitadaCanonica) : null;
       const sacosLancamento = unidadeDigitada === "SACO" ? quantidadeDigitada : null;
       
@@ -618,7 +618,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         quantidade_sacos: sacosLancamento,
         peso_por_saco_kg: fatorDoSaco ?? (suportaSacos ? pesoPorSaco : null),
         unidade_lancamento: unidadeDigitada || "KG",
-        // D-PROD-309: a quantidade digitada na unidade de conversão (nula em kg).
+        // D-PROD-310: a quantidade digitada na unidade de conversão (nula em kg).
         quantidade_lancamento: quantidadeDigitada,
         sobra_kg: parseNumber(formData.sobra_kg || 0),
         dias_periodo: null,
@@ -896,7 +896,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           ) : null}
 
           <LancLoteGrade className="items-start">
-            {/* D-PROD-309: a unidade ao lado da quantidade (kg e as conversões do cadastro do produto); o estoque é em kg. */}
+            {/* D-PROD-310: a unidade ao lado da quantidade (kg e as conversões do cadastro do produto); o estoque é em kg. */}
             {opcoesUnidade.length > 1 ? (
               <LancField label="Unidade">
                 <B1Select value={unidadeDigitada || unidadeDeEstoqueDoProduto(produtoSelecionado)} onChange={(e) => trocarUnidade(e.target.value)} className={LL_CTL}>
@@ -1143,7 +1143,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
  * D-PROD-201 — chave dos valores de uma baixa de estoque: mudou a chave depois
  * de a baixa ser feita, salvar de novo NÃO pode baixar outra vez. D-PROD-282: a escolha manual dos lotes entra na
  * chave só quando existe (sem ela, a chave é a de sempre).
- * D-PROD-309: a unidade de conversão (sigla e quantidade digitada) também, só quando existe.
+ * D-PROD-310: a unidade de conversão (sigla e quantidade digitada) também, só quando existe.
  * @param {{ produtoId?: unknown, quantidadeKg: number, data?: string, localId?: unknown, lotes?: Array<{ estoque_lote_nota_id: string, quantidade: string }>|null, unidade?: string|null }} p
  */
 export function chaveDaSaida({ produtoId, quantidadeKg, data, localId, lotes, unidade = null }) {

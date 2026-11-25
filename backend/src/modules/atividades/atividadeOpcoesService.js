@@ -80,7 +80,7 @@ const produtosAceitos = (clienteId, empresaId) => ({
 
 const SELECT_PRODUTO = Object.freeze({
   id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true, estoque_atual: true, carencia_dias: true, controla_lote: true,
-  // D-PROD-309: as unidades de conversão do cadastro (a linha pode ser digitada numa delas).
+  // D-PROD-310: as unidades de conversão do cadastro (a linha pode ser digitada numa delas).
   peso_por_saco_kg: true, unidadesConversao: SELECT_CONVERSOES,
 });
 
@@ -96,7 +96,7 @@ const opcaoDeProduto = (p, favorito) => ({
   carencia_dias: p.carencia_dias ?? null,
   // D-PROD-282 em todas as telas: produto com lote mostra o campo "Lote" na linha.
   controla_lote: p.controla_lote === true,
-  // D-PROD-309: as conversões ATIVAS com uso em saída (a linha de produto tira do estoque), com a equivalência.
+  // D-PROD-310: as conversões ATIVAS com uso em saída (a linha de produto tira do estoque), com a equivalência.
   unidades_conversao: listarConversoesPublicas(p).filter((c) => c.ativa && c.uso_venda),
   favorito,
 });

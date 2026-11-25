@@ -414,7 +414,7 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
   });
 });
 
-describe('D-PROD-309 — a unidade de conversão no lançamento do cocho sem internet', () => {
+describe('D-PROD-310 — a unidade de conversão no lançamento do cocho sem internet', () => {
   it('LCO-16 o corpo da baixa (montado pela tela) leva a unidade e a quantidade digitada; a fila guarda e sobe IGUAL (campos aditivos), a visão do aparelho desconta em kg', async () => {
     const srv = servidor();
     vi.stubGlobal('fetch', srv.fetch);

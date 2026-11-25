@@ -552,7 +552,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 422,
     meaning: 'a escolha de lotes da linha não serve (details.reason: lotes_formato | lote_repetido | lote_indisponivel | lote_sem_saldo | lotes_nao_somam | produto_sem_controle_de_lote); nada foi gravado',
   },
-  // D-PROD-309 — a quantidade numa unidade de conversão do produto (cocho, transferência e linha de produto da atividade).
+  // D-PROD-310 — a quantidade numa unidade de conversão do produto (cocho, transferência e linha de produto da atividade).
   UNIDADE_LANCAMENTO_INVALIDA: {
     http: 422,
     meaning: 'a unidade de conversão do lançamento não serve (details.reason: unidade_inativa | unidade_nao_cadastrada | unidade_de_outro_produto | unidade_sem_uso | unidade_incompativel | peso_por_saco_ausente | quantidade_divergente | quantidade_estoque_zero | valor_excede_limite_estoque); nada foi gravado',

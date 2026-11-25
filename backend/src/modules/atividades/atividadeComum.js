@@ -876,7 +876,7 @@ export const recusarCoercaoNasListas = (corpo, listas) => {
 };
 
 /** Decimais da linha de PRODUTO (corpo da linha e itens de `produtos[]`). */
-/** D-PROD-283: o `jato` também chega em texto ("2"), nunca número. D-PROD-309: e a quantidade digitada na unidade de conversão. */
+/** D-PROD-283: o `jato` também chega em texto ("2"), nunca número. D-PROD-310: e a quantidade digitada na unidade de conversão. */
 export const DECIMAIS_DA_LINHA_PRODUTO = Object.freeze(['quantidade', 'vc_percentual', 'jato', 'quantidade_lancamento']);
 
 /** Resumos das linhas (só exibição), no formato do `select` do Prisma. */
@@ -916,7 +916,7 @@ export const comoLinhaProdutoPublica = (r) => ({
   local_estoque: localPublico(r.localEstoque),
   quantidade: t4(r.quantidade),
   unidade: r.unidade,
-  // D-PROD-309: a quantidade digitada numa unidade de conversão (sigla, quantidade nela e fator; nulas sem conversão).
+  // D-PROD-310: a quantidade digitada numa unidade de conversão (sigla, quantidade nela e fator; nulas sem conversão).
   unidade_lancamento: r.unidade_lancamento ?? null,
   quantidade_lancamento: t4(r.quantidade_lancamento),
   fator_lancamento: t4(r.fator_lancamento),

@@ -19,7 +19,7 @@
  *    transação. Saldo insuficiente → 422 `ESTOQUE_SALDO_INSUFICIENTE` com a
  *    explicação do motor (disponível × solicitado, na unidade da linha);
  *  - `unidade` = unidade EFETIVA do estoque (L → L; KG e SACO → KG), nunca do
- *    usuário; `quantidade` sempre nela. D-PROD-309 (emenda aprovada em 2026-11-25): a
+ *    usuário; `quantidade` sempre nela. D-PROD-310 (emenda aprovada em 2026-11-25): a
  *    quantidade pode vir numa unidade de conversão do cadastro do produto
  *    (`unidade_lancamento` + `quantidade_lancamento`): o servidor converte pelo fator do
  *    cadastro (o da compra do financeiro) e grava a unidade, a quantidade digitada e o
@@ -161,7 +161,7 @@ export const aceiteDeCombustivelQueVale = (clienteId, produtoId) => ({
  * `lotes` (D-PROD-282 em todas as telas): a escolha manual dos lotes de produto que controla lote (sem ela, FEFO).
  * `lotesDaLinhaAnterior`: só na EDIÇÃO sem `lotes` e sem trocar produto, local nem quantidade — as fatias da linha
  * editada, para a nova saída sair dos MESMOS lotes (nunca entra no fingerprint nem na resposta).
- * D-PROD-309: `unidade_lancamento` + `quantidade_lancamento` (a quantidade numa unidade de conversão do produto; com
+ * D-PROD-310: `unidade_lancamento` + `quantidade_lancamento` (a quantidade numa unidade de conversão do produto; com
  * elas, `quantidade` — na unidade de estoque — é opcional e, se vier, conferida); `gravado` só na EDIÇÃO na mesma
  * unidade: o fator e a quantidade de estoque da linha editada (nunca entra no fingerprint nem na resposta).
  * @typedef {{ produto_id: string, local_estoque_id: string, quantidade?: string, observacao: string|null, vc_percentual?: string, jato?: number,
@@ -229,7 +229,7 @@ const quantidadeDoCorpo = (v, campo = 'quantidade') => {
  * @returns {DadosDaLinha}
  */
 export const normalizarDadosDaLinha = (c, prefixo = '') => {
-  // D-PROD-309: com a unidade de conversão, a quantidade de estoque é a conta do servidor (a do corpo é opcional).
+  // D-PROD-310: com a unidade de conversão, a quantidade de estoque é a conta do servidor (a do corpo é opcional).
   const unidade = unidadeDoCorpo(c, prefixo);
   const semQuantidade = unidade && (c.quantidade === undefined || c.quantidade === null);
   return {
@@ -243,7 +243,7 @@ export const normalizarDadosDaLinha = (c, prefixo = '') => {
   ...(c.jato !== undefined && c.jato !== null ? { jato: jatoDoCorpo(c.jato, `${prefixo}jato`) } : {}),
   // D-PROD-282 em todas as telas: a escolha dos lotes também só existe quando vem (o fingerprint de antes continua).
   ...lotesDoCorpo(c.lotes),
-  // D-PROD-309: a unidade de conversão também só existe quando vem (no fim: o fingerprint de antes continua).
+  // D-PROD-310: a unidade de conversão também só existe quando vem (no fim: o fingerprint de antes continua).
   ...(unidade ?? {}),
   };
 };
@@ -265,7 +265,7 @@ const dadosGravados = (r) => ({
   observacao: r.observacao ?? null,
   // D-PROD-283: editar a linha de um jato mantém o jato.
   ...(r.jato ? { jato: r.jato } : {}),
-  // D-PROD-309: a linha numa unidade de conversão continua nela, com o fator GRAVADO (o cadastro pode ter mudado).
+  // D-PROD-310: a linha numa unidade de conversão continua nela, com o fator GRAVADO (o cadastro pode ter mudado).
   ...(r.unidade_lancamento
     ? {
         unidade_lancamento: r.unidade_lancamento,
@@ -376,7 +376,7 @@ const baixarProduto = async (tx, contexto, { clienteId, empresaId, atividade, ap
   if ((await tx.tanqueBemProduto.count({ where: aceiteDeCombustivelQueVale(clienteId, produto.id) })) > 0) {
     throw atividadeLinhaInvalida('produto_id', 'combustivel_no_abastecimento', contextoErro);
   }
-  // D-PROD-309: a quantidade digitada numa unidade de conversão → a unidade de estoque, pelo fator do cadastro (na
+  // D-PROD-310: a quantidade digitada numa unidade de conversão → a unidade de estoque, pelo fator do cadastro (na
   // edição na mesma unidade, o GRAVADO; com a mesma quantidade digitada, a MESMA quantidade de estoque da linha).
   const unidadeDigitada = dados.unidade_lancamento ? { unidade_lancamento: dados.unidade_lancamento, quantidade_lancamento: /** @type {string} */ (dados.quantidade_lancamento) } : null;
   const conversao = await converterUnidadeDoLancamento(tx, { clienteId, produto, unidade: unidadeDigitada, uso: 'venda', gravado: dados.gravado ?? null, contextoErro });
@@ -405,7 +405,7 @@ const baixarProduto = async (tx, contexto, { clienteId, empresaId, atividade, ap
       numeroMovimento: numeroMovimentoProvisorio(),
       contextoErro: { field: 'quantidade', unidade, ...contextoErro },
       lotes,
-      complemento: () => colunasDaUnidade(conversao), // D-PROD-309: a unidade digitada também no movimento
+      complemento: () => colunasDaUnidade(conversao), // D-PROD-310: a unidade digitada também no movimento
     });
   } catch (erro) {
     throw explicarSaldo(erro, unidade);
@@ -417,7 +417,7 @@ const baixarProduto = async (tx, contexto, { clienteId, empresaId, atividade, ap
       local_estoque_id: local.id,
       quantidade: quantidadeTexto,
       unidade,
-      ...colunasDaUnidade(conversao), // D-PROD-309
+      ...colunasDaUnidade(conversao), // D-PROD-310
       dose_ha: doseDe(quantidadeTexto, apontamento.area_executada_dia),
       // custo FIFO do motor (nunca preço digitado nem custo médio), nas casas do movimento
       custo_unitario: paraBanco(saida.valor_unitario, CASAS_CUSTO),
@@ -628,7 +628,7 @@ const paraAuditoria = (l) => ({
   local_estoque_id: l.local_estoque_id,
   quantidade: l.quantidade,
   unidade: l.unidade,
-  // D-PROD-309: a unidade de conversão digitada (nulas sem ela).
+  // D-PROD-310: a unidade de conversão digitada (nulas sem ela).
   ...unidadePublica(l),
   dose_ha: l.dose_ha,
   custo_unitario: l.custo_unitario,
@@ -892,7 +892,7 @@ export const editarLinhaProduto = async (contexto, atividadeId, apontamentoId, l
   // D-PROD-293: trocar (ou tirar, com null) o jato da linha.
   if (temCampo(corpo, 'jato')) campos.jato = corpo.jato === null ? undefined : jatoDoCorpo(corpo.jato);
   if (temCampo(corpo, 'lotes')) Object.assign(campos, lotesDoCorpo(corpo.lotes));
-  // D-PROD-309: a quantidade numa unidade de conversão (as duas juntas; `unidade_lancamento: null` = de volta à unidade
+  // D-PROD-310: a quantidade numa unidade de conversão (as duas juntas; `unidade_lancamento: null` = de volta à unidade
   // de estoque). Só `quantidade` (sem a unidade) = a quantidade na unidade de estoque: a linha sai da conversão.
   const comUnidade = temCampo(corpo, 'unidade_lancamento') || temCampo(corpo, 'quantidade_lancamento');
   const unidadeNova = comUnidade ? unidadeDoCorpo(corpo) : null;
@@ -913,7 +913,7 @@ export const editarLinhaProduto = async (contexto, atividadeId, apontamentoId, l
       const anterior = await lerLinhaConfirmada(tx, cli, empresaId, apontamentoId, linhaId, 'editar_linha');
       /** @type {DadosDaLinha} */
       const dados = { ...dadosGravados(anterior), ...campos };
-      // D-PROD-309: sair da conversão (unidade nula ou só a quantidade de estoque) apaga a unidade da linha nova; a unidade
+      // D-PROD-310: sair da conversão (unidade nula ou só a quantidade de estoque) apaga a unidade da linha nova; a unidade
       // nova sem a quantidade de estoque no corpo é a conta do servidor (a quantidade gravada não vale mais); outro produto
       // não herda o fator gravado.
       if (tirarUnidade) {

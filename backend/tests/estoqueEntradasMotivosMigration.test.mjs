@@ -60,7 +60,7 @@ const NOME_INSUMO_JATO = '20261125100000_insumo_por_jato';
 const NOME_UNIDADES_CONVERSAO = '20261125200000_produto_unidades_conversao';
 /** D-PROD-297: a EXPAND do produto do implemento no bem, também posterior (fora da partida). */
 const NOME_BEM_PRODUTO = '20261126100000_bem_implemento_produto';
-/** D-PROD-309: a EXPAND da unidade convertida, também posterior (fora da partida). */
+/** D-PROD-310: a EXPAND da unidade convertida, também posterior (fora da partida). */
 const NOME_UNIDADE_CONVERTIDA = '20261126200000_unidade_convertida_lancamentos';
 const BANCO = 'maike_eem_teste';
 const PAPEL_BACKEND = 'maike_vercel';

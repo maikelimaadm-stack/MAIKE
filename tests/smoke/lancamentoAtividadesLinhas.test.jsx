@@ -142,7 +142,7 @@ const GRADE = { id: "i1", numero: "9", codigo_frota: "GR-01", nome: "Grade", nat
 const PRODUTOS = [
   { id: "p1", nome: "Glifosato", unidade: "L", unidade_principal_estoque: "L", favorito: true },
   { id: "p2", nome: "Ureia", unidade: "KG", unidade_principal_estoque: "SACO", favorito: false },
-  // D-PROD-309: produto com unidade de conversão (SACO de 50 kg) — o seletor "Unidade" aparece ao lado da quantidade.
+  // D-PROD-310: produto com unidade de conversão (SACO de 50 kg) — o seletor "Unidade" aparece ao lado da quantidade.
   { id: "p3", nome: "Calcário", unidade: "KG", unidade_principal_estoque: "KG", favorito: false, unidades_conversao: [{ id: "c-saco", sigla: "SACO", operacao: "MULTIPLICA", fator: "50.000000", uso_compra: true, uso_venda: true, ativa: true, equivalencia: "1 SACO = 50 KG" }] },
 ];
 const LOCAIS = /** @type {Record<string, any[]>} */ ({
@@ -853,7 +853,7 @@ describe("LL-PRODUTO — janela da linha de produto", () => {
     });
   });
 
-  it("LL-PRODUTO-UCL (D-PROD-309) — a unidade de conversão ao lado da quantidade: 2 SACO = 100 kg embaixo, dose em kg/ha; o corpo leva a unidade, a digitada e o kg; produto sem conversão não mostra nada novo", async () => {
+  it("LL-PRODUTO-UCL (D-PROD-310) — a unidade de conversão ao lado da quantidade: 2 SACO = 100 kg embaixo, dose em kg/ha; o corpo leva a unidade, a digitada e o kg; produto sem conversão não mostra nada novo", async () => {
     await montar();
     await abrir("a1", "ap1");
     fireEvent.click(screen.getByTestId("apontamento-ap1-adicionar-produto"));

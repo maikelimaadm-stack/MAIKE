@@ -45,7 +45,7 @@ const LISTAR_SCHEMA = {
 const OPERATION_ID = { type: 'string', minLength: 8, maxLength: 128, pattern: '\\S' };
 
 /**
- * D-PROD-309: a quantidade numa unidade de conversão do produto (o id ou a sigla, e a quantidade nela). Com elas, a
+ * D-PROD-310: a quantidade numa unidade de conversão do produto (o id ou a sigla, e a quantidade nela). Com elas, a
  * `quantidade` (na unidade de estoque) é opcional: o servidor converte pelo cadastro e, se ela vier, confere.
  */
 const UNIDADE_LANCAMENTO = { type: ['string', 'null'], minLength: 1, maxLength: 64 };
@@ -67,8 +67,8 @@ const COMANDO_SAIDA_SCHEMA = {
       local_origem_nome: { type: ['string', 'null'], maxLength: 255 },
       quantidade: { type: 'number', exclusiveMinimum: 0 },
       lotes: LOTES_ESCOLHIDOS, // D-PROD-282: só produto com lote; sem a lista, FEFO
-      unidade_lancamento: UNIDADE_LANCAMENTO, // D-PROD-309
-      quantidade_lancamento: QUANTIDADE_LANCAMENTO, // D-PROD-309
+      unidade_lancamento: UNIDADE_LANCAMENTO, // D-PROD-310
+      quantidade_lancamento: QUANTIDADE_LANCAMENTO, // D-PROD-310
       area_id: { type: ['string', 'null'], maxLength: 64 },
       area_nome: { type: ['string', 'null'], maxLength: 255 },
       deposito_id: { type: ['string', 'null'], maxLength: 64 },
@@ -101,8 +101,8 @@ const COMANDO_TRANSFERENCIA_SCHEMA = {
       local_destino_nome: { type: ['string', 'null'], maxLength: 255 },
       quantidade: { type: 'number', exclusiveMinimum: 0 },
       lotes: LOTES_ESCOLHIDOS, // D-PROD-282: só produto com lote; sem a lista, FEFO
-      unidade_lancamento: UNIDADE_LANCAMENTO, // D-PROD-309
-      quantidade_lancamento: QUANTIDADE_LANCAMENTO, // D-PROD-309
+      unidade_lancamento: UNIDADE_LANCAMENTO, // D-PROD-310
+      quantidade_lancamento: QUANTIDADE_LANCAMENTO, // D-PROD-310
       data_movimentacao: { type: ['string', 'null'], maxLength: 32 },
       observacoes: { type: ['string', 'null'], maxLength: 2000 },
     },

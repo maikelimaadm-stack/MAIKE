@@ -450,7 +450,7 @@ const NOME_UNID = '20261125200000_produto_unidades_conversao';
  */
 const NOME_BEMP = '20261126100000_bem_implemento_produto';
 /**
- * D-PROD-309 — a quantidade numa unidade de conversão no cocho, na transferência e na atividade: EXPAND puro, 6 colunas
+ * D-PROD-310 — a quantidade numa unidade de conversão no cocho, na transferência e na atividade: EXPAND puro, 6 colunas
  * anuláveis sem DEFAULT (e sem CHECK) em 2 tabelas antigas (MovimentacaoEstoque e AtividadeApontamentoProduto); nenhuma
  * tabela nova; a 81ª, depois do produto do implemento no bem (D-PROD-297).
  */
@@ -520,7 +520,7 @@ test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas n
   // D-PROD-274: das 5 colunas dos campos por tipo, só Produto.carencia_dias entra aqui (Atividade, AtividadeApontamento,
   // AtividadeApontamentoProduto e TipoAtividade são criadas no próprio lote; sozinha, B41a, a migration declara as 5).
   // D-PROD-276: Atividade.planejamento_id também fica fora (Atividade é criada no lote; sozinha, B42a, ela aparece).
-  // D-PROD-309: das 6 colunas da unidade convertida, só as 3 de MovimentacaoEstoque entram aqui (AtividadeApontamentoProduto
+  // D-PROD-310: das 6 colunas da unidade convertida, só as 3 de MovimentacaoEstoque entram aqui (AtividadeApontamentoProduto
   // é criada no próprio lote; sozinha, B46a, a migration declara as 6).
   assert.deepEqual([...c.colunas_novas_em_tabelas_antigas].sort(), ['AreaPastagem.altura_entrada_cm', 'AreaPastagem.altura_saida_cm', 'AreaPastagem.dias_descanso', 'CADCATEGORIA.peso_objetivo_kg', 'CADFORMULACAO.consumo_maximo_pv', 'CADFORMULACAO.consumo_minimo_pv', 'Cliente.sessao_epoca', 'Empresa.fuso_horario', 'EntradaEstoque.motivo_id', 'LancamentoTarefa.posicao_id', 'MovimentacaoEstoque.fator_lancamento', 'MovimentacaoEstoque.quantidade_lancamento', 'MovimentacaoEstoque.unidade_lancamento', 'Produto.carencia_dias', 'Usuario.sessao_epoca', 'Usuario.troca_senha_pendente']);
   // As sete CONTRACT, na ordem do manifesto: as colunas removidas não viram "coluna nova em tabela antiga", o RENAME
@@ -5970,7 +5970,7 @@ test('B45a (D-PROD-297): o produto do implemento no bem classificado SOZINHO, co
   assert.equal(MIGRATIONS_APROVADAS[NOME_BEMP], sha256(readFileSync(`backend/prisma/migrations/${NOME_BEMP}/migration.sql`, 'utf8')));
   assert.equal(MIGRATIONS_APROVADAS[NOME_BEMP], '330d9318d1658720ffd0871eff4577d7367e5fca58d765fb50b7ab0dde6defbe');
   assert.equal(Object.prototype.hasOwnProperty.call(MIGRATIONS_CONTRACT_APROVADAS, NOME_BEMP), false, 'EXPAND: sem entrada CONTRACT');
-  assert.equal(NOMES.at(-2), NOME_BEMP, 'a penúltima do manifesto (D-PROD-309: a unidade convertida veio depois)');
+  assert.equal(NOMES.at(-2), NOME_BEMP, 'a penúltima do manifesto (D-PROD-310: a unidade convertida veio depois)');
   assert.equal(NOMES.at(-3), NOME_UNID, 'depois das unidades de conversão (D-PROD-288)');
 });
 
@@ -5998,7 +5998,7 @@ test('B45c (D-PROD-297/D-PROD-288): ordem de produção hoje — alvo com as 79 
   const raiz = 'backend/prisma/migrations';
   const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
-  // D-PROD-309: a unidade convertida veio depois; no dia dela, o produto do implemento no bem era a mais recente.
+  // D-PROD-310: a unidade convertida veio depois; no dia dela, o produto do implemento no bem era a mais recente.
   assert.equal(locais.length, 81);
   locais.splice(0, locais.length, ...locais.filter((l) => l.nome <= NOME_BEMP));
   assert.equal(locais.length, 80);
@@ -6022,7 +6022,7 @@ test('B45c (D-PROD-297/D-PROD-288): ordem de produção hoje — alvo com as 79 
   assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas: depois }), []);
 });
 
-test('B46a (D-PROD-309): a unidade convertida classificada SOZINHA, como na release: ok, EXPAND puro, exatamente as 6 colunas anuláveis em MovimentacaoEstoque e AtividadeApontamentoProduto, nenhuma tabela nova, nenhum CONTRACT; checksum pinado; a última do manifesto', () => {
+test('B46a (D-PROD-310): a unidade convertida classificada SOZINHA, como na release: ok, EXPAND puro, exatamente as 6 colunas anuláveis em MovimentacaoEstoque e AtividadeApontamentoProduto, nenhuma tabela nova, nenhum CONTRACT; checksum pinado; a última do manifesto', () => {
   const c = classificarMigrations([ler(NOME_UCL)]);
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);
@@ -6041,7 +6041,7 @@ test('B46a (D-PROD-309): a unidade convertida classificada SOZINHA, como na rele
   assert.equal(NOMES.at(-2), NOME_BEMP, 'depois do produto do implemento no bem (D-PROD-297)');
 });
 
-test('B46b (D-PROD-309): o mesmo arquivo com coluna NOT NULL ou com DEFAULT, CHECK da unidade ou DML (converter os movimentos antigos) é recusado; byte diferente do pinado diverge', () => {
+test('B46b (D-PROD-310): o mesmo arquivo com coluna NOT NULL ou com DEFAULT, CHECK da unidade ou DML (converter os movimentos antigos) é recusado; byte diferente do pinado diverge', () => {
   const sql = readFileSync(`backend/prisma/migrations/${NOME_UCL}/migration.sql`, 'utf8');
   const comManifesto = (s) => classificarMigrations([{ nome: NOME_UCL, sql: s }], { manifesto: { [NOME_UCL]: sha256(s) } });
   assert.equal(comManifesto(sql).ok, true, 'o original passa com o manifesto sintético');
@@ -6062,12 +6062,12 @@ test('B46b (D-PROD-309): o mesmo arquivo com coluna NOT NULL ou com DEFAULT, CHE
   assert.deepEqual(classificarMigrations([{ nome: NOME_UCL, sql: `${sql} ` }]).violacoes.map((v) => v.codigo), ['MIGRATION_CHECKSUM_DIVERGENTE']);
 });
 
-test('B46c (D-PROD-309/D-PROD-297): ordem de produção hoje — alvo com as 80 da main concluídas (por último o produto do implemento no bem, D-PROD-297, checksum 330d9318…efbe): o histórico confere, a única pendente é a unidade convertida, nenhum CONTRACT a autorizar; checksum diferente ou registro parcial é divergência; depois dela, 81 e nada pendente', () => {
+test('B46c (D-PROD-310/D-PROD-297): ordem de produção hoje — alvo com as 80 da main concluídas (por último o produto do implemento no bem, D-PROD-297, checksum 330d9318…efbe): o histórico confere, a única pendente é a unidade convertida, nenhum CONTRACT a autorizar; checksum diferente ou registro parcial é divergência; depois dela, 81 e nada pendente', () => {
   const raiz = 'backend/prisma/migrations';
   const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(locais.length, 81);
-  assert.ok(locais.every((l) => l.nome <= NOME_UCL), 'a unidade convertida (D-PROD-309) é a migration de nome mais recente');
+  assert.ok(locais.every((l) => l.nome <= NOME_UCL), 'a unidade convertida (D-PROD-310) é a migration de nome mais recente');
   const t0 = Date.parse('2026-01-01T00:00:00Z');
   const anteriores = locais.filter((l) => l.nome !== NOME_UCL && l.nome !== NOME_BEMP);
   const linhas = [...anteriores, locais.find((l) => l.nome === NOME_BEMP)].map((l, i) => ({ migration_name: l.nome, checksum: l.checksum, finished_at: new Date(t0 + i * 1000), rolled_back_at: null }));

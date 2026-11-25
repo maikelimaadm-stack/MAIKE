@@ -210,7 +210,7 @@ describe('D-PROD-301 — o que espera envio aparece no histórico do depósito',
   });
 });
 
-describe('D-PROD-309 — a unidade de conversão na transferência sem internet', () => {
+describe('D-PROD-310 — a unidade de conversão na transferência sem internet', () => {
   it('ET-09 a fila guarda a unidade e a quantidade digitada (aditivas), a edição reabre nelas e o envio sobe igual', async () => {
     const { estoque, motor } = await carregar();
     online = false;

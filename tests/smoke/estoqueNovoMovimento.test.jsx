@@ -547,14 +547,14 @@ describe('D-PROD-259 — Transferência', () => {
     await waitFor(() => expect(posts('/movimentacoes-estoque/comandos/transferencia-locais')).toHaveLength(1));
     const corpo = posts('/movimentacoes-estoque/comandos/transferencia-locais')[0].body;
     expect(corpo).toMatchObject({ empresa_id: 'emp-1', produto_id: 'p-ureia', local_origem_id: 'l-galpao', local_destino_id: 'l-tanque', quantidade: 30.5 });
-    // D-PROD-309: sem unidade de conversão, o corpo de sempre.
+    // D-PROD-310: sem unidade de conversão, o corpo de sempre.
     expect(corpo).not.toHaveProperty('unidade_lancamento');
     expect(corpo.operation_id).toMatch(/^trf-/);
     await waitFor(() => expect(screen.queryByTestId('tela-novo-movimento-estoque')).toBeNull());
   });
 });
 
-describe('D-PROD-309 — Transferência numa unidade de conversão', () => {
+describe('D-PROD-310 — Transferência numa unidade de conversão', () => {
   it('o produto em sacos mostra a Unidade ao lado da quantidade; 2 Sacos = "= 50 kg" e o comando leva a unidade, a digitada e o kg; sem conversão, nada novo', async () => {
     const janela = await abrirNovoMovimento();
     fireEvent.click(within(janela).getByRole('radio', { name: 'Transferência' }));

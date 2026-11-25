@@ -61,7 +61,7 @@ const PARAMS_LINHA = {
 /** D-PROD-283/292: o número do jato no dia (texto; o serviço confere "1".."999"). */
 const JATO = { type: ['string', 'null'], maxLength: 3 };
 /**
- * D-PROD-309: a quantidade numa unidade de conversão do produto (o id ou a sigla, e a quantidade nela, em texto). Com as
+ * D-PROD-310: a quantidade numa unidade de conversão do produto (o id ou a sigla, e a quantidade nela, em texto). Com as
  * duas, `quantidade` (na unidade de estoque) é opcional: o servidor converte pelo cadastro e, se ela vier, confere.
  */
 const UNIDADE_LANCAMENTO = { type: ['string', 'null'], minLength: 1, maxLength: 64 };

@@ -113,7 +113,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     const h = await historico(db);
     assert.equal(h.concluidas, MIGRATIONS_PARTIDA);
     // D-PROD-297: a EXPAND do produto do implemento no bem, também: agora 30.
-    // D-PROD-309: a EXPAND da unidade convertida, também: agora 31.
+    // D-PROD-310: a EXPAND da unidade convertida, também: agora 31.
     assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 31, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216, a D-PROD-217, a D-PROD-219, a D-PROD-223, a D-PROD-249, a D-PROD-257, a D-PROD-259, a D-PROD-264, a D-PROD-265, a D-PROD-272, a D-PROD-274, a D-PROD-276, a D-PROD-279 e a D-PROD-283');
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabelas, 88);

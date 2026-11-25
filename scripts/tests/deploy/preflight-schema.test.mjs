@@ -111,7 +111,7 @@ const COLUNAS_OK = [
   { table_name: 'BemPatrimonial', column_name: 'forma_produto' },
   { table_name: 'BemPatrimonial', column_name: 'capacidade' },
   { table_name: 'BemPatrimonial', column_name: 'capacidade_unidade' },
-  // D-PROD-309: a unidade de conversão digitada no cocho, na transferência e na atividade.
+  // D-PROD-310: a unidade de conversão digitada no cocho, na transferência e na atividade.
   { table_name: 'MovimentacaoEstoque', column_name: 'unidade_lancamento' },
   { table_name: 'MovimentacaoEstoque', column_name: 'quantidade_lancamento' },
   { table_name: 'MovimentacaoEstoque', column_name: 'fator_lancamento' },

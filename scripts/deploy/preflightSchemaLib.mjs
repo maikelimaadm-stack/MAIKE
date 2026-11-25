@@ -155,7 +155,7 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['BemPatrimonial', 'forma_produto'],
   ['BemPatrimonial', 'capacidade'],
   ['BemPatrimonial', 'capacidade_unidade'],
-  // D-PROD-309 (MAIKE-UNIDADE-CONVERTIDA): o cocho, a transferência e a linha de produto da atividade gravam (e a
+  // D-PROD-310 (MAIKE-UNIDADE-CONVERTIDA): o cocho, a transferência e a linha de produto da atividade gravam (e a
   // exclusão de uma unidade de conversão confere) a unidade digitada; sem a migration
   // `20261126200000_unidade_convertida_lancamentos`, esses lançamentos e o cadastro de produto respondem 500.
   ['MovimentacaoEstoque', 'unidade_lancamento'],

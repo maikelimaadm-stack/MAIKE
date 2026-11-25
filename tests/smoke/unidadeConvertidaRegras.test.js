@@ -1,5 +1,5 @@
 /**
- * D-PROD-309 — a quantidade numa unidade de conversão do produto no cocho, nas transferências e na atividade: as regras
+ * D-PROD-310 — a quantidade numa unidade de conversão do produto no cocho, nas transferências e na atividade: as regras
  * da tela (a prévia da conta, o seletor e o corpo). Quem decide é o servidor (pelo cadastro); a tela faz a mesma conta
  * (uma vez, 4 casas, meio para cima) para mostrar "= 250 kg" e mandar a quantidade de estoque que ele confere.
  */

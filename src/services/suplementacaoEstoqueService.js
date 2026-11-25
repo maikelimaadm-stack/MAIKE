@@ -98,7 +98,7 @@ const observacaoComRateio = (observacoes, rateio) =>
  * corpo, `[{ estoque_lote_nota_id, quantidade }]`) só vai quando vem; sem ela, o servidor aplica o FEFO. Produto com
  * lote não leva o rateio FIFO calculado aqui nas observações (o servidor grava o rateio real, pelos lotes).
  *
- * D-PROD-309: `unidadeLancamento` + `quantidadeLancamento` (texto canônico) quando a quantidade foi digitada numa
+ * D-PROD-310: `unidadeLancamento` + `quantidadeLancamento` (texto canônico) quando a quantidade foi digitada numa
  * unidade de conversão do produto: vão no corpo (campos ADITIVOS; a fila guarda o corpo como está) junto da `quantidade`
  * em kg que a tela mostrou — o servidor converte pelo cadastro e confere. Sem eles, o corpo de sempre.
  * @param {{ empresaId: string, produto: any, quantidade: number, localOrigemId: string, localOrigemNome?: string, areaId?: string, areaNome?: string, observacoes?: string, lotesNota?: object[], depositoId?: string, pontoSuplementacaoId?: string, dataMovimentacao?: string, lotes?: Array<{ estoque_lote_nota_id: string, quantidade: string }>|null, unidadeLancamento?: string|null, quantidadeLancamento?: string|null }} params
@@ -166,7 +166,7 @@ export const registrarSaidaSuplementacao = async ({ operationId, ...params }) =>
 /**
  * @param {{ empresaId: string, produto: object, quantidade: number, localOrigemId: string, localOrigemNome?: string, localDestinoId: string, localDestinoNome?: string, observacoes?: string, lotesNota?: object[], dataMovimentacao?: string, operationId?: string, edicao?: string, unidadeLancamento?: string|null, quantidadeLancamento?: string|null }} params
  *   `edicao` (D-PROD-298): o código da transferência que ainda não subiu e está sendo corrigida.
- *   `unidadeLancamento` + `quantidadeLancamento` (D-PROD-309): a quantidade digitada numa unidade de conversão (campos
+ *   `unidadeLancamento` + `quantidadeLancamento` (D-PROD-310): a quantidade digitada numa unidade de conversão (campos
  *   aditivos do corpo e da fila; a `quantidade` continua em kg/L e o servidor confere pelo cadastro).
  */
 export const registrarTransferenciaEntreLocais = async ({
@@ -313,7 +313,7 @@ export const transferenciasAguardandoDoLocal = async (localEstoqueId) => {
           direcao: p.local_destino_id === localEstoqueId ? 'entrada' : 'saida',
           produto_id: p.produto_id,
           quantidade: Number(p.quantidade) || 0,
-          // D-PROD-309: a unidade de conversão digitada (a edição reabre nela).
+          // D-PROD-310: a unidade de conversão digitada (a edição reabre nela).
           unidade_lancamento: typeof p.unidade_lancamento === 'string' ? p.unidade_lancamento : null,
           quantidade_lancamento: typeof p.quantidade_lancamento === 'string' ? p.quantidade_lancamento : null,
           local_origem_id: p.local_origem_id,

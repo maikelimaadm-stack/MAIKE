@@ -209,7 +209,7 @@ Violação exige **rollback**, não flexibilização da regra.
 > Texto redigido pelo agente e **aprovado pelo proprietário** em 2026-11-14 ("autorizo vocÇe", resposta a
 > "aplica e aprova"), no merge da PR #289 (`00-CONSTITUICAO.md` §4).
 
-> **Nota (D-PROD-309, emenda aprovada pelo proprietário em 2026-11-25):** na linha de produto da atividade, no cocho e na
+> **Nota (D-PROD-310, emenda aprovada pelo proprietário em 2026-11-25):** na linha de produto da atividade, no cocho e na
 > transferência entre depósitos, a quantidade pode ser digitada numa unidade de conversão do cadastro do produto
 > (D-PROD-288), e o servidor a converte para a unidade de estoque pelo fator cadastrado. É exceção, só nesses três
 > lançamentos, ao "converter unidade" das notas D-PROD-193 e D-PROD-202 acima. Continua proibido: converter no

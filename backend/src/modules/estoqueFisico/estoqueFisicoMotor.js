@@ -509,7 +509,7 @@ const criarCamadaEntrada = (tx, clienteId, c) =>
 const COLUNAS_COMPLEMENTO = new Set([
   'area_vinculada_id', 'area_vinculada_nome', 'tipo_vinculo', 'centro_custo_nome', 'deposito_id',
   'ponto_suplementacao_id', 'observacoes', 'custo_medio_antes', 'custo_medio_depois',
-  // D-PROD-309: a quantidade digitada numa unidade de conversão (cocho, transferência, linha de produto da atividade).
+  // D-PROD-310: a quantidade digitada numa unidade de conversão (cocho, transferência, linha de produto da atividade).
   'unidade_lancamento', 'quantidade_lancamento', 'fator_lancamento',
 ]);
 /** Fora da allowlist → erro de programação (500), nunca coluna gravada. */

@@ -412,7 +412,7 @@ export default function TelaNovoMovimentoEstoque({ empresaId, hoje, podeEntrada 
   const [ajuste, setAjuste] = useState(() => formularioVazioAjuste());
   const [motivoEdicao, setMotivoEdicao] = useState("");
   const [transf, setTransf] = useState(() => formularioVazioTransferencia(hoje));
-  // D-PROD-309: as unidades do produto da transferência e a conta da quantidade para a unidade de estoque.
+  // D-PROD-310: as unidades do produto da transferência e a conta da quantidade para a unidade de estoque.
   const unidadesTransf = unidadesDoProduto(transf.produto);
   const transfConta = quantidadeDaTransferencia(transf);
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
@@ -816,7 +816,7 @@ export default function TelaNovoMovimentoEstoque({ empresaId, hoje, podeEntrada 
                 erro={erros.destino || undefined}
                 span={6}
               />
-              {/* D-PROD-309: a unidade ao lado da quantidade — a de estoque e as conversões ATIVAS do produto. */}
+              {/* D-PROD-310: a unidade ao lado da quantidade — a de estoque e as conversões ATIVAS do produto. */}
               {unidadesTransf.length > 1 ? (
                 <CampoSelect
                   label="Unidade"
@@ -842,7 +842,7 @@ export default function TelaNovoMovimentoEstoque({ empresaId, hoje, podeEntrada 
                   = {Number(transfConta.quantidade).toLocaleString("pt-BR", { maximumFractionDigits: 4 })} {transf.produto?.unidade_estoque === "L" ? "L" : "kg"}
                 </p>
               ) : null}
-              {/* D-PROD-282: a transferência leva o lote (e a validade) para o destino. D-PROD-309: os lotes são na unidade de estoque. */}
+              {/* D-PROD-282: a transferência leva o lote (e a validade) para o destino. D-PROD-310: os lotes são na unidade de estoque. */}
               <CampoLotesSaida
                 empresaId={empresaId}
                 linha={{ ...transf, deposito: transf.origem, unidade: "KG", quantidade: transfConta.unidade ? (transfConta.quantidade ? paraCampo(transfConta.quantidade) : "") : transf.quantidade }}

@@ -1,5 +1,5 @@
 /**
- * D-PROD-309 — a quantidade digitada numa UNIDADE DE CONVERSÃO do cadastro do produto (D-PROD-288) no cocho, nas
+ * D-PROD-310 — a quantidade digitada numa UNIDADE DE CONVERSÃO do cadastro do produto (D-PROD-288) no cocho, nas
  * transferências entre depósitos e na linha de produto da atividade (emenda aprovada pelo proprietário em 2026-11-25).
  *
  * A tela oferece a unidade de estoque (kg ou L) e as conversões ATIVAS do produto (com o uso certo) ao lado da
