@@ -61,7 +61,12 @@ const DetalhesTarefaMapa = componenteSobDemanda(() => import("../components/mapa
 const MapaInsights = componenteSobDemanda(() => import("../components/mapa/MapaInsights"));
 
 
-export default function MapaGeral() {
+/**
+ * @param {{ ativo?: boolean }} props `ativo` (D-PROD-305): o mapa está à vista. Fora do
+ *   Mapa Geral ele continua montado e escondido (volta na hora, sem recriar): sem GPS
+ *   e, ao voltar, ajusta o tamanho do mapa ao espaço da tela.
+ */
+export default function MapaGeral({ ativo = true } = {}) {
   const queryClient = useQueryClient();
   // ─── State ───
   const [mapReady, setMapReady] = useState(false);
@@ -125,6 +130,22 @@ export default function MapaGeral() {
   // D-PROD-218 (B3): foco da barra do topo (Lotes · Pastos · Tarefas). Estado
   // da página, NÃO salvo: o mapa abre sempre em Lotes, como no v12.
   const [foco, setFoco] = useState('lotes');
+
+  // D-PROD-305: saiu do Mapa Geral (ele fica montado e escondido): fecha as janelas e os
+  // painéis abertos, senão continuariam por cima da outra tela (são portais).
+  useEffect(() => {
+    if (ativo) return;
+    setShowDetalhesLote(false);
+    setShowResumoRebanho(false);
+    setShowDetalhesArea(false);
+    setShowDetalhesPontoSupl(false);
+    setShowDetalhesBebedouro(false);
+    setShowTarefas(false);
+    setShowDetalhesTarefa(false);
+    setSelecionandoLocalTarefa(false);
+    setShowInsights(false);
+    setShowFiltros(false);
+  }, [ativo]);
 
   const empresaSelecionadaId = useEmpresaSelecionadaId();
 
@@ -1075,7 +1096,7 @@ export default function MapaGeral() {
   // anda junto com a pessoa; o mapa fica onde ela deixou ("Localizar" centraliza uma vez).
   const localizacao = useLocalizacaoNoMapa({
     mapInstanceRef,
-    ativo: mapReady && mapaGeralPermissions.visualizar_localizacao === true && showUserLocation,
+    ativo: ativo && mapReady && mapaGeralPermissions.visualizar_localizacao === true && showUserLocation,
     aoErro: (mensagem) => toast.error(mensagem),
   });
   // Posição do aparelho não pertence a escopo nenhum.
@@ -1085,6 +1106,23 @@ export default function MapaGeral() {
     setUserLocation(p.accuracy != null ? { lat: p.lat, lng: p.lng, accuracy: p.accuracy } : { lat: p.lat, lng: p.lng });
   }, [localizacao.posicao]);
   const localizarNoMapa = localizacao.localizar;
+
+  // D-PROD-305: voltou ao Mapa Geral (estava escondido em outro menu): o contêiner
+  // voltou a ter tamanho; o mapa se ajusta e redesenha, sem recriar nada.
+  useEffect(() => {
+    if (!ativo || !mapReady) return undefined;
+    const map = mapInstanceRef.current;
+    if (!map) return undefined;
+    const id = window.requestAnimationFrame(() => {
+      try {
+        map.resize();
+        map.triggerRepaint?.();
+      } catch {
+        /* mapa removido no meio */
+      }
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [ativo, mapReady]);
 
   const handleLocate = useCallback(() => {
     if (!podeLocalizarRef.current || !navigator.geolocation) return;

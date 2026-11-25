@@ -14,9 +14,14 @@ vi.mock('@/lib/app/atualizacaoAutomatica', () => ({
   EVENTO_VERSAO_BAIXADA: 'maike:versao-baixada',
   EVENTO_APP_ATUALIZADO: 'maike:app-atualizado',
   aplicarVersaoBaixada: () => aplicar(),
+  pegarAvisoDeAtualizacao: () => pendente.atualizacao && ((v) => ((pendente.atualizacao = null), v))(pendente.atualizacao),
+  versaoBaixadaEsperando: () => pendente.baixada,
 }));
+const pendente = { atualizacao: null, baixada: null };
 
 beforeEach(() => {
+  pendente.atualizacao = null;
+  pendente.baixada = null;
   toastCustom.mockClear();
   aplicar.mockClear();
 });
@@ -43,5 +48,22 @@ describe('D-PROD-304 — aviso de versão', () => {
     expect(toastCustom).toHaveBeenCalledTimes(1);
     const { container } = render(toastCustom.mock.calls[0][0]('t2'));
     expect(container).toHaveTextContent('App atualizado');
+  });
+});
+
+describe('D-PROD-305 — aviso que chegou antes da tela montar', () => {
+  it('VS-03 "App atualizado" disparado na abertura (antes do login/splash) aparece quando a tela monta', async () => {
+    pendente.atualizacao = { versao: 'v3' };
+    const { default: AvisoDeVersao } = await import('@/components/offline/AvisoDeVersao');
+    render(<AvisoDeVersao />);
+    expect(toastCustom).toHaveBeenCalledTimes(1);
+    expect(toastCustom.mock.calls[0][1]).toMatchObject({ id: 'maike-app-atualizado' });
+  });
+
+  it('VS-04 versão já baixada esperando: lembra ao abrir', async () => {
+    pendente.baixada = { versao: 'v4', id: 'id-v4' };
+    const { default: AvisoDeVersao } = await import('@/components/offline/AvisoDeVersao');
+    render(<AvisoDeVersao />);
+    expect(toastCustom.mock.calls[0][1]).toMatchObject({ id: 'maike-versao-baixada' });
   });
 });

@@ -9542,4 +9542,13 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   4. Sem internet não muda nada: no app os pedaços estão dentro do pacote. "Baixar dados" carrega todas as portas dos módulos antes de baixar (entidades e leituras), porque elas não vêm mais junto com as telas.
 - **Testes:** `tests/smoke/atualizacaoAutomaticaApp.test.js` (AV-01..04), `tests/smoke/avisoDeVersao.test.jsx` (VS-01..02).
 
-<!-- Próxima decisão: D-PROD-305 -->
+## D-PROD-305 — Mapa Geral vivo entre menus (volta na hora) e "App atualizado" que sempre aparece
+
+- **Contexto:** o proprietário relatou que, toda vez que volta ao mapa depois de outro menu, ele carrega tudo de novo ("uma vez já carregado não precisa"), e que o aviso de atualização não apareceu.
+- **Causas:** (1) desde a #94 (2026-10-27, `ROOT-CAUSE-MENU-FREEZE`), o Mapa Geral desmonta ao sair da rota e recria o mapa, o satélite e as camadas ao voltar; a #94 tirou o mapa persistente porque, com o Google Maps, o mapa escondido seguia sincronizando tudo e, junto com o `cancelQueries` em `useLayoutEffect`, travava a navegação. (2) O "App atualizado" (D-PROD-304) só aparecia com a versão anterior registrada — a primeira versão com o aviso não tinha registro — e o evento disparado na abertura se perdia se a tela ainda não tivesse montado (splash/login).
+- **Decisão:**
+  1. **Mapa vivo e inerte:** depois da primeira abertura, o Mapa Geral fica montado; fora da rota fica escondido (`display: none`) com `ativo={false}`: GPS desligado e janelas/painéis fechados (são portais). Ao voltar, `map.resize()` e redesenho, sem recriar nada. O `Outlet` não renderiza o Mapa Geral de novo na rota dele (sem duplicar). O que derrubou a solução antiga continua proibido (sem `cancelQueries`, sem `useLayoutEffect`), e o MapLibre escondido não redesenha. Os contratos de `menuNavFreeze.test.jsx` foram atualizados para a regra nova.
+  2. **"App atualizado"** aparece também sem registro anterior (a primeira versão com o aviso, ou app recém-instalado), fica 8 s na tela, e o aviso que chega antes da tela montar fica guardado e é mostrado quando ela monta. A versão já baixada esperando a próxima abertura é lembrada ao abrir.
+- **Testes:** `tests/smoke/mapaVivo.test.jsx` (MV-01..02), `tests/smoke/menuNavFreeze.test.jsx` (contrato novo), `tests/smoke/avisoDeVersao.test.jsx` (VS-03..04), `tests/smoke/atualizacaoAutomaticaApp.test.js` (AV-05).
+
+<!-- Próxima decisão: D-PROD-306 -->
