@@ -14,7 +14,7 @@
  */
 import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import { lerErroGestao } from '@/lib/gestaoErros';
-import { deUnidades, lerNumeroLocal, multiplicarArredondar, paraUnidades } from '@/lib/dinheiroDecimal';
+import { deUnidades, dividirArredondar, lerNumeroLocal, multiplicarArredondar, paraUnidades } from '@/lib/dinheiroDecimal';
 import { corpoDosLotes } from './estoqueLotesRegras.js';
 import { formatarDia, formatarQtd, formatarReais } from '@/lib/estoqueConsultaRegras';
 import { mensagemRecusaRecalculo } from '@/lib/estoqueRecalculoExclusao';
@@ -159,16 +159,8 @@ const tamanho = (/** @type {string} */ t) => [...String(t ?? '').trim()].length;
 const ehZeroCanonico = (/** @type {string} */ v) => /^0(\.0*)?$/.test(v);
 const ehDiaIso = (/** @type {string} */ v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? ''));
 
-/** a ÷ b com `casas` decimais, arredondado HALF_UP, em BigInt. @param {string} a @param {string} b @param {number} casas */
-export const dividirArredondar = (a, b, casas) => {
-  const ua = paraUnidades(a, 8);
-  const ub = paraUnidades(b, 8);
-  if (ub === 0n) throw new RangeError('divisao_por_zero');
-  const escala = 10n ** BigInt(casas);
-  const num = ua * escala * 2n;
-  const q = num / ub;
-  return deUnidades((q + (q >= 0n ? 1n : -1n)) / 2n, casas);
-};
+/** a ÷ b com `casas` decimais (HALF_UP); mora em `dinheiroDecimal` e segue exportado daqui. */
+export { dividirArredondar };
 
 /** Formata um canônico para o campo de edição (vírgula decimal, sem zeros à direita). @param {string} canonico */
 export const paraCampo = (canonico) => {

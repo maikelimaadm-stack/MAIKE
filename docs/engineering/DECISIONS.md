@@ -9779,4 +9779,16 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - Backend: `exclusaoMovimentacaoLedger` (EX-C reescrito, com a nutrição posterior na origem), `certificacaoManejosExclusoes` (CERT-3/4/5/9 na regra nova), `r2eR5ComandosLedgerConvertidos` (K3) e `r2eR6CutoverAtomicoVinculos` (D2).
   - App: `tests/smoke/soOUltimoDaSequencia.test.js` (NU-01, ES-01, CA-01, TR-01..02, NL-01), `motorSincronizacao` (MS-10, MS-10b, MS-26), `lancamentoCochoOffline` (LCO-12) e `exclusaoMovimentacao` (3b).
 
-<!-- Próxima decisão: D-PROD-312 -->
+## D-PROD-312 — Saída manual com lote numa unidade de conversão: os lotes conferem na unidade de estoque
+
+**Data:** 2026-11-25 · **Origem:** achado da D-PROD-310, correção autorizada pelo proprietário ("Pode corrigir") · **Branch:** `claude/saida-lote-unidade-convertida` · **Relatório:** [`MAIKE-SAIDA-LOTE-UNIDADE-CONVERTIDA-REPORT.md`](./MAIKE-SAIDA-LOTE-UNIDADE-CONVERTIDA-REPORT.md)
+
+- **Contexto:** na Saída manual do Estoque, o campo "Lote" (`CampoLotesSaida`) e a conferência antes de gravar (`erroDosLotes`, `lotesUsados`) calculavam a quantidade na unidade de estoque por `quantidadeDeEstoque`. Essa conta só conhecia o SACO legado (peso do saco). Quando a linha estava numa unidade de conversão do cadastro (D-PROD-288, por exemplo 3 SC de 25 kg), os lotes, que são sempre em kg ou L, eram comparados com a quantidade digitada (3). A tela sugeria e conferia o total errado, e o servidor recusava com `lotes_nao_somam`.
+- **Decisão:**
+  - `quantidadeDeEstoque` converte a unidade de conversão ATIVA do produto pela mesma conta do servidor: multiplica ou divide pelo fator, com 4 casas, arredondado uma vez (HALF_UP). Uma conversão SACO do cadastro vale antes do peso do saco legado, como em `emUnidadeDeEstoque`.
+  - Sem conversão, nada muda: unidade de estoque como está e SACO legado pelo peso.
+  - `dividirArredondar` passou para `dinheiroDecimal`, para as regras de lote (que o Node carrega sem o alias `@/`) usarem a mesma divisão. `estoqueEntradasRegras` continua exportando a função.
+- **Migration:** nenhuma. **Constituição:** sem mudança.
+- **Testes:** `tests/smoke/saidaLoteUnidadeConvertida.test.js` (4 casos; 3 vermelhos no código da `main`): multiplica (3 SC = 75 kg e a soma confere), divide (10 CX ÷ 4 = 2,5 L), SACO do cadastro antes do legado, e os casos de sempre.
+
+<!-- Próxima decisão: D-PROD-313 -->
