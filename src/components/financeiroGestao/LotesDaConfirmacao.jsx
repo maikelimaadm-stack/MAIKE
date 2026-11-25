@@ -18,15 +18,19 @@ const quantidade = (/** @type {unknown} */ v) => {
  * @param {{
  *   empresaId: string|null|undefined, direcao: string, efeitos: any[], estado: Record<string|number, any>,
  *   onMudar: (itemOrdem: number, patch: Record<string, unknown>) => void, desabilitado?: boolean, pendencia?: string,
+ *   aviso?: string,
  * }} props
+ * D-PROD-301 (retificação por substituição): `aviso` é uma linha sob o título (de onde vieram os campos); na venda,
+ * `efeito.devolvidos` (`[{ lote_id, quantidade }]`) são as fatias que a versão anterior baixou e o estorno devolve.
  */
-export default function LotesDaConfirmacao({ empresaId, direcao, efeitos, estado, onMudar, desabilitado = false, pendencia = "" }) {
+export default function LotesDaConfirmacao({ empresaId, direcao, efeitos, estado, onMudar, desabilitado = false, pendencia = "", aviso = "" }) {
   const comLote = (efeitos ?? []).filter((e) => e?.controla_lote);
   if (!comLote.length) return null;
   const compra = direcao === "PAGAR";
   return (
     <section className="space-y-2 rounded-md border border-[var(--mg-divider,#cbd5e1)] p-3 text-[13px]" data-testid="confirmacao-lotes">
       <p className="font-semibold">{compra ? "Lote da compra" : "Lote da venda"}</p>
+      {aviso ? <p className="text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="confirmacao-lotes-aviso">{aviso}</p> : null}
       {comLote.map((e) => {
         const n = e.item_ordem;
         const s = estado?.[n] ?? {};
@@ -81,6 +85,7 @@ export default function LotesDaConfirmacao({ empresaId, direcao, efeitos, estado
               confirmaVencido={s.confirmaVencido}
               loteVencido={s.loteVencido}
               erroLote={s.erroLote}
+              devolvidos={e.devolvidos ?? null}
               onMudar={(patch) => onMudar(n, patch)}
               desabilitado={desabilitado}
               className=""

@@ -461,14 +461,17 @@ export const cancelarLancamento = async (empresaId, id, p) => {
  * `versao` do detalhe aberto (CAS) + `motivo`. O servidor decide, sob trava, se
  * corrige no lugar (sem mexer no estoque) ou por substituição atômica (estorno
  * do antigo + documento novo com o MESMO número). Sem resposta → mesmo
- * `operation_id` na repetição (replay).
+ * `operation_id` na repetição (replay). D-PROD-301: `lotes_por_item` (lote e validade da compra, lotes escolhidos da
+ * venda) para a correção que muda o estoque; só vai quando tem item (sem ele, o corpo é o de sempre).
  * @param {string|null} empresaId
  * @param {string} id
- * @param {{ versao: number, doc: Record<string, unknown>, motivo: string, escopo: string, storage?: Storage|null, retentativa?: boolean }} p
+ * @param {{ versao: number, doc: Record<string, unknown>, motivo: string, lotes_por_item?: Array<Record<string, unknown>>|null, escopo: string, storage?: Storage|null, retentativa?: boolean }} p
  */
 export const retificarLancamento = async (empresaId, id, p) => {
   const empresa = exigirEmpresa(empresaId, 'retificarLancamento', RESOURCE);
+  /** @type {Record<string, unknown>} */
   const conteudo = { ...p.doc, versao: p.versao, motivo: p.motivo };
+  if (Array.isArray(p.lotes_por_item) && p.lotes_por_item.length) conteudo.lotes_por_item = p.lotes_por_item;
   return enviarComPendencia({
     escopo: p.escopo,
     acao: 'retificar',

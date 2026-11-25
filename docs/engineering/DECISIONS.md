@@ -9497,4 +9497,22 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Constituição:** nenhuma regra nova; a emenda da D-PROD-282 ("produto que controla lote usa o custo do lote escolhido") já cobre.
 - **Fora (missões próprias):** unidade convertida (SACO, galão…) em atividade, abastecimento, cocho e transferência (emenda proposta na SPEC de unidades, §7); a reconciliação do valor do estoque (pausada pelo proprietário); o lote na retificação por substituição do financeiro (a retificação não recebe `lotes_por_item`); os `avisos` de vencido na resposta do lançamento de atividade com várias linhas (a tela já pediu a confirmação antes de enviar).
 
-<!-- Próxima decisão: D-PROD-301 -->
+## D-PROD-301 — Financeiro: o lote na retificação por substituição
+
+**Data:** 2026-11-25 · **Origem:** pedido do proprietário (a correção de uma compra ou venda confirmada de produto com lote, quando muda o estoque), plano aprovado · **Branch:** `claude/financeiro-retificacao-lote` · **Relatório:** [`MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md`](./MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `289cefb1` indicou a D-PROD-301; o marcador passa a D-PROD-302.
+
+- **Contexto:** a D-PROD-300 deu o lote na **confirmação** do lançamento financeiro (`lotes_por_item`) e deixou fora a retificação. A retificação por SUBSTITUIÇÃO estorna a versão anterior e grava a nova pelo mesmo núcleo da confirmação (`aplicarEfeitosDoPlano`), mas sem o lote: corrigir a quantidade (ou outro campo físico) de uma compra confirmada de produto com lote era **recusado** (422 `ESTOQUE_LOTE_OBRIGATORIO`, `lote_obrigatorio`) e a correção de uma venda caía no FEFO sem escolha.
+- **Decisão (o mesmo contrato da confirmação; nada muda para produto sem lote):**
+  1. **Servidor:** `POST /operacoes-financeiras/:id/retificar` aceita `lotes_por_item` com o MESMO schema da confirmação (`LOTES_POR_ITEM`, um só nas duas rotas). `retificar` o lê com `lotesDaConfirmacao`, o põe no fingerprint **só quando vem** (o corpo sem o campo tem o fingerprint de antes) e, na SUBSTITUIÇÃO, o passa a `aplicarEfeitosDoPlano`: compra com lote exige o lote (e a validade, se o produto controla validade); venda com a escolha sai dos lotes escolhidos; venda sem escolha, o FEFO. Como na confirmação, a resposta da substituição traz `avisos` quando a saída nova usa lote vencido (o servidor nunca recusa vencido).
+  2. **NO_LUGAR** (assinatura física igual) não mexe em lote: o campo é ignorado.
+  3. **Tela:** quando a correção muda o estoque (a previsão `mudaEstoque` da tela), o diálogo "Salvar correção" mostra o mesmo bloco da confirmação (`LotesDaConfirmacao`): na compra, "Lote do fabricante" e "Validade"; na venda, o campo "Lote" (`CampoLotes`). A prévia do servidor só existe para rascunho, então o diálogo monta os efeitos de estoque a partir do formulário (`mercadoriasDaCorrecao`) e lê o controle de lote de cada produto em `GET /estoque/lotes-disponiveis` (a mesma leitura e a mesma chave de cache do campo "Lote"; a guarda já libera quem edita lançamentos, que é o que a retificação exige).
+  4. **Pré-preenchimento da compra:** o lote e a validade começam com os do lote de **entrada da versão anterior** (mesmo item e mesmo produto): o detalhe dá o `estoque_lote_nota_id` do item e a leitura dos lotes dá o fabricante e a validade. A substituição só acontece com esse lote intacto, então ele está entre os disponíveis. Se não estiver na leitura, os campos ficam em branco.
+  5. **Saldo da venda:** o estorno devolve o que a versão anterior baixou antes da saída nova; o campo "Lote" soma essas fatias (`consumos` do item anterior, mesmo produto e depósito) ao saldo de cada lote para conferir e escolher (`devolvidos`, como na edição da linha de atividade).
+  6. **Bloqueio:** "Salvar correção" fica desabilitado com pendência de lote, com as regras da confirmação (`lotesDaConfirmacao` da tela), e enquanto os lotes carregam. Se a leitura falhar, o diálogo avisa e não bloqueia: o servidor confere ao gravar.
+  7. `retificarLancamento` manda `lotes_por_item` só quando tem item (sem ele, o corpo de sempre).
+- **Migration:** nenhuma. **Constituição:** nenhuma regra nova (a emenda da D-PROD-282 cobre).
+- **Fora:** a correção que a tela prevê sem mudança no estoque mas o servidor faz por substituição (previsão diferente do servidor) segue sem os campos: a compra com lote é recusada com 422 e a pessoa corrige de novo; a direção trocada (compra ↔ venda) com produto de lote não tem tratamento especial.
+
+<!-- Próxima decisão: D-PROD-302 -->

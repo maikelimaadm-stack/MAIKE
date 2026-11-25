@@ -22,6 +22,7 @@ import {
   inicializacaoProporcional,
   itemVazio,
   linhasDoItem,
+  mercadoriasDaCorrecao,
   montarDocumento,
   mudancasFisicas,
   rateioVazio,
@@ -93,7 +94,7 @@ const rotuloDoErro = (chave) => {
  *   erroServidor?: { erro: unknown, seq: number } | null,
  *   duplicarDe?: { detalhe: any, numero: string|null } | null,
  *   retificacao?: { efeitoFisicoPermitido: boolean, motivos: any[] } | null,
- *   onRetificar?: ((p: { doc: Record<string, unknown>, mudaEstoque: boolean, diferencas: Array<{ item: number|null, campo: string }> }) => void) | null,
+ *   onRetificar?: ((p: { doc: Record<string, unknown>, mudaEstoque: boolean, diferencas: Array<{ item: number|null, campo: string }>, mercadorias: Array<Record<string, any>> }) => void) | null,
  * }} props
  *   `erroServidor`: a última recusa do servidor ao gravar este formulário; no
  *   rateio POR ITEM (`details.indice` + `subindice`) ela aparece no campo exato,
@@ -348,7 +349,8 @@ export default function FormularioLancamento({
         return;
       }
       retratar(form);
-      onRetificar?.({ doc, mudaEstoque: Boolean(fisico?.muda), diferencas: fisico?.diferencas ?? [] });
+      // D-PROD-301: os efeitos de estoque da correção (o diálogo pede o lote quando o estoque muda).
+      onRetificar?.({ doc, mudaEstoque: Boolean(fisico?.muda), diferencas: fisico?.diferencas ?? [], mercadorias: mercadoriasDaCorrecao(form, resumo) });
       return;
     }
     retratar(form);

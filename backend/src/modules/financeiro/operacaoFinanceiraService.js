@@ -2511,8 +2511,10 @@ const levarProcedencia = async (tx, contexto, { op, doc, refs, mercadorias }) =>
 export const retificar = async (contexto, id, corpo) => {
   const auth = exigirAuthContext(contexto?.auth);
   const cli = auth.clienteId;
-  const { operation_id: operationKey, ...entrada } = corpo;
-  const fingerprint = fingerprintDePayload(canonico({ id, ...entrada }));
+  const { operation_id: operationKey, lotes_por_item: lotesBrutos, ...entrada } = corpo;
+  // D-PROD-301: lote/validade (compra) e lotes escolhidos (venda) por item da SUBSTITUIÇÃO; no fingerprint só quando vêm.
+  const lotesPorItem = lotesDaConfirmacao(lotesBrutos);
+  const fingerprint = fingerprintDePayload(canonico({ id, ...entrada, ...(lotesPorItem.size ? { lotes_por_item: [...lotesPorItem.values()] } : {}) }));
   const r = await emTransacao(
     TX_EFEITO,
     (tx) =>
@@ -2630,9 +2632,10 @@ export const retificar = async (contexto, id, corpo) => {
           });
           await gravarFilhos(tx, cli, novo, plano, refs, { statusTitulos: 'ABERTO' });
           const itensNovos = await tx.operacaoFinanceiraItem.findMany({ where: { cliente_id: cli, operacao_id: novo.id }, orderBy: { ordem: 'asc' } });
-          const { movimentos, lotes } = await aplicarEfeitosDoPlano(tx, contexto, {
+          const { movimentos, lotes, avisos } = await aplicarEfeitosDoPlano(tx, contexto, {
             cli, empresaId, operacaoId: novo.id, direcao: novo.direcao, dia: doc.data_operacional, plano, itens: itensNovos, refs,
             documento: { numero: novo.documento_referencia ?? novo.numero, data: doc.data_emissao }, parceiro: { id: refs.parceiro.id, nome: refs.parceiro.nome },
+            lotesPorItem, // D-PROD-301: o mesmo contrato da confirmação (compra com lote exige; venda sem escolha usa o FEFO).
           });
           await tx.operacaoFinanceiraEvento.create({ data: evento({ modo, operacao_nova_id: novo.id }) });
           await registrarEvento(contexto, {
@@ -2645,7 +2648,8 @@ export const retificar = async (contexto, id, corpo) => {
           }, tx);
           await numerarMovimentos(tx, cli, [...estornos, ...movimentos]);
           const retificacao = { modo, operacao_anterior_id: id, operacao_atual_id: novo.id };
-          return { httpStatus: 200, body: { ...(await carregarDetalhe(tx, cli, novo.id)), retificacao } };
+          // D-PROD-301: lote vencido consumido pela saída nova (o servidor nunca recusa; avisa como na confirmação).
+          return { httpStatus: 200, body: { ...(await carregarDetalhe(tx, cli, novo.id)), retificacao, ...(avisos.length ? { avisos } : {}) } };
         },
       }),
     { documento_chave_ativa: DOCUMENTO_DUPLICADO_PELO_ALVO, direcao_parceiro: DOCUMENTO_DUPLICADO_PELO_ALVO }

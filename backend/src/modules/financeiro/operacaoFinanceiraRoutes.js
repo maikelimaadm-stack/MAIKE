@@ -125,6 +125,17 @@ const DESCARTAR = {
 };
 const DETALHE = { params: PARAMS, querystring: SO_EMPRESA };
 const PREVIA = { params: PARAMS, body: SO_EMPRESA };
+/**
+ * D-PROD-282: por item de produto com lote — lote e validade (compra) ou lotes escolhidos (venda; sem eles, FEFO).
+ * D-PROD-301: o mesmo campo na retificação por SUBSTITUIÇÃO (o NO_LUGAR não mexe em lote e o ignora).
+ */
+const LOTES_POR_ITEM = {
+  type: 'array', maxItems: 200,
+  items: {
+    type: 'object', required: ['item_ordem'], additionalProperties: false,
+    properties: { item_ordem: { type: 'integer', minimum: 1 }, lote_fabricante: LOTE_FABRICANTE, data_validade: DATA_VALIDADE, lotes: LOTES_ESCOLHIDOS },
+  },
+};
 const CONFIRMAR = {
   params: PARAMS,
   body: {
@@ -141,14 +152,7 @@ const CONFIRMAR = {
         additionalProperties: false,
         properties: { metodo: ENUM(METODOS), data: DIA, referencia: TEXTO_NULO(120) },
       },
-      // D-PROD-282: por item de produto com lote — lote e validade (compra) ou lotes escolhidos (venda; sem eles, FEFO).
-      lotes_por_item: {
-        type: 'array', maxItems: 200,
-        items: {
-          type: 'object', required: ['item_ordem'], additionalProperties: false,
-          properties: { item_ordem: { type: 'integer', minimum: 1 }, lote_fabricante: LOTE_FABRICANTE, data_validade: DATA_VALIDADE, lotes: LOTES_ESCOLHIDOS },
-        },
-      },
+      lotes_por_item: LOTES_POR_ITEM,
     },
   },
 };
@@ -169,7 +173,7 @@ const RETIFICAR = {
     type: 'object',
     required: [...DOC_OBRIGATORIOS, 'versao', 'operation_id', 'motivo'],
     additionalProperties: false,
-    properties: { ...DOC_PROPS, versao: { type: 'integer', minimum: 1 }, operation_id: OPERATION_ID, motivo: MOTIVO },
+    properties: { ...DOC_PROPS, versao: { type: 'integer', minimum: 1 }, operation_id: OPERATION_ID, motivo: MOTIVO, lotes_por_item: LOTES_POR_ITEM },
   },
 };
 const EXCLUIR = {
