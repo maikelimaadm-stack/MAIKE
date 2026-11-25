@@ -54,6 +54,7 @@ const leiturasDosFormularios = async () => {
   const estoque = await import('@/services/estoqueMapaService');
   const mapa = await import('@/services/mapaService');
   const empresas = await import('@/services/empresaService');
+  const cache = await import('@/services/mapaCacheService');
   return {
     'lançamento do cocho: empresas': () => empresas.listEmpresas(),
     'lançamento do cocho: cocho atualizado': () => sup.carregarPontoAtualizado('x1'),
@@ -72,6 +73,12 @@ const leiturasDosFormularios = async () => {
     'detalhe do depósito: cochos': () => mapa.listarPontosSuplementacaoAtivos(EMP),
     'detalhe do depósito: áreas': () => mapa.listarAreasAtivas(EMP),
     'detalhe do depósito: movimentações': () => estoque.listarTodasMovimentacoes(),
+    // D-PROD-303: detalhe do cocho (o mesmo cache do mapa + o cadastro de produtos).
+    'detalhe do cocho: lançamentos': () => cache.getMapaCachedData('eventosSuplementacao', EMP),
+    'detalhe do cocho: cochos': () => cache.getMapaCachedData('pontosSuplementacao', EMP),
+    'detalhe do cocho: áreas': () => cache.getMapaCachedData('areas', EMP),
+    'detalhe do cocho: leituras': () => cache.getMapaCachedData('leiturasCocho', EMP),
+    'detalhe do cocho: produtos': () => estoque.listarTodosProdutos(),
   };
 };
 

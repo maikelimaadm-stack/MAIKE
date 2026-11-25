@@ -9522,4 +9522,10 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   4. **Avisos:** permissão negada e GPS desligado avisam uma vez, em português; tempo esgotado não avisa (o GPS continua tentando).
 - **Testes:** `tests/smoke/localizacaoNoMapa.test.jsx` (LM-01..05), `tests/smoke/mapaPreferenciasIntegrada.test.jsx` (MO-01..02; PREF-02 e PREF-07 continuam).
 
-<!-- Próxima decisão: D-PROD-303 -->
+## D-PROD-303 — Detalhe do cocho sem internet: produtos do celular e pente-fino do detalhe
+
+- **Contexto:** o proprietário relatou que, depois de sincronizar, sem internet o detalhe do cocho não mostra nada. A causa principal (consultas pausadas sem sinal) já foi corrigida na D-PROD-301 (`networkMode: 'always'`), que ainda não tinha chegado ao celular dele.
+- **Decisão:** o detalhe do cocho lia o cadastro de produtos SÓ com internet (sem sinal devolvia lista vazia de propósito; o cocho ficava sem os sacos). Agora lê do celular como as outras telas. O pente-fino (`penteFinoOffline.test.js`) passa a cobrir também as leituras do detalhe do cocho (lançamentos, cochos, áreas, leituras e produtos).
+- **Testes:** `tests/smoke/penteFinoOffline.test.js` (PF-01 com o detalhe do cocho).
+
+<!-- Próxima decisão: D-PROD-304 -->
