@@ -72,10 +72,13 @@ const servidor = () => {
   return s;
 };
 
+/** Motor do teste em curso: no fim, sai da sessão (um envio agendado que dispare depois não sobe nada). */
+let motorDoTeste = null;
 const carregar = async () => {
   (await import('@/lib/auth/nativeTokenStorage')).setNativeToken('jwt.sintetico', { lembrar: true });
   (await import('@/lib/offline/offlineTenant')).setOfflineTenant('cli_1');
   const motor = await import('@/lib/offline/sincronizacao/motorDeSincronizacao');
+  motorDoTeste = motor;
   motor.definirSessaoDaFila({ cliente_id: 'cli_1', usuario_id: `usr_${Math.random().toString(36).slice(2, 8)}` });
   const sup = await import('@/services/suplementacaoService');
   const estoque = await import('@/services/estoqueAguardandoEnvioService');
@@ -101,6 +104,10 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  // D-PROD-308: um envio agendado por este teste não pode disparar no seguinte (com o servidor
+  // falso do seguinte) e subir o que sobrou deste.
+  motorDoTeste?.definirSessaoDaFila(null);
+  motorDoTeste = null;
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();

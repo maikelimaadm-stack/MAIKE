@@ -6,6 +6,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
+import { criarComIdDoAparelho, foiExcluidoNoHistorico, idDoAparelhoDe } from '../../shared/idempotency/idDoAparelho.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
 import {
   listarRegistros,
@@ -17,6 +18,7 @@ import {
   motivosHistoricoPonto,
   listarCochosDoDeposito,
   outroPontoUsaLocal,
+  buscarPontoPorIdEmQualquerTenant,
 } from './pontoSuplementacaoRepository.js';
 import { inserirLocal } from '../locaisEstoque/localEstoqueRepository.js';
 import { comoLocalPublico, ENTIDADE_SEQUENCIA as ENTIDADE_SEQUENCIA_LOCAL } from '../locaisEstoque/localEstoqueService.js';
@@ -110,6 +112,31 @@ const localPedido = (pedido) => {
  */
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
+  // D-PROD-308: id gerado no aparelho — repetir a criação devolve o mesmo ponto (sem segundo
+  // local de estoque nem segunda numeração); excluído não é recriado.
+  const { registro } = await criarComIdDoAparelho({
+    id: idDoAparelhoDe(/** @type {Record<string, unknown>} */ (entrada ?? {}).id),
+    clienteId: auth.clienteId,
+    entidade: 'PontoSuplementacao',
+    buscar: async (id) => {
+      const ponto = await buscarPontoPorIdEmQualquerTenant(id);
+      if (ponto) return { cliente_id: ponto.cliente_id, registro: comoPublico(ponto) };
+      return (await foiExcluidoNoHistorico(auth.clienteId, 'PontoSuplementacao', id))
+        ? { cliente_id: auth.clienteId, excluido: true, registro: null }
+        : null;
+    },
+    criar: (id) => criarNaTransacao(contexto, auth, entrada, id),
+  });
+  return registro;
+};
+
+/**
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {import('../../shared/auth/authContext.js').AuthContext} auth
+ * @param {unknown} entrada
+ * @param {string|null} idDoAparelho
+ */
+const criarNaTransacao = async (contexto, auth, entrada, idDoAparelho) => {
   const prisma = getPrismaClient();
   const { local_estoque: pedidoLocal, ...colunas } = /** @type {Record<string, unknown>} */ (entrada ?? {});
   const local = localPedido(pedidoLocal);
@@ -142,7 +169,7 @@ export const criar = async (contexto, entrada) => {
       dados.local_estoque_nome = registroLocal.nome;
     }
     dados.numero_ponto = await numeroLivre(tx, auth.clienteId, dados.numero_ponto);
-    const registro = await inserirRegistro(tx, dados);
+    const registro = await inserirRegistro(tx, idDoAparelho ? { ...dados, id: idDoAparelho } : dados);
     await registrarEvento(
       contexto,
       { acao: 'create', entidade: 'PontoSuplementacao', entidadeId: registro.id, dadosNovos: comoPublico(registro) },

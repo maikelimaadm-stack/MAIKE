@@ -43,6 +43,8 @@ const VERSAO_DO_BANCO = 1;
  *   resultado?: unknown,
  *   progresso?: Record<string, any>,
  *   enviado_em?: string|null,
+ *   direto_ate?: number,
+ *   reserva_de?: number,
  * }} ItemDaFila
  *
  * @typedef {{

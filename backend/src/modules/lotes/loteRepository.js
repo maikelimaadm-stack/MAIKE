@@ -82,6 +82,15 @@ export const buscarLote = async (clienteId, id, tx) => {
 /** @param {import('@prisma/client').Prisma.TransactionClient} tx @param {object} dados */
 export const inserirLote = async (tx, dados) => tx.lote.create({ data: dados, select: SELECAO });
 
+/**
+ * D-PROD-308 — o lote com este id, em qualquer tenant: só para a criação com o id do
+ * aparelho decidir entre "repetiu" (mesmo tenant) e "id em uso" (outro). Nada disso vai
+ * para a resposta de outro tenant.
+ * @param {string} id
+ */
+export const buscarLotePorIdEmQualquerTenant = async (id) =>
+  getPrismaClient().lote.findUnique({ where: { id }, select: SELECAO });
+
 /** @param {import('@prisma/client').Prisma.TransactionClient} tx */
 export const atualizarLotePorId = async (tx, clienteId, id, dados) =>
   tx.lote.update({

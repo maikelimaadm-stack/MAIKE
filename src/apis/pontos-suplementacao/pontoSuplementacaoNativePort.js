@@ -55,6 +55,9 @@ export const pontoSuplementacaoPort = offlineStorageDisponivel()
       // D-PROD-307: cache e fila por conta (antes, duas contas no mesmo celular se misturavam).
       tenantScoped: true,
       adotarFilaSemDono: true,
+      // D-PROD-308: o cocho/depósito novo nasce com o id do aparelho (com ou sem internet);
+      // a leitura e o lançamento feitos nele sem internet já citam o id definitivo.
+      idDoAparelho: true,
     })
   : operacoesNativas;
 

@@ -9608,11 +9608,68 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - `tests/smoke/lancamentoCochoOffline.test.js` (LCO-15).
   - Contratos atualizados: `sincronizacaoOrganizada.test.jsx` (SO-05), `loteDeleteOfflineBloqueado.test.js` (PR167-R2 F) e `categoriaManejoCriacaoOnline.test.js` (e).
 
+## D-PROD-308 — Sincronização profissional, Etapa 1: nada se perde, nada duplica (id do aparelho, gravar antes de enviar, trava entre abas)
+
+**Data:** 2026-11-25 · **Origem:** pedido do proprietário ("o que pudermos fazer para fazer uma coisa profissional já vamos fazer no começo, testando com cochos e lotes e contas — isso vai virar um SaaS com milhões de registros, vários clientes e usuários"), plano em 5 etapas aprovado · **Branch:** `claude/nifty-feynman-rh0kdn` · **Relatório:** [`SINCRONIZACAO-ETAPA1-D308-REPORT.md`](./SINCRONIZACAO-ETAPA1-D308-REPORT.md)
+
+- **Contexto:** o levantamento da D-PROD-307 achou três buracos estruturais.
+  1. O envio direto do motor (com internet) só gravava o registro no aparelho DEPOIS da resposta. Se o app fechasse com o pedido no ar, o código da operação se perdia; o que o servidor já tinha feito (a baixa do estoque) ficava sem registro no aparelho, e a tela, ao repetir, mandava com código novo.
+  2. Os cadastros da fila antiga (cocho e lote, entre outros) criavam sem idempotência. A resposta perdida, o reenvio ou duas abas criavam em dobro; no lote, em dobro também a entrada no rebanho e a numeração. O id provisório `offline_…` precisava ser trocado depois, e nada o trocava no motor: a leitura de um cocho criado sem internet ia com o id provisório.
+  3. Duas abas do navegador sincronizavam ao mesmo tempo.
+- **Decisão:**
+  1. **Id do aparelho (servidor):**
+     - `POST /lotes` e `POST /pontos-suplementacao` aceitam um `id` UUID gerado no aparelho (`shared/idempotency/idDoAparelho.js`, `criarComIdDoAparelho`).
+     - O mesmo id no mesmo tenant devolve o registro já criado, sem efeito repetido (numeração, local de estoque, entrada no rebanho, auditoria).
+     - O id em outro tenant responde 409 `ID_DO_APARELHO_EM_USO`, sem dizer de quem.
+     - Registro já excluído responde 409 `ID_DO_APARELHO_EXCLUIDO`. Para o lote, vale `excluido_em`; para o ponto, que é apagado de vez, o histórico de auditoria (`AuditLog` `delete`).
+     - Duas criações simultâneas com o mesmo id: o banco decide pela chave primária, e a que perde relê o registro e o devolve.
+     - Sem `id` (ou, no ponto, um id que não é UUID), o caminho de sempre: o servidor gera o id.
+     - O tenant continua vindo só da autenticação (R11).
+  2. **Id do aparelho (app):**
+     - O adaptador da fila antiga ganha `idDoAparelho` (ligado em Lote e PontoSuplementacao).
+     - O registro novo nasce com o id definitivo, com ou sem internet. Não há mais `offline_…` para essas entidades, nem troca de id depois.
+     - Com internet, a criação que não chega a uma resposta (rede, servidor fora, sessão vencida) vai para a fila com o MESMO id, em vez de voltar erro para a tela. A recusa do servidor continua voltando para a tela.
+     - Editar ou excluir sem internet um registro que ainda está na fila é achado pelo id, não mais pelo prefixo `offline_` nem pela fazenda selecionada. A edição entra na própria criação; a exclusão tira a criação da fila.
+  3. **Motor: gravado antes de sair:**
+     - `enviarOuGuardar` grava o item (aguardando, já "tentado") com uma reserva de 2 min (`direto_ate`) ANTES do envio direto.
+     - O passo feito (ex.: a baixa) fica gravado durante o envio, e cada passo renova a reserva.
+     - Sucesso: "enviado". Falha passageira: aguardando, sem reserva, e a passada envia. Recusa: sai da fila e a tela decide.
+     - A passada não manda um item reservado. Se o app fechar, a reserva vence e a passada termina com o MESMO código; o servidor reconhece o código e não grava duas vezes.
+     - O item reservado não aparece como "aguardando" (nem no ícone nem nas telas): a tela já mostra o resultado.
+  4. **Ordem entre as filas:**
+     - Um item do motor que cita um registro criado no aparelho e ainda na fila antiga espera essa criação. É o caso da leitura ou do lançamento num cocho criado sem internet. O envio direto também espera.
+     - `definirEsperaDeFora` liga as duas filas sem acoplar o motor à fila antiga.
+     - `sincronizarTudo` roda o motor de novo depois da fila antiga quando algo ficou esperando; o cocho e a leitura sobem na mesma sincronização, nessa ordem.
+  5. **Trava entre abas:** `naVezDaSincronia` roda dentro de `navigator.locks` (`maike-sincronia`, exclusiva), de modo que duas abas do navegador não sincronizam ao mesmo tempo. A passada agendada do motor também entra nessa vez. Sem suporte, ou com a trava recusada pelo navegador, roda sem ela; a ordem dentro da aba continua.
+  6. **Revisão independente (antes da PR), achados corrigidos:**
+     - Lote apagado de vez também não é recriado: o servidor consulta o histórico de auditoria, como no ponto.
+     - Criação que caiu com internet e o que vem depois:
+       - a edição logo em seguida entra na criação, sem PATCH num registro que o servidor talvez não tenha;
+       - a exclusão vai DEPOIS da criação (marcada `ja_tentado`), porque o servidor pode já ter o registro;
+       - a exclusão só-online (lote) primeiro tenta enviar a criação e, se ela não sobe, não exclui;
+       - só vai para a fila a falha de rede ou de sessão, e com conta definida; erro do servidor volta para a tela.
+     - No reenvio, `ID_DO_APARELHO_EXCLUIDO` encerra o caso: a criação e o que vinha atrás dela para o mesmo registro saem da fila e do aparelho.
+     - Na fila antiga, um erro do servidor que se repete no mesmo item fica retido com o motivo na 5ª vez, em vez de travar para sempre a fila e quem espera por ela.
+     - Depois do envio direto, a próxima passada é pedida logo: o segundo lançamento no mesmo cocho não espera 1 minuto.
+     - A resposta atrasada de um envio direto não desfaz o que a passada já terminou (`reserva_de`).
+     - Uma reserva além do limite (o relógio do aparelho voltou) não esconde o item.
+- **Migration:** nenhuma. Os ids continuam `String` no banco; UUID cabe onde cabia o cuid.
+- **Constituição:** nenhuma regra nova. R9/R11 preservadas: a leitura pelo id em qualquer tenant serve só para decidir e nada dela vai para a resposta de outro tenant.
+- **Fora (próximas etapas):**
+  - Os outros cadastros da fila antiga (bebedouro, setor, área…) ganham o id do aparelho na Etapa 5, com o mesmo helper.
+  - A sincronização incremental ("o que mudou desde", com registro das exclusões) é a Etapa 2.
+  - A versão por registro e quem alterou ficam para a Etapa 3.
+  - A tela sem "piscar" entre "enviado" e a releitura fica para a Etapa 4.
+- **Testes:**
+  - Backend: `backend/tests/idDoAparelho.test.mjs` (ID-01..08).
+  - App: `tests/smoke/envioSemPerdaSemDuplicar.test.js` (IA-01..11, EN-01..09, OR-01, AB-01..02).
+  - `tests/smoke/lancamentoCochoOffline.test.js`: isolamento; o envio agendado por um teste não dispara no seguinte.
+
 ## D-PROD-309 — Unidade de conversão no cocho, na transferência e na linha de produto da atividade (emenda aprovada)
 
 **Data:** 2026-11-25 · **Origem:** emenda da Constituição proposta na SPEC de unidades (§7) e **aprovada pelo proprietário em 2026-11-25** (opção "Aprovo: cocho, transferência e atividade") · **Branch:** `claude/unidade-convertida-lancamentos` (da `main` `b7a60c48`) · **Migration:** `20261126200000_unidade_convertida_lancamentos` (EXPAND, **não aplicada em produção**) · **Runbook:** [`MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-RUNBOOK-RELEASE.md`](./MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-RUNBOOK-RELEASE.md) · **Relatório:** [`MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md`](./MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md)
 
-> **Numeração:** a `main` `b7a60c48` indica `Próxima decisão: D-PROD-308`, mas a PR #394 (aberta, "Sincronização Etapa 1") já reserva a D-PROD-308; `node scripts/dev/proxima-decisao.mjs` mandou usar a **D-PROD-309**, que é esta (o código e os testes nasceram com o número 308 e foram renumerados antes do push). O marcador passa a D-PROD-310. O número não está no `migration.sql` (checksum inalterado). Conferir de novo antes do merge (regra A5).
+> **Numeração:** a `main` `b7a60c48` indicava `Próxima decisão: D-PROD-308`, mas a PR #394 ("Sincronização Etapa 1") reservava a D-PROD-308 e foi mergeada antes desta (`d0843361`), com o marcador em D-PROD-309; `node scripts/dev/proxima-decisao.mjs` confirmou a **D-PROD-309**, que é esta (o código e os testes nasceram com o número 308 e foram renumerados antes do push). O marcador passa a D-PROD-310. O número não está no `migration.sql` (checksum inalterado). Conferir de novo antes do merge (regra A5).
 
 **Emenda (texto aprovado):** "Na linha de produto da atividade, no cocho e na transferência, a quantidade pode ser digitada numa unidade de conversão do cadastro do produto (D-PROD-288); o servidor converte para a unidade de estoque pelo fator cadastrado e grava a unidade, a quantidade e o fator. O abastecimento continua sem conversão." Aplicada no `00-CONSTITUICAO.md` (emenda D-PROD-309) e anotada no `07-DO-NOT-DO.md` (a proibição de "converter unidade" das notas D-PROD-193/202 tem esta exceção; a do abastecimento, nota D-PROD-159/162, fica como está).
 

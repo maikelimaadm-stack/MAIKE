@@ -29,6 +29,7 @@ import {
 } from "@/components/offline/IndexedDBManager";
 import { ApiError, API_ERROR_CODES, getApiErrorMessage } from "@/apis/_core/ApiError";
 import { classificarFalhaDeEnvio } from "@/lib/offline/sincronizacao/motorDeSincronizacao";
+import { eIdDoAparelho, novoIdDoAparelho } from "@/lib/offline/idDoAparelho";
 import { getOfflineTenant } from "@/lib/offline/offlineTenant";
 import { contadorDeCopiasDoAparelho } from "@/lib/offline/copiasDoAparelho";
 
@@ -78,6 +79,8 @@ const getCacheKey = (entityName, empresaId, tenantId) =>
     ? `${entityName}::${chaveEmpresa(empresaId)}`
     : `${entityName}::${TENANT_PREFIXO}${tenantId || SEM_TENANT_KEY}::${chaveEmpresa(empresaId)}`;
 const isOfflineId = (value) => String(value || "").startsWith("offline_");
+/** D-PROD-308: erro do servidor repetido no mesmo item — na 5ª vez, retido com o motivo. */
+const TENTATIVAS_COM_ERRO_DO_SERVIDOR = 5;
 
 /**
  * Ids offline (`offline_…`) citados num corpo, em qualquer profundidade.
@@ -552,6 +555,11 @@ export const liberarExclusaoOfflineRetida = async (filaId) => {
  * @param {boolean} [p.adotarFilaSemDono] D-PROD-307: entidade que passou a ser
  *        tenant-scoped agora — o que a versão anterior deixou na fila SEM dono é
  *        adotado pela sessão atual no replay (em vez de descartado).
+ * @param {boolean} [p.idDoAparelho] D-PROD-308: o registro novo nasce com o id definitivo
+ *        gerado no aparelho (UUID), com ou sem internet; o servidor grava com ele e
+ *        repetir a criação devolve o mesmo registro. Com internet, se a criação não
+ *        chega a uma resposta (rede caiu, servidor fora), ela vai para a fila com o
+ *        MESMO id (sem duplicar) em vez de voltar erro para a tela.
  * @param {OfflineEntityStorage} [p.storage]
  * @returns {object} objeto com as mesmas chaves de `operations`
  */
@@ -564,6 +572,7 @@ export const createOfflineEntityAdapter = ({
   exclusao = "fila",
   criacao = "fila",
   adotarFilaSemDono = false,
+  idDoAparelho = false,
   storage,
 }) => {
   if (typeof entityName !== "string" || !entityName) {
@@ -583,12 +592,27 @@ export const createOfflineEntityAdapter = ({
     storage: porta,
     tenantScoped: Boolean(tenantScoped),
     adotarFilaSemDono: Boolean(tenantScoped && adotarFilaSemDono),
+    idDoAparelho: Boolean(idDoAparelho),
     tenantCatalog: catalogoTenant,
     exclusaoSomenteOnline,
     criacaoSomenteOnline,
   });
 
   const adapter = { ...operations };
+
+  /**
+   * D-PROD-308: criação deste registro ainda na fila (offline_ ou id do aparelho).
+   * @param {string} recordId @param {string|null|undefined} tenantId
+   */
+  const criacaoPendenteDe = async (recordId, tenantId) =>
+    (await porta.listarFila()).find(
+      (item) =>
+        item.entity_name === entityName &&
+        item.operation === "create" &&
+        item.data?.id === recordId &&
+        !item.quarentena &&
+        (tenantId === undefined || (item.cliente_id ?? null) === tenantId)
+    ) ?? null;
 
   if (typeof operations.list === "function") {
     adapter.list = async (order, limit) => {
@@ -646,22 +670,40 @@ export const createOfflineEntityAdapter = ({
     adapter.create = async (dados) => {
       const empresaId = empresaIdParaEntidade(catalogoTenant, dados);
       const tenantId = tenantDe(tenantScoped);
+      // D-PROD-308: id definitivo do aparelho (a tela pode trazer o seu, para repetir sem duplicar).
+      const idNovo = idDoAparelho ? (eIdDoAparelho(dados?.id) ? dados.id : novoIdDoAparelho()) : null;
+      /** A criação já foi ao servidor sem resposta (o servidor pode ter gravado). */
+      let jaTentado = false;
 
       if (estaOnline()) {
-        const criado = await operations.create(dados);
-        await atualizarCache(
-          porta,
-          entityName,
-          empresaId,
-          (items) => [criado, ...items.filter((item) => item.id !== criado.id)],
-          tenantId
-        );
-        return criado;
+        let criado;
+        try {
+          criado = await operations.create(idNovo ? { ...dados, id: idNovo } : dados);
+        } catch (erro) {
+          // Sem resposta (rede caiu, sessão vencida): com o id do aparelho, repetir depois não
+          // duplica — vai para a fila. Recusa ou erro do servidor volta para a tela (que pode
+          // desfazer o que fez antes). Sem conta definida, também volta (a fila não teria dono).
+          const falha = classificarFalhaDeEnvio(erro);
+          const semResposta = falha === "rede" || falha === "sessao";
+          if (!idNovo || !semResposta || (tenantScoped && !tenantId)) throw erro;
+          criado = null;
+          jaTentado = true;
+        }
+        if (criado) {
+          await atualizarCache(
+            porta,
+            entityName,
+            empresaId,
+            (items) => [criado, ...items.filter((item) => item.id !== criado.id)],
+            tenantId
+          );
+          return criado;
+        }
       }
 
       const registro = {
         ...dados,
-        id: `offline_${entityName}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        id: idNovo ?? `offline_${entityName}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         empresa_id: empresaId,
         created_date: new Date().toISOString(),
         updated_date: new Date().toISOString(),
@@ -682,6 +724,7 @@ export const createOfflineEntityAdapter = ({
         operation: "create",
         record_id: registro.id,
         data: registro,
+        ...(jaTentado ? { ja_tentado: true } : {}),
       });
       return registro;
     };
@@ -692,7 +735,9 @@ export const createOfflineEntityAdapter = ({
       const empresaId = empresaIdParaEntidade(catalogoTenant, dados);
       const tenantId = tenantDe(tenantScoped);
 
-      if (estaOnline()) {
+      // D-PROD-308: com internet, mas a criação deste registro ainda está na fila (a rede caiu
+      // ao criar): a edição entra na criação, em vez de ir a um servidor que pode não tê-lo.
+      if (estaOnline() && !(await criacaoPendenteDe(recordId, tenantId))) {
         const atualizado = await operations.update(recordId, dados);
         await atualizarCache(
           porta,
@@ -724,13 +769,15 @@ export const createOfflineEntityAdapter = ({
         chaveEmpresa(item.empresa_id) === chaveEmpresa(empresaId) &&
         (tenantId === undefined || (item.cliente_id ?? null) === tenantId);
 
-      if (isOfflineId(recordId)) {
+      // Criação ainda na fila (id `offline_` ou, desde a D-PROD-308, id do aparelho): a edição
+      // entra nela, em vez de virar um update de um registro que o servidor não conhece.
+      {
         const criacaoPendente = fila.find(
           (item) =>
             item.entity_name === entityName &&
             item.operation === "create" &&
             item.data?.id === recordId &&
-            mesmaEmpresa(item)
+            (tenantId === undefined || (item.cliente_id ?? null) === tenantId)
         );
         if (criacaoPendente) {
           await porta.atualizarNaFila(criacaoPendente.id, { data: registro });
@@ -771,6 +818,18 @@ export const createOfflineEntityAdapter = ({
     // Sem fila e sem remoção otimista: falha (offline, timeout, 4xx, 5xx)
     // propaga com cache e fila intactos; só o sucesso definitivo limpa o cache.
     adapter.delete = async (recordId) => {
+      // D-PROD-308: a criação ainda na fila vai primeiro; se não subir, não exclui (o servidor
+      // ainda não tem o registro, e a criação o recriaria depois).
+      if (await criacaoPendenteDe(recordId, tenantDe(tenantScoped))) {
+        await syncOfflineEntityQueue().catch(() => undefined);
+        if (await criacaoPendenteDe(recordId, tenantDe(tenantScoped))) {
+          throw new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, {
+            operation: "delete",
+            resource: entityName,
+            details: { id: recordId, aguardando_envio: true },
+          });
+        }
+      }
       await operations.delete(recordId);
       try {
         await removerRegistroDosCachesOffline(entityName, recordId);
@@ -783,7 +842,8 @@ export const createOfflineEntityAdapter = ({
       const empresaId = empresaIdParaEntidade(catalogoTenant);
       const tenantId = tenantDe(tenantScoped);
 
-      if (estaOnline()) {
+      // D-PROD-308: criação ainda na fila → caminho da fila (abaixo), mesmo com internet.
+      if (estaOnline() && !(await criacaoPendenteDe(recordId, tenantId))) {
         await operations.delete(recordId);
         await atualizarCache(
           porta,
@@ -804,22 +864,25 @@ export const createOfflineEntityAdapter = ({
       );
 
       const fila = await porta.listarFila();
+      // O id (offline_ ou do aparelho) é único: a criação pendente é achada por ele, mesmo que
+      // a fazenda selecionada agora seja outra.
       const criacaoPendente = fila.find(
         (item) =>
           item.entity_name === entityName &&
           item.operation === "create" &&
           item.data?.id === recordId &&
-          chaveEmpresa(item.empresa_id) === chaveEmpresa(empresaId) &&
           (tenantId === undefined || (item.cliente_id ?? null) === tenantId)
       );
 
-      if (criacaoPendente) {
+      if (criacaoPendente && !criacaoPendente.ja_tentado) {
         // Criação que nunca chegou ao servidor: some da fila em vez de virar
         // um delete de id que o servidor não conhece.
         await porta.removerDaFila(criacaoPendente.id);
         emitirMudancaDeFila();
         return;
       }
+      // D-PROD-308: a criação já foi ao servidor sem resposta (pode estar lá): a exclusão entra
+      // na fila DEPOIS dela — sobe a criação (ou o servidor devolve a já feita) e então exclui.
 
       await enfileirar(porta, {
         entity_name: entityName,
@@ -1064,7 +1127,10 @@ export const syncOfflineEntityQueue = async (onProgress) => {
 
       if (item.operation === "create") {
         const { id: _idOffline, _isOffline, ...bruto } = item.data || {};
-        const criado = await operations.create(substituirIdsMapeados(bruto, mapaDeIds));
+        const corpo = substituirIdsMapeados(bruto, mapaDeIds);
+        // D-PROD-308: id do aparelho vai junto — o servidor grava com ele; repetir não duplica.
+        if (entrada.idDoAparelho && eIdDoAparelho(item.record_id)) corpo.id = item.record_id;
+        const criado = await operations.create(corpo);
         mapaDeIds[item.record_id] = criado.id;
         // D-PROD-204: antes de sair da fila, quem cita o id offline passa a citar o do servidor.
         await gravarIdDoServidorNaFila(storage, item, criado.id);
@@ -1110,7 +1176,35 @@ export const syncOfflineEntityQueue = async (onProgress) => {
       // o item fica RETIDO com o motivo (a pessoa decide na janela "Sincronização") e a fila
       // SEGUE. Antes ele voltava a cada minuto e travava a fila inteira, de todas as entidades.
       // Sem rede, conta trocada ou erro passageiro do servidor: para, como antes.
-      if (classificarFalhaDeEnvio(error) === "recusado") {
+      const codigoDoServidor = /** @type {any} */ (error)?.cause?.code;
+      // D-PROD-308: a criação com o id do aparelho foi feita e depois excluída no servidor (por
+      // outra pessoa, ou por esta, com a resposta da criação perdida): nada a fazer — a criação e
+      // o que vinha atrás dela para o mesmo registro saem da fila e do aparelho.
+      if (item.operation === "create" && codigoDoServidor === "ID_DO_APARELHO_EXCLUIDO") {
+        for (const outro of await storage.listarFila()) {
+          if (outro.entity_name === item.entity_name && (outro.id === item.id || outro.record_id === item.record_id)) {
+            await storage.removerDaFila(outro.id);
+          }
+        }
+        await atualizarCache(
+          storage,
+          item.entity_name,
+          item.empresa_id,
+          (items) => items.filter((entry) => entry.id !== item.record_id),
+          entrada.tenantScoped ? (item.cliente_id ?? null) : undefined
+        ).catch(() => undefined);
+        emitirMudancaDeFila();
+        descartados += 1;
+        continue;
+      }
+      const falha = classificarFalhaDeEnvio(error);
+      // D-PROD-308: erro do servidor que se repete (sempre o mesmo registro) não trava a fila
+      // para sempre: na 5ª vez fica retido com o motivo, como a recusa.
+      const tentativasComErro = falha === "servidor" ? Number(item.tentativas_com_erro ?? 0) + 1 : 0;
+      if (falha === "servidor" && tentativasComErro < TENTATIVAS_COM_ERRO_DO_SERVIDOR) {
+        await storage.atualizarNaFila(item.id, { tentativas_com_erro: tentativasComErro }).catch(() => undefined);
+      }
+      if (falha === "recusado" || tentativasComErro >= TENTATIVAS_COM_ERRO_DO_SERVIDOR) {
         await storage.atualizarNaFila(item.id, {
           quarentena: {
             codigo: CODIGO_RECUSADO_PELO_SERVIDOR,
@@ -1182,6 +1276,19 @@ export const contarPendenciasDaFilaDeEntidades = async () =>
 
 /** Código da quarentena do item que o servidor recusou de vez (D-PROD-307). */
 export const CODIGO_RECUSADO_PELO_SERVIDOR = "RECUSADO_PELO_SERVIDOR";
+
+/**
+ * D-PROD-308 — ids de registros criados no aparelho que ainda esperam envio nesta fila
+ * (não recusados). O motor segura o que cita um deles (ex.: a leitura de um cocho criado
+ * sem internet) até a criação chegar ao servidor.
+ * @returns {Promise<Set<string>>}
+ */
+export const idsComCriacaoPendenteNaFilaDeEntidades = async () =>
+  new Set(
+    (await filaDaSessao())
+      .filter((item) => item.operation === "create" && !item.quarentena)
+      .map((item) => String(item.record_id))
+  );
 
 /**
  * D-PROD-307 — itens da fila antiga que o servidor recusou de vez, para a janela
