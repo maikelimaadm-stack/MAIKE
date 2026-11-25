@@ -19,7 +19,7 @@ import { API_ERROR_CODES } from '../_core/ApiError.js';
 const CONCORRENCIA = 8;
 
 /**
- * D-PROD-300 — todas as portas de módulo. Cada porta registra as suas leituras
+ * D-PROD-301 — todas as portas de módulo. Cada porta registra as suas leituras
  * ao carregar; sem isto, a lista dependia de quais telas já tinham sido abertas
  * (e um módulo ainda não carregado ficava de fora da baixa, em silêncio).
  */

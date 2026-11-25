@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import PreviaRecalculoExclusao from "@/components/estoque/PreviaRecalculoExclusao";
+import CampoLotes from "@/components/estoque/CampoLotes";
+import { mensagemDeLoteVencido } from "@/lib/estoqueLotesRegras";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Check, Loader2, X } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
@@ -70,6 +72,8 @@ import {
   formularioDaLinhaMaquina,
   chaveTotais,
   formularioDaLinhaProduto,
+  mantemLotesDaLinha,
+  lotesDevolvidosNaEdicao,
   formularioMaquinaVazio,
   formularioProdutoVazio,
   linhasDoApontamento,
@@ -313,9 +317,13 @@ export function useSaldoDoProduto(empresaId, form, setForm, original = null) {
  *   prefixo: string,
  *   comObservacao?: boolean,
  *   tituloGrupo?: string|null,
+ *   marcar?: (marca: Record<string, any>) => void,
  * }} props
+ * D-PROD-282 em todas as telas: produto com lote mostra o campo "Lote" depois da quantidade. O que o campo devolve
+ * sozinho (`loteVencido`, `erroLote`) vai por `marcar` — só o estado do formulário, sem esquecer o envio pendente; o que
+ * a pessoa escolhe (`lotes`, `confirmaVencido`) vai por `mudar`. Sem `marcar`, o `mudar`.
  */
-export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, atividadeId, areaDoDia, bloqueado, prefixo, comObservacao = true, tituloGrupo = "Lançamento" }) {
+export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, atividadeId, areaDoDia, bloqueado, prefixo, comObservacao = true, tituloGrupo = "Lançamento", marcar = undefined }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const secoes = useContext(SecoesDoFormularioContext);
   const comTopo = Boolean(secoes?.topo);
@@ -423,6 +431,30 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
         <div className="col-span-12">
           <AvisoGestao testId={`${prefixo}-saldo-insuficiente`}>{aviso}</AvisoGestao>
         </div>
+      ) : null}
+      {form.produto?.controla_lote && form.local_estoque_id ? (
+        <>
+          <CampoLotes
+            empresaId={empresaId}
+            produto={form.produto}
+            localId={form.local_estoque_id}
+            quantidade={Number(quantidade ?? 0)}
+            lotes={form.lotes}
+            confirmaVencido={form.confirmaVencido}
+            loteVencido={form.loteVencido}
+            erroLote={form.erroLote}
+            mantidos={mantemLotesDaLinha(form) ? "Sem escolher, a linha continua nos mesmos lotes (o produto, o local e a quantidade não mudaram)." : null}
+            devolvidos={lotesDevolvidosNaEdicao(form)}
+            onMudar={(patch) => {
+              const daPessoa = "lotes" in patch || "confirmaVencido" in patch;
+              if (daPessoa || !marcar) mudar(patch, ["lotes"]);
+              else marcar(patch);
+            }}
+            desabilitado={bloqueado}
+            testId={`${prefixo}-lotes`}
+          />
+          {erros.lotes ? <ErroDoCampo texto={erros.lotes} testId={`${prefixo}-lotes-pendencia`} /> : null}
+        </>
       ) : null}
       {comObservacao ? (
         <CampoTextoLongo label="Observação" value={form.observacao} onChange={(v) => mudar({ observacao: v }, ["observacao"])} readOnly={bloqueado} maxLength={MAX_OBSERVACAO_LINHA} />
@@ -1209,6 +1241,9 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
         normalizarRespostaDeEscrita(r.resposta),
         editando ? `Produto ${nome} alterado: o estoque anterior foi estornado e a nova quantidade baixada.` : `Produto ${nome} lançado: a quantidade saiu do estoque.`,
       );
+      // D-PROD-282: o servidor nunca recusa lote vencido; quando a linha saiu de um, avisa.
+      const alertaVencido = mensagemDeLoteVencido(/** @type {any} */ (r.resposta)?.avisos);
+      if (alertaVencido) notifyWarning("Lote vencido", alertaVencido);
       return;
     }
     const campo = campoDaLinhaRecusada(r.erro);
@@ -1266,6 +1301,7 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
         areaDoDia={hectaresDaDose}
         bloqueado={enviando}
         prefixo="linha-produto"
+        marcar={(m) => setForm((f) => ({ ...f, ...m }))}
       />
       {tanque || Number.isInteger(form.jato) ? (
         <CampoTexto

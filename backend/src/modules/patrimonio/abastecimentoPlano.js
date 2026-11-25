@@ -33,7 +33,7 @@
 
 import { AppError } from '../../shared/errors/AppError.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, LIMITE_ESTOQUE, arredondar, dec, somar } from '../financeiro/decimalFinanceiro.js';
-import { consumirCustoMedio, consumirPorLote } from '../estoqueFisico/estoqueFisicoMotor.js';
+import { consumirCustoMedio, consumirPorLote, normalizarLotesEscolhidos } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { invalido, textoDoCorpo } from '../gestao/gestaoComum.js';
 import { MEDIDORES_CONTADOR, ehContador } from './abastecimentoMedidor.js';
 import { diaDe, diaDoCorpo } from './patrimonioComum.js';
@@ -144,6 +144,8 @@ const origemEVinculo = (c, { exigeCusto }) => {
     if (custoTotal !== null) throw invalido('custo_total só é informado no abastecimento em posto externo: o do estoque é o custo FIFO', { field: 'custo_total', reason: 'nao_se_aplica_estoque' });
   } else {
     if (presente(c, 'local_estoque_id')) throw invalido('abastecimento em posto externo não tem local de estoque: não informe local_estoque_id', { field: 'local_estoque_id', reason: 'nao_se_aplica_externo' });
+    // D-PROD-282 em todas as telas: o posto externo não tira do estoque — não há lote a escolher.
+    if (c.lotes !== undefined && c.lotes !== null) throw invalido('abastecimento em posto externo não sai do estoque: não informe lotes', { field: 'lotes', reason: 'nao_se_aplica_externo' });
     if (custoTotal === null && exigeCusto) throw invalido('informe o valor total da nota do posto (custo_total)', { field: 'custo_total', reason: 'obrigatorio' });
     if (custoTotal !== null && !dec(custoTotal).gt(0)) throw invalido('o valor total da nota do posto deve ser maior que zero', { field: 'custo_total', reason: 'nao_positivo' });
   }
@@ -171,7 +173,15 @@ const basesDoCorpo = (c, opcoes) => ({
   observacao: textoDoCorpo(c.observacao, 'observacao') ?? null,
   referencia_externa: textoDoCorpo(c.referencia_externa, 'referencia_externa') ?? null,
   ...origemEVinculo(c, opcoes),
+  // D-PROD-282 em todas as telas: a escolha dos lotes do produto com lote (sem ela, FEFO); só existe quando vem.
+  ...lotesDoCorpo(c.lotes),
 });
+
+/** `{ lotes }` quando a escolha vem; `{}` sem ela (ausente ou nula). Fora do formato → 422 do motor. @param {unknown} bruto */
+const lotesDoCorpo = (bruto) => {
+  const lotes = normalizarLotesEscolhidos(bruto);
+  return lotes ? { lotes } : {};
+};
 
 /** Corpo da prévia (A3) → Entrada (sem operation_id). */
 export const normalizarPrevia = (corpo) => {
@@ -225,6 +235,8 @@ export const fingerprintDaConfirmacao = (e) => ({
   origem: e.origem,
   apontamento_id: e.apontamento_id,
   custo_total: e.custo_total,
+  // D-PROD-282 em todas as telas: a escolha dos lotes só entra quando vem (o reenvio de antes continua casando).
+  ...(e.lotes ? { lotes: e.lotes } : {}),
 });
 
 /** @param {any} e Entrada normalizada do cancelamento */
@@ -280,6 +292,15 @@ const MENSAGENS = Object.freeze({
   },
   MEDIDOR_LEITURA_ACIMA_POSTERIOR: {
     _: (b) => `a leitura informada é maior que a leitura de data posterior do medidor (${b.details.leitura_posterior} em ${b.details.data_posterior}); nada foi gravado`,
+  },
+  // D-PROD-282 em todas as telas: a escolha dos lotes (as mesmas recusas do motor, como bloqueio da prévia).
+  ESTOQUE_LOTE_INVALIDO: {
+    lotes_nao_somam: () => 'a soma dos lotes escolhidos não é a quantidade abastecida; nada foi gravado',
+    lote_sem_saldo: () => 'o lote escolhido não tem essa quantidade; nada foi gravado',
+    lote_indisponivel: () => 'o lote escolhido não está disponível neste produto e local; nada foi gravado',
+    lote_repetido: () => 'o mesmo lote aparece duas vezes; some as quantidades; nada foi gravado',
+    produto_sem_controle_de_lote: () => 'este produto não controla lote; não informe lotes; nada foi gravado',
+    _: () => 'a escolha dos lotes é inválida; nada foi gravado',
   },
   ESTOQUE_SALDO_INSUFICIENTE: {
     saldo_lote_insuficiente: (b) =>
@@ -448,9 +469,30 @@ export const planejarAbastecimento = (entrada, estado) => {
   // B10 — FIFO com a quantidade digitada (só do ESTOQUE, com produto e unidade válidos, local ativo e quantidade válida)
   const produtoOk = produtoValido && unidadeAceita;
   let fifo = null;
+  // D-PROD-282 em todas as telas: a escolha dos lotes, com as mesmas recusas do motor, como bloqueio (a prévia e a
+  // confirmação têm os mesmos bloqueios). Produto sem lote com a lista → bloqueio (o motor recusaria).
+  const escolhidos = entrada.lotes ?? null;
+  /** @type {any} */
+  let sim = null;
   if (doEstoque && quantidadePositiva && dentroDoLimite && produtoOk && local && local.ativo) {
-    // D-PROD-282: produto com lote sai pelo custo da camada (FEFO), sem reavaliar (como o motor).
-    const sim = produto.controla_lote === true ? consumirPorLote(lotes, quantidade) : consumirCustoMedio(lotes, quantidade);
+    if (produto.controla_lote !== true && escolhidos) {
+      bloqueios.push(bloqueio('ESTOQUE_LOTE_INVALIDO', 'lotes', 'produto_sem_controle_de_lote'));
+    } else {
+      try {
+        // D-PROD-282: produto com lote sai pelo custo da camada (FEFO ou a escolha), sem reavaliar (como o motor).
+        sim = produto.controla_lote === true ? consumirPorLote(lotes, quantidade, escolhidos) : consumirCustoMedio(lotes, quantidade);
+      } catch (e) {
+        const x = /** @type {any} */ (e);
+        if (!(x instanceof AppError) || x.code !== 'ESTOQUE_LOTE_INVALIDO') throw e;
+        const resto = { ...(x.details ?? {}) };
+        const reason = String(resto.reason ?? 'lotes_formato');
+        delete resto.field;
+        delete resto.reason;
+        bloqueios.push(bloqueio('ESTOQUE_LOTE_INVALIDO', 'lotes', reason, resto));
+      }
+    }
+  }
+  if (sim) {
     if (!sim.suficiente) {
       bloqueios.push(bloqueio('ESTOQUE_SALDO_INSUFICIENTE', 'quantidade', 'saldo_lote_insuficiente', { disponivel: q4(sim.disponivel), solicitado: q4(quantidade), unidade }));
     } else if (dec(produto.estoque_atual).lt(quantidade)) {

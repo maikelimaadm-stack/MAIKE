@@ -178,7 +178,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
     <MolduraHistorico barra={barra} antes={aviso}>
       {movimentacoes.map((movimentacao, index) => {
         const ehNutricao = movimentacao.tipo_detalhado === "suplementacao" || movimentacao.exclusao_somente_em === "cocho";
-        // D-PROD-300: o que espera envio não está no servidor: corrige-se em "Aguardando envio" no depósito.
+        // D-PROD-301: o que espera envio não está no servidor: corrige-se em "Aguardando envio" no depósito.
         const ehMovimentoDeposito = !movimentacao._aguardandoEnvio && (movimentacao.origem_sistema === "deposito" || movimentacao.exclusao_somente_em === "deposito" || ["transferencia_recebida", "transferencia_enviada"].includes(movimentacao.tipo_detalhado));
 
         const dataRaw = movimentacao.data_movimentacao || "";

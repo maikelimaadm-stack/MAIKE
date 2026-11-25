@@ -92,7 +92,11 @@ const observacaoComRateio = (observacoes, rateio) =>
  * D-PROD-296 — o corpo do comando de saída de suplementação, já validado (FIFO
  * nos lotes recebidos) e com o rateio nas observações. Sem `operation_id` e sem
  * I/O: quem envia (direto ou pelo motor) acrescenta o código.
- * @param {{ empresaId: string, produto: any, quantidade: number, localOrigemId: string, localOrigemNome?: string, areaId?: string, areaNome?: string, observacoes?: string, lotesNota?: object[], depositoId?: string, pontoSuplementacaoId?: string, dataMovimentacao?: string }} params
+ *
+ * D-PROD-282 em todas as telas (D-PROD-300): `lotes` (a escolha manual de produto que controla lote, já no formato do
+ * corpo, `[{ estoque_lote_nota_id, quantidade }]`) só vai quando vem; sem ela, o servidor aplica o FEFO. Produto com
+ * lote não leva o rateio FIFO calculado aqui nas observações (o servidor grava o rateio real, pelos lotes).
+ * @param {{ empresaId: string, produto: any, quantidade: number, localOrigemId: string, localOrigemNome?: string, areaId?: string, areaNome?: string, observacoes?: string, lotesNota?: object[], depositoId?: string, pontoSuplementacaoId?: string, dataMovimentacao?: string, lotes?: Array<{ estoque_lote_nota_id: string, quantidade: string }>|null }} params
  */
 export const montarCorpoDaSaidaSuplementacao = ({
   empresaId,
@@ -107,9 +111,11 @@ export const montarCorpoDaSaidaSuplementacao = ({
   depositoId,
   pontoSuplementacaoId,
   dataMovimentacao,
+  lotes,
 }) => {
   const validacao = validarBaixaFIFO({ lotesNota, produto, localEstoqueId: localOrigemId, quantidade });
   if (!validacao.ok) recusar('registrarSaidaSuplementacao', validacao.motivo);
+  const comLote = produto?.controla_lote === true;
   return {
     empresa_id: empresaId,
     produto_id: produto.id,
@@ -121,7 +127,8 @@ export const montarCorpoDaSaidaSuplementacao = ({
     deposito_id: depositoId || null,
     ponto_suplementacao_id: pontoSuplementacaoId || null,
     data_movimentacao: dataMovimentacao || null,
-    observacoes: observacaoComRateio(observacoes, validacao.rateio),
+    observacoes: comLote ? observacoes || null : observacaoComRateio(observacoes, validacao.rateio),
+    ...(comLote && Array.isArray(lotes) && lotes.length ? { lotes } : {}),
   };
 };
 
@@ -137,6 +144,7 @@ export const registrarSaidaSuplementacao = async ({ operationId, ...params }) =>
   return {
     movimentacao: resposta.movimentacao,
     rateio: resposta.rateio,
+    avisos: Array.isArray(resposta.avisos) ? resposta.avisos : [],
     committed: resposta.committed === true,
     operation_id: resposta.operation_id,
     replay: resposta.replay === true,

@@ -28,6 +28,8 @@ const servidor = () => {
     baixas: new Map(),
     lancamentos: new Map(),
     falharLancamento: /** @type {null | 'rede' | string} */ (null),
+    /** D-PROD-300: avisos que a baixa devolve (lote vencido). */
+    avisosDaBaixa: /** @type {any[]} */ ([]),
   };
   s.fetch = vi.fn(async (url, init = {}) => {
     const metodo = init.method || 'GET';
@@ -36,7 +38,7 @@ const servidor = () => {
     s.chamadas.push({ metodo, caminho, corpo });
     if (metodo === 'POST' && caminho === '/movimentacoes-estoque/comandos/saida-suplementacao') {
       if (!s.baixas.has(corpo.operation_id)) s.baixas.set(corpo.operation_id, { id: `mov-${s.baixas.size + 1}`, valor_unitario: 2.5 });
-      return respostaJson(201, { committed: true, movimentacao: s.baixas.get(corpo.operation_id) });
+      return respostaJson(201, { committed: true, movimentacao: s.baixas.get(corpo.operation_id), avisos: s.avisosDaBaixa });
     }
     if (metodo === 'POST' && caminho === '/suplementacao-eventos/comandos/lancamento-com-lotes') {
       if (s.falharLancamento === 'rede') {
@@ -120,7 +122,7 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
     ]);
     expect(lotes[0].quantidade_disponivel).toBe(20);
 
-    // D-PROD-300: a baixa aparece no histórico do depósito, com "aguardando envio".
+    // D-PROD-301: a baixa aparece no histórico do depósito, com "aguardando envio".
     const { movimentacoesAguardandoEnvio } = await import('@/services/historicoAguardandoEnvioService');
     const [baixa] = await movimentacoesAguardandoEnvio(EMP);
     expect(baixa).toMatchObject({ id: 'aguardando:op-lanc-0001:baixa', tipo_detalhado: 'suplementacao', quantidade: 80, local_estoque_origem: 'galpao', _aguardandoEnvio: true });
@@ -353,6 +355,22 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
     visto = await mapa.getMapaCachedData('eventosSuplementacao', EMP);
     expect(visto.map((e) => e.id).sort()).toEqual(['ev-1', 'ev-20']);
     expect(visto.find((e) => e.id === 'ev-1').dias_periodo).toBe(2);
+  });
+
+  it('LCO-14 com internet e produto com lote (D-PROD-300): a escolha dos lotes vai na baixa e o aviso de vencido volta no resultado', async () => {
+    const srv = servidor();
+    srv.avisosDaBaixa = [{ tipo: 'lote_vencido', lote: 'VELHO', validade: '2026-11-01' }];
+    vi.stubGlobal('fetch', srv.fetch);
+    const { sup } = await carregar();
+    const lotes = [{ estoque_lote_nota_id: 'cA', quantidade: '80' }];
+    const r = await sup.registrarLancamentoDoCocho(
+      { saida: { ...saidaCorpo(), lotes }, evento: evento(), lotes: [{ lote_id: 'l1' }], eventoAnterior: null, fechamento: null },
+      { operationId: 'op-lanc-0014' }
+    );
+    expect(r.aguardandoEnvio).toBe(false);
+    expect(r.avisos).toEqual(srv.avisosDaBaixa);
+    const baixa = srv.chamadas.find((c) => c.caminho === '/movimentacoes-estoque/comandos/saida-suplementacao');
+    expect(baixa.corpo).toMatchObject({ operation_id: 'op-lanc-0014', lotes });
   });
 });
 

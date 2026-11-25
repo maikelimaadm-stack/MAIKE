@@ -37,7 +37,7 @@ const formatarQuando = (ms) =>
  * - A primeira baixa no app é feita pela tela de preparo (`PreparoDoApp`),
  *   antes de o sistema abrir.
  * - Depois, com internet, sincroniza sozinho por baixo a cada 6 h.
- * - D-PROD-300: virou a janela "Sincronização" (menu do usuário e ícone do
+ * - D-PROD-301: virou a janela "Sincronização" (menu do usuário e ícone do
  *   topo): internet, o que espera envio, como veio cada parte da última baixa
  *   e "Sincronizar agora" (envia e baixa).
  */
@@ -105,7 +105,7 @@ export default function DadosOffline() {
     [baixando, empresaId]
   );
 
-  // D-PROD-300: "Sincronizar agora" = envia o que está no celular e baixa tudo de novo.
+  // D-PROD-301: "Sincronizar agora" = envia o que está no celular e baixa tudo de novo.
   const sincronizarAgora = useCallback(async () => {
     try {
       await enviarAgora();

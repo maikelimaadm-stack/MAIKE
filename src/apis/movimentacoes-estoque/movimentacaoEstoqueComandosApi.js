@@ -9,7 +9,7 @@ const ctx = (operation) => ({ operation, resource: 'MovimentacaoEstoqueComando' 
 
 /**
  * @param {Record<string, unknown>} body
- * @returns {Promise<{ committed?: boolean; movimentacao?: object; rateio?: object[]; operation_id?: string; replay?: boolean }>}
+ * @returns {Promise<{ committed?: boolean; movimentacao?: object; rateio?: object[]; operation_id?: string; replay?: boolean; avisos?: object[] }>}
  */
 export const comandoSaidaSuplementacao = (body) =>
   nativeRequest(`${BASE}/saida-suplementacao`, { method: 'POST', body, autenticado: true }, ctx('comandoSaidaSuplementacao'));

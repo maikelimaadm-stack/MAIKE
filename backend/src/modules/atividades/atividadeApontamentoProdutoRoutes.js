@@ -27,6 +27,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { LIMITE_OPCOES_MAXIMO, LIMITE_OPCOES_PADRAO } from '../patrimonio/patrimonioComum.js';
+import { LOTES_ESCOLHIDOS } from '../estoqueFisico/loteEscolhaSchema.js';
 import { DECIMAIS_DA_LINHA_PRODUTO, PADRAO_DECIMAL, PADRAO_OPERATION_ID, recusarCoercao } from './atividadeComum.js';
 import { opcoesLocaisDoProduto, opcoesProdutos } from './atividadeOpcoesService.js';
 import { cancelarLinhaProduto, editarLinhaProduto, lancarLinhaProduto } from './atividadeApontamentoProdutoService.js';
@@ -64,7 +65,9 @@ export const ESQUEMA_ITEM_PRODUTO = Object.freeze({
   required: ['produto_id', 'local_estoque_id', 'quantidade'],
   additionalProperties: false,
   // D-PROD-293: o número do jato (texto "1".."999") também na linha avulsa (lançar e editar).
-  properties: { produto_id: ID, local_estoque_id: ID, quantidade: DECIMAL, observacao: OBSERVACAO, jato: JATO },
+  // D-PROD-300: `lotes` (a escolha manual de produto que controla lote; sem ela, FEFO) em toda linha de produto —
+  // lançar, editar e os `produtos[]` do lançamento, do registro e dos "Jatos de hoje".
+  properties: { produto_id: ID, local_estoque_id: ID, quantidade: DECIMAL, observacao: OBSERVACAO, jato: JATO, lotes: LOTES_ESCOLHIDOS },
 });
 
 /**

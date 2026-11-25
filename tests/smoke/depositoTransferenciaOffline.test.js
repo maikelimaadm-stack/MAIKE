@@ -181,7 +181,7 @@ describe('D-PROD-296 — transferência entre depósitos sem internet', () => {
 });
 
 
-describe('D-PROD-300 — o que espera envio aparece no histórico do depósito', () => {
+describe('D-PROD-301 — o que espera envio aparece no histórico do depósito', () => {
   it('ET-08 a transferência sem internet aparece nas duas pontas com "aguardando envio" e sai quando sobe', async () => {
     const { estoque, motor } = await carregar();
     motor.definirSessaoDaFila({ cliente_id: 'cli_et08', usuario_id: 'usr_et08' });

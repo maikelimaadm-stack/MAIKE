@@ -1,6 +1,6 @@
 # Inventário: o que funciona sem internet (app)
 
-Situação em 2026-11-25, depois da D-PROD-300 (sincronização organizada). Atualizar
+Situação em 2026-11-25, depois da D-PROD-301 (sincronização organizada). Atualizar
 a cada manejo ligado ao motor.
 
 ## Funciona sem internet
@@ -12,8 +12,8 @@ a cada manejo ligado ao motor.
 | Satélite das regiões vistas com internet nas últimas 24 h | cache HTTP do aparelho (Google `max-age`) | D-PROD-294 |
 | Consultar listas, detalhes, cadastros, estoque, histórico, tarefas | leituras guardadas (IndexedDB) + baixa na 1ª abertura | D-PROD-294 |
 | Ver o que está esperando envio e o que precisa de atenção | ícone no topo + janela "Sincronização" → Envio | D-PROD-295/300 |
-| Saber quando cada parte foi baixada e sincronizar na hora | janela "Sincronização" → Dados no celular · Sincronizar agora | D-PROD-300 |
-| Abrir detalhe do depósito (saldo, histórico, cochos) | consultas leem do celular (`networkMode: 'always'`) | D-PROD-300 |
+| Saber quando cada parte foi baixada e sincronizar na hora | janela "Sincronização" → Dados no celular · Sincronizar agora | D-PROD-301 |
+| Abrir detalhe do depósito (saldo, histórico, cochos) | consultas leem do celular (`networkMode: 'always'`) | D-PROD-301 |
 
 ## Grava sem internet e envia depois
 
@@ -22,8 +22,8 @@ a cada manejo ligado ao motor.
 | Tipo | Tela | O que faz no aparelho enquanto espera |
 |---|---|---|
 | `cocho.leitura` | `FormularioLeituraCocho` | aparece no cocho com "aguardando envio"; excluir tira só do aparelho |
-| `cocho.lancamento` (baixa + lançamento + fechamento do período anterior) | `FormularioLancamentoSuplementacao` | aparece como último lançamento do cocho; o período anterior aparece fechado; o saldo do depósito desconta a baixa; a baixa aparece no histórico do depósito (D-PROD-300) |
-| `deposito.transferencia` | `FormularioTransferenciaDeposito` | o saldo da origem desconta e o destino ganha o lote; aparece no histórico das duas pontas com "aguardando envio" (D-PROD-300) |
+| `cocho.lancamento` (baixa + lançamento + fechamento do período anterior) | `FormularioLancamentoSuplementacao` | aparece como último lançamento do cocho; o período anterior aparece fechado; o saldo do depósito desconta a baixa; a baixa aparece no histórico do depósito (D-PROD-301) |
+| `deposito.transferencia` | `FormularioTransferenciaDeposito` | o saldo da origem desconta e o destino ganha o lote; aparece no histórico das duas pontas com "aguardando envio" (D-PROD-301) |
 
 | `cocho.cancelamento` | `CancelarLancamentoCocho` (sem internet) | o lançamento some do cocho; o período que ele fechou reabre; o produto volta ao depósito |
 | `deposito.cancelamento-transferencia` | `CancelarTransferenciaDeposito` (sem internet) | as duas pernas somem do histórico; o saldo volta |

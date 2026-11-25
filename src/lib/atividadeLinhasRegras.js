@@ -39,6 +39,7 @@ import {
   somar,
   subtrair,
 } from './dinheiroDecimal.js';
+import { corpoDaEscolha, pendenciaDoLote } from './estoqueLotesRegras.js';
 import {
   MEDIDORES_CONTADOR,
   ROTULO_LEITURA,
@@ -349,9 +350,13 @@ export const textoDaLeituraVigente = (medidor) => {
 // ─── Linha de PRODUTO (janela e "Repetir") ───────────────────────────────
 
 /**
- * @typedef {{ id: string, rotulo: string, unidade_principal_estoque: string|null, carencia_dias?: number|null } | null} ProdutoEscolhido
- * @typedef {{ produto: ProdutoEscolhido, local_estoque_id: string|null, quantidade: string, observacao: string, vc?: string, jato?: number|null }} FormularioLinhaProduto
+ * @typedef {{ id: string, rotulo: string, unidade_principal_estoque: string|null, carencia_dias?: number|null, controla_lote?: boolean } | null} ProdutoEscolhido
+ * @typedef {{ produto: ProdutoEscolhido, local_estoque_id: string|null, quantidade: string, observacao: string, vc?: string, jato?: number|null,
+ *   lotes?: Array<{ id: string, quantidade: string }>|null, confirmaVencido?: boolean, loteVencido?: boolean, erroLote?: string,
+ *   saidaGravada?: { produto_id: string, local_estoque_id: string|null, quantidade: string|null, fatias?: Array<{ lote_id: string, quantidade: string }> } }} FormularioLinhaProduto
  *   D-PROD-274: `carencia_dias` (a carência da bula, para o "Pasto liberado em") e `vc` (o VC % digitado, Plantio).
+ *   D-PROD-282 em todas as telas: `controla_lote` do produto e a escolha do lote (`lotes`, `confirmaVencido`; o campo
+ *   devolve `loteVencido` e `erroLote`); `saidaGravada` na edição (mantém os lotes da linha).
  */
 
 /** A opção do seletor (ou o resumo gravado) como o formulário guarda. @param {any} o @returns {ProdutoEscolhido} */
@@ -363,6 +368,8 @@ export const produtoEscolhido = (o) =>
         unidade_principal_estoque: texto(o.unidade_principal_estoque) || texto(o.unidade) || null,
         // D-PROD-274: a carência da bula (dias), quando a opção a traz.
         ...(Number.isInteger(o.carencia_dias) ? { carencia_dias: o.carencia_dias } : {}),
+        // D-PROD-282 em todas as telas: produto com lote mostra o campo "Lote" (sem a marca, como sempre).
+        ...(o.controla_lote === true ? { controla_lote: true } : {}),
       }
     : null;
 
@@ -376,13 +383,43 @@ export const formularioDaLinhaProduto = (l) => ({
         id: String(l.produto_id),
         rotulo: rotuloDoProdutoDaLinha(l) || String(l.produto_id),
         unidade_principal_estoque: texto(l?.produto?.unidade_principal_estoque) || texto(l?.unidade) || null,
+        ...(l?.produto?.controla_lote === true ? { controla_lote: true } : {}),
       }
     : null,
   local_estoque_id: texto(l?.local_estoque_id) || null,
   quantidade: paraEdicao(l?.quantidade),
   observacao: typeof l?.observacao === 'string' ? l.observacao : '',
   ...(Number.isInteger(l?.jato) && l.jato > 0 ? { jato: l.jato } : {}),
+  // D-PROD-300: a saída gravada da linha de produto com lote — editar sem escolher lotes e sem trocar produto, local nem
+  // quantidade mantém os mesmos lotes (o servidor reaproveita as fatias da linha).
+  ...(l?.produto?.controla_lote === true && l?.id
+    ? { saidaGravada: { produto_id: String(l.produto_id), local_estoque_id: texto(l?.local_estoque_id) || null, quantidade: texto(l?.quantidade) || null, fatias: Array.isArray(l?.fatias) ? l.fatias.map((/** @type {any} */ f) => ({ lote_id: String(f?.lote_id ?? ''), quantidade: texto(f?.quantidade) })) : [] } }
+    : {}),
 });
+
+/**
+ * D-PROD-282 em todas as telas — a edição da linha de produto com lote mantém os lotes gravados: sem escolha manual e
+ * com o mesmo produto, local e quantidade da saída gravada (`saidaGravada` de `formularioDaLinhaProduto`).
+ * @param {any} form
+ */
+/**
+ * D-PROD-300 — as fatias da saída gravada que voltam ao saldo na edição (mesmo produto e mesmo local: o servidor estorna
+ * a linha antes de baixar de novo); null fora disso.
+ * @param {any} form
+ */
+export const lotesDevolvidosNaEdicao = (form) => {
+  const g = form?.saidaGravada;
+  if (!g || !Array.isArray(g.fatias) || !g.fatias.length) return null;
+  return String(form?.produto?.id ?? '') === g.produto_id && (form?.local_estoque_id ?? null) === g.local_estoque_id ? g.fatias : null;
+};
+
+export const mantemLotesDaLinha = (form) => {
+  const g = form?.saidaGravada;
+  if (!g || Array.isArray(form?.lotes)) return false;
+  const q = lerDecimal(form?.quantidade, '').valor;
+  return String(form?.produto?.id ?? '') === g.produto_id && (form?.local_estoque_id ?? null) === g.local_estoque_id
+    && ehCanonico(q) && ehCanonico(g.quantidade) && comparar(/** @type {string} */ (q), g.quantidade) === 0;
+};
 
 /**
  * Validação local da linha de produto. Saldo: a quantidade acima do disponível do local AVISA com o disponível ×
@@ -408,6 +445,12 @@ export const validarLinhaProduto = (form, ctx = {}) => {
     aviso = `Saldo insuficiente neste local: disponível ${formatarDecimalLinha(ctx.disponivel)}${u ? ` ${u}` : ''}, pedido ${formatarDecimalLinha(q.valor)}${u ? ` ${u}` : ''}. O servidor recusa a baixa acima do saldo.`;
   }
   if (tamanho(texto(form?.observacao)) > MAX_OBSERVACAO_LINHA) erros.observacao = `No máximo ${MAX_OBSERVACAO_LINHA} caracteres.`;
+  // D-PROD-282 em todas as telas: produto com lote — a soma dos lotes escolhidos e a confirmação do vencido (o campo
+  // "Lote" devolve `erroLote` e `loteVencido` ao formulário). Produto sem lote: nada.
+  if (!erros.quantidade && !erros.produto) {
+    const pendencia = pendenciaDoLote({ produto: form?.produto, erroLote: form?.erroLote, loteVencido: form?.loteVencido, confirmaVencido: form?.confirmaVencido });
+    if (pendencia) erros.lotes = pendencia;
+  }
   return { erros, aviso };
 };
 
@@ -416,14 +459,19 @@ export const validarLinhaProduto = (form, ctx = {}) => {
  * (vazia = null). A unidade, o custo e a dose são do servidor.
  * @param {FormularioLinhaProduto} form
  */
-export const corpoDaLinhaProduto = (form) => ({
-  produto_id: form.produto?.id ?? null,
-  local_estoque_id: form.local_estoque_id ?? null,
-  quantidade: lerDecimal(form.quantidade, '').valor,
-  observacao: texto(form.observacao) || null,
-  // D-PROD-293: o número do jato, em texto, só na linha de um jato.
-  ...(Number.isInteger(form.jato) && form.jato > 0 ? { jato: String(form.jato) } : {}),
-});
+export const corpoDaLinhaProduto = (form) => {
+  // D-PROD-300: `lotes` só com produto que controla lote e escolha manual (sem ela, o servidor aplica o FEFO).
+  const lotes = form.produto?.controla_lote ? corpoDaEscolha(form.lotes) : null;
+  return {
+    produto_id: form.produto?.id ?? null,
+    local_estoque_id: form.local_estoque_id ?? null,
+    quantidade: lerDecimal(form.quantidade, '').valor,
+    observacao: texto(form.observacao) || null,
+    // D-PROD-293: o número do jato, em texto, só na linha de um jato.
+    ...(Number.isInteger(form.jato) && form.jato > 0 ? { jato: String(form.jato) } : {}),
+    ...(lotes && lotes.length ? { lotes } : {}),
+  };
+};
 
 // ─── Linha de MÁQUINA (janela e "Repetir") ───────────────────────────────
 
@@ -931,6 +979,19 @@ export const corpoDaLinhaServico = (form) => ({
 const DECIMAIS_DA_LINHA = Object.freeze(['quantidade', 'leitura_inicial', 'leitura_final', 'quantidade_uso', 'custo_unitario', 'valor_unitario']);
 
 /**
+ * D-PROD-282 — a escolha (`[{ estoque_lote_nota_id, quantidade }]`) é a das fatias gravadas (`[{ lote_id, quantidade }]`)?
+ * @param {Array<{ estoque_lote_nota_id: string, quantidade: string }>} escolha @param {any[]|null|undefined} fatias
+ */
+const mesmosLotes = (escolha, fatias) => {
+  if (!Array.isArray(fatias) || fatias.length !== escolha.length) return false;
+  const porId = new Map(fatias.map((f) => [String(f?.lote_id ?? ''), f?.quantidade]));
+  return escolha.every((e) => {
+    const q = porId.get(String(e.estoque_lote_nota_id));
+    return ehCanonico(q) && ehCanonico(e.quantidade) && comparar(e.quantidade, q) === 0;
+  });
+};
+
+/**
  * Só as chaves que mudaram em relação à linha gravada (decimal como decimal, texto aparado, vazio = null).
  * @param {any} linha @param {Record<string, any>} corpo
  * @returns {Record<string, any>}
@@ -939,6 +1000,11 @@ export const camposAlteradosDaLinha = (linha, corpo) => {
   /** @type {Record<string, any>} */
   const saida = {};
   for (const [campo, valor] of Object.entries(corpo)) {
+    // D-PROD-282: a escolha dos lotes muda quando difere das fatias gravadas da linha (mesmos lotes, mesmas quantidades).
+    if (campo === 'lotes') {
+      if (Array.isArray(valor) && valor.length && !mesmosLotes(valor, linha?.fatias)) saida.lotes = valor;
+      continue;
+    }
     const antes = linha?.[campo] ?? null;
     let igual;
     if (DECIMAIS_DA_LINHA.includes(campo)) igual = valor === null || antes === null ? valor === antes : ehCanonico(antes) && ehCanonico(valor) && comparar(valor, antes) === 0;

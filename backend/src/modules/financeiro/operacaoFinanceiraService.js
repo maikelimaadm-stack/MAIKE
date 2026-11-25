@@ -1206,6 +1206,11 @@ const estadoDeEstoque = async (tx, clienteId, empresaId, plano, refs) => {
 const comoPlanoPublico = (plano, simulacao, refs) => {
   const c = plano.casas;
   const nomeProduto = (id) => refs.produtos.get(id)?.nome_produto ?? null;
+  // D-PROD-282 em todas as telas: a confirmação pede o lote (compra) ou deixa escolher (venda) pelo cadastro do produto.
+  const controleDoProduto = (id) => ({
+    controla_lote: refs.produtos.get(id)?.controla_lote === true,
+    controla_validade: refs.produtos.get(id)?.controla_validade === true,
+  });
   const nomeLocal = (id) => refs.locais.get(id)?.nome ?? null;
   /** Nomes ATUAIS das referências (os mesmos que a confirmação retrata). */
   const nomesDaLinha = (r) => ({
@@ -1256,11 +1261,13 @@ const comoPlanoPublico = (plano, simulacao, refs) => {
       entradas: plano.efeitos_estoque.entradas.map((e) => ({
         item_ordem: e.item_ordem, produto_id: e.produto_id, produto_nome: nomeProduto(e.produto_id), local_estoque_id: e.local_estoque_id,
         local_nome: nomeLocal(e.local_estoque_id), kg: texto(e.kg, CASAS_QUANTIDADE), custo_kg: texto(e.custo_kg, CASAS_CUSTO),
+        ...controleDoProduto(e.produto_id),
       })),
       saidas: saidas.map((s) => ({
         item_ordem: s.item_ordem, produto_id: s.produto_id, produto_nome: nomeProduto(s.produto_id), local_estoque_id: s.local_estoque_id,
         local_nome: nomeLocal(s.local_estoque_id), kg: texto(s.kg, CASAS_QUANTIDADE), disponivel: texto(s.disponivel, CASAS_QUANTIDADE),
         custo_total: texto(s.custo_total, CASAS_CUSTO),
+        ...controleDoProduto(s.produto_id),
         fatias: (s.fatias ?? []).map((f) => ({ lote_id: f.lote_id, quantidade: texto(f.quantidade, CASAS_QUANTIDADE), custo_unitario: texto(f.custo_unitario, CASAS_CUSTO) })),
       })),
     },

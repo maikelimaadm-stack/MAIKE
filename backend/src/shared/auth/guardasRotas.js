@@ -231,6 +231,16 @@ export const GUARDAS = Object.freeze({
     // D-PROD-272: `ajuste` (ajuste de inventário).
     ajuste: porTela(T.ESTOQUE, 'ajuste'),
     formulario: porQualquer([T.ESTOQUE, 'entrada'], [T.ESTOQUE, 'saida'], [T.ESTOQUE, 'ajuste']),
+    // D-PROD-282 em todas as telas: os lotes disponíveis (a sugestão FEFO e a escolha manual do campo "Lote") também
+    // para quem lança nas telas que tiram produto do estoque — cocho (chave do mapa), lançamento financeiro (venda),
+    // linha de produto da atividade e abastecimento —, com a mesma ação que a gravação de cada uma exige.
+    lotesDisponiveis: porQualquer(
+      [T.ESTOQUE, 'visualizar'],
+      { mapa: 'lancar_suplementacao' },
+      [T.LANCAMENTOS_FINANCEIROS, 'novo'], [T.LANCAMENTOS_FINANCEIROS, 'salvar'], [T.LANCAMENTOS_FINANCEIROS, 'editar'],
+      [T.ATIVIDADES, 'lancar_apontamento'], [T.ATIVIDADES, 'editar_apontamento'],
+      [T.PATRIMONIO_ABASTECIMENTOS, 'novo'], [T.PATRIMONIO_ABASTECIMENTOS, 'salvar'],
+    ),
   },
   // ── Bebedouros ──
   bebedouro: cadastro(T.BEBEDOUROS, { criar: MAPA_CAD_CRIAR, editar: MAPA_CAD_EDITAR }),

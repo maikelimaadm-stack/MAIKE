@@ -22,7 +22,7 @@ function useSemInternet() {
 }
 
 /**
- * D-PROD-300 — o botão da sincronização no topo (ao lado do usuário): um ícone
+ * D-PROD-301 — o botão da sincronização no topo (ao lado do usuário): um ícone
  * pequeno, sem faixa na tela, que diz como está e abre a janela "Sincronização".
  *  - enviando: girando;
  *  - precisa de atenção: triângulo âmbar com o número;

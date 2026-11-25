@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-25 (missão ativa D-PROD-300; antes D-PROD-299, D-PROD-298; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-301; antes D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,13 +9,24 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-25) — MAIKE-SINCRONIZACAO-ORGANIZADA (D-PROD-300)
+## Missão ativa (2026-11-25) — MAIKE-SINCRONIZACAO-ORGANIZADA (D-PROD-301)
 
 | Item | Estado |
 |---|---|
-| Decisão | **D-PROD-300**: janela "Sincronização" + ícone no topo + aviso de envio; histórico do depósito com o que espera envio; consultas rodam sem internet (`networkMode: 'always'`); pente-fino das leituras dos formulários |
+| Decisão | **D-PROD-301**: janela "Sincronização" + ícone no topo + aviso de envio; histórico do depósito com o que espera envio; consultas rodam sem internet (`networkMode: 'always'`); pente-fino das leituras dos formulários |
 | Banco | sem migration |
-| Relatório | [`SINCRONIZACAO-ORGANIZADA-D300-REPORT.md`](./SINCRONIZACAO-ORGANIZADA-D300-REPORT.md) · inventário [`OFFLINE-INVENTARIO.md`](./OFFLINE-INVENTARIO.md) |
+| Relatório | [`SINCRONIZACAO-ORGANIZADA-D301-REPORT.md`](./SINCRONIZACAO-ORGANIZADA-D301-REPORT.md) · inventário [`OFFLINE-INVENTARIO.md`](./OFFLINE-INVENTARIO.md) |
+
+## Missão anterior (2026-11-24) — MAIKE-ESTOQUE-LOTE-TODAS-TELAS: escolha do lote e aviso de vencido em todas as telas que tiram produto (D-PROD-300)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-300**: cocho, financeiro (venda; lote do fabricante e validade na compra), atividade (linha, registro, jatos) e abastecimento com o mesmo campo "Lote" da Saída (sugestão FEFO, escolher e dividir, vencido pede confirmação); o servidor nunca recusa vencido, só avisa |
+| Servidor | atividade e abastecimento passam a aceitar `lotes`; prévia do financeiro diz o controle de lote; leitura dos lotes liberada a quem lança nessas telas |
+| Banco | sem migration |
+| Branch | `claude/estoque-lote-todas-telas` (PR em rascunho) |
+| Relatório | [`MAIKE-ESTOQUE-LOTE-TODAS-TELAS-REPORT.md`](./MAIKE-ESTOQUE-LOTE-TODAS-TELAS-REPORT.md) |
+| Próximas | unidade convertida nessas telas (emenda da SPEC de unidades); lote na retificação do financeiro |
 
 ## Missão anterior (2026-11-25) — MAIKE-SALDO-LOTES-TEXTO: saldo do formulário de Entrada/Saída do depósito (D-PROD-299)
 

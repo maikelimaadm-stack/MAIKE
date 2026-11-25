@@ -77,7 +77,7 @@ const produtosAceitos = (clienteId, empresaId) => ({
   tanquesAceitos: { none: { ativo: true, tanque: { ativo: true, bem: { ativo: true } } } },
 });
 
-const SELECT_PRODUTO = Object.freeze({ id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true, estoque_atual: true, carencia_dias: true });
+const SELECT_PRODUTO = Object.freeze({ id: true, numero_produto: true, nome_produto: true, unidade_principal_estoque: true, estoque_atual: true, carencia_dias: true, controla_lote: true });
 
 /** @param {any} p @param {boolean} favorito */
 const opcaoDeProduto = (p, favorito) => ({
@@ -89,6 +89,8 @@ const opcaoDeProduto = (p, favorito) => ({
   estoque_atual: t4(p.estoque_atual),
   // D-PROD-274: a carência da bula (dias), para o "Pasto liberado em" da Aplicação.
   carencia_dias: p.carencia_dias ?? null,
+  // D-PROD-282 em todas as telas: produto com lote mostra o campo "Lote" na linha.
+  controla_lote: p.controla_lote === true,
   favorito,
 });
 

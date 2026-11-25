@@ -19,7 +19,7 @@ import { listEmpresas } from '@/services/empresaService';
 import { lerEmpresaSelecionadaIdArmazenada, persistirEmpresaSelecionada } from '@/hooks/useEmpresaSelecionadaId';
 
 const PREFIXO = 'maike_dados_offline_em:';
-/** D-PROD-300: como foi cada parte na última baixa (mapa, cadastros, telas). */
+/** D-PROD-301: como foi cada parte na última baixa (mapa, cadastros, telas). */
 const PREFIXO_PARTES = 'maike_dados_offline_partes:';
 
 const chave = () => {
@@ -54,7 +54,7 @@ const marcarBaixa = (quando) => {
  * @typedef {{ mapa?: SituacaoDaParte, cadastros?: SituacaoDaParte, telas?: SituacaoDaParte }} SituacaoDaBaixa
  */
 
-/** D-PROD-300 — como veio cada parte na última baixa deste aparelho (ou `null`). @returns {SituacaoDaBaixa|null} */
+/** D-PROD-301 — como veio cada parte na última baixa deste aparelho (ou `null`). @returns {SituacaoDaBaixa|null} */
 export const situacaoDaBaixa = () => {
   const tenant = getOfflineTenant();
   if (!tenant) return null;

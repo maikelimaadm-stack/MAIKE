@@ -740,7 +740,11 @@ export const rotearLancamentos = async (estado, { method, path, query, body }) =
       // Chaves EXATAS do servidor (rateioCabecalhoVetores.json → formato.efeitos_estoque_chaves):
       // entrada leva o custo líquido por kg; saída leva disponível/custo/fatias (aqui sem
       // simulação FIFO: null/null/[] — como o servidor quando não há simulação).
-      const base = (i) => ({ item_ordem: i.ordem, produto_id: i.produto_id, produto_nome: i.produto_nome, local_estoque_id: i.local_estoque_id, local_nome: i.local_estoque_nome, kg: i.quantidade_estoque });
+      const base = (i) => ({
+        item_ordem: i.ordem, produto_id: i.produto_id, produto_nome: i.produto_nome, local_estoque_id: i.local_estoque_id, local_nome: i.local_estoque_nome, kg: i.quantidade_estoque,
+        // D-PROD-282 em todas as telas: o cadastro do produto (o falso lê do item; sem a marca, false).
+        controla_lote: i.controla_lote === true, controla_validade: i.controla_validade === true,
+      });
       const entrada = (i) => ({ ...base(i), custo_kg: i.custo_kg ?? null });
       const saida = (i) => ({ ...base(i), disponivel: null, custo_total: null, fatias: [] });
       const comRateio = doc.conteudo === 'COM_PRODUTOS' && doc.itens.length > 0;

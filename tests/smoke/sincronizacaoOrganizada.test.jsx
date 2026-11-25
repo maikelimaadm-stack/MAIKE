@@ -1,5 +1,5 @@
 /**
- * D-PROD-300 — sincronização organizada: o ícone do topo, o aviso de quando
+ * D-PROD-301 — sincronização organizada: o ícone do topo, o aviso de quando
  * sobe o que foi feito sem internet e a janela "Sincronização"
  * ("Sincronizar agora" envia e depois baixa; cada parte com quando veio).
  */
@@ -53,7 +53,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('D-PROD-300 — ícone da sincronização no topo', () => {
+describe('D-PROD-301 — ícone da sincronização no topo', () => {
   it('SO-01 mostra o número do que espera envio e abre a janela', async () => {
     const { default: BotaoSincronizacao } = await import('@/components/offline/BotaoSincronizacao');
     const { EVENTO_ABRIR_DADOS_OFFLINE } = await import('@/components/offline/DadosOffline');
@@ -80,7 +80,7 @@ describe('D-PROD-300 — ícone da sincronização no topo', () => {
   });
 });
 
-describe('D-PROD-300 — aviso quando sobe o que foi feito sem internet', () => {
+describe('D-PROD-301 — aviso quando sobe o que foi feito sem internet', () => {
   it('SO-03 "Enviando…" (passada que demora) e depois "Tudo enviado"; a passada de rotina sem envio não avisa', async () => {
     vi.useFakeTimers();
     const { default: AvisoDeSincronizacao } = await import('@/components/offline/AvisoDeSincronizacao');
@@ -119,7 +119,7 @@ describe('D-PROD-300 — aviso quando sobe o que foi feito sem internet', () => 
   });
 });
 
-describe('D-PROD-300 — janela "Sincronização"', () => {
+describe('D-PROD-301 — janela "Sincronização"', () => {
   it('SO-05 mostra internet, cada parte com quando veio, e "Sincronizar agora" envia e depois baixa', async () => {
     const { default: DadosOffline, abrirDadosOffline } = await import('@/components/offline/DadosOffline');
     baixar.mockResolvedValue({ ok: true, falhas: 0, em: Date.now() });

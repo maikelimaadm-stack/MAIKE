@@ -539,6 +539,7 @@ export const confirmar = async (contexto, corpo) => {
               origem: { sistema: ORIGEM_ABASTECIMENTO, operacaoId: id, tipoDetalhado: TIPO_DETALHADO_SAIDA, motivo: MOTIVO_SAIDA },
               numeroMovimento: numeroMovimentoProvisorio(),
               contextoErro: { field: 'quantidade' },
+              lotes: entrada.lotes ?? null, // D-PROD-282 em todas as telas: a escolha (sem ela, FEFO)
             }); // R9 lotes (CAS) + R10 movimento
             if (!somar(saida.fatias.map((f) => f.quantidade)).eq(quantidade)) throw new Error('abastecimento: fatias FIFO não somam a quantidade abastecida');
             const linha = await gravarAbastecimento(tx, cli, empresaId, entrada, estado, plano, auth, {
@@ -561,7 +562,7 @@ export const confirmar = async (contexto, corpo) => {
               { acao: 'abastecimento_bem.confirmar', entidade: ENTIDADE, entidadeId: id, dadosNovos: paraAuditoria(linha, fatias) },
               tx
             ); // R13
-            // D-PROD-282 (revisão): lote vencido consumido pelo FEFO — aviso na resposta (a escolha manual fica para depois).
+            // D-PROD-282: lote vencido consumido (pelo FEFO ou escolhido) — aviso na resposta, nunca recusa.
             return { httpStatus: 201, body: { ...(await carregarDetalhe(tx, cli, empresaId, id)), ...(saida.avisos?.length ? { avisos: saida.avisos } : {}) } };
           },
         }),

@@ -186,7 +186,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     enabled: !!empresaSelecionadaId && !!deposito.local_estoque_id
   });
 
-  // D-PROD-300: o histórico e o saldo acompanham a fila de envio (guardou sem internet, subiu,
+  // D-PROD-301: o histórico e o saldo acompanham a fila de envio (guardou sem internet, subiu,
   // excluiu da fila): o que espera envio aparece com "aguardando envio" e some quando chega.
   useEffect(() => {
     const invalidar = () =>
@@ -707,7 +707,7 @@ function destinoDaSaida(mov, cochosPorId) {
 function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId, acaoDeCancelar = null }) {
   const entrada = ehEntradaNoDeposito(mov, localEstoqueId);
   const emLitros = mov?.unidade_medida === "L";
-  // D-PROD-300: o que espera envio vem sem o nome do produto (o envio não leva): pelo cadastro.
+  // D-PROD-301: o que espera envio vem sem o nome do produto (o envio não leva): pelo cadastro.
   const nomeDoProduto = mov?.produto_nome || produtosPorId.get(mov?.produto_id)?.nome_produto || "";
   const pesoPorSaco = emLitros ? 0 : Number(produtosPorId.get(mov?.produto_id)?.peso_por_saco_kg || 0);
   const linhas = [

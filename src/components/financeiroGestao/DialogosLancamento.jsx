@@ -18,6 +18,8 @@ import { ehDiaValido, formatarDia } from "@/lib/diaCivil";
 import { lerErroGestao, mensagemDoAvisoDoPlano, mensagemDoBloqueio, mensagemDoMotivo, mensagemErroGestao, motivosDoErro } from "@/lib/gestaoErros";
 import { CODIGO_ENVIO_PENDENTE, ROTULO_METODO, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 import { mensagemNumero } from "@/components/financeiroGestao/lancamentoModelo";
+import LotesDaConfirmacao from "@/components/financeiroGestao/LotesDaConfirmacao";
+import { lotesDaConfirmacao } from "@/lib/estoqueLotesRegras";
 
 const CTL = "h-10 w-full min-w-0 rounded-md border border-[var(--mg-divider,#cbd5e1)] bg-white px-3 text-[14px] outline-none focus:border-emerald-500";
 const BOTAO_PRIMARIO =
@@ -153,7 +155,7 @@ function AvisoDoEnvio({ estado, onConsultar = null }) {
  *   fusoConfigurado: boolean,
  *   podeLiquidar: boolean,
  *   onFechar: () => void,
- *   onConfirmar: (p: { baixa_no_ato: { metodo: string, data: string, referencia?: string } | null }, opcoes: { retentativa: boolean }) => Promise<unknown>,
+ *   onConfirmar: (p: { baixa_no_ato: { metodo: string, data: string, referencia?: string } | null, lotes_por_item?: Array<Record<string, unknown>> }, opcoes: { retentativa: boolean }) => Promise<unknown>,
  *   onConsultar: () => void,
  * }} props
  */
@@ -179,6 +181,13 @@ export function DialogoConfirmacao({ aberto, registro, previa, perfil, hoje, fus
   const enviando = estado.fase === "enviando";
   const erroBaixa = baixa ? (!metodo ? "Escolha a forma" : !ehDiaValido(dataBaixa) ? "Informe a data" : dataBaixa > hoje ? "A data não pode ser futura" : null) : null;
   const pagar = registro?.direcao === "PAGAR";
+  // D-PROD-282 em todas as telas: produto com lote — lote e validade na compra, escolha do lote na venda. O servidor só
+  // recebe o lote na confirmação (`lotes_por_item`); sem pendência de lote, o botão confirma.
+  const [estadoLotes, setEstadoLotes] = useState(/** @type {Record<string, any>} */ ({}));
+  const efeitosDoLado = (pagar ? plano.efeitos_estoque?.entradas : plano.efeitos_estoque?.saidas) ?? [];
+  const conferenciaLotes = lotesDaConfirmacao(registro?.direcao, efeitosDoLado, estadoLotes);
+  const mudarLote = (/** @type {number} */ n, /** @type {Record<string, unknown>} */ patch) =>
+    setEstadoLotes((atual) => ({ ...atual, [n]: { ...(atual[n] ?? {}), ...patch } }));
   // Rateio do cabeçalho por item (rodada 4): nomes vêm do rascunho; valores, do plano.
   const itensDoRascunho = Array.isArray(registro?.itens) ? registro.itens : [];
   // Rateio POR ITEM (D-PROD-156): as linhas de cada item vêm do plano (o rascunho, se faltarem).
@@ -241,6 +250,17 @@ export function DialogoConfirmacao({ aberto, registro, previa, perfil, hoje, fus
             </ul>
           </div>
         ) : null}
+        {!bloqueios.length ? (
+          <LotesDaConfirmacao
+            empresaId={registro?.empresa_id}
+            direcao={registro?.direcao}
+            efeitos={efeitosDoLado}
+            estado={estadoLotes}
+            onMudar={mudarLote}
+            desabilitado={enviando}
+            pendencia={conferenciaLotes.pendencia}
+          />
+        ) : null}
         {aVista && podeLiquidar && !bloqueios.length ? (
           <div className="rounded-md border border-[var(--mg-divider,#cbd5e1)] p-3 text-[13px]">
             <label className="flex items-start gap-2">
@@ -276,10 +296,13 @@ export function DialogoConfirmacao({ aberto, registro, previa, perfil, hoje, fus
           <button
             type="button"
             className={BOTAO_PRIMARIO}
-            disabled={enviando || bloqueios.length > 0 || Boolean(erroBaixa)}
+            disabled={enviando || bloqueios.length > 0 || Boolean(erroBaixa) || Boolean(conferenciaLotes.pendencia)}
             data-testid="botao-confirmar-definitivo"
             onClick={() =>
-              disparar({ baixa_no_ato: baixa ? { metodo, data: dataBaixa, ...(referencia.trim() ? { referencia: referencia.trim() } : {}) } : null })
+              disparar({
+                baixa_no_ato: baixa ? { metodo, data: dataBaixa, ...(referencia.trim() ? { referencia: referencia.trim() } : {}) } : null,
+                ...(conferenciaLotes.lotes_por_item.length ? { lotes_por_item: conferenciaLotes.lotes_por_item } : {}),
+              })
             }
           >
             {enviando ? <Loader2 size={16} className="animate-spin" aria-hidden /> : null}

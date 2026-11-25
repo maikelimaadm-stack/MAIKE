@@ -454,9 +454,13 @@ const custoDaSaida = (movimento) => {
  */
 const executarLancamentoDoCocho = async (p, { operationId, registrarProgresso }) => {
   let movimentacao = null;
+  /** @type {any[]} */
+  let avisos = [];
   if (p.saida) {
     const r = await comandoSaidaSuplementacao({ ...p.saida, operation_id: operationId });
     movimentacao = r?.movimentacao ?? null;
+    // D-PROD-300: o aviso de lote vencido da baixa (o servidor nunca recusa; só avisa).
+    avisos = Array.isArray(r?.avisos) ? r.avisos : [];
     // A baixa está no servidor: daqui em diante ela não volta sozinha (descartar não a desfaz).
     await registrarProgresso?.({
       saida_feita: { movimentacao_id: movimentacao?.id ?? null, quantidade: p.saida.quantidade, produto_id: p.saida.produto_id, local_origem_id: p.saida.local_origem_id },
@@ -497,7 +501,7 @@ const executarLancamentoDoCocho = async (p, { operationId, registrarProgresso })
       fechamento = 'falhou';
     }
   }
-  return { evento: novoEvento, movimentacao, fechamento };
+  return { evento: novoEvento, movimentacao, fechamento, avisos };
 };
 
 /**
@@ -570,7 +574,7 @@ const idOuReferenciaDoEvento = (evento) => {
  *   eventoAnterior: any, fechamento: null | { diasPeriodo: number, sobraInicial: number, sobraFinal: number,
  *   sobraInformada: boolean|null, compartilhado?: boolean, dataFim?: string } }} dados
  * @param {{ operationId: string, rotulo?: string }} opcoes
- * @returns {Promise<{ aguardandoEnvio: boolean, evento: any, fechamento: string }>}
+ * @returns {Promise<{ aguardandoEnvio: boolean, evento: any, fechamento: string, avisos: any[] }>}
  */
 /** @param {any} dados */
 const payloadDoLancamento = (dados) => ({
@@ -586,9 +590,9 @@ export const registrarLancamentoDoCocho = async (dados, { operationId, rotulo })
   const r = await enviarOuGuardar(TIPO_LANCAMENTO_COCHO, payload, { empresaId: dados.evento?.empresa_id ?? null, operationId, rotulo });
   if (r.estado === 'enviado') {
     const res = /** @type {any} */ (r.resultado) ?? {};
-    return { aguardandoEnvio: false, evento: res.evento, fechamento: res.fechamento ?? 'nenhum' };
+    return { aguardandoEnvio: false, evento: res.evento, fechamento: res.fechamento ?? 'nenhum', avisos: Array.isArray(res.avisos) ? res.avisos : [] };
   }
-  return { aguardandoEnvio: true, evento: lancamentoAguardandoComoEvento(payload, r.operationId, new Date().toISOString()), fechamento: 'aguardando' };
+  return { aguardandoEnvio: true, evento: lancamentoAguardandoComoEvento(payload, r.operationId, new Date().toISOString()), fechamento: 'aguardando', avisos: [] };
 };
 
 // ── D-PROD-298: corrigir o lançamento que ainda não subiu ─────────────────

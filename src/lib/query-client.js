@@ -6,7 +6,7 @@ export const queryClientInstance = new QueryClient({
 		queries: {
 			refetchOnWindowFocus: false,
 			retry: 1,
-			// D-PROD-300: sem internet a leitura RODA (lê do celular: cache do mapa, leituras
+			// D-PROD-301: sem internet a leitura RODA (lê do celular: cache do mapa, leituras
 			// guardadas, entidades). Com o padrão ('online') o React Query pausava toda consulta
 			// sem sinal: o detalhe do depósito ficava "carregando"/zerado até a internet voltar.
 			// As gravações (mutations) continuam no padrão: as telas recusam ou guardam na fila.

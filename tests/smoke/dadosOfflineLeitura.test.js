@@ -175,7 +175,7 @@ describe('D-PROD-294 — baixar dados', () => {
     expect(lista.some((c) => c.includes('{empresa}'))).toBe(false);
   });
 
-  it('DB-04 D-PROD-300: a baixa guarda como veio cada parte (mapa, cadastros, telas), e sair da conta esquece', async () => {
+  it('DB-04 D-PROD-301: a baixa guarda como veio cada parte (mapa, cadastros, telas), e sair da conta esquece', async () => {
     await carregar({ tenant: 'cli_db04' });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(respostaJson(200, [])));
     const { baixarDadosParaOffline, situacaoDaBaixa, esquecerDadosOfflineDoTenant } = await import('@/services/dadosOfflineService');

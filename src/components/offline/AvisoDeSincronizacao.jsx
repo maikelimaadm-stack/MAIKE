@@ -45,7 +45,7 @@ const mostrar = (id, tom, titulo, descricao, duracao, aoTocar = null) =>
   );
 
 /**
- * D-PROD-300 — o aviso de quando o que foi feito sem internet sobe: só aparece
+ * D-PROD-301 — o aviso de quando o que foi feito sem internet sobe: só aparece
  * quando há algo para enviar e a internet está de volta. Nada de faixa "sem
  * internet": sem sinal, o app só guarda (o ícone do topo mostra o número).
  *

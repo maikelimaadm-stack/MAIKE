@@ -1,5 +1,5 @@
 /**
- * D-PROD-300 — pente-fino do que os formulários de manejo leem sem internet.
+ * D-PROD-301 — pente-fino do que os formulários de manejo leem sem internet.
  *
  * Com internet, o app baixa os dados (`baixarDadosParaOffline`). Depois, SEM
  * internet (rede caída), cada leitura que os formulários do cocho e do depósito
@@ -75,7 +75,7 @@ const leiturasDosFormularios = async () => {
   };
 };
 
-describe('D-PROD-300 — pente-fino: formulários de manejo sem internet', () => {
+describe('D-PROD-301 — pente-fino: formulários de manejo sem internet', () => {
   it('PF-01 depois de baixar os dados, cada leitura dos formulários responde sem internet (nem erro, nem vazia)', async () => {
     const { baixarDadosParaOffline } = await import('@/services/dadosOfflineService');
     await baixarDadosParaOffline({ empresaId: EMP });
@@ -96,7 +96,7 @@ describe('D-PROD-300 — pente-fino: formulários de manejo sem internet', () =>
   });
 });
 
-describe('D-PROD-300 — telas não ficam "carregando" sem internet', () => {
+describe('D-PROD-301 — telas não ficam "carregando" sem internet', () => {
   it('PF-02 a consulta das telas roda sem internet (lê do celular), em vez de pausar esperando a rede', async () => {
     online = false;
     const { queryClientInstance } = await import('@/lib/query-client');

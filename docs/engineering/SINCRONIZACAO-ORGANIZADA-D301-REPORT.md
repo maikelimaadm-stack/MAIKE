@@ -1,4 +1,4 @@
-# Relatório — sincronização organizada (D-PROD-300)
+# Relatório — sincronização organizada (D-PROD-301)
 
 **Data:** 2026-11-25 · **Branch:** `claude/nifty-feynman-rh0kdn`
 

@@ -236,7 +236,8 @@ const CORPO_BASE_ABASTECIMENTO = Object.freeze([
  * até 2 casas) e `apontamento_id` (o lançamento da atividade; a atividade o servidor deriva e nunca vai). No
  * `EXTERNO` o `local_estoque_id` NÃO vai.
  */
-const OPCIONAIS_ABASTECIMENTO = Object.freeze(['origem', 'custo_total', 'apontamento_id']);
+// D-PROD-282 em todas as telas: `lotes` (a escolha manual dos lotes do combustível com lote; nunca no posto externo).
+const OPCIONAIS_ABASTECIMENTO = Object.freeze(['origem', 'custo_total', 'apontamento_id', 'lotes']);
 const CORPO_ABASTECIMENTO = Object.freeze([...CORPO_BASE_ABASTECIMENTO, ...OPCIONAIS_ABASTECIMENTO]);
 const OBRIGATORIAS_PREVIA = Object.freeze(['empresa_id', 'bem_id', 'tanque_id', 'produto_id', 'local_estoque_id', 'data_operacional', 'quantidade']);
 const EXTRAS_CONFIRMACAO = Object.freeze(['operation_id']);
@@ -274,11 +275,21 @@ const validarCorpoAbastecimento = (corpo, contexto) => {
     // Posto externo: sem local (o servidor recusaria) e com o valor da nota.
     assertArgument(!tem(corpo, 'local_estoque_id'), 'local_estoque_id', contexto);
     assertArgument(typeof corpo.custo_total === 'string' && RE_CUSTO_EXTERNO.test(corpo.custo_total) && /[1-9]/.test(corpo.custo_total), 'custo_total', contexto);
+    assertArgument(!tem(corpo, 'lotes'), 'lotes', contexto);
   } else {
     assertArgument(isId(corpo.local_estoque_id), 'local_estoque_id', contexto);
     assertArgument(!tem(corpo, 'custo_total'), 'custo_total', contexto);
   }
   if (tem(corpo, 'apontamento_id')) assertArgument(isId(corpo.apontamento_id), 'apontamento_id', contexto);
+  if (tem(corpo, 'lotes')) {
+    const lotes = /** @type {unknown} */ (corpo.lotes);
+    assertArgument(
+      Array.isArray(lotes) && lotes.length > 0 && lotes.length <= 50
+        && lotes.every((l) => isObjeto(l) && isId(l.estoque_lote_nota_id) && typeof l.quantidade === 'string' && RE_DECIMAL_4.test(l.quantidade) && Object.keys(l).length === 2),
+      'lotes',
+      contexto,
+    );
+  }
   assertArgument(typeof corpo.data_operacional === 'string' && RE_DIA.test(corpo.data_operacional), 'data_operacional', contexto);
   assertArgument(typeof corpo.quantidade === 'string' && RE_DECIMAL_4.test(corpo.quantidade), 'quantidade', contexto);
   if (tem(corpo, 'medidor_leitura')) {

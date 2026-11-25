@@ -320,6 +320,7 @@ function CamposDoInsumo({ editor, mudar, setForm, onLido, areaDoDia, bloqueado, 
       prefixo="registro-produto"
       comObservacao={false}
       tituloGrupo={null}
+      marcar={(m) => setForm((f) => ({ ...f, ...m }))}
     />
   );
   if (!comVc) return campos;

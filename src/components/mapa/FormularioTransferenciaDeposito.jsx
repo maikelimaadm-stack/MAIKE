@@ -276,7 +276,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
       limparEnvioPendente(chaveStorage);
       if (resposta?.aguardandoEnvio) {
         // D-PROD-296: sem internet, ficou no aparelho (o motor envia depois com esta chave).
-        // O saldo e o histórico do depósito já mostram, com "aguardando envio" (D-PROD-300).
+        // O saldo e o histórico do depósito já mostram, com "aguardando envio" (D-PROD-301).
         invalidarCachesDoMapa(queryClient, ["estoque-lotes-transferencia", "saldo-deposito", "cochos-vinculados-deposito", "lotes-nota-suplementacao", "mapa-pontos-supl", "produtos", "transferencias-aguardando", "movimentacoes-deposito-detalhe", "historico-deposito"]);
         toast.success(opEmEdicao ? "Transferência corrigida." : "Transferência registrada.");
         onSuccess?.();

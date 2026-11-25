@@ -1,5 +1,5 @@
 /**
- * D-PROD-300 — o histórico do depósito com o que foi lançado sem internet e
+ * D-PROD-301 — o histórico do depósito com o que foi lançado sem internet e
  * ainda espera envio: a transferência (as duas pernas) e a baixa do lançamento
  * do cocho aparecem como movimentações, marcadas `_aguardandoEnvio`.
  *
