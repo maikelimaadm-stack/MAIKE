@@ -227,6 +227,15 @@ describe('D-PROD-309 — GET /lotes/mudancas', () => {
       const plano = await planoDe(`SELECT id FROM "${tabela}" WHERE cliente_id = $1 AND "updatedAt" >= now() - interval '1 day' ORDER BY "updatedAt", id LIMIT 1001`);
       assert.match(plano, new RegExp(indice), `${tabela}: ${plano}`);
     }
+    // Volume realista de auditoria do mesmo cliente (outras entidades e ações): com poucas linhas o planejador pode
+    // preferir o índice antigo (cliente_id, createdAt) e filtrar o resto; com volume, o novo é o caminho.
+    await prisma().auditLog.createMany({
+      data: Array.from({ length: 3000 }, (_, i) => ({
+        cliente_id: c.cliente.id, acao: i % 2 ? 'update' : 'create', entidade: i % 3 ? 'SuplementacaoEvento' : 'Lote',
+        entidade_id: `x-${i}`, request_id: `r-${i}`,
+      })),
+    });
+    await prisma().$executeRawUnsafe('ANALYZE "AuditLog"');
     const auditoria = await planoDe(`SELECT entidade_id FROM "AuditLog" WHERE cliente_id = $1 AND entidade = 'Lote' AND acao = 'delete' AND "createdAt" >= now() - interval '1 day' ORDER BY "createdAt", id LIMIT 5001`);
     assert.match(auditoria, /AuditLog_cliente_id_entidade_acao_createdAt_id_idx/, auditoria);
   });
