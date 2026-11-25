@@ -44,3 +44,11 @@ describe('D-PROD-299 — saldo dos lotes com decimal em texto', () => {
     expect(disponivelDoLote({ quantidade_disponivel: 12.5 })).toBe(12.5);
   });
 });
+
+describe('D-PROD-299 — formulações do lançamento baixadas para usar sem internet', () => {
+  it('SD-04 a leitura que o lançamento do cocho faz está na lista do que o app baixa', async () => {
+    await import('@/apis/formulacoes/formulacaoNativePort');
+    const { leiturasOfflineRegistradas } = await import('@/lib/offline/leiturasOffline');
+    expect(leiturasOfflineRegistradas('emp-1')).toContain('/formulacoes/opcoes-lancamento?empresa_id=emp-1');
+  });
+});

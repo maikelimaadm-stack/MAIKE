@@ -30,10 +30,19 @@ para número (inválido vale 0) e é usado em:
 
 Sem migration, sem mudança no servidor.
 
+### Formulação que não aparecia no lançamento do cocho
+
+- O formulário só oferece as formulações cujo produto tem saldo no depósito do cocho. Com 2 lotes ou
+  mais, o saldo colado virava `NaN` (nunca > 0) e a formulação sumia, com ou sem internet. Resolvido
+  pela mesma correção.
+- Sem internet: o formulário lê `/formulacoes/opcoes-lancamento`, que não estava na lista do que o
+  app baixa (só `/formulacoes`). A porta de formulações passa a registrar as duas.
+
 ## Testes
 
 - `tests/smoke/saldoLotesDecimalTexto.test.js` — SD-01 (soma com texto), SD-02 (rateio FIFO com
-  texto e saldo insuficiente), SD-03 (valor inválido vale 0).
+  texto e saldo insuficiente), SD-03 (valor inválido vale 0), SD-04 (a leitura das formulações do
+  lançamento está na lista do que o app baixa).
 - Smoke de depósito e cocho sem internet continuam passando.
 
 ## Em aberto

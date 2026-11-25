@@ -37,6 +37,9 @@ export const operacoesNativas = Object.freeze({
 
 // D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
 // de o app abrir pela primeira vez (o caminho fica aqui, na porta do módulo).
+// D-PROD-299: o lançamento do cocho lê `opcoes-lancamento`; sem ela na lista, a formulação
+// não aparecia sem internet para quem nunca tinha aberto o formulário com internet.
 registrarLeiturasOffline([
   '/formulacoes?empresa_id={empresa}',
+  '/formulacoes/opcoes-lancamento?empresa_id={empresa}',
 ]);
