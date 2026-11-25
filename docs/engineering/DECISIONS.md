@@ -65,8 +65,6 @@ avaliada contra o motor MDP do PROJETOMG antes de virar model próprio.
 
 **Consequência:** escopo real cai de ~87 para ~76 entidades de domínio.
 
-
-
 ---
 
 ## D-PROD-01 — Produto focado: Pecuária Mapa Geral + Manejo
@@ -3702,7 +3700,6 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V7). Teste: `test
 
 > **Numeração (decisões do proprietário, R2A-R2 e R2A-R3):** esta decisão foi redigida na PR #162 como "D-PROD-95". Enquanto a #162 estava em revisão, entraram em `main` a maikelimaadm-stack/MAIKE#163 (D-PROD-95, UX-MOBILE-V4), a #164 (D-PROD-96, celular V5), a #165 (D-PROD-97, celular V6) e a #166 (D-PROD-98, celular V7). Regra decidida pelo proprietário: as decisões já em `main` ficam preservadas, e a R2A ocupa o próximo número livre. Ela passou a ser **D-PROD-99**, com as subdecisões **D-PROD-99a** (R2A-R1), **D-PROD-99b** (R2A-R2) e **D-PROD-99c** (R2A-R3).
 
-
 **Missão:** MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-BACKEND-01. Base: `main` d2cba91 (merge da #161). Sem migration, sem escrita em produção, sem ledger.
 
 **Contexto:** a R1.1 suspendeu exclusões só na interface. O backend ainda apagava e reescrevia movimentos por `DELETE`/`PATCH` genéricos. O Histórico de Abate do Curral e o "Reverter nome" do lote faziam reversões em várias chamadas do navegador.
@@ -4463,7 +4460,6 @@ Auditoria do HEAD `ce1ab5b`: três hipóteses reproduzidas em RED (PostgreSQL re
   3. merge, deploy automático da Vercel;
   4. cutover imediato, empresa de teste primeiro.
   - Entre 3 e 4, os manejos de empresas ainda não migradas recebem a recusa clara, nunca escrita legada.
-
 
 ### D-PROD-107 — complemento PR174-R6 (fechamento seguro de release e cutover)
 
@@ -6497,7 +6493,6 @@ O resto da D-PROD-176 continua: ícones, aparência, cadastro e filtro.
 ## D-PROD-181 — Tipo de Tarefa sem flags de exigência (Fatia A: expand no código, colunas dormentes no banco)
 
 > **Numeração:** estas duas decisões nasceram como D-PROD-179 e D-PROD-180, mas as PRs #255 e #258 (CI) entraram antes na `main` com a D-PROD-179 e a D-PROD-180. Para não duplicar, a Fatia A virou **D-PROD-181** e a Fatia B, **D-PROD-182**; a D-PROD-180 ficou com a PR #258 (CI paralela), que também entrou antes.
-
 
 **Data:** 2026-11-13 · **Origem:** pedido do proprietário ("prompt-tipo-atividade", Fatia A) · **Branch:** `feat/tipo-tarefa-sem-flags`
 
@@ -9209,7 +9204,6 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** cartão de Forragem dentro do Detalhes do Lote (a tela não recebe a cultura da área nem a medição; pede mudança no carregamento de dados); mudar a ordem padrão das colunas da Lista; redesenho próprio de tablet e computador (recebem o mesmo conteúdo, sem quebra); os formulários de lançamento. Nenhuma mudança no servidor; nenhuma migration.
 - **Testes:** `tests/smoke/detalhesV13HistoricoSupl.test.jsx` (novo) e os smoke do Detalhes ajustados (`detalhesLoteV12Lotes`, `detalhesLoteQuadros`, `iconesManejo`, `detalhesCompactos`, `subiconeLote`, `abaHistoricoPasto`, `abaHistoricoExcluirMovimento`).
 
-
 ## D-PROD-281 — Entrega A: nomes simples, "Atividades em andamento" no topo e o "Novo lançamento" curto
 
 **Data:** 2026-11-23 · **Origem:** proprietário (nomes e telas aprovados nas maquetes `final-lista`, `final-registrar`, `final-horimetro`) · **Relatório:** [`MAIKE-ENTREGA-A-LANCAMENTO-SIMPLES-REPORT.md`](./MAIKE-ENTREGA-A-LANCAMENTO-SIMPLES-REPORT.md)
@@ -9551,4 +9545,22 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   2. **"App atualizado"** aparece também sem registro anterior (a primeira versão com o aviso, ou app recém-instalado), fica 8 s na tela, e o aviso que chega antes da tela montar fica guardado e é mostrado quando ela monta. A versão já baixada esperando a próxima abertura é lembrada ao abrir.
 - **Testes:** `tests/smoke/mapaVivo.test.jsx` (MV-01..02), `tests/smoke/menuNavFreeze.test.jsx` (contrato novo), `tests/smoke/avisoDeVersao.test.jsx` (VS-03..04), `tests/smoke/atualizacaoAutomaticaApp.test.js` (AV-05).
 
-<!-- Próxima decisão: D-PROD-306 -->
+## D-PROD-306 — Financeiro: o lote na retificação por substituição
+
+**Data:** 2026-11-25 · **Origem:** pedido do proprietário (a correção de uma compra ou venda confirmada de produto com lote, quando muda o estoque), plano aprovado · **Branch:** `claude/financeiro-retificacao-lote` · **Relatório:** [`MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md`](./MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md)
+
+> **Numeração:** nasceu D-PROD-301 (`node scripts/dev/proxima-decisao.mjs` na `main` `289cefb1`). Antes do push, a `main` deu a D-PROD-301 à sincronização organizada (PR #388, `880fb0e5`) e a D-PROD-302 e a D-PROD-303 ao mapa e ao cocho sem internet (PR #389, `4ddda0a9`), e passou a indicar `Próxima decisão: D-PROD-304`; com a PR já aberta, a `main` deu a D-PROD-304 ao aviso de versão do app (PR #391, `337e888a`) e passou a indicar `Próxima decisão: D-PROD-305`; depois a `main` deu a D-PROD-305 ao Mapa Geral vivo entre menus (PR #392, `55652d12`) e passou a indicar `Próxima decisão: D-PROD-306`, que é esta; o marcador passa a D-PROD-307.
+
+- **Contexto:** a D-PROD-300 deu o lote na **confirmação** do lançamento financeiro (`lotes_por_item`) e deixou fora a retificação. A retificação por SUBSTITUIÇÃO estorna a versão anterior e grava a nova pelo mesmo núcleo da confirmação (`aplicarEfeitosDoPlano`), mas sem o lote: corrigir a quantidade (ou outro campo físico) de uma compra confirmada de produto com lote era **recusado** (422 `ESTOQUE_LOTE_OBRIGATORIO`, `lote_obrigatorio`) e a correção de uma venda caía no FEFO sem escolha.
+- **Decisão (o mesmo contrato da confirmação; nada muda para produto sem lote):**
+  1. **Servidor:** `POST /operacoes-financeiras/:id/retificar` aceita `lotes_por_item` com o MESMO schema da confirmação (`LOTES_POR_ITEM`, um só nas duas rotas). `retificar` o lê com `lotesDaConfirmacao`, o põe no fingerprint **só quando vem** (o corpo sem o campo tem o fingerprint de antes) e, na SUBSTITUIÇÃO, o passa a `aplicarEfeitosDoPlano`: compra com lote exige o lote (e a validade, se o produto controla validade); venda com a escolha sai dos lotes escolhidos; venda sem escolha, o FEFO. Como na confirmação, a resposta da substituição traz `avisos` quando a saída nova usa lote vencido (o servidor nunca recusa vencido).
+  2. **NO_LUGAR** (assinatura física igual) não mexe em lote: o campo é ignorado.
+  3. **Tela:** quando a correção muda o estoque (a previsão `mudaEstoque` da tela), o diálogo "Salvar correção" mostra o mesmo bloco da confirmação (`LotesDaConfirmacao`): na compra, "Lote do fabricante" e "Validade"; na venda, o campo "Lote" (`CampoLotes`). A prévia do servidor só existe para rascunho, então o diálogo monta os efeitos de estoque a partir do formulário (`mercadoriasDaCorrecao`) e lê o controle de lote de cada produto em `GET /estoque/lotes-disponiveis` (a mesma leitura e a mesma chave de cache do campo "Lote"; a guarda já libera quem edita lançamentos, que é o que a retificação exige).
+  4. **Pré-preenchimento da compra:** o lote e a validade começam com os do lote de **entrada da versão anterior** (mesmo item e mesmo produto): o detalhe dá o `estoque_lote_nota_id` do item e a leitura dos lotes dá o fabricante e a validade. A substituição só acontece com esse lote intacto, então ele está entre os disponíveis. Se não estiver na leitura, os campos ficam em branco.
+  5. **Saldo da venda:** o estorno devolve o que a versão anterior baixou antes da saída nova; o campo "Lote" soma essas fatias (`consumos` do item anterior, mesmo produto e depósito) ao saldo de cada lote para conferir e escolher (`devolvidos`, como na edição da linha de atividade).
+  6. **Bloqueio:** "Salvar correção" fica desabilitado com pendência de lote, com as regras da confirmação (`lotesDaConfirmacao` da tela), e enquanto os lotes carregam. Se a leitura falhar, o diálogo avisa e não bloqueia: o servidor confere ao gravar.
+  7. `retificarLancamento` manda `lotes_por_item` só quando tem item (sem ele, o corpo de sempre).
+- **Migration:** nenhuma. **Constituição:** nenhuma regra nova (a emenda da D-PROD-282 cobre).
+- **Fora:** a correção que a tela prevê sem mudança no estoque mas o servidor faz por substituição (previsão diferente do servidor) segue sem os campos: a compra com lote é recusada com 422 e a pessoa corrige de novo; a direção trocada (compra ↔ venda) com produto de lote não tem tratamento especial.
+
+<!-- Próxima decisão: D-PROD-307 -->

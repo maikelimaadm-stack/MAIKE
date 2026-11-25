@@ -14,6 +14,7 @@ import FormularioLancamento, { FORMULARIO_LANCAMENTO_ID } from "@/components/fin
 import ConsultaLancamento from "@/components/financeiroGestao/ConsultaLancamento";
 import PerfilFinanceiroPainel from "@/components/financeiroGestao/PerfilFinanceiroPainel";
 import { DialogoAcao, DialogoConfirmacao, DialogoLiquidacao, DialogoMotivos } from "@/components/financeiroGestao/DialogosLancamento";
+import DialogoRetificacao from "@/components/financeiroGestao/DialogoRetificacao";
 import PreviaRecalculoExclusao from "@/components/estoque/PreviaRecalculoExclusao";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useAcoesTelaGestao, useEmpresaRealSelecionadaId } from "@/hooks/useGestaoSessao";
@@ -809,7 +810,9 @@ export default function LancamentosFinanceirosTela() {
           ocupado={ocupado}
           onSubmit={controller.handleSubmit}
           retificacao={{ efeitoFisicoPermitido: correcao.efeitoFisicoPermitido, motivos: correcao.motivos }}
-          onRetificar={({ doc, mudaEstoque, diferencas }) => setDialogo({ tipo: "retificar", registro: correcao.detalhe, versao: correcao.versao, doc, mudaEstoque, diferencas })}
+          onRetificar={({ doc, mudaEstoque, diferencas, mercadorias }) =>
+            setDialogo({ tipo: "retificar", registro: correcao.detalhe, versao: correcao.versao, doc, mudaEstoque, diferencas, mercadorias })
+          }
           erroServidor={erroDoFormulario}
         />
       );
@@ -1081,13 +1084,15 @@ export default function LancamentosFinanceirosTela() {
         />
       ) : null}
       {dialogo?.tipo === "retificar" ? (
-        <DialogoAcao
-          aberto
-          testId="dialogo-retificacao"
+        // D-PROD-306: com o estoque mudando (substituição), o diálogo pede o lote como a confirmação.
+        <DialogoRetificacao
+          empresaId={emp}
+          direcao={String(dialogo.doc?.direcao ?? dialogo.registro?.direcao ?? "")}
+          mudaEstoque={Boolean(dialogo.mudaEstoque)}
+          mercadorias={Array.isArray(dialogo.mercadorias) ? dialogo.mercadorias : []}
+          anteriores={Array.isArray(dialogo.registro?.itens) ? dialogo.registro.itens : []}
           titulo={`Salvar correção do lançamento ${numeroDe(dialogo.registro)}`}
           descricao="Informe o motivo da correção. Tudo é gravado de uma vez: ou a correção inteira, ou nada."
-          rotuloBotao="Salvar correção"
-          perigo={false}
           contexto={{ ...contextoMoeda, direcao: dialogo.registro?.direcao ?? null }}
           conteudo={
             <ul className="list-disc space-y-1 pl-5" data-testid="dialogo-retificacao-efeitos">
@@ -1113,10 +1118,13 @@ export default function LancamentosFinanceirosTela() {
           }
           onFechar={fecharDialogo}
           onConsultar={() => consultarDepoisDeIncerto("retificar", String(dialogo.registro.id), { docId: String(dialogo.registro.id), registroAntes: dialogo.registro })}
-          onEnviar={async (motivo, { retentativa }) => {
+          onEnviar={async (motivo, { retentativa }, { lotes_por_item }) => {
             try {
-              const r = await retificarLancamento(emp, String(dialogo.registro.id), { versao: dialogo.versao, doc: dialogo.doc, motivo, escopo, retentativa });
+              const r = await retificarLancamento(emp, String(dialogo.registro.id), { versao: dialogo.versao, doc: dialogo.doc, motivo, lotes_por_item, escopo, retentativa });
               concluirCorrecao(r, emp, dialogo.registro);
+              // D-PROD-306: como na confirmação, o servidor nunca recusa lote vencido na venda; quando saiu de um, avisa.
+              const alertaVencido = mensagemDeLoteVencido(/** @type {any} */ (r)?.avisos);
+              if (alertaVencido) notifyWarning("Lote vencido", alertaVencido);
             } catch (err) {
               if (daEmpresaAtual({ empresaId: emp })) entregarErroAoFormulario(err);
               reagirAoErro(err, emp);
