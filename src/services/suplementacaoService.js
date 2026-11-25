@@ -655,6 +655,13 @@ export const excluirLancamentoAguardando = async (evento) => {
   const situacao = await situacaoNaFila(opId);
   if (situacao === 'confirmando') throw naoDaMais('Este lançamento está sendo enviado agora. Espere confirmar para excluir.');
   if (situacao === 'enviado') throw naoDaMais('Este lançamento já chegou ao sistema. Atualize a tela e use "Excluir lançamento".');
+  // D-PROD-310: recusado depois de a baixa do estoque ter sido feita — excluir daqui deixaria a
+  // baixa no servidor sem lançamento. A pessoa usa "Tentar de novo" (ou descarta em
+  // Sincronização, que explica a baixa já feita).
+  const registro = situacao ? await registroNaFila(opId) : null;
+  if (registro?.progresso?.saida_feita) {
+    throw naoDaMais('A baixa deste lançamento já foi feita no estoque. Use "Tentar de novo" em Sincronização (ou descarte lá, sabendo que a baixa fica).');
+  }
   // D-PROD-310: só o último lançamento do cocho sai (o seguinte depende deste).
   const dependentes = situacao ? await dependentesNaFila(opId) : [];
   if (dependentes.length) {
@@ -678,6 +685,11 @@ export const lancamentoAguardandoParaEditar = async (evento) => {
         ? 'A baixa deste lançamento já foi feita no estoque: não dá mais para editar. Use "Tentar de novo" em Sincronização.'
         : 'Este lançamento está sendo enviado agora. Espere confirmar.'
     );
+  }
+  // D-PROD-310: só o último lançamento do cocho se edita (o seguinte foi feito em cima deste).
+  const dependentes = await dependentesNaFila(registro.operationId);
+  if (dependentes.length) {
+    throw naoDaMais(`Só o último lançamento deste cocho pode ser editado. Exclua antes: ${dependentes.map((d) => d.rotulo).join('; ')}.`);
   }
   return { operationId: registro.operationId, payload: registro.payload };
 };

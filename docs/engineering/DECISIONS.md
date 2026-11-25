@@ -9711,4 +9711,44 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - Backend: `backend/tests/sincronizacaoIncremental.test.mjs` (MU-01..08).
   - App: `tests/smoke/sincronizacaoIncremental.test.js` (SI-01..11).
 
-<!-- Próxima decisão: D-PROD-310 -->
+## D-PROD-310 — Só o último da sequência: exclusão com nada depois (lote, cocho, depósito) e revisão geral
+
+**Data:** 2026-11-25 · **Origem:** relato do proprietário. Sem internet, ele lançou dois suplementos no mesmo cocho e excluiu o primeiro; ao sincronizar, o segundo ficou órfão. Também viu movimentações de lote sendo excluídas com nutrição lançada depois. Pediu a regra "sempre o último" e uma revisão geral de lotes, nutrição e depósito · **Branch:** `claude/nifty-feynman-rh0kdn` · **Relatório:** [`SO-O-ULTIMO-D310-REPORT.md`](./SO-O-ULTIMO-D310-REPORT.md)
+
+- **Regra do proprietário:**
+  - Um registro só sai (é excluído ou cancelado) se nada foi feito DEPOIS dele no que ele toca; exclui-se sempre o mais recente primeiro.
+  - Na movimentação de lote, valem a origem E o destino: outra movimentação, junção, baixa, pesagem, nutrição, sanidade, medicamento, manejo técnico ou tarefa posterior em qualquer um deles bloqueia. O proprietário escolheu esta forma estrita ("ambos origem e destino"); divisões irmãs da mesma origem também se bloqueiam, e se exclui da mais nova para a mais antiga.
+  - Esta regra **substitui a parte "causal, não cronológico" da D-PROD-110**. Até aqui só bloqueava o documento que citava a posição CRIADA pelo movimento; a origem e o destino que já existiam nunca eram conferidos. Daí o defeito: nutrição lançada depois na origem não bloqueava.
+- **Decisão — servidor:**
+  1. `registrosPosterioresDoMovimento`, chamado em `cancelarMovimentoDoLedger` (que a exclusão também usa), bloqueia quando há, em qualquer posição tocada pelo evento:
+     - fato do rebanho ativo posterior na ordem do ledger;
+     - documento não cancelado (`SuplementacaoLote`, `SuplementacaoEvento`, `AplicacaoMedicamento`, `EventoSanitario`, `ManejoTecnicoRebanho`, `MovimentacaoPecuaria`) ou tarefa citando a posição com data de negócio posterior (no mesmo dia, registrado depois; sem data, registrado depois).
+  2. A resposta é 409 `REBANHO_EXCLUSAO_REGISTRO_POSTERIOR` com `bloqueadores`, `tipo`, `data` e área.
+  3. Roda DEPOIS das conferências de saldo e de peso: quando elas recusam, a mensagem delas (mais detalhada) continua valendo.
+  4. O cancelamento do lançamento do cocho no servidor já exigia o último ativo; não muda.
+- **Decisão — app:**
+  1. **Fila do aparelho:**
+     - `dependentesNaFila` passa a contar também o posterior no mesmo recurso (o lançamento seguinte do cocho; o que usou o estoque da transferência), além de quem cita.
+     - `descartarDaFila` e `alterarNaFila` recusam enquanto houver dependente.
+     - As telas dizem qual registro excluir primeiro.
+     - A leitura de cocho é `independente`.
+  2. **Lançamento recusado com a baixa já feita:** não é excluído pela tela do cocho; a pessoa usa "Tentar de novo" ou descarta em Sincronização, que explica a baixa.
+  3. **Excluir movimentação de lote:** fica bloqueado enquanto há nutrição feita sem internet nesta fazenda aguardando envio.
+  4. **Excluir sem internet a transferência do depósito:** recusa se há algo aguardando envio no mesmo estoque, ou movimento posterior do produto num dos dois estoques no histórico do aparelho.
+  5. **Revisão geral (defeitos corrigidos):**
+     - `parseNumber` apagava todo ponto: "12.5" virava 125 e "12.00" virava 1200, no campo da transferência, em "aproveitar sobra" e na troca kg↔sacos do cocho. O ponto agora só é milhar quando há vírgula.
+     - O saldo sem internet inventava estoque: o destino recebia a quantidade inteira mesmo quando a origem não tinha tudo. Agora recebe só o que saiu.
+     - Um cancelamento recusado ("precisa de atenção") escondia o original no histórico enquanto o saldo o mostrava. Agora o original volta.
+- **Fora (para decisão ou próximas missões):** lista no relatório. Pontos principais:
+  - **Para decisão do proprietário:** o servidor cancela transferência ou entrada cujo estoque já foi consumido, recalculando o custo para produto sem lote. Foi aprovado na D-PROD-273, mas contradiz a regra de agora.
+  - **Próximas missões:**
+    - o lançamento órfão de versões anteriores (`REFERENCIA_DESCARTADA`);
+    - o período que pode ficar aberto com um cancelamento na fila;
+    - o rateio de lotes calculado no formulário;
+    - a ordem de datas do lançamento do cocho no servidor;
+    - a política de "tentado" nos overlays (Etapa 4).
+- **Testes:**
+  - Backend: `exclusaoMovimentacaoLedger` (EX-C reescrito, com a nutrição posterior na origem), `certificacaoManejosExclusoes` (CERT-3/4/5/9 na regra nova), `r2eR5ComandosLedgerConvertidos` (K3) e `r2eR6CutoverAtomicoVinculos` (D2).
+  - App: `tests/smoke/soOUltimoDaSequencia.test.js` (NU-01, ES-01, CA-01, TR-01..02, NL-01), `motorSincronizacao` (MS-10, MS-10b, MS-26), `lancamentoCochoOffline` (LCO-12) e `exclusaoMovimentacao` (3b).
+
+<!-- Próxima decisão: D-PROD-311 -->

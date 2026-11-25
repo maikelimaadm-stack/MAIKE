@@ -288,7 +288,7 @@ describe("Pré-validação no card (MAIKE-POS178-UX) — estado ANTES do clique"
     }));
     await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
     expect((await screen.findByRole("button", { name: "Exclusão bloqueada" })).hasAttribute("disabled")).toBe(true);
-    expect(screen.getByText(/LancamentoTarefa de 15\/10\/2026/)).toBeTruthy();
+    expect(screen.getByText(/Tarefa de 15\/10\/2026/)).toBeTruthy();
   });
 
   it("4) erro de rede/API: 'Não foi possível verificar' desabilitado + 'Verificar de novo' só reconsulta (não exclui)", async () => {

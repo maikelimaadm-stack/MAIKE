@@ -1048,6 +1048,9 @@ const alterarNaFilaJa = async (id, payload, opcoes) => {
   const fila = portaDaFila();
   const item = fila ? await fila.ler(id) : undefined;
   if (!fila || !item || !eDaSessao(item) || !podeAlterar(item)) return false;
+  // D-PROD-310: com um registro posterior que depende deste (o lançamento seguinte do cocho
+  // foi feito com o fechamento e a sobra DESTE), editar este deixaria o outro errado.
+  if (dependentesDe(id, (await fila.listar()).filter(eDaSessao)).length > 0) return false;
   const def = TIPOS.get(item.tipo);
   if (!def) return false;
   const referencias = [...referenciasNoPayload(payload)];
@@ -1084,6 +1087,22 @@ export const dependentesNaFila = async (id) => {
   const fila = portaDaFila();
   if (!fila || !sessao) return [];
   return dependentesDe(id, (await fila.listar()).filter(eDaSessao)).map((i) => ({ id: i.id, rotulo: i.rotulo }));
+};
+
+/**
+ * D-PROD-310 — registros desta sessão, ainda não enviados, que mexem em algum destes recursos
+ * (ex.: `estoque:<local>`): o que foi feito sem internet depois de um registro que já está no
+ * servidor. Quem quer desfazer esse registro sem internet confere aqui antes.
+ * @param {string[]} recursos
+ */
+export const pendentesNosRecursos = async (recursos) => {
+  const fila = portaDaFila();
+  if (!fila || !sessao || !recursos.length) return [];
+  return (await fila.listar())
+    .filter((i) => eDaSessao(i) && i.estado !== 'enviado' && TIPOS.get(i.tipo)?.independente !== true)
+    .filter((i) => (i.recursos ?? []).some((r) => recursos.includes(r)))
+    .sort(emOrdem)
+    .map((i) => ({ id: i.id, rotulo: i.rotulo }));
 };
 
 /**

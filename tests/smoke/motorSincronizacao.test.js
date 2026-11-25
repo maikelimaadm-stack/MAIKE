@@ -455,7 +455,7 @@ describe('D-PROD-296 — progresso e reajuste (revisão)', () => {
 });
 
 describe('D-PROD-298 — corrigir na fila', () => {
-  it('MS-26 alterar troca o payload na MESMA posição e com o mesmo código; quem cita continua citando', async () => {
+  it('MS-26 alterar troca o payload na MESMA posição e com o mesmo código; quem cita continua citando; D-PROD-310: só o último se edita', async () => {
     const ordem = [];
     registrarTipoDeEnvio({ tipo: 'cocho.lancamento', versao: 1, offline: true, recursos: () => ['cocho:A'], enviar: async (p, { operationId }) => { ordem.push([p.n, operationId]); return { registro: { id: `srv-${p.n}` } }; } });
     temRede = false;
@@ -463,10 +463,12 @@ describe('D-PROD-298 — corrigir na fila', () => {
     relogio += 1000;
     const b = await enviarOuGuardar('cocho.lancamento', { n: 2, anterior: referenciaAoResultado(a.operationId, 'registro.id') });
     expect(await dependentesNaFila(a.operationId)).toEqual([{ id: b.operationId, rotulo: 'cocho.lancamento' }]);
-    expect(await alterarNaFila(a.operationId, { n: 10 })).toBe(true);
+    // D-PROD-310: o 1º não se edita enquanto o 2º (feito em cima dele) existe; o último, sim.
+    expect(await alterarNaFila(a.operationId, { n: 10 })).toBe(false);
+    expect(await alterarNaFila(b.operationId, { n: 20, anterior: referenciaAoResultado(a.operationId, 'registro.id') })).toBe(true);
     temRede = true;
     await sincronizar();
-    expect(ordem).toEqual([[10, a.operationId], [2, b.operationId]]);
+    expect(ordem).toEqual([[1, a.operationId], [20, b.operationId]]);
   });
 
   it('MS-27 não altera o que já tentou subir, nem o recusado com passo já confirmado; altera o recusado sem passo', async () => {

@@ -154,11 +154,20 @@ export function getSexoAnteriorFromObs(observacoes) {
 // ============================================
 
 /**
- * Parse de número aceita formato BR (1.234,56) e padrão (1234.56)
+ * Parse de número: formato BR com vírgula (1.234,56 → 1234.56) e formato de máquina
+ * (1234.56, o que `input type="number"` e `toFixed` produzem).
+ *
+ * D-PROD-310: antes TODO ponto era apagado — "12.5" virava 125 e "12.00" virava 1200 (campo
+ * numérico da transferência, "aproveitar sobra" e a troca kg↔sacos do cocho). O ponto só é
+ * separador de milhar quando há vírgula decimal no texto.
  */
 export function parseNumber(value) {
-  if (typeof value === "number") return value;
-  return parseFloat(String(value || 0).replace(/\./g, "").replace(",", ".")) || 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const texto = String(value ?? "").trim();
+  if (!texto) return 0;
+  const normalizado = texto.includes(",") ? texto.replace(/\./g, "").replace(",", ".") : texto;
+  const n = Number(normalizado);
+  return Number.isFinite(n) ? n : parseFloat(normalizado) || 0;
 }
 
 /**

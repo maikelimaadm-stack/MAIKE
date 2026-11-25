@@ -23,6 +23,7 @@ import { updateMapaCachedData } from "@/services/mapaCacheService";
 import { tipoTemExclusao } from "@/domain/lotes/situacaoMovimento";
 import { confirmar as pedirConfirmacao } from "@/lib/maikeConfirmar";
 import { aposEscritaNoRebanho } from "@/components/mapa/invalidarCachesMapa";
+import { nutricaoAguardandoEnvio } from "@/services/sincronizacaoService";
 
 // Componentes de `ui/*` são forwardRef sem tipos de props: o checkJs não enxerga `children`.
 /** @type {React.ComponentType<any>} */ const Button = ButtonUi;
@@ -402,7 +403,10 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
     queryFn: async () => {
       const lidas = await pendenciasOfflineDaMovimentacao(movimento.id);
       if (!Array.isArray(lidas)) throw new Error("formato inesperado da fila offline");
-      return lidas;
+      // D-PROD-310: nutrição feita sem internet nesta fazenda, ainda não enviada, também bloqueia
+      // (o servidor não a vê; ela subiria citando o lote que a exclusão desfez).
+      const nutricao = await nutricaoAguardandoEnvio(movimento.empresa_id);
+      return [...lidas, ...nutricao];
     },
     enabled: !excluida && suportado && autorizado && !!usuario && (visivel || aberto),
     staleTime: ELEGIBILIDADE_STALE_MS,
@@ -619,7 +623,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
           )}
           {pendenciasNaFila.length > 0 && (
             <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
-              Há operação offline ainda não sincronizada para este registro. Sincronize antes de excluir.
+              Há operação feita sem internet (neste registro ou nutrição desta fazenda) ainda não sincronizada. Sincronize antes de excluir.
             </div>
           )}
           {filaFalhou && (
