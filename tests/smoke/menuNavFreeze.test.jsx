@@ -9,7 +9,7 @@ const codigoDe = (rel) =>
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/^\s*\/\/.*$/gm, '');
 
-describe('NAV — AppRouteContent: Outlet único, sem mapa persistente', () => {
+describe('NAV — AppRouteContent: Outlet + Mapa Geral vivo e inerte (D-PROD-305)', () => {
   it('AppShell usa AppRouteContent em vez de Outlet direto', () => {
     const app = codigoDe('src/App.jsx');
     expect(app).toContain('AppRouteContent');
@@ -17,19 +17,28 @@ describe('NAV — AppRouteContent: Outlet único, sem mapa persistente', () => {
     expect(app).not.toContain('DebouncedOutlet');
   });
 
-  it('AppRouteContent é só Outlet, sem cancelamento global de queries', () => {
+  it('AppRouteContent: sem cancelamento global de queries nem efeito de layout (o que travava, #94)', () => {
     const outlet = codigoDe('src/components/navigation/AppRouteContent.jsx');
     expect(outlet).toContain('<Outlet');
     expect(outlet).not.toContain('cancelQueries');
     expect(outlet).not.toContain('queryClientInstance');
     expect(outlet).not.toContain('useLayoutEffect');
     expect(outlet).not.toContain('setTimeout');
-    expect(outlet).not.toContain('data-persistent-map');
-    expect(outlet).not.toContain('MapaGeral');
-    expect(outlet).not.toContain('mapaPersistenteAtivo');
   });
 
-  it('Mapa Geral monta via rota React Router (sem element null)', () => {
+  it('D-PROD-305: o Mapa Geral fica montado e escondido fora da rota, INERTE (ativo=false), e não duplica com o Outlet', () => {
+    const outlet = codigoDe('src/components/navigation/AppRouteContent.jsx');
+    expect(outlet).toMatch(/<MapaGeral ativo=\{naMapa\} \/>/);
+    expect(outlet).toMatch(/display: naMapa \? "contents" : "none"/);
+    expect(outlet).toMatch(/naMapa \? null : <Outlet \/>/);
+    const mapa = codigoDe('src/pages/MapaGeral.jsx');
+    // Escondido: sem GPS; ao voltar, ajusta o tamanho; ao sair, fecha as janelas (portais).
+    expect(mapa).toMatch(/ativo: ativo && mapReady/);
+    expect(mapa).toContain('map.resize()');
+    expect(mapa).toMatch(/if \(ativo\) return;\s*setShowDetalhesLote\(false\)/);
+  });
+
+  it('Mapa Geral continua registrado como rota React Router (sem element null)', () => {
     const app = codigoDe('src/App.jsx');
     expect(app).not.toMatch(/path === ['"]MapaGeral['"] \? null/);
     expect(app).toMatch(/element=\{<Page \/>}/);

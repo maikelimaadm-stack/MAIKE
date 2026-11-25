@@ -20,7 +20,7 @@ const quantidade = (/** @type {unknown} */ v) => {
  *   onMudar: (itemOrdem: number, patch: Record<string, unknown>) => void, desabilitado?: boolean, pendencia?: string,
  *   aviso?: string,
  * }} props
- * D-PROD-305 (retificação por substituição): `aviso` é uma linha sob o título (de onde vieram os campos); na venda,
+ * D-PROD-306 (retificação por substituição): `aviso` é uma linha sob o título (de onde vieram os campos); na venda,
  * `efeito.devolvidos` (`[{ lote_id, quantidade }]`) são as fatias que a versão anterior baixou e o estorno devolve.
  */
 export default function LotesDaConfirmacao({ empresaId, direcao, efeitos, estado, onMudar, desabilitado = false, pendencia = "", aviso = "" }) {

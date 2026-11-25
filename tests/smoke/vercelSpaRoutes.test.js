@@ -192,12 +192,13 @@ describe('MAP-LOOP — init do Google Maps não depende do objeto renderer', () 
   });
 });
 
-describe('MAP-LOOP — AppRouteContent sem mapa persistente duplicado', () => {
+describe('MAP-LOOP — AppRouteContent: um Mapa Geral só, nunca em paralelo com o da rota (D-PROD-305)', () => {
   const fonte = readFileSync('src/components/navigation/AppRouteContent.jsx', 'utf8');
 
-  it('Outlet único; Mapa Geral não é montado em paralelo no shell', () => {
+  it('o Outlet não renderiza o Mapa Geral de novo na rota dele; o mapa vivo é um só', () => {
     expect(fonte).toContain('<Outlet />');
-    expect(fonte).not.toContain('MapaGeral');
+    expect(fonte).toMatch(/naMapa \? null : <Outlet \/>/);
+    expect(fonte.match(/<MapaGeral /g)).toHaveLength(1);
     expect(fonte).not.toContain('data-persistent-map');
   });
 });

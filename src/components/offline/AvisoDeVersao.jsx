@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import MaikeToastCard from '@/components/common/MaikeToastCard';
-import { aplicarVersaoBaixada, EVENTO_APP_ATUALIZADO, EVENTO_VERSAO_BAIXADA } from '@/lib/app/atualizacaoAutomatica';
+import { aplicarVersaoBaixada, EVENTO_APP_ATUALIZADO, EVENTO_VERSAO_BAIXADA, pegarAvisoDeAtualizacao, versaoBaixadaEsperando } from '@/lib/app/atualizacaoAutomatica';
 
 const ID_BAIXADA = 'maike-versao-baixada';
 const ID_ATUALIZADO = 'maike-app-atualizado';
@@ -61,9 +61,16 @@ export default function AvisoDeVersao() {
         }
       );
     };
-    const atualizado = () => mostrar(ID_ATUALIZADO, 'success', 'App atualizado', 'Você já está usando a versão nova.', 4000);
+    const atualizado = () => {
+      pegarAvisoDeAtualizacao();
+      mostrar(ID_ATUALIZADO, 'success', 'App atualizado', 'Você já está usando a versão nova.', 8000);
+    };
     window.addEventListener(EVENTO_VERSAO_BAIXADA, baixada);
     window.addEventListener(EVENTO_APP_ATUALIZADO, atualizado);
+    // O aviso pode ter chegado antes desta tela montar (abertura do app, login): mostra agora.
+    if (pegarAvisoDeAtualizacao()) atualizado();
+    const esperando = versaoBaixadaEsperando();
+    if (esperando) baixada({ detail: esperando });
     return () => {
       window.removeEventListener(EVENTO_VERSAO_BAIXADA, baixada);
       window.removeEventListener(EVENTO_APP_ATUALIZADO, atualizado);

@@ -9536,11 +9536,20 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   4. Sem internet não muda nada: no app os pedaços estão dentro do pacote. "Baixar dados" carrega todas as portas dos módulos antes de baixar (entidades e leituras), porque elas não vêm mais junto com as telas.
 - **Testes:** `tests/smoke/atualizacaoAutomaticaApp.test.js` (AV-01..04), `tests/smoke/avisoDeVersao.test.jsx` (VS-01..02).
 
-## D-PROD-305 — Financeiro: o lote na retificação por substituição
+## D-PROD-305 — Mapa Geral vivo entre menus (volta na hora) e "App atualizado" que sempre aparece
+
+- **Contexto:** o proprietário relatou que, toda vez que volta ao mapa depois de outro menu, ele carrega tudo de novo ("uma vez já carregado não precisa"), e que o aviso de atualização não apareceu.
+- **Causas:** (1) desde a #94 (2026-10-27, `ROOT-CAUSE-MENU-FREEZE`), o Mapa Geral desmonta ao sair da rota e recria o mapa, o satélite e as camadas ao voltar; a #94 tirou o mapa persistente porque, com o Google Maps, o mapa escondido seguia sincronizando tudo e, junto com o `cancelQueries` em `useLayoutEffect`, travava a navegação. (2) O "App atualizado" (D-PROD-304) só aparecia com a versão anterior registrada — a primeira versão com o aviso não tinha registro — e o evento disparado na abertura se perdia se a tela ainda não tivesse montado (splash/login).
+- **Decisão:**
+  1. **Mapa vivo e inerte:** depois da primeira abertura, o Mapa Geral fica montado; fora da rota fica escondido (`display: none`) com `ativo={false}`: GPS desligado e janelas/painéis fechados (são portais). Ao voltar, `map.resize()` e redesenho, sem recriar nada. O `Outlet` não renderiza o Mapa Geral de novo na rota dele (sem duplicar). O que derrubou a solução antiga continua proibido (sem `cancelQueries`, sem `useLayoutEffect`), e o MapLibre escondido não redesenha. Os contratos de `menuNavFreeze.test.jsx` foram atualizados para a regra nova.
+  2. **"App atualizado"** aparece também sem registro anterior (a primeira versão com o aviso, ou app recém-instalado), fica 8 s na tela, e o aviso que chega antes da tela montar fica guardado e é mostrado quando ela monta. A versão já baixada esperando a próxima abertura é lembrada ao abrir.
+- **Testes:** `tests/smoke/mapaVivo.test.jsx` (MV-01..02), `tests/smoke/menuNavFreeze.test.jsx` (contrato novo), `tests/smoke/avisoDeVersao.test.jsx` (VS-03..04), `tests/smoke/atualizacaoAutomaticaApp.test.js` (AV-05).
+
+## D-PROD-306 — Financeiro: o lote na retificação por substituição
 
 **Data:** 2026-11-25 · **Origem:** pedido do proprietário (a correção de uma compra ou venda confirmada de produto com lote, quando muda o estoque), plano aprovado · **Branch:** `claude/financeiro-retificacao-lote` · **Relatório:** [`MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md`](./MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md)
 
-> **Numeração:** nasceu D-PROD-301 (`node scripts/dev/proxima-decisao.mjs` na `main` `289cefb1`). Antes do push, a `main` deu a D-PROD-301 à sincronização organizada (PR #388, `880fb0e5`) e a D-PROD-302 e a D-PROD-303 ao mapa e ao cocho sem internet (PR #389, `4ddda0a9`), e passou a indicar `Próxima decisão: D-PROD-304`; com a PR já aberta, a `main` deu a D-PROD-304 ao aviso de versão do app (PR #391, `337e888a`) e passou a indicar `Próxima decisão: D-PROD-305`, que é esta; o marcador passa a D-PROD-306.
+> **Numeração:** nasceu D-PROD-301 (`node scripts/dev/proxima-decisao.mjs` na `main` `289cefb1`). Antes do push, a `main` deu a D-PROD-301 à sincronização organizada (PR #388, `880fb0e5`) e a D-PROD-302 e a D-PROD-303 ao mapa e ao cocho sem internet (PR #389, `4ddda0a9`), e passou a indicar `Próxima decisão: D-PROD-304`; com a PR já aberta, a `main` deu a D-PROD-304 ao aviso de versão do app (PR #391, `337e888a`) e passou a indicar `Próxima decisão: D-PROD-305`; depois a `main` deu a D-PROD-305 ao Mapa Geral vivo entre menus (PR #392, `55652d12`) e passou a indicar `Próxima decisão: D-PROD-306`, que é esta; o marcador passa a D-PROD-307.
 
 - **Contexto:** a D-PROD-300 deu o lote na **confirmação** do lançamento financeiro (`lotes_por_item`) e deixou fora a retificação. A retificação por SUBSTITUIÇÃO estorna a versão anterior e grava a nova pelo mesmo núcleo da confirmação (`aplicarEfeitosDoPlano`), mas sem o lote: corrigir a quantidade (ou outro campo físico) de uma compra confirmada de produto com lote era **recusado** (422 `ESTOQUE_LOTE_OBRIGATORIO`, `lote_obrigatorio`) e a correção de uma venda caía no FEFO sem escolha.
 - **Decisão (o mesmo contrato da confirmação; nada muda para produto sem lote):**
@@ -9554,4 +9563,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** nenhuma regra nova (a emenda da D-PROD-282 cobre).
 - **Fora:** a correção que a tela prevê sem mudança no estoque mas o servidor faz por substituição (previsão diferente do servidor) segue sem os campos: a compra com lote é recusada com 422 e a pessoa corrige de novo; a direção trocada (compra ↔ venda) com produto de lote não tem tratamento especial.
 
-<!-- Próxima decisão: D-PROD-306 -->
+<!-- Próxima decisão: D-PROD-307 -->

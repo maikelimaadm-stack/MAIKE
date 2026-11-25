@@ -8,7 +8,7 @@ import { listarLotesDisponiveis } from "@/services/estoqueConsultaService";
 const chave = (/** @type {unknown} */ produto, /** @type {unknown} */ local) => `${String(produto ?? "")}|${String(local ?? "")}`;
 
 /**
- * D-PROD-305 — os efeitos de estoque da correção com o controle de lote de cada produto e o estado inicial dos campos.
+ * D-PROD-306 — os efeitos de estoque da correção com o controle de lote de cada produto e o estado inicial dos campos.
  * A prévia do servidor só existe para rascunho; aqui o controle de lote (e a validade) vem da leitura dos lotes do
  * produto no depósito (`GET /estoque/lotes-disponiveis`, a mesma do campo "Lote"). Sem a leitura, o item fica sem lote
  * (o servidor confere ao gravar).
@@ -41,7 +41,7 @@ export const efeitosDaRetificacao = ({ mercadorias, anteriores, leituras }) => {
 };
 
 /**
- * D-PROD-305 — o diálogo "Salvar correção" do lançamento confirmado. Quando a correção muda o estoque (substituição:
+ * D-PROD-306 — o diálogo "Salvar correção" do lançamento confirmado. Quando a correção muda o estoque (substituição:
  * estorno da versão anterior + efeitos novos), pede o lote como a confirmação: na compra, "Lote do fabricante" e
  * "Validade" (já preenchidos com os da versão anterior); na venda, o campo "Lote" (sugestão FEFO, escolher e dividir,
  * vencido pede confirmação). Com pendência de lote, "Salvar correção" fica desabilitado (as mesmas regras da
