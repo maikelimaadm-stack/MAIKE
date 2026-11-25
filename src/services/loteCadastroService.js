@@ -188,14 +188,18 @@ export const criarLote = async (dados, { empresaId } = {}) => {
 /**
  * @param {string} id
  * @param {object} dados
- * @param {{registroAnterior?: object}} [opcoes]
+ * @param {{registroAnterior?: object, versaoVista?: string|null}} [opcoes]
+ * `versaoVista` (D-PROD-316): o `updated_date` do lote que a pessoa abriu; sem ela, a do `registroAnterior`. O
+ * servidor só grava se o lote ainda está nessa versão (senão diz quem alterou e quando; nada gravado).
  */
-export const atualizarLote = async (id, dados, { registroAnterior } = {}) => {
+export const atualizarLote = async (id, dados, { registroAnterior, versaoVista } = {}) => {
   // R2A-R1 (D-PROD-99a): saldo/posição vão com o estado lido no formulário.
   const corpo = registroAnterior ? comEstadoEsperado(registroAnterior, dados) : dados;
+  const versao = versaoVista ?? /** @type {any} */ (registroAnterior)?.updated_date ?? null;
   const atualizado = await updateLote(id, {
     ...corpo,
     campos_personalizados: dados.campos_personalizados || {},
+    ...(typeof versao === 'string' && versao ? { versao_esperada: versao } : {}),
   });
   await sincronizarReferenciasLote({ registro: atualizado, registroAnterior });
   return atualizado;

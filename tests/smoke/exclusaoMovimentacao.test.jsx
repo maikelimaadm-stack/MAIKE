@@ -836,6 +836,7 @@ describe("Renomear Lote", () => {
     expect(screen.queryByRole("button", { name: /Reverter para nome original/ })).toBeNull();
     await clicar(screen.getByRole("button", { name: "Salvar" }));
     await waitFor(() => expect(servico.criarMovimentacao).toHaveBeenCalledTimes(1));
+    // D-PROD-316: sem `updated_date` no lote do teste, nenhuma versão vai junto.
     expect(servico.atualizarLote).toHaveBeenCalledWith("l1", { nome: "ORIGINAL" });
     expect(servico.criarMovimentacao.mock.calls[0][0].observacoes).toBe('Renomear Lote: "ATUAL" → "ORIGINAL"');
   });

@@ -32,6 +32,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/cadastro/base1/SelectDoMotor";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { Check, X } from "lucide-react";
 import CapturaGPSPonto from "./CapturaGPSPonto";
 import SelecaoAreasMapa from "./SelecaoAreasMapa";
@@ -426,6 +427,8 @@ export default function FormularioPonto({
         }
       }
       const suplementacaoParaAtualizar = removerSuplementacaoAntiga ? null : suplementacaoAntiga;
+      // D-PROD-316: a versão do cocho/depósito que a pessoa abriu; o servidor só grava se ele ainda está nela.
+      let versaoDoPonto = suplementacaoParaAtualizar?.updated_date ?? null;
 
       setProgresso({ show: true, atual: 1, total: 3, mensagem: item ? "Atualizando ponto de referência..." : "Criando ponto de referência..." });
 
@@ -502,11 +505,14 @@ export default function FormularioPonto({
               // D-PROD-137 (F6): pelo Mapa Cadastro o servidor só renomeia o local JÁ
               // ligado a um depósito. Depósito legado sem vínculo: grava o vínculo
               // antes de renomear (senão o PATCH do local é recusado com 403).
-              await atualizarPontoSuplementacao(suplementacaoParaAtualizar.id, {
+              const vinculado = await atualizarPontoSuplementacao(suplementacaoParaAtualizar.id, {
                 categoria_ponto: "DEPOSITO",
                 local_estoque_id: localExistente.id,
-                local_estoque_nome: localExistente.nome
+                local_estoque_nome: localExistente.nome,
+                ...(versaoDoPonto ? { versao_esperada: versaoDoPonto } : {})
               });
+              // D-PROD-316: o vínculo é o primeiro passo desta mesma gravação; o próximo vai com a versão nova.
+              versaoDoPonto = vinculado?.updated_date ?? null;
             }
           }
 
@@ -553,7 +559,7 @@ export default function FormularioPonto({
         });
 
         const registroSuplementacao = suplementacaoParaAtualizar ?
-        await atualizarPontoSuplementacao(suplementacaoParaAtualizar.id, payloadSuplementacao) :
+        await atualizarPontoSuplementacao(suplementacaoParaAtualizar.id, versaoDoPonto ? { ...payloadSuplementacao, versao_esperada: versaoDoPonto } : payloadSuplementacao) :
         await criarPontoSuplementacao(localNovo ? { ...payloadSuplementacao, local_estoque: localNovo } : payloadSuplementacao);
 
         if (novaCategoria === "DEPOSITO") {
@@ -585,7 +591,8 @@ export default function FormularioPonto({
     },
     onError: (error) => {
       setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
-      toast.error(error.message || "Erro ao salvar o ponto.");
+      // D-PROD-316: o conflito de versão diz quem alterou e quando (a mensagem vem dos detalhes do servidor).
+      toast.error(getApiErrorMessage(error, error?.message || "Erro ao salvar o ponto."));
     }
   });
 

@@ -45,7 +45,8 @@ export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, emp
     if (!novoNome.trim() || !dataRenomeacao) return;
     setLoading(true);
     const nomeAnterior = lote.nome;
-    await atualizarLote(lote.id, { nome: novoNome.trim() });
+    // D-PROD-316: com a versão do lote aberto (o servidor só grava se ninguém mudou o lote depois).
+    await atualizarLote(lote.id, { nome: novoNome.trim(), ...(lote.updated_date ? { versao_esperada: lote.updated_date } : {}) });
     
     const areaAtualId = lote.area_atual_id;
     const areaRen = areas.find(a => a.id === areaAtualId);
