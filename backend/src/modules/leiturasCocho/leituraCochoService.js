@@ -27,6 +27,7 @@
 
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { consultarMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
@@ -112,6 +113,16 @@ export const listar = async (contexto, filtros = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
   const registros = await listarLeituras(auth.clienteId, filtros);
   return registros.map(comoLeituraPublica);
+};
+
+/**
+ * D-PROD-309 — o que mudou nas leituras de cocho desde a última sincronização do aparelho.
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{desde?: string, cursor?: string, limite?: number}} query
+ */
+export const mudancas = async (contexto, query) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  return consultarMudancas({ clienteId: auth.clienteId, query, modelo: 'leituraCocho', entidadeAuditoria: ENTIDADE, publico: comoLeituraPublica });
 };
 
 /** Tipo do recibo de idempotência da criação (D-PROD-296). */

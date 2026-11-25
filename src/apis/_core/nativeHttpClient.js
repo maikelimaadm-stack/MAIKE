@@ -31,6 +31,7 @@ import { ApiError, API_ERROR_CODES } from './ApiError.js';
 import { getNativeToken } from '@/lib/auth/nativeTokenStorage';
 import { getOfflineTenant } from '@/lib/offline/offlineTenant';
 import { guardarResposta, lerResposta } from '@/lib/offline/respostasOffline';
+import { FORMATO_INCREMENTAL, incrementalDe, lerIncremental } from '@/lib/offline/sincronizacaoIncremental';
 import { registrarCopiaServida } from '@/lib/offline/copiasDoAparelho';
 
 /** Requisição sem resposta em 20 s é tratada como indisponibilidade. */
@@ -357,6 +358,21 @@ const requisitarNaRede = async (caminho, opcoes, contexto) => {
 
 const semInternetAgora = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
+/**
+ * D-PROD-309: a mesma lista incremental pedida ao mesmo tempo (cache das entidades, mapa e
+ * telas abrindo juntos) sai UMA vez; quem chega durante recebe a mesma resposta.
+ * @type {Map<string, Promise<unknown>>}
+ */
+const incrementaisEmCurso = new Map();
+/** @template T @param {string} chave @param {() => Promise<T>} fazer @returns {Promise<T>} */
+const umaSoPorVez = (chave, fazer) => {
+  const emCurso = incrementaisEmCurso.get(chave);
+  if (emCurso) return /** @type {Promise<T>} */ (emCurso);
+  const promessa = fazer().finally(() => incrementaisEmCurso.delete(chave));
+  incrementaisEmCurso.set(chave, promessa);
+  return promessa;
+};
+
 /** Leitura com cópia no aparelho espera a rede no máximo isto (D-PROD-294). */
 const TIMEOUT_COM_COPIA_MS = 6000;
 
@@ -398,6 +414,28 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
     ? { ...opcoes, timeoutMs: Math.min(opcoes.timeoutMs ?? TIMEOUT_COM_COPIA_MS, TIMEOUT_COM_COPIA_MS) }
     : opcoes;
   try {
+    // D-PROD-309: listas grandes — só o que mudou desde a última vez (ver `sincronizacaoIncremental`).
+    if (incrementalDe(caminho)) {
+      const comMarca = guardada ?? (await lerResposta(tenant, caminho));
+      try {
+        return await umaSoPorVez(`${tenant}\u0000${caminho}`, async () => {
+          const { corpo, marca } = await lerIncremental({
+            caminho,
+            guardada: comMarca,
+            pedir: (c) => requisitarNaRede(c, opcoesDaRede, contexto),
+          });
+          await guardarResposta(tenant, caminho, corpo, { marca, formato: FORMATO_INCREMENTAL }).catch(() => {});
+          return corpo;
+        });
+      } catch (erroIncremental) {
+        // Sem rede: segue o caminho de sempre (a cópia, abaixo). Qualquer outra falha (servidor
+        // sem a rota de mudanças — versões fora de ordem —, resposta inesperada): a lista
+        // inteira, como antes. A sincronização incremental nunca deixa a tela sem dados.
+        if (/** @type {any} */ (erroIncremental)?.code === API_ERROR_CODES.PROVIDER_UNAVAILABLE || opcoes.signal?.aborted) {
+          throw erroIncremental;
+        }
+      }
+    }
     const corpo = await requisitarNaRede(caminho, opcoesDaRede, contexto);
     guardarResposta(tenant, caminho, corpo).catch(() => {});
     return corpo;
