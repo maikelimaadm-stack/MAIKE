@@ -9791,11 +9791,25 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** sem mudança.
 - **Testes:** `tests/smoke/saidaLoteUnidadeConvertida.test.js` (4 casos; 3 vermelhos no código da `main`): multiplica (3 SC = 75 kg e a soma confere), divide (10 CX ÷ 4 = 2,5 L), SACO do cadastro antes do legado, e os casos de sempre.
 
+## D-PROD-313 — A unidade digitada aparece na lista de movimentos do Estoque e no histórico do depósito
+
+**Data:** 2026-11-25 · **Origem:** pendência registrada na D-PROD-310, pedida pelo proprietário ("pode ser") · **Branch:** `claude/unidade-digitada-historico` · **Relatório:** [`MAIKE-UNIDADE-DIGITADA-HISTORICO-REPORT.md`](./MAIKE-UNIDADE-DIGITADA-HISTORICO-REPORT.md)
+
+- **Contexto:** desde a D-PROD-310, o cocho, as transferências e a linha de produto da atividade gravam no movimento a unidade em que a quantidade foi digitada (`unidade_lancamento`), a quantidade digitada e o fator. As telas de consulta mostravam só a quantidade na unidade de estoque (75 kg), sem dizer que foram 3 SC. A lista do Estoque (`GET /estoque/movimentos` e o detalhe) nem recebia as colunas: a resposta é uma lista fechada de campos.
+- **Decisão:**
+  - `GET /estoque/movimentos` e `GET /estoque/movimentos/:id` passam a devolver `unidade_lancamento`, `quantidade_lancamento` e `fator_lancamento` (texto canônico de 4 casas; nulos sem conversão), pela mesma `unidadePublica` da linha da atividade. Só leitura; nada muda no que é gravado.
+  - Na grade de Movimentos do Estoque, a quantidade fica "− 75 kg (3 SC)"; na janela do movimento, uma linha "Digitado como: 3 SC". Sem conversão, nada muda.
+  - No histórico do depósito no mapa, o cartão ganha "Digitado como: 3 SC" depois da unidade; no cartão curto do detalhe do depósito, "3 SC" fica no lugar dos sacos calculados pelo peso do saco do cadastro (e no "Saíram 75,00 kg, 3 SC" para o leitor de tela).
+  - O que ainda espera envio (feito sem internet) também mostra a digitada: `historicoAguardandoEnvioService` copia a unidade e a quantidade digitada do corpo guardado (o fator só o servidor grava).
+  - A quantidade que vale continua sendo a da unidade de estoque; a digitada é só informação.
+- **Migration:** nenhuma. **Constituição:** sem mudança.
+- **Testes:** `backend/tests/estoqueConsulta.test.mjs` ("unidade digitada (D-PROD-313)", vermelho sem a mudança), `tests/smoke/unidadeDigitadaHistorico.test.js` (novo), e casos novos em `estoqueTela`, `historicosMapaEstiloManejo`, `detalhesV12Deposito` e `depositoTransferenciaOffline` (ET-09).
+
 ## D-PROD-314 — Estoque: só o último sai; o registro que já foi usado depois não pode ser excluído (substitui a exclusão com recálculo da D-PROD-273)
 
 **Data:** 2026-11-25 · **Origem:** pedido do proprietário ("não posso de forma alguma excluir registros posteriores que vincularam algo"), depois da D-PROD-311 (lote e cocho) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SO-O-ULTIMO-ESTOQUE-D314-REPORT.md`](./SO-O-ULTIMO-ESTOQUE-D314-REPORT.md)
 
-> **Numeração:** nasceu D-PROD-313 (a `main` `4d90d4df` indicava `Próxima decisão: D-PROD-312`, reservada pela PR #398). Antes do merge, a #398 levou a D-PROD-312 (`1fa95ff5`), a `main` passou a indicar `Próxima decisão: D-PROD-313` e a PR #401 (unidade digitada na lista de movimentos, aberta) já reserva a D-PROD-313 (`node scripts/dev/proxima-decisao.mjs`). Esta é a **D-PROD-314**; o marcador passa a D-PROD-315. Conferir de novo antes do merge (regra A5).
+> **Numeração:** nasceu D-PROD-313 (a `main` `4d90d4df` indicava `Próxima decisão: D-PROD-312`, reservada pela PR #398). A #398 levou a D-PROD-312 (`1fa95ff5`) e a #401 (unidade digitada na lista de movimentos, `4d01f13d`) a D-PROD-313; a `main` passou a indicar `Próxima decisão: D-PROD-314`, que é esta (`node scripts/dev/proxima-decisao.mjs`). O marcador passa a D-PROD-315. Conferir de novo antes do merge (regra A5).
 
 - **Regra do proprietário:** no estoque vale a mesma regra do lote (D-PROD-311): um movimento só sai (é excluído ou cancelado) se nada que ainda vale foi lançado DEPOIS dele no mesmo produto e no mesmo depósito. Exclui-se sempre o mais recente primeiro. Na transferência, valem a origem E o destino.
 - **O que muda:** a D-PROD-273 deixava excluir qualquer movimento com algo depois e recalculava o custo médio de tudo o que veio depois (e dos valores copiados dele: cocho, atividade, abastecimento, venda, transferência). Agora isso é **recusado**: o registro posterior foi lançado com o saldo e o médio que incluíam o movimento excluído. A parte "excluir e recalcular" da D-PROD-273 e a emenda dela na Constituição deixam de valer para quem tem registro posterior; o "some das telas", o replay e a trilha continuam.

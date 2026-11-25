@@ -9,7 +9,7 @@ import {
   formatarDia,
   formatarQtd,
   formatarReais,
-  quantidadeComSinal,
+  quantidadeComDigitada,
   rotuloDoMovimento,
   rotuloSituacao,
 } from "@/lib/estoqueConsultaRegras";
@@ -61,7 +61,7 @@ export const valorDoCampoMovimento = (item, id) => {
   if (id === "produto") return String(item.produto_nome ?? "");
   if (id === "tipo") return rotuloDoMovimento(item);
   if (id === "deposito") return depositoDoMovimento(item);
-  if (id === "quantidade") return quantidadeComSinal(item);
+  if (id === "quantidade") return quantidadeComDigitada(item);
   if (id === "saldo_depois") return item.saldo_depois ? formatarQtd(item.saldo_depois, item.unidade) : "";
   if (id === "situacao") return rotuloSituacao(item);
   if (id === "valor_unitario") return item.valor_unitario ? formatarCustoUnitario(item.valor_unitario) : "";
