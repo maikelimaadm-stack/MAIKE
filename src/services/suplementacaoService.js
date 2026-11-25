@@ -655,6 +655,11 @@ export const excluirLancamentoAguardando = async (evento) => {
   const situacao = await situacaoNaFila(opId);
   if (situacao === 'confirmando') throw naoDaMais('Este lançamento está sendo enviado agora. Espere confirmar para excluir.');
   if (situacao === 'enviado') throw naoDaMais('Este lançamento já chegou ao sistema. Atualize a tela e use "Excluir lançamento".');
+  // D-PROD-310: só o último lançamento do cocho sai (o seguinte depende deste).
+  const dependentes = situacao ? await dependentesNaFila(opId) : [];
+  if (dependentes.length) {
+    throw naoDaMais(`Só o último lançamento deste cocho pode ser excluído. Exclua antes: ${dependentes.map((d) => d.rotulo).join('; ')}.`);
+  }
   if (situacao && !(await descartarDaFila(opId))) throw naoDaMais('Não foi possível excluir este lançamento agora.');
 };
 

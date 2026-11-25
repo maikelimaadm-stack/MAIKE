@@ -29,6 +29,7 @@ import {
   registrosAguardandoDoTipo,
   situacaoNaFila,
   descartarDaFila,
+  dependentesNaFila,
   registroNaFila,
 } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { TIPO_TRANSFERENCIA_DEPOSITO, TIPO_CANCELAMENTO_TRANSFERENCIA } from '@/lib/offline/sincronizacao/tiposDeEnvio';
@@ -328,6 +329,12 @@ export const descartarTransferenciaAguardando = async (operationId) => {
   const situacao = await situacaoNaFila(operationId);
   if (situacao === 'confirmando') throw indisponivel('Esta transferência está sendo enviada agora. Espere confirmar para excluir.');
   if (situacao === 'enviado') throw indisponivel('Esta transferência já chegou ao sistema. Atualize a tela.');
+  // D-PROD-310: o que veio depois no mesmo estoque (outra transferência, o lançamento de cocho
+  // que tirou dele) depende desta: exclui-se primeiro o mais recente.
+  const dependentes = situacao ? await dependentesNaFila(operationId) : [];
+  if (dependentes.length) {
+    throw indisponivel(`Esta transferência tem registro posterior no mesmo estoque. Exclua antes: ${dependentes.map((d) => d.rotulo).join('; ')}.`);
+  }
   if (situacao && !(await descartarDaFila(operationId))) throw indisponivel('Não foi possível excluir esta transferência agora.');
 };
 

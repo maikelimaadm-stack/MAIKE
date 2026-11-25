@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useFilaDeEnvio } from '@/hooks/useFilaDeEnvio';
 import { enviarAgora, tentarEnviarDeNovo, descartarRegistroNaoEnviado, dependentesDoRegistro } from '@/services/sincronizacaoService';
 import { confirmar } from '@/lib/maikeConfirmar';
+import { notifyError } from '@/lib/maikeNotify';
 
 const quando = (iso) =>
   new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -35,10 +36,14 @@ export default function FilaDeEnvio() {
   };
 
   const descartar = async (item) => {
+    // D-PROD-310: só o último da sequência sai — com um registro posterior que depende deste,
+    // a pessoa exclui primeiro o mais recente.
     const dependentes = await dependentesDoRegistro(item.id);
-    const avisoDependentes = dependentes.length
-      ? ` ${dependentes.length === 1 ? 'Outro registro depende dele e vai' : `${dependentes.length} registros dependem dele e vão`} para "precisa de atenção".`
-      : '';
+    if (dependentes.length) {
+      notifyError('Exclua primeiro o mais recente', `Este registro tem outro depois dele que depende dele. Exclua antes: ${dependentes.map((d) => d.rotulo).join('; ')}.`);
+      return;
+    }
+    const avisoDependentes = '';
     const ok = await confirmar({
       titulo: item.estado === 'atencao' ? 'Descartar este registro?' : 'Excluir este registro?',
       descricao: (item.progresso?.saida_feita

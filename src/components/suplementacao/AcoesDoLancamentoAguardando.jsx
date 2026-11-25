@@ -33,12 +33,19 @@ export default function AcoesDoLancamentoAguardando({ evento, onEditar }) {
   };
 
   const excluir = async () => {
+    // D-PROD-310: só o último lançamento do cocho sai. Com um seguinte (que depende deste),
+    // a pessoa exclui primeiro o mais recente — senão ele ficaria órfão ao voltar a internet.
     const dependentes = await dependentesDoLancamentoAguardando(evento);
+    if (dependentes.length) {
+      notifyError(
+        "Exclua primeiro o lançamento mais recente",
+        `Só o último lançamento deste cocho pode ser excluído. Exclua antes: ${dependentes.map((d) => d.rotulo).join("; ")}.`
+      );
+      return;
+    }
     const ok = await confirmar({
       titulo: "Excluir este lançamento?",
-      descricao: dependentes.length
-        ? `Ele ainda não chegou ao sistema e sai só deste celular. ${dependentes.length === 1 ? "Um lançamento seguinte deste cocho depende dele e vai" : `${dependentes.length} lançamentos seguintes deste cocho dependem dele e vão`} para "precisa de atenção" — refaça ${dependentes.length === 1 ? "esse lançamento" : "esses lançamentos"} depois.`
-        : "Ele ainda não chegou ao sistema e sai só deste celular. Nada vai para o banco.",
+      descricao: "Ele ainda não chegou ao sistema e sai só deste celular. Nada vai para o banco.",
       textoConfirmar: "Excluir",
       perigo: true,
     });

@@ -181,18 +181,42 @@ describe('D-PROD-295 — ordem e ligação entre registros', () => {
     expect(s.enviar.mock.calls[1][0]).toEqual({ n: 2, anterior_id: 'srv_1' });
   });
 
-  it('MS-10 descartar o 1º manda quem dependia dele para "precisa de atenção"', async () => {
+  it('MS-10 D-PROD-310: só o último da sequência sai — o 1º não é descartado enquanto o 2º depende dele', async () => {
     const s = servidorFalso();
-    registrarTipoDeEnvio({ tipo: 'cocho.lancamento', versao: 1, offline: true, enviar: s.enviar });
+    registrarTipoDeEnvio({ tipo: 'cocho.lancamento', versao: 1, offline: true, enviar: s.enviar, recursos: (p) => [`cocho:${p.cocho}`] });
+    registrarTipoDeEnvio({ tipo: 'cocho.leitura', versao: 1, offline: true, independente: true, enviar: s.enviar, recursos: (p) => [`cocho:${p.cocho}`] });
     temRede = false;
-    const primeiro = await enviarOuGuardar('cocho.lancamento', { n: 1 });
+    const primeiro = await enviarOuGuardar('cocho.lancamento', { n: 1, cocho: 'c1' });
     relogio += 1000;
-    await enviarOuGuardar('cocho.lancamento', { n: 2, anterior_id: referenciaAoResultado(primeiro.operationId, 'registro.id') });
+    const segundo = await enviarOuGuardar('cocho.lancamento', { n: 2, cocho: 'c1', anterior_id: referenciaAoResultado(primeiro.operationId, 'registro.id') });
+    relogio += 1000;
+    const leitura = await enviarOuGuardar('cocho.leitura', { cocho: 'c1' });
+    // O 1º tem dependente (o 2º): não sai.
+    expect((await dependentesNaFila(primeiro.operationId)).map((d) => d.id)).toEqual([segundo.operationId]);
+    expect(await descartarDaFila(primeiro.operationId)).toBe(false);
+    // A leitura é independente: não prende o 2º nem é presa por ele.
+    expect(await dependentesNaFila(segundo.operationId)).toEqual([]);
+    // Exclui o mais recente e depois o anterior.
+    expect(await descartarDaFila(segundo.operationId)).toBe(true);
     expect(await descartarDaFila(primeiro.operationId)).toBe(true);
     temRede = true;
-    const resumo = await sincronizar();
-    expect(s.enviar).not.toHaveBeenCalled();
-    expect(resumo.itens[0]).toMatchObject({ estado: 'atencao', ultimo_erro: { codigo: 'REFERENCIA_DESCARTADA' } });
+    await sincronizar();
+    expect(s.enviar).toHaveBeenCalledTimes(1); // só a leitura
+    expect((await resumoDaFila()).itens).toEqual([]);
+    void leitura;
+  });
+
+  it('MS-10b no mesmo recurso, o posterior (sem citar) também prende: estoque da transferência usado depois', async () => {
+    const s = servidorFalso();
+    registrarTipoDeEnvio({ tipo: 'deposito.transferencia', versao: 1, offline: true, enviar: s.enviar, recursos: (p) => [`estoque:${p.de}`, `estoque:${p.para}`] });
+    registrarTipoDeEnvio({ tipo: 'cocho.lancamento', versao: 1, offline: true, enviar: s.enviar, recursos: (p) => [`cocho:${p.cocho}`, `estoque:${p.estoque}`] });
+    temRede = false;
+    const transf = await enviarOuGuardar('deposito.transferencia', { de: 'galpao', para: 'dep1' });
+    relogio += 1000;
+    const lanc = await enviarOuGuardar('cocho.lancamento', { cocho: 'c1', estoque: 'dep1' });
+    expect(await descartarDaFila(transf.operationId)).toBe(false);
+    expect(await descartarDaFila(lanc.operationId)).toBe(true);
+    expect(await descartarDaFila(transf.operationId)).toBe(true);
   });
 });
 

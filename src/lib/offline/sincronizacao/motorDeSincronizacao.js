@@ -73,6 +73,7 @@ import { criarFilaIndexedDB, filaDeEnvioDisponivel } from './filaDeEnvio.js';
  *            registrarProgresso: (progresso: Record<string, unknown>) => Promise<void>}) => Promise<unknown>,
  *   migrar?: (payload: any, versaoAntiga: number) => any,
  *   atualiza?: string[],
+ *   independente?: boolean,
  *   reajustar?: (payload: any, contexto: {ultimoErro: ItemDaFila['ultimo_erro'], progresso: Record<string, unknown>}) => Promise<any>,
  * }} TipoDeEnvio
  *
@@ -1009,7 +1010,10 @@ const descartarDaFilaJa = async (id) => {
   // Já tentou subir e o servidor não respondeu: pode ter gravado. Só depois da
   // resposta (enviado, ou recusado → atenção) dá para decidir.
   if (item.estado === 'pendente' && item.tentado) return false;
-  // Lá vai "precisa de atenção" quem citava este (próxima passada): avisar antes é da tela.
+  // D-PROD-310: só o ÚLTIMO da sequência sai. Com um registro posterior que depende deste
+  // (o lançamento seguinte do mesmo cocho), excluir este deixaria o outro órfão ("precisa de
+  // atenção" ao voltar a internet): a pessoa exclui primeiro o mais recente.
+  if (dependentesDe(id, (await fila.listar()).filter(eDaSessao)).length > 0) return false;
   await fila.remover(id);
   emitir();
   return true;
@@ -1079,10 +1083,28 @@ const alterarNaFilaJa = async (id, payload, opcoes) => {
 export const dependentesNaFila = async (id) => {
   const fila = portaDaFila();
   if (!fila || !sessao) return [];
-  return (await fila.listar())
-    .filter((i) => eDaSessao(i) && i.estado !== 'enviado' && (i.referencias ?? []).includes(id))
-    .sort(emOrdem)
-    .map((i) => ({ id: i.id, rotulo: i.rotulo }));
+  return dependentesDe(id, (await fila.listar()).filter(eDaSessao)).map((i) => ({ id: i.id, rotulo: i.rotulo }));
+};
+
+/**
+ * D-PROD-310 — quem, na fila, depende deste registro: os que o CITAM (referência) e os que
+ * vieram DEPOIS no mesmo recurso (o lançamento seguinte do mesmo cocho, o que tirou do
+ * estoque que a transferência trouxe). Tipo marcado `independente` (a leitura de cocho) não
+ * prende nem é preso pela ordem do recurso.
+ * @param {string} id
+ * @param {ItemDaFila[]} itens
+ */
+const dependentesDe = (id, itens) => {
+  const alvo = itens.find((i) => i.id === id);
+  const independente = (/** @type {ItemDaFila} */ i) => TIPOS.get(i.tipo)?.independente === true;
+  return itens
+    .filter((i) => i.id !== id && i.estado !== 'enviado')
+    .filter((i) => {
+      if ((i.referencias ?? []).includes(id)) return true;
+      if (!alvo || independente(alvo) || independente(i)) return false;
+      return emOrdem(alvo, i) < 0 && (i.recursos ?? []).some((r) => (alvo.recursos ?? []).includes(r));
+    })
+    .sort(emOrdem);
 };
 
 /**
