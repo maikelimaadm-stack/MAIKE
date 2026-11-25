@@ -120,7 +120,7 @@ describe('D-PROD-301 — aviso quando sobe o que foi feito sem internet', () => 
 });
 
 describe('D-PROD-301 — janela "Sincronização"', () => {
-  it('SO-05 mostra internet, cada parte com quando veio, e "Sincronizar agora" envia e depois baixa', async () => {
+  it('SO-05 mostra internet, cada parte com quando veio, e "Sincronizar agora" chama uma vez a baixa (que envia antes)', async () => {
     const { default: DadosOffline, abrirDadosOffline } = await import('@/components/offline/DadosOffline');
     baixar.mockResolvedValue({ ok: true, falhas: 0, em: Date.now() });
     render(<DadosOffline />);
@@ -133,8 +133,9 @@ describe('D-PROD-301 — janela "Sincronização"', () => {
 
     fireEvent.click(screen.getByTestId('sincronizar-agora'));
     await waitFor(() => expect(baixar).toHaveBeenCalledTimes(1));
-    expect(enviarAgora).toHaveBeenCalledTimes(1);
-    expect(enviarAgora.mock.invocationCallOrder[0]).toBeLessThan(baixar.mock.invocationCallOrder[0]);
+    // D-PROD-307: a baixa já envia antes (na vez da sincronia); a janela não dispara um
+    // segundo envio em paralelo.
+    expect(enviarAgora).not.toHaveBeenCalled();
     expect(await screen.findByText('Pronto! Sincronizado.')).toBeInTheDocument();
   });
 });

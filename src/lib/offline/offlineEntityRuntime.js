@@ -27,8 +27,10 @@ import {
   deleteItem,
   STORES_NAMES,
 } from "@/components/offline/IndexedDBManager";
-import { ApiError, API_ERROR_CODES } from "@/apis/_core/ApiError";
+import { ApiError, API_ERROR_CODES, getApiErrorMessage } from "@/apis/_core/ApiError";
+import { classificarFalhaDeEnvio } from "@/lib/offline/sincronizacao/motorDeSincronizacao";
 import { getOfflineTenant } from "@/lib/offline/offlineTenant";
+import { contadorDeCopiasDoAparelho } from "@/lib/offline/copiasDoAparelho";
 
 const GLOBAL_EMPRESA_KEY = "__GLOBAL__";
 /** Sessão nativa ausente. Valor legítimo: entidade da Base44 não tem tenant do MAIKE. */
@@ -176,7 +178,10 @@ export const baixarEntidadesParaOffline = async (aoAvancar) => {
     while (fila.length) {
       const [nome, entrada] = /** @type {[string, any]} */ (fila.shift());
       try {
+        const copiasAntes = contadorDeCopiasDoAparelho();
         await entrada.adapter.list();
+        // D-PROD-307: veio a cópia do aparelho (a rede não respondeu): não baixou de verdade.
+        if (contadorDeCopiasDoAparelho() !== copiasAntes) falhas.push(nome);
       } catch {
         falhas.push(nome);
       }
@@ -212,7 +217,10 @@ const aplicarPendentes = (items, operacoes) => {
 
   operacoes.forEach((operacao) => {
     if (operacao.operation === "create") {
-      proximo.unshift(operacao.data);
+      // D-PROD-307: o registro criado offline também fica no cache: sem isto aparecia duas vezes.
+      const i = proximo.findIndex((item) => item?.id === operacao.data?.id);
+      if (i >= 0) proximo[i] = { ...proximo[i], ...operacao.data };
+      else proximo.unshift(operacao.data);
       return;
     }
     if (operacao.operation === "update") {
@@ -541,6 +549,9 @@ export const liberarExclusaoOfflineRetida = async (filaId) => {
  *        cache; `create` legado na fila fica RETIDO no replay e some das listas;
  *        um `create` que o cite fica retido junto (em qualquer ordem), e a
  *        edição de um registro real que o cite vai sem esses campos.
+ * @param {boolean} [p.adotarFilaSemDono] D-PROD-307: entidade que passou a ser
+ *        tenant-scoped agora — o que a versão anterior deixou na fila SEM dono é
+ *        adotado pela sessão atual no replay (em vez de descartado).
  * @param {OfflineEntityStorage} [p.storage]
  * @returns {object} objeto com as mesmas chaves de `operations`
  */
@@ -552,6 +563,7 @@ export const createOfflineEntityAdapter = ({
   tenantCatalog = false,
   exclusao = "fila",
   criacao = "fila",
+  adotarFilaSemDono = false,
   storage,
 }) => {
   if (typeof entityName !== "string" || !entityName) {
@@ -570,6 +582,7 @@ export const createOfflineEntityAdapter = ({
     operations,
     storage: porta,
     tenantScoped: Boolean(tenantScoped),
+    adotarFilaSemDono: Boolean(tenantScoped && adotarFilaSemDono),
     tenantCatalog: catalogoTenant,
     exclusaoSomenteOnline,
     criacaoSomenteOnline,
@@ -583,8 +596,13 @@ export const createOfflineEntityAdapter = ({
       const tenantId = tenantDe(tenantScoped);
       if (!estaOnline()) return listarLocal(porta, entityName, { order, limit, empresaId, tenantId });
 
+      const copiasAntes = contadorDeCopiasDoAparelho();
       const resultado = await operations.list(order, limit);
-      await gravarCacheDe(porta, entityName, empresaId, Array.isArray(resultado) ? resultado : [], tenantId);
+      // D-PROD-307: a rede não respondeu a tempo e veio a cópia do aparelho (pode ser de antes
+      // do que acabou de ser gravado): não grava por cima do cache; mostra o que o aparelho tem.
+      if (contadorDeCopiasDoAparelho() === copiasAntes) {
+        await gravarCacheDe(porta, entityName, empresaId, Array.isArray(resultado) ? resultado : [], tenantId);
+      }
       return listarLocal(porta, entityName, { order, limit, empresaId, tenantId });
     };
   }
@@ -594,8 +612,11 @@ export const createOfflineEntityAdapter = ({
       const empresaId = empresaIdParaEntidade(catalogoTenant);
       const tenantId = tenantDe(tenantScoped);
       if (estaOnline() && typeof operations.list === "function") {
+        const copiasAntes = contadorDeCopiasDoAparelho();
         const resultado = await operations.list(order);
-        await gravarCacheDe(porta, entityName, empresaId, Array.isArray(resultado) ? resultado : [], tenantId);
+        if (contadorDeCopiasDoAparelho() === copiasAntes) {
+          await gravarCacheDe(porta, entityName, empresaId, Array.isArray(resultado) ? resultado : [], tenantId);
+        }
       }
       return listarLocal(porta, entityName, { filters, order, limit, empresaId, tenantId });
     };
@@ -838,13 +859,16 @@ export const createOfflineEntityAdapter = ({
  * entrada ao tenant logado seria pior ainda: gravaria dado de origem
  * desconhecida dentro de um cliente real.
  *
- * @param {{tenantScoped: boolean}} entrada
+ * @param {{tenantScoped: boolean, adotarFilaSemDono?: boolean}} entrada
  * @param {{cliente_id?: string|null}} item
  * @param {string|null} tenantAtual
- * @returns {"aplicar"|"pular"|"descartar"}
+ * @returns {"aplicar"|"pular"|"descartar"|"adotar"}
  */
 const destinoDaEntrada = (entrada, item, tenantAtual) => {
   if (!entrada.tenantScoped) return "aplicar";
+  // D-PROD-307: entidade que só passou a ter dono agora — o que a versão anterior deixou na
+  // fila sem dono é desta sessão (o celular é de quem está entrando), não é descartado.
+  if (!("cliente_id" in item) && entrada.adotarFilaSemDono) return tenantAtual ? "adotar" : "pular";
   if (!("cliente_id" in item)) return "descartar";
   if ((item.cliente_id ?? null) !== tenantAtual) return "pular";
   return "aplicar";
@@ -876,7 +900,7 @@ const destinoDaEntrada = (entrada, item, tenantAtual) => {
  * entidades (o defeito que a P4.1-R1 documentou para o Setor).
  *
  * @returns {Promise<{success: boolean, code?: string, error?: unknown, pendentes?: number,
- *                    pulados?: number, descartados?: number, quarentenados?: number, retidos?: number}>}
+ *                    pulados?: number, descartados?: number, quarentenados?: number, retidos?: number, recusados?: number}>}
  */
 export const syncOfflineEntityQueue = async (onProgress) => {
   if (!estaOnline()) return { success: false, code: "OFFLINE" };
@@ -892,6 +916,7 @@ export const syncOfflineEntityQueue = async (onProgress) => {
   let descartados = 0;
   let quarentenados = 0;
   let retidos = 0;
+  let recusados = 0;
   /**
    * D-PROD-195 R2: record_id dos `create` que a POLÍTICA retém (entidade com
    * criação só online ou porta sem `create`), conhecidos antes do laço — assim
@@ -921,6 +946,11 @@ export const syncOfflineEntityQueue = async (onProgress) => {
 
   for (let i = 0; i < emOrdem.length; i += 1) {
     const item = emOrdem[i];
+    // D-PROD-307: a conta mudou no meio da passada (saiu e outra entrou): para. O token de
+    // cada pedido é lido na hora; seguir mandaria o registro de uma conta com o login da outra.
+    if (getOfflineTenant() !== tenantAtual) {
+      return { success: false, code: "SESSAO_TROCOU", pendentes: emOrdem.length - i };
+    }
     onProgress?.({ current: i + 1, total: emOrdem.length, item });
 
     let entrada;
@@ -939,6 +969,17 @@ export const syncOfflineEntityQueue = async (onProgress) => {
     const { operations, storage } = entrada;
 
     const destino = destinoDaEntrada(entrada, item, tenantAtual);
+
+    if (destino === "adotar") {
+      await storage.atualizarNaFila(item.id, { cliente_id: tenantAtual });
+      item.cliente_id = tenantAtual;
+    }
+
+    if (item.quarentena?.codigo === CODIGO_RECUSADO_PELO_SERVIDOR) {
+      // Já recusado: espera a pessoa (tentar de novo ou descartar); não volta a cada passada.
+      recusados += 1;
+      continue;
+    }
 
     if (destino === "pular") {
       pulados += 1;
@@ -1065,6 +1106,23 @@ export const syncOfflineEntityQueue = async (onProgress) => {
       await storage.removerDaFila(item.id);
       emitirMudancaDeFila();
     } catch (error) {
+      // D-PROD-307: recusa DEFINITIVA do servidor (registro que já não existe, dado inválido):
+      // o item fica RETIDO com o motivo (a pessoa decide na janela "Sincronização") e a fila
+      // SEGUE. Antes ele voltava a cada minuto e travava a fila inteira, de todas as entidades.
+      // Sem rede, conta trocada ou erro passageiro do servidor: para, como antes.
+      if (classificarFalhaDeEnvio(error) === "recusado") {
+        await storage.atualizarNaFila(item.id, {
+          quarentena: {
+            codigo: CODIGO_RECUSADO_PELO_SERVIDOR,
+            motivo: getApiErrorMessage(error, "O servidor não aceitou este registro."),
+            operacao: item.operation,
+            em: new Date().toISOString(),
+          },
+        });
+        emitirMudancaDeFila();
+        recusados += 1;
+        continue;
+      }
       return { success: false, error, pendentes: emOrdem.length - i };
     }
   }
@@ -1091,7 +1149,7 @@ export const syncOfflineEntityQueue = async (onProgress) => {
       retidos,
     };
   }
-  return { success: true, pendentes: pulados, pulados, descartados, quarentenados, retidos };
+  return { success: true, pendentes: pulados, pulados, descartados, quarentenados, retidos, recusados };
 };
 
 /**
@@ -1100,21 +1158,63 @@ export const syncOfflineEntityQueue = async (onProgress) => {
  * "aguardando envio" junto com a fila de envio do motor.
  * @returns {Promise<number>}
  */
-export const contarPendenciasDaFilaDeEntidades = async () => {
-  if (CATALOGO.size === 0) return 0;
+/** Itens da fila antiga desta sessão (com os sem dono das entidades que os adotam). */
+const filaDaSessao = async () => {
+  if (CATALOGO.size === 0) return [];
   const porta = [...CATALOGO.values()][0].storage;
   const tenantAtual = getOfflineTenant();
   let fila = [];
   try {
     fila = await porta.listarFila();
   } catch {
-    return 0;
+    return [];
   }
   return fila.filter((item) => {
     const entrada = CATALOGO.get(item.entity_name);
     if (!entrada?.tenantScoped) return true;
-    return "cliente_id" in item && (item.cliente_id ?? null) === tenantAtual;
-  }).length;
+    if (!("cliente_id" in item)) return Boolean(entrada.adotarFilaSemDono && tenantAtual);
+    return (item.cliente_id ?? null) === tenantAtual;
+  });
+};
+
+export const contarPendenciasDaFilaDeEntidades = async () =>
+  (await filaDaSessao()).filter((item) => item.quarentena?.codigo !== CODIGO_RECUSADO_PELO_SERVIDOR).length;
+
+/** Código da quarentena do item que o servidor recusou de vez (D-PROD-307). */
+export const CODIGO_RECUSADO_PELO_SERVIDOR = "RECUSADO_PELO_SERVIDOR";
+
+/**
+ * D-PROD-307 — itens da fila antiga que o servidor recusou de vez, para a janela
+ * "Sincronização" mostrar o motivo e a pessoa decidir.
+ * @returns {Promise<Array<{ id: number|string, entidade: string, operacao: string, motivo: string, em: string|null }>>}
+ */
+export const listarRecusadosDaFilaDeEntidades = async () =>
+  (await filaDaSessao())
+    .filter((item) => item.quarentena?.codigo === CODIGO_RECUSADO_PELO_SERVIDOR)
+    .map((item) => ({
+      id: item.id,
+      entidade: item.entity_name,
+      operacao: item.operation,
+      motivo: item.quarentena?.motivo || "O servidor não aceitou este registro.",
+      em: item.quarentena?.em ?? null,
+    }));
+
+/** Tira da fila antiga um item recusado (a pessoa decidiu descartar). @param {number|string} id */
+export const descartarRecusadoDaFilaDeEntidades = async (id) => {
+  const item = (await filaDaSessao()).find((i) => i.id === id && i.quarentena?.codigo === CODIGO_RECUSADO_PELO_SERVIDOR);
+  if (!item) return false;
+  await armazenamentoDe(item.entity_name).storage.removerDaFila(item.id);
+  emitirMudancaDeFila();
+  return true;
+};
+
+/** Volta o item recusado para a fila (a pessoa corrigiu o que faltava). @param {number|string} id */
+export const tentarDeNovoRecusadoDaFilaDeEntidades = async (id) => {
+  const item = (await filaDaSessao()).find((i) => i.id === id && i.quarentena?.codigo === CODIGO_RECUSADO_PELO_SERVIDOR);
+  if (!item) return false;
+  await armazenamentoDe(item.entity_name).storage.atualizarNaFila(item.id, { quarentena: null });
+  emitirMudancaDeFila();
+  return true;
 };
 
 let listenerInstalado = false;

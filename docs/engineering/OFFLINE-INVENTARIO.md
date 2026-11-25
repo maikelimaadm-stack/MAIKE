@@ -1,6 +1,6 @@
 # Inventário: o que funciona sem internet (app)
 
-Situação em 2026-11-25, depois da D-PROD-301 (sincronização organizada). Atualizar
+Situação em 2026-11-25, depois da D-PROD-307 (auditoria da sincronização). Atualizar
 a cada manejo ligado ao motor.
 
 ## Funciona sem internet
@@ -14,6 +14,8 @@ a cada manejo ligado ao motor.
 | Ver o que está esperando envio e o que precisa de atenção | ícone no topo + janela "Sincronização" → Envio | D-PROD-295/300 |
 | Saber quando cada parte foi baixada e sincronizar na hora | janela "Sincronização" → Dados no celular · Sincronizar agora | D-PROD-301 |
 | Abrir detalhe do depósito (saldo, histórico, cochos) | consultas leem do celular (`networkMode: 'always'`) | D-PROD-301 |
+| Cadastro que o servidor recusou de vez (fila antiga) | fica retido com o motivo em "precisa de atenção" (Tentar de novo · Descartar); não trava o resto | D-PROD-307 |
+| Várias sincronizações juntas (automática, "Sincronizar agora", volta da internet) | uma de cada vez (`vezDaSincronia`); baixa pedida durante outra acompanha a mesma | D-PROD-307 |
 
 ## Grava sem internet e envia depois
 

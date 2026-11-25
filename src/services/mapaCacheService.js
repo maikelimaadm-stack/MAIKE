@@ -28,6 +28,7 @@ import {
 } from '@/components/offline/IndexedDBManager';
 import { getOfflineTenant } from '@/lib/offline/offlineTenant';
 import { hasApiErrorCode, isApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
+import { contadorDeCopiasDoAparelho } from '@/lib/offline/copiasDoAparelho';
 import {
   listAreas,
   listPontos,
@@ -73,6 +74,12 @@ const refreshPromises = new Map();
  * `lastRefreshAt`, travando a cópia velha por 60 s.
  */
 const refreshForcados = new Map();
+/**
+ * D-PROD-307: a forçada que vai SAIR depois da que está em andamento. Uma forçada
+ * nova nunca reaproveita a que já saiu (ela pode ter saído antes da gravação que
+ * motivou a nova); as que chegam enquanto a anterior roda se juntam numa só.
+ */
+const proximosForcados = new Map();
 const lastRefreshAt = new Map();
 const rateLimitedUntil = new Map();
 
@@ -245,6 +252,13 @@ const mereceCooldown = (erro) =>
   hasApiErrorCode(erro, API_ERROR_CODES.PROVIDER_UNAVAILABLE) ||
   (isApiError(erro) && erro.retryable === true);
 
+// D-PROD-307: a espera depois de uma queda (até 2 min sem buscar) acaba quando a internet
+// volta — antes, depois de um trecho de sinal fraco, as leituras seguiam no cache mesmo
+// com o sinal bom.
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => rateLimitedUntil.clear());
+}
+
 /**
  * Atualiza uma entrada do cache respeitando política.
  *
@@ -315,8 +329,9 @@ const refreshMapaCacheEntryCru = async (cacheKey, empresaId, options = {}) => {
   // forçada). A forçada só se junta a outra forçada; se houver uma comum no
   // meio, espera ela terminar e busca de novo (a comum pode ter saído antes da
   // gravação que motivou a forçada).
-  if (force && refreshForcados.has(requestKey)) return refreshForcados.get(requestKey);
+  if (force && proximosForcados.has(requestKey)) return proximosForcados.get(requestKey);
   if (!force && refreshPromises.has(requestKey)) return refreshPromises.get(requestKey);
+
 
   const emCooldown = agora < (rateLimitedUntil.get(requestKey) || 0);
   const recente = agora - (lastRefreshAt.get(requestKey) || 0) < MIN_REFRESH_INTERVAL_MS;
@@ -327,14 +342,31 @@ const refreshMapaCacheEntryCru = async (cacheKey, empresaId, options = {}) => {
   const anterior = force ? refreshPromises.get(requestKey) : null;
   /** @type {Promise<ResultadoLeituraMapa>} */
   const promise = (async () => {
-    if (anterior) await anterior.catch(() => {});
+    if (anterior) {
+      await anterior.catch(() => {});
+      // Saiu agora: quem chegar daqui em diante espera esta e busca de novo.
+      if (proximosForcados.get(requestKey) === promise) proximosForcados.delete(requestKey);
+    }
     // A sessão (tenant) de quando a leitura saiu: se mudou até a resposta
     // chegar, a resposta é de OUTRA sessão e não vai para o cache (D-PROD-250).
     const tenantNaSaida = getOfflineTenant();
+    const copiasAntes = contadorDeCopiasDoAparelho();
     try {
       const items = await CAPACIDADES[cacheKey](empresaId);
       if (getOfflineTenant() !== tenantNaSaida) {
         return { dados: (await getEntityCacheItems(storageKey, dono)) || [], origem: 'cache', erro: 'TENANT_TROCOU' };
+      }
+      // D-PROD-307: sem internet, o que veio é do aparelho (cópia das leituras + o que foi
+      // criado sem internet): mostra, mas NÃO grava como resposta do servidor nem marca a
+      // hora — senão a leitura de verdade, quando a internet volta, esperava 60 s.
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        return { dados: items, origem: 'cache', erro: 'OFFLINE' };
+      }
+      // D-PROD-307: com internet, mas a rede não respondeu a tempo e veio (ou pode ter
+      // vindo) a cópia do aparelho: pode ser de ANTES do lançamento que acabou de ser
+      // feito. Fica o cache (com o que a tela já gravou) e a próxima leitura tenta de novo.
+      if (contadorDeCopiasDoAparelho() !== copiasAntes) {
+        return { dados: (await getEntityCacheItems(storageKey, dono)) || [], origem: 'cache', erro: 'COPIA_DO_APARELHO' };
       }
       await setEntityCacheItems(storageKey, dono, items);
       lastRefreshAt.set(requestKey, Date.now());
@@ -357,11 +389,13 @@ const refreshMapaCacheEntryCru = async (cacheKey, empresaId, options = {}) => {
 
   refreshPromises.set(requestKey, promise);
   if (force) refreshForcados.set(requestKey, promise);
+  if (force && anterior) proximosForcados.set(requestKey, promise);
   try {
     return await promise;
   } finally {
     if (refreshPromises.get(requestKey) === promise) refreshPromises.delete(requestKey);
     if (refreshForcados.get(requestKey) === promise) refreshForcados.delete(requestKey);
+    if (proximosForcados.get(requestKey) === promise) proximosForcados.delete(requestKey);
   }
 };
 
@@ -392,6 +426,7 @@ export const warmMapaCache = async (empresaId) => {
 const zerarPolitica = () => {
   refreshPromises.clear();
   refreshForcados.clear();
+  proximosForcados.clear();
   lastRefreshAt.clear();
   rateLimitedUntil.clear();
 };

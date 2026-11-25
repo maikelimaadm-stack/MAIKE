@@ -30,6 +30,8 @@ const servidor = () => {
     falharLancamento: /** @type {null | 'rede' | string} */ (null),
     /** D-PROD-300: avisos que a baixa devolve (lote vencido). */
     avisosDaBaixa: /** @type {any[]} */ ([]),
+    /** D-PROD-307: quantas vezes o fechamento do período anterior devolve erro interno. */
+    falharFechamento: 0,
   };
   s.fetch = vi.fn(async (url, init = {}) => {
     const metodo = init.method || 'GET';
@@ -54,6 +56,10 @@ const servidor = () => {
       return respostaJson(201, { committed: true, evento: s.lancamentos.get(corpo.operation_id) });
     }
     if (metodo === 'PATCH' && caminho.startsWith('/suplementacao-eventos/')) {
+      if (s.falharFechamento) {
+        s.falharFechamento -= 1;
+        return respostaJson(500, { code: 'INTERNAL_ERROR', message: 'erro interno' });
+      }
       const id = caminho.split('/').pop();
       const ev = s.eventos.find((e) => e.id === id);
       Object.assign(ev, corpo);
@@ -376,5 +382,27 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
     );
     expect(baixa?.corpo).toMatchObject({ operation_id: 'op-lanc-0014', lotes });
   });
-});
 
+  it('LCO-15 D-PROD-307: erro passageiro do servidor no FECHAMENTO do anterior não dá o lançamento como enviado — fica na fila e fecha depois', async () => {
+    const srv = servidor();
+    srv.falharFechamento = 1;
+    vi.stubGlobal('fetch', srv.fetch);
+    const { sup, motor } = await carregar();
+    const r = await sup.registrarLancamentoDoCocho(
+      { saida: saidaCorpo(), evento: evento(), lotes: [{ lote_id: 'l1' }], eventoAnterior: srv.eventos[0], fechamento: fechamento() },
+      { operationId: 'op-lanc-0015' }
+    );
+    // Com internet: baixa e lançamento gravados; o fechamento falhou de passagem → na fila (não perdido).
+    expect(r.aguardandoEnvio).toBe(true);
+    expect(srv.eventos[0].dias_periodo).toBeNull();
+    expect((await motor.resumoDaFila()).aguardando).toBe(1);
+
+    // A próxima passada termina: sem baixar nem lançar de novo, fecha o período anterior.
+    await motor.tentarDeNovo?.('op-lanc-0015');
+    await motor.sincronizar();
+    expect(srv.baixas.size).toBe(1);
+    expect(srv.lancamentos.size).toBe(1);
+    expect(srv.eventos[0]).toMatchObject({ fechado_por_evento_id: 'ev-2' });
+    expect((await motor.resumoDaFila()).aguardando).toBe(0);
+  });
+});

@@ -31,6 +31,7 @@ import { ApiError, API_ERROR_CODES } from './ApiError.js';
 import { getNativeToken } from '@/lib/auth/nativeTokenStorage';
 import { getOfflineTenant } from '@/lib/offline/offlineTenant';
 import { guardarResposta, lerResposta } from '@/lib/offline/respostasOffline';
+import { registrarCopiaServida } from '@/lib/offline/copiasDoAparelho';
 
 /** Requisição sem resposta em 20 s é tratada como indisponibilidade. */
 const TIMEOUT_MS = 20000;
@@ -321,9 +322,9 @@ const requisitarNaRede = async (caminho, opcoes, contexto) => {
   try {
     corpo = await lerCorpo(resposta);
   } catch (erro) {
-    // Só o cancelamento pedido por quem chama vira indisponibilidade aqui; o resto segue como antes.
-    if (externo?.aborted) throw erroDeIndisponibilidade(contexto, erro);
-    throw erro;
+    // D-PROD-307: a conexão caiu no meio da resposta (o servidor pode ter gravado): é falta de
+    // rede, não recusa. Antes saía como erro sem código e o motor dava o registro como recusado.
+    throw erroDeIndisponibilidade(contexto, erro);
   } finally {
     soltarExterno();
   }
@@ -359,6 +360,12 @@ const semInternetAgora = () => typeof navigator !== 'undefined' && navigator.onL
 /** Leitura com cópia no aparelho espera a rede no máximo isto (D-PROD-294). */
 const TIMEOUT_COM_COPIA_MS = 6000;
 
+/** D-PROD-307: a cópia do aparelho, avisando quem grava cache (`copiasDoAparelho`). @param {unknown} corpo */
+const daCopia = (corpo) => {
+  registrarCopiaServida();
+  return corpo;
+};
+
 /**
  * Requisição ao backend nativo (contrato acima).
  *
@@ -383,7 +390,7 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
   // `somenteRede` (baixar dados): a leitura precisa vir do servidor agora.
   const podeUsarGuardado = opcoes.somenteRede !== true;
   const guardada = podeUsarGuardado ? await lerResposta(tenant, caminho) : undefined;
-  if (guardada && semInternetAgora()) return guardada.corpo;
+  if (guardada && semInternetAgora()) return daCopia(guardada.corpo);
 
   // Internet fraca (campo): com uma cópia guardada, não espera os 20 s do
   // servidor — em 6 s sem resposta, a tela abre com a cópia do aparelho.
@@ -396,7 +403,7 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
     return corpo;
   } catch (erro) {
     if (guardada && /** @type {any} */ (erro)?.code === API_ERROR_CODES.PROVIDER_UNAVAILABLE && !opcoes.signal?.aborted) {
-      return guardada.corpo;
+      return daCopia(guardada.corpo);
     }
     throw erro;
   }

@@ -7,8 +7,8 @@ import { useAuth } from '@/lib/AuthContext';
 import { useEmpresaSelecionadaId } from '@/hooks/useEmpresaSelecionadaId';
 import { isAppNativo } from '@/config/runtimeConfig';
 import { useBootSplash } from '@/lib/bootSplashContext';
-import { baixarDadosParaOffline, estaSemInternet, situacaoDaBaixa, ultimaBaixaDosDados } from '@/services/dadosOfflineService';
-import { enviarAgora, ligarEnvioDaSessao } from '@/services/sincronizacaoService';
+import { baixarDadosParaOffline, dadosNoFormatoAtual, estaSemInternet, situacaoDaBaixa, ultimaBaixaDosDados } from '@/services/dadosOfflineService';
+import { ligarEnvioDaSessao } from '@/services/sincronizacaoService';
 import FilaDeEnvio from '@/components/offline/FilaDeEnvio';
 
 /** @type {React.ComponentType<any>} */ const DialogContent = DialogContentUi;
@@ -77,9 +77,11 @@ export default function DadosOffline() {
     return () => ligarEnvioDaSessao(null);
   }, [isAuthenticated, clienteId, usuarioId]);
 
+  // D-PROD-307: a baixa é uma só por vez no serviço (quem pede durante uma recebe a mesma e
+  // acompanha o progresso). Aqui só a automática não se repete; a da pessoa sempre mostra.
   const baixar = useCallback(
     async ({ silencioso = false } = {}) => {
-      if (baixando || emSegundoPlano.current) return;
+      if (silencioso && emSegundoPlano.current) return;
       if (!silencioso) {
         setBaixando(true);
         setResultado(null);
@@ -102,16 +104,15 @@ export default function DadosOffline() {
         emSegundoPlano.current = false;
       }
     },
-    [baixando, empresaId]
+    [empresaId]
   );
+  // A automática (efeito abaixo) usa sempre a versão atual (fazenda trocada, etc.).
+  const baixarRef = useRef(baixar);
+  baixarRef.current = baixar;
 
   // D-PROD-301: "Sincronizar agora" = envia o que está no celular e baixa tudo de novo.
+  // A baixa já envia antes o que está no aparelho (e mostra "Sincronizando…" desde o toque).
   const sincronizarAgora = useCallback(async () => {
-    try {
-      await enviarAgora();
-    } catch {
-      // o que não subiu fica na fila, com o motivo
-    }
     await baixar();
   }, [baixar]);
 
@@ -133,7 +134,10 @@ export default function DadosOffline() {
     const talvezSincronizar = () => {
       const anterior = ultimaBaixaDosDados();
       if (!anterior || estaSemInternet()) return;
-      if (Date.now() - anterior > ATUALIZAR_SOZINHO_APOS_MS) baixar({ silencioso: true });
+      // D-PROD-307: versão nova do app que guarda os dados em outro formato baixa já.
+      if (Date.now() - anterior > ATUALIZAR_SOZINHO_APOS_MS || !dadosNoFormatoAtual()) {
+        baixarRef.current({ silencioso: true });
+      }
     };
     talvezSincronizar();
     const intervalo = window.setInterval(talvezSincronizar, 15 * 60 * 1000);

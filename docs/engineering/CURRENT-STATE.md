@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-25 (missão ativa D-PROD-306; antes D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-307; antes D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-25) — MAIKE-FINANCEIRO-RETIFICACAO-LOTE: o lote na correção por substituição do lançamento financeiro (D-PROD-306)
+## Missão ativa (2026-11-25) — MAIKE-AUDITORIA-SINCRONIZACAO: várias sincronizações ao mesmo tempo, cópia do aparelho, conta e recusas (D-PROD-307)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-307**: envio e baixa em uma vez só (`vezDaSincronia`); uma baixa de cada vez, presa à conta; cópia do aparelho nunca gravada como resposta do servidor; recusa da fila antiga fica retida com o motivo ("precisa de atenção") e não trava a fila; oito portas por conta; formato novo dos dados baixa de novo na 1ª abertura com internet |
+| Banco | sem migration; servidor sem mudança |
+| Relatório | [`AUDITORIA-SINCRONIZACAO-D307-REPORT.md`](./AUDITORIA-SINCRONIZACAO-D307-REPORT.md) |
+| Próximas | parte estrutural: envio direto gravado na fila antes de sair, trava entre abas, `operation_id` nas criações da fila antiga, overlay único, remapeamento de ids `offline_` |
+
+## Missão anterior (2026-11-25) — MAIKE-FINANCEIRO-RETIFICACAO-LOTE: o lote na correção por substituição do lançamento financeiro (D-PROD-306)
 
 | Item | Estado |
 |---|---|

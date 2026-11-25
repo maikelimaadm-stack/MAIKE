@@ -184,8 +184,8 @@ describe('D-PROD-195 — criar categoria é só online', () => {
 
   it('(e) a categoria da versão anterior não aparece na lista, nem pela fila nem pelo cache, sem sincronizar antes', async () => {
     await storage.adicionarNaFila(categoriaLegada());
-    // cópia que a versão antiga gravou no cache (a porta não é tenant-scoped: chave `Entidade::empresa`)
-    storage.cache.set(`${ENTIDADE_OFFLINE}::emp-1`, [{ id: 'offline_cm_1', nome: 'NOVILHA', _isOffline: true }, { id: 'srv-0', nome: 'BOI' }]);
+    // cópia que a versão antiga gravou no cache (D-PROD-307: a porta é tenant-scoped, chave `Entidade::cli:<tenant>::empresa`)
+    storage.cache.set(`${ENTIDADE_OFFLINE}::cli:cli-1::emp-1`, [{ id: 'offline_cm_1', nome: 'NOVILHA', _isOffline: true }, { id: 'srv-0', nome: 'BOI' }]);
     online(false);
     expect((await categoriaManejoPort.list()).map((c) => c.id)).toEqual(['srv-0']);
     online(true);
