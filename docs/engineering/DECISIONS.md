@@ -9640,7 +9640,19 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
      - Um item do motor que cita um registro criado no aparelho e ainda na fila antiga espera essa criação. É o caso da leitura ou do lançamento num cocho criado sem internet. O envio direto também espera.
      - `definirEsperaDeFora` liga as duas filas sem acoplar o motor à fila antiga.
      - `sincronizarTudo` roda o motor de novo depois da fila antiga quando algo ficou esperando; o cocho e a leitura sobem na mesma sincronização, nessa ordem.
-  5. **Trava entre abas:** `naVezDaSincronia` roda dentro de `navigator.locks` (`maike-sincronia`, exclusiva), de modo que duas abas do navegador não sincronizam ao mesmo tempo. Sem suporte, a ordem dentro da aba continua.
+  5. **Trava entre abas:** `naVezDaSincronia` roda dentro de `navigator.locks` (`maike-sincronia`, exclusiva), de modo que duas abas do navegador não sincronizam ao mesmo tempo. A passada agendada do motor também entra nessa vez. Sem suporte, ou com a trava recusada pelo navegador, roda sem ela; a ordem dentro da aba continua.
+  6. **Revisão independente (antes da PR), achados corrigidos:**
+     - Lote apagado de vez também não é recriado: o servidor consulta o histórico de auditoria, como no ponto.
+     - Criação que caiu com internet e o que vem depois:
+       - a edição logo em seguida entra na criação, sem PATCH num registro que o servidor talvez não tenha;
+       - a exclusão vai DEPOIS da criação (marcada `ja_tentado`), porque o servidor pode já ter o registro;
+       - a exclusão só-online (lote) primeiro tenta enviar a criação e, se ela não sobe, não exclui;
+       - só vai para a fila a falha de rede ou de sessão, e com conta definida; erro do servidor volta para a tela.
+     - No reenvio, `ID_DO_APARELHO_EXCLUIDO` encerra o caso: a criação e o que vinha atrás dela para o mesmo registro saem da fila e do aparelho.
+     - Na fila antiga, um erro do servidor que se repete no mesmo item fica retido com o motivo na 5ª vez, em vez de travar para sempre a fila e quem espera por ela.
+     - Depois do envio direto, a próxima passada é pedida logo: o segundo lançamento no mesmo cocho não espera 1 minuto.
+     - A resposta atrasada de um envio direto não desfaz o que a passada já terminou (`reserva_de`).
+     - Uma reserva além do limite (o relógio do aparelho voltou) não esconde o item.
 - **Migration:** nenhuma. Os ids continuam `String` no banco; UUID cabe onde cabia o cuid.
 - **Constituição:** nenhuma regra nova. R9/R11 preservadas: a leitura pelo id em qualquer tenant serve só para decidir e nada dela vai para a resposta de outro tenant.
 - **Fora (próximas etapas):**
@@ -9649,8 +9661,8 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - A versão por registro e quem alterou ficam para a Etapa 3.
   - A tela sem "piscar" entre "enviado" e a releitura fica para a Etapa 4.
 - **Testes:**
-  - Backend: `backend/tests/idDoAparelho.test.mjs` (ID-01..07).
-  - App: `tests/smoke/envioSemPerdaSemDuplicar.test.js` (IA-01..05, EN-01..06, OR-01, AB-01).
+  - Backend: `backend/tests/idDoAparelho.test.mjs` (ID-01..08).
+  - App: `tests/smoke/envioSemPerdaSemDuplicar.test.js` (IA-01..11, EN-01..09, OR-01, AB-01..02).
   - `tests/smoke/lancamentoCochoOffline.test.js`: isolamento; o envio agendado por um teste não dispara no seguinte.
 
 <!-- Próxima decisão: D-PROD-309 -->

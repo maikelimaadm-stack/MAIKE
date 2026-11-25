@@ -8,6 +8,7 @@
  * ID-05 ponto (cocho) com id do aparelho: repetir devolve o mesmo
  * ID-06 ponto apagado de vez: repetir a criação não recria (pelo histórico)
  * ID-07 sem id (ou id que não é UUID no ponto): o caminho de sempre, o servidor gera o id
+ * ID-08 lote apagado de vez (exclusão física): repetir a criação não recria (pelo histórico)
  */
 
 import { test, describe, before, after, beforeEach } from 'node:test';
@@ -100,6 +101,19 @@ describe('D-PROD-308 — lote com id do aparelho', () => {
     const r = await req('POST', '/lotes', c.token, novoLote(c, id));
     assert.equal(r.statusCode, 409, r.body);
     assert.equal(r.json().code ?? r.json().error?.code, 'ID_DO_APARELHO_EXCLUIDO');
+  });
+
+  test('ID-08 lote apagado de vez (sem histórico): repetir a criação não recria', async () => {
+    const c = await conta();
+    const id = randomUUID();
+    assert.equal((await req('POST', '/lotes', c.token, novoLote(c, id))).statusCode, 201);
+    const del = await req('DELETE', `/lotes/${id}`, c.token);
+    assert.ok([200, 204].includes(del.statusCode), del.body);
+    assert.equal(await prisma().lote.count({ where: { id } }), 0, 'exclusão física');
+    const r = await req('POST', '/lotes', c.token, novoLote(c, id));
+    assert.equal(r.statusCode, 409, r.body);
+    assert.equal(r.json().code ?? r.json().error?.code, 'ID_DO_APARELHO_EXCLUIDO');
+    assert.equal(await prisma().lote.count({ where: { cliente_id: c.cliente.id } }), 0);
   });
 
   test('ID-07a sem id: o servidor gera o id, como sempre', async () => {

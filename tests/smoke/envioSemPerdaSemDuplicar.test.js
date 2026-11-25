@@ -19,6 +19,9 @@
  *           o cocho sobe e depois a leitura, com o id do cocho
  *  D. Entre abas
  *     AB-01 com `navigator.locks`, a sincronização roda dentro da trava "maike-sincronia"
+ *     AB-02 a trava falhou: sincroniza assim mesmo (o trabalho roda uma vez só)
+ *  Revisão independente: IA-06..11 (o que vem depois de uma criação que caiu), EN-07..09
+ *  (ordem e reserva do envio direto).
  */
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -176,6 +179,85 @@ describe('D-PROD-308 A — id do aparelho na fila antiga', () => {
   });
 });
 
+describe('D-PROD-308 A2 — revisão: o que vem depois da criação que caiu', () => {
+  const semRede = () => new erros.ApiError(erros.API_ERROR_CODES.PROVIDER_UNAVAILABLE, { operation: 'x', resource: 'y' });
+
+  it('IA-06 criação caiu (com internet) e a pessoa edita logo: a edição entra na criação, nada vai direto ao servidor', async () => {
+    const { ops } = servidorDePontos();
+    ops.create.mockRejectedValueOnce(semRede());
+    const porta = portaDoPonto(ops);
+    const criado = await porta.create({ empresa_id: 'emp-1', nome_ponto: 'A' });
+    await porta.update(criado.id, { empresa_id: 'emp-1', nome_ponto: 'B' });
+    expect(ops.update).not.toHaveBeenCalled();
+    expect([...storage.fila.values()].map((i) => [i.operation, i.data?.nome_ponto])).toEqual([['create', 'B']]);
+  });
+
+  it('IA-07 criação caiu e a pessoa exclui: a exclusão vai DEPOIS da criação (o servidor pode já ter o registro)', async () => {
+    const { ops, gravados } = servidorDePontos();
+    const original = ops.create.getMockImplementation();
+    ops.create.mockImplementationOnce(async (d) => {
+      await original(d); // gravou, a resposta se perdeu
+      throw semRede();
+    });
+    const porta = portaDoPonto(ops);
+    const criado = await porta.create({ empresa_id: 'emp-1', nome_ponto: 'A' });
+    await porta.delete(criado.id);
+    expect(ops.delete).not.toHaveBeenCalled();
+    expect([...storage.fila.values()].map((i) => i.operation)).toEqual(['create', 'delete']);
+    await rt.syncOfflineEntityQueue();
+    expect(ops.delete).toHaveBeenCalledWith(criado.id);
+    expect(gravados.size).toBe(0);
+    expect(storage.fila.size).toBe(0);
+  });
+
+  it('IA-08 o servidor diz que o registro foi criado e depois excluído: a criação e o que vinha atrás saem da fila e do aparelho', async () => {
+    const { ops } = servidorDePontos();
+    ops.create.mockRejectedValue(
+      new erros.ApiError(erros.API_ERROR_CODES.OPERATION_FAILED, { operation: 'x', resource: 'y', cause: { code: 'ID_DO_APARELHO_EXCLUIDO' } })
+    );
+    const porta = portaDoPonto(ops);
+    online(false);
+    const criado = await porta.create({ empresa_id: 'emp-1', nome_ponto: 'A' });
+    online(true);
+    const r = await rt.syncOfflineEntityQueue();
+    expect(r.success).toBe(true);
+    expect(storage.fila.size).toBe(0);
+    online(false);
+    expect((await porta.list()).map((p) => p.id)).not.toContain(criado.id);
+  });
+
+  it('IA-09 erro do servidor que se repete no mesmo item: na 5ª vez fica retido com o motivo e não trava mais a fila', async () => {
+    const { ops } = servidorDePontos();
+    ops.create.mockRejectedValue(new erros.ApiError(erros.API_ERROR_CODES.OPERATION_FAILED, { operation: 'x', resource: 'y' }));
+    const porta = portaDoPonto(ops);
+    online(false);
+    await porta.create({ empresa_id: 'emp-1', nome_ponto: 'A' });
+    online(true);
+    for (let i = 0; i < 4; i += 1) expect((await rt.syncOfflineEntityQueue()).success).toBe(false);
+    const r = await rt.syncOfflineEntityQueue();
+    expect(r).toMatchObject({ success: true, recusados: 1 });
+    expect(await rt.listarRecusadosDaFilaDeEntidades()).toHaveLength(1);
+    expect((await rt.idsComCriacaoPendenteNaFilaDeEntidades()).size).toBe(0);
+  });
+
+  it('IA-10 com internet, erro do servidor (não de rede) na criação volta para a tela, nada na fila', async () => {
+    const { ops } = servidorDePontos();
+    ops.create.mockRejectedValueOnce(new erros.ApiError(erros.API_ERROR_CODES.OPERATION_FAILED, { operation: 'x', resource: 'y' }));
+    const porta = portaDoPonto(ops);
+    await expect(porta.create({ empresa_id: 'emp-1', nome_ponto: 'A' })).rejects.toBeTruthy();
+    expect(storage.fila.size).toBe(0);
+  });
+
+  it('IA-11 sem conta definida, a criação que caiu volta para a tela (a fila não teria dono)', async () => {
+    (await import('@/lib/offline/offlineTenant')).setOfflineTenant(null);
+    const { ops } = servidorDePontos();
+    ops.create.mockRejectedValueOnce(semRede());
+    const porta = portaDoPonto(ops);
+    await expect(porta.create({ empresa_id: 'emp-1', nome_ponto: 'A' })).rejects.toBeTruthy();
+    expect(storage.fila.size).toBe(0);
+  });
+});
+
 describe('D-PROD-308 B — motor: gravado antes de sair', () => {
   let motor;
   let fila;
@@ -273,6 +355,68 @@ describe('D-PROD-308 B — motor: gravado antes de sair', () => {
     expect(await fila.ler('op-r')).toBeUndefined();
   });
 
+  it('EN-07 o segundo no mesmo cocho, pedido com o primeiro no ar, sai logo depois (não espera 1 minuto)', async () => {
+    let soltar;
+    const enviados = [];
+    motor.registrarTipoDeEnvio({
+      tipo: 'cocho.lancamento',
+      versao: 1,
+      offline: true,
+      recursos: (p) => [`cocho:${p.cocho}`],
+      enviar: async (p, { operationId }) => {
+        enviados.push(operationId);
+        if (operationId === 'op-a') await new Promise((r) => (soltar = r));
+        return { id: `srv-${operationId}` };
+      },
+    });
+    const a = motor.enviarOuGuardar('cocho.lancamento', { cocho: 'c1' }, { operationId: 'op-a' });
+    await vi.waitFor(() => expect(enviados).toEqual(['op-a']));
+    expect(await motor.enviarOuGuardar('cocho.lancamento', { cocho: 'c1' }, { operationId: 'op-b' })).toMatchObject({ estado: 'aguardando' });
+    soltar();
+    await a;
+    await vi.waitFor(async () => expect((await fila.ler('op-b'))?.estado).toBe('enviado'), { timeout: 4000 });
+    expect(enviados).toEqual(['op-a', 'op-b']);
+  });
+
+  it('EN-08 reserva fora do limite (o relógio do aparelho voltou) não esconde nem segura o item', async () => {
+    motor.registrarTipoDeEnvio({ tipo: 'cocho.leitura', versao: 1, offline: true, enviar: async () => ({ id: 'srv' }) });
+    temRede = false;
+    await motor.enviarOuGuardar('cocho.leitura', { escore: 1 }, { operationId: 'op-relogio' });
+    const item = await fila.ler('op-relogio');
+    await fila.gravar({ ...item, direto_ate: relogio + 10 * 3600 * 1000, reserva_de: 1 });
+    expect((await motor.resumoDaFila()).aguardando).toBe(1);
+    temRede = true;
+    await motor.sincronizar();
+    expect(await fila.ler('op-relogio')).toMatchObject({ estado: 'enviado' });
+    expect((await fila.ler('op-relogio')).direto_ate).toBeUndefined();
+  });
+
+  it('EN-09 a passada assumiu o item (reserva vencida) e terminou: a resposta atrasada do envio direto não desfaz', async () => {
+    let falharDepois;
+    let vez = 0;
+    motor.registrarTipoDeEnvio({
+      tipo: 'cocho.leitura',
+      versao: 1,
+      offline: true,
+      enviar: async () => {
+        vez += 1;
+        if (vez === 1) {
+          await new Promise((r) => (falharDepois = r));
+          throw new erros.ApiError(erros.API_ERROR_CODES.OPERATION_FAILED, { operation: 'x', resource: 'y', cause: { code: 'QUALQUER_RECUSA' } });
+        }
+        return { id: 'srv' };
+      },
+    });
+    const direto = motor.enviarOuGuardar('cocho.leitura', { escore: 1 }, { operationId: 'op-tarde' });
+    await vi.waitFor(() => expect(vez).toBe(1));
+    relogio += 3 * 60 * 1000;
+    await motor.sincronizar();
+    expect(await fila.ler('op-tarde')).toMatchObject({ estado: 'enviado' });
+    falharDepois();
+    await expect(direto).rejects.toBeTruthy();
+    expect(await fila.ler('op-tarde')).toMatchObject({ estado: 'enviado' });
+  });
+
   it('EN-06 falha de rede no envio direto: fica aguardando (sem reserva) e a passada envia', async () => {
     let vez = 0;
     motor.registrarTipoDeEnvio({
@@ -342,6 +486,31 @@ describe('D-PROD-308 C — ordem entre as filas', () => {
 });
 
 describe('D-PROD-308 D — entre abas', () => {
+  it('AB-02 a trava do navegador falhou: sincroniza assim mesmo; erro do trabalho sobe como sempre', async () => {
+    Object.defineProperty(window.navigator, 'locks', {
+      configurable: true,
+      value: { request: vi.fn(async () => { throw new Error('SecurityError'); }) },
+    });
+    try {
+      const { naVezDaSincronia } = await import('@/lib/offline/sincronizacao/vezDaSincronia');
+      expect(await naVezDaSincronia(async () => 7)).toBe(7);
+    } finally {
+      delete /** @type {any} */ (window.navigator).locks;
+    }
+    Object.defineProperty(window.navigator, 'locks', {
+      configurable: true,
+      value: { request: vi.fn(async (_n, _o, fn) => fn()) },
+    });
+    try {
+      const { naVezDaSincronia } = await import('@/lib/offline/sincronizacao/vezDaSincronia');
+      let vezes = 0;
+      await expect(naVezDaSincronia(async () => { vezes += 1; throw new Error('do trabalho'); })).rejects.toThrow('do trabalho');
+      expect(vezes).toBe(1);
+    } finally {
+      delete /** @type {any} */ (window.navigator).locks;
+    }
+  });
+
   it('AB-01 com navigator.locks, a sincronização roda dentro da trava "maike-sincronia"', async () => {
     const pedidos = [];
     Object.defineProperty(window.navigator, 'locks', {

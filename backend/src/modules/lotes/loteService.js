@@ -12,7 +12,7 @@ import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoServi
 import { AppError, loteNotFound, loteDeleteBlocked, loteUpdateBlocked, setorNotFound, areaNotFound } from '../../shared/errors/AppError.js';
 import { avaliarExclusaoLote, TIPO_BLOQUEADO, TIPO_FISICA, TIPO_JA_EXCLUIDO, TIPO_LOGICA } from './loteExclusaoService.js';
 import { origemDerivadaDeManejo, recusarLoteFabricadoPorManejo } from './loteOrigem.js';
-import { criarComIdDoAparelho, idDoAparelhoDe } from '../../shared/idempotency/idDoAparelho.js';
+import { criarComIdDoAparelho, foiExcluidoNoHistorico, idDoAparelhoDe } from '../../shared/idempotency/idDoAparelho.js';
 import { ativacaoDaEmpresa, cancelarEntradaParaExclusao, registrarEntradaSeAtivo, travarAreasDoLoteNoLedger } from '../rebanhoLedger/rebanhoLedgerService.js';
 import { buscarSetor } from '../setores/setorRepository.js';
 import { buscarArea } from '../areas/areaPastagemRepository.js';
@@ -263,7 +263,11 @@ export const criar = async (contexto, entrada) => {
     entidade: 'Lote',
     buscar: async (id) => {
       const lote = await buscarLotePorIdEmQualquerTenant(id);
-      return lote ? { cliente_id: lote.cliente_id, excluido: Boolean(lote.excluido_em), registro: comoLotePublico(lote) } : null;
+      if (lote) return { cliente_id: lote.cliente_id, excluido: Boolean(lote.excluido_em), registro: comoLotePublico(lote) };
+      // Lote sem histórico é apagado de vez (exclusão física): o histórico de auditoria diz.
+      return (await foiExcluidoNoHistorico(auth.clienteId, 'Lote', id))
+        ? { cliente_id: auth.clienteId, excluido: true, registro: null }
+        : null;
     },
     criar: (id) => criarNaTransacao(contexto, auth, prisma, campos, id),
   });

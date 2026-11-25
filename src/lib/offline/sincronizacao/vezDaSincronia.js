@@ -38,5 +38,16 @@ export const TRAVA_ENTRE_ABAS = 'maike-sincronia';
 const comTravaEntreAbas = (fazer) => {
   const travas = typeof navigator !== 'undefined' ? /** @type {any} */ (navigator).locks : undefined;
   if (!travas || typeof travas.request !== 'function') return fazer();
-  return travas.request(TRAVA_ENTRE_ABAS, { mode: 'exclusive' }, () => fazer());
+  let rodou = false;
+  return Promise.resolve(
+    travas.request(TRAVA_ENTRE_ABAS, { mode: 'exclusive' }, () => {
+      rodou = true;
+      return fazer();
+    })
+  ).catch((erro) => {
+    // A trava em si falhou (navegador recusou): roda sem ela — sincronizar vale mais que a trava.
+    // Erro de `fazer` sobe como sempre.
+    if (rodou) throw erro;
+    return fazer();
+  });
 };

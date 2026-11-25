@@ -64,12 +64,28 @@ Esta é a **Etapa 1**.
 | Leitura num cocho criado sem internet | ia antes do cocho, com id provisório | espera o cocho; sobem os dois na mesma sincronização | OR-01 |
 | Duas abas | sincronizavam juntas | uma de cada vez | AB-01 |
 
+## Revisão independente
+
+Antes da PR, um revisor que não participou do desenho leu o diff procurando defeitos. Ele não achou travamento nem vazamento entre contas, e achou 7 pontos, todos corrigidos e cobertos por teste:
+
+| # | Achado | Correção | Teste |
+|---|---|---|---|
+| 1 | Lote apagado de vez podia ser recriado pelo reenvio | histórico de auditoria também no lote | ID-08 |
+| 2 | Depois de uma criação que caiu, editar ou excluir ia direto ao servidor | a edição entra na criação; a exclusão vai depois dela; o lote só exclui depois de a criação subir; só falha de rede ou sessão vai para a fila | IA-06, IA-07, IA-10 |
+| 3 | O segundo lançamento no mesmo cocho esperava até 1 minuto | pede a passada logo após o envio direto | EN-07 |
+| 4 | Item da fila antiga com erro repetido segurava para sempre quem esperava por ele | retido com o motivo na 5ª vez | IA-09 |
+| 5 | A resposta atrasada do envio direto podia desfazer o trabalho da passada; o relógio voltando escondia o item | `reserva_de`; reserva além do limite não vale | EN-08, EN-09 |
+| 6 | Trava entre abas: se o navegador recusa, nada sincronizava; a passada agendada ficava fora da trava | roda sem trava se recusada; a passada agendada entra na vez | AB-02 |
+| 7 | Criação que caiu sem conta definida ficava sem dono | volta para a tela | IA-11 |
+
+Também: no reenvio, `ID_DO_APARELHO_EXCLUIDO` encerra o caso (IA-08).
+
 ## Verificação
 
-- **Backend:** `backend/tests/idDoAparelho.test.mjs` (9 testes) passa contra um PostgreSQL 16 local.
+- **Backend:** `backend/tests/idDoAparelho.test.mjs` (10 testes) passa contra um PostgreSQL 16 local.
   - Os testes que já existiam para lote e cocho dão o mesmo resultado com e sem esta mudança.
   - Algumas falhas locais desses testes vêm de datas fixas no futuro em relação ao relógio do ambiente; o CI é a referência.
-- **App:** `tests/smoke/envioSemPerdaSemDuplicar.test.js` (12 testes) e a suíte `test:smoke` completa.
+- **App:** `tests/smoke/envioSemPerdaSemDuplicar.test.js` (22 testes) e a suíte `test:smoke` completa.
 - **Gates:** types, import-integrity, source-closure, product-scope, api-boundary, admin-isolation, governance-paths, no-secrets, base44, tenancy, indices e typecheck:backend.
 - **Banco:** sem migration.
 
