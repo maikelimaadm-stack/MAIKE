@@ -8,7 +8,8 @@
  *  - `incluir_excluidos=true` devolve tudo, cada item com `excluido` (o original e o estorno marcados);
  *  - movimento ativo nunca some; 'Estornada' sem estorno e estorno sem pai 'Estornada' aparecem normalmente;
  *  - o `total`, o keyset e o cursor continuam corretos (e o cursor é amarrado ao filtro);
- *  - o saldo exibido de um movimento ativo desconta os excluídos do mesmo produto e depósito lançados antes dele.
+ *  - o saldo exibido de um movimento ativo desconta os excluídos do mesmo produto e depósito lançados antes dele;
+ *    desde a D-PROD-313 só se exclui o mais recente (409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR` com algo depois).
  * Nada é gravado pela consulta.
  */
 import { test, describe, before, after, beforeEach } from 'node:test';
@@ -283,40 +284,58 @@ describe('D-PROD-273 fatia 2 — paginação e cursor sem os excluídos', () => 
 });
 
 describe('D-PROD-273 fatia 2 — saldo exibido sem os excluídos', () => {
-  test('entrada lançada entre o original e o estorno: o saldo dela desconta o excluído (lista, os dois modos e o detalhe); o excluído fica com o gravado', async () => {
+  test('D-PROD-313: entrada depois da excluída → 409 registro posterior; exclui-se a mais recente primeiro e o saldo exibido é o gravado', async () => {
     const x = await cenario();
     const a = await entrar(x, '100', '2');
     const b = await entrar(x, '50', '3');
     await entrar(x, '7', '1', x.barracao); // outro depósito: não entra na conta
     await entrar(x, '9', '1', x.galpao, x.ureia); // outro produto: também não
-    await excluirEntrada(x, a);
     const idA = a.itens[0].movimentacao_estoque_id;
     const idB = b.itens[0].movimentacao_estoque_id;
-    // D-PROD-273 (fatia 5): com a entrada B depois, a exclusão de A recalcula e grava o saldo de B sem A (o par marcado
-    // não desconta de novo na leitura); a tela mostra o mesmo 0 → 50 de antes, agora gravado
-    const gravadoB = await prisma().movimentacaoEstoque.findUnique({ where: { id: idB } });
-    assert.deepEqual([gravadoB.saldo_antes.toFixed(4), gravadoB.saldo_depois.toFixed(4)], ['0.0000', '50.0000']);
-    assert.equal((await prisma().movimentacaoEstoque.findUnique({ where: { id: idA } })).movimentacao_grupo_id, `exclusao_recalculo:${idA}`);
+    // D-PROD-313: com a entrada B depois, no mesmo produto e depósito, a exclusão de A é recusada; nada é gravado
+    const antes = await movimentosDoTenant(x);
+    const recusa = await chamar('POST', `/estoque/entradas/${a.id}/excluir`, x.token, { empresa_id: x.e.id, versao: a.versao, motivo: 'lançada errada', operation_id: `ex-${randomUUID()}` });
+    assert.equal(recusa.statusCode, 409, recusa.body);
+    assert.equal(recusa.json().code, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR');
+    assert.equal(recusa.json().reason, 'registro_posterior');
+    assert.equal(recusa.json().details.posterior_id, idB);
+    assert.deepEqual(await movimentosDoTenant(x), antes);
+    // a mais recente sai primeiro; depois a original sai normalmente (o par de B, já excluído, não a prende: sai da
+    // sequência junto com A, os dois pares marcados, cada um com o saldo gravado)
+    await excluirEntrada(x, b);
+    await excluirEntrada(x, a);
+    const gravados = await movimentosDoTenant(x);
+    assert.deepEqual([idA, idB].map((id) => gravados.find((m) => m.id === id).status), ['Estornada', 'Estornada']);
 
+    // os dois pares somem do kardex padrão; o depósito e o produto de fora ficam com o gravado
     const padrao = porId((await kardex(x, { produto_id: x.p.id })).items);
-    assert.deepEqual(Object.keys(padrao).length, 2);
-    assert.deepEqual([padrao[idB].saldo_antes, padrao[idB].saldo_depois], ['0.0000', '50.0000']);
-    const tudo = porId((await kardex(x, { produto_id: x.p.id, incluir_excluidos: true })).items);
-    assert.deepEqual([tudo[idB].saldo_antes, tudo[idB].saldo_depois], ['0.0000', '50.0000'], 'o saldo do ativo não muda ao mostrar os excluídos');
-    assert.deepEqual([tudo[idA].excluido, tudo[idA].saldo_antes, tudo[idA].saldo_depois], [true, '0.0000', '100.0000']);
-    const estorno = Object.values(tudo).find((i) => i.tipo_detalhado === 'estorno_entrada_exclusao');
-    assert.deepEqual([estorno.excluido, estorno.saldo_antes, estorno.saldo_depois], [true, '150.0000', '50.0000']);
+    assert.deepEqual(Object.keys(padrao).length, 1);
     const outros = Object.values(padrao).find((i) => i.local_destino_id === x.barracao.id);
     assert.deepEqual([outros.saldo_antes, outros.saldo_depois], ['0.0000', '7.0000']);
     const ureia = (await kardex(x, { produto_id: x.ureia.id })).items[0];
     assert.deepEqual([ureia.saldo_antes, ureia.saldo_depois], ['0.0000', '9.0000']);
+    assert.equal(gravados.find((m) => m.id === idA).movimentacao_grupo_id, `exclusao_recalculo:${idA}`);
+    assert.ok(String(gravados.find((m) => m.id === idB).movimentacao_grupo_id).startsWith('exclusao_recalculo:'), 'o par de B sai da sequência com A');
+    // com incluir_excluidos, cada excluído fica com o saldo gravado (A 0 → 100, B 100 → 150, estorno de B 150 → 100, estorno de A 100 → 0)
+    const tudo = porId((await kardex(x, { produto_id: x.p.id, incluir_excluidos: true })).items);
+    assert.deepEqual([tudo[idA].excluido, tudo[idA].saldo_antes, tudo[idA].saldo_depois], [true, '0.0000', '100.0000']);
+    assert.deepEqual([tudo[idB].excluido, tudo[idB].saldo_antes, tudo[idB].saldo_depois], [true, '100.0000', '150.0000']);
+    const estornos = Object.values(tudo).filter((i) => i.tipo_detalhado === 'estorno_entrada_exclusao');
+    const estornoDe = (id) => estornos.find((i) => gravados.find((m) => m.id === i.id).movimento_pai_id === id);
+    assert.deepEqual([estornoDe(idB).excluido, estornoDe(idB).saldo_antes, estornoDe(idB).saldo_depois], [true, '150.0000', '100.0000']);
+    assert.deepEqual([estornoDe(idA).excluido, estornoDe(idA).saldo_antes, estornoDe(idA).saldo_depois], [true, '100.0000', '0.0000']);
 
-    const d = await detalhe(x, idB);
-    assert.deepEqual([d.excluido, d.saldo_antes, d.saldo_depois], [false, '0.0000', '50.0000']);
+    // uma entrada nova depois dos dois pares: o saldo exibido é o gravado (os pares inteiros antes somam zero)
+    const c = await entrar(x, '20', '4');
+    const idC = c.itens[0].movimentacao_estoque_id;
+    const d = await detalhe(x, idC);
+    assert.deepEqual([d.excluido, d.saldo_antes, d.saldo_depois], [false, '0.0000', '20.0000']);
     const dA = await detalhe(x, idA);
     assert.deepEqual([dA.excluido, dA.saldo_antes, dA.saldo_depois], [true, '0.0000', '100.0000']);
+    const lista = porId((await kardex(x, { produto_id: x.p.id })).items);
+    assert.deepEqual([lista[idC].saldo_antes, lista[idC].saldo_depois], ['0.0000', '20.0000']);
     // a consulta não regrava o saldo
-    assert.equal((await prisma().movimentacaoEstoque.findUnique({ where: { id: idB } })).saldo_depois.toFixed(4), '50.0000');
+    assert.equal((await prisma().movimentacaoEstoque.findUnique({ where: { id: idC } })).saldo_depois.toFixed(4), '20.0000');
   });
 
   test('par inteiro antes do movimento soma zero: a saída depois de uma saída excluída fica com o saldo gravado', async () => {

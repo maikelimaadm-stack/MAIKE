@@ -71,6 +71,19 @@ const corpoSaida = (x, extra = {}, item = {}) => ({
 const sair = (x, extra, item, token = x.token) => chamar('POST', '/estoque/saidas', token, corpoSaida(x, extra, item));
 const excluirSaida = (x, s, extra = {}, token = x.token) =>
   chamar('POST', `/estoque/saidas/${s.id}/excluir`, token, { empresa_id: x.e.id, versao: s.versao, motivo: 'lançada por engano', operation_id: `ex-${randomUUID()}`, ...extra });
+const excluirEntrada = (x, ent, token = x.token) =>
+  chamar('POST', `/estoque/entradas/${ent.id}/excluir`, token, { empresa_id: x.e.id, versao: ent.versao ?? 1, motivo: 'lançada por engano', operation_id: `ex-${randomUUID()}` });
+/** D-PROD-313 — retrato do que a exclusão recusada não pode gravar: saldo, movimentos, camadas e documentos. */
+const foto = async (x) => ({
+  estoque: Number((await prisma().produto.findUnique({ where: { id: x.ureia.id } })).estoque_atual),
+  movimentos: JSON.stringify(await prisma().movimentacaoEstoque.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' },
+    select: { id: true, status: true, movimento_filho_id: true, saldo_antes: true, saldo_depois: true, custo_medio_depois: true, valor_unitario: true, valor_total: true } })),
+  camadas: JSON.stringify(await prisma().estoqueLoteNota.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' }, select: { id: true, quantidade_disponivel: true, status: true } })),
+  documentos: JSON.stringify([
+    await prisma().saidaEstoque.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' }, select: { id: true, status: true, versao: true } }),
+    await prisma().entradaEstoque.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' }, select: { id: true, status: true, versao: true } }),
+  ]),
+});
 const estoqueAtual = async (p) => Number((await prisma().produto.findUnique({ where: { id: p.id } })).estoque_atual);
 const disponivel = async (p, deposito) =>
   Number((await prisma().estoqueLoteNota.aggregate({ _sum: { quantidade_disponivel: true }, where: { produto_id: p.id, local_estoque_id: deposito.id, status: 'Disponivel' } }))._sum.quantidade_disponivel ?? 0);
@@ -243,7 +256,7 @@ describe('D-PROD-264 — excluir: estorno integral, só sem movimento depois', (
     await reconciliacaoLimpa(x);
   });
 
-  test('D-PROD-273 (fatia 4): outro movimento do produto NO MESMO depósito depois (entrada ou outra saída) → a exclusão passa e RECALCULA o que veio depois (antes: 409 MOVIMENTO_POSTERIOR); em outro depósito não há recálculo', async () => {
+  test('D-PROD-313: outro movimento do produto NO MESMO depósito depois (entrada ou outra saída) → 409 registro posterior e nada gravado; exclui o mais recente primeiro; em outro depósito não conta', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
     await entrar(x, x.ureia, '100', '3', x.barracao);
@@ -256,23 +269,34 @@ describe('D-PROD-264 — excluir: estorno integral, só sem movimento depois', (
     assert.equal(ok.statusCode, 200, ok.body);
     assert.equal(ok.json().recalculo, null, 'outro depósito não conta: estorno exato, sem recálculo');
 
+    // Uma ENTRADA depois no Galpão: a saída s2 não sai enquanto a entrada valer.
     const s2 = (await sair(x)).json();
     const entradaDepois = await entrar(x, x.ureia, '1', '3');
-    const antes = await estoqueAtual(x.ureia);
+    const movEntrada = await prisma().movimentacaoEstoque.findUnique({ where: { id: entradaDepois.itens[0].movimentacao_estoque_id } });
+    const antes = await foto(x);
     const r = await excluirSaida(x, s2);
-    assert.equal(r.statusCode, 200, r.body);
-    // tudo a R$ 3: só o saldo da entrada de 1 kg é regravado (sem a s2 do Galpão, ele sobe a quantidade dela)
-    assert.deepEqual(r.json().recalculo, { produtos: 1, movimentos: 1, camadas: 0, dependentes: 0 });
-    const me = await prisma().movimentacaoEstoque.findUnique({ where: { id: entradaDepois.itens[0].movimentacao_estoque_id } });
-    assert.deepEqual([me.saldo_antes.toFixed(4), me.saldo_depois.toFixed(4)], ['100.0000', '101.0000']);
-    assert.equal(await estoqueAtual(x.ureia), antes + Number(s2.itens[0].quantidade_estoque));
+    assert.deepEqual([r.statusCode, r.json().code, r.json().reason, r.json().details?.posterior_id, r.json().details?.posterior_numero, r.json().details?.local_estoque_id],
+      [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', movEntrada.id, movEntrada.numero_movimentacao, x.galpao.id], r.body);
+    assert.deepEqual(await foto(x), antes, 'nada foi gravado');
+    // Do mais recente para o mais antigo: a entrada sai, depois a saída.
+    const exE = await excluirEntrada(x, entradaDepois);
+    assert.equal(exE.statusCode, 200, exE.body);
+    const r2 = await excluirSaida(x, s2);
+    assert.equal(r2.statusCode, 200, r2.body);
     assert.equal((await prisma().saidaEstoque.findUnique({ where: { id: s2.id } })).status, 'EXCLUIDA');
+    assert.equal(await estoqueAtual(x.ureia), antes.estoque - 1 + Number(s2.itens[0].quantidade_estoque));
 
+    // Outra SAÍDA depois no Galpão: a mesma regra.
     const s3 = (await sair(x)).json();
-    await sair(x, {}, { quantidade: '1' });
+    const depois = (await sair(x, {}, { quantidade: '1' })).json();
+    const antes3 = await foto(x);
     const r3 = await excluirSaida(x, s3);
-    assert.equal(r3.statusCode, 200, r3.body);
-    assert.equal(r3.json().recalculo.produtos, 1);
+    assert.deepEqual([r3.statusCode, r3.json().code, r3.json().details?.posterior_id], [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', depois.itens[0].movimentacao_estoque_id], r3.body);
+    assert.deepEqual(await foto(x), antes3, 'nada foi gravado');
+    assert.equal((await excluirSaida(x, depois)).statusCode, 200);
+    const r3b = await excluirSaida(x, s3);
+    assert.equal(r3b.statusCode, 200, r3b.body);
+    assert.equal(await estoqueAtual(x.ureia), antes3.estoque + 31);
     await reconciliacaoLimpa(x);
   });
 
@@ -291,13 +315,19 @@ describe('D-PROD-264 — excluir: estorno integral, só sem movimento depois', (
     assert.equal(await estoqueAtual(x.ureia), 100);
   });
 
-  test('a saída que consumiu a camada de uma entrada impede excluir a entrada quando ela é o único estoque (D-PROD-273 fatia 5: saldo negativo)', async () => {
+  test('a saída que consumiu a camada de uma entrada impede excluir a entrada quando ela é o único estoque (D-PROD-313: registro posterior; a saída sai primeiro)', async () => {
     const x = await cenario();
     const ent = await entrar(x, x.ureia, '100', '3');
-    await sair(x);
-    const r = await chamar('POST', `/estoque/entradas/${ent.id}/excluir`, x.token, { empresa_id: x.e.id, versao: 1, motivo: 'teste', operation_id: `ex-${randomUUID()}` });
-    assert.deepEqual([r.statusCode, r.json().code], [409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO'], r.body);
-    assert.equal(await estoqueAtual(x.ureia) < 100, true, 'nada foi devolvido');
+    const s = (await sair(x)).json();
+    // D-PROD-313: o saldo negativo (D-PROD-273 fatia 5) agora é precedido pela recusa do registro posterior: a saída vale.
+    const antes = await foto(x);
+    const r = await excluirEntrada(x, ent);
+    assert.deepEqual([r.statusCode, r.json().code, r.json().details?.posterior_id], [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', s.itens[0].movimentacao_estoque_id], r.body);
+    assert.deepEqual(await foto(x), antes, 'nada foi devolvido');
+    assert.equal((await excluirSaida(x, s)).statusCode, 200);
+    const ok = await excluirEntrada(x, ent);
+    assert.equal(ok.statusCode, 200, ok.body);
+    assert.equal(await estoqueAtual(x.ureia), 0);
   });
 });
 

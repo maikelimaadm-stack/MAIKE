@@ -208,28 +208,41 @@ describe('D-PROD-268 depósito — POST cancelar-transferencia', () => {
     await reconciliacaoLimpa(x);
   });
 
-  test('D-PROD-273 (fatia 5): com movimento depois nos depósitos, o cancelamento RECALCULA (antes: regra do último); recusa só se um saldo ficaria negativo (ensaio e POST, nada muda); outro produto não conta; cadeia A→B→C', async () => {
+  test('D-PROD-313: com movimento depois nos depósitos (origem OU destino) → 409 registro posterior (ensaio e POST, nada muda), antes do saldo negativo; exclui o mais recente primeiro (pares já excluídos saem da simulação junto); outro produto não conta; cadeia A→B→C sai do último ao primeiro', async () => {
     const x = await cenario();
     await entrar(x, '100', '2');
     const t1 = await transferir(x, 30);
     await entrar(x, '5', '9', x.galpao, x.outro);
-    await suplementar(x, 5, x.barracao);
+    const sup = await suplementar(x, 5, x.barracao);
     const ret = await retrato(x);
-    // sem t1 o Barracão tinha 0 kg quando o cocho tirou 5 → −5 no destino
+    // D-PROD-313: o saldo negativo (sem t1 o Barracão ficaria em −5) agora é precedido pela recusa do registro
+    // posterior: a baixa do cocho no DESTINO é o mais recente que ainda vale (a entrada do outro produto não conta).
     const g = (await elegibilidade(x, t1.s.id)).json();
-    assert.deepEqual([g.elegivel, g.codigo, g.detalhes.reason, g.detalhes.local_estoque_id, g.detalhes.saldo], [false, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo_negativo', x.barracao.id, '-5.0000'], JSON.stringify(g));
+    assert.deepEqual([g.elegivel, g.codigo, g.detalhes.reason, g.detalhes.local_estoque_id, g.detalhes.posterior_id], [false, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', x.barracao.id, sup.id], JSON.stringify(g));
     assert.equal(g.efeitos.quantidade, '30.0000');
-    const j = erro(await cancelar(x, t1.s.id), 409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo_negativo');
-    assert.deepEqual([j.details.local_estoque_id, j.details.saldo], [x.barracao.id, '-5.0000']);
-    assert.match(String(j.details.movimento_numero), /^[0-9]+$/);
+    const j = erro(await cancelar(x, t1.s.id), 409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior');
+    assert.deepEqual([j.details.posterior_id, j.details.posterior_numero, j.details.local_estoque_id], [sup.id, sup.numero_movimentacao, x.barracao.id]);
     assert.deepEqual(await retrato(x), ret);
 
-    // entrada na origem depois: o cancelamento passa e recalcula (o Galpão volta a 71 kg; o Barracão fica com 25)
+    // entrada na ORIGEM depois: 409 apontando a entrada, nada muda; excluída a entrada (a mais recente), o cancelamento
+    // sai normalmente (o Galpão volta a 71 kg; o Barracão fica com 25)
     const t2 = await transferir(x, 20);
-    await entrar(x, '1', '3');
+    const ent = await entrar(x, '1', '3');
+    const ret2 = await retrato(x);
+    const j2 = erro(await cancelar(x, t2.r.id), 409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior');
+    assert.deepEqual([j2.details.posterior_id, j2.details.local_estoque_id], [ent.itens[0].movimentacao_estoque_id, x.galpao.id]);
+    assert.deepEqual(await retrato(x), ret2);
+    const ex = await chamar('POST', `/estoque/entradas/${ent.id}/excluir`, x.token, { empresa_id: x.e.id, versao: ent.versao, motivo: 'lançada errada', operation_id: opId() });
+    assert.equal(ex.statusCode, 200, ex.body);
     const r2 = await cancelar(x, t2.r.id);
     assert.equal(r2.statusCode, 200, r2.body);
-    assert.equal(r2.json().recalculo.produtos, 1);
+    // depois só havia o par já excluído da entrada: ele sai da simulação junto (marcado `exclusao_recalculo:`) e
+    // nenhum movimento que ainda vale é regravado
+    assert.deepEqual([r2.json().recalculo.movimentos, r2.json().recalculo.dependentes], [0, 0], JSON.stringify(r2.json().recalculo));
+    const parEntrada = await prisma().movimentacaoEstoque.findMany({ where: { cliente_id: x.c, OR: [{ id: ent.itens[0].movimentacao_estoque_id }, { movimento_pai_id: ent.itens[0].movimentacao_estoque_id }] } });
+    assert.equal(parEntrada.length, 2);
+    assert.ok(parEntrada.every((m) => String(m.movimentacao_grupo_id ?? '').startsWith('exclusao_recalculo:')), JSON.stringify(parEntrada.map((m) => m.movimentacao_grupo_id)));
+    assert.equal(await estoqueAtual(x), '95');
     await reconciliacaoLimpa(x);
 
     // outro produto nos mesmos locais não conta: estorno exato
@@ -242,15 +255,31 @@ describe('D-PROD-268 depósito — POST cancelar-transferencia', () => {
     assert.deepEqual([ry.statusCode, ry.json().recalculo], [200, null]);
     await reconciliacaoLimpa(y);
 
-    // cadeia A→B→C: sem A→B, o B não teria os 10 que foram para C → recusa; o último elo é estorno exato; depois dele o
-    // primeiro continua recusado (o estorno exato de B→C fica na sequência, e B→C ainda tira 10 do B)
+    // cadeia A→B→C: o B→C é posterior ao A→B no Barracão → 409 apontando a perna mais recente do B→C (a recebida,
+    // que também cita o Barracão como origem), nada muda; o último elo é estorno exato. Depois dele o par B→C já
+    // excluído sai da simulação junto com o A→B: o primeiro sai também, e os três depósitos voltam ao de antes.
     const z = await cenario();
     await entrar(z, '50', '2');
     const ab = await transferir(z, 20, z.galpao, z.barracao);
     const bc = await transferir(z, 10, z.barracao, z.retiro);
-    erro(await cancelar(z, ab.s.id), 409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo_negativo');
-    assert.equal((await cancelar(z, bc.s.id)).statusCode, 200);
-    erro(await cancelar(z, ab.s.id), 409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo_negativo');
+    const retz = await retrato(z);
+    const jz = erro(await cancelar(z, ab.s.id), 409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior');
+    assert.deepEqual([jz.details.posterior_id, jz.details.posterior_numero, jz.details.local_estoque_id], [bc.r.id, bc.r.numero_movimentacao, z.barracao.id], JSON.stringify(jz.details));
+    assert.deepEqual(await retrato(z), retz);
+    const rbc = await cancelar(z, bc.s.id);
+    assert.equal(rbc.statusCode, 200, rbc.body);
+    assert.equal(rbc.json().recalculo, null, 'o último elo é estorno exato');
+    const rab = await cancelar(z, ab.s.id);
+    assert.equal(rab.statusCode, 200, rab.body);
+    // o par B→C (já excluído) sai da simulação junto com o A→B, marcado `exclusao_recalculo:`; nada que vale é regravado
+    assert.deepEqual([rab.json().recalculo.movimentos, rab.json().recalculo.dependentes], [0, 0], JSON.stringify(rab.json().recalculo));
+    const parBc = await prisma().movimentacaoEstoque.findMany({ where: { cliente_id: z.c, OR: [{ id: { in: [bc.s.id, bc.r.id] } }, { movimento_pai_id: { in: [bc.s.id, bc.r.id] } }] } });
+    assert.ok(parBc.length >= 4 && parBc.every((m) => String(m.movimentacao_grupo_id ?? '').startsWith('exclusao_recalculo:')), JSON.stringify(parBc.map((m) => [m.tipo_detalhado, m.movimentacao_grupo_id])));
+    const disponivel = async (deposito) => (await prisma().estoqueLoteNota.findMany({ where: { cliente_id: z.c, produto_id: z.p.id, local_estoque_id: deposito.id, status: 'Disponivel' } }))
+      .reduce((t, l) => t + Number(l.quantidade_disponivel), 0);
+    assert.deepEqual([await disponivel(z.galpao), await disponivel(z.barracao), await disponivel(z.retiro)], [50, 0, 0]);
+    assert.equal(await estoqueAtual(z), '50');
+    assert.deepEqual([(await mov(ab.s.id)).status, (await mov(ab.r.id)).status, (await mov(bc.s.id)).status, (await mov(bc.r.id)).status], ['Estornada', 'Estornada', 'Estornada', 'Estornada']);
     await reconciliacaoLimpa(z);
   });
 
@@ -300,11 +329,11 @@ describe('D-PROD-268 depósito — POST cancelar-transferencia', () => {
     assert.equal((await chamar('GET', `/movimentacoes-estoque/${t.s.id}/elegibilidade-cancelamento-transferencia`, x.token)).statusCode, 400);
     assert.equal((await cancelar(x, t.s.id, { token: null })).statusCode, 401);
     assert.deepEqual(await retrato(x), ret);
-    // D-PROD-273 (fatia 5): a baixa do cocho na ORIGEM depois da transferência não bloqueia mais — o cancelamento
-    // recalcula (a origem tinha 100 kg sem a transferência; o cocho de 5 continua a R$ 2)
-    const okc = await cancelar(x, t.s.id);
-    assert.equal(okc.statusCode, 200, okc.body);
-    assert.equal(okc.json().recalculo.produtos, 1);
+    // D-PROD-313: a baixa do cocho na ORIGEM depois da transferência vincula — 409 registro posterior apontando a
+    // baixa, nada muda (o caminho "exclui o mais recente primeiro" está no teste da D-PROD-313 acima)
+    const jc = erro(await cancelar(x, t.s.id), 409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior');
+    assert.deepEqual([jc.details.posterior_id, jc.details.local_estoque_id], [sup.id, x.galpao.id]);
+    assert.deepEqual(await retrato(x), ret);
     assert.equal(String((await mov(sup.id)).valor_total), '10');
   });
 

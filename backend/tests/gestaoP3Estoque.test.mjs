@@ -359,7 +359,7 @@ describe('E3b — ordem global de travas (§8.4)', () => {
     await conferirInvariantes(s, {}, 'ordem cruzada');
   });
 
-  test('cancelar a compra × vender o mesmo lote, em paralelo (3 rodadas): ou a venda vence (cancelamento 409 — D-PROD-273 fatia 5: saldo negativo sem a compra) ou o cancelamento vence (venda 422); nunca os dois, nunca 500', async () => {
+  test('cancelar a compra × vender o mesmo lote, em paralelo (3 rodadas): ou a venda vence (cancelamento 409 — D-PROD-313: a venda é registro posterior que ainda vale) ou o cancelamento vence (venda 422); nunca os dois, nunca 500', async () => {
     const s = await montarTenant(app);
     const e = s.e1;
     const p = prisma();
@@ -369,7 +369,8 @@ describe('E3b — ordem global de travas (§8.4)', () => {
       const [rc, rv] = await Promise.all([cancelar(s, compra, e), A.confirmarReq(s.token, venda, e.id)]);
       const lote = await p.estoqueLoteNota.findUnique({ where: { id: compra.itens[0].estoque_lote_nota_id } });
       if (rv.statusCode === 200) {
-        assert.deepEqual([rc.statusCode, codigo(rc), lote.status, q4(lote.quantidade_disponivel)], [409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'Disponivel', '6.0000'], rc.body);
+        // D-PROD-313: a recusa por saldo negativo (sem a compra) agora é precedida pela do registro posterior (a venda)
+        assert.deepEqual([rc.statusCode, codigo(rc), rc.json().details?.posterior_tipo, lote.status, q4(lote.quantidade_disponivel)], [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'venda_financeiro', 'Disponivel', '6.0000'], rc.body);
         await A.ok(cancelar(s, { id: venda.id }, e));
         await A.ok(cancelar(s, compra, e));
       } else {
@@ -477,10 +478,10 @@ describe('E4 — cancelamento com efeito de estoque', () => {
     assert.equal((await suplementar(s, e, e.sal, s.local, 1)).statusCode, 201);
     let antes = await foto(s.c);
     let r = await cancelar(s, compra, e);
-    // D-PROD-273 (fatia 5): com movimento depois, o cancelamento da compra recalcula; aqui a compra é o único estoque do
-    // sal, então sem ela a suplementação de 1 kg deixaria o depósito em −1 → 409 saldo negativo (o lote fica intocado)
-    assert.deepEqual([r.statusCode, codigo(r), motivo(r), r.json().details.local_estoque_id, r.json().details.saldo],
-      [409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo_negativo', s.local.id, '-1.0000'], r.body);
+    // D-PROD-313: a recusa por saldo negativo (sem a compra, a suplementação de 1 kg deixaria o depósito em −1) agora é
+    // precedida pela do registro posterior: a suplementação depois, no mesmo produto e depósito, ainda vale (o lote fica intocado)
+    assert.deepEqual([r.statusCode, codigo(r), motivo(r), r.json().details.local_estoque_id, r.json().details.posterior_tipo],
+      [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', s.local.id, 'suplementacao'], r.body);
     assert.equal(q4((await prisma().estoqueLoteNota.findUnique({ where: { id: lote } })).quantidade_disponivel), '99.0000');
     assert.equal(await foto(s.c), antes, 'o 1º item (intocado) também não foi estornado');
 
@@ -492,7 +493,8 @@ describe('E4 — cancelamento com efeito de estoque', () => {
     await A.confirmar(s2.token, venda, e2.id);
     antes = await foto(s2.c);
     r = await cancelar(s2, compra2, e2);
-    assert.deepEqual([r.statusCode, codigo(r), motivo(r), r.json().details.saldo], [409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo_negativo', '-30.0000'], r.body);
+    // D-PROD-313: a recusa por saldo negativo (−30 sem a compra) agora é precedida pela do registro posterior (a venda)
+    assert.deepEqual([r.statusCode, codigo(r), motivo(r), r.json().details.posterior_tipo], [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', 'venda_financeiro'], r.body);
     assert.equal(await foto(s2.c), antes);
     await A.ok(cancelar(s2, venda, e2));
     await A.ok(cancelar(s2, compra2, e2));

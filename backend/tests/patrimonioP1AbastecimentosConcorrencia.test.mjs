@@ -332,14 +332,16 @@ describe('C3 — abastecimento × venda P3 do mesmo produto', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('C4 — abastecimento × cancelamento/retificação/exclusão P3 do mesmo produto', () => {
-  test('compra: cancelar e retificar nas duas ordens → sem ciclo; quem chega depois vê o efeito do outro (409 saldo negativo / OPERACAO_RETIFICACAO_BLOQUEADA, 422 sem saldo, ou 2xx coerente)', async () => {
+  test('compra: cancelar e retificar nas duas ordens → sem ciclo; quem chega depois vê o efeito do outro (409 registro posterior (D-PROD-313) / OPERACAO_RETIFICACAO_BLOQUEADA, 422 sem saldo, ou 2xx coerente)', async () => {
     const s = await montarAbastecimento(app, { lotes: false });
     const cx = await confirmadoP3(s, 'PAGAR', '100', '6.00');
-    // R1: abastecimento segura o produto; cancelar a compra espera → o lote já foi consumido. D-PROD-273 (fatia 5): o
-    // cancelamento recalcularia, mas sem a compra o abastecimento de 80 L deixaria o depósito negativo → 409 saldo negativo
+    // R1: abastecimento segura o produto; cancelar a compra espera → o lote já foi consumido. D-PROD-313: o abastecimento
+    // que venceu a corrida é registro posterior que ainda vale → 409 registro posterior apontando ele (a recusa por
+    // saldo negativo, que viria do recálculo, agora é precedida por esta), nada muda
     const r1 = await corrida(s, NO_MOVIMENTO_DO_ABASTECIMENTO, () => A.confirmar(s.operador.token, corpoAbastecimento(s)), () => cancelarP3(s, cx));
     assert.equal(r1.r1.statusCode, 201, r1.r1.body);
-    assert.deepEqual(erro(r1.r2).slice(0, 2), [409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO'], r1.r2.body);
+    assert.deepEqual(erro(r1.r2), [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'movimento_id', 'registro_posterior'], r1.r2.body);
+    assert.equal(r1.r2.json().details.posterior_id, r1.r1.json().movimentacao.id, 'o registro posterior é o abastecimento que venceu a corrida');
     assert.equal(await loteKg(loteDaCompra(cx)), '20.0000 Disponivel');
     assert.equal(await coerente(s, s.diesel, 'C4 R1'), '20.0000');
     // R2: compra Y; abastecimento (consome X e Y) segura; retificar Y espera → bloqueada
@@ -464,7 +466,7 @@ describe('C6 — abastecimento × PATCH do bem', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('C8 — confirmar × cancelar e cancelar × cancelar', () => {
-  test('cancelar × cancelar (chaves diferentes): 200 e 409 ABASTECIMENTO_STATUS_INVALIDO; confirmar × cancelar do mesmo bem nas duas ordens: ambos aplicam, estoque exato', async () => {
+  test('cancelar × cancelar (chaves diferentes): 200 e 409 ABASTECIMENTO_STATUS_INVALIDO; confirmar × cancelar do mesmo bem nas duas ordens: confirmar primeiro → o cancelamento vê o novo e recusa 409 registro posterior (D-PROD-313); cancelar primeiro → ambos aplicam, estoque exato', async () => {
     const s = await montarAbastecimento(app);
     // 60 L por abastecimento: dois cabem nos 150 L (o 3º só depois de um cancelamento)
     const c60 = () => corpoAbastecimento(s, { quantidade: '60' });
@@ -475,20 +477,30 @@ describe('C8 — confirmar × cancelar e cancelar × cancelar', () => {
     assert.deepEqual(erro(cc.r2), [409, 'ABASTECIMENTO_STATUS_INVALIDO', 'status', 'status_invalido'], cc.r2.body);
     assert.equal(await contar(s, 'movimentacaoEstoque', { tipo_detalhado: 'estorno_abastecimento' }), 1, 'um estorno só');
     assert.equal(await coerente(s, s.diesel, 'C8 cancelar×cancelar'), '150.0000');
-    // confirmar A3 segura o Bem; cancelar A2 espera
+    // confirmar A3 segura o Bem; cancelar A2 espera. D-PROD-313: o A3 foi gravado depois do A2 no mesmo depósito e ainda
+    // vale → o cancelamento do A2 recusa 409 registro posterior apontando o A3; nada do cancelamento é gravado
     const a2 = await A.confirmarOk(s.operador.token, c60());
     const x = await corrida(s, NO_MOVIMENTO_DO_ABASTECIMENTO, () => A.confirmar(s.operador.token, c60()), () => A.cancelar(s.contaCancelar.token, a2.id, corpoCancelar()));
     assert.equal(x.r1.statusCode, 201, x.r1.body);
-    assert.equal(x.r2.statusCode, 200, x.r2.body);
-    assert.deepEqual([await loteKg(s.lotes.dieselA.id), await loteKg(s.lotes.dieselB.id)], ['50.0000 Disponivel', '40.0000 Disponivel']);
-    assert.equal(await coerente(s, s.diesel, 'C8 confirmar×cancelar'), '90.0000');
-    // cancelar A3 segura; confirmar A4 espera
+    assert.deepEqual(erro(x.r2), [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'movimento_id', 'registro_posterior'], x.r2.body);
+    assert.equal(x.r2.json().details.posterior_id, x.r1.json().movimentacao.id, 'o registro posterior é o A3 que venceu a corrida');
+    assert.equal(await contar(s, 'movimentacaoEstoque', { tipo_detalhado: 'estorno_abastecimento' }), 1, 'nenhum estorno novo');
+    assert.equal(await contar(s, 'abastecimentoBem', { status: 'CONFIRMADO' }), 2, 'A2 e A3 seguem confirmados');
+    assert.deepEqual([await loteKg(s.lotes.dieselA.id), await loteKg(s.lotes.dieselB.id)], ['0.0000 Esgotado', '30.0000 Disponivel']);
+    assert.equal(await coerente(s, s.diesel, 'C8 confirmar×cancelar'), '30.0000');
+    // cancelar A3 (o mais recente) segura; confirmar A4 espera e relê o que voltou ao lote B
     const y = await corrida(s, NO_ESTORNO_DO_ABASTECIMENTO, () => A.cancelar(s.contaCancelar.token, x.r1.json().id, corpoCancelar()), () => A.confirmar(s.operador.token, c60()));
     assert.equal(y.r1.statusCode, 200, y.r1.body);
     assert.equal(y.r2.statusCode, 201, y.r2.body);
-    assert.deepEqual(await fatiasDe(y.r2.json().id), [[s.lotes.dieselA.id, '50.0000'], [s.lotes.dieselB.id, '10.0000']], 'o confirmar releu os lotes devolvidos');
-    assert.equal(await coerente(s, s.diesel, 'C8 cancelar×confirmar'), '90.0000');
-    assert.equal(await contar(s, 'abastecimentoBem', { status: 'CONFIRMADO' }), 1);
+    assert.deepEqual(await fatiasDe(y.r2.json().id), [[s.lotes.dieselB.id, '60.0000']], 'o confirmar releu os lotes devolvidos (antes do cancelamento o B só tinha 30)');
+    assert.equal(await coerente(s, s.diesel, 'C8 cancelar×confirmar'), '30.0000');
+    assert.equal(await contar(s, 'abastecimentoBem', { status: 'CONFIRMADO' }), 2);
+    // do mais recente para o mais antigo: cancelado o A4, o A2 sai normalmente e o estoque volta aos 150 L
+    await A.ok(A.cancelar(s.contaCancelar.token, y.r2.json().id, corpoCancelar()));
+    await A.ok(A.cancelar(s.contaCancelar.token, a2.id, corpoCancelar()));
+    assert.deepEqual([await loteKg(s.lotes.dieselA.id), await loteKg(s.lotes.dieselB.id)], ['50.0000 Disponivel', '100.0000 Disponivel']);
+    assert.equal(await coerente(s, s.diesel, 'C8 do mais recente ao mais antigo'), '150.0000');
+    assert.equal(await contar(s, 'abastecimentoBem', { status: 'CONFIRMADO' }), 0);
     semConflito(cc.r1, cc.r2, x.r1, x.r2, y.r1, y.r2);
     await numeracaoLimpa(s);
   });

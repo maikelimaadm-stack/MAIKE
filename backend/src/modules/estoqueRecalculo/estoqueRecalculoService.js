@@ -16,7 +16,7 @@ import {
   ORIGEM_ABASTECIMENTO, ORIGEM_AJUSTE_ESTOQUE, ORIGEM_APONTAMENTO, ORIGEM_SAIDA_ESTOQUE, ORIGEM_SISTEMA, ORIGEM_SUPLEMENTACAO,
   TIPO_FALTA_AJUSTE, TIPO_SOBRA_AJUSTE, ehOrigemEntradaDocumentada,
 } from '../estoqueFisico/estoqueFisicoMotor.js';
-import { buscarMovimentoPosterior } from '../estoqueFisico/movimentoPosterior.js';
+import { buscarMovimentoPosterior, buscarParesExcluidosDepois, buscarRegistroPosteriorValendo, recusaRegistroPosterior } from '../estoqueFisico/movimentoPosterior.js';
 import {
   TETO_MOVIMENTOS_AFETADOS, TETO_MOVIMENTOS_PRODUTO, buscarAjustePosterior, emLeituraSomente, lerDependentes, lerHistoricoDoProduto, volumeExcedido,
 } from './estoqueRecalculoLeitor.js';
@@ -170,6 +170,41 @@ const nadaDepois = async (tx, cli, m, ids) => {
 };
 
 /**
+ * D-PROD-313 — o registro posterior que ainda vale (o mais recente), em algum dos depósitos dos movimentos `ids`
+ * (origem ou destino), ignorando os próprios `ids`. A mesma prova do planejador (`planejarExclusaoComRecalculo`).
+ */
+const registroPosteriorDe = async (tx, cli, m, ids) => {
+  const lidos = await tx.movimentacaoEstoque.findMany({
+    where: { cliente_id: cli, id: { in: ids } }, select: { id: true, numero_movimentacao: true, createdAt: true, local_estoque_origem: true, local_estoque_destino: true },
+  });
+  for (const x of lidos) {
+    const locais = [x.local_estoque_origem, x.local_estoque_destino].filter((v) => typeof v === 'string' && v);
+    if (!locais.length) continue;
+    const valendo = await buscarRegistroPosteriorValendo(tx, cli, {
+      empresaId: m.empresa_id, produtoId: m.produto_id, locais, ignorarIds: ids, desde: { createdAt: x.createdAt, numero: x.numero_movimentacao },
+    });
+    if (valendo) return { movimentoId: x.id, valendo };
+  }
+  return null;
+};
+
+/** D-PROD-313 — os pares já excluídos depois dos movimentos `ids` (saem da simulação junto, como no planejador). */
+const paresForaDe = async (tx, cli, m, ids) => {
+  const lidos = await tx.movimentacaoEstoque.findMany({
+    where: { cliente_id: cli, id: { in: ids } }, select: { id: true, numero_movimentacao: true, createdAt: true, local_estoque_origem: true, local_estoque_destino: true },
+  });
+  /** @type {Set<string>} */
+  const fora = new Set();
+  for (const x of lidos) {
+    const locais = [x.local_estoque_origem, x.local_estoque_destino].filter((v) => typeof v === 'string' && v);
+    for (const par of await buscarParesExcluidosDepois(tx, cli, {
+      empresaId: m.empresa_id, produtoId: m.produto_id, locais, ignorarIds: ids, desde: { createdAt: x.createdAt, numero: x.numero_movimentacao },
+    })) par.forEach((id) => fora.add(id));
+  }
+  return [...fora];
+};
+
+/**
  * D-PROD-273 (fatia 5, corrigido na revisão) — a ENTRADA `movimentoId` pode sair pelo estorno exato de antes mesmo com
  * algo lançado depois no depósito dela. Fail-closed, as duas condições:
  *  1. a camada dela está inteira: uma só, 'Disponivel', disponível = entrada e custo = o valor unitário do movimento;
@@ -257,6 +292,9 @@ export const previaExclusao = async (contexto, movimentoId, query = {}, o = {}) 
       if (ajuste) return recusaDeAjuste(await recusaAjustePosterior(tx, cli, ajuste));
     }
     const ativo = m.status === 'Ativa' && !m.movimento_filho_id && !ehEstorno;
+    // D-PROD-313 — só o último: registro posterior que ainda vale, no produto e depósito → recusa (a mesma do planejador).
+    const posterior = ativo && juntos.length ? await registroPosteriorDe(tx, cli, m, juntos) : null;
+    if (posterior) return recusaDeAjuste(recusaRegistroPosterior(posterior.valendo, { movimento_id: posterior.movimentoId }));
     if (ativo && juntos.length && await nadaDepois(tx, cli, m, juntos)) {
       return { ...vazio, movimento: resumoDoMovimento(m), excluidos: juntos, permitido: true, modo: 'estorno_exato' };
     }
@@ -278,11 +316,12 @@ export const previaExclusao = async (contexto, movimentoId, query = {}, o = {}) 
         throw recalculoInviavel('grupo_legado_preenchido', { movimento_id: m.id });
       }
       const primeiro = historico.movimentos.filter((x) => excluir.includes(x.id)).sort(compararCanonico)[0];
-      const afetados = historico.movimentos.filter((x) => compararCanonico(x, primeiro) > 0 && !excluir.includes(x.id)).length;
+      const fora = ativo ? await paresForaDe(tx, cli, m, excluir) : [];
+      const afetados = historico.movimentos.filter((x) => compararCanonico(x, primeiro) > 0 && !excluir.includes(x.id) && !fora.includes(x.id)).length;
       const tetoAfetados = o.tetoAfetados ?? TETO_MOVIMENTOS_AFETADOS;
       if (afetados > tetoAfetados) throw volumeExcedido({ afetados, teto: tetoAfetados });
       const base = exigirReplayIgualAoGravado(historico);
-      const sim = simularExclusao(historico, base, excluir);
+      const sim = simularExclusao(historico, base, [...excluir, ...fora]);
       const dependentes = sim.permitido ? await lerDependentes(tx, cli, empresaId, sim.movimentos.map((x) => x.id)) : [];
       const { reason, ...detalhes } = sim.recusa ?? { reason: null };
       if (!sim.permitido && reason === RAZAO_AJUSTE_POSTERIOR) return recusaDeAjuste(await recusaAjustePosterior(tx, cli, detalhes));

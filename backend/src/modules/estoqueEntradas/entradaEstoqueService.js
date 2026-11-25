@@ -32,6 +32,7 @@
  * ORDEM DAS TRAVAS: recibo → Empresa FOR SHARE (o "hoje") → (edição e exclusão: cabeçalho FOR UPDATE) →
  * LocalEstoque FOR KEY SHARE → Produto (`travarProdutosEstoque`) → camadas → movimentos → sequências.
  */
+import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueFisico/movimentoPosterior.js';
 import { SELECT_CONVERSOES, listarConversoesPublicas } from '../produtos/produtoUnidadesConversao.js';
 import { randomUUID } from 'node:crypto';
 
@@ -451,15 +452,26 @@ const provaDeCamadaIntocada = async (tx, cli, itens, acao = 'exclusão') => {
     if (!lote) throw recusar('camada_inexistente', base);
     if (lote.status !== 'Disponivel' || !dec(lote.quantidade_disponivel).eq(dec(lote.quantidade_entrada)) || !dec(lote.quantidade_entrada).eq(dec(item.quantidade_estoque))) throw recusar('camada_consumida', base);
     if (!dec(lote.custo_unitario).eq(dec(item.custo_kg))) throw recusar('custo_reavaliado', base);
+    // D-PROD-313: a fatia de um dependente cujo movimento é de um par já excluído COM recálculo (fora da sequência)
+    // não é consumo da camada.
     const fatias = /** @type {any[]} */ (await tx.$queryRaw`SELECT (
-        (SELECT count(*) FROM "OperacaoFinanceiraConsumoLote" WHERE cliente_id = ${cli} AND estoque_lote_nota_id = ${loteId}) +
-        (SELECT count(*) FROM "AbastecimentoBemConsumoLote" WHERE cliente_id = ${cli} AND estoque_lote_nota_id = ${loteId}) +
-        (SELECT count(*) FROM "AtividadeApontamentoProdutoConsumoLote" WHERE cliente_id = ${cli} AND estoque_lote_nota_id = ${loteId}))::int AS n`);
+        (SELECT count(*) FROM "OperacaoFinanceiraConsumoLote" f JOIN "OperacaoFinanceiraItem" i ON i.cliente_id = f.cliente_id AND i.id = f.item_id
+          LEFT JOIN "MovimentacaoEstoque" m ON m.cliente_id = i.cliente_id AND m.id = i.movimentacao_estoque_id
+          WHERE f.cliente_id = ${cli} AND f.estoque_lote_nota_id = ${loteId} AND NOT starts_with(COALESCE(m.movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})) +
+        (SELECT count(*) FROM "AbastecimentoBemConsumoLote" f JOIN "AbastecimentoBem" b ON b.cliente_id = f.cliente_id AND b.id = f.abastecimento_id
+          LEFT JOIN "MovimentacaoEstoque" m ON m.cliente_id = b.cliente_id AND m.id = b.movimentacao_estoque_id
+          WHERE f.cliente_id = ${cli} AND f.estoque_lote_nota_id = ${loteId} AND NOT starts_with(COALESCE(m.movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})) +
+        (SELECT count(*) FROM "AtividadeApontamentoProdutoConsumoLote" f JOIN "AtividadeApontamentoProduto" l ON l.cliente_id = f.cliente_id AND l.id = f.linha_id
+          LEFT JOIN "MovimentacaoEstoque" m ON m.cliente_id = l.cliente_id AND m.id = l.movimentacao_estoque_id
+          WHERE f.cliente_id = ${cli} AND f.estoque_lote_nota_id = ${loteId} AND NOT starts_with(COALESCE(m.movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})))::int AS n`);
     if (fatias[0].n > 0) throw recusar('consumo_estornado', base);
     const [{ n: comFatias }] = /** @type {any[]} */ (await tx.$queryRaw`SELECT count(*)::int AS n FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND produto_id = ${item.produto_id} AND lotes_consumidos IS NOT NULL`);
     if (comFatias > TETO_MOVIMENTOS_COM_FATIAS) throw recusar('prova_indeterminada', { ...base, volume: comFatias });
     if (comFatias > 0) {
+      // D-PROD-313: um par já excluído COM recálculo está fora da sequência (o recálculo refez as camadas sem ele): a
+      // fatia que ele ainda guarda não é consumo da camada.
       const citada = /** @type {any[]} */ (await tx.$queryRaw`SELECT 1 FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND produto_id = ${item.produto_id} AND lotes_consumidos IS NOT NULL
+        AND NOT starts_with(COALESCE(movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})
         AND position(${loteId} in lotes_consumidos::text) > 0 LIMIT 1`);
       if (citada.length) throw recusar('camada_citada_em_baixa', base);
     }

@@ -289,13 +289,21 @@ describe('aceite — fluxos da Central Única de Lançamentos', () => {
     const [a2, b2] = await Promise.all(lotes.map((l) => prisma().estoqueLoteNota.findUnique({ where: { id: l.id } })));
     assert.deepEqual([a2.status, a2.quantidade_disponivel.toFixed(4), b2.status, b2.quantidade_disponivel.toFixed(4)], ['Disponivel', '3.0000', 'Disponivel', '4.0000']);
     assert.equal((await prisma().produto.findUnique({ where: { id: s.sal.id } })).estoque_atual.toFixed(4), '7.0000');
-    // comprar e consumir: cancelar a COMPRA consumida → D-PROD-273 (fatia 5): o cancelamento recalcularia, mas sem ela a
-    // venda de 7,5 kg (de 8) deixaria o depósito em −0,5 → 409 saldo negativo
+    // comprar e consumir: cancelar a COMPRA consumida pela venda de depois → 409 registro posterior, nada muda.
+    // D-PROD-313: o saldo negativo (D-PROD-273 fatia 5: sem a compra, a venda de 7,5 kg de 8 deixaria −0,5) agora é
+    // precedido pela recusa do registro posterior: a venda ainda vale e tem de sair primeiro.
     const compra3 = await comprarEConfirmar(s, { quantidade: '1', valorUnitario: '10', total: '10.00', dia: '2027-06-02' });
-    await comprarEConfirmar(s, { direcao: 'RECEBER', quantidade: '7.5', valorUnitario: '20', total: '150.00' });
+    const venda2 = await comprarEConfirmar(s, { direcao: 'RECEBER', quantidade: '7.5', valorUnitario: '20', total: '150.00' });
+    const antesCanc = await fotoEstoque(s);
     const consumida = await req('POST', `/operacoes-financeiras/${compra3.id}/cancelar`, s.token, { empresa_id: s.e1.id, operation_id: opId(), motivo: 'erro' });
     assert.equal(consumida.statusCode, 409, consumida.body);
-    assert.deepEqual([codigo(consumida), motivo(consumida)], ['ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo_negativo']);
+    assert.deepEqual([codigo(consumida), motivo(consumida), consumida.json().details?.posterior_id], ['ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', venda2.itens[0].movimentacao_estoque_id]);
+    assert.equal(await fotoEstoque(s), antesCanc);
+    assert.equal((await prisma().operacaoFinanceira.findUnique({ where: { id: compra3.id } })).status, compra3.status, 'a compra continua confirmada');
+    // do mais recente para o mais antigo: cancelada a venda, depois da compra só resta o par já excluído → a compra sai
+    assert.equal((await ok(req('POST', `/operacoes-financeiras/${venda2.id}/cancelar`, s.token, { empresa_id: s.e1.id, operation_id: opId(), motivo: 'erro' }))).status, 'CANCELADO');
+    assert.equal((await ok(req('POST', `/operacoes-financeiras/${compra3.id}/cancelar`, s.token, { empresa_id: s.e1.id, operation_id: opId(), motivo: 'erro' }))).status, 'CANCELADO');
+    assert.equal((await prisma().produto.findUnique({ where: { id: s.sal.id } })).estoque_atual.toFixed(4), '7.0000');
   });
 
   test('5. à vista em aberto: baixa parcial, saldo excedido, data futura, estorno (uma vez só), cancelamento só sem baixa ativa', async () => {

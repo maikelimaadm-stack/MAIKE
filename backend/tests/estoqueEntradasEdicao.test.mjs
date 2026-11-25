@@ -247,10 +247,10 @@ describe('D-PROD-271 — "se nada mexeu depois", versão e idempotência', () =>
     const r = await editar(x, a, {}, [{ produto_id: x.ureia.id, local_estoque_id: x.galpao.id, unidade: 'KG', quantidade: '200', custo_unitario: '3' }]);
     assert.deepEqual([r.statusCode, r.json().code, razao(r), r.json().details?.item_ordem], [409, 'ENTRADA_ESTOQUE_DEPENDENCIAS_FISICAS', 'camada_consumida', 1], r.body);
     assert.match(r.json().message, /edição recusada/);
-    // D-PROD-273 (fatia 5): a EXCLUSÃO com a saída depois agora recalcula; aqui a entrada é o único estoque do depósito,
-    // então sem ela a saída de 10 deixaria o saldo em −10 → 409 saldo negativo (a edição continua com a recusa de antes).
+    // D-PROD-313: a recusa da EXCLUSÃO por saldo negativo (a saída de 10 sem a entrada deixaria −10) agora é precedida
+    // pela do registro posterior: a saída depois, no mesmo produto e depósito, ainda vale (a edição continua com a recusa de antes).
     const ex = await chamar('POST', `/estoque/entradas/${a.id}/excluir`, x.token, { empresa_id: x.e.id, versao: 1, motivo: 'teste', operation_id: `ex-${randomUUID()}` });
-    assert.deepEqual([ex.statusCode, ex.json().code, razao(ex), ex.json().details?.saldo], [409, 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', 'saldo_negativo', '-10.0000'], ex.body);
+    assert.deepEqual([ex.statusCode, ex.json().code, razao(ex), ex.json().details?.posterior_id], [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', s.json().itens[0].movimentacao_estoque_id], ex.body);
     assert.deepEqual(await fotografia(x, a.id), antes);
   });
 

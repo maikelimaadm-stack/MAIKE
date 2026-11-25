@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-25 (missão ativa D-PROD-311; antes D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-313; antes D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-25) — MAIKE-SO-O-ULTIMO: exclusão só do mais recente e revisão geral de lote, nutrição e depósito (D-PROD-311)
+## Missão ativa (2026-11-25) — MAIKE-SO-O-ULTIMO-ESTOQUE: no depósito também só o último sai (D-PROD-313)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-313**: movimento de estoque só sai sem registro posterior que ainda vale no mesmo produto e depósito (transferência: origem e destino); 409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR` diz qual excluir antes; substitui a "exclusão com recálculo" da D-PROD-273 (emenda constitucional nova); pares já excluídos saem da conta junto |
+| Banco | sem migration |
+| Relatório | [`SO-O-ULTIMO-ESTOQUE-D313-REPORT.md`](./SO-O-ULTIMO-ESTOQUE-D313-REPORT.md) |
+| Próximas | decisão do proprietário sobre a edição da linha de produto da atividade com movimento depois; índices da sincronização incremental; Etapa 3 |
+
+## Missão anterior (2026-11-25) — MAIKE-SO-O-ULTIMO: exclusão só do mais recente e revisão geral de lote, nutrição e depósito (D-PROD-311)
 
 | Item | Estado |
 |---|---|

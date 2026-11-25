@@ -40,7 +40,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEventosEmLote } from '../auditoria/auditService.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, dec, paraBanco } from '../financeiro/decimalFinanceiro.js';
 import { camadaEmModoLote, controleDeLote, exigirModoLoteDoCadastro, saidaEmModoLote, travarProdutosEstoque } from '../estoqueFisico/estoqueFisicoMotor.js';
-import { buscarMovimentoPosterior } from '../estoqueFisico/movimentoPosterior.js';
+import { buscarMovimentoPosterior, buscarParesExcluidosDepois, buscarRegistroPosteriorValendo, recusaRegistroPosterior } from '../estoqueFisico/movimentoPosterior.js';
 import { recomporRateio } from '../estoqueFisico/rateioObservacoes.js';
 import { recalcularCustosDosCochos } from '../suplementacaoEventos/fechamentoCustoCocho.js';
 import {
@@ -61,7 +61,9 @@ const AMOSTRA = 20;
 
 /**
  * @typedef {{ produtoId: string, excluirIds: string[], posteriores: number, dispensa: null | { code: string, reason: string|null },
- *   estornoExatoSeInviavel?: boolean, camadaIntocada?: boolean }} PlanoRecalculo
+ *   estornoExatoSeInviavel?: boolean, camadaIntocada?: boolean, paresForaDaSequencia?: Array<[string, string]> }} PlanoRecalculo
+ * `paresForaDaSequencia` (D-PROD-313): pares já excluídos pelo estorno exato, lançados depois, que saem da sequência
+ * junto com o movimento (marcados no `aplicar`); são os únicos "posteriores" que a regra do último deixa passar.
  * `dispensa`: o recálculo não é possível e a origem contorna com o estorno exato (só a trilha é gravada).
  * `camadaIntocada` (fatia 5): as entradas do produto que têm algo depois passam em `entradaIntocada` (camada inteira e
  * nenhuma saída válida depois) — o estorno da origem é o exato de sempre (a camada sai inteira pelo motor) e o recálculo,
@@ -96,10 +98,12 @@ const porProduto = (movimentos) => {
 
 /**
  * Prova e plano de UM produto (sem escrita): histórico, tetos, replay = gravado e a simulação sem os movimentos.
- * @param {any} tx @param {string} cli @param {{ empresaId: string, produtoId: string, excluirIds: string[], teto?: number, tetoAfetados?: number }} a
+ * @param {any} tx @param {string} cli @param {{ empresaId: string, produtoId: string, excluirIds: string[], teto?: number, tetoAfetados?: number,
+ *   paresForaDaSequencia?: Array<[string, string]> }} a
  * @returns {Promise<PlanoRecalculo>}
  */
 export const provarExclusaoComRecalculo = async (tx, cli, a) => {
+  const fora = (a.paresForaDaSequencia ?? []).flat();
   const historico = await lerHistoricoDoProduto(tx, cli, a.empresaId, a.produtoId, { teto: a.teto ?? TETO_MOVIMENTOS_PRODUTO });
   const porId = new Map(historico.movimentos.map((x) => [x.id, x]));
   // D-PROD-282 (revisão): o movimento excluído tem de estar no modo do cadastro atual (o mesmo ponto do estorno).
@@ -132,11 +136,11 @@ export const provarExclusaoComRecalculo = async (tx, cli, a) => {
     if (marcaDoPar(id).length > TAMANHO_GRUPO) throw recalculoInviavel('grupo_legado_preenchido', { movimento_id: id, marca_excede_coluna: true });
   }
   const excluidos = historico.movimentos.filter((x) => a.excluirIds.includes(x.id)).sort(compararCanonico);
-  const posteriores = historico.movimentos.filter((x) => compararCanonico(x, excluidos[0]) > 0 && !a.excluirIds.includes(x.id)).length;
+  const posteriores = historico.movimentos.filter((x) => compararCanonico(x, excluidos[0]) > 0 && !a.excluirIds.includes(x.id) && !fora.includes(x.id)).length;
   const tetoAfetados = a.tetoAfetados ?? TETO_MOVIMENTOS_AFETADOS;
   if (posteriores > tetoAfetados) throw volumeExcedido({ afetados: posteriores, teto: tetoAfetados });
   const base = exigirReplayIgualAoGravado(historico);
-  const sim = simularExclusao(historico, base, a.excluirIds);
+  const sim = simularExclusao(historico, base, [...a.excluirIds, ...fora]);
   if (!sim.permitido) {
     const { reason, ...detalhes } = /** @type {any} */ (sim.recusa);
     if (reason === 'saldo_negativo') throw saldoNegativo(detalhes);
@@ -145,7 +149,7 @@ export const provarExclusaoComRecalculo = async (tx, cli, a) => {
     if (reason === 'lote_consumido') throw loteConsumido(detalhes); // D-PROD-282
     throw recalculoInviavel(reason, detalhes);
   }
-  return { produtoId: a.produtoId, excluirIds: [...a.excluirIds], posteriores, dispensa: null };
+  return { produtoId: a.produtoId, excluirIds: [...a.excluirIds], posteriores, dispensa: null, paresForaDaSequencia: a.paresForaDaSequencia ?? [] };
 };
 
 /** Classes que a exclusão com recálculo aceita (fatias 4 e 5). */
@@ -195,6 +199,8 @@ export const planejarExclusaoComRecalculo = async (tx, cli, a) => {
     if (ajuste) throw await recusaAjustePosterior(tx, cli, ajuste);
     let temDepois = false;
     let todasIntactas = true;
+    /** @type {Map<string, [string, string]>} */
+    const paresFora = new Map();
     for (const m of movimentos) {
       const ref = referencias.get(m.id);
       if (!ref) throw new AppError('MOVIMENTACAO_ESTOQUE_NOT_FOUND', 'movimento de estoque não encontrado');
@@ -203,6 +209,16 @@ export const planejarExclusaoComRecalculo = async (tx, cli, a) => {
         desde: { createdAt: ref.createdAt, numero: ref.numero_movimentacao }, ignorarParesNeutros: a.ignorarParesNeutros === true,
       });
       if (depois) {
+        // D-PROD-313 — só o último: um registro depois, no mesmo produto e depósito, que ainda vale (não é um par já
+        // excluído) vinculou o saldo e o médio deste movimento. Recusa antes de qualquer escrita, em todas as origens e
+        // sem o estorno exato como saída. Sobram só os pares já excluídos depois: o recálculo de sempre os tira da sequência.
+        const valendo = await buscarRegistroPosteriorValendo(tx, cli, {
+          empresaId: a.empresaId, produtoId, locais: [m.localId], ignorarIds: ignorar, desde: { createdAt: ref.createdAt, numero: ref.numero_movimentacao },
+        });
+        if (valendo) throw recusaRegistroPosterior(valendo, { movimento_id: m.id });
+        for (const par of await buscarParesExcluidosDepois(tx, cli, {
+          empresaId: a.empresaId, produtoId, locais: [m.localId], ignorarIds: ignorar, desde: { createdAt: ref.createdAt, numero: ref.numero_movimentacao },
+        })) paresFora.set(par[0], par);
         temDepois = true;
         if (!(a.intacto && await a.intacto(m.id))) todasIntactas = false;
       }
@@ -212,7 +228,9 @@ export const planejarExclusaoComRecalculo = async (tx, cli, a) => {
     const camadaIntocada = Boolean(a.intacto) && todasIntactas;
     const contorna = a.estornoExatoSeInviavel === true || camadaIntocada;
     try {
-      const plano = await provarExclusaoComRecalculo(tx, cli, { empresaId: a.empresaId, produtoId, excluirIds, teto: a.teto, tetoAfetados: a.tetoAfetados });
+      const plano = await provarExclusaoComRecalculo(tx, cli, {
+        empresaId: a.empresaId, produtoId, excluirIds, teto: a.teto, tetoAfetados: a.tetoAfetados, paresForaDaSequencia: [...paresFora.values()],
+      });
       planos.push({ ...plano, estornoExatoSeInviavel: contorna, camadaIntocada });
     } catch (erro) {
       const saldoNegativoComCamadaIntocada = camadaIntocada && /** @type {any} */ (erro)?.code === 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO';
@@ -509,6 +527,17 @@ const aplicarUm = async (tx, contexto, cli, plano, a) => {
       if (!filho || (lido?.tipo_detalhado === 'transferencia_enviada' && !plano.excluirIds.includes(filho))) throw conflito({ movimento_id: originalId });
       const o = await tx.movimentacaoEstoque.updateMany({
         where: { cliente_id: cli, empresa_id: a.empresaId, id: originalId, status: 'Estornada', movimento_filho_id: filho, movimentacao_grupo_id: null }, data: { movimentacao_grupo_id: marca },
+      });
+      const e = await tx.movimentacaoEstoque.updateMany({
+        where: { cliente_id: cli, empresa_id: a.empresaId, id: estornoId, movimento_pai_id: originalId, movimentacao_grupo_id: null }, data: { movimentacao_grupo_id: marca },
+      });
+      if (o.count !== 1 || e.count !== 1) throw conflito({ movimento_id: originalId });
+    }
+    // 1b. D-PROD-313: os pares já excluídos pelo estorno exato que vinham depois saem da sequência junto (a mesma marca).
+    for (const [originalId, estornoId] of plano.paresForaDaSequencia ?? []) {
+      const marca = marcaDoPar(originalId);
+      const o = await tx.movimentacaoEstoque.updateMany({
+        where: { cliente_id: cli, empresa_id: a.empresaId, id: originalId, status: 'Estornada', movimentacao_grupo_id: null }, data: { movimentacao_grupo_id: marca },
       });
       const e = await tx.movimentacaoEstoque.updateMany({
         where: { cliente_id: cli, empresa_id: a.empresaId, id: estornoId, movimento_pai_id: originalId, movimentacao_grupo_id: null }, data: { movimentacao_grupo_id: marca },
