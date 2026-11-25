@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-24 (missão ativa D-PROD-298; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-299; antes D-PROD-298; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,15 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-24) — MAIKE-CORRIGIR-SEM-INTERNET: editar, excluir e cancelar sem internet (D-PROD-298)
+## Missão ativa (2026-11-25) — MAIKE-SALDO-LOTES-TEXTO: saldo do formulário de Entrada/Saída do depósito (D-PROD-299)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-299**: o saldo dos lotes é somado como número (o servidor manda o decimal em texto e a soma colava os números) |
+| Banco | sem migration; dados conferidos e corretos |
+| Relatório | [`SALDO-LOTES-TEXTO-D299-REPORT.md`](./SALDO-LOTES-TEXTO-D299-REPORT.md) |
+
+## Missão anterior (2026-11-24) — MAIKE-CORRIGIR-SEM-INTERNET: editar, excluir e cancelar sem internet (D-PROD-298)
 
 | Item | Estado |
 |---|---|

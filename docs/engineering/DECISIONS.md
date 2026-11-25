@@ -9469,4 +9469,11 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Limite aceito:** a exclusão sem internet não mostra a prévia do servidor (efeitos, recálculo de custo); quem decide é o servidor quando ela sobe. Editar não vale para o que já tentou subir ("confirmando envio") nem para o lançamento com a baixa já gravada (usa-se o "Tentar de novo" da D-PROD-296).
 - **Testes:** `tests/smoke/motorSincronizacao.test.js` (MS-26..28), `tests/smoke/lancamentoCochoOffline.test.js` (LCO-08..13), `tests/smoke/depositoTransferenciaOffline.test.js` (ET-06..07), `tests/smoke/cochoCancelarLancamento.test.jsx` (C4), `tests/smoke/depositoCancelarTransferencia.test.jsx` (CT-2).
 
-<!-- Próxima decisão: D-PROD-299 -->
+## D-PROD-299 — Saldo dos lotes no formulário somado como número (decimal em texto)
+
+- **Contexto:** o proprietário testou com internet: na Entrada/Saída do depósito o saldo aparecia "enorme" e crescia a cada lançamento; o relatório de estoque estava certo. No banco, os lotes batiam (BARRACÃO 15.795 kg; DEP. 15 / 15 A 495 kg).
+- **Causa:** o servidor manda os decimais do Prisma como texto (`"15760"`, `"35"`). `obterSaldoProdutoLocal` e `calcularRateioFIFO` somavam com `total + (lote.quantidade_disponivel || 0)`: `0 + "15760" + "35"` = `"01576035"` (1.576.035 kg). Com um lote por local o número saía certo; cada transferência cria um lote novo no destino, e daí em diante o texto ia colando. O relatório soma no servidor, por isso estava certo.
+- **Decisão:** `disponivelDoLote(lote)` (número; inválido → 0) em `estoqueSuplementacaoUtils` e usado no saldo do local, no rateio FIFO (saldo, filtro e quantidade consumida) e na trava de exclusão de local (`localEstoqueService`). Vale para o formulário de Entrada/Saída do depósito e para o saldo do lançamento do cocho, que usam as mesmas funções. Nenhum dado gravado estava errado; nada muda no servidor.
+- **Testes:** `tests/smoke/saldoLotesDecimalTexto.test.js` (SD-01..03).
+
+<!-- Próxima decisão: D-PROD-300 -->

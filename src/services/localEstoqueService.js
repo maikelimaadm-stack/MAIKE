@@ -197,7 +197,7 @@ export const excluirLocais = async (ids, { locais = [] } = {}) => {
       ) {
         bloquear('movimentacoes_vinculadas', { id });
       }
-      if (lotesNota.some((lote) => lote.local_estoque_id === id && (lote.quantidade_disponivel || 0) > 0)) {
+      if (lotesNota.some((lote) => lote.local_estoque_id === id && (Number(lote.quantidade_disponivel) || 0) > 0)) {
         bloquear('saldo_em_estoque', { id });
       }
 
