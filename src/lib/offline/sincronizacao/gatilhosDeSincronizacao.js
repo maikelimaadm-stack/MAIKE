@@ -7,7 +7,7 @@
  *     visível no navegador);
  *   - a cada minuto, enquanto houver algo esperando;
  *   - logo depois de um registro entrar na fila.
- * E pelo botão "Enviar agora" da janela "Dados sem internet".
+ * E pelo botão "Enviar agora" da janela "Sincronização".
  *
  * Cada passada envia a fila do motor e, em seguida, a fila antiga de entidades
  * (`syncOfflineEntityQueue`), que até aqui guardava e nunca era disparada.

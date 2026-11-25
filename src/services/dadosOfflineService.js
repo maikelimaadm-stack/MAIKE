@@ -19,6 +19,8 @@ import { listEmpresas } from '@/services/empresaService';
 import { lerEmpresaSelecionadaIdArmazenada, persistirEmpresaSelecionada } from '@/hooks/useEmpresaSelecionadaId';
 
 const PREFIXO = 'maike_dados_offline_em:';
+/** D-PROD-301: como foi cada parte na última baixa (mapa, cadastros, telas). */
+const PREFIXO_PARTES = 'maike_dados_offline_partes:';
 
 const chave = () => {
   const tenant = getOfflineTenant();
@@ -44,6 +46,34 @@ const marcarBaixa = (quando) => {
     window.localStorage.setItem(k, String(quando));
   } catch {
     // Sem armazenamento só não lembra a data.
+  }
+};
+
+/**
+ * @typedef {{ em: number, total: number, falhas: number }} SituacaoDaParte
+ * @typedef {{ mapa?: SituacaoDaParte, cadastros?: SituacaoDaParte, telas?: SituacaoDaParte }} SituacaoDaBaixa
+ */
+
+/** D-PROD-301 — como veio cada parte na última baixa deste aparelho (ou `null`). @returns {SituacaoDaBaixa|null} */
+export const situacaoDaBaixa = () => {
+  const tenant = getOfflineTenant();
+  if (!tenant) return null;
+  try {
+    const v = JSON.parse(window.localStorage.getItem(`${PREFIXO_PARTES}${tenant}`) || 'null');
+    return v && typeof v === 'object' ? v : null;
+  } catch {
+    return null;
+  }
+};
+
+/** @param {SituacaoDaBaixa} partes */
+const marcarPartes = (partes) => {
+  const tenant = getOfflineTenant();
+  if (!tenant) return;
+  try {
+    window.localStorage.setItem(`${PREFIXO_PARTES}${tenant}`, JSON.stringify({ ...(situacaoDaBaixa() ?? {}), ...partes }));
+  } catch {
+    // Sem armazenamento só não lembra.
   }
 };
 
@@ -90,6 +120,7 @@ export const estaSemInternet = () => typeof navigator !== 'undefined' && navigat
 export const baixarDadosParaOffline = async ({ empresaId, aoAvancar }) => {
   if (estaSemInternet()) return { ok: false, falhas: 0, em: null };
   let falhas = 0;
+  let falhasMapa = 0;
 
   // Mapa: 6 leituras por vez (antes, uma de cada vez deixava o preparo lento).
   let feitasMapa = 0;
@@ -99,22 +130,26 @@ export const baixarDadosParaOffline = async ({ empresaId, aoAvancar }) => {
     while (filaMapa.length) {
       const cacheKey = /** @type {string} */ (filaMapa.shift());
       const r = await refreshMapaCacheEntryDetalhado(cacheKey, empresaId, { force: true });
-      if (r.erro && r.erro !== 'SEM_CAPACIDADE') falhas += 1;
+      if (r.erro && r.erro !== 'SEM_CAPACIDADE') falhasMapa += 1;
       feitasMapa += 1;
       aoAvancar?.({ etapa: 'mapa', titulo: 'Mapa', feitas: feitasMapa, total: CACHE_KEYS.length });
     }
   };
   await Promise.all(Array.from({ length: 6 }, trabalharMapa));
+  falhas += falhasMapa;
+  marcarPartes({ mapa: { em: Date.now(), total: CACHE_KEYS.length, falhas: falhasMapa } });
 
   const cadastros = await baixarEntidadesParaOffline((p) =>
     aoAvancar?.({ etapa: 'cadastros', titulo: 'Cadastros', feitas: p.feitas, total: p.total })
   );
   falhas += cadastros.falhas.length;
+  marcarPartes({ cadastros: { em: Date.now(), total: Number(cadastros.total) || 0, falhas: cadastros.falhas.length } });
 
   const telas = await baixarLeiturasDasTelas(empresaId, (p) =>
     aoAvancar?.({ etapa: 'telas', titulo: 'Telas do sistema', feitas: p.feitas, total: p.total })
   );
   falhas += telas.falhas;
+  marcarPartes({ telas: { em: Date.now(), total: Number(telas.total) || 0, falhas: Number(telas.falhas) || 0 } });
 
   const em = Date.now();
   marcarBaixa(em);
@@ -126,6 +161,7 @@ export const esquecerDadosOfflineDoTenant = (tenant) => {
   if (!tenant) return;
   try {
     window.localStorage.removeItem(`${PREFIXO}${tenant}`);
+    window.localStorage.removeItem(`${PREFIXO_PARTES}${tenant}`);
   } catch {
     // ignora
   }

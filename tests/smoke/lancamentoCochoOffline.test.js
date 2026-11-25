@@ -121,6 +121,11 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
       { id: 'nf1', empresa_id: EMP, produto_id: 'prod-1', local_estoque_id: 'galpao', status: 'Disponivel', quantidade_disponivel: 100, data_documento: '2026-01-01' },
     ]);
     expect(lotes[0].quantidade_disponivel).toBe(20);
+
+    // D-PROD-301: a baixa aparece no histórico do depósito, com "aguardando envio".
+    const { movimentacoesAguardandoEnvio } = await import('@/services/historicoAguardandoEnvioService');
+    const [baixa] = await movimentacoesAguardandoEnvio(EMP);
+    expect(baixa).toMatchObject({ id: 'aguardando:op-lanc-0001:baixa', tipo_detalhado: 'suplementacao', quantidade: 80, local_estoque_origem: 'galpao', _aguardandoEnvio: true });
   });
 
   it('LCO-02 ao voltar a internet: baixa, lançamento e fechamento, na ordem e com o MESMO código', async () => {

@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger } from
 "@/components/ui/dropdown-menu";
 import { abrirDadosOffline } from "@/components/offline/DadosOffline";
+import BotaoSincronizacao from "@/components/offline/BotaoSincronizacao";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -498,7 +499,7 @@ function LayoutShell({ children, currentPageName }) {
       }
         <ItemDoMenu onClick={abrirDadosOffline} className="text-xs">
           <CloudDownload className="w-3 h-3 mr-2" />
-          Dados sem internet
+          Sincronização
           {naoEnviados > 0 &&
           <span className={`ml-auto rounded-full px-1.5 text-[10px] font-semibold ${filaEnvio.atencao > 0 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`} title="Aguardando envio">
               {naoEnviados}
@@ -576,6 +577,7 @@ function LayoutShell({ children, currentPageName }) {
               {!mobileRecord?.editing && empresas.length > 0 ? <ChevronDown size={12} aria-hidden /> : null}
             </span>
           </button>
+          <BotaoSincronizacao />
           {userMenu}
         </div>}
         <div className="mk-thdr hidden md:flex lg:hidden">
@@ -593,6 +595,7 @@ function LayoutShell({ children, currentPageName }) {
               <ChevronDown size={14} aria-hidden />
             </button> :
           null}
+          <BotaoSincronizacao />
           {userMenu}
         </div>
         <div className="max-w-[1600px] mx-auto px-4 py-2 hidden lg:block">
@@ -646,7 +649,8 @@ function LayoutShell({ children, currentPageName }) {
                 <Search className="w-4 h-4 text-slate-600" />
               </Button>
 
-              {userMenu}
+              <BotaoSincronizacao />
+          {userMenu}
             </div>
           </div>
         </div>
