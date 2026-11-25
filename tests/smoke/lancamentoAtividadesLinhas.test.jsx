@@ -142,9 +142,12 @@ const GRADE = { id: "i1", numero: "9", codigo_frota: "GR-01", nome: "Grade", nat
 const PRODUTOS = [
   { id: "p1", nome: "Glifosato", unidade: "L", unidade_principal_estoque: "L", favorito: true },
   { id: "p2", nome: "Ureia", unidade: "KG", unidade_principal_estoque: "SACO", favorito: false },
+  // D-PROD-309: produto com unidade de conversão (SACO de 50 kg) — o seletor "Unidade" aparece ao lado da quantidade.
+  { id: "p3", nome: "Calcário", unidade: "KG", unidade_principal_estoque: "KG", favorito: false, unidades_conversao: [{ id: "c-saco", sigla: "SACO", operacao: "MULTIPLICA", fator: "50.000000", uso_compra: true, uso_venda: true, ativa: true, equivalencia: "1 SACO = 50 KG" }] },
 ];
 const LOCAIS = /** @type {Record<string, any[]>} */ ({
   p1: [{ local_estoque_id: "l1", local_nome: "Galpão", disponivel: "30.0000", unidade: "L", unidade_principal_estoque: "L" }],
+  p3: [{ local_estoque_id: "l1", local_nome: "Galpão", disponivel: "1000.0000", unidade: "KG", unidade_principal_estoque: "KG" }],
   p2: [
     { local_estoque_id: "l1", local_nome: "Galpão", disponivel: "500.0000", unidade: "KG", unidade_principal_estoque: "SACO" },
     { local_estoque_id: "l2", local_nome: "Silo", disponivel: "80.0000", unidade: "KG", unidade_principal_estoque: "SACO" },
@@ -848,6 +851,30 @@ describe("LL-PRODUTO — janela da linha de produto", () => {
       expect(screen.getByTestId("totalizador-produto-p1")).toHaveTextContent("50 L");
       expect(screen.getByTestId("totalizador-produto-p1-custo")).toHaveTextContent("R$ 250,00");
     });
+  });
+
+  it("LL-PRODUTO-UCL (D-PROD-309) — a unidade de conversão ao lado da quantidade: 2 SACO = 100 kg embaixo, dose em kg/ha; o corpo leva a unidade, a digitada e o kg; produto sem conversão não mostra nada novo", async () => {
+    await montar();
+    await abrir("a1", "ap1");
+    fireEvent.click(screen.getByTestId("apontamento-ap1-adicionar-produto"));
+    const janela = await screen.findByTestId("janela-linha-produto");
+    // Sem conversão (Glifosato): nenhum seletor "Unidade" e nenhuma conta.
+    await escolherNoSeletor(janela, "linha-produto-produto", /Glifosato/);
+    expect(within(janela).queryByRole("combobox", { name: "Unidade" })).toBeNull();
+    expect(within(janela).queryByTestId("linha-produto-conversao")).toBeNull();
+    // Com conversão (Calcário): kg e SACO.
+    await escolherNoSeletor(janela, "linha-produto-produto", /Calcário/);
+    const unidade = await within(janela).findByRole("combobox", { name: "Unidade" });
+    expect(unidade).toHaveTextContent(/Quilos \(kg\)/i);
+    fireEvent.click(unidade);
+    fireEvent.click(await screen.findByRole("option", { name: /SACO \(1 SACO = 50 KG\)/i }));
+    expect(await within(janela).findByText("Quantidade (SACO)")).toBeTruthy();
+    fireEvent.change(within(janela).getByTestId("linha-produto-quantidade"), { target: { value: "2" } });
+    expect(within(janela).getByTestId("linha-produto-conversao")).toHaveTextContent("= 100 kg");
+    expect(within(janela).getByTestId("linha-produto-dose")).toHaveTextContent("10 kg/ha");
+    fireEvent.click(within(janela).getByTestId("janela-linha-produto-salvar"));
+    await waitFor(() => expect(escritas()).toHaveLength(1));
+    expect(ultimaEscrita().body).toEqual({ empresa_id: "emp-1", versao: 3, operation_id: expect.stringMatching(/^lanc-/), produto_id: "p3", local_estoque_id: "l1", quantidade: "100.0000", unidade_lancamento: "SACO", quantidade_lancamento: "2" });
   });
 
   it("LL-PRODUTO-2 — saldo insuficiente: aviso com disponível × pedido antes de enviar e a recusa do servidor com a mensagem do motor", async () => {

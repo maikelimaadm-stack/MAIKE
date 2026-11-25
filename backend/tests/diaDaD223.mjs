@@ -260,6 +260,28 @@ export const schemaSemProdutoDoBem = (schema) => {
 };
 
 /**
+ * D-PROD-309 — o `schema.prisma` de hoje sem a unidade convertida: as linhas `// MAIKE-UNIDADE-CONVERTIDA` da
+ * MovimentacaoEstoque e da AtividadeApontamentoProduto, as linhas `///` logo abaixo delas e as 3 colunas de cada
+ * (`unidade_lancamento`, `quantidade_lancamento`, `fator_lancamento`). A EXPAND
+ * `20261126200000_unidade_convertida_lancamentos` é posterior a todos os "dias" destes espelhos e tem a prova própria em
+ * `premerge-migrate.test.mjs` (B46) e em `unidadeConvertidaLancamentos.test.mjs`.
+ * @param {string} schema
+ */
+export const schemaSemUnidadeConvertida = (schema) => {
+  const linhas = schema.split('\n');
+  const sai = new Array(linhas.length).fill(false);
+  for (let i = 0; i < linhas.length; i += 1) {
+    if (/^\s*\/\/ MAIKE-UNIDADE-CONVERTIDA\s*$/.test(linhas[i])) {
+      sai[i] = true;
+      let j = i + 1;
+      while (j < linhas.length && /^\s*\/\/\//.test(linhas[j])) sai[j++] = true;
+      while (j < linhas.length && /^\s+(unidade_lancamento|quantidade_lancamento|fator_lancamento)\s/.test(linhas[j])) sai[j++] = true;
+    }
+  }
+  return linhas.filter((_, i) => !sai[i]).join('\n');
+};
+
+/**
  * D-PROD-283 — o `schema.prisma` de hoje sem o jato do insumo: a coluna `jato Int?` da AtividadeApontamentoProduto e as
  * linhas `///` logo acima dela (a primeira começa por `/// MAIKE-INSUMO-POR-JATO`). A EXPAND
  * `20261125100000_insumo_por_jato` é posterior a todos os "dias" destes espelhos e tem a prova própria em
@@ -285,7 +307,7 @@ export const espelhoDoDiaD223 = () => {
   if (espelho) return espelho;
   espelho = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D223 }).dir;
   const destino = join(espelho, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))))))))))));
+  writeFileSync(destino, schemaSemUnidadeConvertida(schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')))))))))))));
   const dir = espelho;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho;
@@ -306,7 +328,7 @@ export const espelhoDoDiaD249 = () => {
   if (espelho249) return espelho249;
   espelho249 = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D249 }).dir;
   const destino = join(espelho249, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')))))))))));
+  writeFileSync(destino, schemaSemUnidadeConvertida(schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))))))))))));
   const dir = espelho249;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho249;

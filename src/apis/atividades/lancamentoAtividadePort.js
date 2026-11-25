@@ -159,7 +159,8 @@ export const CAMPOS_DO_APONTAMENTO = Object.freeze([
  */
 // D-PROD-293: e o número do jato (texto), também na linha avulsa.
 // D-PROD-300: `lotes` (a escolha manual dos lotes de produto que controla lote; sem ela, FEFO).
-export const CAMPOS_DA_LINHA_PRODUTO = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao', 'jato', 'lotes']);
+// D-PROD-309: a quantidade digitada numa unidade de conversão do produto (as duas juntas; o servidor converte e confere).
+export const CAMPOS_DA_LINHA_PRODUTO = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade', 'observacao', 'jato', 'lotes', 'unidade_lancamento', 'quantidade_lancamento']);
 /**
  * D-PROD-274 — a linha de insumo DENTRO do lançamento (`produtos[]` do apontamento, do duplicar e do registro de campo):
  * a de sempre e o VC (%) da semente, só quando preenchido. As rotas de UMA linha continuam com `CAMPOS_DA_LINHA_PRODUTO`.

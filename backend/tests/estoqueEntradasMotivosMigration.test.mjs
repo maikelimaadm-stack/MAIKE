@@ -60,6 +60,8 @@ const NOME_INSUMO_JATO = '20261125100000_insumo_por_jato';
 const NOME_UNIDADES_CONVERSAO = '20261125200000_produto_unidades_conversao';
 /** D-PROD-297: a EXPAND do produto do implemento no bem, também posterior (fora da partida). */
 const NOME_BEM_PRODUTO = '20261126100000_bem_implemento_produto';
+/** D-PROD-309: a EXPAND da unidade convertida, também posterior (fora da partida). */
+const NOME_UNIDADE_CONVERTIDA = '20261126200000_unidade_convertida_lancamentos';
 const BANCO = 'maike_eem_teste';
 const PAPEL_BACKEND = 'maike_vercel';
 
@@ -148,8 +150,8 @@ after(async () => {
 describe('D-PROD-259 — migration CONTRACT dos motivos das Entradas (PostgreSQL real)', () => {
   test('EEM-01 partida: todas as pastas anteriores a esta concluídas (as 69 de produção no dia dela); a tabela dos motivos, as colunas novas e a saída manual (D-PROD-264, posterior) não existem', async () => {
     const h = await historico();
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_SAIDAS, NOME_DATA_TERMINO, NOME_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_CONTROLE_LOTE, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO], 'D-PROD-264, D-PROD-265, D-PROD-272, D-PROD-274, D-PROD-276, D-PROD-282 e D-PROD-288: as pastas posteriores a esta são a saída manual do Estoque, a data de término do apontamento, o ajuste de inventário, os campos por tipo a reforma, o produto do implemento o controle de lote, o insumo por jato e as unidades de conversão');
-    assert.equal(PARTIDA.length, PASTAS.length - 11);
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_SAIDAS, NOME_DATA_TERMINO, NOME_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_CONTROLE_LOTE, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA], 'D-PROD-264, D-PROD-265, D-PROD-272, D-PROD-274, D-PROD-276, D-PROD-282 e D-PROD-288: as pastas posteriores a esta são a saída manual do Estoque, a data de término do apontamento, o ajuste de inventário, os campos por tipo a reforma, o produto do implemento o controle de lote, o insumo por jato e as unidades de conversão');
+    assert.equal(PARTIDA.length, PASTAS.length - 12);
     assert.equal(PARTIDA.length, 69);
     assert.equal(h.concluidas, PARTIDA.length);
     assert.equal(h.esta, 0);

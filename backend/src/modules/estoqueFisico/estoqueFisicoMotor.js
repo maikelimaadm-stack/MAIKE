@@ -509,6 +509,8 @@ const criarCamadaEntrada = (tx, clienteId, c) =>
 const COLUNAS_COMPLEMENTO = new Set([
   'area_vinculada_id', 'area_vinculada_nome', 'tipo_vinculo', 'centro_custo_nome', 'deposito_id',
   'ponto_suplementacao_id', 'observacoes', 'custo_medio_antes', 'custo_medio_depois',
+  // D-PROD-309: a quantidade digitada numa unidade de conversão (cocho, transferência, linha de produto da atividade).
+  'unidade_lancamento', 'quantidade_lancamento', 'fator_lancamento',
 ]);
 /** Fora da allowlist → erro de programação (500), nunca coluna gravada. */
 const complementoDe = (fn, plano) => {
@@ -971,7 +973,7 @@ export const aplicarSaida = async (tx, ctx, a) => {
  * @param {any} tx @param {{auth: any}} ctx
  * @param {{ empresaId: string, produto: any, origem: {id: string, nome: string}, destino: {id: string, nome: string},
  *   quantidadeKg: any, instante: Date, numeros: { saida: string, entrada: string },
- *   complemento?: (plano: { fatias: any[], valorTotal: any, valorUnitario: any, custoMedioAntes: any, custoMedioDepois: any }) => { observacoes?: string, custo_medio_antes?: string, custo_medio_depois?: string },
+ *   complemento?: (plano: { fatias: any[], valorTotal: any, valorUnitario: any, custoMedioAntes: any, custoMedioDepois: any }) => { observacoes?: string, custo_medio_antes?: string, custo_medio_depois?: string, unidade_lancamento?: string, quantidade_lancamento?: string, fator_lancamento?: string },
  *   contextoErro?: Record<string, unknown> }} a
  * @returns {Promise<{ saida: any, entrada: any, valor_total: any, valor_unitario: any,
  *   fatias: Array<{ lote_id: string, lote_destino_id: string, quantidade: any, custo_unitario: any, lote: any }> }>}

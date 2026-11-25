@@ -16,7 +16,8 @@ import {
 } from "../suplementacao/estoqueSuplementacaoUtils";
 import { registrarTransferenciaEntreLocais } from "@/services/suplementacaoEstoqueService";
 import { formatQuantidadeTecnica } from "../suplementacao/formatters";
-import { produtoSuportaSacos, sacosParaKg, kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
+import { produtoSuportaSacos, kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
+import { canonicoDigitado, conversaoEscolhida, opcoesDeUnidade, quantidadeEmEstoque, rotuloDoEstoque, textoDaConversao, unidadeDeEstoqueDoProduto } from "@/lib/unidadeLancamentoRegras";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { listEmpresas } from "@/services/empresaService";
 import { hojeNoFuso } from "@/lib/diaCivil";
@@ -106,8 +107,11 @@ const respostaDefinitiva = (erro) => {
  *   onSuccess?: () => void,
  *   onCancel?: () => void,
  *   edicao?: null | { operationId: string, direcao: string, produto_id: string, quantidade: number,
- *     local_origem_id: string, local_destino_id: string, data_movimentacao?: string|null, observacoes?: string },
+ *     local_origem_id: string, local_destino_id: string, data_movimentacao?: string|null, observacoes?: string,
+ *     unidade_lancamento?: string|null, quantidade_lancamento?: string|null },
  * }} props
+ *   D-PROD-309: a quantidade pode ser digitada numa unidade de conversão do cadastro do produto (o seletor "Unidade"
+ *   lista o kg/L e as conversões ATIVAS); a conta aparece embaixo ("= 250 kg") e o servidor converte pelo cadastro.
  *   `initialDirection`: "entrada" (o depósito recebe de outro local) ou "saida"
  *   (o depósito manda para outro local).
  *   `edicao` (D-PROD-298): corrigir a transferência que ainda não subiu (abre preenchida; salvar a
@@ -122,7 +126,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     edicao ? String((direction === "entrada" ? edicao.local_origem_id : edicao.local_destino_id) ?? "") : ""
   );
   const [produtoId, setProdutoId] = useState(edicao?.produto_id ? String(edicao.produto_id) : "");
-  const [quantidade, setQuantidade] = useState(edicao ? String(edicao.quantidade ?? "") : "");
+  const [quantidade, setQuantidade] = useState(edicao ? String(edicao.unidade_lancamento ? edicao.quantidade_lancamento ?? "" : edicao.quantidade ?? "") : "");
   // A data PADRÃO é o dia civil da FAZENDA (`Empresa.fuso_horario`, D-PROD-155/178), como no
   // lançamento do cocho: o dia em UTC (`toISOString`) gravava a movimentação da noite no dia seguinte.
   // Sem fuso (ou enquanto ele não chega), o relógio do navegador.
@@ -149,7 +153,8 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     setDataMovimentacao(hojeNoFuso(fusoFazenda));
   }, [fusoFazenda]);
   const [observacoes, setObservacoes] = useState(edicao?.observacoes ?? "");
-  const [unidadeInput, setUnidadeInput] = useState("KG");
+  // D-PROD-309: '' = a unidade de estoque (kg ou L); senão, a sigla de uma conversão do produto.
+  const [unidadeInput, setUnidadeInput] = useState(edicao?.unidade_lancamento ? String(edicao.unidade_lancamento) : "");
   const [saving, setSaving] = useState(false);
   const envioRef = useRef(/** @type {EnvioPendente | null} */ (null));
   const [aviso, setAviso] = useState(/** @type {string | null} */ (null));
@@ -217,6 +222,11 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     return obterSaldoTransferivelProduto({ produto: produtoSelecionado, lotesNota, localEstoqueId: localOrigemId, localEstoqueNome: localOrigemNome });
   }, [produtoSelecionado, localOrigemId, localOrigemNome, lotesNota]);
 
+  // D-PROD-309: as unidades do produto (a de estoque e as conversões ATIVAS; a transferência não é compra nem venda).
+  const opcoesUnidade = useMemo(() => opcoesDeUnidade(produtoSelecionado, { rotuloEstoque: "sigla" }), [produtoSelecionado]);
+  const unidadeEscolhida = conversaoEscolhida(produtoSelecionado, unidadeInput);
+  const quantidadeCanonica = canonicoDigitado(quantidade);
+
   const saldoEmSacos = useMemo(() => {
     if (!suportaSacos || pesoPorSaco <= 0) return 0;
     return kgParaSacos(saldoDisponivel, pesoPorSaco);
@@ -229,13 +239,14 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     if (dataMovimentacao > hojeFazenda) return toast.error("A data da movimentação não pode ser futura.");
     if (!produtoSelecionado) return toast.error("Selecione um produto.");
 
-    const inputNum = parseNumber(quantidade);
-    const quantidadeFinal = unidadeInput === "SACO" ? sacosParaKg(inputNum, pesoPorSaco) : inputNum;
-    if (quantidadeFinal <= 0) return toast.error("Informe uma quantidade válida.");
+    // D-PROD-309: numa unidade de conversão, a quantidade em kg/L é a mesma conta do servidor (que confere).
+    const emEstoque = unidadeEscolhida ? quantidadeEmEstoque(produtoSelecionado, unidadeEscolhida, quantidadeCanonica) : null;
+    const quantidadeFinal = unidadeEscolhida ? Number(emEstoque ?? 0) : parseNumber(quantidade);
+    if (!(quantidadeFinal > 0)) return toast.error("Informe uma quantidade válida.");
 
     // Mesma chave para o MESMO conteúdo até a resposta definitiva (D-PROD-268), dentro da janela.
     const chaveStorage = chaveDoEnvioPendente(`${user?.cliente_id ?? "-"}:${user?.id ?? user?.usuario_id ?? "-"}`, deposito.id, direction);
-    const assinatura = JSON.stringify([empresaSelecionadaId, produtoSelecionado.id, localOrigemId, localDestinoId, quantidadeFinal, dataMovimentacao, observacoes]);
+    const assinatura = JSON.stringify([empresaSelecionadaId, produtoSelecionado.id, localOrigemId, localDestinoId, quantidadeFinal, dataMovimentacao, observacoes, ...(unidadeEscolhida ? [unidadeEscolhida, quantidadeCanonica] : [])]);
     const daMemoria = envioRef.current?.assinatura === assinatura && Date.now() - envioRef.current.em <= JANELA_REENVIO_MS ? envioRef.current : null;
     const gravado = lerEnvioPendente(chaveStorage);
     const anterior = daMemoria ?? (gravado?.assinatura === assinatura ? gravado : null);
@@ -271,6 +282,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
         dataMovimentacao,
         operationId: opEmEdicao || envio.operation_id,
         ...(opEmEdicao ? { edicao: opEmEdicao } : {}),
+        ...(unidadeEscolhida ? { unidadeLancamento: unidadeEscolhida, quantidadeLancamento: quantidadeCanonica } : {}),
       });
       envioRef.current = null;
       limparEnvioPendente(chaveStorage);
@@ -314,7 +326,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   const resumo = [
     ["Origem", localOrigemNome || "-"],
     ["Destino", localDestinoNome || "-"],
-    ["Saldo (kg)", formatQuantidadeTecnica(saldoDisponivel, 3)],
+    [`Saldo (${produtoSelecionado ? rotuloDoEstoque(produtoSelecionado) : "kg"})`, formatQuantidadeTecnica(saldoDisponivel, 3)],
   ];
   if (suportaSacos) resumo.push(["Saldo (sacas)", saldoEmSacos.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })]);
 
@@ -340,19 +352,25 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
         <LancField label="Produto de Suplementação" required className="mk-ll__cheio">
           {/* O B1Select chama o onChange também com o item já escolhido (o Select de antes não chamava):
               só um produto DIFERENTE volta a unidade para KG e limpa a quantidade. */}
-          <B1Select value={produtoId} onChange={(e) => { const v = e.target.value; if (v === produtoId) return; setProdutoId(v); setUnidadeInput("KG"); setQuantidade(""); }} disabled={!localFonteId} className={LL_CTL}>
+          <B1Select value={produtoId} onChange={(e) => { const v = e.target.value; if (v === produtoId) return; setProdutoId(v); setUnidadeInput(""); setQuantidade(""); }} disabled={!localFonteId} className={LL_CTL}>
             {produtosDisponiveis.map((p) => <option key={p.id} value={p.id}>{p.nome_produto} ({p.unidade_medida || "KG"})</option>)}
           </B1Select>
         </LancField>
+        {/* D-PROD-309: a unidade ao lado da quantidade — kg/L e as conversões do cadastro do produto. */}
         <LancField label="Unidade">
-          <B1Select value={unidadeInput} onChange={(e) => setUnidadeInput(e.target.value)} disabled={!suportaSacos} className={LL_CTL}>
-            <option value="KG">KG</option>
-            {suportaSacos && <option value="SACO">Sacas ({pesoPorSaco} kg/saco)</option>}
+          <B1Select value={unidadeEscolhida || (produtoSelecionado ? unidadeDeEstoqueDoProduto(produtoSelecionado) : "KG")} onChange={(e) => setUnidadeInput(e.target.value)} disabled={opcoesUnidade.length < 2} className={LL_CTL}>
+            {(opcoesUnidade.length ? opcoesUnidade : [{ value: "KG", label: "KG" }]).map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
           </B1Select>
         </LancField>
-        <LancField label={`Quantidade (${unidadeInput === "SACO" ? "sacas" : "kg"})`} required>
-          <Input value={quantidade} onChange={(e) => setQuantidade(e.target.value)} type="number" step="0.01" className={LL_CTL} placeholder="0,00" />
+        <LancField label={`Quantidade (${unidadeEscolhida || (produtoSelecionado ? rotuloDoEstoque(produtoSelecionado) : "kg")})`} required>
+          <Input value={quantidade} onChange={(e) => setQuantidade(e.target.value)} type="number" step="0.0001" className={LL_CTL} placeholder="0,00" />
         </LancField>
+        {/* A conta para a unidade de estoque, na linha toda, só numa unidade de conversão (sem ela, a grade de sempre). */}
+        {unidadeEscolhida && quantidadeCanonica ? (
+          <p className="mk-ll__item-rodape mk-ll__cheio" data-testid="transferencia-conversao">{textoDaConversao(produtoSelecionado, unidadeEscolhida, quantidadeCanonica)}</p>
+        ) : null}
       </LancLoteGrade>
 
       <LancLoteAviso tom="neutro" data-testid="transferencia-resumo">

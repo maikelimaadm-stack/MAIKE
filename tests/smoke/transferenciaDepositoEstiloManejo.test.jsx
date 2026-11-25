@@ -257,12 +257,12 @@ describe('TM-3 — corpo: LancLoteForm com os campos em LancField', () => {
     expect(campo(dialogo, /^Local de Destino/)).toBeTruthy();
     expect(within(dialogo).queryByLabelText(/^Local de Origem/)).toBeNull();
     cleanup();
-    // Entrada do proteinado (sacos de 30 kg): Sacas na unidade e o rótulo da quantidade em sacas.
+    // Entrada do proteinado (sacos de 30 kg): SACO na unidade (D-PROD-309: a conversão do cadastro) e o rótulo da quantidade nela.
     const entrada = await montar('Entrada', 1280);
     await escolherLocal(entrada.dialogo, /^Local de Origem/, LOCAL_CENTRAL.nome);
     await escolherNoSelect(entrada.dialogo, /^Produto de Suplementação/, 'PROTEINADO 40 (KG)');
-    await escolherNoSelect(entrada.dialogo, /^Unidade/, 'Sacas (30 kg/saco)');
-    expect(campo(entrada.dialogo, /^Quantidade \(sacas\)/)).toBeTruthy();
+    await escolherNoSelect(entrada.dialogo, /^Unidade/, 'SACO (1 SACO = 30 KG)');
+    expect(campo(entrada.dialogo, /^Quantidade \(SACO\)/)).toBeTruthy();
   });
 
   it('escolher de novo o MESMO produto não mexe na unidade nem na quantidade (como a lista de antes); outro produto volta a KG e limpa', async () => {
@@ -272,12 +272,12 @@ describe('TM-3 — corpo: LancLoteForm com os campos em LancField', () => {
       const { dialogo } = await montar('Entrada', 1280);
       await escolherLocal(dialogo, /^Local de Origem/, LOCAL_CENTRAL.nome);
       await escolherNoSelect(dialogo, /^Produto de Suplementação/, 'PROTEINADO 40 (KG)');
-      await escolherNoSelect(dialogo, /^Unidade/, 'Sacas (30 kg/saco)');
-      fireEvent.change(campo(dialogo, /^Quantidade \(sacas\)/), { target: { value: '2' } });
+      await escolherNoSelect(dialogo, /^Unidade/, 'SACO (1 SACO = 30 KG)');
+      fireEvent.change(campo(dialogo, /^Quantidade \(SACO\)/), { target: { value: '2' } });
       // O B1Select chama o onChange mesmo com o item que já está escolhido; o Select de antes não.
       await escolherNoSelect(dialogo, /^Produto de Suplementação/, 'PROTEINADO 40 (KG)');
-      expect(within(dialogo).getByRole('combobox', { name: /^Unidade/ })).toHaveTextContent('Sacas (30 kg/saco)');
-      expect(/** @type {HTMLInputElement} */ (campo(dialogo, /^Quantidade \(sacas\)/)).value).toBe('2');
+      expect(within(dialogo).getByRole('combobox', { name: /^Unidade/ })).toHaveTextContent('SACO (1 SACO = 30 KG)');
+      expect(/** @type {HTMLInputElement} */ (campo(dialogo, /^Quantidade \(SACO\)/)).value).toBe('2');
       // Outro produto: como antes, a unidade volta a KG e a quantidade fica vazia.
       await escolherNoSelect(dialogo, /^Produto de Suplementação/, 'SAL MINERAL 80 (KG)');
       expect(within(dialogo).getByRole('combobox', { name: /^Unidade/ })).toHaveTextContent('KG');
@@ -354,8 +354,8 @@ describe('TM-6 — o ✓ grava como antes', () => {
         expect(opcao.closest('.mk-ll-dlg')).toBe(dialogo);
       };
       await escolherNoSelect(dialogo, /^Produto de Suplementação/, 'PROTEINADO 40 (KG)', naFolhaDoDialogo);
-      await escolherNoSelect(dialogo, /^Unidade/, 'Sacas (30 kg/saco)', naFolhaDoDialogo);
-      fireEvent.change(campo(dialogo, /^Quantidade \(sacas\)/), { target: { value: '2' } });
+      await escolherNoSelect(dialogo, /^Unidade/, 'SACO (1 SACO = 30 KG)', naFolhaDoDialogo);
+      fireEvent.change(campo(dialogo, /^Quantidade \(SACO\)/), { target: { value: '2' } });
       await clicar(confirmar(dialogo, 'Entrada'));
       await waitFor(() => expect(h.toast.success).toHaveBeenCalledWith('Transferência registrada.'));
       expect(h.toast.error).not.toHaveBeenCalled();
@@ -371,6 +371,9 @@ describe('TM-6 — o ✓ grava como antes', () => {
         localDestinoNome: LOCAL_SEDE.nome,
         observacoes: `Entrada pelo depósito ${DEPOSITO.nome_ponto}`,
         dataMovimentacao: HOJE,
+        // D-PROD-309: a unidade de conversão (SACO) e a quantidade digitada vão junto; o servidor confere os 60 kg.
+        unidadeLancamento: 'SACO',
+        quantidadeLancamento: '2',
       });
       expect(envio.lotesNota.map((l) => l.id)).toEqual(['l-sal', 'l-prot']);
       expect(h.refresh).toHaveBeenCalledWith('movimentacaoEstoque', EMP, { force: true });
@@ -464,3 +467,24 @@ describe('TM-7 — o ✕ do cabeçalho cancela', () => {
     expect(screen.getByRole('button', { name: 'Entrada' })).toBeTruthy();
   });
 });
+
+describe('TM-9 (D-PROD-309) — a unidade de conversão no celular (390 px)', () => {
+  it('SACO no seletor; 2 SACO dá "= 60 kg" numa linha inteira da grade (sem rolagem lateral); o sal, sem conversão, não mostra nada novo', async () => {
+    const { dialogo, form } = await montar('Entrada', 390);
+    await escolherLocal(dialogo, /^Local de Origem/, LOCAL_CENTRAL.nome);
+    await escolherNoSelect(dialogo, /^Produto de Suplementação/, 'PROTEINADO 40 (KG)');
+    await escolherNoSelect(dialogo, /^Unidade/, 'SACO (1 SACO = 30 KG)');
+    fireEvent.change(campo(dialogo, /^Quantidade \(SACO\)/), { target: { value: '2' } });
+    const conta = within(form).getByTestId('transferencia-conversao');
+    expect(conta.textContent).toBe('= 60 kg');
+    expect(conta.classList.contains('mk-ll__cheio')).toBe(true);
+    expect(conta.parentElement?.classList.contains('mk-ll__grade')).toBe(true);
+    cleanup();
+    const sal = await montar('Saída', 390);
+    await escolherLocal(sal.dialogo, /^Local de Destino/, LOCAL_CENTRAL.nome);
+    await escolherNoSelect(sal.dialogo, /^Produto de Suplementação/, 'SAL MINERAL 80 (KG)');
+    expect(within(sal.dialogo).getByRole('combobox', { name: /^Unidade/ }).hasAttribute('disabled')).toBe(true);
+    expect(within(sal.form).queryByTestId('transferencia-conversao')).toBeNull();
+  });
+});
+

@@ -111,6 +111,13 @@ const COLUNAS_OK = [
   { table_name: 'BemPatrimonial', column_name: 'forma_produto' },
   { table_name: 'BemPatrimonial', column_name: 'capacidade' },
   { table_name: 'BemPatrimonial', column_name: 'capacidade_unidade' },
+  // D-PROD-309: a unidade de conversão digitada no cocho, na transferência e na atividade.
+  { table_name: 'MovimentacaoEstoque', column_name: 'unidade_lancamento' },
+  { table_name: 'MovimentacaoEstoque', column_name: 'quantidade_lancamento' },
+  { table_name: 'MovimentacaoEstoque', column_name: 'fator_lancamento' },
+  { table_name: 'AtividadeApontamentoProduto', column_name: 'unidade_lancamento' },
+  { table_name: 'AtividadeApontamentoProduto', column_name: 'quantidade_lancamento' },
+  { table_name: 'AtividadeApontamentoProduto', column_name: 'fator_lancamento' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };
@@ -227,7 +234,7 @@ test('B12 (D-PROD-162): a consulta de colunas é MONTADA de COLUNAS_EXIGIDAS —
   const pares = [...CONSULTAS.colunas.matchAll(/\('([A-Za-z_]+)','([A-Za-z_]+)'\)/g)].map((x) => `${x[1]}.${x[2]}`);
   assert.deepEqual(pares, COLUNAS_EXIGIDAS.map(([t, c]) => `${t}.${c}`), 'nada a mais nem a menos na consulta');
   // D-PROD-276: sem a migration da reforma, o preflight para (a lista, o registro e o resumo da área leem as colunas).
-  for (const k of ['AbastecimentoBem.quantidade', 'AbastecimentoBem.unidade', 'TanqueBemProduto.produto_id', 'Planejamento.status', 'PlanejamentoArea.hectares', 'Atividade.planejamento_id', 'TipoPatrimonial.usa_produto', 'TipoPatrimonial.forma_produto', 'TipoPatrimonial.capacidade', 'TipoPatrimonial.capacidade_unidade', 'Produto.controla_lote', 'EstoqueLoteNota.data_validade', 'AtividadeApontamentoProduto.jato', 'ProdutoUnidadeConversao.fator', 'CADFORMULACAO.consumo_minimo_pv', 'BemPatrimonial.usa_produto', 'BemPatrimonial.forma_produto', 'BemPatrimonial.capacidade', 'BemPatrimonial.capacidade_unidade']) {
+  for (const k of ['AbastecimentoBem.quantidade', 'AbastecimentoBem.unidade', 'TanqueBemProduto.produto_id', 'Planejamento.status', 'PlanejamentoArea.hectares', 'Atividade.planejamento_id', 'TipoPatrimonial.usa_produto', 'TipoPatrimonial.forma_produto', 'TipoPatrimonial.capacidade', 'TipoPatrimonial.capacidade_unidade', 'Produto.controla_lote', 'EstoqueLoteNota.data_validade', 'AtividadeApontamentoProduto.jato', 'ProdutoUnidadeConversao.fator', 'CADFORMULACAO.consumo_minimo_pv', 'BemPatrimonial.usa_produto', 'BemPatrimonial.forma_produto', 'BemPatrimonial.capacidade', 'BemPatrimonial.capacidade_unidade', 'MovimentacaoEstoque.unidade_lancamento', 'MovimentacaoEstoque.quantidade_lancamento', 'MovimentacaoEstoque.fator_lancamento', 'AtividadeApontamentoProduto.unidade_lancamento', 'AtividadeApontamentoProduto.quantidade_lancamento', 'AtividadeApontamentoProduto.fator_lancamento']) {
     assert.ok(pares.includes(k), k);
     const r = avaliarPreflight(pronto({ colunas: COLUNAS_OK.filter((c) => `${c.table_name}.${c.column_name}` !== k) }));
     assert.equal(r.ok, false, k);

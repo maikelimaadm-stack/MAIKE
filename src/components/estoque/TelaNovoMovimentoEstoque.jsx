@@ -31,6 +31,8 @@ import {
   formularioDaEntrada,
   formularioVazioEntrada,
   formularioVazioTransferencia,
+  quantidadeDaTransferencia,
+  paraCampo,
   linhaVaziaEntrada,
   mensagemErroEdicaoEntrada,
   mensagemErroEntrada,
@@ -410,6 +412,9 @@ export default function TelaNovoMovimentoEstoque({ empresaId, hoje, podeEntrada 
   const [ajuste, setAjuste] = useState(() => formularioVazioAjuste());
   const [motivoEdicao, setMotivoEdicao] = useState("");
   const [transf, setTransf] = useState(() => formularioVazioTransferencia(hoje));
+  // D-PROD-309: as unidades do produto da transferência e a conta da quantidade para a unidade de estoque.
+  const unidadesTransf = unidadesDoProduto(transf.produto);
+  const transfConta = quantidadeDaTransferencia(transf);
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState(/** @type {string|null} */ (null));
@@ -784,7 +789,7 @@ export default function TelaNovoMovimentoEstoque({ empresaId, hoje, podeEntrada 
                 chave={["estoque", "entrada-produtos", empresaId]}
                 buscar={({ q, cursor, limit }) => listarProdutosDaEntrada(empresaId, { q, cursor, limit })}
                 value={transf.produto ? { id: transf.produto.id, rotulo: transf.produto.rotulo } : null}
-                onChange={(o) => mudarTransf({ produto: opcaoProduto(o), lotes: null, confirmaVencido: false })}
+                onChange={(o) => mudarTransf({ produto: opcaoProduto(o), unidade: "", lotes: null, confirmaVencido: false })}
                 obrigatorio
                 erro={erros.produto || undefined}
                 span={8}
@@ -811,8 +816,18 @@ export default function TelaNovoMovimentoEstoque({ empresaId, hoje, podeEntrada 
                 erro={erros.destino || undefined}
                 span={6}
               />
+              {/* D-PROD-309: a unidade ao lado da quantidade — a de estoque e as conversões ATIVAS do produto. */}
+              {unidadesTransf.length > 1 ? (
+                <CampoSelect
+                  label="Unidade"
+                  value={transfConta.unidade ?? unidadesTransf[0].value}
+                  onChange={(v) => mudarTransf({ unidade: v, lotes: null, confirmaVencido: false })}
+                  options={unidadesTransf}
+                  span={6}
+                />
+              ) : null}
               <CampoNumero
-                label={`Quantidade (${transf.produto?.unidade_estoque === "L" ? "litros" : "kg"})`}
+                label={`Quantidade (${transfConta.unidade ?? (transf.produto?.unidade_estoque === "L" ? "litros" : "kg")})`}
                 value={transf.quantidade}
                 onChange={(v) => mudarTransf({ quantidade: v })}
                 locale={LOCALE_ENTRADA}
@@ -822,13 +837,23 @@ export default function TelaNovoMovimentoEstoque({ empresaId, hoje, podeEntrada 
                 span={6}
                 testId="transferencia-quantidade"
               />
-              {/* D-PROD-282: a transferência leva o lote (e a validade) para o destino. */}
+              {transfConta.unidade && transfConta.quantidade ? (
+                <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="transferencia-conversao">
+                  = {Number(transfConta.quantidade).toLocaleString("pt-BR", { maximumFractionDigits: 4 })} {transf.produto?.unidade_estoque === "L" ? "L" : "kg"}
+                </p>
+              ) : null}
+              {/* D-PROD-282: a transferência leva o lote (e a validade) para o destino. D-PROD-309: os lotes são na unidade de estoque. */}
               <CampoLotesSaida
                 empresaId={empresaId}
-                linha={{ ...transf, deposito: transf.origem, unidade: "KG" }}
+                linha={{ ...transf, deposito: transf.origem, unidade: "KG", quantidade: transfConta.unidade ? (transfConta.quantidade ? paraCampo(transfConta.quantidade) : "") : transf.quantidade }}
                 onMudar={(patch) => mudarTransf(patch)}
                 testId="transferencia-lotes"
               />
+              {transfConta.unidade && transf.produto?.controla_lote ? (
+                <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="transferencia-lotes-em-estoque">
+                  As quantidades dos lotes são em {transf.produto?.unidade_estoque === "L" ? "L" : "kg"} (a unidade de estoque).
+                </p>
+              ) : null}
               {erros.lotes ? <p className="col-span-12 text-[12px] text-red-700" role="alert">{erros.lotes}</p> : null}
               <Observacao label="Observação" value={transf.observacao} onChange={(v) => mudarTransf({ observacao: v })} testId="transferencia-observacao" />
               <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]">

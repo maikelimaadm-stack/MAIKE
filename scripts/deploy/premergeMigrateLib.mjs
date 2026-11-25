@@ -226,6 +226,11 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // DEFAULT em tabela antiga (BemPatrimonial.usa_produto, forma_produto, capacidade e capacidade_unidade); sem CHECK (a API
   // confere: só implemento, por jato, capacidade > 0 e até 100.000, L | KG).
   '20261126100000_bem_implemento_produto': '330d9318d1658720ffd0871eff4577d7367e5fca58d765fb50b7ab0dde6defbe',
+  // MAIKE-UNIDADE-CONVERTIDA (D-PROD-309): EXPAND — a quantidade digitada numa unidade de conversão do produto no cocho,
+  // na transferência e na linha de produto da atividade: 6 colunas anuláveis sem DEFAULT em 2 tabelas antigas
+  // (MovimentacaoEstoque e AtividadeApontamentoProduto: unidade_lancamento, quantidade_lancamento e fator_lancamento);
+  // sem CHECK (a API confere: conversão ativa do próprio produto; a quantidade do movimento fica na unidade de estoque).
+  '20261126200000_unidade_convertida_lancamentos': '3644b7fd9aef0362ecfb8584904aaee6c3844cd1ca981c9691c3db8a1ccbf169',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([

@@ -46,6 +46,8 @@ export const criarShimLancamentoDoCocho = ({ saida, lancar, fechar }) => {
           pontoSuplementacaoId: c.ponto_suplementacao_id,
           dataMovimentacao: c.data_movimentacao,
           operationId,
+          // D-PROD-309: a unidade de conversão do corpo da baixa (só quando veio).
+          ...(c.unidade_lancamento ? { unidadeLancamento: c.unidade_lancamento, quantidadeLancamento: c.quantidade_lancamento } : {}),
         });
         mov = r?.movimentacao ?? null;
         baixas.set(operationId, mov);

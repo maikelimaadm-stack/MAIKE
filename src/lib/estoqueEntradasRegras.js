@@ -328,12 +328,28 @@ export const chaveDeOperacao = (prefixo = 'ent') =>
 /** @param {string} hoje */
 export const formularioVazioTransferencia = (hoje) => ({
   data: hoje,
-  produto: /** @type {null | { id: string, rotulo: string, unidade_estoque: string }} */ (null),
+  produto: /** @type {null | { id: string, rotulo: string, unidade_estoque: string, controla_lote?: boolean, unidades_conversao?: any[], peso_por_saco_kg?: any }} */ (null),
   origem: /** @type {null | { id: string, rotulo: string }} */ (null),
   destino: /** @type {null | { id: string, rotulo: string }} */ (null),
   quantidade: '',
+  // D-PROD-309: a unidade da quantidade ('' = a de estoque; ou a sigla de uma conversão do produto).
+  unidade: '',
   observacao: '',
 });
+
+/**
+ * D-PROD-309 — a quantidade da transferência na unidade de ESTOQUE (texto canônico) e a unidade de conversão escolhida
+ * (null na de estoque). `null` na quantidade se ainda não dá para saber.
+ * @param {any} form
+ * @returns {{ quantidade: string|null, unidade: string|null, digitada: string|null }}
+ */
+export const quantidadeDaTransferencia = (form) => {
+  const q = lerDecimal(form?.quantidade ?? '');
+  const estoque = form?.produto?.unidade_estoque === 'L' ? 'L' : 'KG';
+  const unidade = form?.unidade && form.unidade !== estoque && unidadesDoProduto(form?.produto).some((u) => u.value === form.unidade) ? String(form.unidade) : null;
+  if (!q.ok || !q.valor) return { quantidade: null, unidade, digitada: null };
+  return { quantidade: unidade ? emUnidadeDeEstoque(form.produto, unidade, q.valor) : q.valor, unidade, digitada: q.valor };
+};
 
 /** @param {any} form @param {string} hoje */
 export const validarTransferencia = (form, hoje) => {
@@ -348,24 +364,41 @@ export const validarTransferencia = (form, hoje) => {
   const q = lerDecimal(form.quantidade);
   if (!q.ok) erros.quantidade = q.motivo === 'vazio' ? 'Informe a quantidade.' : 'Quantidade inválida (até 4 casas decimais).';
   else if (ehZeroCanonico(q.valor)) erros.quantidade = 'A quantidade deve ser maior que zero.';
+  else {
+    // D-PROD-309: numa unidade de conversão, a conta para a unidade de estoque tem de dar mais que zero.
+    const t = quantidadeDaTransferencia(form);
+    if (t.unidade && (t.quantidade == null || ehZeroCanonico(t.quantidade))) erros.quantidade = `A quantidade em ${form.produto?.unidade_estoque === 'L' ? 'litros' : 'kg'} (4 casas) dá zero.`;
+  }
   // D-PROD-282: produto com lote — a escolha tem de fechar e o lote vencido, ser confirmado.
   if (form.produto?.controla_lote && form.erroLote) erros.lotes = form.erroLote;
   else if (form.produto?.controla_lote && form.loteVencido && !form.confirmaVencido) erros.lotes = 'Confirme o uso do lote vencido.';
   return { erros, ok: Object.keys(erros).length === 0 };
 };
 
-/** Dados do comando (a quantidade vai como número: o comando de transferência recebe número). @param {any} form @param {string} operationId */
-export const dadosDaTransferencia = (form, operationId) => ({
-  operationId,
-  produtoId: form.produto.id,
-  origemId: form.origem.id,
-  destinoId: form.destino.id,
-  quantidade: Number(/** @type {any} */ (lerDecimal(form.quantidade)).valor),
-  data: form.data || null,
-  observacao: tamanho(form.observacao) ? String(form.observacao).trim() : null,
-  // D-PROD-282: só com escolha manual (sem ela, FEFO no servidor).
-  ...corpoDosLotes({ ...form, unidade: 'KG', deposito: form.origem }),
-});
+/**
+ * Dados do comando (a quantidade vai como número: o comando de transferência recebe número). D-PROD-309: numa unidade
+ * de conversão, a quantidade vai na unidade de estoque (a conta que a tela mostrou, que o servidor confere) junto da
+ * unidade e da quantidade digitada.
+ * @param {any} form @param {string} operationId
+ * @returns {{ operationId: string, produtoId: string, origemId: string, destinoId: string, quantidade: number, data: string|null, observacao: string|null,
+ *   unidadeLancamento?: string, quantidadeLancamento?: string, lotes?: Array<{ estoque_lote_nota_id: string, quantidade: string }> }}
+ */
+export const dadosDaTransferencia = (form, operationId) => {
+  const t = quantidadeDaTransferencia(form);
+  return {
+    operationId,
+    produtoId: form.produto.id,
+    origemId: form.origem.id,
+    destinoId: form.destino.id,
+    quantidade: t.unidade ? Number(t.quantidade) : Number(/** @type {any} */ (lerDecimal(form.quantidade)).valor),
+    data: form.data || null,
+    observacao: tamanho(form.observacao) ? String(form.observacao).trim() : null,
+    // D-PROD-282: só com escolha manual (sem ela, FEFO no servidor).
+    ...corpoDosLotes({ ...form, unidade: 'KG', deposito: form.origem }),
+    // D-PROD-309: só com uma unidade de conversão escolhida (sem ela, os dados de sempre).
+    ...(t.unidade && t.digitada ? { unidadeLancamento: t.unidade, quantidadeLancamento: t.digitada } : {}),
+  };
+};
 
 // ─── apresentação ───────────────────────────────────────────────────────────
 

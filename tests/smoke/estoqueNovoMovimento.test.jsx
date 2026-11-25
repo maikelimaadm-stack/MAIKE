@@ -547,8 +547,28 @@ describe('D-PROD-259 — Transferência', () => {
     await waitFor(() => expect(posts('/movimentacoes-estoque/comandos/transferencia-locais')).toHaveLength(1));
     const corpo = posts('/movimentacoes-estoque/comandos/transferencia-locais')[0].body;
     expect(corpo).toMatchObject({ empresa_id: 'emp-1', produto_id: 'p-ureia', local_origem_id: 'l-galpao', local_destino_id: 'l-tanque', quantidade: 30.5 });
+    // D-PROD-309: sem unidade de conversão, o corpo de sempre.
+    expect(corpo).not.toHaveProperty('unidade_lancamento');
     expect(corpo.operation_id).toMatch(/^trf-/);
     await waitFor(() => expect(screen.queryByTestId('tela-novo-movimento-estoque')).toBeNull());
+  });
+});
+
+describe('D-PROD-309 — Transferência numa unidade de conversão', () => {
+  it('o produto em sacos mostra a Unidade ao lado da quantidade; 2 Sacos = "= 50 kg" e o comando leva a unidade, a digitada e o kg; sem conversão, nada novo', async () => {
+    const janela = await abrirNovoMovimento();
+    fireEvent.click(within(janela).getByRole('radio', { name: 'Transferência' }));
+    await escolher(janela, 'transferencia-produto', 'Ureia');
+    expect(within(janela).queryByLabelText('Unidade')).toBeNull();
+    await escolher(janela, 'transferencia-produto', 'Sal mineral');
+    await escolherNoSelect('Unidade', 'Sacos');
+    await escolher(janela, 'transferencia-origem', 'Galpão insumos');
+    await escolher(janela, 'transferencia-destino', 'Tanque diesel sede');
+    digitar(within(janela).getByTestId('transferencia-quantidade'), '2');
+    expect(within(janela).getByTestId('transferencia-conversao').textContent).toContain('= 50 kg');
+    await act(async () => fireEvent.click(within(janela).getByTestId('movimento-lancar')));
+    await waitFor(() => expect(posts('/movimentacoes-estoque/comandos/transferencia-locais')).toHaveLength(1));
+    expect(posts('/movimentacoes-estoque/comandos/transferencia-locais')[0].body).toMatchObject({ produto_id: 'p-sal', quantidade: 50, unidade_lancamento: 'SACO', quantidade_lancamento: '2' });
   });
 });
 
