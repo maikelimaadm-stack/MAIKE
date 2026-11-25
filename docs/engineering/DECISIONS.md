@@ -9791,4 +9791,18 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** sem mudança.
 - **Testes:** `tests/smoke/saidaLoteUnidadeConvertida.test.js` (4 casos; 3 vermelhos no código da `main`): multiplica (3 SC = 75 kg e a soma confere), divide (10 CX ÷ 4 = 2,5 L), SACO do cadastro antes do legado, e os casos de sempre.
 
-<!-- Próxima decisão: D-PROD-313 -->
+## D-PROD-313 — A unidade digitada aparece na lista de movimentos do Estoque e no histórico do depósito
+
+**Data:** 2026-11-25 · **Origem:** pendência registrada na D-PROD-310, pedida pelo proprietário ("pode ser") · **Branch:** `claude/unidade-digitada-historico` · **Relatório:** [`MAIKE-UNIDADE-DIGITADA-HISTORICO-REPORT.md`](./MAIKE-UNIDADE-DIGITADA-HISTORICO-REPORT.md)
+
+- **Contexto:** desde a D-PROD-310, o cocho, as transferências e a linha de produto da atividade gravam no movimento a unidade em que a quantidade foi digitada (`unidade_lancamento`), a quantidade digitada e o fator. As telas de consulta mostravam só a quantidade na unidade de estoque (75 kg), sem dizer que foram 3 SC. A lista do Estoque (`GET /estoque/movimentos` e o detalhe) nem recebia as colunas: a resposta é uma lista fechada de campos.
+- **Decisão:**
+  - `GET /estoque/movimentos` e `GET /estoque/movimentos/:id` passam a devolver `unidade_lancamento`, `quantidade_lancamento` e `fator_lancamento` (texto canônico de 4 casas; nulos sem conversão), pela mesma `unidadePublica` da linha da atividade. Só leitura; nada muda no que é gravado.
+  - Na grade de Movimentos do Estoque, a quantidade fica "− 75 kg (3 SC)"; na janela do movimento, uma linha "Digitado como: 3 SC". Sem conversão, nada muda.
+  - No histórico do depósito no mapa, o cartão ganha "Digitado como: 3 SC" depois da unidade; no cartão curto do detalhe do depósito, "3 SC" fica no lugar dos sacos calculados pelo peso do saco do cadastro (e no "Saíram 75,00 kg, 3 SC" para o leitor de tela).
+  - O que ainda espera envio (feito sem internet) também mostra a digitada: `historicoAguardandoEnvioService` copia a unidade e a quantidade digitada do corpo guardado (o fator só o servidor grava).
+  - A quantidade que vale continua sendo a da unidade de estoque; a digitada é só informação.
+- **Migration:** nenhuma. **Constituição:** sem mudança.
+- **Testes:** `backend/tests/estoqueConsulta.test.mjs` ("unidade digitada (D-PROD-313)", vermelho sem a mudança), `tests/smoke/unidadeDigitadaHistorico.test.js` (novo), e casos novos em `estoqueTela`, `historicosMapaEstiloManejo`, `detalhesV12Deposito` e `depositoTransferenciaOffline` (ET-09).
+
+<!-- Próxima decisão: D-PROD-314 -->

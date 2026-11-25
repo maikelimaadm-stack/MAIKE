@@ -7,6 +7,7 @@
  */
 import { formatarMoeda } from '@/lib/dinheiroDecimal';
 import { formatarQuantidadeCurta } from '@/lib/abastecimentoRegras';
+import { textoDaUnidadeDigitada } from '@/lib/unidadeLancamentoRegras';
 
 /** Origem do movimento (`origem_sistema` do motor) → rótulo da tela. */
 export const ROTULO_ORIGEM = Object.freeze(
@@ -115,6 +116,17 @@ export const quantidadeComSinal = (m) => {
   const q = formatarQtd(m?.quantidade, m?.unidade);
   if (!q) return '';
   return m?.tipo === 'Saída' ? `− ${q}` : `+ ${q}`;
+};
+
+/**
+ * D-PROD-313 — a quantidade com sinal e, quando foi digitada numa unidade de conversão (D-PROD-310), a digitada entre
+ * parênteses: "− 75 kg (3 SC)". Sem conversão, igual a `quantidadeComSinal`.
+ * @param {any} m
+ */
+export const quantidadeComDigitada = (m) => {
+  const q = quantidadeComSinal(m);
+  const digitada = textoDaUnidadeDigitada(m);
+  return q && digitada ? `${q} (${digitada})` : q;
 };
 
 /** Depósito do movimento: "origem → destino", ou o único que existe. @param {any} m */

@@ -20,6 +20,7 @@ import {
 import { saidaDoMovimento } from "@/lib/estoqueSaidasRegras";
 import { ajusteDoMovimento } from "@/lib/estoqueAjustesRegras";
 import { createPageUrl } from "@/utils";
+import { textoDaUnidadeDigitada } from "@/lib/unidadeLancamentoRegras";
 
 /** Chave do detalhe (prefixo `estoque`: o que invalida o estoque invalida o detalhe). */
 export const chaveDetalheMovimento = (/** @type {string|null} */ empresaId, /** @type {string|null} */ id) => ["estoque", "movimento", empresaId, id];
@@ -95,6 +96,7 @@ export default function JanelaMovimentoEstoque({ movimento, empresaId, onFechar,
             <Linha rotulo="Tipo" valor={rotuloDoMovimento(m)} testId="movimento-tipo" />
             <Linha rotulo="Produto" valor={m.produto_nome} />
             <Linha rotulo="Quantidade" valor={quantidadeComSinal(m)} testId="movimento-quantidade" />
+            <Linha rotulo="Digitado como" valor={textoDaUnidadeDigitada(m) || null} testId="movimento-digitado" />
             <Linha rotulo="Depósito" valor={depositoDoMovimento(m)} />
             <Linha rotulo="Origem" valor={ROTULO_ORIGEM[m.origem_sistema] !== rotuloDoMovimento(m) ? (ROTULO_ORIGEM[m.origem_sistema] ?? m.origem_sistema) : null} />
             <Linha rotulo="Situação" valor={rotuloSituacao(m)} testId="movimento-situacao" />

@@ -159,6 +159,14 @@ describe("Histórico do depósito no desenho do manejo (D-PROD-222)", () => {
     expect(screen.queryByRole("button", { name: /Excluir/ })).toBeNull();
   });
 
+  it("D-PROD-313: digitada numa unidade de conversão, mostra \"Digitado como\" logo depois da unidade", async () => {
+    cache.dados.movimentacaoEstoque = [{ ...cache.dados.movimentacaoEstoque[0], quantidade: 75, unidade_lancamento: "SC", quantidade_lancamento: "3.0000", fator_lancamento: "25.0000" }];
+    noDialogo("Histórico do Depósito", "Depósito Sede", <HistoricoDepositoSuplementacao deposito={{ id: "dep-1", local_estoque_id: "local-1" }} />);
+    await screen.findByText("SAL MINERAL 80");
+    const [cartao] = cartoes();
+    expect(linhas(cartao).slice(0, 3)).toEqual(["Quantidade kg: 75,00 kg", "Unidade: KG", "Digitado como: 3 SC"]);
+  });
+
   it("sem movimentação: o vazio do manejo e o título sem contagem", async () => {
     cache.dados.movimentacaoEstoque = [];
     noDialogo("Histórico do Depósito", "Depósito Sede", <HistoricoDepositoSuplementacao deposito={{ id: "dep-1", local_estoque_id: "local-1" }} />);

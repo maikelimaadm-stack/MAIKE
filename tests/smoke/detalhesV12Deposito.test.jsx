@@ -423,6 +423,16 @@ describe('DV-10 — v13: pastos atendidos e histórico em cartões curtos', () =
       { titulo: 'Entrada no depósito', sub: 'SAL MINERAL 80 · de Galpão Central', qtd: '+1.000 kg', sacos: '40,00 sacos', tom: 'entrada', sr: 'Entraram 1.000,00 kg, 40,00 sacos' },
     ]);
   });
+
+  it('D-PROD-313: digitada numa unidade de conversão, o cartão mostra "16 SC" no lugar dos sacos pelo peso do cadastro', async () => {
+    dados.movimentacoes = MOVS.map((m) => (m.id === 'mv-sai' ? { ...m, unidade_lancamento: 'SC', quantidade_lancamento: '16', fator_lancamento: '25' } : m));
+    await montar();
+    await tocar(screen.getByRole('tab', { name: 'Histórico' }));
+    const lista = screen.getByRole('list', { name: 'Histórico do depósito' });
+    const saida = Array.from(lista.querySelectorAll('.mk-dp-tl__card--curto')).find((c) => c.querySelector('.mk-dp-tl__qtd')?.getAttribute('data-tom') === 'saida');
+    expect(saida?.querySelector('.mk-dp-dep13__qtd-sub')?.textContent).toBe('16 SC');
+    expect(saida?.querySelector('.mk-dp-tl__qtd .mk-dp-tl__sr')?.textContent).toBe('Saíram 400,00 kg, 16 SC');
+  });
 });
 
 describe('DV-8 — carregando', () => {
