@@ -28,12 +28,14 @@ import {
   listarEventosDoPonto,
   ultimoEventoDoPonto,
   registrarLancamentoDoCocho,
+  alterarLancamentoDoCocho,
 } from "@/services/suplementacaoService";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { updateMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { normalizeText, obterSaldoProdutoLocal, parseNumber, validarBaixaFIFO } from "./estoqueSuplementacaoUtils";
 import { montarCorpoDaSaidaSuplementacao } from "@/services/suplementacaoEstoqueService";
+import { idDoAnteriorCitado } from "@/services/lancamentoCochoAguardandoService";
 import { formatDecimal } from "./formatters";
 import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { buildTimeWeightedLoteAllocations } from "./timeWeightedAllocation";
@@ -69,9 +71,16 @@ export const MENSAGEM_LANCAMENTO_JA_CANCELADO = "Este lançamento já tinha sido
  * `cicloCompartilhado` (D-PROD-206): o nível do cocho marcou o ciclo aberto como compartilhado (os mesmos
  * animais com o mesmo produto em outro cocho). O fechamento desse ciclo vai sem farol ("sem referência"):
  * não se rateia o consumo. Sem a prop, o serviço confere pelo cache do mapa.
- * @param {{ ponto: any, onSubmit?: any, onCancel: () => void, cicloCompartilhado?: boolean }} props
+ *
+ * `edicao` (D-PROD-298): corrigir o lançamento feito sem internet que ainda não subiu. O formulário
+ * abre preenchido com ele, o "último lançamento" é o de antes dele, o saldo não desconta ele mesmo, e
+ * salvar o substitui na fila (mesma posição e mesmo código).
+ * @param {{ ponto: any, onSubmit?: any, onCancel: () => void, cicloCompartilhado?: boolean,
+ *   edicao?: { operationId: string, payload: any } | null }} props
  */
-export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel, cicloCompartilhado }) {
+export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel, cicloCompartilhado, edicao = null }) {
+  const opEmEdicao = edicao?.operationId ?? null;
+  const eventoEmEdicao = edicao?.payload?.evento ?? null;
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
   // Ajuda da data do abastecimento (aria-describedby do campo).
   const idRegraData = useId();
@@ -110,22 +119,26 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     return typeof empresa?.fuso_horario === "string" && empresa.fuso_horario ? empresa.fuso_horario : null;
   }, [empresas, empresaSelecionadaId]);
   // A data que a pessoa escolheu não é trocada quando o fuso chega.
-  const dataLancamentoEditada = useRef(false);
+  const dataLancamentoEditada = useRef(Boolean(eventoEmEdicao));
   // O padrão da fazenda é aplicado UMA vez, quando o fuso chega: com o
   // formulário aberto na virada do dia, a data que a pessoa já viu não muda
   // sozinha (nem o `dias_periodo` do ciclo anterior).
   const padraoDoFusoAplicado = useRef(false);
-  const [formData, setFormData] = useState({
-    data_lancamento: hojeNoFuso(null),
-    data_fim_consumo_anterior: "",
-    // D-PROD-203: a FORMULAÇÃO é obrigatória; o produto que vai ao cocho (e que se baixa) é o dela.
-    formulacao_id: "",
-    quantidade_total_kg: "",
-    // D-PROD-206: vazio = sobra NÃO medida (o fechamento conta 0 e marca "Aproximado"); 0 digitado = medida.
-    sobra_kg: "",
-    unidade_lancamento: "KG",
-    quantidade_sacos: "",
-    observacoes: "",
+  const [formData, setFormData] = useState(() => {
+    const campo = (/** @type {unknown} */ v) => (v === null || v === undefined ? "" : String(v));
+    return {
+      data_lancamento: eventoEmEdicao?.data_lancamento ? String(eventoEmEdicao.data_lancamento).slice(0, 10) : hojeNoFuso(null),
+      data_fim_consumo_anterior:
+        edicao?.payload?.fechamento?.dataFim && edicao.payload.fechamento.dataFim !== eventoEmEdicao?.data_lancamento ? String(edicao.payload.fechamento.dataFim) : "",
+      // D-PROD-203: a FORMULAÇÃO é obrigatória; o produto que vai ao cocho (e que se baixa) é o dela.
+      formulacao_id: campo(eventoEmEdicao?.formulacao_id),
+      quantidade_total_kg: campo(eventoEmEdicao?.quantidade_total_kg),
+      // D-PROD-206: vazio = sobra NÃO medida (o fechamento conta 0 e marca "Aproximado"); 0 digitado = medida.
+      sobra_kg: eventoEmEdicao ? (edicao?.payload?.fechamento?.sobraInformada === false ? "" : campo(eventoEmEdicao.sobra_kg)) : "",
+      unidade_lancamento: eventoEmEdicao?.unidade_lancamento || "KG",
+      quantidade_sacos: campo(eventoEmEdicao?.quantidade_sacos),
+      observacoes: campo(eventoEmEdicao?.observacoes),
+    };
   });
 
   useEffect(() => {
@@ -196,8 +209,19 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const operacaoRef = useRef(/** @type {null | { id: string, saida: null | { movimentacao: any, corpo: any, resumo: string }, chaveSaida: string | null }} */ (null));
 
   const { data: ultimoEvento, isLoading: loadingUltimoEvento } = useQuery({
-    queryKey: ["ultimo-evento-ponto", empresaSelecionadaId, ponto?.id],
-    queryFn: () => ultimoEventoDoPonto({ empresaId: empresaSelecionadaId, pontoId: ponto?.id }),
+    queryKey: ["ultimo-evento-ponto", empresaSelecionadaId, ponto?.id, opEmEdicao],
+    queryFn: async () => {
+      if (!opEmEdicao) return ultimoEventoDoPonto({ empresaId: empresaSelecionadaId, pontoId: ponto?.id });
+      // Editando: o "último" é o de ANTES do que está em edição (e o período dele volta a estar aberto,
+      // pois quem o fecharia é justamente o lançamento em edição).
+      // O anterior é o que o lançamento em edição JÁ cita (não "o mais novo dos outros": com outro
+      // lançamento do mesmo cocho na fila depois dele, isso o ligaria ao próprio dependente).
+      const citado = idDoAnteriorCitado(edicao?.payload?.evento_anterior_id);
+      if (!citado) return null;
+      const eventos = await listarEventosDoPonto({ empresaId: empresaSelecionadaId, pontoId: ponto?.id, limit: undefined });
+      const anterior = (eventos || []).find((e) => e?.id === citado) || null;
+      return anterior && anterior._fechadoPorAguardando === opEmEdicao ? { ...anterior, dias_periodo: null, _fechamentoAguardando: false } : anterior;
+    },
     enabled: !!empresaSelecionadaId && !!ponto?.id,
   });
 
@@ -232,9 +256,10 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   });
 
   const { data: lotesNota = [] } = useQuery({
-    queryKey: ["lotes-nota-suplementacao", empresaSelecionadaId],
+    queryKey: ["lotes-nota-suplementacao", empresaSelecionadaId, opEmEdicao],
     queryFn: async () => {
-      const all = await listarLotesNotaDaEmpresa(empresaSelecionadaId);
+      // D-PROD-298: editando, o saldo não desconta a baixa do próprio lançamento em edição.
+      const all = await listarLotesNotaDaEmpresa(empresaSelecionadaId, { ignorar: opEmEdicao });
       return all.filter((lote) => lote.status === "Disponivel");
     },
     enabled: !!empresaSelecionadaId,
@@ -478,7 +503,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
     if (!operacaoRef.current) {
       operacaoRef.current = {
-        id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `op-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        id: opEmEdicao || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `op-${Date.now()}-${Math.random().toString(16).slice(2)}`),
         saida: null,
         chaveSaida: null,
       };
@@ -651,10 +676,11 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       }
       let resultado;
       try {
-        resultado = await registrarLancamentoDoCocho(
-          { saida: saidaCorpo, evento: eventoPayload, lotes: lotesPayload, eventoAnterior: ultimoEvento ?? null, fechamento },
-          { operationId, rotulo: `Lançamento · ${ponto.nome_ponto ?? "cocho"}` },
-        );
+        const dadosDoLancamento = { saida: saidaCorpo, evento: eventoPayload, lotes: lotesPayload, eventoAnterior: ultimoEvento ?? null, fechamento };
+        const rotuloDaFila = `Lançamento · ${ponto.nome_ponto ?? "cocho"}`;
+        resultado = opEmEdicao
+          ? await alterarLancamentoDoCocho(opEmEdicao, dadosDoLancamento, { rotulo: rotuloDaFila })
+          : await registrarLancamentoDoCocho(dadosDoLancamento, { operationId, rotulo: rotuloDaFila });
       } catch (erroDoLancamento) {
         // A baixa foi gravada e o lançamento não: a próxima tentativa reusa o MESMO corpo da baixa.
         const feita = /** @type {any} */ (erroDoLancamento)?.saidaFeita;
@@ -690,7 +716,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && (["eventos-ponto", "ultimo-evento-ponto", "eventos-recentes-ponto", "lotes-nota-suplementacao", "mapa-eventos-supl", "movimentacoes", "produtos", "suplementacao-ponto", "saldo-deposito", "movimentacoes-deposito-detalhe", "mapa-eventosSuplementacao"].includes(query.queryKey[0]) || (query.queryKey[0] === "mapa-cache" && query.queryKey[1] === "eventosSuplementacao")) });
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       setProgresso({ show: true, atual: totalPassos, total: totalPassos, mensagem: "Concluído!" });
-      toast.success("Suplementação registrada com sucesso.");
+      toast.success(opEmEdicao ? "Lançamento corrigido." : "Suplementação registrada com sucesso.");
       setTimeout(() => {
         setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
         onCancel();

@@ -7,6 +7,19 @@
 
 import { registrosAguardandoDoTipo, operacaoDaReferencia } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { TIPO_LANCAMENTO_COCHO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
+import { semLancamentosCanceladosAguardando } from '@/services/cancelamentosAguardandoService';
+
+/**
+ * O id, como as telas o mostram, do lançamento anterior que um payload cita:
+ * o do servidor, ou `aguardando:<código>` quando cita um que ainda não subiu.
+ * @param {unknown} eventoAnteriorId
+ * @returns {string|null}
+ */
+export const idDoAnteriorCitado = (eventoAnteriorId) => {
+  if (!eventoAnteriorId) return null;
+  const ref = operacaoDaReferencia(eventoAnteriorId);
+  return ref ? `aguardando:${ref}` : String(eventoAnteriorId);
+};
 
 /**
  * Como o lançamento que ainda não subiu aparece nas telas.
@@ -34,7 +47,16 @@ export const lancamentoAguardandoComoEvento = (p, operationId, criadoEm) => ({
  * @param {string|null} empresaId
  * @param {string} [pontoId] só os deste cocho (a lista recebida já é só dele)
  */
-export const comLancamentosAguardandoEnvio = async (eventos, empresaId, pontoId) => {
+export const comLancamentosAguardandoEnvio = async (eventos, empresaId, pontoId) =>
+  // D-PROD-298: e sem os lançamentos com cancelamento esperando envio.
+  semLancamentosCanceladosAguardando(await comLancamentosNovosAguardando(eventos, empresaId, pontoId));
+
+/**
+ * @param {any[]} eventos
+ * @param {string|null} empresaId
+ * @param {string} [pontoId]
+ */
+const comLancamentosNovosAguardando = async (eventos, empresaId, pontoId) => {
   let aguardando = [];
   try {
     aguardando = (await registrosAguardandoDoTipo(TIPO_LANCAMENTO_COCHO)).filter((r) => {
@@ -50,11 +72,11 @@ export const comLancamentosAguardandoEnvio = async (eventos, empresaId, pontoId)
     const p = /** @type {any} */ (r.payload);
     if (!p?.fechamento || !p.evento_anterior_id) continue;
     const ref = operacaoDaReferencia(p.evento_anterior_id);
-    fechadosLocalmente.set(ref ? `aguardando:${ref}` : p.evento_anterior_id, p.fechamento.diasPeriodo);
+    fechadosLocalmente.set(ref ? `aguardando:${ref}` : p.evento_anterior_id, { dias: p.fechamento.diasPeriodo, por: r.operationId });
   }
   const fechar = (/** @type {any} */ e) =>
     fechadosLocalmente.has(e.id) && (e.dias_periodo === null || e.dias_periodo === undefined)
-      ? { ...e, dias_periodo: fechadosLocalmente.get(e.id), _fechamentoAguardando: true }
+      ? { ...e, dias_periodo: fechadosLocalmente.get(e.id).dias, _fechamentoAguardando: true, _fechadoPorAguardando: fechadosLocalmente.get(e.id).por }
       : e;
   const novos = aguardando.map((r) => lancamentoAguardandoComoEvento(r.payload, r.operationId, r.criado_em));
   const todos = [...novos, ...eventos].map(fechar);

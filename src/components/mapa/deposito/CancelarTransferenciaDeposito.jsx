@@ -10,7 +10,8 @@ import {
   DialogHeader as DialogHeaderUi,
   DialogTitle as DialogTitleUi,
 } from "@/components/ui/dialog";
-import { cancelarTransferenciaEntreDepositos, consultarCancelamentoTransferencia } from "@/services/suplementacaoEstoqueService";
+import { cancelarTransferenciaEntreDepositos, cancelarTransferenciaSemInternet, consultarCancelamentoTransferencia } from "@/services/suplementacaoEstoqueService";
+import { confirmar as pedirConfirmacaoSemInternet } from "@/lib/maikeConfirmar";
 import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { invalidarCachesDoMapa } from "@/components/mapa/invalidarCachesMapa";
 import PreviaRecalculoExclusao from "@/components/estoque/PreviaRecalculoExclusao";
@@ -54,7 +55,8 @@ import { mensagemRecalculoDaExclusao } from "@/lib/gestaoErros";
  *   div.mk-dp-hist__excluir[data-estado-cancelamento] > div > button + p (motivo de estar desligado)
  */
 
-export const TEXTO_SEM_CONEXAO_TRANSFERENCIA = "Requer conexão: a exclusão só é feita online e não entra na fila offline.";
+/** D-PROD-298: sem internet, a exclusão fica no aparelho e sobe quando a internet voltar. */
+export const TEXTO_SEM_CONEXAO_TRANSFERENCIA = "Sem internet: a exclusão fica no celular e vai ao sistema quando a internet voltar.";
 export const MOTIVO_MINIMO_TRANSFERENCIA = 3;
 export const MOTIVO_MAXIMO_TRANSFERENCIA = 500;
 
@@ -254,7 +256,34 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
   if (!id) return null;
   const pendente = cancelada ? null : lerPendenteTransferencia(escopo, id);
 
+  // D-PROD-298: sem internet, confirma e guarda a exclusão (o servidor confere tudo quando ela subir).
+  const excluirSemInternet = async () => {
+    const ok = await pedirConfirmacaoSemInternet({
+      titulo: "Excluir transferência sem internet?",
+      descricao:
+        "A exclusão fica guardada neste celular e vai ao sistema quando a internet voltar. Lá, o produto volta ao local de origem. Se o sistema recusar, ela aparece em \"Dados sem internet\".",
+      textoConfirmar: "Excluir",
+      perigo: true,
+    });
+    if (!ok) return;
+    const p = lerPendenteTransferencia(escopo, id);
+    try {
+      await cancelarTransferenciaSemInternet({ movimento, empresaId, motivo: p?.motivo || MOTIVO_EXCLUSAO_MAPA, operationId: p?.operation_id || novaChave() });
+      limparPendente(escopo, id);
+      setCancelada(true);
+      toast.success("Transferência excluída.");
+      await recarregarAposCancelarTransferencia(queryClient, empresaId);
+      onCancelado?.();
+    } catch (erro) {
+      toast.error(/** @type {any} */ (erro)?.message || "Não foi possível excluir agora.");
+    }
+  };
+
   const abrir = () => {
+    if (!online) {
+      void excluirSemInternet();
+      return;
+    }
     const p = lerPendenteTransferencia(escopo, id);
     if (p) {
       // Resultado anterior desconhecido: mesma chave e mesmo motivo, nunca outra operação.
@@ -355,7 +384,7 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
   const estado = cancelada
     ? { habilitado: false, motivo: null }
     : !online
-    ? { habilitado: false, motivo: TEXTO_SEM_CONEXAO_TRANSFERENCIA }
+    ? { habilitado: true, motivo: TEXTO_SEM_CONEXAO_TRANSFERENCIA }
     : pendente
       ? { habilitado: true, motivo: "Exclusão anterior sem confirmação do servidor: abra para reenviar a mesma operação." }
       : { habilitado: true, motivo: null };

@@ -20,12 +20,13 @@
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, act, fireEvent, within } from "@testing-library/react";
+import { render, screen, cleanup, act, fireEvent, within, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const servico = vi.hoisted(() => ({
   consultarElegibilidadeCancelamentoCocho: vi.fn(),
   cancelarLancamentoCocho: vi.fn(),
+  cancelarLancamentoCochoSemInternet: vi.fn(async () => ({ estado: 'aguardando', operationId: 'op-x' })),
 }));
 const sessao = vi.hoisted(() => ({ usuario: null, permissao: null }));
 const cache = vi.hoisted(() => ({ dados: {}, refresh: vi.fn(async () => []), update: vi.fn(async () => []) }));
@@ -230,14 +231,23 @@ describe("C3 — operation_id persistida", () => {
   });
 });
 
-describe("C4 — só online", () => {
-  it("offline: não consulta nem envia; botão desabilitado com o motivo", async () => {
+describe("C4 — sem internet (D-PROD-298)", () => {
+  it("offline: não consulta o servidor; confirma e guarda a exclusão para subir depois (motivo fixo)", async () => {
     Object.defineProperty(window.navigator, "onLine", { value: false, configurable: true });
-    await renderizar(<CancelarLancamentoCocho evento={EVENTO} />);
-    expect(botaoCancelar().hasAttribute("disabled")).toBe(true);
-    expect(screen.getByText("Sem conexão: a exclusão só é feita online.")).toBeTruthy();
-    expect(servico.consultarElegibilidadeCancelamentoCocho).not.toHaveBeenCalled();
-    expect(servico.cancelarLancamentoCocho).not.toHaveBeenCalled();
+    const confirmarOriginal = window.confirm;
+    window.confirm = () => true;
+    try {
+      await renderizar(<CancelarLancamentoCocho evento={EVENTO} />);
+      expect(botaoCancelar().hasAttribute("disabled")).toBe(false);
+      expect(screen.getByText(/Sem internet: a exclusão fica no celular/)).toBeTruthy();
+      await act(async () => { fireEvent.click(botaoCancelar()); });
+      await waitFor(() => expect(servico.cancelarLancamentoCochoSemInternet).toHaveBeenCalledTimes(1));
+      expect(servico.cancelarLancamentoCochoSemInternet.mock.calls[0][0]).toMatchObject({ evento: EVENTO, motivo: MOTIVO_EXCLUSAO_MAPA, operationId: expect.any(String) });
+      expect(servico.consultarElegibilidadeCancelamentoCocho).not.toHaveBeenCalled();
+      expect(servico.cancelarLancamentoCocho).not.toHaveBeenCalled();
+    } finally {
+      window.confirm = confirmarOriginal;
+    }
   });
 });
 

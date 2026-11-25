@@ -13,7 +13,12 @@
  *  - os registros entram na ordem em que foram feitos.
  */
 
-import { TIPO_TRANSFERENCIA_DEPOSITO, TIPO_LANCAMENTO_COCHO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
+import {
+  TIPO_TRANSFERENCIA_DEPOSITO,
+  TIPO_LANCAMENTO_COCHO,
+  TIPO_CANCELAMENTO_LANCAMENTO_COCHO,
+  TIPO_CANCELAMENTO_TRANSFERENCIA,
+} from '@/lib/offline/sincronizacao/tiposDeEnvio';
 import { registrosAguardandoDoTipo } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 
 /**
@@ -53,6 +58,40 @@ const EFEITOS = [
           }
         : null,
   },
+  {
+    // D-PROD-298: o cancelamento do lançamento devolve ao depósito a baixa dele.
+    tipo: TIPO_CANCELAMENTO_LANCAMENTO_COCHO,
+    /** @param {any} p @param {string} operationId @returns {MovimentoAguardando|null} */
+    movimento: (p, operationId) =>
+      p?.estorno?.local_id && p.estorno.produto_id
+        ? {
+            operationId,
+            empresa_id: p.empresa_id,
+            produto_id: p.estorno.produto_id,
+            quantidade: Number(p.estorno.quantidade) || 0,
+            local_origem_id: null,
+            local_destino_id: p.estorno.local_id,
+            data: p.estorno.data ?? null,
+          }
+        : null,
+  },
+  {
+    // D-PROD-298: o cancelamento da transferência faz o caminho de volta (destino → origem).
+    tipo: TIPO_CANCELAMENTO_TRANSFERENCIA,
+    /** @param {any} p @param {string} operationId @returns {MovimentoAguardando|null} */
+    movimento: (p, operationId) =>
+      p?.estorno?.origem && p.estorno.destino && p.estorno.produto_id
+        ? {
+            operationId,
+            empresa_id: p.empresa_id,
+            produto_id: p.estorno.produto_id,
+            quantidade: Number(p.estorno.quantidade) || 0,
+            local_origem_id: p.estorno.destino,
+            local_destino_id: p.estorno.origem,
+            data: p.estorno.data ?? null,
+          }
+        : null,
+  },
 ];
 
 /**
@@ -64,15 +103,19 @@ export const registrarEfeitoNoEstoque = (tipo, movimento) => {
   if (!EFEITOS.some((e) => e.tipo === tipo)) EFEITOS.push({ tipo, movimento });
 };
 
-/** Movimentos de estoque desta sessão que ainda não chegaram ao servidor, em ordem. */
-export const movimentosDeEstoqueAguardando = async () => {
+/**
+ * Movimentos de estoque desta sessão que ainda não chegaram ao servidor, em ordem.
+ * @param {{ ignorar?: string|null }} [opcoes] `ignorar`: o registro que está sendo editado
+ *        (o saldo do formulário não pode descontar o próprio registro).
+ */
+export const movimentosDeEstoqueAguardando = async (opcoes = {}) => {
   const porTipo = await Promise.all(
     EFEITOS.map(async ({ tipo, movimento }) =>
       (await registrosAguardandoDoTipo(tipo))
         // Já tentou subir: o servidor pode ter gravado (a resposta pode ter se perdido), e
         // os lotes lidos do servidor já mostrariam. Aplicar de novo contaria duas vezes.
         // Só o que nunca saiu do aparelho é certamente "ainda não aplicado".
-        .filter((r) => !r.tentado)
+        .filter((r) => !r.tentado && r.operationId !== opcoes.ignorar)
         .map((r) => ({ criado_em: r.criado_em, mov: movimento(r.payload, r.operationId) }))
     )
   );
@@ -141,10 +184,11 @@ export const aplicarMovimentosAosLotes = (lotes, movimentos) => {
  * Os lotes com o efeito do que espera envio. Sem nada esperando, devolve a
  * própria lista. Falha ao ler a fila nunca derruba a tela: devolve os lotes.
  * @param {any[]} lotes
+ * @param {{ ignorar?: string|null }} [opcoes]
  */
-export const comEstoqueAguardandoEnvio = async (lotes) => {
+export const comEstoqueAguardandoEnvio = async (lotes, opcoes = {}) => {
   try {
-    const movimentos = await movimentosDeEstoqueAguardando();
+    const movimentos = await movimentosDeEstoqueAguardando(opcoes);
     return movimentos.length ? aplicarMovimentosAosLotes(lotes, movimentos) : lotes;
   } catch {
     return lotes;

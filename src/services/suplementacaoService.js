@@ -42,6 +42,11 @@ import { comandoSaidaSuplementacao } from '@/apis/movimentacoes-estoque';
 import {
   registrarTipoDeEnvio,
   enviarOuGuardar,
+  alterarNaFila,
+  situacaoNaFila,
+  descartarDaFila,
+  dependentesNaFila,
+  registroNaFila,
   referenciaAoResultado,
   classificarFalhaDeEnvio,
 } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
@@ -103,7 +108,9 @@ export const listarProdutosDaEmpresa = async (empresaId) => daEmpresa(await list
  */
 export const listarFormulacoesParaLancamento = async (empresaId) => listFormulacoesOpcoesLancamento(empresaId);
 // D-PROD-296: com o efeito do que foi lançado sem internet e espera envio.
-export const listarLotesNotaDaEmpresa = async (empresaId) => daEmpresa(await comEstoqueAguardandoEnvio(await listLotesNota()), empresaId);
+/** @param {string} empresaId @param {{ ignorar?: string|null }} [opcoes] o registro em edição não desconta a si mesmo */
+export const listarLotesNotaDaEmpresa = async (empresaId, opcoes = {}) =>
+  daEmpresa(await comEstoqueAguardandoEnvio(await listLotesNota(), opcoes), empresaId);
 export const listarMovimentacoesPecuariasDaEmpresa = async (empresaId) =>
   daEmpresa(await listMovimentacoesPecuarias(), empresaId);
 
@@ -565,14 +572,17 @@ const idOuReferenciaDoEvento = (evento) => {
  * @param {{ operationId: string, rotulo?: string }} opcoes
  * @returns {Promise<{ aguardandoEnvio: boolean, evento: any, fechamento: string }>}
  */
+/** @param {any} dados */
+const payloadDoLancamento = (dados) => ({
+  saida: dados.saida ?? null,
+  evento: dados.evento,
+  lotes: Array.isArray(dados.lotes) ? dados.lotes : [],
+  evento_anterior_id: idOuReferenciaDoEvento(dados.eventoAnterior),
+  fechamento: dados.eventoAnterior && dados.fechamento ? dados.fechamento : null,
+});
+
 export const registrarLancamentoDoCocho = async (dados, { operationId, rotulo }) => {
-  const payload = {
-    saida: dados.saida ?? null,
-    evento: dados.evento,
-    lotes: Array.isArray(dados.lotes) ? dados.lotes : [],
-    evento_anterior_id: idOuReferenciaDoEvento(dados.eventoAnterior),
-    fechamento: dados.eventoAnterior && dados.fechamento ? dados.fechamento : null,
-  };
+  const payload = payloadDoLancamento(dados);
   const r = await enviarOuGuardar(TIPO_LANCAMENTO_COCHO, payload, { empresaId: dados.evento?.empresa_id ?? null, operationId, rotulo });
   if (r.estado === 'enviado') {
     const res = /** @type {any} */ (r.resultado) ?? {};
@@ -580,3 +590,66 @@ export const registrarLancamentoDoCocho = async (dados, { operationId, rotulo })
   }
   return { aguardandoEnvio: true, evento: lancamentoAguardandoComoEvento(payload, r.operationId, new Date().toISOString()), fechamento: 'aguardando' };
 };
+
+// ── D-PROD-298: corrigir o lançamento que ainda não subiu ─────────────────
+
+/** @param {string} mensagem */
+const naoDaMais = (mensagem) => {
+  const erro = new Error(mensagem);
+  /** @type {any} */ (erro).code = 'LANCAMENTO_AGUARDANDO_INDISPONIVEL';
+  return erro;
+};
+
+/**
+ * Corrige na fila o lançamento que ainda não subiu (mesma posição, mesmo código).
+ * @param {string} operationId
+ * @param {Parameters<typeof registrarLancamentoDoCocho>[0]} dados
+ * @param {{ rotulo?: string }} [opcoes]
+ */
+export const alterarLancamentoDoCocho = async (operationId, dados, opcoes = {}) => {
+  const payload = payloadDoLancamento(dados);
+  const ok = await alterarNaFila(operationId, payload, { rotulo: opcoes.rotulo });
+  if (!ok) throw naoDaMais('Este lançamento já está subindo ou já chegou ao sistema: não dá mais para editar aqui. Se precisar, exclua o lançamento depois que ele aparecer como enviado.');
+  return { aguardandoEnvio: true, evento: lancamentoAguardandoComoEvento(payload, operationId, new Date().toISOString()), fechamento: 'aguardando' };
+};
+
+/**
+ * O que acontece se excluir o lançamento que ainda não subiu: quem depende dele
+ * (o próximo lançamento do mesmo cocho, feito sem internet).
+ * @param {{ _operationId?: string }} evento
+ */
+export const dependentesDoLancamentoAguardando = async (evento) =>
+  evento?._operationId ? dependentesNaFila(evento._operationId) : [];
+
+/**
+ * Exclui o lançamento que ainda não subiu: sai só do aparelho, nada vai ao
+ * servidor (a baixa do depósito vai junto, pois ainda não foi feita).
+ * @param {{ _operationId?: string }} evento
+ */
+export const excluirLancamentoAguardando = async (evento) => {
+  const opId = String(evento?._operationId ?? '');
+  const situacao = await situacaoNaFila(opId);
+  if (situacao === 'confirmando') throw naoDaMais('Este lançamento está sendo enviado agora. Espere confirmar para excluir.');
+  if (situacao === 'enviado') throw naoDaMais('Este lançamento já chegou ao sistema. Atualize a tela e use "Excluir lançamento".');
+  if (situacao && !(await descartarDaFila(opId))) throw naoDaMais('Não foi possível excluir este lançamento agora.');
+};
+
+/**
+ * O lançamento que ainda não subiu, pronto para o formulário de edição; ou um
+ * erro com a frase do motivo (já está subindo, já chegou, a baixa já foi feita).
+ * @param {{ _operationId?: string }} evento
+ * @returns {Promise<{ operationId: string, payload: any }>}
+ */
+export const lancamentoAguardandoParaEditar = async (evento) => {
+  const registro = await registroNaFila(String(evento?._operationId ?? ''));
+  if (!registro) throw naoDaMais('Este lançamento já chegou ao sistema. Atualize a tela.');
+  if (!registro.podeAlterar) {
+    throw naoDaMais(
+      registro.progresso?.saida_feita
+        ? 'A baixa deste lançamento já foi feita no estoque: não dá mais para editar. Use "Tentar de novo" em Dados sem internet.'
+        : 'Este lançamento está sendo enviado agora. Espere confirmar.'
+    );
+  }
+  return { operationId: registro.operationId, payload: registro.payload };
+};
+

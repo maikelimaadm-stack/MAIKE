@@ -132,4 +132,51 @@ describe('D-PROD-296 — transferência entre depósitos sem internet', () => {
     expect([a.aguardandoEnvio, b.aguardandoEnvio]).toEqual([true, true]);
     expect((await motor.resumoDaFila()).aguardando).toBe(1);
   });
+
+  it('ET-06 D-PROD-298: a transferência que não subiu aparece no depósito, edita (mesmo código) e exclui', async () => {
+    const { estoque, motor } = await carregar();
+    motor.definirSessaoDaFila({ cliente_id: 'cli_et06', usuario_id: 'usr_et06' });
+    online = false;
+    vi.stubGlobal('fetch', vi.fn());
+    const r = await transferir(estoque, { operationId: 'transf-et06-0001', observacoes: 'levei de caminhonete' });
+    const [item] = await estoque.transferenciasAguardandoDoLocal('deposito-2');
+    expect(item).toMatchObject({ operationId: 'transf-et06-0001', direcao: 'entrada', quantidade: 70, observacoes: 'levei de caminhonete' });
+    expect((await estoque.transferenciasAguardandoDoLocal('galpao'))[0].direcao).toBe('saida');
+
+    await estoque.transferenciaAguardandoPodeEditar(r.operation_id);
+    await transferir(estoque, { quantidade: 40, operationId: r.operation_id, edicao: r.operation_id });
+    const [editado] = await estoque.transferenciasAguardandoDoLocal('deposito-2');
+    expect(editado).toMatchObject({ operationId: 'transf-et06-0001', quantidade: 40 });
+    expect((await motor.resumoDaFila()).aguardando).toBe(1);
+
+    await estoque.descartarTransferenciaAguardando(r.operation_id);
+    expect(await estoque.transferenciasAguardandoDoLocal('deposito-2')).toEqual([]);
+  });
+
+  it('ET-07 D-PROD-298: excluir SEM internet a transferência que já está no servidor: some do histórico, o saldo volta; sobe depois', async () => {
+    const { estoque, motor } = await carregar();
+    motor.definirSessaoDaFila({ cliente_id: 'cli_et07', usuario_id: 'usr_et07' });
+    const visao = await import('@/services/estoqueAguardandoEnvioService');
+    const canc = await import('@/services/cancelamentosAguardandoService');
+    const saida = { id: 'ms-1', empresa_id: EMP, produto_id: 'prod-1', quantidade: 30, local_estoque_origem: 'galpao', local_estoque_destino: 'deposito-2', movimentacao_grupo_id: 'g1', tipo_detalhado: 'transferencia_enviada', status: 'Ativa' };
+    const entrada = { ...saida, id: 'me-1', tipo_detalhado: 'transferencia_recebida' };
+    online = false;
+    const fetchMock = vi.fn().mockResolvedValue(respostaJson(201, { committed: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    const r = await estoque.cancelarTransferenciaSemInternet({ movimento: saida, empresaId: EMP, motivo: 'Lançada errada', operationId: 'op-canct-0001' });
+    expect(r.estado).toBe('aguardando');
+    expect((await canc.comTransferenciasCanceladasAguardando([saida, entrada])).map((m) => m.status)).toEqual(['Estornada', 'Estornada']);
+    const lotes = await visao.comEstoqueAguardandoEnvio([
+      { id: 'l-dep', empresa_id: EMP, produto_id: 'prod-1', local_estoque_id: 'deposito-2', status: 'Disponivel', quantidade_disponivel: 30, data_documento: '2026-11-01' },
+    ]);
+    const saldo = (local) => lotes.filter((l) => l.local_estoque_id === local).reduce((t, l) => t + l.quantidade_disponivel, 0);
+    expect([saldo('deposito-2'), saldo('galpao')]).toEqual([0, 30]);
+
+    online = true;
+    await motor.sincronizar();
+    const [url, init] = fetchMock.mock.calls.find((c) => String(c[0]).includes('/cancelar-transferencia'));
+    expect(url).toBe(`${API}/api/native/movimentacoes-estoque/ms-1/cancelar-transferencia`);
+    expect(JSON.parse(init.body)).toMatchObject({ empresa_id: EMP, operation_id: 'op-canct-0001', motivo: 'Lançada errada' });
+  });
 });
+
