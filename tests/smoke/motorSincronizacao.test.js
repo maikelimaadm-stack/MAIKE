@@ -471,3 +471,28 @@ describe('D-PROD-298 — corrigir na fila', () => {
   });
 });
 
+describe('D-PROD-298 — revisão (Codex): edição durante a passada', () => {
+  it('MS-28 editar um item enquanto a passada espera o anterior: sai a versão editada, não a cópia antiga', async () => {
+    const enviados = [];
+    /** @type {(v?: unknown) => void} */
+    let liberar = () => {};
+    const segurar = new Promise((r) => { liberar = r; });
+    registrarTipoDeEnvio({
+      tipo: 'cocho.lancamento', versao: 1, offline: true,
+      enviar: async (p) => { if (p.n === 1) await segurar; enviados.push(p.n); return {}; },
+    });
+    temRede = false;
+    await enviarOuGuardar('cocho.lancamento', { n: 1 });
+    relogio += 1000;
+    const b = await enviarOuGuardar('cocho.lancamento', { n: 2 });
+    temRede = true;
+    const passada = sincronizar();
+    await new Promise((r) => setTimeout(r, 20)); // a passada está esperando o 1º
+    expect(await alterarNaFila(b.operationId, { n: 22 })).toBe(true);
+    liberar();
+    await passada;
+    await sincronizar();
+    expect(enviados).toEqual([1, 22]);
+  });
+});
+

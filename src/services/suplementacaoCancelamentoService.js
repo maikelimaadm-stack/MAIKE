@@ -12,8 +12,7 @@ import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { cancelarLancamentoCochoNativo, elegibilidadeCancelamentoCochoNativo } from '@/apis/suplementacao-eventos';
 import { enviarOuGuardar, registrarTipoDeEnvio } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { TIPO_CANCELAMENTO_LANCAMENTO_COCHO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
-import { getMapaCachedData, updateMapaCachedData } from '@/services/mapaCacheService';
-import { semLancamentosCanceladosAguardando } from '@/services/cancelamentosAguardandoService';
+import { getMapaCachedData } from '@/services/mapaCacheService';
 
 /** @param {string} operation */
 const exigirConexao = (operation) => {
@@ -97,14 +96,7 @@ export const cancelarLancamentoCochoSemInternet = async ({ evento, motivo, opera
     },
     { empresaId: evento.empresa_id, operationId }
   );
-  if (r.estado === 'aguardando') {
-    // A cópia do aparelho já mostra o lançamento fora e o período anterior aberto de novo.
-    try {
-      const atuais = await getMapaCachedData('eventosSuplementacao', evento.empresa_id);
-      await updateMapaCachedData('eventosSuplementacao', evento.empresa_id, await semLancamentosCanceladosAguardando(atuais));
-    } catch {
-      // só visão
-    }
-  }
+  // A tela já mostra o lançamento fora (a visão do que espera envio é aplicada na
+  // leitura do cache, que continua só com o que o servidor respondeu).
   return r;
 };

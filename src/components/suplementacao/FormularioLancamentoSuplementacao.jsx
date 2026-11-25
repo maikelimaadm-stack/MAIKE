@@ -35,6 +35,7 @@ import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { updateMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { normalizeText, obterSaldoProdutoLocal, parseNumber, validarBaixaFIFO } from "./estoqueSuplementacaoUtils";
 import { montarCorpoDaSaidaSuplementacao } from "@/services/suplementacaoEstoqueService";
+import { idDoAnteriorCitado } from "@/services/lancamentoCochoAguardandoService";
 import { formatDecimal } from "./formatters";
 import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { buildTimeWeightedLoteAllocations } from "./timeWeightedAllocation";
@@ -213,8 +214,12 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       if (!opEmEdicao) return ultimoEventoDoPonto({ empresaId: empresaSelecionadaId, pontoId: ponto?.id });
       // Editando: o "último" é o de ANTES do que está em edição (e o período dele volta a estar aberto,
       // pois quem o fecharia é justamente o lançamento em edição).
-      const eventos = await listarEventosDoPonto({ empresaId: empresaSelecionadaId, pontoId: ponto?.id, limit: 12 });
-      const anterior = (eventos || []).find((e) => e?.id !== `aguardando:${opEmEdicao}`) || null;
+      // O anterior é o que o lançamento em edição JÁ cita (não "o mais novo dos outros": com outro
+      // lançamento do mesmo cocho na fila depois dele, isso o ligaria ao próprio dependente).
+      const citado = idDoAnteriorCitado(edicao?.payload?.evento_anterior_id);
+      if (!citado) return null;
+      const eventos = await listarEventosDoPonto({ empresaId: empresaSelecionadaId, pontoId: ponto?.id, limit: undefined });
+      const anterior = (eventos || []).find((e) => e?.id === citado) || null;
       return anterior && anterior._fechadoPorAguardando === opEmEdicao ? { ...anterior, dias_periodo: null, _fechamentoAguardando: false } : anterior;
     },
     enabled: !!empresaSelecionadaId && !!ponto?.id,

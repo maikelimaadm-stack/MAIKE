@@ -310,5 +310,44 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
     expect(envio.corpo).toMatchObject({ empresa_id: EMP, operation_id: 'op-canc-0001', motivo: 'Lançado errado' });
     expect((await motor.resumoDaFila()).aguardando).toBe(0);
   });
+
+  it('LCO-12 revisão: o anterior de um lançamento em edição é o que ele já cita (nunca o próprio dependente)', async () => {
+    const srv = servidor();
+    vi.stubGlobal('fetch', srv.fetch);
+    const { sup } = await carregar();
+    online = false;
+    const primeiro = await sup.registrarLancamentoDoCocho(
+      { saida: null, evento: evento(), lotes: [], eventoAnterior: srv.eventos[0], fechamento: fechamento() },
+      { operationId: 'op-lanc-0012' }
+    );
+    const [ultimo] = await sup.comLancamentosAguardandoEnvio([{ ...srv.eventos[0] }], EMP, 'c1');
+    await sup.registrarLancamentoDoCocho(
+      { saida: null, evento: evento({ data_lancamento: '2026-11-14' }), lotes: [], eventoAnterior: ultimo, fechamento: fechamento() },
+      { operationId: 'op-lanc-0013' }
+    );
+    const edicao = await sup.lancamentoAguardandoParaEditar(primeiro.evento);
+    expect(sup.idDoAnteriorCitado(edicao.payload.evento_anterior_id)).toBe('ev-1');
+    const edicao2 = await sup.lancamentoAguardandoParaEditar({ _operationId: 'op-lanc-0013' });
+    expect(sup.idDoAnteriorCitado(edicao2.payload.evento_anterior_id)).toBe('aguardando:op-lanc-0012');
+  });
+
+  it('LCO-13 revisão: excluir da fila o cancelamento feito sem internet devolve o lançamento à tela (nada fica gravado no cache)', async () => {
+    const srv = servidor();
+    vi.stubGlobal('fetch', srv.fetch);
+    const { motor } = await carregar();
+    const canc = await import('@/services/suplementacaoCancelamentoService');
+    const mapa = await import('@/services/mapaCacheService');
+    const lancado = { id: 'ev-20', empresa_id: EMP, ponto_suplementacao_id: 'c1', data_lancamento: '2026-11-12', dias_periodo: null };
+    const anterior = { ...srv.eventos[0], dias_periodo: 2, fechado_por_evento_id: 'ev-20' };
+    await mapa.updateMapaCachedData('eventosSuplementacao', EMP, [lancado, anterior]);
+    online = false;
+    const r = await canc.cancelarLancamentoCochoSemInternet({ evento: lancado, motivo: 'x', operationId: 'op-canc-0020' });
+    let visto = await mapa.getMapaCachedData('eventosSuplementacao', EMP);
+    expect(visto.map((e) => e.id)).toEqual(['ev-1']);
+    expect(await motor.descartarDaFila(r.operationId)).toBe(true);
+    visto = await mapa.getMapaCachedData('eventosSuplementacao', EMP);
+    expect(visto.map((e) => e.id).sort()).toEqual(['ev-1', 'ev-20']);
+    expect(visto.find((e) => e.id === 'ev-1').dias_periodo).toBe(2);
+  });
 });
 

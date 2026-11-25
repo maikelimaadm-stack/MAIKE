@@ -112,6 +112,25 @@ const CODIGOS_PASSAGEIROS = new Set(['IDEMPOTENCY_IN_PROGRESS', 'CONCURRENCY_CON
 /** @type {Map<string, TipoDeEnvio>} */
 const TIPOS = new Map();
 
+/**
+ * D-PROD-298 (revisão): mudanças num item da fila acontecem uma de cada vez —
+ * editar, excluir, "tentar de novo" e o envio tomando o item para si. Sem isto,
+ * uma edição feita enquanto a passada esperava o item anterior era sobrescrita
+ * pela cópia antiga que a passada levava.
+ */
+/** @type {Promise<unknown>} */
+let cadeiaDaFila = Promise.resolve();
+/**
+ * @template T
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+const exclusivo = (fn) => {
+  const r = cadeiaDaFila.then(fn);
+  cadeiaDaFila = r.catch(() => {});
+  return r;
+};
+
 /** @type {PortaDaFila|null} */
 let porta = null;
 /** @type {SessaoDaFila|null} */
@@ -540,7 +559,12 @@ const passada = async () => {
     emitir();
   };
 
-  for (const item of todos) {
+  for (const doRetrato of todos) {
+    if (doRetrato.estado === 'enviado') continue;
+    // A versão mais nova do item (pode ter sido editado ou excluído desde o retrato).
+    /** @type {ItemDaFila|undefined} */
+    let item = await fila.ler(doRetrato.id);
+    if (!item || !eDaSessao(item)) continue;
     if (item.estado === 'enviado') continue;
     if (item.estado === 'atencao') {
       parar(item);
@@ -594,18 +618,34 @@ const passada = async () => {
 
     if (!mesmaSessao(dono)) return fim();
     // A partir daqui o servidor pode receber: o item passa a "confirmando envio"
-    // (não se exclui nem se edita até o servidor responder).
-    if (!item.tentado) {
-      item.tentado = true;
-      await fila.gravar(item);
+    // (não se exclui nem se edita até o servidor responder). Tomado de forma
+    // exclusiva: se foi editado depois desta leitura, não sai nesta passada.
+    const montado = item;
+    const tomado = await exclusivo(async () => {
+      const fresco = await fila.ler(montado.id);
+      if (!fresco || fresco.estado !== 'pendente' || (fresco.revisao ?? 0) !== (montado.revisao ?? 0)) return null;
+      if (!fresco.tentado) {
+        fresco.tentado = true;
+        await fila.gravar(fresco);
+      }
+      return fresco;
+    });
+    if (!tomado) {
+      parar(montado);
+      continue;
     }
+    item = tomado;
     try {
       const resultado = await def.enviar(payload, {
         operationId: item.id,
         empresaId: item.empresa_id,
         registrarProgresso: async (p) => {
-          item.progresso = { ...(item.progresso ?? {}), ...p };
-          await fila.gravar(item);
+          const alvo = /** @type {ItemDaFila} */ (item);
+          alvo.progresso = { ...(alvo.progresso ?? {}), ...p };
+          await exclusivo(async () => {
+            const fresco = await fila.ler(alvo.id);
+            if (fresco) await fila.gravar({ ...fresco, progresso: alvo.progresso });
+          });
         },
       });
       await fila.gravar({
@@ -734,7 +774,10 @@ export const temRegistrosNaoEnviados = async () => {
  * estoque que faltava). Só itens desta sessão.
  * @param {string} id
  */
-export const tentarDeNovo = async (id) => {
+export const tentarDeNovo = (id) => exclusivo(() => tentarDeNovoJa(id));
+
+/** @param {string} id */
+const tentarDeNovoJa = async (id) => {
   const fila = portaDaFila();
   const item = fila ? await fila.ler(id) : undefined;
   if (!fila || !item || !eDaSessao(item) || item.estado === 'enviado') return false;
@@ -769,7 +812,10 @@ export const tentarDeNovo = async (id) => {
  * "precisa de atenção" na próxima passada.
  * @param {string} id
  */
-export const descartarDaFila = async (id) => {
+export const descartarDaFila = (id) => exclusivo(() => descartarDaFilaJa(id));
+
+/** @param {string} id */
+const descartarDaFilaJa = async (id) => {
   const fila = portaDaFila();
   const item = fila ? await fila.ler(id) : undefined;
   if (!fila || !item || !eDaSessao(item) || item.estado === 'enviado') return false;
@@ -804,7 +850,10 @@ const podeAlterar = (item) =>
  * @param {unknown} payload
  * @param {{ rotulo?: string }} [opcoes]
  */
-export const alterarNaFila = async (id, payload, opcoes = {}) => {
+export const alterarNaFila = (id, payload, opcoes = {}) => exclusivo(() => alterarNaFilaJa(id, payload, opcoes));
+
+/** @param {string} id @param {unknown} payload @param {{ rotulo?: string }} opcoes */
+const alterarNaFilaJa = async (id, payload, opcoes) => {
   const fila = portaDaFila();
   const item = fila ? await fila.ler(id) : undefined;
   if (!fila || !item || !eDaSessao(item) || !podeAlterar(item)) return false;
@@ -820,6 +869,7 @@ export const alterarNaFila = async (id, payload, opcoes = {}) => {
     referencias,
     rotulo: typeof opcoes.rotulo === 'string' && opcoes.rotulo.trim() ? opcoes.rotulo.trim().slice(0, 160) : rotuloDe(def, payload),
     estado: 'pendente',
+    revisao: (item.revisao ?? 0) + 1,
     tentativas: 0,
     proxima_tentativa_em: 0,
     ultimo_erro: null,

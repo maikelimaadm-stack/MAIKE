@@ -104,23 +104,16 @@ const CAPACIDADES = {
   // Manejo; ela fica no cache para o ícone sair certo também sem rede. Inclui as
   // inativas: uma posição antiga pode apontar para uma delas.
   categoriasManejo: async (empresaId) => daEmpresa(await listCategoriasManejo(), empresaId),
-  // D-PROD-296: + os lançamentos feitos sem internet que ainda não subiram.
-  eventosSuplementacao: async (empresaId) =>
-    comLancamentosAguardandoEnvio(daEmpresa(await listSuplementacaoEventos(), empresaId), empresaId),
+  eventosSuplementacao: async (empresaId) => daEmpresa(await listSuplementacaoEventos(), empresaId),
   // D-PROD-205: leituras de cocho (escore, acesso, estrutura) — o farol do cocho no mapa, também sem rede.
-  // D-PROD-296: + as feitas sem internet que ainda não subiram ("aguardando envio").
-  leiturasCocho: async (empresaId) => [
-    ...(await leiturasAguardandoEnvio(empresaId)),
-    ...daEmpresa(await listLeiturasCocho(), empresaId),
-  ],
+  leiturasCocho: async (empresaId) => daEmpresa(await listLeiturasCocho(), empresaId),
   // D-PROD-219: medições de forragem dos pastos (régua, no olho, amostra de MS), também sem rede.
   medicoesForragem: async (empresaId) => daEmpresa(await listMedicoesForragem(), empresaId),
   // D-PROD-223: por pasto, lote dentro agora e o dia da última saída (ledger), para o farol estimado.
   // Sem fazenda não há o que pedir: lista vazia.
   descansoPastos: async (empresaId) => (empresaId ? listDescansoPastos(empresaId) : []),
   estoqueLotes: async (empresaId) =>
-    // D-PROD-296: + o efeito do que foi lançado sem internet e espera envio.
-    daEmpresa(await comEstoqueAguardandoEnvio(await listLotesNota()), empresaId).filter((item) => item.status === 'Disponivel'),
+    daEmpresa(await listLotesNota(), empresaId).filter((item) => item.status === 'Disponivel'),
   tarefas: async (empresaId) =>
     daEmpresa(await listLancamentos(), empresaId).filter(
       (t) => t.coordenadas && (t.status === 'Pendente' || t.status === 'Em Andamento')
@@ -136,8 +129,7 @@ const CAPACIDADES = {
   aplicacaoMedicamento: async (empresaId) => daEmpresa(await listAplicacoesMedicamento(), empresaId),
   eventoSanitario: async (empresaId) => daEmpresa(await listEventosSanitarios(), empresaId),
   manejoTecnico: async (empresaId) => daEmpresa(await listManejosTecnicos(), empresaId),
-  // D-PROD-298: a transferência com cancelamento esperando envio já sai do histórico do depósito.
-  movimentacaoEstoque: async (empresaId) => comTransferenciasCanceladasAguardando(daEmpresa(await listMovimentacoesEstoque(), empresaId)),
+  movimentacaoEstoque: async (empresaId) => daEmpresa(await listMovimentacoesEstoque(), empresaId),
   /**
    * `produtos` faltava no registro anterior enquanto `MapaGeral` pedia a query.
    * O resultado era uma lista sempre vazia, em silêncio (seção 11.4).
@@ -184,11 +176,44 @@ const donoDoCache = (cacheKey, empresaId) => {
   return tenant ? `${TENANT_PREFIXO}${tenant}` : null;
 };
 
-/** Leitura pura do cache, sem rede. */
+/**
+ * D-PROD-296/298 — o que foi feito sem internet e espera envio, aplicado NA
+ * LEITURA (nunca gravado no cache). O cache guarda só o que o servidor
+ * respondeu; assim, excluir da fila um registro (ou um cancelamento) que ainda
+ * não subiu desfaz o efeito na tela, sem sobrar nada gravado. Marcas
+ * `aguardando:…` antigas que uma tela tenha gravado são trocadas pelas da fila.
+ */
+const SEM_MARCAS = (/** @type {any[]} */ itens) =>
+  (Array.isArray(itens) ? itens : []).filter((i) => !String(i?.id ?? '').startsWith('aguardando:'));
+/** @type {Record<string, (itens: any[], empresaId: string|null) => Promise<any[]>>} */
+const VISAO_DO_QUE_ESPERA_ENVIO = {
+  leiturasCocho: async (itens, empresaId) => [...(await leiturasAguardandoEnvio(empresaId)), ...SEM_MARCAS(itens)],
+  eventosSuplementacao: (itens, empresaId) => comLancamentosAguardandoEnvio(SEM_MARCAS(itens), empresaId),
+  estoqueLotes: async (itens, empresaId) =>
+    (await comEstoqueAguardandoEnvio(SEM_MARCAS(itens))).filter((l) => !empresaId || l.empresa_id === empresaId),
+  movimentacaoEstoque: (itens) => comTransferenciasCanceladasAguardando(itens),
+};
+
+/**
+ * @param {string} cacheKey
+ * @param {any[]} itens
+ * @param {string|null|undefined} empresaId
+ */
+const comOQueEsperaEnvio = async (cacheKey, itens, empresaId) => {
+  const visao = VISAO_DO_QUE_ESPERA_ENVIO[cacheKey];
+  if (!visao) return itens;
+  try {
+    return await visao(Array.isArray(itens) ? itens : [], empresaId ?? null);
+  } catch {
+    return itens;
+  }
+};
+
+/** Leitura pura do cache, sem rede (com a visão do que espera envio). */
 export const getMapaCachedData = async (cacheKey, empresaId) => {
   const dono = donoDoCache(cacheKey, empresaId);
   if (!dono) return [];
-  return getEntityCacheItems(chaveDeArmazenamento(cacheKey), dono);
+  return comOQueEsperaEnvio(cacheKey, await getEntityCacheItems(chaveDeArmazenamento(cacheKey), dono), empresaId);
 };
 
 /**
@@ -201,7 +226,7 @@ export const getMapaCacheSnapshot = async (cacheKey, empresaId) => {
   const dono = donoDoCache(cacheKey, empresaId);
   const registro = dono ? await getEntityCacheRecord(chaveDeArmazenamento(cacheKey), dono) : null;
   return {
-    items: Array.isArray(registro?.items) ? registro.items : [],
+    items: await comOQueEsperaEnvio(cacheKey, Array.isArray(registro?.items) ? registro.items : [], empresaId),
     atualizadoEm: typeof registro?.updated_at === 'string' ? registro.updated_at : null,
   };
 };
@@ -228,6 +253,18 @@ const mereceCooldown = (erro) =>
 export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) =>
   (await refreshMapaCacheEntryDetalhado(cacheKey, empresaId, options)).dados;
 
+/**
+ * Igual a `refreshMapaCacheEntryDetalhado`, com a visão do que espera envio
+ * nos dados devolvidos (o cache continua só com o que o servidor respondeu).
+ * @param {string} cacheKey
+ * @param {string|null} empresaId
+ * @param {{force?: boolean}} [options]
+ */
+const refreshComVisao = async (cacheKey, empresaId, options) => {
+  const r = await refreshMapaCacheEntryCru(cacheKey, empresaId, options);
+  return { ...r, dados: await comOQueEsperaEnvio(cacheKey, r.dados, empresaId) };
+};
+
 /** @typedef {{ dados: Array<object>, origem: 'rede'|'cache', erro: string|null }} ResultadoLeituraMapa */
 
 /**
@@ -243,7 +280,15 @@ export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) =
  * @param {{force?: boolean}} [options]
  * @returns {Promise<ResultadoLeituraMapa>}
  */
-export const refreshMapaCacheEntryDetalhado = async (cacheKey, empresaId, options = {}) => {
+export const refreshMapaCacheEntryDetalhado = (cacheKey, empresaId, options = {}) => refreshComVisao(cacheKey, empresaId, options);
+
+/**
+ * @param {string} cacheKey
+ * @param {string|null} empresaId
+ * @param {{force?: boolean}} [options]
+ * @returns {Promise<ResultadoLeituraMapa>}
+ */
+const refreshMapaCacheEntryCru = async (cacheKey, empresaId, options = {}) => {
   if (!temCapacidade(cacheKey)) return { dados: [], origem: 'cache', erro: 'SEM_CAPACIDADE' };
 
   const dono = donoDoCache(cacheKey, empresaId);
@@ -324,7 +369,7 @@ export const updateMapaCachedData = async (cacheKey, empresaId, updater) => {
   const atuais = dono ? (await getEntityCacheItems(storageKey, dono)) || [] : [];
   const proximos = typeof updater === 'function' ? updater(atuais) : updater;
   if (dono) await setEntityCacheItems(storageKey, dono, proximos || []);
-  return proximos || [];
+  return comOQueEsperaEnvio(cacheKey, proximos || [], empresaId);
 };
 
 /** Aquece todas as capacidades. Uma falha isolada não derruba as demais. */

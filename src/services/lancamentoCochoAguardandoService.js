@@ -10,6 +10,18 @@ import { TIPO_LANCAMENTO_COCHO } from '@/lib/offline/sincronizacao/tiposDeEnvio'
 import { semLancamentosCanceladosAguardando } from '@/services/cancelamentosAguardandoService';
 
 /**
+ * O id, como as telas o mostram, do lançamento anterior que um payload cita:
+ * o do servidor, ou `aguardando:<código>` quando cita um que ainda não subiu.
+ * @param {unknown} eventoAnteriorId
+ * @returns {string|null}
+ */
+export const idDoAnteriorCitado = (eventoAnteriorId) => {
+  if (!eventoAnteriorId) return null;
+  const ref = operacaoDaReferencia(eventoAnteriorId);
+  return ref ? `aguardando:${ref}` : String(eventoAnteriorId);
+};
+
+/**
  * Como o lançamento que ainda não subiu aparece nas telas.
  * @param {any} p payload
  * @param {string} operationId

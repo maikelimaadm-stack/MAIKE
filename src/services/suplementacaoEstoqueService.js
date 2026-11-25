@@ -32,8 +32,6 @@ import {
   registroNaFila,
 } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { TIPO_TRANSFERENCIA_DEPOSITO, TIPO_CANCELAMENTO_TRANSFERENCIA } from '@/lib/offline/sincronizacao/tiposDeEnvio';
-import { getMapaCachedData, updateMapaCachedData } from '@/services/mapaCacheService';
-import { comTransferenciasCanceladasAguardando } from '@/services/cancelamentosAguardandoService';
 import {
   proximoNumeroDeMovimentacao,
   buildRateioObservacao,
@@ -382,15 +380,7 @@ export const cancelarTransferenciaSemInternet = async ({ movimento, empresaId, m
     },
     { empresaId, operationId }
   );
-  if (r.estado === 'aguardando') {
-    // A cópia do aparelho (lida sem internet) já tira as duas pernas do histórico.
-    try {
-      const atuais = await getMapaCachedData('movimentacaoEstoque', empresaId);
-      await updateMapaCachedData('movimentacaoEstoque', empresaId, await comTransferenciasCanceladasAguardando(atuais));
-    } catch {
-      // só visão: o servidor decide quando o cancelamento subir
-    }
-  }
+  // O histórico já tira as duas pernas (visão aplicada na leitura do cache).
   return r;
 };
 

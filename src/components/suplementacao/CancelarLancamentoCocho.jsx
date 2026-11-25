@@ -302,7 +302,12 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
       limparPendente(escopo, evento.id);
       setCancelado(true);
       toast.success("Lançamento excluído.");
-      await recarregar(queryClient, evento);
+      // Sem gravar no cache: as telas releem e a visão do que espera envio tira o lançamento.
+      await invalidarCachesDoMapa(queryClient, [
+        "suplementacao-ponto", "eventos-ponto", "ultimo-evento-ponto", "eventos-recentes-ponto", "mapa-eventos-supl", "mapa-pontos-supl",
+        "lotes-nota-suplementacao", "saldo-deposito", "movimentacoes-deposito-detalhe", "mapa-eventosSuplementacao", "estoqueLotes",
+      ]);
+      window.dispatchEvent(new CustomEvent("atualizar-mapa", { detail: { cacheKeys: ["eventosSuplementacao", "estoqueLotes"] } }));
       onCancelado?.();
     } catch (erro) {
       toast.error(/** @type {any} */ (erro)?.message || "Não foi possível excluir agora.");
