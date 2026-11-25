@@ -10,6 +10,7 @@ import {
   resumoDaFila,
   tentarDeNovo,
   descartarDaFila,
+  dependentesNaFila,
   definirSessaoDaFila,
   EVENTO_FILA_DE_ENVIO,
 } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
@@ -37,6 +38,9 @@ export const tentarEnviarDeNovo = (id) => tentarDeNovo(id);
 
 /** @param {string} id */
 export const descartarRegistroNaoEnviado = (id) => descartarDaFila(id);
+
+/** Registros que citam este (vão para "precisa de atenção" se ele for excluído). @param {string} id */
+export const dependentesDoRegistro = (id) => dependentesNaFila(id);
 
 /** Há algo desta sessão que ainda não chegou ao servidor? */
 export const temRegistroNaoEnviado = async () => {

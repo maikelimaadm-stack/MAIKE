@@ -42,6 +42,7 @@ const h = vi.hoisted(() => ({
   consultar: vi.fn(),
   refresh: vi.fn(async () => []),
   registrar: vi.fn(),
+  semInternet: vi.fn(async () => ({ estado: 'aguardando', operationId: 'op-x' })),
 }));
 
 vi.mock('@/hooks/useEmpresaSelecionadaId', () => ({ useEmpresaSelecionadaId: () => 'emp-1' }));
@@ -69,6 +70,8 @@ vi.mock('@/services/suplementacaoEstoqueService', () => ({
   cancelarTransferenciaEntreDepositos: (...a) => h.cancelar(...a),
   consultarCancelamentoTransferencia: (...a) => h.consultar(...a),
   registrarTransferenciaEntreLocais: (...a) => h.registrar(...a),
+  cancelarTransferenciaSemInternet: (...a) => h.semInternet(...a),
+  transferenciasAguardandoDoLocal: async () => [],
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 
@@ -226,17 +229,26 @@ describe('CT-1 — o cartão no histórico do depósito', () => {
   });
 });
 
-describe('CT-2 — só online', () => {
-  it('offline: botão desligado com o motivo; nenhuma chamada', async () => {
+describe('CT-2 — sem internet (D-PROD-298)', () => {
+  it('offline: sem ensaio no servidor; confirma e guarda a exclusão para subir depois', async () => {
     Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true });
-    montarAcao();
-    const botao = screen.getByRole('button', { name: 'Excluir transferência' });
-    expect(botao.disabled).toBe(true);
-    expect(screen.getByText(/Requer conexão/)).toBeTruthy();
-    await tocar(botao);
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(h.consultar).not.toHaveBeenCalled();
-    expect(h.cancelar).not.toHaveBeenCalled();
+    const confirmarOriginal = window.confirm;
+    window.confirm = () => true;
+    try {
+      const { onCancelado } = montarAcao();
+      const botao = screen.getByRole('button', { name: 'Excluir transferência' });
+      expect(botao.disabled).toBe(false);
+      expect(screen.getByText(/Sem internet: a exclusão fica no celular/)).toBeTruthy();
+      await tocar(botao);
+      await waitFor(() => expect(h.semInternet).toHaveBeenCalledTimes(1));
+      expect(h.semInternet.mock.calls[0][0]).toMatchObject({ movimento: ENVIADA, empresaId: EMP, operationId: expect.any(String) });
+      await waitFor(() => expect(onCancelado).toHaveBeenCalled());
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(h.consultar).not.toHaveBeenCalled();
+      expect(h.cancelar).not.toHaveBeenCalled();
+    } finally {
+      window.confirm = confirmarOriginal;
+    }
   });
 });
 

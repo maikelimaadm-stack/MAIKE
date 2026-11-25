@@ -1,6 +1,6 @@
 # MAIKE-ESTOQUE-LOTE-TODAS-TELAS — relatório
 
-**Decisão:** [D-PROD-298](./DECISIONS.md) · **Data:** 2026-11-24 · **Branch:** `claude/estoque-lote-todas-telas` · **Migration:** nenhuma · base: [D-PROD-282](./DECISIONS.md) (controle de lote por produto)
+**Decisão:** [D-PROD-300](./DECISIONS.md) · **Data:** 2026-11-24 · **Branch:** `claude/estoque-lote-todas-telas` · **Migration:** nenhuma · base: [D-PROD-282](./DECISIONS.md) (controle de lote por produto)
 
 ## O que mudou, tela por tela
 
@@ -24,6 +24,7 @@ Produto **sem** controle de lote: nenhum campo aparece, nada é lido e o corpo �
 - Cocho e venda: o servidor já aceitava a escolha (D-PROD-282); só a tela mudou.
 - Cocho pelo motor de sincronização (D-PROD-296, integrada antes do merge): a escolha vai em `saida.lotes` do registro único; `executarLancamentoDoCocho` devolve os `avisos` da baixa e `registrarLancamentoDoCocho` os repassa quando o envio é na hora (na fila, `avisos: []`). O campo é aditivo no payload guardado: o formato da fila não muda. Teste: `lancamentoCochoOffline` LCO-08.
 - Revisão (Codex, 2 achados confirmados e corrigidos): (1) sem a lista dos lotes (sem internet ou leitura com erro), o `CampoLotes` não acusa mais saldo insuficiente — diz que sai do lote que vence primeiro no envio e deixa o lançamento ir para a fila; (2) na edição da linha de atividade com o mesmo produto e local, as fatias que a própria linha baixou voltam ao saldo de cada lote (`comDevolvidos`, `lotesDevolvidosNaEdicao`): reduzir a quantidade de uma linha que esgotou o lote não é mais bloqueado. Testes: `estoqueLoteCampo` e `estoqueLoteAtividade`.
+- Com a PR #386 (editar na fila sem internet): editar um lançamento do cocho que ainda espera envio monta o corpo da baixa de novo (`montarCorpoDaSaidaSuplementacao`), então leva a escolha de lote feita na edição; a escolha anterior não é restaurada no formulário (volta para a sugestão FEFO).
 
 ## Testes
 

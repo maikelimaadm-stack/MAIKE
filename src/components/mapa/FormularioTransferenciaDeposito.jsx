@@ -105,17 +105,24 @@ const respostaDefinitiva = (erro) => {
  *   initialDirection?: string,
  *   onSuccess?: () => void,
  *   onCancel?: () => void,
+ *   edicao?: null | { operationId: string, direcao: string, produto_id: string, quantidade: number,
+ *     local_origem_id: string, local_destino_id: string, data_movimentacao?: string|null, observacoes?: string },
  * }} props
  *   `initialDirection`: "entrada" (o depósito recebe de outro local) ou "saida"
  *   (o depósito manda para outro local).
+ *   `edicao` (D-PROD-298): corrigir a transferência que ainda não subiu (abre preenchida; salvar a
+ *   substitui na fila, na mesma posição; o saldo não desconta ela mesma).
  */
-export default function FormularioTransferenciaDeposito({ deposito, initialDirection = "entrada", onSuccess, onCancel }) {
+export default function FormularioTransferenciaDeposito({ deposito, initialDirection = "entrada", onSuccess, onCancel, edicao = null }) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
-  const direction = initialDirection;
-  const [localRelacionadoId, setLocalRelacionadoId] = useState("");
-  const [produtoId, setProdutoId] = useState("");
-  const [quantidade, setQuantidade] = useState("");
+  const direction = edicao?.direcao || initialDirection;
+  const opEmEdicao = edicao?.operationId ?? null;
+  const [localRelacionadoId, setLocalRelacionadoId] = useState(
+    edicao ? String((direction === "entrada" ? edicao.local_origem_id : edicao.local_destino_id) ?? "") : ""
+  );
+  const [produtoId, setProdutoId] = useState(edicao?.produto_id ? String(edicao.produto_id) : "");
+  const [quantidade, setQuantidade] = useState(edicao ? String(edicao.quantidade ?? "") : "");
   // A data PADRÃO é o dia civil da FAZENDA (`Empresa.fuso_horario`, D-PROD-155/178), como no
   // lançamento do cocho: o dia em UTC (`toISOString`) gravava a movimentação da noite no dia seguinte.
   // Sem fuso (ou enquanto ele não chega), o relógio do navegador.
@@ -131,9 +138,9 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     return typeof empresa?.fuso_horario === "string" && empresa.fuso_horario ? empresa.fuso_horario : null;
   }, [empresas, empresaSelecionadaId]);
   const hojeFazenda = hojeNoFuso(fusoFazenda);
-  const [dataMovimentacao, setDataMovimentacao] = useState(() => hojeNoFuso(null));
+  const [dataMovimentacao, setDataMovimentacao] = useState(() => (edicao?.data_movimentacao ? String(edicao.data_movimentacao).slice(0, 10) : hojeNoFuso(null)));
   // A data que a pessoa escolheu não é trocada quando o fuso chega; o padrão é aplicado uma vez.
-  const dataEditada = useRef(false);
+  const dataEditada = useRef(Boolean(edicao?.data_movimentacao));
   const padraoDoFusoAplicado = useRef(false);
   useEffect(() => {
     if (!fusoFazenda || padraoDoFusoAplicado.current) return;
@@ -141,7 +148,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     if (dataEditada.current) return;
     setDataMovimentacao(hojeNoFuso(fusoFazenda));
   }, [fusoFazenda]);
-  const [observacoes, setObservacoes] = useState("");
+  const [observacoes, setObservacoes] = useState(edicao?.observacoes ?? "");
   const [unidadeInput, setUnidadeInput] = useState("KG");
   const [saving, setSaving] = useState(false);
   const envioRef = useRef(/** @type {EnvioPendente | null} */ (null));
@@ -160,9 +167,10 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
   });
 
   const { data: lotesNota = [] } = useQuery({
-    queryKey: ["estoque-lotes-transferencia", empresaSelecionadaId],
+    queryKey: ["estoque-lotes-transferencia", empresaSelecionadaId, opEmEdicao],
     queryFn: async () => {
-      const all = await listarTodosLotesNota();
+      // D-PROD-298: editando, o saldo não desconta a própria transferência em edição.
+      const all = await listarTodosLotesNota({ ignorar: opEmEdicao });
       return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.status === "Disponivel");
     },
     enabled: !!empresaSelecionadaId,
@@ -261,15 +269,16 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
         quantidade: quantidadeFinal, localOrigemId, localOrigemNome, localDestinoId, localDestinoNome,
         observacoes: observacoes || `${direction === 'entrada' ? 'Entrada' : 'Saída'} pelo depósito ${deposito.nome_ponto}`, lotesNota,
         dataMovimentacao,
-        operationId: envio.operation_id,
+        operationId: opEmEdicao || envio.operation_id,
+        ...(opEmEdicao ? { edicao: opEmEdicao } : {}),
       });
       envioRef.current = null;
       limparEnvioPendente(chaveStorage);
       if (resposta?.aguardandoEnvio) {
         // D-PROD-296: sem internet, ficou no aparelho (o motor envia depois com esta chave).
         // O saldo do depósito já mostra o efeito; o histórico mostra quando chegar ao servidor.
-        invalidarCachesDoMapa(queryClient, ["estoque-lotes-transferencia", "saldo-deposito", "cochos-vinculados-deposito", "lotes-nota-suplementacao", "mapa-pontos-supl", "produtos"]);
-        toast.success("Transferência registrada.");
+        invalidarCachesDoMapa(queryClient, ["estoque-lotes-transferencia", "saldo-deposito", "cochos-vinculados-deposito", "lotes-nota-suplementacao", "mapa-pontos-supl", "produtos", "transferencias-aguardando"]);
+        toast.success(opEmEdicao ? "Transferência corrigida." : "Transferência registrada.");
         onSuccess?.();
         return;
       }

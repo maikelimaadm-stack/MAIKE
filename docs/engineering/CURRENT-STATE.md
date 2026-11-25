@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-24 (missão ativa D-PROD-298; antes D-PROD-297, D-PROD-296, D-PROD-295, D-PROD-294, D-PROD-293, D-PROD-290, D-PROD-288, D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-300; antes D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,16 +9,33 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-24) — MAIKE-ESTOQUE-LOTE-TODAS-TELAS: escolha do lote e aviso de vencido em todas as telas que tiram produto (D-PROD-298)
+## Missão ativa (2026-11-24) — MAIKE-ESTOQUE-LOTE-TODAS-TELAS: escolha do lote e aviso de vencido em todas as telas que tiram produto (D-PROD-300)
 
 | Item | Estado |
 |---|---|
-| Decisão | **D-PROD-298**: cocho, financeiro (venda; lote do fabricante e validade na compra), atividade (linha, registro, jatos) e abastecimento com o mesmo campo "Lote" da Saída (sugestão FEFO, escolher e dividir, vencido pede confirmação); o servidor nunca recusa vencido, só avisa |
+| Decisão | **D-PROD-300**: cocho, financeiro (venda; lote do fabricante e validade na compra), atividade (linha, registro, jatos) e abastecimento com o mesmo campo "Lote" da Saída (sugestão FEFO, escolher e dividir, vencido pede confirmação); o servidor nunca recusa vencido, só avisa |
 | Servidor | atividade e abastecimento passam a aceitar `lotes`; prévia do financeiro diz o controle de lote; leitura dos lotes liberada a quem lança nessas telas |
 | Banco | sem migration |
 | Branch | `claude/estoque-lote-todas-telas` (PR em rascunho) |
 | Relatório | [`MAIKE-ESTOQUE-LOTE-TODAS-TELAS-REPORT.md`](./MAIKE-ESTOQUE-LOTE-TODAS-TELAS-REPORT.md) |
 | Próximas | unidade convertida nessas telas (emenda da SPEC de unidades); lote na retificação do financeiro |
+
+## Missão anterior (2026-11-25) — MAIKE-SALDO-LOTES-TEXTO: saldo do formulário de Entrada/Saída do depósito (D-PROD-299)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-299**: o saldo dos lotes é somado como número (o servidor manda o decimal em texto e a soma colava os números) |
+| Banco | sem migration; dados conferidos e corretos |
+| Relatório | [`SALDO-LOTES-TEXTO-D299-REPORT.md`](./SALDO-LOTES-TEXTO-D299-REPORT.md) |
+
+## Missão anterior (2026-11-24) — MAIKE-CORRIGIR-SEM-INTERNET: editar, excluir e cancelar sem internet (D-PROD-298)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-298**: editar/excluir na fila o lançamento do cocho e a transferência que não subiram; excluir (estorno) sem internet o que já subiu |
+| Banco | sem migration |
+| Próxima | limpeza dos recibos antigos de idempotência |
+| Relatório | [`CORRIGIR-SEM-INTERNET-D298-REPORT.md`](./CORRIGIR-SEM-INTERNET-D298-REPORT.md) · inventário [`OFFLINE-INVENTARIO.md`](./OFFLINE-INVENTARIO.md) |
 
 ## Missão anterior (2026-11-24) — MAIKE-BEM-IMPLEMENTO-PRODUTO: o produto do implemento no cadastro do bem (D-PROD-297)
 

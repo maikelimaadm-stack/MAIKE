@@ -18,10 +18,22 @@ import { normalizeText, parseNumber } from "../utils/pecuariaUtils";
 // Re-exportar para manter compatibilidade com imports existentes
 export { normalizeText, parseNumber };
 
+/**
+ * Quantidade disponível do lote como NÚMERO. O servidor manda os decimais como
+ * texto ("15760", "35"): somar o texto colava os números ("0" + "15760" + "35"
+ * = "01576035") e o saldo do formulário crescia a cada lote novo no local.
+ * @param {any} lote
+ * @returns {number}
+ */
+export const disponivelDoLote = (lote) => {
+  const n = Number(lote?.quantidade_disponivel);
+  return Number.isFinite(n) ? n : 0;
+};
+
 export const obterSaldoProdutoLocal = (lotesNota, produtoId, localEstoqueId) => {
   return lotesNota
-    .filter((lote) => lote.produto_id === produtoId && lote.local_estoque_id === localEstoqueId && (lote.quantidade_disponivel || 0) > 0)
-    .reduce((total, lote) => total + (lote.quantidade_disponivel || 0), 0);
+    .filter((lote) => lote.produto_id === produtoId && lote.local_estoque_id === localEstoqueId && disponivelDoLote(lote) > 0)
+    .reduce((total, lote) => total + disponivelDoLote(lote), 0);
 };
 
 /**
@@ -79,7 +91,7 @@ export function conferirDivergenciaEstoque({ lotesNota, produtoId, localEstoqueI
 
 export function calcularRateioFIFO({ lotesNota, produtoId, localEstoqueId, quantidade }) {
   const quantidadeSolicitada = parseNumber(quantidade);
-  const lotesElegiveis = lotesNota.filter((lote) => lote.produto_id === produtoId && lote.local_estoque_id === localEstoqueId && (lote.quantidade_disponivel || 0) > 0);
+  const lotesElegiveis = lotesNota.filter((lote) => lote.produto_id === produtoId && lote.local_estoque_id === localEstoqueId && disponivelDoLote(lote) > 0);
   const lotesSemDataValida = lotesElegiveis.filter((lote) => !getValidFifoDate(lote));
 
   if (lotesSemDataValida.length > 0) {
@@ -98,7 +110,7 @@ export function calcularRateioFIFO({ lotesNota, produtoId, localEstoqueId, quant
     return String(a.id).localeCompare(String(b.id));
   });
 
-  const saldoTotal = lotesOrdenados.reduce((total, lote) => total + (lote.quantidade_disponivel || 0), 0);
+  const saldoTotal = lotesOrdenados.reduce((total, lote) => total + disponivelDoLote(lote), 0);
 
   if (quantidadeSolicitada <= 0) {
     return { sucesso: false, erro: "Informe uma quantidade válida.", rateio: [], custoMedioPonderado: 0 };
@@ -120,7 +132,7 @@ export function calcularRateioFIFO({ lotesNota, produtoId, localEstoqueId, quant
   for (const lote of lotesOrdenados) {
     if (restante <= 0) break;
 
-    const quantidadeConsumida = Math.min(restante, lote.quantidade_disponivel || 0);
+    const quantidadeConsumida = Math.min(restante, disponivelDoLote(lote));
     const custoUnitario = lote.custo_unitario || 0;
 
     rateio.push({

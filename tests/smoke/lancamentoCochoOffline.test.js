@@ -28,7 +28,7 @@ const servidor = () => {
     baixas: new Map(),
     lancamentos: new Map(),
     falharLancamento: /** @type {null | 'rede' | string} */ (null),
-    /** D-PROD-298: avisos que a baixa devolve (lote vencido). */
+    /** D-PROD-300: avisos que a baixa devolve (lote vencido). */
     avisosDaBaixa: /** @type {any[]} */ ([]),
   };
   s.fetch = vi.fn(async (url, init = {}) => {
@@ -248,7 +248,111 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
     ]);
     expect(lotes[0].quantidade_disponivel).toBe(20);
   });
-  it('LCO-08 com internet e produto com lote (D-PROD-298): a escolha dos lotes vai na baixa e o aviso de vencido volta no resultado', async () => {
+
+  it('LCO-08 D-PROD-298: editar o lançamento que não subiu troca na fila (mesmo código); o saldo do formulário não desconta ele mesmo; excluir tira do aparelho', async () => {
+    const srv = servidor();
+    vi.stubGlobal('fetch', srv.fetch);
+    const { sup, motor, estoque } = await carregar();
+    online = false;
+    const r = await sup.registrarLancamentoDoCocho(
+      { saida: saidaCorpo(), evento: evento(), lotes: [], eventoAnterior: srv.eventos[0], fechamento: fechamento() },
+      { operationId: 'op-lanc-0009' }
+    );
+    const edicao = await sup.lancamentoAguardandoParaEditar(r.evento);
+    expect(edicao.payload.saida.quantidade).toBe(80);
+    const lote = [{ id: 'nf1', empresa_id: EMP, produto_id: 'prod-1', local_estoque_id: 'galpao', status: 'Disponivel', quantidade_disponivel: 100, data_documento: '2026-01-01' }];
+    expect((await estoque.comEstoqueAguardandoEnvio(lote))[0].quantidade_disponivel).toBe(20);
+    expect((await estoque.comEstoqueAguardandoEnvio(lote, { ignorar: 'op-lanc-0009' }))[0].quantidade_disponivel).toBe(100);
+
+    await sup.alterarLancamentoDoCocho('op-lanc-0009', { saida: { ...saidaCorpo(), quantidade: 50 }, evento: evento({ quantidade_total_kg: 50 }), lotes: [], eventoAnterior: srv.eventos[0], fechamento: fechamento() });
+    expect((await estoque.comEstoqueAguardandoEnvio(lote))[0].quantidade_disponivel).toBe(50);
+    expect((await motor.resumoDaFila()).aguardando).toBe(1);
+
+    await sup.excluirLancamentoAguardando(r.evento);
+    expect((await motor.resumoDaFila()).aguardando).toBe(0);
+    expect(srv.fetch).not.toHaveBeenCalled();
+  });
+
+  it('LCO-09 D-PROD-298: o que já tentou subir não abre para edição nem se exclui', async () => {
+    const srv = servidor();
+    vi.stubGlobal('fetch', srv.fetch);
+    const { sup } = await carregar();
+    srv.falharLancamento = 'rede';
+    const r = await sup.registrarLancamentoDoCocho(
+      { saida: saidaCorpo(), evento: evento(), lotes: [], eventoAnterior: null, fechamento: null },
+      { operationId: 'op-lanc-0010' }
+    );
+    expect(r.aguardandoEnvio).toBe(true);
+    await expect(sup.lancamentoAguardandoParaEditar(r.evento)).rejects.toThrow(/baixa deste lançamento já foi feita|sendo enviado/);
+    await expect(sup.excluirLancamentoAguardando(r.evento)).rejects.toThrow(/sendo enviado/);
+  });
+
+  it('LCO-11 D-PROD-298: excluir SEM internet o lançamento que já está no servidor: some, o anterior reabre, o estoque volta; sobe depois com o mesmo código', async () => {
+    const srv = servidor();
+    vi.stubGlobal('fetch', srv.fetch);
+    const { sup, motor, estoque } = await carregar();
+    const canc = await import('@/services/suplementacaoCancelamentoService');
+    const mapa = await import('@/services/mapaCacheService');
+    const lancado = { id: 'ev-9', empresa_id: EMP, ponto_suplementacao_id: 'c1', ponto_nome: 'COCHO 1', data_lancamento: '2026-11-12', movimentacao_estoque_id: 'mov-9', dias_periodo: null };
+    const anterior = { ...srv.eventos[0], dias_periodo: 2, fechado_por_evento_id: 'ev-9' };
+    await mapa.updateMapaCachedData('movimentacaoEstoque', EMP, [{ id: 'mov-9', empresa_id: EMP, produto_id: 'prod-1', local_estoque_origem: 'galpao', quantidade: 80 }]);
+    online = false;
+    const r = await canc.cancelarLancamentoCochoSemInternet({ evento: lancado, motivo: 'Lançado errado', operationId: 'op-canc-0001' });
+    expect(r.estado).toBe('aguardando');
+
+    const lista = await sup.comLancamentosAguardandoEnvio([lancado, anterior], EMP, 'c1');
+    expect(lista.map((e) => e.id)).toEqual(['ev-1']);
+    expect(lista[0]).toMatchObject({ dias_periodo: null, _reabertoAguardando: true });
+    const lotes = await estoque.comEstoqueAguardandoEnvio([{ id: 'nf1', empresa_id: EMP, produto_id: 'prod-1', local_estoque_id: 'galpao', status: 'Disponivel', quantidade_disponivel: 20, data_documento: '2026-01-01' }]);
+    expect(lotes.filter((l) => l.local_estoque_id === 'galpao').reduce((t, l) => t + l.quantidade_disponivel, 0)).toBe(100);
+
+    online = true;
+    await motor.sincronizar();
+    const envio = srv.chamadas.find((c) => c.caminho === '/suplementacao-eventos/ev-9/cancelamento');
+    expect(envio.corpo).toMatchObject({ empresa_id: EMP, operation_id: 'op-canc-0001', motivo: 'Lançado errado' });
+    expect((await motor.resumoDaFila()).aguardando).toBe(0);
+  });
+
+  it('LCO-12 revisão: o anterior de um lançamento em edição é o que ele já cita (nunca o próprio dependente)', async () => {
+    const srv = servidor();
+    vi.stubGlobal('fetch', srv.fetch);
+    const { sup } = await carregar();
+    online = false;
+    const primeiro = await sup.registrarLancamentoDoCocho(
+      { saida: null, evento: evento(), lotes: [], eventoAnterior: srv.eventos[0], fechamento: fechamento() },
+      { operationId: 'op-lanc-0012' }
+    );
+    const [ultimo] = await sup.comLancamentosAguardandoEnvio([{ ...srv.eventos[0] }], EMP, 'c1');
+    await sup.registrarLancamentoDoCocho(
+      { saida: null, evento: evento({ data_lancamento: '2026-11-14' }), lotes: [], eventoAnterior: ultimo, fechamento: fechamento() },
+      { operationId: 'op-lanc-0013' }
+    );
+    const edicao = await sup.lancamentoAguardandoParaEditar(primeiro.evento);
+    expect(sup.idDoAnteriorCitado(edicao.payload.evento_anterior_id)).toBe('ev-1');
+    const edicao2 = await sup.lancamentoAguardandoParaEditar({ _operationId: 'op-lanc-0013' });
+    expect(sup.idDoAnteriorCitado(edicao2.payload.evento_anterior_id)).toBe('aguardando:op-lanc-0012');
+  });
+
+  it('LCO-13 revisão: excluir da fila o cancelamento feito sem internet devolve o lançamento à tela (nada fica gravado no cache)', async () => {
+    const srv = servidor();
+    vi.stubGlobal('fetch', srv.fetch);
+    const { motor } = await carregar();
+    const canc = await import('@/services/suplementacaoCancelamentoService');
+    const mapa = await import('@/services/mapaCacheService');
+    const lancado = { id: 'ev-20', empresa_id: EMP, ponto_suplementacao_id: 'c1', data_lancamento: '2026-11-12', dias_periodo: null };
+    const anterior = { ...srv.eventos[0], dias_periodo: 2, fechado_por_evento_id: 'ev-20' };
+    await mapa.updateMapaCachedData('eventosSuplementacao', EMP, [lancado, anterior]);
+    online = false;
+    const r = await canc.cancelarLancamentoCochoSemInternet({ evento: lancado, motivo: 'x', operationId: 'op-canc-0020' });
+    let visto = await mapa.getMapaCachedData('eventosSuplementacao', EMP);
+    expect(visto.map((e) => e.id)).toEqual(['ev-1']);
+    expect(await motor.descartarDaFila(r.operationId)).toBe(true);
+    visto = await mapa.getMapaCachedData('eventosSuplementacao', EMP);
+    expect(visto.map((e) => e.id).sort()).toEqual(['ev-1', 'ev-20']);
+    expect(visto.find((e) => e.id === 'ev-1').dias_periodo).toBe(2);
+  });
+
+  it('LCO-14 com internet e produto com lote (D-PROD-300): a escolha dos lotes vai na baixa e o aviso de vencido volta no resultado', async () => {
     const srv = servidor();
     srv.avisosDaBaixa = [{ tipo: 'lote_vencido', lote: 'VELHO', validade: '2026-11-01' }];
     vi.stubGlobal('fetch', srv.fetch);
@@ -256,12 +360,12 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
     const lotes = [{ estoque_lote_nota_id: 'cA', quantidade: '80' }];
     const r = await sup.registrarLancamentoDoCocho(
       { saida: { ...saidaCorpo(), lotes }, evento: evento(), lotes: [{ lote_id: 'l1' }], eventoAnterior: null, fechamento: null },
-      { operationId: 'op-lanc-0008' }
+      { operationId: 'op-lanc-0014' }
     );
     expect(r.aguardandoEnvio).toBe(false);
     expect(r.avisos).toEqual(srv.avisosDaBaixa);
     const baixa = srv.chamadas.find((c) => c.caminho === '/movimentacoes-estoque/comandos/saida-suplementacao');
-    expect(baixa.corpo).toMatchObject({ operation_id: 'op-lanc-0008', lotes });
+    expect(baixa.corpo).toMatchObject({ operation_id: 'op-lanc-0014', lotes });
   });
 });
 
