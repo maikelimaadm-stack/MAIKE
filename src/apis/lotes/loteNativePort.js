@@ -2,6 +2,7 @@
  * Porta nativa de Lote (P5.1, D-PROD-47).
  */
 
+import { eIdDoAparelho } from '@/lib/offline/idDoAparelho';
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import {
   createOfflineEntityAdapter,
@@ -81,10 +82,18 @@ export const corpoDeEnvio = (dados, permitidos) => {
 export const operacoesNativas = Object.freeze({
   list: () => nativeRequest(CAMINHO, { autenticado: true }, ctx('listLotes')),
 
+  // D-PROD-308: o id gerado no aparelho (UUID) vai junto; o servidor grava com ele e repetir não duplica.
   create: (dados) =>
     nativeRequest(
       CAMINHO,
-      { method: 'POST', body: corpoDeEnvio(dados, CAMPOS_DE_CRIACAO), autenticado: true },
+      {
+        method: 'POST',
+        body: {
+          ...corpoDeEnvio(dados, CAMPOS_DE_CRIACAO),
+          ...(eIdDoAparelho(/** @type {any} */ (dados)?.id) ? { id: /** @type {any} */ (dados).id } : {}),
+        },
+        autenticado: true,
+      },
       ctx('createLote')
     ),
 
@@ -152,6 +161,8 @@ export const lotePort = createOfflineEntityAdapter({
   operations: operacoesNativas,
   enabled: offlineStorageDisponivel(),
   tenantScoped: true,
+  // D-PROD-308: o lote novo nasce com o id do aparelho (com ou sem internet).
+  idDoAparelho: true,
   // PR167-R2: exclusão de Lote nunca passa pela fila offline.
   exclusao: 'somente_online',
 });
