@@ -1067,8 +1067,8 @@ export default function MapaGeral() {
   // Permissão e escopo lidos por ref na hora do toque E na hora da resposta: o
   // GPS responde segundos depois, e nesse meio a empresa pode ter mudado ou a
   // permissão ter caído (D-PROD-137, PREF-04/PREF-07).
-  // D-PROD-302: GPS de alta precisão, sempre atualizado com a camada ligada, e o
-  // mapa acompanhando depois de "Localizar" (arrastar o mapa para de acompanhar).
+  // D-PROD-302: GPS de alta precisão, sempre atualizado com a camada ligada: o PONTO
+  // anda junto com a pessoa; o mapa fica onde ela deixou ("Localizar" centraliza uma vez).
   const localizacao = useLocalizacaoNoMapa({
     mapInstanceRef,
     ativo: mapReady && mapaGeralPermissions.visualizar_localizacao === true && showUserLocation,
@@ -1086,7 +1086,7 @@ export default function MapaGeral() {
     if (!podeLocalizarRef.current || !navigator.geolocation) return;
     const escopoDoPedido = escopoChaveRef.current;
     localizarNoMapa({
-      // Ligar a camada (preferência gravada), pular e acompanhar só no escopo do
+      // Ligar a camada (preferência gravada) e pular só no escopo do
       // pedido. Pedido sem escopo (sessão/empresa ainda carregando) não tem
       // preferência de ninguém para vazar: vale para o escopo que entrou.
       aoResponder: () => {

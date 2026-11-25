@@ -9,11 +9,11 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-25) — MAIKE-MAPA-LOCALIZACAO: abre na fazenda, GPS que acompanha (D-PROD-302)
+## Missão ativa (2026-11-25) — MAIKE-MAPA-LOCALIZACAO: abre na fazenda, ponto da localização que acompanha (D-PROD-302)
 
 | Item | Estado |
 |---|---|
-| Decisão | **D-PROD-302**: o mapa nasce na vista salva (sem ela, escondido até enquadrar); GPS de alta precisão com a camada ligada; "Localizar" acompanha, arrastar para |
+| Decisão | **D-PROD-302**: o mapa nasce na vista salva (sem ela, escondido até enquadrar); GPS de alta precisão com a camada ligada: o ponto anda junto com a pessoa, o mapa fica parado; "Localizar" centraliza uma vez |
 | Banco | sem migration |
 | Relatório | [`MAPA-LOCALIZACAO-D302-REPORT.md`](./MAPA-LOCALIZACAO-D302-REPORT.md) |
 

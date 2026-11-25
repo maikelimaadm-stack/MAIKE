@@ -1,7 +1,7 @@
 /**
  * D-PROD-302 — localização no Mapa Geral: GPS de alta precisão sempre ligado
- * com a camada, leitura ruim não substitui uma boa recente, e o mapa acompanha
- * depois de "Localizar" (arrastar para de acompanhar).
+ * com a camada, leitura ruim não substitui uma boa recente; o PONTO anda junto
+ * com a pessoa e o mapa fica onde ela deixou ("Localizar" centraliza uma vez).
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -61,7 +61,7 @@ describe('D-PROD-302 — leitura do GPS', () => {
 });
 
 describe('D-PROD-302 — o mapa acompanha a pessoa', () => {
-  it('LM-03 com a camada ligada o GPS fica ligado em alta precisão; "Localizar" centraliza, acompanha andando e para ao arrastar', () => {
+  it('LM-03 com a camada ligada o GPS fica ligado em alta precisão; o ponto anda e o mapa NÃO se mexe; "Localizar" centraliza uma vez', () => {
     const mapa = novoMapa();
     const ref = { current: mapa };
     const { result, unmount } = renderHook(() => useLocalizacaoNoMapa({ mapInstanceRef: ref, ativo: true }));
@@ -70,26 +70,22 @@ describe('D-PROD-302 — o mapa acompanha a pessoa', () => {
 
     act(() => watch.ok(leitura(-15.0, -59.0, 6)));
     expect(result.current.posicao).toMatchObject({ lat: -15.0, lng: -59.0, accuracy: 6 });
-    expect(mapa.eases).toHaveLength(0); // ainda não pediu para acompanhar
 
     act(() => result.current.localizar());
-    expect(mapa.jumps.at(-1)).toEqual({ center: [-59.0, -15.0], zoom: 18 });
-    expect(result.current.seguindo).toBe(true);
+    expect(mapa.jumps).toEqual([{ center: [-59.0, -15.0], zoom: 18 }]);
 
+    // Andando: o ponto acompanha; o mapa fica onde a pessoa deixou.
     act(() => watch.ok(leitura(-15.001, -59.001, 5)));
-    expect(mapa.eases.at(-1)).toMatchObject({ center: [-59.001, -15.001] });
-
-    act(() => mapa.disparar('dragstart'));
-    expect(result.current.seguindo).toBe(false);
     act(() => watch.ok(leitura(-15.002, -59.002, 5)));
-    expect(mapa.eases).toHaveLength(1); // parou de acompanhar
-    expect(result.current.posicao).toMatchObject({ lat: -15.002 }); // o ponto continua andando
+    expect(result.current.posicao).toMatchObject({ lat: -15.002, lng: -59.002 });
+    expect(mapa.jumps).toHaveLength(1);
+    expect(mapa.eases).toHaveLength(0);
 
     unmount();
     expect(navigator.geolocation.clearWatch).toHaveBeenCalledWith(7);
   });
 
-  it('LM-04 a tela recusa a resposta (trocou de fazenda no meio): não pula nem acompanha', () => {
+  it('LM-04 a tela recusa a resposta (trocou de fazenda no meio): o mapa não pula', () => {
     const mapa = novoMapa();
     const { result } = renderHook(() => useLocalizacaoNoMapa({ mapInstanceRef: { current: mapa }, ativo: false }));
     act(() => result.current.localizar({ aoResponder: () => false }));
@@ -97,7 +93,6 @@ describe('D-PROD-302 — o mapa acompanha a pessoa', () => {
     expect(pedidoAtual.opcoes).toMatchObject({ enableHighAccuracy: true });
     act(() => pedidoAtual.ok(leitura(-21.5, -51.5, 10)));
     expect(mapa.jumps).toHaveLength(0);
-    expect(result.current.seguindo).toBe(false);
     expect(result.current.posicao).toMatchObject({ lat: -21.5 });
   });
 

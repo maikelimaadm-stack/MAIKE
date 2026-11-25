@@ -14,8 +14,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *  - o círculo mostra a precisão REAL da leitura (antes era fixo em 20 m);
  *  - uma leitura muito pior que a anterior (ex.: rede no lugar do GPS) não
  *    substitui uma boa recente;
- *  - "Localizar" centraliza e passa a ACOMPANHAR; arrastar o mapa para de
- *    acompanhar (como nos apps de mapa); tocar de novo volta a acompanhar.
+ *  - "Localizar" centraliza UMA vez; depois o ponto anda sozinho e o mapa fica
+ *    onde a pessoa deixou (o proprietário quer o ponto acompanhando, não o mapa).
  */
 
 /** Leitura pior do que isto, com uma boa recente, é descartada (m). */
@@ -67,17 +67,14 @@ export const mensagemDoErroGps = (erro) => {
 export function useLocalizacaoNoMapa({ mapInstanceRef, ativo, aoErro }) {
   const [posicao, setPosicao] = useState(/** @type {PosicaoGps|null} */ (null));
   const posicaoRef = useRef(/** @type {PosicaoGps|null} */ (null));
-  const seguirRef = useRef(false);
-  const [seguindo, setSeguindo] = useState(false);
   const aoErroRef = useRef(aoErro);
   aoErroRef.current = aoErro;
 
-  const centrar = useCallback((/** @type {PosicaoGps} */ p, primeira = false) => {
+  const centrar = useCallback((/** @type {PosicaoGps} */ p) => {
     const map = mapInstanceRef.current;
     if (!map) return;
     try {
-      if (primeira) map.jumpTo({ center: [p.lng, p.lat], zoom: 18 });
-      else map.easeTo({ center: [p.lng, p.lat], duration: 600 });
+      map.jumpTo({ center: [p.lng, p.lat], zoom: 18 });
     } catch {
       /* mapa ainda não pronto */
     }
@@ -87,8 +84,7 @@ export function useLocalizacaoNoMapa({ mapInstanceRef, ativo, aoErro }) {
     if (!leituraEntra(posicaoRef.current, nova)) return;
     posicaoRef.current = nova;
     setPosicao(nova);
-    if (seguirRef.current) centrar(nova);
-  }, [centrar]);
+  }, []);
 
   // GPS ligado enquanto a camada estiver ligada.
   useEffect(() => {
@@ -108,36 +104,15 @@ export function useLocalizacaoNoMapa({ mapInstanceRef, ativo, aoErro }) {
     return () => navigator.geolocation.clearWatch(id);
   }, [ativo, receber]);
 
-  // Arrastar o mapa para de acompanhar.
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return undefined;
-    const parar = () => {
-      if (!seguirRef.current) return;
-      seguirRef.current = false;
-      setSeguindo(false);
-    };
-    map.on("dragstart", parar);
-    return () => {
-      try {
-        map.off("dragstart", parar);
-      } catch {
-        /* mapa já removido */
-      }
-    };
-  }, [mapInstanceRef, mapInstanceRef.current]);
-
   /**
    * "Localizar": pede a posição e, se `aoResponder` aceitar (a tela confere se a
-   * fazenda e a permissão ainda são as do pedido), centraliza e passa a acompanhar.
+   * fazenda e a permissão ainda são as do pedido), centraliza o mapa nela uma vez.
    * @param {{ aoResponder?: (p: PosicaoGps) => boolean }} [opcoes]
    */
   const localizar = useCallback((opcoes = {}) => {
     const aceitar = (/** @type {PosicaoGps} */ p) => {
       const ok = opcoes.aoResponder ? opcoes.aoResponder(p) !== false : true;
-      seguirRef.current = ok;
-      setSeguindo(ok);
-      if (ok) centrar(p, true);
+      if (ok) centrar(p);
     };
     const atual = posicaoRef.current;
     if (atual && Date.now() - atual.em < BOA_VALE_MS) {
@@ -160,5 +135,5 @@ export function useLocalizacaoNoMapa({ mapInstanceRef, ativo, aoErro }) {
     );
   }, [centrar]);
 
-  return { posicao, seguindo, localizar };
+  return { posicao, localizar };
 }
