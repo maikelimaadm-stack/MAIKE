@@ -1,10 +1,11 @@
 # MAIKE — Unidade de conversão no cocho, na transferência e na atividade: runbook de release (D-PROD-310)
 
-> **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Registro no §7.
+> **Estado: `SCHEMA_APPLIED_PROD: SIM` (2026-11-25, caminho B, GO do proprietário, antes do merge da PR #396).**
+> Pós-checagem do §4 conferida. Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário ("aplica") e para no primeiro desvio com
 > **`RELEASE_BLOCKED`**. Valores entre `<…>` são preenchidos na hora, a partir de leituras reais, nunca copiados deste
-> texto. **Nada foi aplicado em produção nesta missão.**
+> texto.
 
 Decisão: [D-PROD-310](./DECISIONS.md) · Relatório: [`MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md`](./MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md) ·
 SPEC: [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-SPEC.md) §7.
@@ -155,4 +156,4 @@ código novo gravou (a unidade e o fator digitados) se perde no DROP; os movimen
 | Data | Quem | O quê |
 |---|---|---|
 | 2026-11-25 | Claude (sessão D-PROD-310) | plano preparado; migration aplicada e testada só no PostgreSQL local (`maike_ucl`) |
-| — | — | **PENDENTE**: aplicação em produção (GO separado do proprietário) |
+| 2026-11-25 | Claude, com o GO do proprietário ("autorizo a migração" e "assim que ficar pronto pode fazer o merge") | **aplicada em produção pelo caminho B** (desvio da D-PROD-74 autorizado), numa transação só, antes do merge da PR #396: preflight 80/0, anterior `20261126100000_bem_implemento_produto` com o checksum `330d9318…efbe`, colunas ausentes; depois 81/0, a nova com `3644b7fd…f169` e 1 passo, as 6 colunas anuláveis sem DEFAULT, 112 tabelas |

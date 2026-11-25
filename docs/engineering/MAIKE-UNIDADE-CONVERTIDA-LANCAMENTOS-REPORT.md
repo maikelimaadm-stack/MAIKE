@@ -24,7 +24,7 @@ a unidade, a quantidade e o fator. O abastecimento continua sem conversão."
 `MovimentacaoEstoque` (cocho, as duas pernas da transferência, a saída da linha da atividade) e em
 `AtividadeApontamentoProduto`. Checksum pinado (`3644b7fd…f169`) no manifesto, colunas no preflight de schema,
 B46a/b/c, as contagens dos ensaios de migration (81 pastas) e o espelho sem as colunas (`schemaSemUnidadeConvertida`).
-**Não aplicada em produção.**
+**Aplicada em produção em 2026-11-25** (caminho B, GO do proprietário, antes do merge; registro no §7 do runbook).
 
 **Servidor.**
 - `backend/src/modules/produtos/unidadeLancamento.js` (novo): lê `unidade_lancamento` (id ou sigla) e
