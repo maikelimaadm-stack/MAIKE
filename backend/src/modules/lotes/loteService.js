@@ -12,6 +12,7 @@ import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoServi
 import { AppError, loteNotFound, loteDeleteBlocked, loteUpdateBlocked, setorNotFound, areaNotFound } from '../../shared/errors/AppError.js';
 import { avaliarExclusaoLote, TIPO_BLOQUEADO, TIPO_FISICA, TIPO_JA_EXCLUIDO, TIPO_LOGICA } from './loteExclusaoService.js';
 import { origemDerivadaDeManejo, recusarLoteFabricadoPorManejo } from './loteOrigem.js';
+import { criarComIdDoAparelho, idDoAparelhoDe } from '../../shared/idempotency/idDoAparelho.js';
 import { ativacaoDaEmpresa, cancelarEntradaParaExclusao, registrarEntradaSeAtivo, travarAreasDoLoteNoLedger } from '../rebanhoLedger/rebanhoLedgerService.js';
 import { buscarSetor } from '../setores/setorRepository.js';
 import { buscarArea } from '../areas/areaPastagemRepository.js';
@@ -24,6 +25,7 @@ import {
   excluirLotePorId,
   marcarLoteExcluido,
   motivoBloqueioExclusaoLote,
+  buscarLotePorIdEmQualquerTenant,
 } from './loteRepository.js';
 
 export const ENTIDADE_SEQUENCIA = 'Lote';
@@ -253,6 +255,29 @@ export const criar = async (contexto, entrada) => {
   // PR174-R4: cadastro só de ENTRADAS — origem de manejo (lote derivado) não é cadastrável.
   if (origemDerivadaDeManejo(campos.origem)) recusarLoteFabricadoPorManejo({ origem: campos.origem });
 
+  // D-PROD-308: id gerado no aparelho — repetir a criação devolve o mesmo lote (sem segunda
+  // entrada no rebanho nem segunda numeração).
+  const { registro } = await criarComIdDoAparelho({
+    id: idDoAparelhoDe(entrada?.id),
+    clienteId: auth.clienteId,
+    entidade: 'Lote',
+    buscar: async (id) => {
+      const lote = await buscarLotePorIdEmQualquerTenant(id);
+      return lote ? { cliente_id: lote.cliente_id, excluido: Boolean(lote.excluido_em), registro: comoLotePublico(lote) } : null;
+    },
+    criar: (id) => criarNaTransacao(contexto, auth, prisma, campos, id),
+  });
+  return registro;
+};
+
+/**
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {import('../../shared/auth/authContext.js').AuthContext} auth
+ * @param {ReturnType<typeof getPrismaClient>} prisma
+ * @param {Record<string, unknown>} campos
+ * @param {string|null} idDoAparelho
+ */
+const criarNaTransacao = async (contexto, auth, prisma, campos, idDoAparelho) => {
   const criado = await prisma.$transaction(async (tx) => {
     const empresaId = String(campos.empresa_id);
     const nome = String(campos.nome);
@@ -290,6 +315,7 @@ export const criar = async (contexto, entrada) => {
     const pesoMedio = campos.peso_medio_kg ?? null;
 
     const registro = await inserirLote(tx, {
+      ...(idDoAparelho ? { id: idDoAparelho } : {}),
       cliente_id: auth.clienteId,
       empresa_id: empresaId,
       numero_lote: String(numero),

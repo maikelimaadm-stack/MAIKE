@@ -85,6 +85,7 @@ import { criarFilaIndexedDB, filaDeEnvioDisponivel } from './filaDeEnvio.js';
  *   atencao: number,
  *   enviando: boolean,
  *   atualizar?: string[],
+ *   seguradosPorFora?: number,
  *   itens: Array<{id: string, tipo: string, rotulo: string, estado: string, criado_em: string,
  *                 tentativas: number, ultimo_erro: ItemDaFila['ultimo_erro'], esperando: boolean,
  *                 confirmando: boolean, progresso: Record<string, any>}>,
@@ -103,6 +104,46 @@ const ESPERAS_MS = Object.freeze([5_000, 15_000, 30_000, 60_000, 120_000, 300_00
 const TENTATIVAS_COM_ERRO_DO_SERVIDOR = 5;
 /** Item enviado fica guardado este tempo (para quem cita o resultado dele). */
 const GUARDAR_ENVIADO_MS = 7 * 24 * 3600 * 1000;
+/**
+ * D-PROD-308: o envio direto (com internet, a tela esperando) reserva o item por este tempo;
+ * a passada não manda o mesmo item enquanto a reserva vale. Se o app fechar no meio, a
+ * reserva vence e a passada termina o envio com o MESMO código (o servidor não duplica).
+ */
+const RESERVA_DO_ENVIO_DIRETO_MS = 2 * 60 * 1000;
+
+/**
+ * D-PROD-308: quem mais pode segurar um item — a fila antiga, quando o item cita um registro
+ * criado no aparelho que ainda não chegou ao servidor (a leitura de um cocho criado sem
+ * internet). Recebe os textos do payload; `true` = esperar.
+ * @type {((valores: Set<string>) => Promise<boolean>)|null}
+ */
+let esperaDeFora = null;
+
+/** @param {((valores: Set<string>) => Promise<boolean>)|null} fn */
+export const definirEsperaDeFora = (fn) => {
+  esperaDeFora = typeof fn === 'function' ? fn : null;
+};
+
+/** Todos os textos de um payload (ids que ele cita, em qualquer profundidade). @param {unknown} valor */
+const textosDoPayload = (valor, acc = new Set()) => {
+  if (typeof valor === 'string') acc.add(valor);
+  else if (Array.isArray(valor)) valor.forEach((v) => textosDoPayload(v, acc));
+  else if (valor && typeof valor === 'object') Object.values(valor).forEach((v) => textosDoPayload(v, acc));
+  return acc;
+};
+
+/** @param {unknown} payload */
+const esperaPorFora = async (payload) => {
+  if (!esperaDeFora) return false;
+  try {
+    return Boolean(await esperaDeFora(textosDoPayload(payload)));
+  } catch {
+    return false;
+  }
+};
+
+/** O envio direto ainda reserva este item? @param {{direto_ate?: number}} item */
+const reservadoPeloEnvioDireto = (item) => Number(item?.direto_ate ?? 0) > agora();
 
 const PREFIXO_REFERENCIA = '@@resultado:';
 
@@ -168,6 +209,7 @@ export const configurarMotorDeSincronizacao = (opcoes = {}) => {
   porta = opcoes.porta ?? null;
   sessao = null;
   passadaEmCurso = null;
+  esperaDeFora = null;
   if (opcoes.agora) agora = opcoes.agora;
   if (opcoes.online) online = opcoes.online;
 };
@@ -424,7 +466,8 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
   const naoConfirmado = (/** @type {string} */ id) => porId.get(id)?.estado !== 'enviado';
   const temQueEsperar =
     referencias.some(naoConfirmado) ||
-    itens.some((i) => i.estado !== 'enviado' && i.recursos.some((r) => recursos.includes(r)));
+    itens.some((i) => i.estado !== 'enviado' && i.recursos.some((r) => recursos.includes(r))) ||
+    (podeGuardar && (await esperaPorFora(payload)));
 
   /**
    * Grava o item. 'pendente' espera envio; 'enviado' guarda o resultado de um
@@ -432,8 +475,9 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
    * @param {'pendente'|'enviado'} [estado]
    * @param {unknown} [resultado]
    * @param {boolean} [tentado] já houve tentativa de envio (a rede caiu no meio)
+   * @param {{direto_ate?: number, agendar?: boolean}} [extra] reserva do envio direto
    */
-  const guardar = async (estado = 'pendente', resultado = undefined, tentado = false, progresso = undefined) => {
+  const guardar = async (estado = 'pendente', resultado = undefined, tentado = false, progresso = undefined, extra = {}) => {
     if (!podeGuardar || !fila || !sessao) throw erroSemInternet(tipo);
     const enviado = estado === 'enviado';
     /** @type {ItemDaFila} */
@@ -459,14 +503,39 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
       enviado_em: enviado ? new Date(agora()).toISOString() : null,
       ...(enviado ? { resultado: JSON.parse(JSON.stringify(resultado ?? null)) } : {}),
       ...(progresso && Object.keys(progresso).length ? { progresso: JSON.parse(JSON.stringify(progresso)) } : {}),
+      ...(extra.direto_ate ? { direto_ate: extra.direto_ate } : {}),
     };
     await fila.gravar(item);
     emitir();
-    if (!enviado) agendarSincronizacao();
+    if (!enviado && extra.agendar !== false) agendarSincronizacao();
     return /** @type {ResultadoDoEnvio} */ ({ estado: 'aguardando', operationId });
   };
 
   if (!online() || temQueEsperar) return guardar();
+
+  // D-PROD-308: gravado ANTES de sair (com a reserva do envio direto). Se o app fechar com o
+  // pedido no ar, o registro e o código continuam no aparelho e a passada termina o envio
+  // depois — o servidor reconhece o código e não grava duas vezes. Antes, o código vivia só
+  // na memória: o que o servidor já tinha feito (a baixa do estoque) ficava sem registro aqui.
+  let gravadoAntes = false;
+  if (podeGuardar) {
+    try {
+      await guardar('pendente', undefined, true, undefined, { direto_ate: agora() + RESERVA_DO_ENVIO_DIRETO_MS, agendar: false });
+      gravadoAntes = true;
+    } catch {
+      // sem como gravar no aparelho: envia como antes (sem a garantia)
+    }
+  }
+  /** Atualiza o item gravado (sob a trava da fila). @param {(i: ItemDaFila) => ItemDaFila|null} mudar */
+  const regravar = (mudar) =>
+    exclusivo(async () => {
+      if (!gravadoAntes || !fila) return;
+      const atual = await fila.ler(operationId);
+      if (!atual) return;
+      const novo = mudar(atual);
+      if (novo) await fila.gravar(novo);
+      else await fila.remover(operationId);
+    });
 
   const resultados = new Map(itens.filter((i) => i.estado === 'enviado').map((i) => [i.id, i.resultado]));
   /** @type {Record<string, unknown>} */
@@ -477,13 +546,33 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
       empresaId,
       registrarProgresso: async (p) => {
         Object.assign(progressoDoEnvio, p);
+        // O passo feito fica no aparelho (a baixa já feita não se repete) e a reserva renova.
+        await regravar((i) => ({
+          ...i,
+          progresso: { ...(i.progresso ?? {}), ...JSON.parse(JSON.stringify(p)) },
+          direto_ate: agora() + RESERVA_DO_ENVIO_DIRETO_MS,
+        })).catch(() => undefined);
       },
     });
     // O resultado fica guardado (como no envio pela fila): um registro seguinte
     // pode citar o id que o servidor deu a este.
     if (podeGuardar) {
       try {
-        await guardar('enviado', resultado);
+        if (gravadoAntes) {
+          await regravar((i) => {
+            const { direto_ate: _reserva, ...resto } = /** @type {any} */ (i);
+            return {
+              ...resto,
+              estado: 'enviado',
+              resultado: JSON.parse(JSON.stringify(resultado ?? null)),
+              enviado_em: new Date(agora()).toISOString(),
+              ultimo_erro: null,
+            };
+          });
+          emitir();
+        } else {
+          await guardar('enviado', resultado);
+        }
       } catch {
         // o registro já está no servidor; só a referência futura fica sem ele
       }
@@ -496,7 +585,21 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
     // (a baixa do estoque, o lançamento) não se perde: fica na fila com o progresso e o motor
     // termina depois. Só a recusa do servidor volta para a tela decidir.
     const tipoDeFalha = classificarFalhaDeEnvio(erro);
-    if (tipoDeFalha !== 'recusado' && podeGuardar) return guardar('pendente', undefined, true, progressoDoEnvio);
+    if (tipoDeFalha !== 'recusado' && podeGuardar) {
+      if (gravadoAntes) {
+        await regravar((i) => {
+          const { direto_ate: _reserva, ...resto } = /** @type {any} */ (i);
+          return { ...resto, estado: 'pendente', tentado: true, progresso: { ...(i.progresso ?? {}), ...progressoDoEnvio } };
+        }).catch(() => undefined);
+        emitir();
+        agendarSincronizacao();
+        return { estado: 'aguardando', operationId };
+      }
+      return guardar('pendente', undefined, true, progressoDoEnvio);
+    }
+    // Recusa: a tela decide (corrige e manda de novo); o item não fica na fila.
+    await regravar(() => null).catch(() => undefined);
+    if (gravadoAntes) emitir();
     throw erro;
   }
 };
@@ -563,7 +666,9 @@ const passada = async () => {
   const itensParados = new Set();
   /** O que as telas precisam reler: `atualiza` dos tipos que chegaram ao servidor nesta passada. */
   const atualizar = new Set();
-  const fim = async () => ({ ...(await resumoDaFila()), atualizar: [...atualizar] });
+  /** D-PROD-308: itens segurados porque citam uma criação ainda na fila antiga. */
+  let seguradosPorFora = 0;
+  const fim = async () => ({ ...(await resumoDaFila()), atualizar: [...atualizar], seguradosPorFora });
 
   /** @param {ItemDaFila} item */
   const parar = (item) => {
@@ -613,6 +718,17 @@ const passada = async () => {
       parar(item);
       continue;
     }
+    // D-PROD-308: a tela está enviando este item agora (envio direto): não manda junto.
+    if (reservadoPeloEnvioDireto(item)) {
+      parar(item);
+      continue;
+    }
+    // D-PROD-308: cita um registro criado no aparelho que ainda está na fila antiga.
+    if (await esperaPorFora(item.payload)) {
+      parar(item);
+      seguradosPorFora += 1;
+      continue;
+    }
     const perdida = item.referencias.find((id) => !existentes.has(id));
     if (perdida) {
       await precisaDeAtencao(item, {
@@ -648,6 +764,7 @@ const passada = async () => {
     const tomado = await exclusivo(async () => {
       const fresco = await fila.ler(montado.id);
       if (!fresco || fresco.estado !== 'pendente' || (fresco.revisao ?? 0) !== (montado.revisao ?? 0)) return null;
+      if (reservadoPeloEnvioDireto(fresco)) return null;
       if (!fresco.tentado) {
         fresco.tentado = true;
         await fila.gravar(fresco);
@@ -724,7 +841,14 @@ const limparEnviadosAntigos = async (fila) => {
  */
 export const resumoDaFila = async () => {
   const fila = portaDaFila();
-  const itens = fila && sessao ? (await fila.listar()).filter(eDaSessao).filter((i) => i.estado !== 'enviado').sort(emOrdem) : [];
+  // D-PROD-308: o item que a tela está enviando agora (envio direto) não conta como esperando.
+  const itens =
+    fila && sessao
+      ? (await fila.listar())
+          .filter(eDaSessao)
+          .filter((i) => i.estado !== 'enviado' && !reservadoPeloEnvioDireto(i))
+          .sort(emOrdem)
+      : [];
   return {
     aguardando: itens.filter((i) => i.estado === 'pendente').length,
     atencao: itens.filter((i) => i.estado === 'atencao').length,
@@ -756,7 +880,9 @@ export const registrosAguardandoDoTipo = async (tipo) => {
   const fila = portaDaFila();
   if (!fila || !sessao) return [];
   return (await fila.listar())
-    .filter((i) => eDaSessao(i) && i.tipo === tipo && i.estado !== 'enviado')
+    // D-PROD-308: o item que a tela está enviando agora (envio direto) não aparece como
+    // "aguardando": a tela já mostra o resultado quando o servidor responder.
+    .filter((i) => eDaSessao(i) && i.tipo === tipo && i.estado !== 'enviado' && !reservadoPeloEnvioDireto(i))
     .sort(emOrdem)
     .map((i) => ({
       operationId: i.id,

@@ -9608,4 +9608,49 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - `tests/smoke/lancamentoCochoOffline.test.js` (LCO-15).
   - Contratos atualizados: `sincronizacaoOrganizada.test.jsx` (SO-05), `loteDeleteOfflineBloqueado.test.js` (PR167-R2 F) e `categoriaManejoCriacaoOnline.test.js` (e).
 
-<!-- Próxima decisão: D-PROD-308 -->
+## D-PROD-308 — Sincronização profissional, Etapa 1: nada se perde, nada duplica (id do aparelho, gravar antes de enviar, trava entre abas)
+
+**Data:** 2026-11-25 · **Origem:** pedido do proprietário ("o que pudermos fazer para fazer uma coisa profissional já vamos fazer no começo, testando com cochos e lotes e contas — isso vai virar um SaaS com milhões de registros, vários clientes e usuários"), plano em 5 etapas aprovado · **Branch:** `claude/nifty-feynman-rh0kdn` · **Relatório:** [`SINCRONIZACAO-ETAPA1-D308-REPORT.md`](./SINCRONIZACAO-ETAPA1-D308-REPORT.md)
+
+- **Contexto:** o levantamento da D-PROD-307 achou três buracos estruturais.
+  1. O envio direto do motor (com internet) só gravava o registro no aparelho DEPOIS da resposta. Se o app fechasse com o pedido no ar, o código da operação se perdia; o que o servidor já tinha feito (a baixa do estoque) ficava sem registro no aparelho, e a tela, ao repetir, mandava com código novo.
+  2. Os cadastros da fila antiga (cocho e lote, entre outros) criavam sem idempotência. A resposta perdida, o reenvio ou duas abas criavam em dobro; no lote, em dobro também a entrada no rebanho e a numeração. O id provisório `offline_…` precisava ser trocado depois, e nada o trocava no motor: a leitura de um cocho criado sem internet ia com o id provisório.
+  3. Duas abas do navegador sincronizavam ao mesmo tempo.
+- **Decisão:**
+  1. **Id do aparelho (servidor):**
+     - `POST /lotes` e `POST /pontos-suplementacao` aceitam um `id` UUID gerado no aparelho (`shared/idempotency/idDoAparelho.js`, `criarComIdDoAparelho`).
+     - O mesmo id no mesmo tenant devolve o registro já criado, sem efeito repetido (numeração, local de estoque, entrada no rebanho, auditoria).
+     - O id em outro tenant responde 409 `ID_DO_APARELHO_EM_USO`, sem dizer de quem.
+     - Registro já excluído responde 409 `ID_DO_APARELHO_EXCLUIDO`. Para o lote, vale `excluido_em`; para o ponto, que é apagado de vez, o histórico de auditoria (`AuditLog` `delete`).
+     - Duas criações simultâneas com o mesmo id: o banco decide pela chave primária, e a que perde relê o registro e o devolve.
+     - Sem `id` (ou, no ponto, um id que não é UUID), o caminho de sempre: o servidor gera o id.
+     - O tenant continua vindo só da autenticação (R11).
+  2. **Id do aparelho (app):**
+     - O adaptador da fila antiga ganha `idDoAparelho` (ligado em Lote e PontoSuplementacao).
+     - O registro novo nasce com o id definitivo, com ou sem internet. Não há mais `offline_…` para essas entidades, nem troca de id depois.
+     - Com internet, a criação que não chega a uma resposta (rede, servidor fora, sessão vencida) vai para a fila com o MESMO id, em vez de voltar erro para a tela. A recusa do servidor continua voltando para a tela.
+     - Editar ou excluir sem internet um registro que ainda está na fila é achado pelo id, não mais pelo prefixo `offline_` nem pela fazenda selecionada. A edição entra na própria criação; a exclusão tira a criação da fila.
+  3. **Motor: gravado antes de sair:**
+     - `enviarOuGuardar` grava o item (aguardando, já "tentado") com uma reserva de 2 min (`direto_ate`) ANTES do envio direto.
+     - O passo feito (ex.: a baixa) fica gravado durante o envio, e cada passo renova a reserva.
+     - Sucesso: "enviado". Falha passageira: aguardando, sem reserva, e a passada envia. Recusa: sai da fila e a tela decide.
+     - A passada não manda um item reservado. Se o app fechar, a reserva vence e a passada termina com o MESMO código; o servidor reconhece o código e não grava duas vezes.
+     - O item reservado não aparece como "aguardando" (nem no ícone nem nas telas): a tela já mostra o resultado.
+  4. **Ordem entre as filas:**
+     - Um item do motor que cita um registro criado no aparelho e ainda na fila antiga espera essa criação. É o caso da leitura ou do lançamento num cocho criado sem internet. O envio direto também espera.
+     - `definirEsperaDeFora` liga as duas filas sem acoplar o motor à fila antiga.
+     - `sincronizarTudo` roda o motor de novo depois da fila antiga quando algo ficou esperando; o cocho e a leitura sobem na mesma sincronização, nessa ordem.
+  5. **Trava entre abas:** `naVezDaSincronia` roda dentro de `navigator.locks` (`maike-sincronia`, exclusiva), de modo que duas abas do navegador não sincronizam ao mesmo tempo. Sem suporte, a ordem dentro da aba continua.
+- **Migration:** nenhuma. Os ids continuam `String` no banco; UUID cabe onde cabia o cuid.
+- **Constituição:** nenhuma regra nova. R9/R11 preservadas: a leitura pelo id em qualquer tenant serve só para decidir e nada dela vai para a resposta de outro tenant.
+- **Fora (próximas etapas):**
+  - Os outros cadastros da fila antiga (bebedouro, setor, área…) ganham o id do aparelho na Etapa 5, com o mesmo helper.
+  - A sincronização incremental ("o que mudou desde", com registro das exclusões) é a Etapa 2.
+  - A versão por registro e quem alterou ficam para a Etapa 3.
+  - A tela sem "piscar" entre "enviado" e a releitura fica para a Etapa 4.
+- **Testes:**
+  - Backend: `backend/tests/idDoAparelho.test.mjs` (ID-01..07).
+  - App: `tests/smoke/envioSemPerdaSemDuplicar.test.js` (IA-01..05, EN-01..06, OR-01, AB-01).
+  - `tests/smoke/lancamentoCochoOffline.test.js`: isolamento; o envio agendado por um teste não dispara no seguinte.
+
+<!-- Próxima decisão: D-PROD-309 -->

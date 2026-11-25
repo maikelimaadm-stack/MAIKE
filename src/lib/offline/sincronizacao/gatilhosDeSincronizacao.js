@@ -16,9 +16,22 @@
 
 import { App } from '@capacitor/app';
 import { isAppNativo } from '@/config/runtimeConfig';
-import { syncOfflineEntityQueue, contarPendenciasDaFilaDeEntidades } from '@/lib/offline/offlineEntityRuntime';
+import {
+  syncOfflineEntityQueue,
+  contarPendenciasDaFilaDeEntidades,
+  idsComCriacaoPendenteNaFilaDeEntidades,
+} from '@/lib/offline/offlineEntityRuntime';
 import { naVezDaSincronia } from './vezDaSincronia.js';
-import { sincronizar, resumoDaFila, EVENTO_FILA_DE_ENVIO } from './motorDeSincronizacao.js';
+import { sincronizar, resumoDaFila, definirEsperaDeFora, EVENTO_FILA_DE_ENVIO } from './motorDeSincronizacao.js';
+
+// D-PROD-308: registro do motor que cita um cadastro criado no aparelho (cocho, lote) ainda
+// na fila antiga espera essa criação chegar ao servidor — senão iria antes e seria recusado.
+definirEsperaDeFora(async (valores) => {
+  const pendentes = await idsComCriacaoPendenteNaFilaDeEntidades();
+  if (pendentes.size === 0) return false;
+  for (const v of valores) if (pendentes.has(v)) return true;
+  return false;
+});
 
 const INTERVALO_MS = 60_000;
 
@@ -37,8 +50,9 @@ export const sincronizarTudo = () => {
     // D-PROD-307: na vez — nunca junto com uma baixa de dados (`vezDaSincronia`).
     emCurso = naVezDaSincronia(async () => {
       if (!estaOnline()) return;
+      let segurados = 0;
       try {
-        await sincronizar();
+        segurados = (await sincronizar())?.seguradosPorFora ?? 0;
       } catch {
         // o item guarda o motivo; a próxima passada tenta de novo
       }
@@ -46,6 +60,15 @@ export const sincronizarTudo = () => {
         if ((await contarPendenciasDaFilaDeEntidades()) > 0) await syncOfflineEntityQueue();
       } catch {
         // idem
+      }
+      // D-PROD-308: algo do motor esperava uma criação da fila antiga (a leitura de um cocho
+      // criado sem internet): com a criação enviada, ele sai nesta mesma sincronização.
+      if (segurados > 0) {
+        try {
+          await sincronizar();
+        } catch {
+          // idem
+        }
       }
     }).finally(() => {
       emCurso = null;

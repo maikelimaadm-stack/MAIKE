@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-25 (missão ativa D-PROD-307; antes D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-308; antes D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-25) — MAIKE-AUDITORIA-SINCRONIZACAO: várias sincronizações ao mesmo tempo, cópia do aparelho, conta e recusas (D-PROD-307)
+## Missão ativa (2026-11-25) — MAIKE-SINCRONIZACAO-ETAPA1: nada se perde, nada duplica (D-PROD-308)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-308**: id gerado no aparelho em cocho e lote (servidor aceita e repetir devolve o mesmo; outro tenant 409; excluído 409); o motor grava antes de enviar (reserva de 2 min; app fechado no meio termina com o mesmo código); o que cita um cadastro criado sem internet espera a criação; trava entre abas (`navigator.locks`) |
+| Banco | sem migration |
+| Relatório | [`SINCRONIZACAO-ETAPA1-D308-REPORT.md`](./SINCRONIZACAO-ETAPA1-D308-REPORT.md) |
+| Próximas | Etapa 2: sincronização incremental ("o que mudou desde", exclusões registradas, índices por data de alteração) |
+
+## Missão anterior (2026-11-25) — MAIKE-AUDITORIA-SINCRONIZACAO: várias sincronizações ao mesmo tempo, cópia do aparelho, conta e recusas (D-PROD-307)
 
 | Item | Estado |
 |---|---|

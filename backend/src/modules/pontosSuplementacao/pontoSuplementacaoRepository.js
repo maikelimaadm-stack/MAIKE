@@ -22,6 +22,14 @@ export const buscarRegistro = async (clienteId, id, tx) => {
 
 export const inserirRegistro = async (tx, dados) => tx.pontoSuplementacao.create({ data: dados });
 
+/**
+ * D-PROD-308 — o ponto com este id, em qualquer tenant (só para a criação com o id do
+ * aparelho decidir entre "repetiu" e "id em uso").
+ * @param {string} id
+ */
+export const buscarPontoPorIdEmQualquerTenant = async (id) =>
+  getPrismaClient().pontoSuplementacao.findUnique({ where: { id } });
+
 export const atualizarRegistroPorId = async (tx, clienteId, id, dados) =>
   tx.pontoSuplementacao.update({
     where: { cliente_id_id: { cliente_id: clienteId, id } },

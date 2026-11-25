@@ -2,6 +2,7 @@
  * Rotas de Lote (P5.1, D-PROD-47).
  */
 
+import { SCHEMA_ID_DO_APARELHO } from '../../shared/idempotency/idDoAparelho.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, excluir, buscarPorId, elegibilidadeExclusao, comoLotePublico } from './loteService.js';
 import { elegibilidadeCorrecaoEntrada, corrigirEntradaLote, CAMPOS_ADMINISTRATIVOS_DA_ENTRADA } from './loteCorrecaoEntradaService.js';
@@ -62,7 +63,8 @@ const CRIAR_SCHEMA = {
     type: 'object',
     required: ['empresa_id', 'nome', 'quantidade_cabecas', 'motivo_entrada'],
     additionalProperties: false,
-    properties: { ...CAMPOS_CRIACAO },
+    // D-PROD-308: `id` opcional, gerado no aparelho (UUID); repetir a criação devolve o mesmo lote.
+    properties: { ...CAMPOS_CRIACAO, id: SCHEMA_ID_DO_APARELHO },
   },
 };
 
