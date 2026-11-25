@@ -83,15 +83,17 @@ export const MENSAGENS_CODIGO = Object.freeze({
   // D-PROD-273 (fatia 4): recusas do recálculo do que veio depois (a frase com o motivo vem de `mensagemRecalculoDaExclusao`).
   ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL: `A exclusão com recálculo não é segura para este lançamento. ${NADA}`,
   ESTOQUE_EXCLUSAO_SALDO_NEGATIVO: `Sem este lançamento o saldo do depósito ficaria negativo. ${NADA}`,
+  // D-PROD-314: há registro depois no depósito (a frase com qual excluir antes vem de `mensagemRecalculoDaExclusao`).
+  ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR: `Há registro lançado depois deste no depósito. Exclua primeiro o mais recente. ${NADA}`,
   ESTOQUE_RECALCULO_VOLUME_EXCEDIDO: `Há movimentos demais deste produto depois deste lançamento para recalcular de uma vez. ${NADA}`,
 });
 
 /**
  * Mensagem em português da recusa do servidor.
- * @param {string|null|undefined} codigo @param {string|null|undefined} reason
+ * @param {string|null|undefined} codigo @param {string|null|undefined} reason @param {Record<string, any>} [details]
  */
-export const mensagemDoCancelamento = (codigo, reason) => {
-  const recalculo = mensagemRecalculoDaExclusao(codigo ?? null, reason ?? null, {});
+export const mensagemDoCancelamento = (codigo, reason, details = {}) => {
+  const recalculo = mensagemRecalculoDaExclusao(codigo ?? null, reason ?? null, details ?? {});
   if (recalculo) return recalculo;
   if (codigo === "SUPLEMENTACAO_CANCELAMENTO_BLOQUEADO") return (reason && MENSAGENS_REASON[reason]) || `O lançamento não pode ser excluído com segurança agora. ${NADA}`;
   return (codigo && MENSAGENS_CODIGO[codigo]) || `Não foi possível excluir. ${NADA}`;
@@ -101,6 +103,7 @@ export const mensagemDoCancelamento = (codigo, reason) => {
 const doServidor = (erro) => ({
   codigo: typeof erro?.cause?.code === "string" ? erro.cause.code : null,
   reason: typeof erro?.cause?.reason === "string" ? erro.cause.reason : typeof erro?.cause?.details?.reason === "string" ? erro.cause.details.reason : null,
+  details: erro?.cause?.details && typeof erro.cause.details === "object" ? erro.cause.details : {},
 });
 
 /** Recusa definitiva: o servidor respondeu e nada foi gravado. O resto é resultado desconhecido. @param {string|null} codigo */
@@ -282,7 +285,7 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
     if (negadoNoServidor) return { habilitado: false, motivo: MENSAGENS_CODIGO.ACAO_NAO_PERMITIDA };
     if (elegibilidade.isError) return { habilitado: false, motivo: "Não foi possível verificar no servidor. Nada foi alterado.", tentarDeNovo: true };
     if (!e || elegibilidade.isFetching) return { habilitado: false, motivo: "Conferindo no servidor…", verificando: true };
-    if (!e.elegivel) return { habilitado: false, motivo: mensagemDoCancelamento(e.codigo, e.reason) };
+    if (!e.elegivel) return { habilitado: false, motivo: mensagemDoCancelamento(e.codigo, e.reason, e.detalhes ?? {}) };
     return { habilitado: true, motivo: null };
   })();
 
@@ -367,7 +370,7 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
       await recarregar(queryClient, evento);
       onCancelado?.();
     } catch (erro) {
-      const { codigo, reason } = doServidor(erro);
+      const { codigo, reason, details } = doServidor(erro);
       if (codigo === "CANCELAMENTO_JA_REALIZADO" || codigo === "SUPLEMENTACAOEVENTO_NOT_FOUND") {
         limparPendente(escopo, evento.id);
         setDesconhecido(false);
@@ -380,7 +383,7 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
         // O servidor respondeu: nada foi gravado; a próxima tentativa é outra operação.
         limparPendente(escopo, evento.id);
         setDesconhecido(false);
-        setRecusa(mensagemDoCancelamento(codigo, reason));
+        setRecusa(mensagemDoCancelamento(codigo, reason, details));
         chaveRef.current = novaChave();
         setMotivo(MOTIVO_EXCLUSAO_MAPA); // D-PROD-270: operação nova = motivo fixo
         if (ehRecusaDePermissao(erro)) queryClient.invalidateQueries({ queryKey: ["permissao-efetiva"] });
@@ -448,7 +451,7 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
           ) : null}
           {e && e.elegivel === false && !elegibilidade.isFetching && !desconhecido ? (
             <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
-              {mensagemDoCancelamento(e.codigo, e.reason)}
+              {mensagemDoCancelamento(e.codigo, e.reason, e.detalhes ?? {})}
             </div>
           ) : null}
           <div className="space-y-2">

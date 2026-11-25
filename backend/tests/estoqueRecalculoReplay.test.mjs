@@ -163,6 +163,12 @@ const retrato = async (x) => JSON.stringify({
   p: await prisma().produto.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' }, select: { id: true, estoque_atual: true, updatedAt: true } }),
   a: await prisma().auditLog.count({ where: { cliente_id: x.c } }),
 });
+const excluirSaida = (x, doc) =>
+  H.req('POST', `/estoque/saidas/${doc.id}/excluir`, x.token, { empresa_id: x.e1.id, versao: doc.versao ?? 1, motivo: 'lançada errada', operation_id: `ex-${randomUUID()}` });
+const excluirEntrada = (x, doc) =>
+  H.req('POST', `/estoque/entradas/${doc.id}/excluir`, x.token, { empresa_id: x.e1.id, versao: doc.versao ?? 1, motivo: 'nota errada', operation_id: `ex-${randomUUID()}` });
+/** D-PROD-314 — a recusa do registro posterior na prévia: permitido false, modo null e o mais recente que ainda vale. */
+const recusaPosterior = (p) => [p.permitido, p.modo, p.recusa?.code, p.recusa?.reason, p.recusa?.posterior_id, p.recusa?.posterior_numero, p.recusa?.local_estoque_id];
 const movDoItem = async (doc) => (await prisma().movimentacaoEstoque.findUnique({ where: { id: doc.itens[0].movimentacao_estoque_id } }));
 
 describe('D-PROD-273 fatia 3 — replay = gravado (cenário pelos serviços reais)', () => {
@@ -264,38 +270,42 @@ describe('D-PROD-273 fatia 3 — estorno em lote do financeiro', () => {
 });
 
 describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
-  test('excluir uma saída antiga: o saldo dos posteriores sobe e o custo deles muda (conta à mão); nada é gravado', async () => {
+  test('D-PROD-314: excluir uma saída antiga com movimentos depois → a prévia e a exclusão recusam ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR (o mais recente); nada é gravado; do mais recente para o mais antigo, ela sai', async () => {
     const x = await montar();
     const A = x.local;
     await entrar(x, x.sal, A, '100', '3');
     const s1 = await sair(x, x.sal, A, '40');
-    await entrar(x, x.sal, A, '50', '6');
+    const e50 = await entrar(x, x.sal, A, '50', '6');
     const s2 = await sair(x, x.sal, A, '30');
     await provarReplay(x, x.sal);
     const m1 = await movDoItem(s1);
     const m2 = await movDoItem(s2);
+    const me = await movDoItem(e50);
     // gravado: S2 = 30 × round(480/110) = 30 × 4,3636 = 130,9080; poço final 80 a round(349,092/80) = 4,3637
     assert.deepEqual([m2.valor_unitario.toFixed(4), m2.valor_total.toFixed(4), m2.saldo_antes.toFixed(4)], ['4.3636', '130.9080', '110.0000']);
     const antes = await retrato(x);
     const p = ok(await previa(x, m1.id));
     assert.equal(await retrato(x), antes, 'a prévia não grava nada');
-    assert.equal(p.permitido, true);
-    assert.equal(p.recusa, null);
+    assert.deepEqual(recusaPosterior(p), [false, null, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', m2.id, m2.numero_movimentacao, A.id]);
     assert.equal(p.gravado, false);
     assert.deepEqual(p.excluidos, [m1.id]);
-    assert.deepEqual(p.depositos_afetados, [A.id]);
-    const porId = new Map(p.movimentos.map((m) => [m.id, m]));
-    // sem S1: poço 150 a 4,0000; S2 = 30 × 4 = 120
-    assert.deepEqual(porId.get(m2.id).antes, { valor_unitario: '4.3636', valor_total: '130.9080', saldo_antes: '110.0000', saldo_depois: '80.0000', custo_medio_antes: '4.3636', custo_medio_depois: '4.3637' });
-    assert.deepEqual(porId.get(m2.id).depois, { valor_unitario: '4.0000', valor_total: '120.0000', saldo_antes: '150.0000', saldo_depois: '120.0000', custo_medio_antes: '4.0000', custo_medio_depois: '4.0000' });
-    assert.equal(porId.get(m2.id).fatias_mudaram, true);
-    assert.equal(p.movimentos.length, 2, 'a entrada de 50 (saldo) e a saída de 30 (saldo e custo)');
-    assert.deepEqual(p.depositos, [{ local_estoque_id: A.id, saldo_antes: '80.0000', saldo_depois: '120.0000', valor_antes: '349.0960', valor_depois: '480.0000', custo_medio_antes: '4.3637', custo_medio_depois: '4.0000' }]);
-    // dependente: a linha da saída manual S2 (o custo dela muda); a própria S1 não é dependente (é a excluída)
-    assert.deepEqual(p.dependentes.map((d) => [d.tipo, d.movimento_id]), [['SaidaEstoqueItem', m2.id]]);
+    assert.deepEqual([p.movimentos, p.dependentes], [[], []], 'sem recálculo: nada a simular');
+    // a exclusão de verdade recusa igual e não grava nada
+    const ex = await excluirSaida(x, s1);
+    assert.deepEqual([ex.statusCode, ex.json().code, ex.json().details?.posterior_id, ex.json().details?.posterior_numero], [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', m2.id, m2.numero_movimentacao], ex.body);
+    assert.equal(await retrato(x), antes, 'a exclusão recusada não grava nada');
+    // do mais recente para o mais antigo: S2, depois a entrada de 50 e, então, S1
+    ok(await excluirSaida(x, s2));
+    assert.deepEqual(recusaPosterior(ok(await previa(x, m1.id))), [false, null, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', me.id, me.numero_movimentacao, A.id], 'o par já excluído de S2 não conta; a entrada de 50 ainda vale');
+    ok(await excluirEntrada(x, e50));
+    const livre = ok(await previa(x, m1.id));
+    assert.deepEqual([livre.permitido, livre.recusa], [true, null], 'depois dela só pares já excluídos');
+    ok(await excluirSaida(x, s1));
+    assert.equal((await prisma().produto.findUnique({ where: { id: x.sal.id } })).estoque_atual.toFixed(4), '100.0000');
+    await provarReplay(x, x.sal);
   });
 
-  test('excluir uma entrada que deixaria o saldo negativo → recusa ESTOQUE_EXCLUSAO_SALDO_NEGATIVO com depósito, movimento e saldo', async () => {
+  test('excluir uma entrada consumida por uma saída depois → D-PROD-314: recusa ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR com a saída, o depósito e o movimento', async () => {
     const x = await montar();
     const A = x.local;
     await entrar(x, x.sal, A, '100', '3');
@@ -305,12 +315,14 @@ describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
     const antes = await retrato(x);
     const p = ok(await previa(x, e2.itens[0].movimentacao_estoque_id));
     assert.equal(await retrato(x), antes);
-    assert.equal(p.permitido, false);
-    assert.deepEqual(p.recusa, { code: 'ESTOQUE_EXCLUSAO_SALDO_NEGATIVO', reason: 'saldo_negativo', local_estoque_id: A.id, movimento_id: ms.id, movimento_numero: ms.numero_movimentacao, saldo: '-20.0000' });
+    // D-PROD-314: o saldo negativo (sem a entrada, a saída de 120 deixaria −20) agora é precedido pela recusa do
+    // registro posterior: a saída ainda vale e tem de sair primeiro.
+    assert.deepEqual(recusaPosterior(p), [false, null, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', ms.id, ms.numero_movimentacao, A.id]);
+    assert.equal(p.recusa.movimento_id, e2.itens[0].movimentacao_estoque_id);
     assert.deepEqual([p.movimentos, p.dependentes], [[], []]);
   });
 
-  test('transferência em cascata: excluir uma saída antiga na origem muda o custo da transferência, do destino e da saída no destino', async () => {
+  test('D-PROD-314 — transferência em cascata: a saída antiga na origem e a própria transferência recusam ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR (origem e destino); nada é gravado; do mais recente para o mais antigo, saem', async () => {
     const x = await montar();
     const A = x.local;
     const B = x.local2;
@@ -325,27 +337,35 @@ describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
     const mVenda = await prisma().movimentacaoEstoque.findUnique({ where: { id: sb.itens[0].movimentacao_estoque_id } });
     // gravado: T = 40 × 5 = 200; B = (600 + 200) / 100 = 8; venda 30 × 8 = 240
     assert.deepEqual([Number(t.s.valor_total), mVenda.valor_total.toFixed(4)], [200, '240.0000']);
+    const antes = await retrato(x);
+    // a saída antiga no A: o mais recente que ainda vale no A é a transferência (a perna que fecha o par)
     const p = ok(await previa(x, mOld.id));
-    assert.equal(p.permitido, true);
-    assert.deepEqual(p.depositos_afetados, [A.id, B.id].sort());
-    const porId = new Map(p.movimentos.map((m) => [m.id, m]));
-    // sem a saída: A = 150 a 4; T = 160; B = 760 / 100 = 7,6; venda 30 × 7,6 = 228
-    assert.deepEqual([porId.get(t.s.id).depois.valor_total, porId.get(t.s.id).depois.custo_medio_antes], ['160.0000', '4.0000']);
-    assert.equal(porId.get(t.r.id).depois.valor_total, '160.0000');
-    assert.deepEqual([porId.get(mVenda.id).antes.valor_total, porId.get(mVenda.id).depois.valor_total, porId.get(mVenda.id).depois.valor_unitario], ['240.0000', '228.0000', '7.6000']);
-    const dep = new Map(p.depositos.map((d) => [d.local_estoque_id, d]));
-    assert.deepEqual([dep.get(B.id).custo_medio_antes, dep.get(B.id).custo_medio_depois, dep.get(B.id).saldo_depois], ['8.0000', '7.6000', '70.0000']);
-    assert.deepEqual([dep.get(A.id).saldo_antes, dep.get(A.id).saldo_depois, dep.get(A.id).custo_medio_depois], ['60.0000', '110.0000', '4.0000']);
-    // dependentes: a linha e as fatias da venda (o preço não muda; o custo sim) — só identificados
-    assert.deepEqual([...new Set(p.dependentes.map((d) => d.tipo))].sort(), ['OperacaoFinanceiraConsumoLote', 'OperacaoFinanceiraItem']);
-    assert.ok(p.camadas.some((c) => c.local_estoque_id === B.id), 'as camadas do destino mudam de custo');
-
-    // excluir a PRÓPRIA transferência: as duas pernas saem; o B fica só com os 60 a 10 e a venda passa a 300
+    assert.equal(await retrato(x), antes, 'a prévia não grava nada');
+    assert.deepEqual(recusaPosterior(p).slice(0, 4), [false, null, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior']);
+    assert.ok([t.s.id, t.r.id].includes(p.recusa.posterior_id), JSON.stringify(p.recusa));
+    assert.equal(p.recusa.local_estoque_id, A.id);
+    // a PRÓPRIA transferência: a venda no destino (B) vale depois dela
     const pt = ok(await previa(x, t.r.id));
     assert.deepEqual(pt.excluidos, [t.s.id, t.r.id]);
-    assert.equal(pt.permitido, true);
-    const venda2 = pt.movimentos.find((m) => m.id === mVenda.id);
-    assert.deepEqual([venda2.depois.valor_total, venda2.depois.saldo_antes], ['300.0000', '60.0000']);
+    assert.deepEqual(recusaPosterior(pt), [false, null, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', mVenda.id, mVenda.numero_movimentacao, B.id]);
+    const ct = await H.req('POST', `/movimentacoes-estoque/${t.s.id}/cancelar-transferencia`, x.token, { empresa_id: x.e1.id, motivo: 'lançada errada', operation_id: `ct-${randomUUID()}` });
+    assert.deepEqual([ct.statusCode, ct.json().code, ct.json().details?.posterior_id], [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', mVenda.id], ct.body);
+    const ex = await excluirSaida(x, sOld);
+    assert.deepEqual([ex.statusCode, ex.json().code], [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR'], ex.body);
+    assert.equal(await retrato(x), antes, 'as recusas não gravam nada');
+    // do mais recente para o mais antigo: a venda (B), a transferência (A e B), a entrada de 50 a 8 (A) e a saída antiga
+    await cancelarOperacao(x, sb.id);
+    assert.equal(ok(await previa(x, t.r.id)).permitido, true, 'no destino só sobrou o par já excluído da venda');
+    await cancelarTransferencia(x, t.s.id);
+    const e8 = await prisma().movimentacaoEstoque.findFirst({ where: { cliente_id: x.c, produto_id: x.sal.id, local_estoque_destino: A.id, tipo_detalhado: 'entrada_manual', valor_unitario: '8' } });
+    assert.deepEqual(recusaPosterior(ok(await previa(x, mOld.id))).slice(2, 5), ['ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', e8.id]);
+    const docE8 = await prisma().entradaEstoqueItem.findFirst({ where: { cliente_id: x.c, movimentacao_estoque_id: e8.id } });
+    ok(await excluirEntrada(x, { id: docE8.entrada_id, versao: 1 }));
+    assert.equal(ok(await previa(x, mOld.id)).permitido, true);
+    ok(await excluirSaida(x, sOld));
+    const saldo = async (local) => (await prisma().estoqueLoteNota.aggregate({ _sum: { quantidade_disponivel: true }, where: { cliente_id: x.c, produto_id: x.sal.id, local_estoque_id: local.id, status: 'Disponivel' } }))._sum.quantidade_disponivel.toFixed(4);
+    assert.deepEqual([await saldo(A), await saldo(B)], ['100.0000', '60.0000']);
+    await provarReplay(x, x.sal);
   });
 
   test('recusas e guarda: estorno, já excluído, outra empresa, querystring fechada, sem permissão, volume acima do teto, histórico que não reproduz o gravado', async () => {
@@ -362,9 +382,12 @@ describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
     assert.deepEqual(codigo(await previa(x, 'nao-existe')), [404, 'MOVIMENTACAO_ESTOQUE_NOT_FOUND', undefined]);
     const s2 = await sair(x, x.sal, A, '5');
     const m2 = await movDoItem(s2);
-    // D-PROD-273 (fatia 4): sem nada depois a prévia diz "estorno exato" sem ler o histórico; uma saída depois faz a
-    // prévia de m2 passar pelo recálculo (tetos e prova replay = gravado)
-    await sair(x, x.sal, A, '1');
+    // D-PROD-273 (fatia 4): sem nada depois a prévia diz "estorno exato" sem ler o histórico. D-PROD-314: uma saída
+    // depois que ainda vale é recusa (registro posterior); já excluída (par), ela faz a prévia de m2 passar pelo
+    // recálculo (tetos e prova replay = gravado)
+    const s3 = await sair(x, x.sal, A, '1');
+    assert.deepEqual(recusaPosterior(ok(await previa(x, m2.id))).slice(2, 5), ['ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', (await movDoItem(s3)).id]);
+    ok(await excluirSaida(x, s3));
     assert.equal((await H.req('GET', `/estoque/movimentos/${m2.id}/exclusao/previa${qs({ empresa_id: x.e2.id })}`, x.token)).statusCode, 404, 'outra empresa = inexistente');
     assert.equal((await previa(x, m2.id, x.token, { cliente_id: x.c })).statusCode, 400, 'tenant nunca vem da querystring');
     // guarda = a da exclusão da saída manual (`estoque.saida`): só visualizar não basta
@@ -373,9 +396,13 @@ describe('D-PROD-273 fatia 3 — simulação da exclusão (prévia)', () => {
     const operador = await x.conta({ modulos_permitidos: ['suporte-mapa'], permissoes_telas: [{ modulo_id: 'suporte-mapa', tela_id: 'sup-estoque', visualizar: true, saida: true }] });
     assert.equal(ok(await previa(x, m2.id, operador.token)).permitido, true);
     // teto fail-closed (serviço com teto pequeno): nada é processado
-    await assert.rejects(previaExclusao(x.ctx, m2.id, { empresa_id: x.e1.id }, { teto: 3 }), (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO' && e.details.movimentos === 5);
-    const e1m = (await prisma().movimentacaoEstoque.findFirst({ where: { cliente_id: x.c, produto_id: x.sal.id, tipo_detalhado: 'entrada_manual' } }));
-    await assert.rejects(previaExclusao(x.ctx, e1m.id, { empresa_id: x.e1.id }, { tetoAfetados: 2 }), (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO' && e.details.afetados === 4);
+    // (entrada, S e o estorno dela, S2, S3 e o estorno dela)
+    await assert.rejects(previaExclusao(x.ctx, m2.id, { empresa_id: x.e1.id }, { teto: 3 }), (e) => e.code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO' && e.details.movimentos === 6);
+    // D-PROD-314: depois de m2 só o par já excluído de S3, que sai da sequência junto com m2 — nenhum movimento
+    // afetado, então nem o teto de afetados 0 é atingido (o teto continua provado no planejador, em
+    // estoqueExclusaoRecalculoSaidas: `provarExclusaoComRecalculo` com tetoAfetados)
+    const semAfetados = await previaExclusao(x.ctx, m2.id, { empresa_id: x.e1.id }, { tetoAfetados: 0 });
+    assert.deepEqual([semAfetados.permitido, semAfetados.modo, semAfetados.movimentos_posteriores, semAfetados.movimentos], [true, 'recalculo', 0, []]);
     // histórico adulterado (custo de camada fora do motor): o replay não reproduz o gravado → a prévia recusa
     const camada = await prisma().estoqueLoteNota.findFirst({ where: { cliente_id: x.c, produto_id: x.sal.id } });
     await prisma().estoqueLoteNota.update({ where: { id: camada.id }, data: { custo_unitario: '9.9999' } });

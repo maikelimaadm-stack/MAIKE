@@ -337,17 +337,32 @@ describe('vínculo com o lançamento (apontamento) e centro de custo', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('cascata: cancelar o apontamento ou a atividade', () => {
-  test('cancelar o apontamento cancela os abastecimentos ligados (ESTOQUE estornado, EXTERNO só status), com motivo derivado e auditoria; os outros ficam', async () => {
+  test('cancelar o apontamento cancela os abastecimentos ligados (ESTOQUE estornado, EXTERNO só status), com motivo derivado e auditoria; os outros ficam; D-PROD-314: com um abastecimento posterior no mesmo tanque, recusa 409 registro posterior e nada muda até ele sair', async () => {
     const s = await montarLinhasCusto(app);
+    const p = prisma();
     const estoqueInicial = await estoqueAtual(s.diesel.id);
+    // um abastecimento solto ANTES dos do apontamento (não trava nada e continua valendo)
+    const solto = await A.confirmarOk(s.token, corpoAbastecimento(s, { quantidade: '10', data_operacional: '2027-06-09', medidor_leitura: '1545', tanque_cheio: false }));
     const ap = await s.apontar({ turno: 'TARDE' });
     const est = await A.confirmarOk(s.token, corpoAbastecimento(s, { apontamento_id: ap.id }));
     const ext = await A.confirmarOk(s.token, corpoExterno(s, { apontamento_id: ap.id, medidor_leitura: '1551', quantidade: '20', custo_total: '100' }));
-    const solto = await A.confirmarOk(s.token, corpoAbastecimento(s, { quantidade: '10', data_operacional: '2027-06-11', medidor_leitura: '1560' }));
-    assert.equal(await estoqueAtual(s.diesel.id), (Number(estoqueInicial) - 90).toFixed(4));
+    // um abastecimento solto DEPOIS, no mesmo tanque: vincula o saldo e o médio do ESTOQUE do apontamento
+    const depois = await A.confirmarOk(s.token, corpoAbastecimento(s, { quantidade: '10', data_operacional: '2027-06-11', medidor_leitura: '1560' }));
+    assert.equal(await estoqueAtual(s.diesel.id), (Number(estoqueInicial) - 100).toFixed(4));
+    const estado = async () => JSON.stringify([await estoque(s.c),
+      await p.abastecimentoBem.findMany({ where: { cliente_id: s.c }, orderBy: { id: 'asc' }, select: { id: true, status: true, versao: true } }),
+      await p.atividadeApontamento.findUnique({ where: { id: ap.id }, select: { status: true, versao: true } }),
+      await p.auditLog.count({ where: { cliente_id: s.c } })]);
+    const antes = await estado();
+    const recusado = await s.H.req('POST', `${s.baseAp(s.atividade)}/${ap.id}/cancelar`, s.token, { empresa_id: s.e1.id, versao: ap.versao, motivo: 'dia errado' });
+    const depoisMov = (await p.abastecimentoBem.findUnique({ where: { id: depois.id } })).movimentacao_estoque_id;
+    assert.deepEqual([recusado.statusCode, recusado.json().code, recusado.json().reason ?? recusado.json().details?.reason, recusado.json().details?.posterior_id],
+      [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior', depoisMov], recusado.body);
+    assert.equal(await estado(), antes, 'nada foi gravado: nem o apontamento nem os abastecimentos');
+    // do mais recente para o mais antigo: o abastecimento de depois sai, então o apontamento cancela em cascata
+    await A.ok(A.cancelar(s.token, depois.id, cancelarCorpo(s, depois.versao)));
     const r = await s.H.ok(s.H.req('POST', `${s.baseAp(s.atividade)}/${ap.id}/cancelar`, s.token, { empresa_id: s.e1.id, versao: ap.versao, motivo: 'dia errado' }));
     assert.equal(r.apontamento.status, 'CANCELADO');
-    const p = prisma();
     const [e1, e2, e3] = await Promise.all([est, ext, solto].map((a) => p.abastecimentoBem.findUnique({ where: { id: a.id } })));
     assert.deepEqual([e1.status, e2.status, e3.status], ['CANCELADO', 'CANCELADO', 'CONFIRMADO']);
     assert.ok(e1.movimentacao_estorno_id, 'o ESTOQUE é estornado pelo motor');
@@ -355,7 +370,7 @@ describe('cascata: cancelar o apontamento ou a atividade', () => {
     assert.equal(await estoqueAtual(s.diesel.id), (Number(estoqueInicial) - 10).toFixed(4), 'só o solto continua baixado');
     const esperado = `cancelado com o lançamento de 10/06/2027 tarde nº ${ap.sequencia} da atividade ${s.atividade.numero}: dia errado`;
     assert.deepEqual([e1.motivo_cancelamento, e2.motivo_cancelamento], [esperado, esperado]);
-    const au = await p.auditLog.findMany({ where: { cliente_id: s.c, acao: 'abastecimento_bem.cancelar' }, orderBy: { entidade_id: 'asc' } });
+    const au = (await p.auditLog.findMany({ where: { cliente_id: s.c, acao: 'abastecimento_bem.cancelar' }, orderBy: { entidade_id: 'asc' } })).filter((a) => a.entidade_id !== depois.id);
     assert.deepEqual(au.map((a) => a.entidade_id).sort(), [est.id, ext.id].sort());
     assert.ok(au.every((a) => a.dados_novos.cascata.origem === 'APONTAMENTO' && a.dados_novos.cascata.apontamento_id === ap.id));
     const auAp = await p.auditLog.findFirst({ where: { cliente_id: s.c, acao: 'atividade_apontamento.cancelar', entidade_id: ap.id } });

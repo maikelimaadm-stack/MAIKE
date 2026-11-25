@@ -204,7 +204,7 @@ describe('P1-02 — consumo pelo método do tanque cheio', () => {
 });
 
 describe('P1-02 — série monotônica do medidor (D4)', () => {
-  test('M4: regressão ao cadastro e a abastecimento; acima de ponto posterior; retroativo coerente; mesma data; data futura; só CONFIRMADOS contam', async () => {
+  test('M4: regressão ao cadastro e a abastecimento; acima de ponto posterior; retroativo coerente; mesma data; data futura; só CONFIRMADOS contam (D-PROD-314: cancelados do mais recente para o mais antigo)', async () => {
     const s = await montarAbastecimento(app);
     const c = (extra) => corpoAbastecimento(s, { quantidade: '10', ...extra });
     const recusa = async (corpo, esperado) => {
@@ -235,14 +235,22 @@ describe('P1-02 — série monotônica do medidor (D4)', () => {
     const corpoRetro = c({ data_operacional: '2027-06-05', medidor_leitura: '1530' });
     const rp = await A.ok(A.previa(s.operador.token, { ...corpoRetro, operation_id: undefined }));
     assert.deepEqual([rp.bloqueios, rp.plano.medidor.anterior, rp.plano.medidor.posterior], [[], ponto('1520.5000', '2027-06-01', 'CADASTRO'), ponto('1550.5000', '2027-06-10', 'ABASTECIMENTO', a1)]);
-    await A.confirmarOk(s.operador.token, corpoRetro);
-    await A.confirmarOk(s.operador.token, c({ data_operacional: '2027-05-20', medidor_leitura: '1500' })); // antes do cadastro, abaixo dele
-    await A.confirmarOk(s.operador.token, c({ data_operacional: '2027-06-10', medidor_leitura: '1550.5' })); // mesma data e mesma leitura
+    const retro = await A.confirmarOk(s.operador.token, corpoRetro);
+    const antesCad = await A.confirmarOk(s.operador.token, c({ data_operacional: '2027-05-20', medidor_leitura: '1500' })); // antes do cadastro, abaixo dele
+    const mesma = await A.confirmarOk(s.operador.token, c({ data_operacional: '2027-06-10', medidor_leitura: '1550.5' })); // mesma data e mesma leitura
     const vigente = await A.ok(A.opcoes(s.operador.token, 'tanques', `empresa_id=${s.e1.id}&bem_id=${s.trator.id}`));
     assert.deepEqual(vigente.bem.leitura_vigente, ponto('1580.0000', '2027-06-15', 'ABASTECIMENTO', hoje));
 
     // só CONFIRMADOS: cancelado o de hoje, 1570 em 06-14 passa a ser coerente
     await recusa(c({ data_operacional: '2027-06-14', medidor_leitura: '1590' }), [422, 'MEDIDOR_LEITURA_ACIMA_POSTERIOR', 'medidor_leitura', 'leitura_acima_posterior']);
+    // D-PROD-314: o de hoje não é o último lançado no tanque → 409 registro posterior (o mais recente) e nada muda
+    const antesCanc = await fotoAbastecimento(s.c);
+    const rc = await A.cancelar(s.contaCancelar.token, hoje.id, { empresa_id: s.e1.id, versao: 1, motivo: 'leitura lançada errada', operation_id: opId() });
+    const movMesma = (await prisma().abastecimentoBem.findUnique({ where: { id: mesma.id } })).movimentacao_estoque_id;
+    assert.deepEqual([rc.statusCode, rc.json().code, rc.json().details?.posterior_id], [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', movMesma], rc.body);
+    assert.equal(await fotoAbastecimento(s.c), antesCanc, 'nada gravado');
+    // do mais recente para o mais antigo (todos com leitura abaixo de 1590); por último o de hoje
+    for (const d of [mesma, antesCad, retro, a1]) await cancelarOk(s, d);
     await cancelarOk(s, hoje);
     await A.confirmarOk(s.operador.token, c({ data_operacional: '2027-06-14', medidor_leitura: '1590' }));
   });

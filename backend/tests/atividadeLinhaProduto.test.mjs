@@ -256,6 +256,28 @@ describe('editar e cancelar em cascata', () => {
     assert.equal(await foto(s.c), antes);
   });
 
+  test('D-PROD-314: editar a linha com outra saída depois no mesmo depósito → 409 registro posterior, nada gravado; edita-se a mais recente primeiro', async () => {
+    const s = await montar();
+    const a = await s.abrir();
+    const ap = await s.lancarOk(a, { area_executada_dia: '20' });
+    const c1 = await s.lancarLinhaOk(a, ap, { quantidade: '30' });
+    const c2 = await s.lancarLinhaOk(a, c1.apontamento, { quantidade: '10' });
+    const c2Mov = (await prisma().atividadeApontamentoProduto.findUnique({ where: { id: c2.linha.id } })).movimentacao_estoque_id;
+    const antes = await foto(s.c);
+    const r = await s.L.editar(a, c2.apontamento, c1.linha.id, { quantidade: '20' });
+    assert.deepEqual(erro(r), [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'movimento_id', 'registro_posterior']);
+    assert.equal(r.json().details.posterior_id, c2Mov);
+    assert.equal(await foto(s.c), antes);
+    assert.equal(await estoque(s.herbicida.id), '110.0000');
+    // a mais recente edita; depois, cancelada ela, a primeira edita
+    const e2 = await H.ok(s.L.editar(a, c2.apontamento, c2.linha.id, { quantidade: '5' }));
+    assert.equal(await estoque(s.herbicida.id), '115.0000');
+    const cancelada = await H.ok(s.L.cancelar(a, e2.apontamento, e2.linha.id));
+    const e1 = await H.ok(s.L.editar(a, cancelada.apontamento, c1.linha.id, { quantidade: '20' }));
+    assert.equal(e1.linha.quantidade, '20.0000');
+    assert.equal(await estoque(s.herbicida.id), '130.0000');
+  });
+
   test('cancelar o apontamento estorna todas as linhas confirmadas (origem APONTAMENTO); estoque e lotes voltam exatos', async () => {
     const s = await montar();
     const a = await s.abrir();

@@ -274,16 +274,18 @@ describe('S5 — falha transacional provocada no meio do efeito', () => {
     const d2 = await A.confirmarOk(s.operador.token, c2);
     assert.equal(await contar(s, 'movimentacaoEstoque', { origem_sistema: 'abastecimento_patrimonio' }), 2, 'uma saída por abastecimento, mesmo depois das falhas');
     assert.equal(await estoqueAtual(s.diesel), '60.0000');
-    // (3) cancelar d1: o lote A já recebeu a devolução NA transação quando o lote B falha
-    const k1 = { empresa_id: s.e1.id, versao: 1, motivo: 'estorno com falha provocada', operation_id: opId() };
-    await comFalha(s, 'cancelar × falha no lote B', ['EstoqueLoteNota', `NEW.id = '${loteB}'`, 'UPDATE'], () => A.cancelar(s.contaCancelar.token, d1.id, k1));
-    const x1 = await A.cancelar(s.contaCancelar.token, d1.id, k1);
-    assert.deepEqual([x1.statusCode, x1.json().status, x1.json().replay], [200, 'CANCELADO', false], x1.body);
-    // (4) cancelar d2: falha na auditoria do cancelamento
+    // D-PROD-314: só o último sai — cancela-se primeiro o d2 (o último no tanque), depois o d1; o d1 antes do d2 seria
+    // 409 ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR sem chegar ao efeito que este teste faz falhar.
+    // (3) cancelar d2: falha na auditoria do cancelamento
     const k2 = { empresa_id: s.e1.id, versao: 1, motivo: 'estorno com falha provocada', operation_id: opId() };
     await comFalha(s, 'cancelar × falha na auditoria', ['AuditLog', `NEW.acao = 'abastecimento_bem.cancelar'`], () => A.cancelar(s.contaCancelar.token, d2.id, k2));
     const x2 = await A.cancelar(s.contaCancelar.token, d2.id, k2);
     assert.equal(x2.statusCode, 200, x2.body);
+    // (4) cancelar d1 (agora o último que vale): o lote A já recebeu a devolução NA transação quando o lote B falha
+    const k1 = { empresa_id: s.e1.id, versao: 1, motivo: 'estorno com falha provocada', operation_id: opId() };
+    await comFalha(s, 'cancelar × falha no lote B', ['EstoqueLoteNota', `NEW.id = '${loteB}'`, 'UPDATE'], () => A.cancelar(s.contaCancelar.token, d1.id, k1));
+    const x1 = await A.cancelar(s.contaCancelar.token, d1.id, k1);
+    assert.deepEqual([x1.statusCode, x1.json().status, x1.json().replay], [200, 'CANCELADO', false], x1.body);
     assert.equal(await contar(s, 'movimentacaoEstoque', { tipo_detalhado: 'estorno_abastecimento' }), 2, 'um estorno por cancelamento');
     assert.equal(await estoqueAtual(s.diesel), '150.0000');
     assert.equal(await contar(s, 'auditLog', { entidade: 'AbastecimentoBem' }), 4, 'confirmar ×2 e cancelar ×2, nenhuma auditoria das tentativas que falharam');

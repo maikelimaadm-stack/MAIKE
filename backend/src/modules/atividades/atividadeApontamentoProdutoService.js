@@ -50,6 +50,7 @@
  */
 
 import { aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
+import { buscarRegistroPosteriorValendo, recusaRegistroPosterior } from '../estoqueFisico/movimentoPosterior.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import {
   AppError,
@@ -519,6 +520,7 @@ const traduzirErroDoEstorno = (erro, linhas) => {
  * mesma unidade efetiva, movimento original 'Ativa' e sem filho, fatias que
  * somam a quantidade. Os produtos têm de estar travados por quem chama (ou
  * são travados aqui, todos de uma vez). Números PROVISÓRIOS: quem chama numera.
+ * D-PROD-314: sem `recalcular` (a EDIÇÃO), registro posterior que ainda vale no depósito → 409, como na exclusão.
  * D-PROD-273 (fatia 4): com `recalcular` (o CANCELAMENTO da linha, do apontamento ou da atividade; nunca a edição),
  * se o produto teve outro movimento no depósito depois da linha, a exclusão recalcula o custo médio de tudo que veio
  * depois (`estoqueExclusaoRecalculo`: prova antes do estorno, recálculo e dependentes depois dele, mesma transação).
@@ -561,6 +563,23 @@ export const estornarLinhasProduto = async (tx, contexto, { empresaId, atividade
     if (original.status !== 'Ativa' || original.movimento_filho_id) throw atividadeEstornoBloqueado('movimento_estornado', base);
     const fatias = linha.consumos ?? [];
     if (!fatias.length || !somar(fatias.map((/** @type {any} */ f) => f.quantidade)).eq(dec(linha.quantidade))) throw atividadeEstornoBloqueado('fatias_inconsistentes', base);
+  }
+  // D-PROD-314 (escolha do proprietário, 2026-11-25): a EDIÇÃO também segue "só o último". Com registro posterior que
+  // ainda vale no depósito da linha, a edição é recusada (409), como a exclusão; antes, estornava pelo valor exato e
+  // relançava, sem recalcular o que veio depois.
+  if (!recalcular) {
+    const refs = new Map((await tx.movimentacaoEstoque.findMany({
+      where: { cliente_id: cli, id: { in: movimentoIds } }, select: { id: true, numero_movimentacao: true, createdAt: true },
+    })).map((m) => [m.id, m]));
+    for (const linha of linhas) {
+      const ref = refs.get(linha.movimentacao_estoque_id);
+      if (!ref) continue;
+      const valendo = await buscarRegistroPosteriorValendo(tx, cli, {
+        empresaId, produtoId: linha.produto_id, locais: [linha.local_estoque_id], ignorarIds: movimentoIds,
+        desde: { createdAt: ref.createdAt, numero: ref.numero_movimentacao },
+      });
+      if (valendo) throw recusaRegistroPosterior(valendo, { movimento_id: ref.id, linha_id: linha.id });
+    }
   }
   const planos = recalcular
     ? await planejarExclusaoComRecalculo(tx, cli, { empresaId, movimentos: linhas.map((l) => ({ id: l.movimentacao_estoque_id, produtoId: l.produto_id, localId: l.local_estoque_id })), estornoExatoSeInviavel: true })
