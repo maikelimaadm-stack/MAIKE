@@ -369,8 +369,12 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
     );
     expect(r.aguardandoEnvio).toBe(false);
     expect(r.avisos).toEqual(srv.avisosDaBaixa);
-    const baixa = srv.chamadas.find((c) => c.caminho === '/movimentacoes-estoque/comandos/saida-suplementacao');
-    expect(baixa.corpo).toMatchObject({ operation_id: 'op-lanc-0014', lotes });
+    // A baixa DESTE registro: um registro que outro caso deixou guardado sem internet
+    // (o motor dele continua vivo depois do `resetModules`) pode subir por este servidor.
+    const baixa = srv.chamadas.find(
+      (c) => c.caminho === '/movimentacoes-estoque/comandos/saida-suplementacao' && c.corpo?.operation_id === 'op-lanc-0014'
+    );
+    expect(baixa?.corpo).toMatchObject({ operation_id: 'op-lanc-0014', lotes });
   });
 });
 

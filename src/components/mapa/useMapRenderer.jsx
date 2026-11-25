@@ -883,7 +883,10 @@ export default function useMapRenderer(mapInstanceRef) {
     if (!map) return;
     ensureMgLayers(map);
     const pos = show ? parseVertex(userLocation) : null;
-    const fc = pos ? buildAccuracyCircleCollection(pos, 20) : { type: "FeatureCollection", features: [] };
+    // D-PROD-302: o círculo mostra a precisão REAL da leitura do GPS (antes era fixo em 20 m).
+    const precisao = Number(/** @type {any} */ (userLocation)?.accuracy);
+    const raio = Number.isFinite(precisao) && precisao > 0 ? Math.min(Math.max(precisao, 3), 500) : 20;
+    const fc = pos ? buildAccuracyCircleCollection(pos, raio) : { type: "FeatureCollection", features: [] };
     dataRef.current.user = /** @type {any} */ (fc);
     setSourceData(map, MG_SOURCE_IDS.USER, /** @type {any} */ (fc));
     syncGrupo(

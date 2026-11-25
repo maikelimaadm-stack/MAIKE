@@ -42,6 +42,7 @@ import { buildMapaAlertasSuplementacao } from "../components/mapa/mapaAlertasSup
 import { normalizeText } from "../components/suplementacao/estoqueSuplementacaoUtils";
 import { BASEMAP_IDS, CENTRO_PADRAO } from "@/lib/maplibre/basemap.js";
 import { createEditorMap } from "@/lib/maplibre/lifecycle.js";
+import { useLocalizacaoNoMapa } from "@/components/mapa/useLocalizacaoNoMapa";
 import { boundsDasAreas, lerVisaoSalva } from "@/lib/maplibre/mapaGeralRender.js";
 import { parseVertices } from "@/lib/geografia/coords.js";
 import useBasemap from "../components/mapa/useBasemap";
@@ -75,6 +76,9 @@ export default function MapaGeral() {
   const [prefShowNomesAreas, setShowNomesAreas] = useState(true);
   const [prefShowHectaresAreas, setShowHectaresAreas] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
+  // D-PROD-302: sem vista salva, o mapa fica escondido até enquadrar a fazenda (no máximo 4 s),
+  // para não mostrar o centro padrão antes.
+  const [aguardandoEnquadrar, setAguardandoEnquadrar] = useState(false);
 
   // Filtros avançados — preferência (pref*); o valor aplicado é derivado abaixo
   // (`preferenciaAplicada`), conforme a permissão do painel (D-PROD-137).
@@ -788,7 +792,18 @@ export default function MapaGeral() {
       }
       let created;
       try {
-        created = createEditorMap(mapRef.current, { center: CENTRO_PADRAO, zoom: 15 });
+        // D-PROD-302: o mapa já nasce na última vista salva da fazenda (antes nascia no centro
+        // padrão e só depois pulava para a fazenda). Sem vista salva, nasce escondido até
+        // enquadrar as áreas (ver `aguardandoEnquadrar`).
+        const vistaSalva = (() => {
+          try {
+            return lerVisaoSalva(localStorage.getItem(`mapa_geral_view_${empresaSelecionadaId || 'default'}`));
+          } catch {
+            return null;
+          }
+        })();
+        if (!vistaSalva) setAguardandoEnquadrar(true);
+        created = createEditorMap(mapRef.current, vistaSalva ? { center: vistaSalva.center, zoom: vistaSalva.zoom } : { center: CENTRO_PADRAO, zoom: 15 });
       } catch (error) {
         setMapLoadError(mensagemFalhaMapa(error));
         return;
@@ -860,6 +875,13 @@ export default function MapaGeral() {
     return () => map.off('moveend', persistView);
   }, [mapReady, empresaSelecionadaId]);
 
+  // D-PROD-302: fazenda sem áreas (ou que demora a carregar): o mapa aparece no máximo em 4 s.
+  useEffect(() => {
+    if (!aguardandoEnquadrar) return undefined;
+    const t = window.setTimeout(() => setAguardandoEnquadrar(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [aguardandoEnquadrar]);
+
   // Fit bounds 1x (ou visão salva da empresa)
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -874,6 +896,7 @@ export default function MapaGeral() {
         firstFitDoneRef.current = true;
         mapViewRestoredRef.current = true;
         map.jumpTo({ center: [saved.center.lng, saved.center.lat], zoom: saved.zoom });
+        setAguardandoEnquadrar(false);
         return;
       }
     }
@@ -883,6 +906,7 @@ export default function MapaGeral() {
       firstFitDoneRef.current = true;
       try { map.fitBounds(b, { padding: 50, duration: 0, maxZoom: 18 }); } catch { /* ignore */ }
     }
+    setAguardandoEnquadrar(false);
   }, [areas, mapReady, empresaSelecionadaId]);
 
   // ─── Handlers ───
@@ -1043,25 +1067,36 @@ export default function MapaGeral() {
   // Permissão e escopo lidos por ref na hora do toque E na hora da resposta: o
   // GPS responde segundos depois, e nesse meio a empresa pode ter mudado ou a
   // permissão ter caído (D-PROD-137, PREF-04/PREF-07).
+  // D-PROD-302: GPS de alta precisão, sempre atualizado com a camada ligada: o PONTO
+  // anda junto com a pessoa; o mapa fica onde ela deixou ("Localizar" centraliza uma vez).
+  const localizacao = useLocalizacaoNoMapa({
+    mapInstanceRef,
+    ativo: mapReady && mapaGeralPermissions.visualizar_localizacao === true && showUserLocation,
+    aoErro: (mensagem) => toast.error(mensagem),
+  });
+  // Posição do aparelho não pertence a escopo nenhum.
+  useEffect(() => {
+    const p = localizacao.posicao;
+    if (!p) return;
+    setUserLocation(p.accuracy != null ? { lat: p.lat, lng: p.lng, accuracy: p.accuracy } : { lat: p.lat, lng: p.lng });
+  }, [localizacao.posicao]);
+  const localizarNoMapa = localizacao.localizar;
+
   const handleLocate = useCallback(() => {
     if (!podeLocalizarRef.current || !navigator.geolocation) return;
     const escopoDoPedido = escopoChaveRef.current;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        // Posição do aparelho não pertence a escopo nenhum.
-        setUserLocation(loc);
-        // Ligar a camada (preferência gravada) e pular o mapa só no escopo do
-        // pedido. Pedido sem escopo (sessão/empresa ainda carregando) não tem
-        // preferência de ninguém para vazar: vale para o escopo que entrou.
+    localizarNoMapa({
+      // Ligar a camada (preferência gravada) e pular só no escopo do
+      // pedido. Pedido sem escopo (sessão/empresa ainda carregando) não tem
+      // preferência de ninguém para vazar: vale para o escopo que entrou.
+      aoResponder: () => {
         const outroEscopo = escopoDoPedido !== null && escopoDoPedido !== escopoChaveRef.current;
-        if (outroEscopo || !podeLocalizarRef.current) return;
+        if (outroEscopo || !podeLocalizarRef.current) return false;
         setShowUserLocation(true);
-        if (mapInstanceRef.current) mapInstanceRef.current.jumpTo({ center: [loc.lng, loc.lat], zoom: 18 });
+        return true;
       },
-      () => toast.error('Erro ao obter localização')
-    );
-  }, []);
+    });
+  }, [localizarNoMapa]);
 
   const handleRequestSelectTaskLocation = useCallback((draft) => {
     if (!podeUsarTarefasMapa) return;
@@ -1324,7 +1359,7 @@ export default function MapaGeral() {
       <div className="mk-mapa-area relative min-h-0 w-full flex-1">
         {/* `isolation: isolate` confina o z-index dos marcadores (até 10000) ao
             mapa: sem isso eles atravessavam janelas e pop-ups abertos por cima. */}
-        <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: 'var(--mk-sup-fundo)', touchAction: 'none', isolation: 'isolate' }} />
+        <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: 'var(--mk-sup-fundo)', touchAction: 'none', isolation: 'isolate', visibility: aguardandoEnquadrar ? 'hidden' : 'visible' }} />
 
         <BasemapAtribuicao atribuicao={basemap.atribuicao} status={basemap.status} mensagem={basemap.mensagem} onRetry={basemap.retry} />
 

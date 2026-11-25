@@ -9511,4 +9511,21 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   6. **Pente-fino** (`tests/smoke/penteFinoOffline.test.js`): baixa os dados com internet e, sem internet, roda cada leitura dos formulários do cocho e do depósito — nenhuma pode falhar nem vir vazia. Achou: as movimentações do rebanho do lançamento (lidas sem limite, só a com limite era baixada) e a lista do que baixar dependia de quais módulos já tinham carregado. Agora `baixarLeiturasDasTelas` carrega todas as portas (`import.meta.glob`) antes de montar a lista.
 - **Testes:** `tests/smoke/sincronizacaoOrganizada.test.jsx` (SO-01..05), `tests/smoke/penteFinoOffline.test.js` (PF-01..02), `tests/smoke/depositoTransferenciaOffline.test.js` (ET-08), `tests/smoke/lancamentoCochoOffline.test.js` (LCO-01), `tests/smoke/dadosOfflineLeitura.test.js` (DB-04).
 
-<!-- Próxima decisão: D-PROD-302 -->
+## D-PROD-302 — Mapa abre direto na fazenda; o ponto da localização acompanha a pessoa andando (pelo GPS)
+
+- **Contexto:** o proprietário relatou que o mapa às vezes abre em Vila Bela da Santíssima Trindade (o centro padrão) e só depois pula para a fazenda; que a localização "puxa totalmente errado"; e que, andando, o ponto não acompanha.
+- **Causas:** (1) o mapa nascia sempre em `CENTRO_PADRAO` e só depois aplicava a vista salva ou o enquadramento das áreas; (2) "Localizar" pedia a posição UMA vez, sem alta precisão — o celular podia responder com a posição aproximada da rede (centenas de metros); (3) nenhum acompanhamento: o ponto ficava parado; o círculo era fixo em 20 m.
+- **Decisão:**
+  1. **Abertura:** com vista salva da fazenda (`mapa_geral_view_<empresa>`), o mapa já NASCE nela. Sem vista salva, nasce escondido e aparece ao enquadrar as áreas (no máximo 4 s, para fazenda sem áreas).
+  2. **GPS** (`useLocalizacaoNoMapa`): com a camada "Minha localização" ligada, `watchPosition` em alta precisão (`enableHighAccuracy`, `maximumAge` 3 s); leitura muito pior que uma boa recente (até 30 s) é descartada; o círculo mostra a precisão real da leitura (3 a 500 m).
+  3. **O ponto acompanha, o mapa não:** com a camada ligada, o PONTO da localização anda junto com a pessoa; o mapa fica onde ela deixou (o proprietário pediu exatamente isso: "acompanhando eu andando é a localização apenas, não o mapa"). "Localizar" centraliza uma vez (zoom 18). A resposta só liga a camada e pula se a fazenda e a permissão ainda forem as do pedido (D-PROD-137, PREF-07).
+  4. **Avisos:** permissão negada e GPS desligado avisam uma vez, em português; tempo esgotado não avisa (o GPS continua tentando).
+- **Testes:** `tests/smoke/localizacaoNoMapa.test.jsx` (LM-01..05), `tests/smoke/mapaPreferenciasIntegrada.test.jsx` (MO-01..02; PREF-02 e PREF-07 continuam).
+
+## D-PROD-303 — Detalhe do cocho sem internet: produtos do celular e pente-fino do detalhe
+
+- **Contexto:** o proprietário relatou que, depois de sincronizar, sem internet o detalhe do cocho não mostra nada. A causa principal (consultas pausadas sem sinal) já foi corrigida na D-PROD-301 (`networkMode: 'always'`), que ainda não tinha chegado ao celular dele.
+- **Decisão:** o detalhe do cocho lia o cadastro de produtos SÓ com internet (sem sinal devolvia lista vazia de propósito; o cocho ficava sem os sacos). Agora lê do celular como as outras telas. O pente-fino (`penteFinoOffline.test.js`) passa a cobrir também as leituras do detalhe do cocho (lançamentos, cochos, áreas, leituras e produtos).
+- **Testes:** `tests/smoke/penteFinoOffline.test.js` (PF-01 com o detalhe do cocho).
+
+<!-- Próxima decisão: D-PROD-304 -->

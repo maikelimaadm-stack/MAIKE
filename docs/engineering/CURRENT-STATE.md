@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-25 (missão ativa D-PROD-301; antes D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-302; antes D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,15 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-25) — MAIKE-SINCRONIZACAO-ORGANIZADA (D-PROD-301)
+## Missão ativa (2026-11-25) — MAIKE-MAPA-LOCALIZACAO: abre na fazenda, ponto da localização que acompanha (D-PROD-302)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-302**: o mapa nasce na vista salva (sem ela, escondido até enquadrar); GPS de alta precisão com a camada ligada: o ponto anda junto com a pessoa, o mapa fica parado; "Localizar" centraliza uma vez |
+| Banco | sem migration |
+| Relatório | [`MAPA-LOCALIZACAO-D302-REPORT.md`](./MAPA-LOCALIZACAO-D302-REPORT.md) |
+
+## Missão anterior (2026-11-25) — MAIKE-SINCRONIZACAO-ORGANIZADA (D-PROD-301)
 
 | Item | Estado |
 |---|---|
