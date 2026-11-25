@@ -213,7 +213,12 @@ describe('D-PROD-309 — GET /lotes/mudancas', () => {
     await criarLote(c, 'A');
     const planoDe = async (sql) => {
       const linhas = await prisma().$transaction(async (tx) => {
+        // Sem varredura e sem ordenação à parte: só um índice que já entrega a ordem ("updatedAt", id) ou
+        // ("createdAt", id) depois dos filtros de igualdade serve — o planejador não pode escolher outro índice
+        // e ordenar depois (com tabelas pequenas ele faria isso, e o teste ficaria dependente das estatísticas).
         await tx.$executeRawUnsafe('SET LOCAL enable_seqscan = off');
+        await tx.$executeRawUnsafe('SET LOCAL enable_sort = off');
+        await tx.$executeRawUnsafe('SET LOCAL enable_incremental_sort = off');
         return tx.$queryRawUnsafe(`EXPLAIN ${sql}`, c.cliente.id);
       });
       return linhas.map((l) => l['QUERY PLAN']).join('\n');
