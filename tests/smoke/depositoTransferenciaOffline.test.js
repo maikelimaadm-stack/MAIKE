@@ -180,3 +180,32 @@ describe('D-PROD-296 — transferência entre depósitos sem internet', () => {
   });
 });
 
+
+describe('D-PROD-301 — o que espera envio aparece no histórico do depósito', () => {
+  it('ET-08 a transferência sem internet aparece nas duas pontas com "aguardando envio" e sai quando sobe', async () => {
+    const { estoque, motor } = await carregar();
+    motor.definirSessaoDaFila({ cliente_id: 'cli_et08', usuario_id: 'usr_et08' });
+    (await import('@/lib/offline/offlineTenant')).setOfflineTenant('cli_et08');
+    const { movimentacoesDoHistoricoDeposito } = await import('@/components/suplementacao/HistoricoDepositoSuplementacao');
+    const { getMapaCachedData } = await import('@/services/mapaCacheService');
+    online = false;
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const r = await transferir(estoque, { operationId: 'transf-et08-0001', observacoes: 'carreta' });
+
+    const movs = await getMapaCachedData('movimentacaoEstoque', EMP);
+    const noGalpao = movimentacoesDoHistoricoDeposito(movs, { empresaId: EMP, localEstoqueId: 'galpao' });
+    const noDeposito = movimentacoesDoHistoricoDeposito(movs, { empresaId: EMP, localEstoqueId: 'deposito-2' });
+    expect(noGalpao).toHaveLength(1);
+    expect(noGalpao[0]).toMatchObject({ tipo_detalhado: 'transferencia_enviada', quantidade: 70, _aguardandoEnvio: true, observacoes: 'carreta', local_destino: 'DEPÓSITO 2' });
+    expect(noDeposito).toHaveLength(1);
+    expect(noDeposito[0]).toMatchObject({ tipo_detalhado: 'transferencia_recebida', _aguardandoEnvio: true, local_origem: 'GALPÃO' });
+
+    online = true;
+    fetchMock.mockResolvedValue(respostaJson(201, { committed: true }));
+    await motor.sincronizar();
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).operation_id).toBe(r.operation_id);
+    const depois = await getMapaCachedData('movimentacaoEstoque', EMP);
+    expect(depois.filter((m) => m._aguardandoEnvio)).toEqual([]);
+  });
+});

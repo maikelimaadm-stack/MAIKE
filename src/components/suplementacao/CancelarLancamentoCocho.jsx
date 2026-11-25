@@ -291,7 +291,7 @@ export default function CancelarLancamentoCocho({ evento, onCancelado, rotulo = 
     const ok = await pedirConfirmacao({
       titulo: "Excluir lançamento sem internet?",
       descricao:
-        "A exclusão fica guardada neste celular e vai ao sistema quando a internet voltar. Lá, o estoque volta ao depósito e o período anterior é reaberto. Se o sistema recusar, ela aparece em \"Dados sem internet\".",
+        "A exclusão fica guardada neste celular e vai ao sistema quando a internet voltar. Lá, o estoque volta ao depósito e o período anterior é reaberto. Se o sistema recusar, ela aparece em \"Sincronização\".",
       textoConfirmar: "Excluir",
       perigo: true,
     });

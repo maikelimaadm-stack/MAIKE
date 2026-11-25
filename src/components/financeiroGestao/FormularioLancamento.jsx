@@ -349,7 +349,7 @@ export default function FormularioLancamento({
         return;
       }
       retratar(form);
-      // D-PROD-301: os efeitos de estoque da correção (o diálogo pede o lote quando o estoque muda).
+      // D-PROD-304: os efeitos de estoque da correção (o diálogo pede o lote quando o estoque muda).
       onRetificar?.({ doc, mudaEstoque: Boolean(fisico?.muda), diferencas: fisico?.diferencas ?? [], mercadorias: mercadoriasDaCorrecao(form, resumo) });
       return;
     }

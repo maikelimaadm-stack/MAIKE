@@ -230,10 +230,8 @@ function DetalhesCocho({ ponto, permissions, subtitulo, onVoltar = null }) {
   const { data: produtos = [] } = useQuery({
     queryKey: ["produtos-ponto-detalhe", empresaSelecionadaId],
     queryFn: async () => {
-      if (!navigator.onLine) {
-        // Se estiver offline, retorna o que tiver na Query Cache do TanStack ou vazio
-        return [];
-      }
+      // D-PROD-303: sem internet o cadastro de produtos vem do celular (antes voltava vazio de
+      // propósito e o cocho ficava sem os sacos).
       const all = await listarTodosProdutos();
       return all.filter((produto) => produto.empresa_id === empresaSelecionadaId);
     },

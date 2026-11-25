@@ -10,7 +10,7 @@ const quando = (iso) =>
 
 /**
  * D-PROD-295 — "Envio": o que foi feito sem internet e ainda não chegou ao
- * sistema. Fica dentro da janela "Dados sem internet" (sem aviso na tela).
+ * sistema. Fica dentro da janela "Sincronização" (D-PROD-301).
  *
  * - aguardando envio: sai sozinho quando houver internet;
  * - precisa de atenção: o sistema recusou; mostra o motivo, e a pessoa tenta

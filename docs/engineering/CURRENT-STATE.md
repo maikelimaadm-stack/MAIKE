@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-25 (missão ativa D-PROD-301; antes D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-304; antes D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,16 +9,32 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-25) — MAIKE-FINANCEIRO-RETIFICACAO-LOTE: o lote na correção por substituição do lançamento financeiro (D-PROD-301)
+## Missão ativa (2026-11-25) — MAIKE-FINANCEIRO-RETIFICACAO-LOTE: o lote na correção por substituição do lançamento financeiro (D-PROD-304)
 
 | Item | Estado |
 |---|---|
-| Decisão | **D-PROD-301**: a retificação aceita `lotes_por_item` (o contrato da confirmação) e o usa na SUBSTITUIÇÃO; o diálogo "Salvar correção" pede o lote quando o estoque muda (compra: lote e validade pré-preenchidos com os da versão anterior; venda: o campo "Lote"); NO_LUGAR não mexe em lote |
+| Decisão | **D-PROD-304**: a retificação aceita `lotes_por_item` (o contrato da confirmação) e o usa na SUBSTITUIÇÃO; o diálogo "Salvar correção" pede o lote quando o estoque muda (compra: lote e validade pré-preenchidos com os da versão anterior; venda: o campo "Lote"); NO_LUGAR não mexe em lote |
 | Servidor | rota `RETIFICAR` com `LOTES_POR_ITEM`; fingerprint com o campo só quando vem; `avisos` de vencido na resposta da substituição |
 | Banco | sem migration |
 | Branch | `claude/financeiro-retificacao-lote` (PR em rascunho) |
 | Relatório | [`MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md`](./MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md) |
 | Próximas | unidade convertida nas telas que tiram produto (emenda da SPEC de unidades) |
+
+## Missão anterior (2026-11-25) — MAIKE-MAPA-LOCALIZACAO: abre na fazenda, ponto da localização que acompanha (D-PROD-302)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-302**: o mapa nasce na vista salva (sem ela, escondido até enquadrar); GPS de alta precisão com a camada ligada: o ponto anda junto com a pessoa, o mapa fica parado; "Localizar" centraliza uma vez |
+| Banco | sem migration |
+| Relatório | [`MAPA-LOCALIZACAO-D302-REPORT.md`](./MAPA-LOCALIZACAO-D302-REPORT.md) |
+
+## Missão anterior (2026-11-25) — MAIKE-SINCRONIZACAO-ORGANIZADA (D-PROD-301)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-301**: janela "Sincronização" + ícone no topo + aviso de envio; histórico do depósito com o que espera envio; consultas rodam sem internet (`networkMode: 'always'`); pente-fino das leituras dos formulários |
+| Banco | sem migration |
+| Relatório | [`SINCRONIZACAO-ORGANIZADA-D301-REPORT.md`](./SINCRONIZACAO-ORGANIZADA-D301-REPORT.md) · inventário [`OFFLINE-INVENTARIO.md`](./OFFLINE-INVENTARIO.md) |
 
 ## Missão anterior (2026-11-24) — MAIKE-ESTOQUE-LOTE-TODAS-TELAS: escolha do lote e aviso de vencido em todas as telas que tiram produto (D-PROD-300)
 
@@ -29,7 +45,7 @@ rollout pausado **D-PROD-41**)
 | Banco | sem migration |
 | Branch | `claude/estoque-lote-todas-telas` (PR #383, mergeada) |
 | Relatório | [`MAIKE-ESTOQUE-LOTE-TODAS-TELAS-REPORT.md`](./MAIKE-ESTOQUE-LOTE-TODAS-TELAS-REPORT.md) |
-| Próximas | unidade convertida nessas telas (emenda da SPEC de unidades); lote na retificação do financeiro (feito na D-PROD-301) |
+| Próximas | unidade convertida nessas telas (emenda da SPEC de unidades); lote na retificação do financeiro (feito na D-PROD-304) |
 
 ## Missão anterior (2026-11-25) — MAIKE-SALDO-LOTES-TEXTO: saldo do formulário de Entrada/Saída do depósito (D-PROD-299)
 

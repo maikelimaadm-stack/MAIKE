@@ -1,10 +1,11 @@
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
-import React, { useId, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { History, Loader2, LogOut, Truck } from "lucide-react";
 import { listarTodosLotesNota, listarTodosProdutos, listarTodasMovimentacoes } from "@/services/estoqueMapaService";
 import { listarPontosSuplementacaoAtivos, listarAreasAtivas } from "@/services/mapaService";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { listEmpresas } from "@/services/empresaService";
+import { eventosDaFilaDeEnvio } from "@/services/sincronizacaoService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { urlIconeCocho } from "@/assets/icones/cocho-descoberto";
 import FormularioTransferenciaDeposito from "./FormularioTransferenciaDeposito";
@@ -184,6 +185,26 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
     },
     enabled: !!empresaSelecionadaId && !!deposito.local_estoque_id
   });
+
+  // D-PROD-301: o histórico e o saldo acompanham a fila de envio (guardou sem internet, subiu,
+  // excluiu da fila): o que espera envio aparece com "aguardando envio" e some quando chega.
+  useEffect(() => {
+    const invalidar = () =>
+      queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && ["movimentacoes-deposito-detalhe", "saldo-deposito"].includes(q.queryKey[0]),
+      });
+    // Subiu algo que mexe no estoque: relê do servidor, e o registro entra no lugar do "aguardando".
+    const recarregar = (/** @type {any} */ evento) => {
+      invalidar();
+      const subiu = Array.isArray(evento?.detail?.atualizar) && evento.detail.atualizar.includes("movimentacaoEstoque");
+      if (subiu && navigator.onLine && empresaSelecionadaId) {
+        refreshMapaCacheEntry("movimentacaoEstoque", empresaSelecionadaId, { force: true }).catch(() => null).finally(invalidar);
+      }
+    };
+    const eventos = eventosDaFilaDeEnvio();
+    eventos.forEach((e) => window.addEventListener(e, recarregar));
+    return () => eventos.forEach((e) => window.removeEventListener(e, recarregar));
+  }, [queryClient, empresaSelecionadaId]);
 
   // Dia civil da FAZENDA (o mesmo resumo de empresas do Layout e do Mapa Geral): o
   // farol e o nível de cada cocho vinculado contam dias como o marcador do mapa.
@@ -686,10 +707,12 @@ function destinoDaSaida(mov, cochosPorId) {
 function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId, acaoDeCancelar = null }) {
   const entrada = ehEntradaNoDeposito(mov, localEstoqueId);
   const emLitros = mov?.unidade_medida === "L";
+  // D-PROD-301: o que espera envio vem sem o nome do produto (o envio não leva): pelo cadastro.
+  const nomeDoProduto = mov?.produto_nome || produtosPorId.get(mov?.produto_id)?.nome_produto || "";
   const pesoPorSaco = emLitros ? 0 : Number(produtosPorId.get(mov?.produto_id)?.peso_por_saco_kg || 0);
   const linhas = [
     entrada ? { rotulo: "Origem", valor: mov?.local_origem || VAZIO } : { rotulo: "Destino", valor: destinoDaSaida(mov, cochosPorId) },
-    { rotulo: "Produto", valor: mov?.produto_nome || VAZIO },
+    { rotulo: "Produto", valor: nomeDoProduto || VAZIO },
     { rotulo: emLitros ? "Quantidade (L)" : "Quantidade (kg)", valor: fmtNumero(mov?.quantidade ?? 0, 2) },
     { rotulo: "Sacos", valor: pesoPorSaco > 0 ? fmtNumero(kgParaSacos(mov?.quantidade, pesoPorSaco), 2) : VAZIO },
   ];
@@ -701,12 +724,12 @@ function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId,
   const qtdTexto = `${entrada ? "+" : "−"}${fmtNumero(mov?.quantidade ?? 0, 2).replace(/,00$/, "")} ${unidade}`;
   const sacos = pesoPorSaco > 0 ? `${fmtNumero(kgParaSacos(mov?.quantidade, pesoPorSaco), 2)} sacos` : null;
   const lugar = entrada ? (mov?.local_origem ? `de ${mov.local_origem}` : "") : destinoDaSaida(mov, cochosPorId);
-  const resumo = [mov?.produto_nome || "", lugar && lugar !== VAZIO ? lugar : ""].filter(Boolean).join(" · ") || VAZIO;
+  const resumo = [nomeDoProduto, lugar && lugar !== VAZIO ? lugar : ""].filter(Boolean).join(" · ") || VAZIO;
   return {
     chave: `mov-${mov?.id ?? "sem-id"}`,
     dia: diaDaMovimentacao(mov),
     Icone: entrada ? Truck : LogOut,
-    titulo: entrada ? "Entrada no depósito" : "Saída do depósito",
+    titulo: `${entrada ? "Entrada no depósito" : "Saída do depósito"}${mov?._aguardandoEnvio ? " · aguardando envio" : ""}`,
     linhas,
     curto: {
       tom: entrada ? "entrada" : "saida",
@@ -714,7 +737,10 @@ function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId,
       sacos,
       resumo,
       rotuloQuantidade: `${entrada ? "Entraram" : "Saíram"} ${fmtNumero(mov?.quantidade ?? 0, 2)} ${unidade}${sacos ? `, ${sacos}` : ""}`,
-      resto: observacoes ? [{ rotulo: "Observações", valor: observacoes }] : [],
+      resto: [
+        ...(mov?._aguardandoEnvio ? [{ rotulo: "Situação", valor: "Aguardando envio (feito sem internet)" }] : []),
+        ...(observacoes ? [{ rotulo: "Observações", valor: observacoes }] : []),
+      ],
     },
     ...(acaoDeCancelar && transferenciaCancelavelAqui(mov, localEstoqueId) ? { acoes: acaoDeCancelar(mov) } : {}),
   };

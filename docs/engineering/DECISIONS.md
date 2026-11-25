@@ -9497,11 +9497,42 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Constituição:** nenhuma regra nova; a emenda da D-PROD-282 ("produto que controla lote usa o custo do lote escolhido") já cobre.
 - **Fora (missões próprias):** unidade convertida (SACO, galão…) em atividade, abastecimento, cocho e transferência (emenda proposta na SPEC de unidades, §7); a reconciliação do valor do estoque (pausada pelo proprietário); o lote na retificação por substituição do financeiro (a retificação não recebe `lotes_por_item`); os `avisos` de vencido na resposta do lançamento de atividade com várias linhas (a tela já pediu a confirmação antes de enviar).
 
-## D-PROD-301 — Financeiro: o lote na retificação por substituição
+## D-PROD-301 — Sincronização organizada: janela "Sincronização", ícone no topo, aviso de envio, histórico do que espera envio e telas que não travam sem internet
+
+> **Numeração:** nasceu D-PROD-300 nesta branch; antes do merge, a `main` deu a D-PROD-300 à escolha do lote em todas as telas (PR #383). Esta é a **D-PROD-301**; o marcador passa a D-PROD-302.
+
+- **Contexto:** testando o app no campo, o proprietário relatou: (1) o lançamento feito sem internet não aparece no histórico do depósito; (2) a formulação não aparecia no lançamento do cocho sem internet, mesmo depois de baixar os dados; (3) ao voltar a internet não aparece nada sobre a sincronização, e a opção ficava escondida no menu; (4) sem internet o detalhe do depósito fica "carregando" e mostra tudo zerado, enquanto o cocho abre; "parece página de web".
+- **Decisão:**
+  1. **Histórico do depósito com o que espera envio** (`historicoAguardandoEnvioService`): a transferência (as duas pernas) e a baixa do lançamento do cocho que ainda não subiram aparecem no histórico e na linha do tempo do depósito, com "aguardando envio". Só visão, aplicada na leitura do cache do mapa (D-PROD-298 item 6b), nunca gravada; entra só o que nunca tentou subir (o que tentou pode já estar no servidor). Quando sobe, a movimentação do servidor toma o lugar; o detalhe do depósito escuta a fila e relê. Sem ação de excluir nelas (a correção é em "Aguardando envio", D-PROD-298).
+  2. **Janela "Sincronização"** (era "Dados sem internet"): com ou sem internet; Envio (o que espera e o que precisa de atenção); Dados no celular (mapa, cadastros, telas: quando veio cada parte e quantas não vieram, `situacaoDaBaixa`); **Sincronizar agora** envia o que está no celular e depois baixa tudo.
+  3. **Ícone da sincronização no topo**, ao lado do usuário: ✓ tudo enviado; nuvem com número (esperando); triângulo âmbar (atenção); girando (enviando); nuvem cortada (sem internet). Toque abre a janela. No navegador, sem nada a enviar, não aparece. Sem faixa "sem internet" na tela.
+  4. **Aviso de envio** (`AvisoDeSincronizacao`): quando a fila sobe, "Enviando N registro(s)…" e depois "Tudo enviado ao sistema" (ou "N enviados, M esperando"); a passada de rotina que não envia nada não avisa (só depois de 1,2 s). Registro novo em "precisa de atenção" avisa e o toque abre a janela.
+  5. **Telas não travam sem internet:** o React Query estava no padrão `networkMode: 'online'`, que PAUSA toda consulta sem sinal — a consulta nem chega a ler o celular. As do depósito (saldo, histórico, cochos) nunca tinham rodado com internet naquela abertura e ficavam pausadas: "carregando" e zero. O cocho abria porque reaproveita as consultas do mapa já carregadas. Agora `networkMode: 'always'` nas consultas (`src/lib/query-client.js`); as gravações (mutations) continuam no padrão.
+  6. **Pente-fino** (`tests/smoke/penteFinoOffline.test.js`): baixa os dados com internet e, sem internet, roda cada leitura dos formulários do cocho e do depósito — nenhuma pode falhar nem vir vazia. Achou: as movimentações do rebanho do lançamento (lidas sem limite, só a com limite era baixada) e a lista do que baixar dependia de quais módulos já tinham carregado. Agora `baixarLeiturasDasTelas` carrega todas as portas (`import.meta.glob`) antes de montar a lista.
+- **Testes:** `tests/smoke/sincronizacaoOrganizada.test.jsx` (SO-01..05), `tests/smoke/penteFinoOffline.test.js` (PF-01..02), `tests/smoke/depositoTransferenciaOffline.test.js` (ET-08), `tests/smoke/lancamentoCochoOffline.test.js` (LCO-01), `tests/smoke/dadosOfflineLeitura.test.js` (DB-04).
+
+## D-PROD-302 — Mapa abre direto na fazenda; o ponto da localização acompanha a pessoa andando (pelo GPS)
+
+- **Contexto:** o proprietário relatou que o mapa às vezes abre em Vila Bela da Santíssima Trindade (o centro padrão) e só depois pula para a fazenda; que a localização "puxa totalmente errado"; e que, andando, o ponto não acompanha.
+- **Causas:** (1) o mapa nascia sempre em `CENTRO_PADRAO` e só depois aplicava a vista salva ou o enquadramento das áreas; (2) "Localizar" pedia a posição UMA vez, sem alta precisão — o celular podia responder com a posição aproximada da rede (centenas de metros); (3) nenhum acompanhamento: o ponto ficava parado; o círculo era fixo em 20 m.
+- **Decisão:**
+  1. **Abertura:** com vista salva da fazenda (`mapa_geral_view_<empresa>`), o mapa já NASCE nela. Sem vista salva, nasce escondido e aparece ao enquadrar as áreas (no máximo 4 s, para fazenda sem áreas).
+  2. **GPS** (`useLocalizacaoNoMapa`): com a camada "Minha localização" ligada, `watchPosition` em alta precisão (`enableHighAccuracy`, `maximumAge` 3 s); leitura muito pior que uma boa recente (até 30 s) é descartada; o círculo mostra a precisão real da leitura (3 a 500 m).
+  3. **O ponto acompanha, o mapa não:** com a camada ligada, o PONTO da localização anda junto com a pessoa; o mapa fica onde ela deixou (o proprietário pediu exatamente isso: "acompanhando eu andando é a localização apenas, não o mapa"). "Localizar" centraliza uma vez (zoom 18). A resposta só liga a camada e pula se a fazenda e a permissão ainda forem as do pedido (D-PROD-137, PREF-07).
+  4. **Avisos:** permissão negada e GPS desligado avisam uma vez, em português; tempo esgotado não avisa (o GPS continua tentando).
+- **Testes:** `tests/smoke/localizacaoNoMapa.test.jsx` (LM-01..05), `tests/smoke/mapaPreferenciasIntegrada.test.jsx` (MO-01..02; PREF-02 e PREF-07 continuam).
+
+## D-PROD-303 — Detalhe do cocho sem internet: produtos do celular e pente-fino do detalhe
+
+- **Contexto:** o proprietário relatou que, depois de sincronizar, sem internet o detalhe do cocho não mostra nada. A causa principal (consultas pausadas sem sinal) já foi corrigida na D-PROD-301 (`networkMode: 'always'`), que ainda não tinha chegado ao celular dele.
+- **Decisão:** o detalhe do cocho lia o cadastro de produtos SÓ com internet (sem sinal devolvia lista vazia de propósito; o cocho ficava sem os sacos). Agora lê do celular como as outras telas. O pente-fino (`penteFinoOffline.test.js`) passa a cobrir também as leituras do detalhe do cocho (lançamentos, cochos, áreas, leituras e produtos).
+- **Testes:** `tests/smoke/penteFinoOffline.test.js` (PF-01 com o detalhe do cocho).
+
+## D-PROD-304 — Financeiro: o lote na retificação por substituição
 
 **Data:** 2026-11-25 · **Origem:** pedido do proprietário (a correção de uma compra ou venda confirmada de produto com lote, quando muda o estoque), plano aprovado · **Branch:** `claude/financeiro-retificacao-lote` · **Relatório:** [`MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md`](./MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md)
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `289cefb1` indicou a D-PROD-301; o marcador passa a D-PROD-302.
+> **Numeração:** nasceu D-PROD-301 (`node scripts/dev/proxima-decisao.mjs` na `main` `289cefb1`). Antes do push, a `main` deu a D-PROD-301 à sincronização organizada (PR #388, `880fb0e5`) e a D-PROD-302 e a D-PROD-303 ao mapa e ao cocho sem internet (PR #389, `4ddda0a9`), e passou a indicar `Próxima decisão: D-PROD-304`, que é esta; o marcador passa a D-PROD-305.
 
 - **Contexto:** a D-PROD-300 deu o lote na **confirmação** do lançamento financeiro (`lotes_por_item`) e deixou fora a retificação. A retificação por SUBSTITUIÇÃO estorna a versão anterior e grava a nova pelo mesmo núcleo da confirmação (`aplicarEfeitosDoPlano`), mas sem o lote: corrigir a quantidade (ou outro campo físico) de uma compra confirmada de produto com lote era **recusado** (422 `ESTOQUE_LOTE_OBRIGATORIO`, `lote_obrigatorio`) e a correção de uma venda caía no FEFO sem escolha.
 - **Decisão (o mesmo contrato da confirmação; nada muda para produto sem lote):**
@@ -9515,4 +9546,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** nenhuma regra nova (a emenda da D-PROD-282 cobre).
 - **Fora:** a correção que a tela prevê sem mudança no estoque mas o servidor faz por substituição (previsão diferente do servidor) segue sem os campos: a compra com lote é recusada com 422 e a pessoa corrige de novo; a direção trocada (compra ↔ venda) com produto de lote não tem tratamento especial.
 
-<!-- Próxima decisão: D-PROD-302 -->
+<!-- Próxima decisão: D-PROD-305 -->

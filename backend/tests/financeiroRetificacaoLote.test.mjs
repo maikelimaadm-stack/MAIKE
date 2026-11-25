@@ -1,5 +1,5 @@
 /**
- * D-PROD-301 — o lote na retificação por SUBSTITUIÇÃO do lançamento financeiro. PostgreSQL real, pela API.
+ * D-PROD-304 — o lote na retificação por SUBSTITUIÇÃO do lançamento financeiro. PostgreSQL real, pela API.
  *
  * A retificação que muda o estoque estorna a versão anterior e grava a nova pelo MESMO núcleo da confirmação
  * (`aplicarEfeitosDoPlano`). Até aqui ela não recebia `lotes_por_item`: a correção de uma compra confirmada de produto

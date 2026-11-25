@@ -178,7 +178,8 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
     <MolduraHistorico barra={barra} antes={aviso}>
       {movimentacoes.map((movimentacao, index) => {
         const ehNutricao = movimentacao.tipo_detalhado === "suplementacao" || movimentacao.exclusao_somente_em === "cocho";
-        const ehMovimentoDeposito = movimentacao.origem_sistema === "deposito" || movimentacao.exclusao_somente_em === "deposito" || ["transferencia_recebida", "transferencia_enviada"].includes(movimentacao.tipo_detalhado);
+        // D-PROD-301: o que espera envio não está no servidor: corrige-se em "Aguardando envio" no depósito.
+        const ehMovimentoDeposito = !movimentacao._aguardandoEnvio && (movimentacao.origem_sistema === "deposito" || movimentacao.exclusao_somente_em === "deposito" || ["transferencia_recebida", "transferencia_enviada"].includes(movimentacao.tipo_detalhado));
 
         const dataRaw = movimentacao.data_movimentacao || "";
         const dataDisplay = dataRaw.includes("T")
@@ -196,9 +197,10 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
               <>
                 <SeloHistorico tom="data">{dataDisplay}</SeloHistorico>
                 <SeloHistorico>{getLabelTipoDetalhado(movimentacao.tipo_detalhado)}</SeloHistorico>
+                {movimentacao._aguardandoEnvio ? <SeloHistorico>Aguardando envio</SeloHistorico> : null}
               </>
             }
-            titulo={movimentacao.produto_nome}
+            titulo={movimentacao.produto_nome || "Produto"}
             rodape={
               CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO ? (
                 <AcaoHistorico destrutiva disabled={index !== 0 || deletingId === movimentacao.id || !ehMovimentoDeposito} onClick={() => handleDelete(movimentacao, index)}>

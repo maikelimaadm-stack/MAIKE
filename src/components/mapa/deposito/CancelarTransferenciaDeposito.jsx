@@ -261,7 +261,7 @@ export default function CancelarTransferenciaDeposito({ movimento, empresaId, es
     const ok = await pedirConfirmacaoSemInternet({
       titulo: "Excluir transferência sem internet?",
       descricao:
-        "A exclusão fica guardada neste celular e vai ao sistema quando a internet voltar. Lá, o produto volta ao local de origem. Se o sistema recusar, ela aparece em \"Dados sem internet\".",
+        "A exclusão fica guardada neste celular e vai ao sistema quando a internet voltar. Lá, o produto volta ao local de origem. Se o sistema recusar, ela aparece em \"Sincronização\".",
       textoConfirmar: "Excluir",
       perigo: true,
     });

@@ -332,7 +332,7 @@ export const descreverMudancasFisicas = (diferencas) => {
 };
 
 /**
- * D-PROD-301 — os efeitos de estoque que a correção vai gravar, no formato da prévia (`efeitos_estoque`): por item
+ * D-PROD-304 — os efeitos de estoque que a correção vai gravar, no formato da prévia (`efeitos_estoque`): por item
  * MERCADORIA, a ordem (a mesma do corpo: posição na lista + 1), produto, depósito e a quantidade em kg (ou L) do
  * resumo. É o que o diálogo "Salvar correção" usa para pedir o lote (compra) ou deixar escolher (venda) — a prévia do
  * servidor só existe para rascunho. O controle de lote do produto vem da leitura dos lotes, no diálogo.
