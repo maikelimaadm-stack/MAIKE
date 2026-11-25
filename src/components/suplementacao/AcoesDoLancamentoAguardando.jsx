@@ -33,7 +33,7 @@ export default function AcoesDoLancamentoAguardando({ evento, onEditar }) {
   };
 
   const excluir = async () => {
-    // D-PROD-310: só o último lançamento do cocho sai. Com um seguinte (que depende deste),
+    // D-PROD-311: só o último lançamento do cocho sai. Com um seguinte (que depende deste),
     // a pessoa exclui primeiro o mais recente — senão ele ficaria órfão ao voltar a internet.
     const dependentes = await dependentesDoLancamentoAguardando(evento);
     if (dependentes.length) {

@@ -345,7 +345,7 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
       { saida: null, evento: evento({ data_lancamento: '2026-11-14' }), lotes: [], eventoAnterior: ultimo, fechamento: fechamento() },
       { operationId: 'op-lanc-0013' }
     );
-    // D-PROD-310: o 1º não se edita enquanto o 2º (feito em cima dele) está na fila.
+    // D-PROD-311: o 1º não se edita enquanto o 2º (feito em cima dele) está na fila.
     await expect(sup.lancamentoAguardandoParaEditar(primeiro.evento)).rejects.toThrow(/Só o último lançamento deste cocho/);
     const edicao2 = await sup.lancamentoAguardandoParaEditar({ _operationId: 'op-lanc-0013' });
     expect(sup.idDoAnteriorCitado(edicao2.payload.evento_anterior_id)).toBe('aguardando:op-lanc-0012');
@@ -413,3 +413,38 @@ describe('D-PROD-296 — lançamento do cocho pelo motor', () => {
     expect((await motor.resumoDaFila()).aguardando).toBe(0);
   });
 });
+
+describe('D-PROD-310 — a unidade de conversão no lançamento do cocho sem internet', () => {
+  it('LCO-16 o corpo da baixa (montado pela tela) leva a unidade e a quantidade digitada; a fila guarda e sobe IGUAL (campos aditivos), a visão do aparelho desconta em kg', async () => {
+    const srv = servidor();
+    vi.stubGlobal('fetch', srv.fetch);
+    const { sup, motor, estoque } = await carregar();
+    const { montarCorpoDaSaidaSuplementacao } = await import('@/services/suplementacaoEstoqueService');
+    const lotesNota = [{ id: 'nf1', empresa_id: EMP, produto_id: 'prod-1', local_estoque_id: 'galpao', status: 'Disponivel', quantidade_disponivel: 100, data_documento: '2026-01-01' }];
+    const corpo = montarCorpoDaSaidaSuplementacao({
+      empresaId: EMP, produto: { id: 'prod-1' }, quantidade: 75, localOrigemId: 'galpao', localOrigemNome: 'GALPÃO', lotesNota,
+      dataMovimentacao: '2026-11-12', unidadeLancamento: 'SACO', quantidadeLancamento: '3',
+    });
+    expect(corpo).toMatchObject({ quantidade: 75, unidade_lancamento: 'SACO', quantidade_lancamento: '3' });
+    // Sem unidade: o corpo de sempre (nenhuma chave nova).
+    const semUnidade = montarCorpoDaSaidaSuplementacao({ empresaId: EMP, produto: { id: 'prod-1' }, quantidade: 75, localOrigemId: 'galpao', lotesNota });
+    expect(semUnidade).not.toHaveProperty('unidade_lancamento');
+    expect(semUnidade).not.toHaveProperty('quantidade_lancamento');
+
+    online = false;
+    await sup.registrarLancamentoDoCocho(
+      { saida: { ...corpo, ponto_suplementacao_id: 'c1' }, evento: evento({ quantidade_total_kg: 75, unidade_lancamento: 'SACO', quantidade_lancamento: 3 }), lotes: [], eventoAnterior: srv.eventos[0], fechamento: fechamento() },
+      { operationId: 'op-lanc-ucl1' }
+    );
+    const registro = await motor.registroNaFila('op-lanc-ucl1');
+    expect(registro.payload.saida).toMatchObject({ quantidade: 75, unidade_lancamento: 'SACO', quantidade_lancamento: '3' });
+    const vistos = await estoque.comEstoqueAguardandoEnvio(lotesNota);
+    expect(vistos[0].quantidade_disponivel).toBe(25);
+
+    online = true;
+    await motor.sincronizar();
+    const baixa = srv.chamadas.find((c) => c.caminho === '/movimentacoes-estoque/comandos/saida-suplementacao');
+    expect(baixa.corpo).toMatchObject({ operation_id: 'op-lanc-ucl1', quantidade: 75, unidade_lancamento: 'SACO', quantidade_lancamento: '3' });
+  });
+});
+

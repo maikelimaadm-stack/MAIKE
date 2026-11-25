@@ -259,7 +259,7 @@ describe('EX-B — fato posterior DEPENDENTE bloqueia sem gravar nada', () => {
 
 // ═══ (c) posterior INDEPENDENTE não bloqueia ═══════════════════════════════
 
-describe('EX-C — D-PROD-310: qualquer registro posterior na origem ou no destino bloqueia; exclui-se o mais recente primeiro', () => {
+describe('EX-C — D-PROD-311: qualquer registro posterior na origem ou no destino bloqueia; exclui-se o mais recente primeiro', () => {
   test('T1 (3 A→B), depois T2 (2 A→C) + pesagem em A: T1 bloqueada; excluídas a pesagem e a T2, a T1 sai; A=10', async () => {
     const c = await cenario();
     const t1 = (await ok(transferencia(c, c.posA, 3, c.B, '2026-10-10'))).movimentacao;

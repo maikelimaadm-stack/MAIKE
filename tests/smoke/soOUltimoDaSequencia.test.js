@@ -1,5 +1,5 @@
 /**
- * D-PROD-310 — só o último da sequência; revisão geral (lote, nutrição, depósito).
+ * D-PROD-311 — só o último da sequência; revisão geral (lote, nutrição, depósito).
  *
  * NU-01 número: "12.5" é 12,5 (não 125); "12.00" é 12; "1.234,56" é 1234,56
  * ES-01 saldo sem internet: o destino recebe só o que saiu da origem (não inventa estoque)
@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/apis/_core/nativeHttpClient.js', () => ({ nativeRequest: vi.fn(async () => []) }));
 
-describe('D-PROD-310 — número', () => {
+describe('D-PROD-311 — número', () => {
   it('NU-01 ponto decimal de máquina e vírgula brasileira', async () => {
     const { parseNumber } = await import('@/components/utils/pecuariaUtils');
     expect(parseNumber('12.5')).toBe(12.5);
@@ -30,7 +30,7 @@ describe('D-PROD-310 — número', () => {
   });
 });
 
-describe('D-PROD-310 — saldo sem internet', () => {
+describe('D-PROD-311 — saldo sem internet', () => {
   it('ES-01 o destino recebe só o que saiu da origem', async () => {
     const { aplicarMovimentosAosLotes } = await import('@/services/estoqueAguardandoEnvioService');
     const lotes = [
@@ -47,7 +47,7 @@ describe('D-PROD-310 — saldo sem internet', () => {
   });
 });
 
-describe('D-PROD-310 — fila do aparelho', () => {
+describe('D-PROD-311 — fila do aparelho', () => {
   let motor;
   let fila;
   beforeEach(async () => {

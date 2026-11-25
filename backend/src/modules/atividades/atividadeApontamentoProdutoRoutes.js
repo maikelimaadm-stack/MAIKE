@@ -60,14 +60,25 @@ const PARAMS_LINHA = {
  */
 /** D-PROD-283/292: o número do jato no dia (texto; o serviço confere "1".."999"). */
 const JATO = { type: ['string', 'null'], maxLength: 3 };
+/**
+ * D-PROD-310: a quantidade numa unidade de conversão do produto (o id ou a sigla, e a quantidade nela, em texto). Com as
+ * duas, `quantidade` (na unidade de estoque) é opcional: o servidor converte pelo cadastro e, se ela vier, confere.
+ */
+const UNIDADE_LANCAMENTO = { type: ['string', 'null'], minLength: 1, maxLength: 64 };
+const QUANTIDADE_LANCAMENTO = { type: ['string', 'null'], pattern: PADRAO_DECIMAL.source };
+const QUANTIDADE_OU_UNIDADE = Object.freeze([{ required: ['quantidade'] }, { required: ['unidade_lancamento', 'quantidade_lancamento'] }]);
 export const ESQUEMA_ITEM_PRODUTO = Object.freeze({
   type: 'object',
-  required: ['produto_id', 'local_estoque_id', 'quantidade'],
+  required: ['produto_id', 'local_estoque_id'],
+  anyOf: QUANTIDADE_OU_UNIDADE,
   additionalProperties: false,
   // D-PROD-293: o número do jato (texto "1".."999") também na linha avulsa (lançar e editar).
   // D-PROD-300: `lotes` (a escolha manual de produto que controla lote; sem ela, FEFO) em toda linha de produto —
   // lançar, editar e os `produtos[]` do lançamento, do registro e dos "Jatos de hoje".
-  properties: { produto_id: ID, local_estoque_id: ID, quantidade: DECIMAL, observacao: OBSERVACAO, jato: JATO, lotes: LOTES_ESCOLHIDOS },
+  properties: {
+    produto_id: ID, local_estoque_id: ID, quantidade: DECIMAL, observacao: OBSERVACAO, jato: JATO, lotes: LOTES_ESCOLHIDOS,
+    unidade_lancamento: UNIDADE_LANCAMENTO, quantidade_lancamento: QUANTIDADE_LANCAMENTO,
+  },
 });
 
 /**
@@ -85,7 +96,8 @@ const LANCAR = {
   params: PARAMS_APONTAMENTO,
   body: {
     type: 'object',
-    required: ['empresa_id', 'versao', 'operation_id', 'produto_id', 'local_estoque_id', 'quantidade'],
+    required: ['empresa_id', 'versao', 'operation_id', 'produto_id', 'local_estoque_id'],
+    anyOf: QUANTIDADE_OU_UNIDADE,
     additionalProperties: false,
     properties: { empresa_id: ID, versao: VERSAO, operation_id: OPERATION_ID, ...ESQUEMA_ITEM_PRODUTO.properties },
   },

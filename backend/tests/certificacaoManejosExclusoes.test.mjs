@@ -179,7 +179,7 @@ const exigirBloqueio = async (c, mov, codigos) => {
   return e;
 };
 const SALDO = ['CANCELAMENTO_SALDO_HISTORICO_NEGATIVO'];
-/** D-PROD-310: registro posterior na origem ou no destino. */
+/** D-PROD-311: registro posterior na origem ou no destino. */
 const POSTERIOR = ['REBANHO_EXCLUSAO_REGISTRO_POSTERIOR'];
 const DEP = ['CANCELAMENTO_SALDO_HISTORICO_NEGATIVO', 'REBANHO_DEPENDENCIA_FATO_SEM_SALDO', 'REBANHO_PESO_DEPENDENCIA_CAUSAL'];
 
@@ -286,7 +286,7 @@ describe('CERT-3 — entradas A+B → junção → abate', () => {
     const ab = (await ok(baixa(c, 'Abate', c.A, '10', [{ categoria: BOI, quantidade: 5, destino: 'Consumo Próprio' }, { categoria: VACA, quantidade: 2, destino: 'Consumo Próprio' }]))).movimentacao;
     const mo = (await ok(baixa(c, 'Morte', c.A, '11', [{ categoria: BOI, quantidade: 25, causa_morte: 'Doença' }]))).movimentacao;
     await conservacao(c);
-    // D-PROD-310: a morte veio depois na mesma origem → o abate (anterior) só sai depois dela.
+    // D-PROD-311: a morte veio depois na mesma origem → o abate (anterior) só sai depois dela.
     await exigirBloqueio(c, ab, POSTERIOR);
     await excluirCertificado(c, mo);
     await excluirCertificado(c, ab);
@@ -294,7 +294,7 @@ describe('CERT-3 — entradas A+B → junção → abate', () => {
   });
 });
 
-describe('CERT-4 — D-PROD-310: nada depois na origem nem no destino; ordem no mesmo dia', () => {
+describe('CERT-4 — D-PROD-311: nada depois na origem nem no destino; ordem no mesmo dia', () => {
   test('qualquer posterior na origem ou no destino bloqueia; dependente no mesmo dia (registrado depois) bloqueia; exclusão do mais recente ao mais antigo restaura', async () => {
     const c = await base();
     const l = await entrada(c, { nome: 'L', qtd: 40 });
@@ -349,7 +349,7 @@ describe('CERT-5 — pesagens sucessivas e peso causal', () => {
     const p3 = (await ok(rebanho(c, 'Pesagem', c.A, '14', [{ lote_id: posA.id, peso_medio_kg: 460 }]))).movimentacao;
     const peso = async () => Number((await posDe(c, l, c.A)).peso_medio_kg);
     assert.equal(await peso(), 460);
-    // D-PROD-310: a intermediária só sai depois da final (registro posterior na mesma posição).
+    // D-PROD-311: a intermediária só sai depois da final (registro posterior na mesma posição).
     await exigirBloqueio(c, p2, POSTERIOR);
     await excluirCertificado(c, p3);
     assert.equal(await peso(), 440, 'volta à pesagem anterior');
@@ -462,7 +462,7 @@ describe('CERT-9 — concorrência real', () => {
     }
   });
 
-  test('D-PROD-310: duas exclusões na mesma origem ao mesmo tempo (a anterior e a posterior): sem deadlock nem 500; a posterior sai; a anterior sai junto (se a posterior já saiu) ou depois', async () => {
+  test('D-PROD-311: duas exclusões na mesma origem ao mesmo tempo (a anterior e a posterior): sem deadlock nem 500; a posterior sai; a anterior sai junto (se a posterior já saiu) ou depois', async () => {
     for (let i = 0; i < 4; i += 1) {
       const c = await base();
       const l = await entrada(c, { nome: 'L', qtd: 30 });

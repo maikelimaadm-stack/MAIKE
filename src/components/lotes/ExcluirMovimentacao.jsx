@@ -57,7 +57,7 @@ export const MENSAGENS_RECUSA = Object.freeze({
   EXCLUSAO_MOVIMENTO_CANCELADO: "Esta movimentação é de um registro antigo e não pode ser excluída. Nada foi alterado.",
   EXCLUSAO_REFERENCIA_DOCUMENTAL: "Há registros de outros módulos que citam esta movimentação. Trate-os antes. Nada foi alterado.",
   REBANHO_CANCELAMENTO_VINCULO_POSTERIOR: "Há lançamentos de outros módulos (tarefa, suplementação, sanidade...) ligados a esta movimentação. Trate-os antes. Nada foi alterado.",
-  // D-PROD-310: nada depois, na origem nem no destino — exclui-se sempre o mais recente primeiro.
+  // D-PROD-311: nada depois, na origem nem no destino — exclui-se sempre o mais recente primeiro.
   REBANHO_EXCLUSAO_REGISTRO_POSTERIOR: "Há registro posterior na origem ou no destino desta movimentação. Exclua primeiro o mais recente. Nada foi alterado.",
   CANCELAMENTO_SALDO_HISTORICO_NEGATIVO: "Um registro posterior usa estas cabeças. Exclua-o antes, do mais recente para o mais antigo. Nada foi alterado.",
   REBANHO_DEPENDENCIA_FATO_SEM_SALDO: "Uma pesagem ou nascimento posterior depende deste registro. Exclua-o antes, do mais recente para o mais antigo. Nada foi alterado.",
@@ -72,7 +72,7 @@ export const MENSAGENS_RECUSA = Object.freeze({
 });
 
 const diaBR = (d) => String(d ?? "").split("-").reverse().join("/");
-/** D-PROD-310: o que bloqueia, no nome que a pessoa conhece. */
+/** D-PROD-311: o que bloqueia, no nome que a pessoa conhece. */
 const NOMES_DE_BLOQUEADOR = Object.freeze({
   SuplementacaoLote: "Nutrição",
   SuplementacaoEvento: "Nutrição",
@@ -403,7 +403,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
     queryFn: async () => {
       const lidas = await pendenciasOfflineDaMovimentacao(movimento.id);
       if (!Array.isArray(lidas)) throw new Error("formato inesperado da fila offline");
-      // D-PROD-310: nutrição feita sem internet nesta fazenda, ainda não enviada, também bloqueia
+      // D-PROD-311: nutrição feita sem internet nesta fazenda, ainda não enviada, também bloqueia
       // (o servidor não a vê; ela subiria citando o lote que a exclusão desfez).
       const nutricao = await nutricaoAguardandoEnvio(movimento.empresa_id);
       return [...lidas, ...nutricao];

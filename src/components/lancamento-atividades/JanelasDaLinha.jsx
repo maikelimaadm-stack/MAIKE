@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from "r
 import PreviaRecalculoExclusao from "@/components/estoque/PreviaRecalculoExclusao";
 import CampoLotes from "@/components/estoque/CampoLotes";
 import { mensagemDeLoteVencido } from "@/lib/estoqueLotesRegras";
+import { avisoLotesEmEstoque, conversaoEscolhida, formatarEmEstoque, opcoesDeUnidade, unidadeDeEstoqueDoProduto } from "@/lib/unidadeLancamentoRegras";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Check, Loader2, X } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
@@ -35,6 +36,7 @@ import {
   ROTULO_TIPO_FUNCIONARIO,
   bemEscolhido,
   camposAlteradosDaLinha,
+  camposAlteradosDaLinhaProduto,
   camposAlteradosDaLinhaMaoObra,
   campoDaLinhaRecusada,
   corpoDaLinhaMaoObra,
@@ -338,6 +340,10 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
   })();
   const dose = doseHa(quantidade, areaDoDia);
   const rotuloUnidade = rotuloDaUnidade(unidade);
+  // D-PROD-310: a unidade da quantidade — a de estoque e as conversões ATIVAS do produto com uso em saída (na edição
+  // de uma linha numa conversão, a unidade gravada, com o fator gravado).
+  const opcoesUnidade = opcoesDeUnidade(form.produto, { uso: "venda", gravado: form.gravado ?? null });
+  const unidadeDigitada = conversaoEscolhida(form.produto, form.unidade, { uso: "venda", gravado: form.gravado ?? null });
 
   let blocoLocal = null;
   if (form.produto?.id && unidade) {
@@ -398,7 +404,7 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
         chave={[RAIZ_CONSULTAS_ATIVIDADES, "produtos", empresaId, atividadeId]}
         buscar={async ({ q, cursor, limit }) => normalizarPaginaDeOpcoes(await listarOpcoesProdutos(atividadeId, { q, cursor, limit }))}
         value={form.produto ? { id: form.produto.id, rotulo: form.produto.rotulo } : null}
-        onChange={(o) => mudar({ produto: produtoEscolhido(o), local_estoque_id: null }, ["produto", "local_estoque_id", "quantidade"])}
+        onChange={(o) => mudar({ produto: produtoEscolhido(o), local_estoque_id: null, unidade: "", gravado: null }, ["produto", "local_estoque_id", "quantidade"])}
         rotuloDaOpcao={(o) => String(o?.nome ?? "")}
         detalheDaOpcao={detalheDoProduto}
         readOnly={bloqueado}
@@ -409,8 +415,18 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
       />
       {blocoLocal}
       <Grupo titulo="Quantidade" />
+      {opcoesUnidade.length > 1 ? (
+        <CampoSelect
+          label="Unidade"
+          value={unidadeDigitada || unidadeDeEstoqueDoProduto(form.produto)}
+          onChange={(v) => mudar({ unidade: conversaoEscolhida(form.produto, v, { uso: "venda", gravado: form.gravado ?? null }), ...(form.produto?.controla_lote ? { lotes: null, confirmaVencido: false } : {}) }, ["quantidade", "lotes"])}
+          options={opcoesUnidade}
+          readOnly={bloqueado}
+          span={6}
+        />
+      ) : null}
       <CampoNumero
-        label={rotuloUnidade ? `Quantidade (${rotuloUnidade})` : "Quantidade"}
+        label={unidadeDigitada ? `Quantidade (${unidadeDigitada})` : rotuloUnidade ? `Quantidade (${rotuloUnidade})` : "Quantidade"}
         value={form.quantidade}
         onChange={(v) => mudar({ quantidade: v }, ["quantidade"])}
         locale={LOCALE_ATIVIDADE}
@@ -421,6 +437,9 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
         error={erros.quantidade}
         testId={`${prefixo}-quantidade`}
       />
+      {unidadeDigitada && quantidade ? (
+        <p className={NOTA} data-testid={`${prefixo}-conversao`}>= {formatarEmEstoque(quantidade, form.produto)}</p>
+      ) : null}
       <ValorCalculado
         label="Dose por hectare"
         valor={dose ? formatarDose(dose, unidade) : areaDoDia ? "—" : "Sem área"}
@@ -453,6 +472,9 @@ export function CamposDaLinhaProduto({ form, mudar, erros, aviso, saldo, ativida
             desabilitado={bloqueado}
             testId={`${prefixo}-lotes`}
           />
+          {unidadeDigitada ? (
+            <p className={NOTA} data-testid={`${prefixo}-lotes-em-estoque`}>{avisoLotesEmEstoque(form.produto)}</p>
+          ) : null}
           {erros.lotes ? <ErroDoCampo texto={erros.lotes} testId={`${prefixo}-lotes-pendencia`} /> : null}
         </>
       ) : null}
@@ -1223,7 +1245,8 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
     /** @type {Record<string, any>} */
     let dados = corpoDaLinhaProduto(form);
     if (editando) {
-      dados = camposAlteradosDaLinha(linha, dados);
+      // D-PROD-310: a unidade de conversão e as quantidades vão juntas quando alguma mudou.
+      dados = camposAlteradosDaLinhaProduto(linha, dados);
       // D-PROD-293: tirar o jato da linha que tinha um.
       if (Number.isInteger(linha?.jato) && !Number.isInteger(form.jato)) dados.jato = null;
       if (!Object.keys(dados).length) {

@@ -1,6 +1,6 @@
-# Relatório — Só o último da sequência e revisão geral de lote, nutrição e depósito (D-PROD-310)
+# Relatório — Só o último da sequência e revisão geral de lote, nutrição e depósito (D-PROD-311)
 
-**Data:** 2026-11-25 · **Branch:** `claude/nifty-feynman-rh0kdn` · **Decisão:** [D-PROD-310](./DECISIONS.md)
+**Data:** 2026-11-25 · **Branch:** `claude/nifty-feynman-rh0kdn` · **Decisão:** [D-PROD-311](./DECISIONS.md)
 
 ## Pedido
 

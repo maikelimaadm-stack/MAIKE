@@ -260,7 +260,7 @@ describe('R6-D — vínculos causais no cancelamento do ledger', () => {
 
   test('D2: documento que cita o PRÓPRIO movimento bloqueia; documento da origem com data ANTERIOR (ou de outro id) NÃO bloqueia', async () => {
     const c = await ativa();
-    // D-PROD-310: documento na origem com data POSTERIOR ao movimento bloquearia; anterior, não.
+    // D-PROD-311: documento na origem com data POSTERIOR ao movimento bloquearia; anterior, não.
     const sem = await prisma().eventoSanitario.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, dados: { lote_id: c.posA.id, lote: 'PASTO B', data: '2026-10-05' } } });
     const com = await prisma().manejoTecnicoRebanho.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, dados: { movimentacao_id: c.transf.id } } });
     const r = await cancelar(c, c.transf.id);

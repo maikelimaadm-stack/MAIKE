@@ -36,7 +36,7 @@ export default function FilaDeEnvio() {
   };
 
   const descartar = async (item) => {
-    // D-PROD-310: só o último da sequência sai — com um registro posterior que depende deste,
+    // D-PROD-311: só o último da sequência sai — com um registro posterior que depende deste,
     // a pessoa exclui primeiro o mais recente.
     const dependentes = await dependentesDoRegistro(item.id);
     if (dependentes.length) {

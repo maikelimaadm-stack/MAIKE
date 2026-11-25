@@ -552,6 +552,11 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 422,
     meaning: 'a escolha de lotes da linha não serve (details.reason: lotes_formato | lote_repetido | lote_indisponivel | lote_sem_saldo | lotes_nao_somam | produto_sem_controle_de_lote); nada foi gravado',
   },
+  // D-PROD-310 — a quantidade numa unidade de conversão do produto (cocho, transferência e linha de produto da atividade).
+  UNIDADE_LANCAMENTO_INVALIDA: {
+    http: 422,
+    meaning: 'a unidade de conversão do lançamento não serve (details.reason: unidade_inativa | unidade_nao_cadastrada | unidade_de_outro_produto | unidade_sem_uso | unidade_incompativel | peso_por_saco_ausente | quantidade_divergente | quantidade_estoque_zero | valor_excede_limite_estoque); nada foi gravado',
+  },
   ESTOQUE_ESTORNO_MODO_LOTE_DIVERGENTE: {
     http: 409,
     meaning: 'o movimento foi gravado com o produto em outro controle de lote (o cadastro mudou depois): estorno e exclusão recusados (details.reason: movimento_sem_lote | movimento_com_lote); nada foi alterado',
@@ -692,7 +697,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   REBANHO_AREA_INATIVA: { http: 409, meaning: 'área de destino inativa' },
   REBANHO_ATIVACAO_LOTE_SEM_AREA: { http: 409, meaning: 'há lote ativo com cabeças e sem área válida; corrija antes de ativar' },
   // D-PROD-110 — exclusão definitiva segura de movimentação do rebanho.
-  REBANHO_EXCLUSAO_REGISTRO_POSTERIOR: { http: 409, meaning: 'há registro posterior (movimentação, pesagem, nutrição, sanidade, tarefa) na origem ou no destino desta movimentação; exclua primeiro o mais recente; nada foi alterado (D-PROD-310)' },
+  REBANHO_EXCLUSAO_REGISTRO_POSTERIOR: { http: 409, meaning: 'há registro posterior (movimentação, pesagem, nutrição, sanidade, tarefa) na origem ou no destino desta movimentação; exclua primeiro o mais recente; nada foi alterado (D-PROD-311)' },
   ID_DO_APARELHO_EM_USO: { http: 409, meaning: 'o id gerado no aparelho já está em uso; o app gera outro (D-PROD-308)' },
   ID_DO_APARELHO_EXCLUIDO: { http: 409, meaning: 'o registro com este id do aparelho foi criado e depois excluído; não é recriado (D-PROD-308)' },
   IDEMPOTENCY_EFEITO_EXCLUIDO: { http: 409, meaning: 'o fato gerado por esta chave foi excluído definitivamente; não há replay nem recriação — lance a operação correta com chave nova' },

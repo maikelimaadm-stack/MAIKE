@@ -157,7 +157,7 @@ export function getSexoAnteriorFromObs(observacoes) {
  * Parse de número: formato BR com vírgula (1.234,56 → 1234.56) e formato de máquina
  * (1234.56, o que `input type="number"` e `toFixed` produzem).
  *
- * D-PROD-310: antes TODO ponto era apagado — "12.5" virava 125 e "12.00" virava 1200 (campo
+ * D-PROD-311: antes TODO ponto era apagado — "12.5" virava 125 e "12.00" virava 1200 (campo
  * numérico da transferência, "aproveitar sobra" e a troca kg↔sacos do cocho). O ponto só é
  * separador de milhar quando há vírgula decimal no texto.
  */

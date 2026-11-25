@@ -74,7 +74,7 @@ registrarTipoDeEnvio({
   versao: 1,
   offline: true,
   recursos: (p) => [`cocho:${p?.ponto_suplementacao_id ?? ''}`],
-  // D-PROD-310: a leitura não depende do lançamento nem o lançamento dela (a ordem do cocho é
+  // D-PROD-311: a leitura não depende do lançamento nem o lançamento dela (a ordem do cocho é
   // só para subir na ordem em que foram feitas; excluir uma não prende a outra).
   independente: true,
   rotulo: (p) => `Leitura de cocho (${String(p?.data_leitura ?? '').split('-').reverse().join('/')})`,

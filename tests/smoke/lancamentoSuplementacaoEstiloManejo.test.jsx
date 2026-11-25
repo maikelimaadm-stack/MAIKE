@@ -16,8 +16,8 @@
  *        fecha e faz o refresh de hoje (consultas do cocho e `atualizar-mapa`);
  *  LM-5. salvando: ✓ girando com "Registrando...", ✕ desabilitado, o Esc da
  *        tela cheia não fecha, campos travados e o passo no topo;
- *  LM-6. produto em sacos: a unidade é um `LancLoteSegmento`; os sacos viram kg
- *        na gravação como antes;
+ *  LM-6. produto em sacos (D-PROD-310): a unidade num seletor ao lado da quantidade
+ *        (kg e as conversões do cadastro); a conta "= 200 kg" embaixo; sem conversão, nada novo;
  *  LM-7. avisos e informações em `LancLoteAviso`, no tom de cada um;
  *  LM-8. consumo por lote: um `LancLoteItem` por lote, atrás do Ver/Ocultar;
  *  LM-9. sobra herdada: o diálogo de confirmação abre por cima, aproveitar a sobra
@@ -291,30 +291,45 @@ describe("D-PROD-222 — Lançar do cocho no desenho do lançamento de manejo", 
     expect(invalidar.mock.calls.some(([o]) => o?.predicate?.({ queryKey: ["mapa-eventos-supl"] }))).toBe(true);
   });
 
-  it("LM-6 — produto em sacos: unidade num LancLoteSegmento; os sacos viram kg na gravação como antes", async () => {
+  it("LM-6 — produto em sacos (D-PROD-310): a unidade num seletor ao lado da quantidade (kg e a conversão SACO); 8 SACO = 200 kg, a conta embaixo; a baixa leva a unidade e a quantidade digitada", async () => {
     largura(1280);
-    estado.produtos = [{ ...PRODUTO, unidade_principal_estoque: "SACO", peso_por_saco_kg: 25 }];
+    estado.produtos = [{ ...PRODUTO, unidade_principal_estoque: "SACO", peso_por_saco_kg: 25, unidade_estoque: "KG", unidades_conversao: [{ id: "c1", sigla: "SACO", operacao: "MULTIPLICA", fator: "25.000000", uso_compra: true, uso_venda: true, ativa: true, equivalencia: "1 SACO = 25 KG" }] }];
     await montar();
     const dialogo = await abrirLancar();
-    const grupo = within(dialogo).getByRole("radiogroup", { name: "Unidade de lançamento" });
-    const [kg, sacos] = within(grupo).getAllByRole("radio");
-    expect([kg.textContent, sacos.textContent]).toEqual(["Quilogramas (KG)", "Sacos (25 kg/saco)"]);
-    expect(kg.getAttribute("aria-checked")).toBe("true");
-    await act(async () => { fireEvent.click(sacos); });
-    expect(sacos.getAttribute("aria-checked")).toBe("true");
+    const unidade = document.getElementById(rotulo(dialogo, "Unidade").htmlFor);
+    expect(unidade?.matches('button[role="combobox"]')).toBe(true);
+    expect(unidade?.textContent).toBe("Quilos (kg)");
+    await act(async () => { unidade?.focus(); fireEvent.click(/** @type {HTMLElement} */ (unidade)); });
+    const opcao = await screen.findByRole("option", { name: "SACO (1 SACO = 25 KG)" });
+    await act(async () => { fireEvent.click(opcao); });
+    expect(unidade?.textContent).toBe("SACO (1 SACO = 25 KG)");
 
-    const campoSacos = document.getElementById(rotulo(dialogo, "Quantidade de sacos").htmlFor);
+    const campoSacos = document.getElementById(rotulo(dialogo, "Quantidade fornecida (SACO)").htmlFor);
     await act(async () => { fireEvent.change(/** @type {HTMLInputElement} */ (campoSacos), { target: { value: "8" } }); });
-    const equivalente = within(dialogo).getByTestId("suplementacao-equivalente-kg");
-    expect(equivalente.textContent).toBe("200,00 kg");
-    expect(rotulo(dialogo, "Equivalente em kg").closest(".mg-field")?.contains(equivalente)).toBe(true);
+    expect(within(dialogo).getByTestId("suplementacao-conversao").textContent).toBe("= 200 kg");
     // Saldo em kg e em sacos, com a baixa automática.
     expect(within(dialogo).getByTestId("suplementacao-saldo-deposito").textContent).toMatch(/Saldo depósito: 5\.000,00 KG.*Sacos: 200,0 sacos.*Baixa automática: Ativa/);
 
     await act(async () => { fireEvent.click(within(dialogo).getByRole("button", { name: "Salvar novo ciclo" })); });
     await assentar();
-    expect(saida.mock.calls[0][0].quantidade).toBe(200);
-    expect(lancar.mock.calls[0][0].evento).toMatchObject({ quantidade_total_kg: 200, quantidade_sacos: 8, unidade_lancamento: "SACO", peso_por_saco_kg: 25 });
+    expect(saida.mock.calls[0][0]).toMatchObject({ quantidade: 200, unidadeLancamento: "SACO", quantidadeLancamento: "8" });
+    expect(lancar.mock.calls[0][0].evento).toMatchObject({ quantidade_total_kg: 200, quantidade_sacos: 8, unidade_lancamento: "SACO", peso_por_saco_kg: 25, quantidade_lancamento: 8 });
+  });
+
+  it("LM-6b — produto sem unidade de conversão: nada de novo (sem seletor de unidade, a quantidade em kg de sempre, o corpo de sempre)", async () => {
+    largura(1280);
+    estado.produtos = [{ ...PRODUTO, unidade_estoque: "KG", unidades_conversao: [] }];
+    await montar();
+    const dialogo = await abrirLancar();
+    expect(within(dialogo).queryByText("Unidade", { selector: "label.mg-field__label" })).toBeNull();
+    const campoKg = document.getElementById(rotulo(dialogo, "Quantidade total fornecida (kg)").htmlFor);
+    await act(async () => { fireEvent.change(/** @type {HTMLInputElement} */ (campoKg), { target: { value: "120" } }); });
+    expect(within(dialogo).queryByTestId("suplementacao-conversao")).toBeNull();
+    await act(async () => { fireEvent.click(within(dialogo).getByRole("button", { name: "Salvar novo ciclo" })); });
+    await assentar();
+    expect(saida.mock.calls[0][0].quantidade).toBe(120);
+    expect(saida.mock.calls[0][0]).not.toHaveProperty("unidadeLancamento");
+    expect(lancar.mock.calls[0][0].evento).toMatchObject({ quantidade_total_kg: 120, unidade_lancamento: "KG", quantidade_sacos: null, quantidade_lancamento: null });
   });
 
   it("LM-7 — avisos e informações em LancLoteAviso, no tom de cada um", async () => {

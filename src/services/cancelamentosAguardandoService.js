@@ -12,7 +12,7 @@ import { TIPO_CANCELAMENTO_LANCAMENTO_COCHO, TIPO_CANCELAMENTO_TRANSFERENCIA } f
 /** @param {string} tipo */
 const payloadsAguardando = async (tipo) => {
   try {
-    // D-PROD-310: cancelamento RECUSADO pelo servidor ("precisa de atenção") não vale: a tela
+    // D-PROD-311: cancelamento RECUSADO pelo servidor ("precisa de atenção") não vale: a tela
     // volta a mostrar o lançamento/transferência original (como o saldo já mostrava).
     return (await registrosAguardandoDoTipo(tipo)).filter((r) => r.estado !== 'atencao').map((r) => /** @type {any} */ (r.payload));
   } catch {

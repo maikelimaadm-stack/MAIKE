@@ -50,8 +50,10 @@ a quantidade já na unidade de estoque.
 | Ajuste de inventário (`/estoque/ajustes`) | qualquer ativa | `AjusteEstoqueItem.unidade`/`fator_kg`/`contado_estoque` | **conversão** |
 | Compra do financeiro (PAGAR) | compra | `OperacaoFinanceiraItem.unidade`/`fator_kg`/`quantidade_estoque` | **conversão** |
 | Venda do financeiro (RECEBER) | venda/saída | idem | **conversão** |
-| Transferência, cocho | — | sem unidade digitada no servidor (a tela converte o SACO antigo em kg) | fora (§7) |
-| Linha de produto da atividade, abastecimento | — | `unidade` = unidade de estoque (snapshot) | fora (§7, Constituição) |
+| Cocho (`saida-suplementacao`) | saída/venda | `MovimentacaoEstoque.unidade_lancamento`/`quantidade_lancamento`/`fator_lancamento` | **conversão** (D-PROD-310) |
+| Transferência (mapa e tela Estoque, `transferencia-locais`) | qualquer ativa | as 3 colunas nas **duas** pernas do movimento | **conversão** (D-PROD-310) |
+| Linha de produto da atividade | saída/venda | `AtividadeApontamentoProduto.unidade_lancamento`/`quantidade_lancamento`/`fator_lancamento` (e no movimento); `unidade` = a de estoque | **conversão** (D-PROD-310) |
+| Abastecimento | — | `unidade` = unidade de estoque (snapshot) | fora (Constituição, D-PROD-162) |
 
 Na retificação do financeiro, a linha já recebida numa unidade de conversão mantém o fator **gravado** (como o SACO,
 D-PROD-158): editar o fator no cadastro não muda o documento antigo.
@@ -89,13 +91,17 @@ máximo) e mostra um aviso apontando para a Formulação. As colunas do Produto 
 - Formulações: %PV mínimo e %PV máximo.
 - Tudo em cartões que quebram em 390 px (grade de 12 colunas com `col-span-6`/`col-span-12` no celular).
 
-## 7. Fora do escopo e o que exigiria emenda
+## 7. Fora do escopo e o que exigiu emenda
 
-- Conversão na linha de produto da atividade, no abastecimento, no cocho e na transferência: a Constituição
-  (D-PROD-159/162/193) manda baixar "exatamente a quantidade digitada, na unidade de estoque do Produto" e o `07` proíbe
-  "converter a quantidade entre unidades … por fator" no abastecimento. **Emenda proposta (não aplicada)**, se o dono
-  quiser: "Na linha de produto da atividade, no cocho e na transferência, a quantidade pode ser digitada numa unidade de
-  conversão do cadastro do produto (D-PROD-288); o servidor converte para a unidade de estoque pelo fator cadastrado e
-  grava a unidade, a quantidade e o fator. O abastecimento continua sem conversão." Fica para decisão do proprietário.
+- Conversão na linha de produto da atividade, no cocho e na transferência: a Constituição (D-PROD-159/162/193) mandava
+  baixar "exatamente a quantidade digitada, na unidade de estoque do Produto". **Emenda APROVADA pelo proprietário em
+  2026-11-25** ("Aprovo: cocho, transferência e atividade") e **implementada nessas três telas** na
+  [D-PROD-310](./DECISIONS.md) ([relatório](./MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md)): "Na linha de produto da
+  atividade, no cocho e na transferência, a quantidade pode ser digitada numa unidade de conversão do cadastro do produto
+  (D-PROD-288); o servidor converte para a unidade de estoque pelo fator cadastrado e grava a unidade, a quantidade e o
+  fator. O abastecimento continua sem conversão." O corpo leva `unidade_lancamento` (id ou sigla) e
+  `quantidade_lancamento`; o servidor usa o `resolverUnidade` (§2) e recusa com 422 `UNIDADE_LANCAMENTO_INVALIDA`.
+- O **abastecimento** continua sem conversão: o `07` proíbe "converter a quantidade entre unidades … por fator" nele
+  (nota D-PROD-159/162, inteira).
 - `UN` como unidade de estoque (o motor e os CHECKs de atividade e abastecimento só têm KG e L).
 - Migrar o cocho e o farol para lerem o consumo da Formulação em vez do produto.

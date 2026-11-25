@@ -21,6 +21,7 @@ import {
   cancelarTransferenciaEntreLocais as cancelarTransferenciaApi,
   elegibilidadeCancelamentoTransferencia as elegibilidadeCancelamentoTransferenciaApi,
 } from '@/apis/movimentacoes-estoque';
+import { corpoDaUnidade } from '@/lib/unidadeLancamentoRegras';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import {
   enviarOuGuardar,
@@ -98,7 +99,11 @@ const observacaoComRateio = (observacoes, rateio) =>
  * D-PROD-282 em todas as telas (D-PROD-300): `lotes` (a escolha manual de produto que controla lote, já no formato do
  * corpo, `[{ estoque_lote_nota_id, quantidade }]`) só vai quando vem; sem ela, o servidor aplica o FEFO. Produto com
  * lote não leva o rateio FIFO calculado aqui nas observações (o servidor grava o rateio real, pelos lotes).
- * @param {{ empresaId: string, produto: any, quantidade: number, localOrigemId: string, localOrigemNome?: string, areaId?: string, areaNome?: string, observacoes?: string, lotesNota?: object[], depositoId?: string, pontoSuplementacaoId?: string, dataMovimentacao?: string, lotes?: Array<{ estoque_lote_nota_id: string, quantidade: string }>|null }} params
+ *
+ * D-PROD-310: `unidadeLancamento` + `quantidadeLancamento` (texto canônico) quando a quantidade foi digitada numa
+ * unidade de conversão do produto: vão no corpo (campos ADITIVOS; a fila guarda o corpo como está) junto da `quantidade`
+ * em kg que a tela mostrou — o servidor converte pelo cadastro e confere. Sem eles, o corpo de sempre.
+ * @param {{ empresaId: string, produto: any, quantidade: number, localOrigemId: string, localOrigemNome?: string, areaId?: string, areaNome?: string, observacoes?: string, lotesNota?: object[], depositoId?: string, pontoSuplementacaoId?: string, dataMovimentacao?: string, lotes?: Array<{ estoque_lote_nota_id: string, quantidade: string }>|null, unidadeLancamento?: string|null, quantidadeLancamento?: string|null }} params
  */
 export const montarCorpoDaSaidaSuplementacao = ({
   empresaId,
@@ -114,6 +119,8 @@ export const montarCorpoDaSaidaSuplementacao = ({
   pontoSuplementacaoId,
   dataMovimentacao,
   lotes,
+  unidadeLancamento = null,
+  quantidadeLancamento = null,
 }) => {
   const validacao = validarBaixaFIFO({ lotesNota, produto, localEstoqueId: localOrigemId, quantidade });
   if (!validacao.ok) recusar('registrarSaidaSuplementacao', validacao.motivo);
@@ -131,6 +138,7 @@ export const montarCorpoDaSaidaSuplementacao = ({
     data_movimentacao: dataMovimentacao || null,
     observacoes: comLote ? observacoes || null : observacaoComRateio(observacoes, validacao.rateio),
     ...(comLote && Array.isArray(lotes) && lotes.length ? { lotes } : {}),
+    ...corpoDaUnidade(unidadeLancamento ?? '', quantidadeLancamento),
   };
 };
 
@@ -158,8 +166,10 @@ export const registrarSaidaSuplementacao = async ({ operationId, ...params }) =>
  * saída→entrada e os lotes recriados no destino com o custo de origem.
  */
 /**
- * @param {{ empresaId: string, produto: object, quantidade: number, localOrigemId: string, localOrigemNome?: string, localDestinoId: string, localDestinoNome?: string, observacoes?: string, lotesNota?: object[], dataMovimentacao?: string, operationId?: string, edicao?: string }} params
+ * @param {{ empresaId: string, produto: object, quantidade: number, localOrigemId: string, localOrigemNome?: string, localDestinoId: string, localDestinoNome?: string, observacoes?: string, lotesNota?: object[], dataMovimentacao?: string, operationId?: string, edicao?: string, unidadeLancamento?: string|null, quantidadeLancamento?: string|null }} params
  *   `edicao` (D-PROD-298): o código da transferência que ainda não subiu e está sendo corrigida.
+ *   `unidadeLancamento` + `quantidadeLancamento` (D-PROD-310): a quantidade digitada numa unidade de conversão (campos
+ *   aditivos do corpo e da fila; a `quantidade` continua em kg/L e o servidor confere pelo cadastro).
  */
 export const registrarTransferenciaEntreLocais = async ({
   empresaId,
@@ -174,6 +184,8 @@ export const registrarTransferenciaEntreLocais = async ({
   dataMovimentacao,
   operationId,
   edicao,
+  unidadeLancamento = null,
+  quantidadeLancamento = null,
 }) => {
   // D-PROD-296: pelo motor de sincronização — sem internet fica no aparelho e
   // sai depois com o mesmo código (o servidor deduplica). O saldo da origem é
@@ -201,6 +213,7 @@ export const registrarTransferenciaEntreLocais = async ({
     quantidade: quantidadeFinal,
     data_movimentacao: dataMovimentacao || null,
     observacoes: observacaoComRateio(observacoes, validacao.rateio),
+    ...corpoDaUnidade(unidadeLancamento ?? '', quantidadeLancamento),
   };
   // D-PROD-298: corrigir a transferência que ainda não subiu (mesma posição, mesmo código).
   if (edicao) {
@@ -302,6 +315,9 @@ export const transferenciasAguardandoDoLocal = async (localEstoqueId) => {
           direcao: p.local_destino_id === localEstoqueId ? 'entrada' : 'saida',
           produto_id: p.produto_id,
           quantidade: Number(p.quantidade) || 0,
+          // D-PROD-310: a unidade de conversão digitada (a edição reabre nela).
+          unidade_lancamento: typeof p.unidade_lancamento === 'string' ? p.unidade_lancamento : null,
+          quantidade_lancamento: typeof p.quantidade_lancamento === 'string' ? p.quantidade_lancamento : null,
           local_origem_id: p.local_origem_id,
           local_origem_nome: p.local_origem_nome,
           local_destino_id: p.local_destino_id,
@@ -330,7 +346,7 @@ export const descartarTransferenciaAguardando = async (operationId) => {
   const situacao = await situacaoNaFila(operationId);
   if (situacao === 'confirmando') throw indisponivel('Esta transferência está sendo enviada agora. Espere confirmar para excluir.');
   if (situacao === 'enviado') throw indisponivel('Esta transferência já chegou ao sistema. Atualize a tela.');
-  // D-PROD-310: o que veio depois no mesmo estoque (outra transferência, o lançamento de cocho
+  // D-PROD-311: o que veio depois no mesmo estoque (outra transferência, o lançamento de cocho
   // que tirou dele) depende desta: exclui-se primeiro o mais recente.
   const dependentes = situacao ? await dependentesNaFila(operationId) : [];
   if (dependentes.length) {
@@ -347,7 +363,7 @@ export const transferenciaAguardandoPodeEditar = async (operationId) => {
   const registro = await registroNaFila(operationId);
   if (!registro) throw indisponivel('Esta transferência já chegou ao sistema. Atualize a tela.');
   if (!registro.podeAlterar) throw indisponivel('Esta transferência está sendo enviada agora. Espere confirmar.');
-  // D-PROD-310: o que veio depois no mesmo estoque foi feito contando com esta.
+  // D-PROD-311: o que veio depois no mesmo estoque foi feito contando com esta.
   const dependentes = await dependentesNaFila(operationId);
   if (dependentes.length) {
     throw indisponivel(`Esta transferência tem registro posterior no mesmo estoque. Exclua antes: ${dependentes.map((d) => d.rotulo).join('; ')}.`);
@@ -356,7 +372,7 @@ export const transferenciaAguardandoPodeEditar = async (operationId) => {
 };
 
 /**
- * D-PROD-310 — há, no histórico guardado no aparelho, movimento ativo do mesmo produto num dos
+ * D-PROD-311 — há, no histórico guardado no aparelho, movimento ativo do mesmo produto num dos
  * dois estoques da transferência DEPOIS dela (fora as pernas dela mesma)?
  * @param {any} movimento
  * @param {string|null} empresaId
@@ -412,7 +428,7 @@ registrarTipoDeEnvio({
  * @param {{ movimento: any, empresaId: string, motivo: string, operationId: string }} p
  */
 export const cancelarTransferenciaSemInternet = async ({ movimento, empresaId, motivo, operationId }) => {
-  // D-PROD-310: sem internet, o servidor não confere agora — o aparelho confere o que sabe. Se
+  // D-PROD-311: sem internet, o servidor não confere agora — o aparelho confere o que sabe. Se
   // depois da transferência houve outro movimento do produto em um dos dois estoques (no
   // histórico do aparelho) ou há algo aguardando envio neles, ela não sai: exclui-se primeiro
   // o mais recente.

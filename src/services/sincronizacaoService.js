@@ -113,7 +113,7 @@ export const ligarEnvioDaSessao = (sessao) => {
 };
 
 /**
- * D-PROD-310 — nutrição feita sem internet (lançamento de cocho, com rateio aos lotes) que ainda
+ * D-PROD-311 — nutrição feita sem internet (lançamento de cocho, com rateio aos lotes) que ainda
  * não chegou ao servidor, desta fazenda. A exclusão de uma movimentação de lote fica bloqueada
  * enquanto houver: o servidor não vê o que está só no aparelho, e o lançamento subiria citando
  * um lote que a exclusão desfez.

@@ -483,6 +483,35 @@ const repartirPorQuantidade = (linhas, campo, hectares) => {
 };
 
 /**
+ * D-PROD-310 — os insumos por área. Linha digitada numa unidade de conversão (`unidade_lancamento`): com mais de uma
+ * área, reparte-se a quantidade DIGITADA (`quantidade_lancamento`) e cada parte é convertida pelo servidor (a
+ * `quantidade` de estoque do corpo, se veio, valia para o total e sai das partes). O resto, como sempre.
+ * @param {any[]} linhas @param {string[]} hectares
+ * @returns {Parte[][]} por área
+ */
+const repartirInsumos = (linhas, hectares) => {
+  if (hectares.length <= 1 || !linhas.some((l) => l?.unidade_lancamento)) return repartirPorQuantidade(linhas, 'quantidade', hectares);
+  /** @type {Parte[][]} */
+  const porArea = hectares.map(() => []);
+  linhas.forEach((linha, indice) => {
+    const convertida = Boolean(linha?.unidade_lancamento);
+    const campo = convertida ? 'quantidade_lancamento' : 'quantidade';
+    const q = linha?.[campo];
+    if (typeof q !== 'string' || !PADRAO_DECIMAL.test(q)) {
+      porArea[0].push({ indice, linha });
+      return;
+    }
+    partesPorHectares(q, hectares).forEach((parte, a) => {
+      if (parte === null) return;
+      const nova = { ...linha, [campo]: parte };
+      if (convertida) delete nova.quantidade;
+      porArea[a].push({ indice, linha: nova });
+    });
+  });
+  return porArea;
+};
+
+/**
  * As máquinas por área. Sem medidor (`quantidade_uso`): o uso é repartido. Com medidor (`leitura_final`): o intervalo
  * vira trechos seguidos, na ordem das áreas, e as linhas do MESMO bem são uma série só (`trechosDoMedidor`); a inicial que
  * o corpo não trouxe é a vigente na data (`leituraVigenteDoBem`, sob a trava do bem) ou a final da linha anterior do
@@ -548,7 +577,7 @@ const repartirMaquinas = async (tx, { clienteId, empresaId, dia, maquinas, hecta
  * @returns {Promise<Array<{ linhas: LinhasDaArea, indices: IndicesDaArea }>>}
  */
 const repartirLinhas = async (tx, { clienteId, empresaId, dia, linhas, hectares }) => {
-  const produtos = repartirPorQuantidade(linhas.produtos, 'quantidade', hectares);
+  const produtos = repartirInsumos(linhas.produtos, hectares);
   const maoObra = repartirPorQuantidade(linhas.maoObra, 'quantidade', hectares);
   const servicos = repartirPorQuantidade(linhas.servicos, 'quantidade', hectares);
   const maquinas = await repartirMaquinas(tx, { clienteId, empresaId, dia, maquinas: linhas.maquinas, hectares });

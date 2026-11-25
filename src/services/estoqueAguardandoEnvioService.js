@@ -163,7 +163,7 @@ export const aplicarMovimentosAosLotes = (lotes, movimentos) => {
         referencia = referencia ?? lote;
       }
     }
-    // D-PROD-310: o destino recebe só o que de fato saiu da origem. Antes recebia a quantidade
+    // D-PROD-311: o destino recebe só o que de fato saiu da origem. Antes recebia a quantidade
     // inteira mesmo quando a origem não tinha tudo (ex.: desfazer sem internet uma transferência
     // cujo estoque o destino já usou) — o total crescia e dava para lançar com estoque que não
     // existe. A origem que não aparece nos lotes do aparelho (sem origem) não limita.

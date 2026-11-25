@@ -601,7 +601,7 @@ export const vinculosCausaisDoMovimento = async (tx, clienteId, evento, moviment
 };
 
 /**
- * D-PROD-310 — regra do proprietário (substitui a parte "causal, não cronológico" da
+ * D-PROD-311 — regra do proprietário (substitui a parte "causal, não cronológico" da
  * D-PROD-110): uma movimentação só sai se NADA aconteceu DEPOIS dela em nenhuma posição que
  * ela tocou — origem, destinos, lote principal da junção, origem da baixa. Bloqueia:
  *  - outro fato do rebanho posterior na linha do tempo (movimentação, junção, baixa, pesagem),
@@ -742,7 +742,7 @@ export const cancelarMovimentoDoLedger = async (tx, contexto, mov, motivo, opera
     });
   // PR174-R2: o peso de um fato posterior que dependia deste não pode ficar "órfão".
   await verificarDependenciasTemporais(tx, auth.clienteId, ids, diaDoBanco(evento.data_operacional), { exceto: evento.id });
-  // D-PROD-310: nada depois, na origem nem no destino (exclui-se sempre o mais recente primeiro).
+  // D-PROD-311: nada depois, na origem nem no destino (exclui-se sempre o mais recente primeiro).
   // Depois das conferências de saldo e de peso: quando elas já recusam, a mensagem delas (mais
   // detalhada) vale; esta pega o que antes passava (ex.: nutrição lançada depois na origem).
   const posteriores = await registrosPosterioresDoMovimento(tx, auth.clienteId, evento);
