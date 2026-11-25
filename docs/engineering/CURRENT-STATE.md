@@ -24,10 +24,10 @@ rollout pausado **D-PROD-41**)
 |---|---|
 | Decisão | **D-PROD-310**: emenda da Constituição **aprovada pelo proprietário** (2026-11-25) e aplicada; o cocho, as duas transferências (mapa e tela Estoque) e a linha de produto da atividade aceitam `unidade_lancamento` + `quantidade_lancamento`; o servidor converte pelo cadastro (o motor da compra do financeiro) e grava unidade, quantidade digitada e fator; editar/reenviar mantém o fator gravado; 422 `UNIDADE_LANCAMENTO_INVALIDA`; o abastecimento continua sem conversão |
 | Telas | seletor "Unidade" ao lado da quantidade e a conta "= 250 kg" embaixo; lotes na unidade de estoque; produto sem conversão: nada novo; 390 px |
-| Banco | migration EXPAND `20261126200000_unidade_convertida_lancamentos` (6 colunas anuláveis em `MovimentacaoEstoque` e `AtividadeApontamentoProduto`) — **NÃO aplicada em produção** (GO separado do proprietário) |
-| Branch | `claude/unidade-convertida-lancamentos` (PR em rascunho) |
+| Banco | migration EXPAND `20261126200000_unidade_convertida_lancamentos` (6 colunas anuláveis em `MovimentacaoEstoque` e `AtividadeApontamentoProduto`) — **aplicada em produção em 2026-11-25** (caminho B, GO do proprietário, antes do merge; runbook §7) |
+| Branch | `claude/unidade-convertida-lancamentos` (PR #396, mergeada) |
 | Relatório | [`MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md`](./MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md) · runbook [`MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-RUNBOOK-RELEASE.md`](./MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-RUNBOOK-RELEASE.md) |
-| Próximas | aplicar a migration (GO); mostrar a unidade digitada na lista de movimentos e no histórico do depósito |
+| Próximas | mostrar a unidade digitada na lista de movimentos e no histórico do depósito |
 
 ## Missão anterior (2026-11-25) — MAIKE-SINCRONIZACAO-ETAPA2: só o que mudou (D-PROD-309)
 
