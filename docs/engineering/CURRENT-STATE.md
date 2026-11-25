@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-25 (missão ativa D-PROD-304; antes D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-305; antes D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,16 +9,24 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-25) — MAIKE-FINANCEIRO-RETIFICACAO-LOTE: o lote na correção por substituição do lançamento financeiro (D-PROD-304)
+## Missão ativa (2026-11-25) — MAIKE-FINANCEIRO-RETIFICACAO-LOTE: o lote na correção por substituição do lançamento financeiro (D-PROD-305)
 
 | Item | Estado |
 |---|---|
-| Decisão | **D-PROD-304**: a retificação aceita `lotes_por_item` (o contrato da confirmação) e o usa na SUBSTITUIÇÃO; o diálogo "Salvar correção" pede o lote quando o estoque muda (compra: lote e validade pré-preenchidos com os da versão anterior; venda: o campo "Lote"); NO_LUGAR não mexe em lote |
+| Decisão | **D-PROD-305**: a retificação aceita `lotes_por_item` (o contrato da confirmação) e o usa na SUBSTITUIÇÃO; o diálogo "Salvar correção" pede o lote quando o estoque muda (compra: lote e validade pré-preenchidos com os da versão anterior; venda: o campo "Lote"); NO_LUGAR não mexe em lote |
 | Servidor | rota `RETIFICAR` com `LOTES_POR_ITEM`; fingerprint com o campo só quando vem; `avisos` de vencido na resposta da substituição |
 | Banco | sem migration |
 | Branch | `claude/financeiro-retificacao-lote` (PR em rascunho) |
 | Relatório | [`MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md`](./MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md) |
 | Próximas | unidade convertida nas telas que tiram produto (emenda da SPEC de unidades) |
+
+## Missão anterior (2026-11-25) — MAIKE-APP-VERSAO-LEVE: aviso de versão e app mais leve (D-PROD-304)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-304**: aviso "versão nova pronta" (toque atualiza) e "App atualizado"; versão no menu; telas e janelas de detalhe carregadas quando abertas (pacote inicial 5,4 MB → 2,35 MB) |
+| Banco | sem migration |
+| Relatório | [`APP-VERSAO-LEVE-D304-REPORT.md`](./APP-VERSAO-LEVE-D304-REPORT.md) |
 
 ## Missão anterior (2026-11-25) — MAIKE-MAPA-LOCALIZACAO: abre na fazenda, ponto da localização que acompanha (D-PROD-302)
 

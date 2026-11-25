@@ -6,38 +6,43 @@
  * `config/mapa-manejo-scope.json`. Adicionar página fora do manifesto reprova o gate.
  */
 import MapaGeral from './pages/MapaGeral';
-import MapaCadastro from './pages/MapaCadastro';
-import CadastroLotes from './pages/CadastroLotes';
-import CadastroSetores from './pages/CadastroSetores';
-import CategoriasManejo from './pages/CategoriasManejo';
-import Bebedouros from './pages/Bebedouros';
-import Produtos from './pages/Produtos';
-import Categorias from './pages/Categorias';
-import Marcas from './pages/Marcas';
-import UnidadesMedida from './pages/UnidadesMedida';
-import LocaisEstoque from './pages/LocaisEstoque';
-import Estoque from './pages/Estoque';
-import TiposTarefa from './pages/TiposTarefa';
-import TiposAtividade from './pages/TiposAtividade';
-import Estacoes from './pages/Estacoes';
-import Culturas from './pages/Culturas';
-import CurvasGanho from './pages/CurvasGanho';
-import Formulacoes from './pages/Formulacoes';
-import LancamentoAtividades from './pages/LancamentoAtividades';
-import GruposAtividades from './pages/GruposAtividades';
-import Servicos from './pages/Servicos';
-import Empresa from './pages/Empresa';
-import Usuarios from './pages/Usuarios';
-import Permissoes from './pages/Permissoes';
-import ConfiguracoesGerais from './pages/ConfiguracoesGerais';
-import Parceiros from './pages/Parceiros';
-import CentrosCusto from './pages/CentrosCusto';
-import CentrosResultado from './pages/CentrosResultado';
-import NaturezasFinanceiras from './pages/NaturezasFinanceiras';
-import LancamentosFinanceiros from './pages/LancamentosFinanceiros';
-import BensPatrimoniais from './pages/BensPatrimoniais';
-import Abastecimentos from './pages/Abastecimentos';
 import __Layout from './Layout.jsx';
+import { paginaSobDemanda } from './lib/paginaSobDemanda.jsx';
+
+// D-PROD-304: só o Mapa Geral (a superfície primária) vem no pacote inicial; as outras
+// telas carregam quando abertas — o app abre mais rápido e usa menos memória.
+const MapaCadastro = paginaSobDemanda(() => import('./pages/MapaCadastro'));
+const CadastroLotes = paginaSobDemanda(() => import('./pages/CadastroLotes'));
+const CadastroSetores = paginaSobDemanda(() => import('./pages/CadastroSetores'));
+const CategoriasManejo = paginaSobDemanda(() => import('./pages/CategoriasManejo'));
+const Bebedouros = paginaSobDemanda(() => import('./pages/Bebedouros'));
+const Produtos = paginaSobDemanda(() => import('./pages/Produtos'));
+const Categorias = paginaSobDemanda(() => import('./pages/Categorias'));
+const Marcas = paginaSobDemanda(() => import('./pages/Marcas'));
+const UnidadesMedida = paginaSobDemanda(() => import('./pages/UnidadesMedida'));
+const LocaisEstoque = paginaSobDemanda(() => import('./pages/LocaisEstoque'));
+const Estoque = paginaSobDemanda(() => import('./pages/Estoque'));
+const TiposTarefa = paginaSobDemanda(() => import('./pages/TiposTarefa'));
+const TiposAtividade = paginaSobDemanda(() => import('./pages/TiposAtividade'));
+const Estacoes = paginaSobDemanda(() => import('./pages/Estacoes'));
+const Culturas = paginaSobDemanda(() => import('./pages/Culturas'));
+const CurvasGanho = paginaSobDemanda(() => import('./pages/CurvasGanho'));
+const Formulacoes = paginaSobDemanda(() => import('./pages/Formulacoes'));
+const LancamentoAtividades = paginaSobDemanda(() => import('./pages/LancamentoAtividades'));
+const GruposAtividades = paginaSobDemanda(() => import('./pages/GruposAtividades'));
+const Servicos = paginaSobDemanda(() => import('./pages/Servicos'));
+const Empresa = paginaSobDemanda(() => import('./pages/Empresa'));
+const Usuarios = paginaSobDemanda(() => import('./pages/Usuarios'));
+const Permissoes = paginaSobDemanda(() => import('./pages/Permissoes'));
+const ConfiguracoesGerais = paginaSobDemanda(() => import('./pages/ConfiguracoesGerais'));
+const Parceiros = paginaSobDemanda(() => import('./pages/Parceiros'));
+const CentrosCusto = paginaSobDemanda(() => import('./pages/CentrosCusto'));
+const CentrosResultado = paginaSobDemanda(() => import('./pages/CentrosResultado'));
+const NaturezasFinanceiras = paginaSobDemanda(() => import('./pages/NaturezasFinanceiras'));
+const LancamentosFinanceiros = paginaSobDemanda(() => import('./pages/LancamentosFinanceiros'));
+const BensPatrimoniais = paginaSobDemanda(() => import('./pages/BensPatrimoniais'));
+const Abastecimentos = paginaSobDemanda(() => import('./pages/Abastecimentos'));
+
 
 export const PAGES = {
     "MapaGeral": MapaGeral,

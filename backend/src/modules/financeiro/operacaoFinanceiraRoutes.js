@@ -127,7 +127,7 @@ const DETALHE = { params: PARAMS, querystring: SO_EMPRESA };
 const PREVIA = { params: PARAMS, body: SO_EMPRESA };
 /**
  * D-PROD-282: por item de produto com lote — lote e validade (compra) ou lotes escolhidos (venda; sem eles, FEFO).
- * D-PROD-304: o mesmo campo na retificação por SUBSTITUIÇÃO (o NO_LUGAR não mexe em lote e o ignora).
+ * D-PROD-305: o mesmo campo na retificação por SUBSTITUIÇÃO (o NO_LUGAR não mexe em lote e o ignora).
  */
 const LOTES_POR_ITEM = {
   type: 'array', maxItems: 200,

@@ -505,7 +505,7 @@ export function DialogoLiquidacao({ aberto, titulo, registro, perfil, hoje, fuso
  *   rotuloEnviando?: string,
  *   rotuloMotivo?: string,
  *   bloqueio?: string,
- * }} props `bloqueio` (D-PROD-304): texto de uma pendência de quem abre o diálogo (o lote da correção); com ele, o botão
+ * }} props `bloqueio` (D-PROD-305): texto de uma pendência de quem abre o diálogo (o lote da correção); com ele, o botão
  *   de envio fica desabilitado (o texto aparece no próprio `conteudo`). `icone` (opcional): o selo ao lado do título (o "Concluir atividade" da D-PROD-232); `iconeBotao`: o ícone
  *   do botão de envio. Sem eles, o diálogo fica como sempre foi. `janelaBase1` (D-PROD-252, emenda 3): o diálogo vira a
  *   janela padrão do Base1 (`B1Janela`: 680px, corpo que rola, título e ✕ em cima, botões embaixo; tela cheia no

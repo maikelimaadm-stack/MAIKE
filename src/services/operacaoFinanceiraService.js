@@ -461,7 +461,7 @@ export const cancelarLancamento = async (empresaId, id, p) => {
  * `versao` do detalhe aberto (CAS) + `motivo`. O servidor decide, sob trava, se
  * corrige no lugar (sem mexer no estoque) ou por substituição atômica (estorno
  * do antigo + documento novo com o MESMO número). Sem resposta → mesmo
- * `operation_id` na repetição (replay). D-PROD-304: `lotes_por_item` (lote e validade da compra, lotes escolhidos da
+ * `operation_id` na repetição (replay). D-PROD-305: `lotes_por_item` (lote e validade da compra, lotes escolhidos da
  * venda) para a correção que muda o estoque; só vai quando tem item (sem ele, o corpo é o de sempre).
  * @param {string|null} empresaId
  * @param {string} id

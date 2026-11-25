@@ -1,6 +1,6 @@
 # MAIKE-FINANCEIRO-RETIFICACAO-LOTE — relatório
 
-**Decisão:** [D-PROD-304](./DECISIONS.md) · **Data:** 2026-11-25 · **Branch:** `claude/financeiro-retificacao-lote` · **Migration:** nenhuma · base: [D-PROD-300](./DECISIONS.md) (lote na confirmação do financeiro)
+**Decisão:** [D-PROD-305](./DECISIONS.md) · **Data:** 2026-11-25 · **Branch:** `claude/financeiro-retificacao-lote` · **Migration:** nenhuma · base: [D-PROD-300](./DECISIONS.md) (lote na confirmação do financeiro)
 
 ## O problema
 

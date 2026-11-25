@@ -1,5 +1,5 @@
 /**
- * D-PROD-304 — o lote no diálogo "Salvar correção" do lançamento confirmado (retificação por substituição), com a
+ * D-PROD-305 — o lote no diálogo "Salvar correção" do lançamento confirmado (retificação por substituição), com a
  * Central Única de Lançamentos montada de verdade (página, motor Base1, service, API, porta e nativeHttpClient reais).
  * Mocks só da borda: `fetch` (backend FALSO de tests/smoke/fixtures/lancamentosFakeCore.js mais a leitura dos lotes
  * disponíveis), a sessão e o cache do Mapa.
@@ -149,7 +149,7 @@ afterEach(() => {
 
 const comLote = (lotes, extra = {}) => () => ({ unidade: 'KG', controla_lote: true, controla_validade: true, hoje: '2026-11-08', dias_aviso: 30, lotes, ...extra });
 
-describe('D-PROD-304 — lote na correção do lançamento confirmado', () => {
+describe('D-PROD-305 — lote na correção do lançamento confirmado', () => {
   it('RL-1 compra com lote: pré-preenchido com o lote anterior; sem o lote bloqueia; o corpo leva lotes_por_item', async () => {
     const doc = semearDocumento(estado, compraSimples(), { confirmar: true });
     leituraLotes = comLote([{ id: `lote-${doc.id}-1`, lote_fabricante: 'NF-77', data_validade: '2027-12-31', quantidade_disponivel: '100.0000', vencido: false, vence_em_dias: 418 }]);

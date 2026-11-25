@@ -1530,7 +1530,8 @@ describe("LA-MENU — rota, menu, ícone, manifesto e paridade com o servidor", 
     const { PAGES } = await import("@/pages.config.js");
     const { DEFAULT_MENU, findMenuItemByUrl, getMenuModules } = await import("@/lib/menuConfig");
     const { ICONE_TELA } = await import("@/components/navigation/MobileModulesView");
-    expect(PAGES.LancamentoAtividades).toBe(LancamentoAtividades);
+    // D-PROD-304: a tela carrega quando aberta; o registro aponta para ela.
+    expect((await PAGES.LancamentoAtividades.carregar()).default).toBe(LancamentoAtividades);
     expect(PAGES).not.toHaveProperty("ApontamentosAtividade");
     const scope = JSON.parse(readFileSync("config/mapa-manejo-scope.json", "utf8"));
     expect(scope.allowedPages).toContain("LancamentoAtividades");

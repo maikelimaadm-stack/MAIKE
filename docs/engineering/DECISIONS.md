@@ -65,8 +65,6 @@ avaliada contra o motor MDP do PROJETOMG antes de virar model próprio.
 
 **Consequência:** escopo real cai de ~87 para ~76 entidades de domínio.
 
-
-
 ---
 
 ## D-PROD-01 — Produto focado: Pecuária Mapa Geral + Manejo
@@ -3702,7 +3700,6 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V7). Teste: `test
 
 > **Numeração (decisões do proprietário, R2A-R2 e R2A-R3):** esta decisão foi redigida na PR #162 como "D-PROD-95". Enquanto a #162 estava em revisão, entraram em `main` a maikelimaadm-stack/MAIKE#163 (D-PROD-95, UX-MOBILE-V4), a #164 (D-PROD-96, celular V5), a #165 (D-PROD-97, celular V6) e a #166 (D-PROD-98, celular V7). Regra decidida pelo proprietário: as decisões já em `main` ficam preservadas, e a R2A ocupa o próximo número livre. Ela passou a ser **D-PROD-99**, com as subdecisões **D-PROD-99a** (R2A-R1), **D-PROD-99b** (R2A-R2) e **D-PROD-99c** (R2A-R3).
 
-
 **Missão:** MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-BACKEND-01. Base: `main` d2cba91 (merge da #161). Sem migration, sem escrita em produção, sem ledger.
 
 **Contexto:** a R1.1 suspendeu exclusões só na interface. O backend ainda apagava e reescrevia movimentos por `DELETE`/`PATCH` genéricos. O Histórico de Abate do Curral e o "Reverter nome" do lote faziam reversões em várias chamadas do navegador.
@@ -4463,7 +4460,6 @@ Auditoria do HEAD `ce1ab5b`: três hipóteses reproduzidas em RED (PostgreSQL re
   3. merge, deploy automático da Vercel;
   4. cutover imediato, empresa de teste primeiro.
   - Entre 3 e 4, os manejos de empresas ainda não migradas recebem a recusa clara, nunca escrita legada.
-
 
 ### D-PROD-107 — complemento PR174-R6 (fechamento seguro de release e cutover)
 
@@ -6497,7 +6493,6 @@ O resto da D-PROD-176 continua: ícones, aparência, cadastro e filtro.
 ## D-PROD-181 — Tipo de Tarefa sem flags de exigência (Fatia A: expand no código, colunas dormentes no banco)
 
 > **Numeração:** estas duas decisões nasceram como D-PROD-179 e D-PROD-180, mas as PRs #255 e #258 (CI) entraram antes na `main` com a D-PROD-179 e a D-PROD-180. Para não duplicar, a Fatia A virou **D-PROD-181** e a Fatia B, **D-PROD-182**; a D-PROD-180 ficou com a PR #258 (CI paralela), que também entrou antes.
-
 
 **Data:** 2026-11-13 · **Origem:** pedido do proprietário ("prompt-tipo-atividade", Fatia A) · **Branch:** `feat/tipo-tarefa-sem-flags`
 
@@ -9209,7 +9204,6 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Fora:** cartão de Forragem dentro do Detalhes do Lote (a tela não recebe a cultura da área nem a medição; pede mudança no carregamento de dados); mudar a ordem padrão das colunas da Lista; redesenho próprio de tablet e computador (recebem o mesmo conteúdo, sem quebra); os formulários de lançamento. Nenhuma mudança no servidor; nenhuma migration.
 - **Testes:** `tests/smoke/detalhesV13HistoricoSupl.test.jsx` (novo) e os smoke do Detalhes ajustados (`detalhesLoteV12Lotes`, `detalhesLoteQuadros`, `iconesManejo`, `detalhesCompactos`, `subiconeLote`, `abaHistoricoPasto`, `abaHistoricoExcluirMovimento`).
 
-
 ## D-PROD-281 — Entrega A: nomes simples, "Atividades em andamento" no topo e o "Novo lançamento" curto
 
 **Data:** 2026-11-23 · **Origem:** proprietário (nomes e telas aprovados nas maquetes `final-lista`, `final-registrar`, `final-horimetro`) · **Relatório:** [`MAIKE-ENTREGA-A-LANCAMENTO-SIMPLES-REPORT.md`](./MAIKE-ENTREGA-A-LANCAMENTO-SIMPLES-REPORT.md)
@@ -9528,11 +9522,25 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Decisão:** o detalhe do cocho lia o cadastro de produtos SÓ com internet (sem sinal devolvia lista vazia de propósito; o cocho ficava sem os sacos). Agora lê do celular como as outras telas. O pente-fino (`penteFinoOffline.test.js`) passa a cobrir também as leituras do detalhe do cocho (lançamentos, cochos, áreas, leituras e produtos).
 - **Testes:** `tests/smoke/penteFinoOffline.test.js` (PF-01 com o detalhe do cocho).
 
-## D-PROD-304 — Financeiro: o lote na retificação por substituição
+## D-PROD-304 — Aviso de versão do app e app mais leve (telas e janelas carregadas quando abertas)
+
+- **Contexto:** o proprietário não percebia quando o app atualizava ("não mostra nada") e pediu o app mais leve. A atualização automática (D-PROD-294) baixa a versão nova em silêncio e só a usa na abertura seguinte; o pacote inicial tinha 5,4 MB (1,55 MB comprimido) com todas as telas dentro.
+- **Decisão — versão:**
+  1. Versão nova baixada: aviso "Versão nova do app pronta — toque para atualizar agora; ou ela entra sozinha na próxima vez que abrir". Tocar troca na hora (`CapacitorUpdater.set`). Um aviso por versão; a versão já baixada não é baixada de novo (só lembra).
+  2. Ao abrir com o pacote novo: "App atualizado" uma vez (compara com a versão em uso guardada no celular).
+  3. Menu do usuário: "Versão do app 1.0.4 · abc1234" (APK · pacote), para conferir se atualizou.
+- **Decisão — mais leve:**
+  1. Só o Mapa Geral (a superfície primária) vem no pacote inicial; as outras 32 telas carregam quando abertas (`paginaSobDemanda`, `React.lazy`). No site, se o pedaço de uma tela sumir depois de uma publicação, a página recarrega uma vez.
+  2. No Mapa Geral, as janelas de detalhe e os painéis (lote, área, cocho/depósito, bebedouro, tarefas, insights, resumo do rebanho) carregam no primeiro toque (`componenteSobDemanda`).
+  3. Resultado do build: pacote inicial de 5,4 MB para 2,35 MB (1,55 MB para 677 KB comprimido).
+  4. Sem internet não muda nada: no app os pedaços estão dentro do pacote. "Baixar dados" carrega todas as portas dos módulos antes de baixar (entidades e leituras), porque elas não vêm mais junto com as telas.
+- **Testes:** `tests/smoke/atualizacaoAutomaticaApp.test.js` (AV-01..04), `tests/smoke/avisoDeVersao.test.jsx` (VS-01..02).
+
+## D-PROD-305 — Financeiro: o lote na retificação por substituição
 
 **Data:** 2026-11-25 · **Origem:** pedido do proprietário (a correção de uma compra ou venda confirmada de produto com lote, quando muda o estoque), plano aprovado · **Branch:** `claude/financeiro-retificacao-lote` · **Relatório:** [`MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md`](./MAIKE-FINANCEIRO-RETIFICACAO-LOTE-REPORT.md)
 
-> **Numeração:** nasceu D-PROD-301 (`node scripts/dev/proxima-decisao.mjs` na `main` `289cefb1`). Antes do push, a `main` deu a D-PROD-301 à sincronização organizada (PR #388, `880fb0e5`) e a D-PROD-302 e a D-PROD-303 ao mapa e ao cocho sem internet (PR #389, `4ddda0a9`), e passou a indicar `Próxima decisão: D-PROD-304`, que é esta; o marcador passa a D-PROD-305.
+> **Numeração:** nasceu D-PROD-301 (`node scripts/dev/proxima-decisao.mjs` na `main` `289cefb1`). Antes do push, a `main` deu a D-PROD-301 à sincronização organizada (PR #388, `880fb0e5`) e a D-PROD-302 e a D-PROD-303 ao mapa e ao cocho sem internet (PR #389, `4ddda0a9`), e passou a indicar `Próxima decisão: D-PROD-304`; com a PR já aberta, a `main` deu a D-PROD-304 ao aviso de versão do app (PR #391, `337e888a`) e passou a indicar `Próxima decisão: D-PROD-305`, que é esta; o marcador passa a D-PROD-306.
 
 - **Contexto:** a D-PROD-300 deu o lote na **confirmação** do lançamento financeiro (`lotes_por_item`) e deixou fora a retificação. A retificação por SUBSTITUIÇÃO estorna a versão anterior e grava a nova pelo mesmo núcleo da confirmação (`aplicarEfeitosDoPlano`), mas sem o lote: corrigir a quantidade (ou outro campo físico) de uma compra confirmada de produto com lote era **recusado** (422 `ESTOQUE_LOTE_OBRIGATORIO`, `lote_obrigatorio`) e a correção de uma venda caía no FEFO sem escolha.
 - **Decisão (o mesmo contrato da confirmação; nada muda para produto sem lote):**
@@ -9546,4 +9554,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** nenhuma regra nova (a emenda da D-PROD-282 cobre).
 - **Fora:** a correção que a tela prevê sem mudança no estoque mas o servidor faz por substituição (previsão diferente do servidor) segue sem os campos: a compra com lote é recusada com 422 e a pessoa corrige de novo; a direção trocada (compra ↔ venda) com produto de lote não tem tratamento especial.
 
-<!-- Próxima decisão: D-PROD-305 -->
+<!-- Próxima decisão: D-PROD-306 -->

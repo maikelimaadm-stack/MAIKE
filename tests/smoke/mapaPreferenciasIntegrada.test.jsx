@@ -436,7 +436,8 @@ describe('D-PROD-213 — Resumo do Rebanho abre pelo cartão do resumo inferior'
     const cartao = screen.getByRole('button', { name: 'Resumo do mapa' });
     await act(async () => { fireEvent.click(cartao); });
     const dialogo = within(await screen.findByRole('dialog', { name: 'Resumo do Rebanho' }));
-    expect(dialogo.getByRole('tab', { name: 'Rebanho' })).toHaveAttribute('aria-selected', 'true');
+    // D-PROD-304: o painel carrega no primeiro toque (sob demanda): espera o conteúdo.
+    expect(await dialogo.findByRole('tab', { name: 'Rebanho' })).toHaveAttribute('aria-selected', 'true');
     expect(dialogo.getAllByText('15').length).toBeGreaterThan(0);
     await act(async () => { fireEvent.click(dialogo.getByRole('tab', { name: 'Pastos' })); });
     expect(dialogo.getByText('Pastos · 2')).toBeInTheDocument();

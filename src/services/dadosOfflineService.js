@@ -10,7 +10,7 @@
  * sem internet é outra etapa (sincronização), fora deste serviço.
  */
 
-import { baixarLeiturasDasTelas, baixarEntidadesParaOffline } from '@/apis/offline';
+import { baixarLeiturasDasTelas, baixarEntidadesParaOffline, carregarTodasAsPortas } from '@/apis/offline';
 import { CACHE_KEYS, refreshMapaCacheEntryDetalhado } from '@/services/mapaCacheService';
 import { getOfflineTenant } from '@/lib/offline/offlineTenant';
 import { esquecerRespostasDoTenant } from '@/lib/offline/respostasOffline';
@@ -139,6 +139,9 @@ export const baixarDadosParaOffline = async ({ empresaId, aoAvancar }) => {
   falhas += falhasMapa;
   marcarPartes({ mapa: { em: Date.now(), total: CACHE_KEYS.length, falhas: falhasMapa } });
 
+  // D-PROD-304: as telas carregam sob demanda; as portas (que registram as entidades e as
+  // leituras de cada módulo) carregam todas aqui, antes de baixar.
+  await carregarTodasAsPortas();
   const cadastros = await baixarEntidadesParaOffline((p) =>
     aoAvancar?.({ etapa: 'cadastros', titulo: 'Cadastros', feitas: p.feitas, total: p.total })
   );

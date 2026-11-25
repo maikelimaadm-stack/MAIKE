@@ -1084,7 +1084,7 @@ export default function LancamentosFinanceirosTela() {
         />
       ) : null}
       {dialogo?.tipo === "retificar" ? (
-        // D-PROD-304: com o estoque mudando (substituição), o diálogo pede o lote como a confirmação.
+        // D-PROD-305: com o estoque mudando (substituição), o diálogo pede o lote como a confirmação.
         <DialogoRetificacao
           empresaId={emp}
           direcao={String(dialogo.doc?.direcao ?? dialogo.registro?.direcao ?? "")}
@@ -1122,7 +1122,7 @@ export default function LancamentosFinanceirosTela() {
             try {
               const r = await retificarLancamento(emp, String(dialogo.registro.id), { versao: dialogo.versao, doc: dialogo.doc, motivo, lotes_por_item, escopo, retentativa });
               concluirCorrecao(r, emp, dialogo.registro);
-              // D-PROD-304: como na confirmação, o servidor nunca recusa lote vencido na venda; quando saiu de um, avisa.
+              // D-PROD-305: como na confirmação, o servidor nunca recusa lote vencido na venda; quando saiu de um, avisa.
               const alertaVencido = mensagemDeLoteVencido(/** @type {any} */ (r)?.avisos);
               if (alertaVencido) notifyWarning("Lote vencido", alertaVencido);
             } catch (err) {
