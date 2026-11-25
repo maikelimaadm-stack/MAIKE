@@ -601,6 +601,77 @@ export const vinculosCausaisDoMovimento = async (tx, clienteId, evento, moviment
 };
 
 /**
+ * D-PROD-310 — regra do proprietário (substitui a parte "causal, não cronológico" da
+ * D-PROD-110): uma movimentação só sai se NADA aconteceu DEPOIS dela em nenhuma posição que
+ * ela tocou — origem, destinos, lote principal da junção, origem da baixa. Bloqueia:
+ *  - outro fato do rebanho posterior na linha do tempo (movimentação, junção, baixa, pesagem),
+ *    pela ordem do ledger (data operacional, registrado_em, id);
+ *  - documento de outro módulo não cancelado que cite a posição (nutrição/suplementação,
+ *    sanidade, medicamento, manejo técnico, movimentação pecuária) ou tarefa, com data de
+ *    negócio posterior ao dia do movimento (ou no mesmo dia e registrado depois; sem data,
+ *    registrado depois).
+ * Exclui-se sempre o mais recente primeiro. No máximo 20 bloqueadores.
+ */
+export const registrosPosterioresDoMovimento = async (tx, clienteId, evento) => {
+  const tocadas = /** @type {Array<{posicao_id: string}>} */ (await tx.$queryRaw`
+    SELECT DISTINCT posicao_id FROM "PartidaRebanho" WHERE cliente_id = ${clienteId} AND evento_id = ${evento.id}
+    UNION
+    SELECT DISTINCT posicao_id FROM "PesoRebanho" WHERE cliente_id = ${clienteId} AND evento_id = ${evento.id}`).map((r) => r.posicao_id);
+  if (!tocadas.length) return [];
+  const bloqueadores = [];
+  const fatos = /** @type {Array<{id: string, movimentacao_id: string|null, tipo: string, data: Date, posicao_id: string|null}>} */ (await tx.$queryRaw`
+    SELECT DISTINCT e2.id, e2.movimentacao_id, e2.tipo, e2.data_operacional AS data, e2.registrado_em,
+           (SELECT MIN(q2.posicao_id) FROM "PartidaRebanho" q2
+             WHERE q2.cliente_id = ${clienteId} AND q2.evento_id = e2.id AND q2.ativa AND q2.posicao_id = ANY(${tocadas}::text[])) AS posicao_id
+      FROM "EventoRebanho" e2
+     WHERE e2.cliente_id = ${clienteId} AND e2.id <> ${evento.id} AND e2.situacao <> 'cancelado'
+       AND (e2.data_operacional, e2.registrado_em, e2.id) > (${evento.data_operacional}::date, ${evento.registrado_em}::timestamptz, ${evento.id})
+       AND (EXISTS (SELECT 1 FROM "PartidaRebanho" q WHERE q.cliente_id = ${clienteId} AND q.evento_id = e2.id AND q.ativa AND q.posicao_id = ANY(${tocadas}::text[]))
+         OR EXISTS (SELECT 1 FROM "PesoRebanho" w WHERE w.cliente_id = ${clienteId} AND w.evento_id = e2.id AND w.ativa AND w.posicao_id = ANY(${tocadas}::text[])))
+     ORDER BY e2.data_operacional, e2.registrado_em, e2.id
+     LIMIT 20`);
+  for (const f of fatos) {
+    bloqueadores.push({ tipo: 'EventoRebanho', evento_tipo: f.tipo, id: f.movimentacao_id ?? f.id, data: diaDoBanco(f.data), posicao_id: f.posicao_id ?? null });
+  }
+  const dia = diaDoBanco(evento.data_operacional);
+  const registradoEm = evento.registrado_em instanceof Date ? evento.registrado_em : new Date(evento.registrado_em);
+  if (bloqueadores.length < 20) {
+    const tarefas = await tx.lancamentoTarefa.findMany({
+      where: { cliente_id: clienteId, empresa_id: evento.empresa_id, posicao_id: { in: tocadas } },
+      select: { id: true, posicao_id: true, data_inicio: true, data_pedido: true, createdAt: true },
+      take: 200,
+      orderBy: { id: 'asc' },
+    });
+    for (const t of tarefas) {
+      const d = (t.data_inicio ?? t.data_pedido)?.toISOString?.().slice(0, 10) ?? null;
+      const depois = d ? d > dia || (d === dia && t.createdAt > registradoEm) : t.createdAt > registradoEm;
+      if (depois && bloqueadores.length < 20) bloqueadores.push({ tipo: 'LancamentoTarefa', id: t.id, posicao_id: t.posicao_id, data: d });
+    }
+  }
+  for (const tabela of FONTES_JSON_CAUSAIS) {
+    if (bloqueadores.length >= 20) break;
+    const linhas = /** @type {Array<{id: string, data: string|null}>} */ (await tx.$queryRawUnsafe(
+      `SELECT x.id, x.data FROM (
+         SELECT t.id, t."createdAt" AS criado,
+                NULLIF(LEFT(COALESCE(t.dados->>'data_lancamento', t.dados->>'data', t.dados->>'data_aplicacao', t.dados->>'data_evento', t.dados->>'data_movimentacao'), 10), '') AS data
+           FROM "${tabela}" t
+          WHERE t.cliente_id = $1 AND t.empresa_id = $2
+            AND COALESCE(t.dados->>'situacao', '') <> 'cancelado'
+            AND (t.dados->>'posicao_id' = ANY($3::text[]) OR t.dados->>'lote_id' = ANY($3::text[])
+                 OR (jsonb_typeof(t.dados->'posicao_ids') = 'array' AND t.dados->'posicao_ids' ?| $3::text[])
+                 OR (jsonb_typeof(t.dados->'lote_ids') = 'array' AND t.dados->'lote_ids' ?| $3::text[]))
+       ) x
+       WHERE (x.data IS NOT NULL AND (x.data > $4 OR (x.data = $4 AND x.criado > $5::timestamptz)))
+          OR (x.data IS NULL AND x.criado > $5::timestamptz)
+       ORDER BY x.id LIMIT 20`,
+      clienteId, evento.empresa_id, tocadas, dia, registradoEm.toISOString(),
+    ));
+    for (const l of linhas) if (bloqueadores.length < 20) bloqueadores.push({ tipo: tabela, id: l.id, data: l.data ?? null });
+  }
+  return bloqueadores;
+};
+
+/**
  * PR178-R2 (D-PROD-110) — recibo idempotente EXATO que gerou o fato.
  *
  * A chave única de `OperacaoIdempotente` é (cliente, operation_key,
@@ -671,6 +742,27 @@ export const cancelarMovimentoDoLedger = async (tx, contexto, mov, motivo, opera
     });
   // PR174-R2: o peso de um fato posterior que dependia deste não pode ficar "órfão".
   await verificarDependenciasTemporais(tx, auth.clienteId, ids, diaDoBanco(evento.data_operacional), { exceto: evento.id });
+  // D-PROD-310: nada depois, na origem nem no destino (exclui-se sempre o mais recente primeiro).
+  // Depois das conferências de saldo e de peso: quando elas já recusam, a mensagem delas (mais
+  // detalhada) vale; esta pega o que antes passava (ex.: nutrição lançada depois na origem).
+  const posteriores = await registrosPosterioresDoMovimento(tx, auth.clienteId, evento);
+  if (posteriores.length) {
+    const primeiro = posteriores[0];
+    // O card mostra onde está o que bloqueia (área da posição), quando dá para saber.
+    const posicao = primeiro.posicao_id
+      ? await tx.posicaoRebanho.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: String(primeiro.posicao_id) } }, select: { area_id: true } })
+      : null;
+    const area = posicao?.area_id
+      ? await tx.areaPastagem.findFirst({ where: { cliente_id: auth.clienteId, id: posicao.area_id }, select: { id: true, nome: true } })
+      : null;
+    throw recusa('REBANHO_EXCLUSAO_REGISTRO_POSTERIOR', 'há registro posterior na origem ou no destino desta movimentação (outra movimentação, pesagem, nutrição, sanidade ou tarefa); exclua primeiro o mais recente (nada foi alterado)', {
+      bloqueadores: posteriores,
+      tipo: primeiro.evento_tipo ?? primeiro.tipo,
+      data: primeiro.data ?? null,
+      area_id: area?.id ?? null,
+      area_nome: area?.nome ?? null,
+    });
+  }
   const agora = new Date();
   await tx.eventoRebanho.update({
     where: { cliente_id_id: { cliente_id: auth.clienteId, id: evento.id } },

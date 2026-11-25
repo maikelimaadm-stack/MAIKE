@@ -179,6 +179,8 @@ const exigirBloqueio = async (c, mov, codigos) => {
   return e;
 };
 const SALDO = ['CANCELAMENTO_SALDO_HISTORICO_NEGATIVO'];
+/** D-PROD-310: registro posterior na origem ou no destino. */
+const POSTERIOR = ['REBANHO_EXCLUSAO_REGISTRO_POSTERIOR'];
 const DEP = ['CANCELAMENTO_SALDO_HISTORICO_NEGATIVO', 'REBANHO_DEPENDENCIA_FATO_SEM_SALDO', 'REBANHO_PESO_DEPENDENCIA_CAUSAL'];
 
 // ═══ Cadeias ════════════════════════════════════════════════════════════════
@@ -284,41 +286,41 @@ describe('CERT-3 — entradas A+B → junção → abate', () => {
     const ab = (await ok(baixa(c, 'Abate', c.A, '10', [{ categoria: BOI, quantidade: 5, destino: 'Consumo Próprio' }, { categoria: VACA, quantidade: 2, destino: 'Consumo Próprio' }]))).movimentacao;
     const mo = (await ok(baixa(c, 'Morte', c.A, '11', [{ categoria: BOI, quantidade: 25, causa_morte: 'Doença' }]))).movimentacao;
     await conservacao(c);
-    // Morte total do BOI depois do abate: o abate (anterior) é independente da morte? Não: abater 5 e matar 25 = 30 → excluir o abate só DEVOLVE cabeças; livre.
-    await excluirCertificado(c, ab);
+    // D-PROD-310: a morte veio depois na mesma origem → o abate (anterior) só sai depois dela.
+    await exigirBloqueio(c, ab, POSTERIOR);
     await excluirCertificado(c, mo);
+    await excluirCertificado(c, ab);
     assert.deepEqual(await projecao(c), inicial.posicoes);
   });
 });
 
-describe('CERT-4 — independência causal e ordem no mesmo dia', () => {
-  test('transferências e baixas posteriores INDEPENDENTES não bloqueiam; dependente no mesmo dia (registrado depois) bloqueia', async () => {
+describe('CERT-4 — D-PROD-310: nada depois na origem nem no destino; ordem no mesmo dia', () => {
+  test('qualquer posterior na origem ou no destino bloqueia; dependente no mesmo dia (registrado depois) bloqueia; exclusão do mais recente ao mais antigo restaura', async () => {
     const c = await base();
     const l = await entrada(c, { nome: 'L', qtd: 40 });
     await ativar(c);
     const inicial = await foto(c);
     const posA = await posDe(c, l, c.A);
     const t1 = (await ok(transferir(c, posA, 10, c.B, '10'))).movimentacao; // A→B
-    const t2 = (await ok(transferir(c, posA, 5, c.C, '12'))).movimentacao; // A→C, independe de t1
-    await ok(rebanho(c, 'Pesagem', c.A, '13', [{ lote_id: posA.id, peso_medio_kg: 410 }]));
+    const t2 = (await ok(transferir(c, posA, 5, c.C, '12'))).movimentacao; // A→C, depois de t1 na origem A
+    const pes = (await ok(rebanho(c, 'Pesagem', c.A, '13', [{ lote_id: posA.id, peso_medio_kg: 410 }]))).movimentacao;
     const m = (await ok(morteLote(c, posA, 3, '14'))).movimentacao;
     // Mesmo dia de t1, registrado depois, usando as cabeças que t1 levou para B.
     const t3 = (await ok(transferir(c, await posDe(c, l, c.B), 10, c.C, '10'))).movimentacao;
-    await exigirBloqueio(c, t1, SALDO);
-    const e2 = await elegibilidadeSemEscrita(c, t2.id);
-    assert.equal(e2.elegivel, true, 'posterior independente não bloqueia');
-    assert.equal((await elegibilidadeSemEscrita(c, m.id)).elegivel, true);
-    await excluirCertificado(c, t3);
-    await excluirCertificado(c, t1); // agora livre (t2, pesagem e morte em A não dependem dele)
-    assert.deepEqual([(await posDe(c, l, c.A)).quantidade_cabecas, (await posDe(c, l, c.C)).quantidade_cabecas], [32, 5]);
+    await exigirBloqueio(c, t1, SALDO); // a conferência de saldo (mais detalhada) recusa primeiro
+    await exigirBloqueio(c, t2, POSTERIOR);
+    await exigirBloqueio(c, pes, POSTERIOR);
+    assert.equal((await elegibilidadeSemEscrita(c, m.id)).elegivel, true, 'o mais recente da origem sai');
     await excluirCertificado(c, m);
+    await excluirCertificado(c, pes);
     await excluirCertificado(c, t2);
+    await excluirCertificado(c, t3);
+    await excluirCertificado(c, t1);
     const fim = await projecao(c);
-    // Só restam a posição da entrada (com o peso da pesagem) e nada órfão.
     assert.equal(fim.length, inicial.posicoes.length, 'posições criadas pelas transferências sumiram');
   });
 
-  test('retroativo: morte em data ANTERIOR a uma transferência já lançada; excluir a morte devolve; excluir a transferência por último restaura', async () => {
+  test('retroativo: morte em data ANTERIOR a uma transferência já lançada; a morte (anterior na linha do tempo) só sai depois da transferência', async () => {
     const c = await base();
     const l = await entrada(c, { nome: 'L', qtd: 40 });
     await ativar(c);
@@ -329,8 +331,9 @@ describe('CERT-4 — independência causal e ordem no mesmo dia', () => {
     const r = await morteLote(c, posA, 10, '06'); // 25-10=15 < 20 em 20/10 → recusada
     assert.equal(r.statusCode, 409, r.body);
     assert.equal((await elegibilidadeSemEscrita(c, t.id)).elegivel, true);
-    await excluirCertificado(c, m);
+    await exigirBloqueio(c, m, POSTERIOR);
     await excluirCertificado(c, t);
+    await excluirCertificado(c, m);
     assert.deepEqual(await projecao(c), inicial.posicoes);
   });
 });
@@ -346,9 +349,11 @@ describe('CERT-5 — pesagens sucessivas e peso causal', () => {
     const p3 = (await ok(rebanho(c, 'Pesagem', c.A, '14', [{ lote_id: posA.id, peso_medio_kg: 460 }]))).movimentacao;
     const peso = async () => Number((await posDe(c, l, c.A)).peso_medio_kg);
     assert.equal(await peso(), 460);
-    await excluirCertificado(c, p2); // intermediária: medida, sem derivados posteriores
-    assert.equal(await peso(), 460);
+    // D-PROD-310: a intermediária só sai depois da final (registro posterior na mesma posição).
+    await exigirBloqueio(c, p2, POSTERIOR);
     await excluirCertificado(c, p3);
+    assert.equal(await peso(), 440, 'volta à pesagem anterior');
+    await excluirCertificado(c, p2);
     assert.equal(await peso(), 420, 'volta à pesagem anterior');
     // Transferência depois de p1 leva o peso 420 para B; excluir p1 mudaria o peso derivado → bloqueia.
     const t = (await ok(transferir(c, await posDe(c, l, c.A), 5, c.B, '15'))).movimentacao;
@@ -457,7 +462,7 @@ describe('CERT-9 — concorrência real', () => {
     }
   });
 
-  test('duas exclusões INDEPENDENTES na mesma origem ao mesmo tempo: ambas passam, sem deadlock', async () => {
+  test('D-PROD-310: duas exclusões na mesma origem ao mesmo tempo (a anterior e a posterior): sem deadlock nem 500; a posterior sai; a anterior sai junto (se a posterior já saiu) ou depois', async () => {
     for (let i = 0; i < 4; i += 1) {
       const c = await base();
       const l = await entrada(c, { nome: 'L', qtd: 30 });
@@ -466,8 +471,13 @@ describe('CERT-9 — concorrência real', () => {
       const posA = await posDe(c, l, c.A);
       const t1 = (await ok(transferir(c, posA, 5, c.B, '10'))).movimentacao;
       const t2 = (await ok(transferir(c, posA, 7, c.C, '11'))).movimentacao;
-      const rs = await Promise.all([excluir(c, t1.id), excluir(c, t2.id)]);
-      assert.deepEqual(rs.map((r) => r.statusCode), [200, 200], rs.map((r) => r.body).join(' | '));
+      const [r1, r2] = await Promise.all([excluir(c, t1.id), excluir(c, t2.id)]);
+      assert.equal(r2.statusCode, 200, r2.body);
+      assert.ok([200, 409].includes(r1.statusCode), r1.body);
+      if (r1.statusCode === 409) {
+        assert.equal(r1.json().code, 'REBANHO_EXCLUSAO_REGISTRO_POSTERIOR', r1.body);
+        await ok(excluir(c, t1.id), 200);
+      }
       assert.deepEqual(await projecao(c), inicial.posicoes);
       await conservacao(c);
     }

@@ -692,6 +692,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   REBANHO_AREA_INATIVA: { http: 409, meaning: 'área de destino inativa' },
   REBANHO_ATIVACAO_LOTE_SEM_AREA: { http: 409, meaning: 'há lote ativo com cabeças e sem área válida; corrija antes de ativar' },
   // D-PROD-110 — exclusão definitiva segura de movimentação do rebanho.
+  REBANHO_EXCLUSAO_REGISTRO_POSTERIOR: { http: 409, meaning: 'há registro posterior (movimentação, pesagem, nutrição, sanidade, tarefa) na origem ou no destino desta movimentação; exclua primeiro o mais recente; nada foi alterado (D-PROD-310)' },
   ID_DO_APARELHO_EM_USO: { http: 409, meaning: 'o id gerado no aparelho já está em uso; o app gera outro (D-PROD-308)' },
   ID_DO_APARELHO_EXCLUIDO: { http: 409, meaning: 'o registro com este id do aparelho foi criado e depois excluído; não é recriado (D-PROD-308)' },
   IDEMPOTENCY_EFEITO_EXCLUIDO: { http: 409, meaning: 'o fato gerado por esta chave foi excluído definitivamente; não há replay nem recriação — lance a operação correta com chave nova' },

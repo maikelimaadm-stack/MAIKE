@@ -56,6 +56,8 @@ export const MENSAGENS_RECUSA = Object.freeze({
   EXCLUSAO_MOVIMENTO_CANCELADO: "Esta movimentação é de um registro antigo e não pode ser excluída. Nada foi alterado.",
   EXCLUSAO_REFERENCIA_DOCUMENTAL: "Há registros de outros módulos que citam esta movimentação. Trate-os antes. Nada foi alterado.",
   REBANHO_CANCELAMENTO_VINCULO_POSTERIOR: "Há lançamentos de outros módulos (tarefa, suplementação, sanidade...) ligados a esta movimentação. Trate-os antes. Nada foi alterado.",
+  // D-PROD-310: nada depois, na origem nem no destino — exclui-se sempre o mais recente primeiro.
+  REBANHO_EXCLUSAO_REGISTRO_POSTERIOR: "Há registro posterior na origem ou no destino desta movimentação. Exclua primeiro o mais recente. Nada foi alterado.",
   CANCELAMENTO_SALDO_HISTORICO_NEGATIVO: "Um registro posterior usa estas cabeças. Exclua-o antes, do mais recente para o mais antigo. Nada foi alterado.",
   REBANHO_DEPENDENCIA_FATO_SEM_SALDO: "Uma pesagem ou nascimento posterior depende deste registro. Exclua-o antes, do mais recente para o mais antigo. Nada foi alterado.",
   REBANHO_PESO_DEPENDENCIA_CAUSAL: "Um registro posterior calculou o peso a partir deste. Exclua-o antes, do mais recente para o mais antigo. Nada foi alterado.",
@@ -69,6 +71,23 @@ export const MENSAGENS_RECUSA = Object.freeze({
 });
 
 const diaBR = (d) => String(d ?? "").split("-").reverse().join("/");
+/** D-PROD-310: o que bloqueia, no nome que a pessoa conhece. */
+const NOMES_DE_BLOQUEADOR = Object.freeze({
+  SuplementacaoLote: "Nutrição",
+  SuplementacaoEvento: "Nutrição",
+  AplicacaoMedicamento: "Medicamento",
+  EventoSanitario: "Sanidade",
+  ManejoTecnicoRebanho: "Manejo técnico",
+  MovimentacaoPecuaria: "Movimentação",
+  LancamentoTarefa: "Tarefa",
+  TRANSFERENCIA: "Movimentação",
+  JUNCAO: "Junção",
+  PESAGEM: "Pesagem",
+  NASCIMENTO: "Nascimento",
+  MORTE: "Morte",
+});
+const nomeDoBloqueador = (b) =>
+  NOMES_DE_BLOQUEADOR[b?.evento_tipo] ?? NOMES_DE_BLOQUEADOR[b?.tipo] ?? (b?.tipo === "EventoRebanho" ? "Movimentação" : String(b?.tipo ?? "Registro"));
 /** Recusa com o detalhe do servidor (data/área/peso) quando houver. */
 export const mensagemDeRecusa = (codigo, detalhes) => {
   const d = detalhes && typeof detalhes === "object" ? detalhes : null;
@@ -84,8 +103,8 @@ export const mensagemDeRecusa = (codigo, detalhes) => {
     const kg = (v) => (v === null || v === undefined ? "desconhecido" : `${Number(v).toLocaleString("pt-BR")} kg`);
     return `O registro do dia ${diaBR(d.data)} calculou o peso a partir deste (registrado ${kg(d.peso_registrado_kg)}; passaria a ${kg(d.peso_recalculado_kg)}). Exclua-o antes. Nada foi alterado.`;
   }
-  if ((codigo === "REBANHO_CANCELAMENTO_VINCULO_POSTERIOR" || codigo === "EXCLUSAO_REFERENCIA_DOCUMENTAL") && Array.isArray(d?.bloqueadores) && d.bloqueadores.length) {
-    const lista = d.bloqueadores.slice(0, 3).map((b) => `${b.tipo}${b.data ? ` de ${diaBR(b.data)}` : ""}`).join(", ");
+  if ((codigo === "REBANHO_CANCELAMENTO_VINCULO_POSTERIOR" || codigo === "EXCLUSAO_REFERENCIA_DOCUMENTAL" || codigo === "REBANHO_EXCLUSAO_REGISTRO_POSTERIOR") && Array.isArray(d?.bloqueadores) && d.bloqueadores.length) {
+    const lista = d.bloqueadores.slice(0, 3).map((b) => `${nomeDoBloqueador(b)}${b.data ? ` de ${diaBR(b.data)}` : ""}`).join(", ");
     return `${MENSAGENS_RECUSA[codigo]} (${lista}${d.bloqueadores.length > 3 ? "..." : ""})`;
   }
   return MENSAGENS_RECUSA[codigo] || "Não foi possível excluir. Nada foi alterado.";

@@ -427,10 +427,12 @@ describe('R5 conv. — concorrência real (3 rodadas)', () => {
       const [rc, rp] = await Promise.all([cancelar(c, p.movimentacao.id), rebanho(c, 'Pesagem', [{ lote_id: b1.id, peso_medio_kg: 420 }], { data_movimentacao: '2026-11-03' })]);
       assert.ok(![rc.statusCode, rp.statusCode].includes(500), `${rc.body} / ${rp.body}`);
       if (rp.statusCode === 201) assert.equal(Number((await pos(c, c.bois1)).peso_medio_kg), 420, 'a pesagem nova nunca é revertida pelo cancelamento');
-      const m = await ok(baixa(c, 'Morte', morteBoi(10)));
-      const rs = await Promise.all([cancelar(c, m.movimentacao.id), cancelar(c, m.movimentacao.id)]);
+      // D-PROD-310: a baixa num cenário limpo (a pesagem posterior na mesma posição a bloquearia).
+      const c3 = await cenario();
+      const m = await ok(baixa(c3, 'Morte', morteBoi(10)));
+      const rs = await Promise.all([cancelar(c3, m.movimentacao.id), cancelar(c3, m.movimentacao.id)]);
       assert.deepEqual(rs.map((r) => r.statusCode).sort(), [200, 409], rs.map((r) => r.body).join(' / '));
-      assert.equal(await total(c), 140);
+      assert.equal(await total(c3), 140);
     });
   }
 });

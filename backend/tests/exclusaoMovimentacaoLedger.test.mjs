@@ -259,19 +259,40 @@ describe('EX-B — fato posterior DEPENDENTE bloqueia sem gravar nada', () => {
 
 // ═══ (c) posterior INDEPENDENTE não bloqueia ═══════════════════════════════
 
-describe('EX-C — fato posterior independente não bloqueia (causal, não cronológico)', () => {
-  test('T1 (3 A→B) e depois T2 (2 A→C) + pesagem em A: excluir T1 passa; A=8, C=2, B some', async () => {
+describe('EX-C — D-PROD-310: qualquer registro posterior na origem ou no destino bloqueia; exclui-se o mais recente primeiro', () => {
+  test('T1 (3 A→B), depois T2 (2 A→C) + pesagem em A: T1 bloqueada; excluídas a pesagem e a T2, a T1 sai; A=10', async () => {
     const c = await cenario();
     const t1 = (await ok(transferencia(c, c.posA, 3, c.B, '2026-10-10'))).movimentacao;
-    await ok(transferencia(c, c.posA, 2, c.C, '2026-10-12'));
-    await ok(rebanho(c, 'Pesagem', [{ lote_id: c.posA.id, peso_medio_kg: 410 }], { data_movimentacao: '2026-10-13' }));
+    const t2 = (await ok(transferencia(c, c.posA, 2, c.C, '2026-10-12'))).movimentacao;
+    const pes = (await ok(rebanho(c, 'Pesagem', [{ lote_id: c.posA.id, peso_medio_kg: 410 }], { data_movimentacao: '2026-10-13' }))).movimentacao;
     const e = await elegibilidade(c, t1.id);
-    assert.equal(e.elegivel, true, JSON.stringify(e));
+    assert.deepEqual([e.elegivel, e.codigo], [false, 'REBANHO_EXCLUSAO_REGISTRO_POSTERIOR'], JSON.stringify(e));
+    assert.deepEqual(e.detalhes.bloqueadores.map((b) => b.evento_tipo), ['TRANSFERENCIA', 'PESAGEM']);
+    await exigirNadaMuda(c, () => excluir(c, t1.id), 409, 'REBANHO_EXCLUSAO_REGISTRO_POSTERIOR');
+    // A T2 também tem a pesagem depois (na origem A): bloqueada até a pesagem sair.
+    await exigirNadaMuda(c, () => excluir(c, t2.id), 409, 'REBANHO_EXCLUSAO_REGISTRO_POSTERIOR');
+    await ok(excluir(c, pes.id), 200);
+    await ok(excluir(c, t2.id), 200);
     await ok(excluir(c, t1.id), 200);
-    assert.deepEqual([await saldo(c, c.lote, c.A), await saldo(c, c.lote, c.B), await saldo(c, c.lote, c.C)], [8, 0, 2]);
-    assert.equal(Number((await posDe(c, c.lote, c.A)).peso_medio_kg), 410, 'pesagem posterior independente preservada');
-    assert.equal((await historico(c, [c.lote.id])).length, 2);
+    assert.deepEqual([await saldo(c, c.lote, c.A), await saldo(c, c.lote, c.B), await saldo(c, c.lote, c.C)], [10, 0, 0]);
     await verificar(c);
+  });
+
+  test('nutrição lançada depois na ORIGEM bloqueia (o caso relatado); nutrição de ANTES não bloqueia', async () => {
+    const c = await cenario();
+    const t = (await ok(transferencia(c, c.posA, 3, c.B, '2026-10-10'))).movimentacao;
+    await prisma().suplementacaoLote.create({
+      data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, dados: { posicao_id: c.posA.id, data_lancamento: '2026-10-05' } },
+    });
+    const depois = await prisma().suplementacaoLote.create({
+      data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, dados: { posicao_id: c.posA.id, data_lancamento: '2026-10-11' } },
+    });
+    const e = await elegibilidade(c, t.id);
+    assert.deepEqual([e.elegivel, e.codigo], [false, 'REBANHO_EXCLUSAO_REGISTRO_POSTERIOR'], JSON.stringify(e));
+    assert.deepEqual(e.detalhes.bloqueadores.map((b) => [b.tipo, b.id, b.data]), [['SuplementacaoLote', depois.id, '2026-10-11']]);
+    // Cancelada (como faz o cancelamento do cocho), deixa de bloquear; a de antes nunca bloqueou.
+    await prisma().suplementacaoLote.update({ where: { id: depois.id }, data: { dados: { posicao_id: c.posA.id, data_lancamento: '2026-10-11', situacao: 'cancelado' } } });
+    assert.equal((await elegibilidade(c, t.id)).elegivel, true);
   });
 });
 
