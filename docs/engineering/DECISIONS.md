@@ -10196,4 +10196,20 @@ Vários itens ficavam presos para sempre, sem botão:
 
 > **Numeração:** a `main` (`08eb45f91`) indica `Próxima decisão: D-PROD-330`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-331. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-331 -->
+## D-PROD-331 — A sincronização num cartão no meio da tela (o app continua livre)
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("a sincronização tem que aparecer no meio da tela"); escolha dele: "Cartão no meio, app livre" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-NO-MEIO-D331-REPORT.md`](./SINCRONIZACAO-NO-MEIO-D331-REPORT.md)
+
+**Decisão.** O círculo pequeno do canto (D-PROD-329) vira um **cartão no meio da tela**, ainda no componente `CirculoDeSincronizacao`.
+- O cartão traz:
+  - o círculo grande com a porcentagem;
+  - o título "Sincronizando";
+  - a etapa ("Enviando o que foi feito no celular", "Baixando: Cadastros"…).
+- Não há fundo escuro: a pessoa continua mexendo no app em volta.
+- Tocar no cartão abre a janela "Sincronização".
+- No fim, o cartão mostra ✓ e "Tudo sincronizado" (ou ! e "Sincronizado em parte") e some sozinho.
+- O resto da D-PROD-329 (quando sincroniza, a ordem envio → baixa, a porcentagem) não muda.
+
+> **Numeração:** depois da D-PROD-330 (PR #421), a `main` indica `Próxima decisão: D-PROD-331`, que é esta; o marcador passa a D-PROD-332. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-332 -->
