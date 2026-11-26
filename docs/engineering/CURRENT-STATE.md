@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-26 (missão ativa D-PROD-319; antes D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-26 (missão ativa D-PROD-320; antes D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-26) — MAIKE-SINCRONIZACAO-ETAPA5A: id do aparelho na medição, na tarefa e no evento de suplementação (D-PROD-319)
+## Missão ativa (2026-11-26) — MAIKE-TAREFAS-LANCAMENTO-SIMPLES: lançamento de tarefa simples (D-PROD-320)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-320**: formulário da tarefa com Título (único obrigatório), Setor, Local, Tipo opcional, Responsável, Prioridade, Prazo, Descrição/observações; sem tipo, o servidor usa "SEM TIPO" (grupo GERAL); data do pedido e quem pediu automáticos |
+| Banco | sem migration |
+| Relatório | [`TAREFAS-LANCAMENTO-SIMPLES-D320-REPORT.md`](./TAREFAS-LANCAMENTO-SIMPLES-D320-REPORT.md) |
+| Próximas | parte 2 (aba Tarefas no mapa, resumo em cartões); parte 3 (tarefas sem internet); a Etapa 5 da sincronização (5b–5f) fica para depois, a pedido do proprietário |
+
+## Missão anterior (2026-11-26) — MAIKE-SINCRONIZACAO-ETAPA5A: id do aparelho na medição, na tarefa e no evento de suplementação (D-PROD-319)
 
 | Item | Estado |
 |---|---|
