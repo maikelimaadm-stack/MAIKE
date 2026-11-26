@@ -25,6 +25,9 @@ tenant(nome) AS (
     'AbastecimentoBemConsumoLote','AbastecimentoBem',
     -- D-PROD-200: o apontamento do dia (AtividadeApontamento) sai logo depois — referencia a atividade, os usuários e a
     -- empresa; só as linhas (acima, D-PROD-202 e D-PROD-207) e o abastecimento (D-PROD-211) o referenciam. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
+    -- D-PROD-322: a mistura do Diário da máquina sai antes do apontamento (o movimento o referencia), da atividade, do
+    -- bem (implemento), do produto, do local e da área, que ela referencia: primeiro o movimento e o item, depois a mistura.
+    'AtividadeMisturaMovimento','AtividadeMisturaItem','AtividadeMistura',
     'AtividadeApontamento',
     -- D-PROD-249: a área da atividade (AtividadeArea) sai logo depois do apontamento, que a referencia (FK composta), e
     -- antes da atividade, da área (AreaPastagem), do setor e dos usuários, que ela referencia.
