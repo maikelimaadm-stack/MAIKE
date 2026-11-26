@@ -7,6 +7,10 @@
  *  - Resumo: sem R$ para o operador; com R$ para o administrador (só quando o servidor manda custo).
  *
  * A busca paginada de produto (SeletorPaginadoGestao) é trocada por um botão de teste: o que se testa aqui é a janela.
+ *
+ * D-PROD-335: a janela NÃO tem mais entrada em menu nenhum (a página Lançamento de Atividades e o mapa abrem o
+ * "Diário das atividades"). Este arquivo testa o componente em si, montado direto; a entrada nova é coberta em
+ * lancamentoAtividades.test.jsx (LA-DIARIO) e em diarioEmAndamentoNoPasto.test.jsx.
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";

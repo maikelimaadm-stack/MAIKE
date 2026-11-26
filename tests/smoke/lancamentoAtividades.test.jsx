@@ -2452,3 +2452,43 @@ describe("LA-E2E — ajustes do teste de ponta a ponta da Entrega 2 (D-PROD-274)
     expect(within(daManutencao).queryByTestId("atividade-pasto-liberado")).toBeNull();
   });
 });
+
+describe("LA-DIARIO — a ação de linha \"Diário das atividades\" (D-PROD-335)", () => {
+  // Uma atividade com um pasto EM ANDAMENTO (o servidor traz `areas[]`): a ação do ⚡ abre o diário do pasto.
+  const COM_PASTO_EM_ANDAMENTO = {
+    ...ATV_A1,
+    areas: [{ id: "aa1", area_id: "ar1", ordem: 1, status: "EM_ANDAMENTO", area: { id: "ar1", numero_area: "01", nome: "Pasto 01" } }],
+  };
+
+  it("LD-1 — o ⚡ traz \"Diário das atividades\" (nunca \"Diário da máquina\") e abre o novo diário no pasto em andamento", async () => {
+    sessao.permissao = permissaoCom({ ...ACOES_PADRAO, ...EXTRAS });
+    atividades.set("a1", COM_PASTO_EM_ANDAMENTO);
+    await montarComLista();
+    await assentar();
+    const itens = await itensDoRaio("a1");
+    expect(itens).toContain("Diário das atividades");
+    expect(itens.join("|")).not.toMatch(/Diário da máquina/);
+    expect(screen.queryByTestId("diario-maquina")).toBeNull();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Diário das atividades" }));
+    const diario = await screen.findByTestId("diario-atividades");
+    expect(diario).toBeTruthy();
+    // Sem abertura no servidor, o diário vai ao formulário da abertura do tipo (o da atividade), no pasto dela.
+    expect(within(diario).getByTestId("diario-atividades-titulo")).toHaveTextContent("Nova atividade de");
+    expect(within(diario).getByTestId("diario-atividades-titulo")).toHaveTextContent("Pasto 01");
+    expect(screen.queryByTestId("diario-maquina")).toBeNull();
+  });
+
+  it("LD-2 — sem permissão de lançar, ou sem pasto em andamento, a ação não aparece", async () => {
+    sessao.permissao = permissaoCom(ACOES_PADRAO);
+    atividades.set("a1", COM_PASTO_EM_ANDAMENTO);
+    await montarComLista();
+    expect(await itensDoRaio("a1")).not.toContain("Diário das atividades");
+    cleanup();
+
+    sessao.permissao = permissaoCom({ ...ACOES_PADRAO, ...EXTRAS });
+    atividades.set("a1", ATV_A1);
+    await montarComLista();
+    expect(await itensDoRaio("a1")).not.toContain("Diário das atividades");
+  });
+});
