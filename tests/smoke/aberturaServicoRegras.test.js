@@ -188,9 +188,14 @@ describe("lancamentosDoDia — \"Lançado hoje\" do serviço aberto (D-PROD-332,
     expect(lancamentosDoDia([apontamento({ data_operacional: "2026-11-25", produtos: [produto("pl-1")] })], HOJE, FUSO)).toEqual([]);
   });
 
-  it("uma linha por linha CONFIRMADA: insumo com o jato, a hora no fuso da fazenda e a quantidade em pt-BR", () => {
+  it("uma linha por linha CONFIRMADA: insumo com a carga, a hora no fuso da fazenda e a quantidade em pt-BR", () => {
     const [linha] = lancamentosDoDia([apontamento({ produtos: [produto("pl-1", { jato: 1 })] })], HOJE, FUSO);
-    expect(linha).toMatchObject({ tipo: "insumo", hora: "07:45", titulo: "Insumo · Jato 1", sub: "Glifosato", quantidade: "1.000 L" });
+    expect(linha).toMatchObject({ tipo: "insumo", hora: "07:45", titulo: "Insumo · Carga 1", sub: "Glifosato", quantidade: "1.000 L" });
+  });
+
+  it("a unidade do insumo sai como o cadastro rotula (KG vira kg; SACO, kg)", () => {
+    const [linha] = lancamentosDoDia([apontamento({ produtos: [produto("pl-2", { jato: 2, quantidade: "24.0000", unidade: "KG" })] })], HOJE, FUSO);
+    expect(linha).toMatchObject({ titulo: "Insumo · Carga 2", quantidade: "24 kg" });
   });
 
   it("ordena pela hora e cobre máquina, mão de obra (com a medida) e serviço de terceiro", () => {
@@ -237,7 +242,7 @@ describe("lancamentosDoDia — \"Lançado hoje\" do serviço aberto (D-PROD-332,
       FUSO,
     );
     expect(linhas[0]).toMatchObject({ hora: "09:30", sub: "A", quantidade: "1 L" });
-    expect(linhas[1]).toMatchObject({ hora: "", sub: "B", quantidade: "2 KG" });
+    expect(linhas[1]).toMatchObject({ hora: "", sub: "B", quantidade: "2 kg" });
   });
 });
 

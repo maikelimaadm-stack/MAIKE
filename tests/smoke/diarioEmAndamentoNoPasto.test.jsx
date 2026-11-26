@@ -1,5 +1,5 @@
 /**
- * D-PROD-336 — o "Diário das atividades" com atividades abertas no pasto (service mockado):
+ * D-PROD-335 — o "Diário das atividades" com atividades abertas no pasto (service mockado):
  *  (1) com 2 abertas: a 1ª tela é "Em andamento neste pasto" com as 2 e "Nova atividade"; cada uma com a etiqueta da abertura;
  *  (2) sem nenhuma aberta: abre direto no tipo, sem "Voltar" para a lista;
  *  (3) "Nova atividade" leva ao tipo; do tipo, o Voltar volta à lista;
@@ -119,7 +119,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("Diário das atividades — Em andamento neste pasto (D-PROD-336)", () => {
+describe("Diário das atividades — Em andamento neste pasto (D-PROD-335)", () => {
   it("(1) com 2 abertas, a 1ª tela é a lista delas, com a etiqueta de cada abertura e o botão Nova atividade", async () => {
     renderizar({ atividadesAbertas: [ABERTA_COM_ABERTURA, ABERTA_SEM_ABERTURA] });
     expect(screen.getByTestId("diario-atividades-escolher")).toBeInTheDocument();
