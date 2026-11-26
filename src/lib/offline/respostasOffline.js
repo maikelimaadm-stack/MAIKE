@@ -78,7 +78,7 @@ const comLoja = async (modo, operar) => {
  * @param {string|null} tenant
  * @param {string} caminho
  * @param {unknown} corpo
- * @param {{marca?: string, formato?: number}} [extra]
+ * @param {{marca?: string, formato?: number, pedido_em?: number}} [extra] `pedido_em` (D-PROD-318): quando o pedido saiu
  */
 export const guardarResposta = async (tenant, caminho, corpo, extra = undefined) => {
   if (!tenant || !caminho) return;
@@ -96,13 +96,13 @@ export const guardarResposta = async (tenant, caminho, corpo, extra = undefined)
  *
  * @param {string|null} tenant
  * @param {string} caminho
- * @returns {Promise<{corpo: unknown, em: number, marca: string|null, formato: number|null}|undefined>}
+ * @returns {Promise<{corpo: unknown, em: number, marca: string|null, formato: number|null, pedido_em: number|null}|undefined>}
  */
 export const lerResposta = async (tenant, caminho) => {
   if (!tenant || !caminho) return undefined;
   const registro = /** @type {any} */ (await comLoja('readonly', (loja) => loja.get(chaveDe(tenant, caminho))));
   return registro
-    ? { corpo: registro.corpo, em: registro.em, marca: registro.marca ?? null, formato: registro.formato ?? null }
+    ? { corpo: registro.corpo, em: registro.em, marca: registro.marca ?? null, formato: registro.formato ?? null, pedido_em: Number.isFinite(registro.pedido_em) ? registro.pedido_em : null }
     : undefined;
 };
 

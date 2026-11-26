@@ -64,6 +64,14 @@ export const buscarLancamento = async (clienteId, id, tx) => {
   });
 };
 
+/**
+ * D-PROD-319: lê pelo id em QUALQUER tenant, só para decidir a criação com o id do aparelho
+ * (`criarComIdDoAparelho`); nada daqui vai para a resposta de outro tenant.
+ * @param {string} id
+ */
+export const buscarLancamentoPorIdEmQualquerTenant = async (id) =>
+  getPrismaClient().lancamentoTarefa.findUnique({ where: { id }, select: { ...SELECAO, cliente_id: true } });
+
 /** @param {import('@prisma/client').Prisma.TransactionClient} tx @param {object} dados */
 export const inserirLancamento = async (tx, dados) =>
   tx.lancamentoTarefa.create({ data: dados, select: SELECAO });

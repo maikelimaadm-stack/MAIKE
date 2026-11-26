@@ -31,6 +31,13 @@ export const buscarRegistro = async (clienteId, id, tx) => {
 
 export const inserirRegistro = async (tx, dados) => tx.suplementacaoEvento.create({ data: dados });
 
+/**
+ * D-PROD-319: lê pelo id em QUALQUER tenant, só para decidir a criação com o id do aparelho
+ * (`criarComIdDoAparelho`); nada daqui vai para a resposta de outro tenant.
+ * @param {string} id
+ */
+export const buscarEventoPorIdEmQualquerTenant = async (id) => getPrismaClient().suplementacaoEvento.findUnique({ where: { id } });
+
 export const inserirRegistros = async (tx, lista) =>
   tx.suplementacaoEvento.createMany({ data: lista });
 

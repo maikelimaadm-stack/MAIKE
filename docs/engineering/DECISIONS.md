@@ -9869,7 +9869,6 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Data:** 2026-11-26 · **Origem:** fase 1 do Diário da máquina, aprovada pelo proprietário ("perfeito vamos fazer com o claude ok") · **Branch:** `feat/diario-implemento-textos`
 
-> **Numeração:** nasceu D-PROD-313 a partir da `main` `51bdd26ca` (marcador `Próxima decisão: D-PROD-313`). Antes do merge desta PR, a `main` já havia levado D-PROD-313 a D-PROD-316 (PRs #401, #403, #404 e #405); o marcador atual é `Próxima decisão: D-PROD-317`, que é esta (`node scripts/dev/proxima-decisao.mjs`). O plano da fase citava D-PROD-314 por engano. Depois, a `main` (`5f68cc60c`) levou D-PROD-318 a D-PROD-320 (PRs #407 a #409), com a D-PROD-317 reservada para esta PR; as fases 2 e 3-7 desta PR foram renumeradas de D-PROD-318 e D-PROD-319 para D-PROD-321 e D-PROD-322 (regra A5).
 
 - **Contexto:** no lançamento de atividades e no cadastro do implemento, a tela chamava de "jato" o tanque/implemento cheio (número do dia, cartões, totais, resumo ao finalizar a área). O termo não é o que a operação usa no campo. A troca é só de texto visível, primeira fase do Diário da máquina; o comportamento e o contrato não mudam.
 - **Decisão:**
@@ -9878,11 +9877,87 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** sem mudança.
 - **Testes:** `tests/smoke/jatosDoDia.test.jsx`, `fechamentoArea.test.jsx`, `servicoVariosDias.test.jsx` (asserções de texto da UI). Os demais smoke do fluxo (`registroDeCampoVariasLinhas`, `estoqueLoteAtividade`, `bensPatrimoniais`) não assertam essas strings.
 
+## D-PROD-318 — Sincronização, Etapa 4: a tela nunca "pisca"
+
+**Data:** 2026-11-26 · **Origem:** o plano de 5 etapas da sincronização aprovado pelo proprietário (Etapa 4: "pode sim") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-ETAPA4-D318-REPORT.md`](./SINCRONIZACAO-ETAPA4-D318-REPORT.md)
+
+
+- **Problema:** entre "salvo no aparelho" e "confirmado pelo servidor", as telas decidiam o que mostrar pelo **estado da fila**, cada uma a seu modo:
+  - o lançamento recém-confirmado sumia da lista do cocho até a lista ser relida;
+  - a baixa que já tinha tentado subir sumia do histórico do depósito;
+  - o saldo voltava ao de antes depois da primeira tentativa e pulava de novo (100 → 70 → 100 → 70);
+  - o cancelamento recém-confirmado deixava o original reaparecer.
+- **Decisão — casar pelo id, não pelo estado da fila.** A fila guarda o confirmado por 30 minutos (`JANELA_CONFIRMADO_NA_TELA_MS`), com a resposta do servidor. `registrosDoAparelhoDoTipo` devolve o que espera e o que foi confirmado há pouco, com a hora da 1ª tentativa (`tentado_em`, nova no item da fila).
+  1. **Lista do cocho:** o confirmado aparece com o evento que o servidor devolveu (id real) até a lista do servidor trazê-lo; depois, uma vez só.
+  2. **Histórico do depósito:** a transferência e a baixa confirmadas aparecem com as movimentações devolvidas pelo servidor. A baixa já feita, com o lançamento ainda na fila, aparece com o id real dela. `comMovimentacoesDoAparelho` não repete o que a lista do servidor já tem.
+  3. **Tentou sem resposta** (`mostrarComoAguardando`): sem internet aparece "aguardando", porque a lista guardada é de antes e não pode tê-lo. Com internet não aparece, porque a lista do servidor pode já tê-lo e não há como casar os dois; a próxima passada confirma em segundos. O recusado ("precisa de atenção") continua na lista do cocho, como antes, e não vale no saldo nem no histórico.
+  4. **Cancelamento:** o confirmado há pouco continua escondendo o original até a lista ser relida.
+- **Decisão — o saldo pela hora da cópia.** O que já tentou subir só é descontado se a lista de lotes é de **antes** da 1ª tentativa, quando o servidor não podia tê-lo. As duas horas são do relógio do aparelho, sem diferença com o do servidor.
+  - A hora da lista é a da saída do pedido que a trouxe. O `nativeRequest` a registra para cada leitura (`horaDasRespostas`) e a grava junto da cópia guardada (`pedido_em`), para valer depois de reabrir o app.
+  - Hora desconhecida (cópia antiga): como antes, só o que nunca tentou.
+- **Fora:**
+  - o instante exato em que o servidor lê a lista. Uma leitura que sai antes do envio e é atendida depois pode contar o registro duas vezes até a próxima leitura (janela de milissegundos);
+  - as outras entidades e a limpeza dos recibos, que ficam para a Etapa 5.
+
+## D-PROD-319 — Sincronização, Etapa 5a: id do aparelho na medição, na tarefa e no evento de suplementação; as tarefas presas voltam a subir
+
+**Data:** 2026-11-26 · **Origem:** Etapa 5 do plano de sincronização aprovado pelo proprietário ("vamos prosseguir") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-ETAPA5A-D319-REPORT.md`](./SINCRONIZACAO-ETAPA5A-D319-REPORT.md)
+
+
+- **Problema:**
+  1. A criação feita sem internet (ou com a rede caindo no meio) da medição de forragem, da tarefa do mapa e do evento de suplementação da chegada do gado não levava um id do aparelho. Repetir o envio depois de uma resposta perdida gravava o registro duas vezes; na tarefa, também o histórico.
+  2. A tarefa criada ou editada no mapa **sem internet** ia para um armazenamento antigo do aparelho (`pending_tarefas` e `pending_tarefa_images`) que **nada mais enviava** ao servidor: o envio saiu na redução do escopo, e a tela continuava dizendo "sincronizará ao conectar".
+- **Decisão — servidor:** os três `POST` aceitam o `id` gerado no aparelho (UUID) e criam com `criarComIdDoAparelho` (D-PROD-308):
+  - repetir devolve o mesmo registro;
+  - o mesmo id em outro tenant dá 409 `ID_DO_APARELHO_EM_USO`;
+  - o já excluído dá 409 `ID_DO_APARELHO_EXCLUIDO`. A medição e a tarefa usam o histórico de exclusão; o evento conta como excluído quando está cancelado.
+  - Na medição e na tarefa (corpo fechado), o `id` entra no schema. No evento (corpo aberto), o id que não é UUID segue ignorado, como antes.
+- **Decisão — app:**
+  1. As três portas ligam `idDoAparelho` e mandam o id.
+  2. A tarefa do mapa sem internet vai pela fila de cadastros, como os outros registros. As fotos precisam de internet: sem ela, a tela pede para salvar sem as fotos novas e anexá-las depois, no painel e nos detalhes da tarefa.
+  2a. O evento do histórico (`historico_evento`, `historico_descricao`, `historico_data_evento`) vai ao servidor na criação e na edição.
+     - Antes, a porta do app descartava esses campos. O histórico feito pelo mapa (Criação, Conclusão, Mudança de Status) nunca era gravado.
+     - O "Registro" mandava um corpo vazio e era recusado.
+  3. **Resgate:** a cada passada da sincronização com internet (`registrarPassadaExtra`), as tarefas presas no armazenamento antigo sobem (`tarefasGuardadasNoAparelhoService`):
+     - cada uma ganha um id do aparelho, gravado antes de enviar;
+     - as fotos sobem uma vez, e os endereços ficam gravados;
+     - a criação vai pela porta de sempre. Sem resposta, entra na fila com o mesmo id;
+     - só então a tarefa sai do armazenamento antigo;
+     - a recusada fica guardada, e o servidor decide a conta.
+- **Fora (próximas partes da Etapa 5):**
+  - 5b: desenhos do mapa com numeração (área, ponto de referência, linha, bebedouro, depósito);
+  - 5c: cadastros administrativos;
+  - 5d: sincronização incremental das outras listas;
+  - 5e: versão do registro nas outras entidades;
+  - 5f: limpeza dos recibos. Hoje há 163 recibos, e o cancelamento e a conciliação leem recibos antigos.
+
+## D-PROD-320 — Tarefas, parte 1: lançamento simples (setor, tipo opcional, menos campos)
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("quero um jeito mais simples de lançamento de tarefas"; "deixamos só o tipo… se a pessoa não encontrar o tipo ela pode deixar sem e depois eu mudo"; "mudaria o nome de fazenda para setor"), com o desenho aprovado em imagens · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFAS-LANCAMENTO-SIMPLES-D320-REPORT.md`](./TAREFAS-LANCAMENTO-SIMPLES-D320-REPORT.md)
+
+
+- **Problema:** o formulário tinha 16 campos e exigia grupo, tipo e data do pedido. O grupo e o tipo precisavam estar cadastrados antes, e uma pessoa com pouca familiaridade com o celular travava.
+- **Decisão — formulário:**
+  - Ficam: Título (o único obrigatório), **Setor** (o antigo rótulo "Fazenda", que já escolhia o setor), Local/pasto, **Tipo de tarefa (opcional)**, Responsável, Prioridade, Prazo previsto, **Descrição/observações**, ponto no mapa e fotos.
+  - O tipo lista todos os tipos ativos, e o grupo vem do próprio tipo.
+  - Saem: Grupo de atividade, Solicitante, Status, Data do pedido, Data de conclusão e Observações internas.
+  - O andamento (Em andamento, Concluída, Cancelada, Registro) continua nos eventos dos detalhes, que mostram todos os campos. Na edição, o que estava gravado fica.
+- **Decisão — servidor (sem mudar o banco):**
+  - `POST /lancamentos-tarefa` exige só `empresa_id` e `titulo`.
+  - Sem `tipo_tarefa_id`, a tarefa recebe o tipo **"SEM TIPO"** do cliente, no grupo padrão **"GERAL"** (o mesmo das operações, D-PROD-258).
+    - Os dois são criados na primeira vez, auditados, numa transação curta própria.
+    - Duas tarefas ao mesmo tempo usam o mesmo tipo: a unique do banco decide e a que perde relê.
+    - O administrador troca pelo tipo certo depois, na edição.
+  - Sem `tipo` base, vale "Outro". Sem `data_pedido`, vale o dia de hoje em São Paulo. Sem `solicitante`, vale quem está lançando.
+  - O que vier no corpo vale, como antes.
+- **Fora (próximas partes):**
+  - parte 2: a aba Tarefas no mapa, com resumo em cartões e "Nova tarefa" com o local de onde se está, no lugar da tabela;
+  - parte 3: tarefas sem internet.
+
 ## D-PROD-321 — Diário da máquina, fase 2: R$ só para o administrador e "Iniciar atividade" no pasto (só tela)
 
 **Data:** 2026-11-26 · **Origem:** plano do Diário da máquina aprovado pelo proprietário ("perfeito vamos fazer com o claude ok"; tudo na mesma PR #406) · **Branch:** `feat/diario-implemento-textos`
 
-> **Numeração:** nasceu D-PROD-318 (a `main` `701f6ca8` indicava D-PROD-317, tomada pela fase 1 desta PR). Antes do merge, a `main` (`5f68cc60c`) levou D-PROD-318 a D-PROD-320 (PRs #407 a #409) e indica `Próxima decisão: D-PROD-321`; esta foi renumerada para D-PROD-321 (regra A5).
 
 - **Decisão:**
   - `podeVerCusto(permissao)` (`src/lib/verCustoRegras.js`) = permissão efetiva com `is_admin === true` (o administrador da fazenda recebe o registro efetivo com `is_admin`). O `VerCustoContext` (padrão `true`) é passado pelo Lançamento de Atividades e pela janela do pasto no mapa.
@@ -9895,7 +9970,6 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Data:** 2026-11-26 · **Origem:** plano do Diário da máquina aprovado pelo proprietário (protótipo v5) · **Branch:** `feat/diario-implemento-textos` (PR #406)
 
-> **Numeração:** nasceu D-PROD-319. Antes do merge, a `main` (`5f68cc60c`) levou D-PROD-318 a D-PROD-320 (PRs #407 a #409) e indica `Próxima decisão: D-PROD-321`; esta PR usa D-PROD-317 (fase 1), D-PROD-321 (fase 2) e esta, renumerada para D-PROD-322 (regra A5). O marcador passa a D-PROD-323.
 
 - **Contexto:** o diário da máquina precisa de uma mistura que existe DENTRO do implemento (o que foi colocado na caixa, na capacidade do bem, com o saldo que ainda não saiu), de uma aplicação no pasto que baixe o estoque só do que foi aplicado, e de um destino para a sobra. Hoje cada "jato" é só um número que agrupa linhas de produto: não há mistura, não há saldo e a sobra não existe.
 - **Decisão:**
@@ -9913,6 +9987,7 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - **Guardas:** as da tela de apontamentos (`GUARDAS.atividadeApontamentos`): leitura com `ver`, escrita com `criar` (`lancar_apontamento`).
 - **Migration:** `20261127100000_diario_maquina` — EXPAND: duas colunas anuláveis em `Produto` e duas em `AtividadeApontamentoProduto` (`mistura_id`, `volume_aplicado`), três tabelas novas (`AtividadeMistura`, `AtividadeMisturaItem`, `AtividadeMisturaMovimento`) com tenant primeiro, CHECKs, FKs compostas e RLS. Sem DROP, sem ALTER COLUMN, sem DML. Checksum no manifesto de `scripts/deploy/premergeMigrateLib.mjs`, bloco DO de RLS aprovado por hash. **Não aplicada em produção**: ver `MAIKE-DIARIO-MAQUINA-RUNBOOK-RELEASE.md`.
 - **Constituição:** sem mudança.
-- **Testes:** `backend/tests/diarioMaquina.test.mjs` 24/24 contra PostgreSQL LOCAL de teste (15 regras puras + 9 de integração: mistura sem baixa, 409, aplicar com sobra e baixa proporcional pelo motor, replay, transferência, devolução sem movimento, perda com motivo, resumo com/sem custo, quantidade padrão do produto); `test:gates` 1097/1097; smoke `diarioMaquina`, `diarioMaquinaService`, `implementoRegras`. A migration NÃO foi aplicada em produção (ver runbook).
+- **Testes:** `backend/tests/diarioMaquina.test.mjs` 24/24 contra PostgreSQL LOCAL de teste (15 regras puras + 9 de integração: mistura sem baixa, 409, aplicar com sobra e baixa proporcional pelo motor, replay, transferência, devolução sem movimento, perda com motivo, resumo com/sem custo, quantidade padrão do produto); `test:gates` 1097/1097; smoke `diarioMaquina`, `diarioMaquinaService`, `implementoRegras`; smoke completo 4435/4435.
+- **Release:** `SCHEMA_APPLIED_PROD: SIM`: aplicada em produção em 2026-11-26, antes do merge, pelo caminho B com o GO do proprietário ("Sim, pode criar as tabelas no banco e fazer o merge"); 83 concluídas, 0 ruins, 3 tabelas com RLS, 4 colunas (ver o registro no runbook).
 
 <!-- Próxima decisão: D-PROD-323 -->

@@ -1,11 +1,13 @@
 /**
  * LancamentoTarefa nativo — PostgreSQL real (P5.3, D-PROD-49).
+ * D-PROD-320: LS-01..04 — lançamento simples (só o título; sem tipo vira "SEM TIPO").
  */
 
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { getPrismaClient } from '../src/database/prismaClient.js';
 
 /** @type {import('fastify').FastifyInstance} */
 let app;
@@ -121,5 +123,55 @@ describe('P5.3 — LancamentoTarefa', () => {
       },
     });
     assert.equal(r.statusCode, 400);
+  });
+});
+
+describe('D-PROD-320 — lançamento simples (só o título)', () => {
+  const prisma = () => getPrismaClient();
+  const criarSo = (token, titulo, extra = {}) =>
+    app.inject({ method: 'POST', url: '/lancamentos-tarefa', headers: auth(token), payload: { empresa_id: 'emp-1', titulo, ...extra } });
+
+  test('LS-01 só o título: tipo "SEM TIPO" no grupo GERAL, tipo base Outro, pedido hoje, quem pediu = quem lançou', async () => {
+    const { token } = await tenantAutenticado();
+    const r = await criarSo(token, 'ARRUMAR CERCA');
+    assert.equal(r.statusCode, 201, r.body);
+    const t = r.json();
+    assert.equal(t.tipo_tarefa_nome, 'SEM TIPO');
+    assert.equal(t.grupo_atividade_nome, 'GERAL');
+    assert.equal(t.tipo, 'Outro');
+    assert.equal(t.status, 'Pendente');
+    assert.equal(String(t.data_pedido).slice(0, 10), '2027-06-15');
+    assert.ok(t.solicitante, 'quem pediu');
+  });
+
+  test('LS-02 a segunda tarefa (e duas ao mesmo tempo) usam o MESMO tipo e o mesmo grupo', async () => {
+    const { token } = await tenantAutenticado();
+    const [a, b, c] = await Promise.all([criarSo(token, 'A'), criarSo(token, 'B'), criarSo(token, 'C')]);
+    for (const r of [a, b, c]) assert.equal(r.statusCode, 201, r.body);
+    assert.equal(new Set([a, b, c].map((r) => r.json().tipo_tarefa_id)).size, 1);
+    const clienteId = (await prisma().lancamentoTarefa.findUnique({ where: { id: a.json().id } })).cliente_id;
+    assert.equal(await prisma().tipoTarefa.count({ where: { cliente_id: clienteId, nome_tipo: 'SEM TIPO' } }), 1);
+    assert.equal(await prisma().grupoAtividade.count({ where: { cliente_id: clienteId, nome_grupo: 'GERAL' } }), 1);
+  });
+
+  test('LS-03 com tipo informado, como antes; o administrador troca o SEM TIPO depois pela edição', async () => {
+    const { token } = await tenantAutenticado();
+    const { tipoId } = await criarGrupoETipo(token);
+    const comTipo = await criarSo(token, 'COM TIPO', { tipo_tarefa_id: tipoId, data_pedido: '2027-06-01', solicitante: 'FULANO' });
+    assert.equal(comTipo.statusCode, 201, comTipo.body);
+    assert.equal(comTipo.json().tipo_tarefa_nome, 'TIPO TESTE');
+    assert.equal(String(comTipo.json().data_pedido).slice(0, 10), '2027-06-01');
+    assert.equal(comTipo.json().solicitante, 'FULANO');
+    const semTipo = await criarSo(token, 'SEM');
+    const editada = await app.inject({ method: 'PATCH', url: `/lancamentos-tarefa/${semTipo.json().id}`, headers: auth(token), payload: { tipo_tarefa_id: tipoId } });
+    assert.equal(editada.statusCode, 200, editada.body);
+    assert.equal(editada.json().tipo_tarefa_nome, 'TIPO TESTE');
+    assert.equal(editada.json().grupo_atividade_nome, 'GRUPO TESTE');
+  });
+
+  test('LS-04 sem título: 400', async () => {
+    const { token } = await tenantAutenticado();
+    const r = await app.inject({ method: 'POST', url: '/lancamentos-tarefa', headers: auth(token), payload: { empresa_id: 'emp-1' } });
+    assert.equal(r.statusCode, 400, r.body);
   });
 });

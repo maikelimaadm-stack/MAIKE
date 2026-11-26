@@ -2,15 +2,18 @@
  * Porta nativa da Medição de Forragem (D-PROD-219), `/medicoes-forragem`.
  *
  * A criação passa pela fila offline (a medição é feita no pasto, muitas vezes sem
- * sinal): offline, a medição entra no cache com id `offline_…` e vai ao servidor no
- * replay. O servidor tem o corpo FECHADO; por isso o `create` envia só os campos que
+ * sinal). O servidor tem o corpo FECHADO; por isso o `create` envia só os campos que
  * ele aceita (os derivados — média, situação da régua, matéria verde/seca — são dele).
+ *
+ * D-PROD-319 (Etapa 5a): o id da medição nova é gerado no aparelho (UUID) e é definitivo; repetir a criação
+ * (resposta perdida, app fechado no meio) devolve a mesma medição em vez de gravar outra.
  */
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import {
   createOfflineEntityAdapter,
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
+import { eIdDoAparelho } from '@/lib/offline/idDoAparelho';
 
 const RESOURCE = 'MedicaoForragem';
 const CAMINHO = '/medicoes-forragem';
@@ -23,8 +26,10 @@ export const CAMPOS_DA_MEDICAO = Object.freeze([
 ]);
 
 /** @param {Record<string, unknown>} dados */
-export const corpoDaMedicao = (dados) =>
-  Object.fromEntries(CAMPOS_DA_MEDICAO.filter((k) => dados?.[k] !== undefined).map((k) => [k, dados[k]]));
+export const corpoDaMedicao = (dados) => ({
+  ...Object.fromEntries(CAMPOS_DA_MEDICAO.filter((k) => dados?.[k] !== undefined).map((k) => [k, dados[k]])),
+  ...(eIdDoAparelho(dados?.id) ? { id: dados.id } : {}),
+});
 
 /** @param {string} operation */
 const ctx = (operation) => ({ operation, resource: RESOURCE });
@@ -58,5 +63,6 @@ export const medicaoForragemPort = offlineStorageDisponivel()
       operations: operacoesNativas,
       enabled: true,
       tenantScoped: true,
+      idDoAparelho: true,
     })
   : operacoesNativas;

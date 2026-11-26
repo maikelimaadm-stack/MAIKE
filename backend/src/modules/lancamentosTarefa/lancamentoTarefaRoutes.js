@@ -3,6 +3,7 @@
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { SCHEMA_ID_DO_APARELHO } from '../../shared/idempotency/idDoAparelho.js';
 import {
   listar,
   criar,
@@ -62,9 +63,11 @@ const CAMPOS_LANCAMENTO_CRIACAO_COM_HISTORICO = Object.freeze({
 const CRIAR_LANCAMENTO_SCHEMA = {
   body: {
     type: 'object',
-    required: ['empresa_id', 'titulo', 'tipo', 'tipo_tarefa_id'],
+    // D-PROD-320: só o título é obrigatório; sem tipo, o servidor usa "SEM TIPO" (o administrador troca depois).
+    required: ['empresa_id', 'titulo'],
     additionalProperties: false,
-    properties: { ...CAMPOS_LANCAMENTO_CRIACAO_COM_HISTORICO },
+    // D-PROD-319: o id gerado no aparelho (UUID); repetir a criação devolve a mesma tarefa.
+    properties: { ...CAMPOS_LANCAMENTO_CRIACAO_COM_HISTORICO, id: SCHEMA_ID_DO_APARELHO },
   },
 };
 

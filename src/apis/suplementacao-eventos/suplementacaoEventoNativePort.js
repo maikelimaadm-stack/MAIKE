@@ -1,5 +1,8 @@
 /**
  * Porta nativa de SuplementacaoEvento (P5.5).
+ *
+ * D-PROD-319 (Etapa 5a): o evento criado por aqui (o automático da chegada do gado) tem o id gerado no aparelho
+ * (UUID), definitivo; repetir a criação devolve o mesmo evento em vez de gravar outro.
  */
 import { registrarListaIncremental, ordemPorCriacao } from '@/lib/offline/sincronizacaoIncremental';
 import { nativeRequest } from '../_core/nativeHttpClient.js';
@@ -77,6 +80,7 @@ const portaBase = offlineStorageDisponivel()
       operations: operacoesNativas,
       enabled: true,
       tenantScoped: true,
+      idDoAparelho: true,
     })
   : operacoesNativas;
 

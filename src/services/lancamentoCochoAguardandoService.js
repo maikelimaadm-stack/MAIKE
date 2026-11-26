@@ -5,7 +5,7 @@
  * nada daqui vai ao servidor.
  */
 
-import { registrosAguardandoDoTipo, operacaoDaReferencia } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
+import { mostrarComoAguardando, registrosDoAparelhoDoTipo, operacaoDaReferencia } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { TIPO_LANCAMENTO_COCHO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
 import { semLancamentosCanceladosAguardando } from '@/services/cancelamentosAguardandoService';
 
@@ -57,16 +57,28 @@ export const comLancamentosAguardandoEnvio = async (eventos, empresaId, pontoId)
  * @param {string} [pontoId]
  */
 const comLancamentosNovosAguardando = async (eventos, empresaId, pontoId) => {
-  let aguardando = [];
+  let doAparelho = [];
   try {
-    aguardando = (await registrosAguardandoDoTipo(TIPO_LANCAMENTO_COCHO)).filter((r) => {
+    doAparelho = (await registrosDoAparelhoDoTipo(TIPO_LANCAMENTO_COCHO)).filter((r) => {
       const ev = /** @type {any} */ (r.payload)?.evento;
       return ev?.empresa_id === empresaId && (pontoId === undefined || ev?.ponto_suplementacao_id === pontoId);
     });
   } catch {
     return eventos;
   }
-  if (!aguardando.length) return eventos;
+  if (!doAparelho.length) return eventos;
+  // D-PROD-318: o lançamento confirmado há pouco aparece com o evento que o servidor devolveu (id real) até a lista do
+  // servidor na tela trazê-lo — sem isso ele sumia entre a confirmação e a próxima leitura da lista.
+  const noServidor = new Set((Array.isArray(eventos) ? eventos : []).map((e) => e?.id).filter(Boolean));
+  const confirmados = doAparelho
+    .filter((r) => r.estado === 'enviado')
+    .map((r) => /** @type {any} */ (r.resultado)?.evento)
+    .filter((ev) => ev?.id && !noServidor.has(ev.id) && ev.situacao !== 'cancelado')
+    .map((ev) => ({ ...ev, _confirmadoAgora: true }));
+  // O recusado ("precisa de atenção") continua na lista do cocho, como antes (para corrigir ou excluir); o que tentou
+  // sem resposta, só sem internet (com internet a lista do servidor pode já tê-lo: apareceria duas vezes).
+  const aguardando = doAparelho.filter((r) => r.estado === 'atencao' || mostrarComoAguardando(r));
+  if (!aguardando.length && !confirmados.length) return eventos;
   const fechadosLocalmente = new Map();
   for (const r of aguardando) {
     const p = /** @type {any} */ (r.payload);
@@ -79,7 +91,7 @@ const comLancamentosNovosAguardando = async (eventos, empresaId, pontoId) => {
       ? { ...e, dias_periodo: fechadosLocalmente.get(e.id).dias, _fechamentoAguardando: true, _fechadoPorAguardando: fechadosLocalmente.get(e.id).por }
       : e;
   const novos = aguardando.map((r) => lancamentoAguardandoComoEvento(r.payload, r.operationId, r.criado_em));
-  const todos = [...novos, ...eventos].map(fechar);
+  const todos = [...novos, ...confirmados, ...eventos].map(fechar);
   return todos.sort((a, b) => {
     const da = String(a?.data_lancamento ?? '').slice(0, 10);
     const db = String(b?.data_lancamento ?? '').slice(0, 10);
