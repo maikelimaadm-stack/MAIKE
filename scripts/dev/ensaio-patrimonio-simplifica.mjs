@@ -191,7 +191,9 @@ export const NOME_UNIDADES_CONVERSAO = '20261125200000_produto_unidades_conversa
 export const NOME_BEM_PRODUTO = '20261126100000_bem_implemento_produto';
 /** D-PROD-310: a EXPAND da unidade convertida (6 colunas anuláveis em MovimentacaoEstoque e AtividadeApontamentoProduto), ainda posterior; fora da partida, sobe no GREEN. */
 export const NOME_UNIDADE_CONVERTIDA = '20261126200000_unidade_convertida_lancamentos';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA]);
+/** D-PROD-315: os índices da sincronização incremental (5 CREATE INDEX em tabelas antigas), ainda posterior; fora da partida, sobe no GREEN. */
+export const NOME_SINC_INDICES = '20261126300000_sincronizacao_incremental_indices';
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
   'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];
@@ -268,6 +270,10 @@ linhas AS (
   SELECT 'indice', t.t || '|' || i.relname::text || '|' || pg_get_indexdef(i.oid)
     FROM tab t JOIN pg_index x ON x.indrelid = t.oid JOIN pg_class i ON i.oid = x.indexrelid
    WHERE NOT (t.t = 'AreaPastagem' AND i.relname::text = 'AreaPastagem_cliente_id_empresa_id_cultura_id_idx')
+     -- D-PROD-315 (posterior, sobe no GREEN): os índices da sincronização incremental.
+     AND i.relname::text NOT IN ('Lote_cliente_id_updatedAt_id_idx', 'PontoSuplementacao_cliente_id_updatedAt_id_idx',
+       'LEITURACOCHO_cliente_id_updatedAt_id_idx', 'SuplementacaoEvento_cliente_id_updatedAt_id_idx',
+       'AuditLog_cliente_id_entidade_acao_createdAt_id_idx')
   UNION ALL
   SELECT 'politica', p.tablename::text || '|' || p.policyname::text || '|' || p.cmd || '|' || array_to_string(p.roles, ',') || '|' || coalesce(p.qual, '') || '|' || coalesce(p.with_check, '')
     FROM pg_policies p JOIN tab t ON t.t = p.tablename::text WHERE p.schemaname = 'public'

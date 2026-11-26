@@ -241,6 +241,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   LANCAMENTO_DESATUALIZADO: { http: 409, meaning: 'o cocho recebeu outro lançamento ou cancelamento enquanto a tela estava aberta (details.evento_anterior_id); recarregue; nada foi gravado' },
   // D-PROD-273 (fatia 3) — exclusão com recálculo do custo médio (prévia sem escrita; a exclusão vem nas fatias 4 e 5).
   ESTOQUE_EXCLUSAO_SALDO_NEGATIVO: { http: 409, meaning: 'refeita a sequência do produto sem o movimento, o saldo de um depósito ficaria negativo (details.local_estoque_id/movimento_id/movimento_numero/saldo); nada foi alterado' },
+  ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR: { http: 409, meaning: 'há registro lançado depois deste movimento, no mesmo produto e depósito (origem ou destino), que ainda vale (details.posterior_id/posterior_numero/posterior_tipo/posterior_data/local_estoque_id/local_nome); exclua primeiro o mais recente; nada foi alterado (D-PROD-314)' },
   ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL: { http: 409, meaning: 'a exclusão com recálculo não é segura para este movimento (details.reason: movimento_ja_excluido | movimento_e_estorno | origem_nao_suportada | par_de_transferencia_incoerente | historico_nao_reproduzivel | replay_diverge_do_gravado | movimento_fora_do_historico | reatribuicao_de_camada | camada_nova_sem_origem | camada_fora_da_sequencia | cocho_fechamento_nao_reproduzivel | cocho_custo_divergente_do_movimento | recalculo_nao_confere | lote_consumido); nada foi alterado' },
   ESTOQUE_RECALCULO_VOLUME_EXCEDIDO: { http: 422, meaning: 'o produto tem movimentos demais para recalcular de uma vez (details.movimentos|afetados e details.teto); nada foi processado nem gravado' },
   TRANSFERENCIA_CANCELAMENTO_BLOQUEADO: { http: 409, meaning: 'a transferência entre depósitos não pode ser cancelada com segurança agora (details.reason); nada foi alterado' },
@@ -697,6 +698,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   REBANHO_AREA_INATIVA: { http: 409, meaning: 'área de destino inativa' },
   REBANHO_ATIVACAO_LOTE_SEM_AREA: { http: 409, meaning: 'há lote ativo com cabeças e sem área válida; corrija antes de ativar' },
   // D-PROD-110 — exclusão definitiva segura de movimentação do rebanho.
+  REGISTRO_VERSAO_CONFLITO: { http: 409, meaning: 'o registro foi alterado depois que a pessoa o abriu (a versao_esperada, o updatedAt lido, não é mais a atual); details.versao_atual/alterado_por_nome/alterado_em; abra de novo e refaça; nada foi gravado (D-PROD-316)' },
   REBANHO_EXCLUSAO_REGISTRO_POSTERIOR: { http: 409, meaning: 'há registro posterior (movimentação, pesagem, nutrição, sanidade, tarefa) na origem ou no destino desta movimentação; exclua primeiro o mais recente; nada foi alterado (D-PROD-311)' },
   ID_DO_APARELHO_EM_USO: { http: 409, meaning: 'o id gerado no aparelho já está em uso; o app gera outro (D-PROD-308)' },
   ID_DO_APARELHO_EXCLUIDO: { http: 409, meaning: 'o registro com este id do aparelho foi criado e depois excluído; não é recriado (D-PROD-308)' },

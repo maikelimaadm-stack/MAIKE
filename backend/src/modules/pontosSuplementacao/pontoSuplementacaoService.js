@@ -1,6 +1,7 @@
 /**
  * Serviço de PontoSuplementacao (P5.4).
  */
+import { exigirVersaoEsperada, separarVersaoEsperada } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { consultarMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
@@ -194,10 +195,14 @@ const criarNaTransacao = async (contexto, auth, entrada, idDoAparelho) => {
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
+  const { versaoEsperada, resto } = separarVersaoEsperada(entrada);
   const atualizado = await prisma.$transaction(async (tx) => {
+    // D-PROD-316: trava a linha e confere a versão que a pessoa viu (senão 409 com quem alterou, nada gravado).
+    await tx.$queryRaw`SELECT id FROM "PontoSuplementacao" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR NO KEY UPDATE`;
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, exigirSomenteColunasGravaveis('PontoSuplementacao', entrada));
+    await exigirVersaoEsperada(tx, { clienteId: auth.clienteId, entidade: 'PontoSuplementacao', registro: existente, versaoEsperada, rotulo: String(existente.categoria_ponto ?? '').toUpperCase() === 'DEPOSITO' ? 'O depósito' : 'O cocho' });
+    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, exigirSomenteColunasGravaveis('PontoSuplementacao', resto));
     await registrarEvento(
       contexto,
       {

@@ -260,6 +260,27 @@ export const schemaSemProdutoDoBem = (schema) => {
 };
 
 /**
+ * D-PROD-315 — o `schema.prisma` de hoje sem os índices da sincronização incremental: as linhas
+ * `// MAIKE-SINCRONIZACAO-INDICES`, as linhas `///` logo abaixo delas e o `@@index` que vem em seguida (em Lote,
+ * PontoSuplementacao, LeituraCocho, SuplementacaoEvento e AuditLog). A EXPAND `20261126300000_sincronizacao_incremental_indices`
+ * é posterior a todos os "dias" destes espelhos e tem a prova própria em `premerge-migrate.test.mjs` (B47).
+ * @param {string} schema
+ */
+export const schemaSemIndicesDaSincronizacao = (schema) => {
+  const linhas = schema.split('\n');
+  const sai = new Array(linhas.length).fill(false);
+  for (let i = 0; i < linhas.length; i += 1) {
+    if (/^\s*\/\/ MAIKE-SINCRONIZACAO-INDICES\s*$/.test(linhas[i])) {
+      sai[i] = true;
+      let j = i + 1;
+      while (j < linhas.length && /^\s*\/\/\//.test(linhas[j])) sai[j++] = true;
+      if (j < linhas.length && /^\s+@@index\(/.test(linhas[j])) sai[j] = true;
+    }
+  }
+  return linhas.filter((_, i) => !sai[i]).join('\n');
+};
+
+/**
  * D-PROD-310 — o `schema.prisma` de hoje sem a unidade convertida: as linhas `// MAIKE-UNIDADE-CONVERTIDA` da
  * MovimentacaoEstoque e da AtividadeApontamentoProduto, as linhas `///` logo abaixo delas e as 3 colunas de cada
  * (`unidade_lancamento`, `quantidade_lancamento`, `fator_lancamento`). A EXPAND
@@ -307,7 +328,7 @@ export const espelhoDoDiaD223 = () => {
   if (espelho) return espelho;
   espelho = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D223 }).dir;
   const destino = join(espelho, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemUnidadeConvertida(schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')))))))))))));
+  writeFileSync(destino, schemaSemIndicesDaSincronizacao(schemaSemUnidadeConvertida(schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))))))))))))));
   const dir = espelho;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho;
@@ -328,7 +349,7 @@ export const espelhoDoDiaD249 = () => {
   if (espelho249) return espelho249;
   espelho249 = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D249 }).dir;
   const destino = join(espelho249, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemUnidadeConvertida(schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))))))))))));
+  writeFileSync(destino, schemaSemIndicesDaSincronizacao(schemaSemUnidadeConvertida(schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')))))))))))));
   const dir = espelho249;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho249;

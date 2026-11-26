@@ -200,21 +200,38 @@ describe('D-PROD-272 — excluir: estorno integral, só sem movimento depois', (
     await reconciliacaoLimpa(x);
   });
 
-  test('D-PROD-273 (fatia 5): outro movimento do produto no mesmo depósito depois → a exclusão RECALCULA (antes: 409 AJUSTE_ESTOQUE_MOVIMENTO_POSTERIOR); ajuste só SEM_DIFERENCA exclui sem estorno', async () => {
+  test('D-PROD-314: outro movimento do produto no mesmo depósito depois → 409 registro posterior; exclui-se o mais recente primeiro; ajuste só SEM_DIFERENCA exclui sem estorno', async () => {
     const x = await cenario();
     await entrar(x, x.ureia, '100', '3');
     const a = (await ajustar(x, [linhaAjuste(x)])).json(); // falta 10 a 3
     const s = (await sair(x, x.ureia, '1')).json();
+    const idSaida = s.itens[0].movimentacao_estoque_id;
+    const retrato = async () => ({
+      movimentos: await prisma().movimentacaoEstoque.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' } }),
+      camadas: await prisma().estoqueLoteNota.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' } }),
+      produtos: await prisma().produto.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' } }),
+      ajustes: await prisma().ajusteEstoque.findMany({ where: { cliente_id: x.c }, orderBy: { id: 'asc' } }),
+    });
+    const antes = await retrato();
+    // a saída depois da falta, no mesmo produto e depósito, ainda vale: a exclusão do ajuste é recusada, nada gravado
     const r = await excluirAjuste(x, a);
-    // sem a falta: 100 kg a 3; a saída de 1 continua 1 × 3 = 3, mas o saldo dela passa de 90 → 89 para 100 → 99
-    assert.deepEqual([r.statusCode, r.json().status, r.json().recalculo?.produtos], [200, 'EXCLUIDA', 1], r.body);
-    assert.equal(await estoqueAtual(x.ureia), 99);
-    const ms = await prisma().movimentacaoEstoque.findUnique({ where: { id: s.itens[0].movimentacao_estoque_id } });
-    assert.deepEqual([Number(ms.valor_total), Number(ms.saldo_antes), Number(ms.saldo_depois)], [3, 100, 99]);
-    const zero = (await ajustar(x, [linhaAjuste(x, { quantidade_contada: '99' })])).json();
+    assert.deepEqual([r.statusCode, r.json().code, razao(r)], [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior'], r.body);
+    assert.deepEqual([r.json().details.posterior_id, r.json().details.local_estoque_id], [idSaida, x.galpao.id]);
+    assert.deepEqual(await retrato(), antes);
+    // a saída (a mais recente) sai primeiro; depois o ajuste sai normalmente e o estoque volta aos 100 kg a 3
+    const ex = await chamar('POST', `/estoque/saidas/${s.id}/excluir`, x.token, { empresa_id: x.e.id, versao: s.versao, motivo: 'lançada por engano', operation_id: `ex-${randomUUID()}` });
+    assert.equal(ex.statusCode, 200, ex.body);
+    const ok1 = await excluirAjuste(x, a);
+    assert.deepEqual([ok1.statusCode, ok1.json().status], [200, 'EXCLUIDA'], ok1.body);
+    assert.equal(await estoqueAtual(x.ureia), 100);
+    assert.equal(await disponivel(x.ureia, x.galpao), 100);
+    const saldo = (await chamar('GET', `/estoque/ajustes/saldo${qs({ empresa_id: x.e.id, produto_id: x.ureia.id, local_estoque_id: x.galpao.id })}`, x.token)).json();
+    assert.deepEqual([saldo.saldo, saldo.custo_medio], ['100.0000', '3.0000']);
+    const zero = (await ajustar(x, [linhaAjuste(x, { quantidade_contada: '100' })])).json();
     assert.equal(zero.itens[0].tipo, 'SEM_DIFERENCA');
     const ok = await excluirAjuste(x, zero);
     assert.deepEqual([ok.statusCode, ok.json().status], [200, 'EXCLUIDA']);
+    await reconciliacaoLimpa(x);
   });
 
   test('segunda exclusão → 409 STATUS_INVALIDO; versão velha → 409; editar observação → 200; campo físico → 409', async () => {

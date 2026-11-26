@@ -35,6 +35,9 @@ const base = (p, r) => ({
   produto_nome: p?.produto_nome ?? null,
   quantidade: Number(p?.quantidade) || 0,
   unidade_medida: 'KG',
+  // D-PROD-313: a unidade em que foi digitada (D-PROD-310) aparece também no que espera envio (o fator só o servidor grava).
+  unidade_lancamento: typeof p?.unidade_lancamento === 'string' ? p.unidade_lancamento : null,
+  quantidade_lancamento: typeof p?.quantidade_lancamento === 'string' ? p.quantidade_lancamento : null,
   local_estoque_origem: p?.local_origem_id ?? null,
   local_origem: p?.local_origem_nome ?? null,
   data_movimentacao: p?.data_movimentacao || String(r.criado_em || '').slice(0, 10) || null,

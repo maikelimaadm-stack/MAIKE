@@ -1,0 +1,144 @@
+/**
+ * D-PROD-316 — Etapa 3 da sincronização: versão do registro e quem alterou.
+ *
+ * VR-01 lote: a edição com a versão vista grava; com a versão velha → 409 REGISTRO_VERSAO_CONFLITO, nada gravado,
+ *       com a versão atual, quem alterou e quando
+ * VR-02 sem versão (app antigo, cascata): grava como antes
+ * VR-03 cocho: o mesmo; o depósito diz "O depósito"
+ * VR-04 versão em formato inválido → 400, nada gravado
+ * VR-05 mudança feita pelo servidor (sem PATCH) também muda a versão
+ * VR-06 outro tenant: 404, não vaza a versão nem quem alterou
+ */
+import { test, describe, before, after, beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { getPrismaClient } from '../src/database/prismaClient.js';
+
+/** @type {import('fastify').FastifyInstance} */
+let app;
+const prisma = () => getPrismaClient();
+
+before(async () => {
+  app = await criarApp();
+  await app.ready();
+});
+after(async () => {
+  await app.close();
+  await encerrar();
+});
+beforeEach(async () => {
+  await limparBanco();
+});
+
+const req = (metodo, url, token, payload) =>
+  app.inject({ method: metodo, url, headers: { authorization: `Bearer ${token}` }, ...(payload !== undefined ? { payload } : {}) });
+
+const conta = async () => {
+  const c = await criarTenant();
+  const { corpo } = await autenticarNoApp(app, c.credenciais);
+  const empresa = await prisma().empresa.create({
+    data: { cliente_id: c.cliente.id, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'FAZ', nome: 'Fazenda' },
+  });
+  return { ...c, token: corpo.token, empresa };
+};
+
+const criarLote = async (c, nome) => {
+  const r = await req('POST', '/lotes', c.token, { empresa_id: c.empresa.id, nome, quantidade_cabecas: 10, motivo_entrada: 'Compra' });
+  assert.equal(r.statusCode, 201, r.body);
+  return r.json();
+};
+
+const criarPonto = async (c, categoria = 'COCHO') => {
+  const r = await req('POST', '/pontos-suplementacao', c.token, { id: randomUUID(), empresa_id: c.empresa.id, nome_ponto: `P ${categoria}`, categoria_ponto: categoria });
+  assert.equal(r.statusCode, 201, r.body);
+  return r.json();
+};
+
+/** Garante um milissegundo de diferença entre duas gravações. */
+const esperar = () => new Promise((r) => setTimeout(r, 5));
+
+describe('D-PROD-316 — versão do registro', () => {
+  test('VR-01 lote: versão vista grava; versão velha → 409 com quem e quando; nada gravado', async () => {
+    const c = await conta();
+    const lote = await criarLote(c, 'A');
+    await esperar();
+    const r1 = await req('PATCH', `/lotes/${lote.id}`, c.token, { nome: 'A1', versao_esperada: lote.updated_date });
+    assert.equal(r1.statusCode, 200, r1.body);
+    const v1 = r1.json();
+    assert.notEqual(v1.updated_date, lote.updated_date, 'a gravação muda a versão');
+    // Outra pessoa (ou o aparelho sem internet) ainda com a versão de antes:
+    const r2 = await req('PATCH', `/lotes/${lote.id}`, c.token, { nome: 'A2', versao_esperada: lote.updated_date });
+    assert.equal(r2.statusCode, 409, r2.body);
+    const e = r2.json();
+    assert.equal(e.code, 'REGISTRO_VERSAO_CONFLITO');
+    assert.equal(e.details.versao_atual, v1.updated_date);
+    assert.equal(e.details.entidade, 'Lote');
+    assert.equal(e.details.id, lote.id);
+    assert.ok(e.details.alterado_por_nome, 'diz quem alterou');
+    assert.ok(Date.parse(e.details.alterado_em), 'e quando');
+    const atual = await prisma().lote.findUnique({ where: { id: lote.id } });
+    assert.equal(atual.nome, 'A1', 'nada gravado');
+    // Com a versão atual, grava.
+    const r3 = await req('PATCH', `/lotes/${lote.id}`, c.token, { nome: 'A3', versao_esperada: v1.updated_date });
+    assert.equal(r3.statusCode, 200, r3.body);
+  });
+
+  test('VR-02 sem versão: grava como antes', async () => {
+    const c = await conta();
+    const lote = await criarLote(c, 'B');
+    await esperar();
+    await req('PATCH', `/lotes/${lote.id}`, c.token, { nome: 'B1' });
+    const r = await req('PATCH', `/lotes/${lote.id}`, c.token, { nome: 'B2' });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.equal(r.json().nome, 'B2');
+  });
+
+  test('VR-03 cocho e depósito: o mesmo, com o nome certo na mensagem', async () => {
+    const c = await conta();
+    const cocho = await criarPonto(c, 'COCHO');
+    await esperar();
+    const ok = await req('PATCH', `/pontos-suplementacao/${cocho.id}`, c.token, { nome_ponto: 'C1', versao_esperada: cocho.updated_date });
+    assert.equal(ok.statusCode, 200, ok.body);
+    const velho = await req('PATCH', `/pontos-suplementacao/${cocho.id}`, c.token, { nome_ponto: 'C2', versao_esperada: cocho.updated_date });
+    assert.equal(velho.statusCode, 409, velho.body);
+    assert.equal(velho.json().code, 'REGISTRO_VERSAO_CONFLITO');
+    assert.equal((await prisma().pontoSuplementacao.findUnique({ where: { id: cocho.id } })).nome_ponto, 'C1');
+    const deposito = await criarPonto(c, 'DEPOSITO');
+    await esperar();
+    await req('PATCH', `/pontos-suplementacao/${deposito.id}`, c.token, { nome_ponto: 'D1' });
+    const d = await req('PATCH', `/pontos-suplementacao/${deposito.id}`, c.token, { nome_ponto: 'D2', versao_esperada: deposito.updated_date });
+    assert.equal(d.statusCode, 409, d.body);
+    assert.match(d.json().message, /^O depósito foi alterado/);
+  });
+
+  test('VR-04 versão em formato inválido → 400, nada gravado', async () => {
+    const c = await conta();
+    const lote = await criarLote(c, 'C');
+    const cocho = await criarPonto(c);
+    for (const [url, corpo] of [[`/lotes/${lote.id}`, { nome: 'X', versao_esperada: 'ontem' }], [`/pontos-suplementacao/${cocho.id}`, { nome_ponto: 'X', versao_esperada: 'ontem' }]]) {
+      const r = await req('PATCH', url, c.token, corpo);
+      assert.equal(r.statusCode, 400, `${url}: ${r.body}`);
+    }
+    assert.equal((await prisma().lote.findUnique({ where: { id: lote.id } })).nome, 'C');
+  });
+
+  test('VR-05 mudança feita pelo servidor (sem PATCH) também muda a versão', async () => {
+    const c = await conta();
+    const lote = await criarLote(c, 'D');
+    await esperar();
+    await prisma().lote.update({ where: { id: lote.id }, data: { observacoes: 'mudou por um manejo' } });
+    const r = await req('PATCH', `/lotes/${lote.id}`, c.token, { nome: 'D1', versao_esperada: lote.updated_date });
+    assert.equal(r.statusCode, 409, r.body);
+  });
+
+  test('VR-06 outro tenant: 404, sem vazar versão nem autor', async () => {
+    const a = await conta();
+    const b = await conta();
+    const lote = await criarLote(a, 'E');
+    const r = await req('PATCH', `/lotes/${lote.id}`, b.token, { nome: 'E1', versao_esperada: lote.updated_date });
+    assert.equal(r.statusCode, 404, r.body);
+    assert.equal(r.json().details?.alterado_por_nome, undefined);
+  });
+});

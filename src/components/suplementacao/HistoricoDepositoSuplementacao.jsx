@@ -9,6 +9,7 @@ import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheSe
 import { CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO, MENSAGEM_ESTORNO_SUSPENSO } from "@/domain/estornos/politicaEstorno";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
 import { comSaldoSemExcluidos } from "@/lib/estoqueSaldoSemExcluidos";
+import { textoDaUnidadeDigitada } from "@/lib/unidadeLancamentoRegras";
 
 function formatObsKgPtBR(obs) {
   if (!obs) return "";
@@ -211,6 +212,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
           >
             <LinhaHistorico rotulo="Quantidade kg">{formatKg(movimentacao.quantidade || 0)}</LinhaHistorico>
             <LinhaHistorico rotulo="Unidade">{movimentacao.unidade_medida || "KG"}</LinhaHistorico>
+            {textoDaUnidadeDigitada(movimentacao) ? <LinhaHistorico rotulo="Digitado como">{textoDaUnidadeDigitada(movimentacao)}</LinhaHistorico> : null}
             <LinhaHistorico rotulo="Origem">{movimentacao.local_origem || movimentacao.local_estoque_origem || "-"}</LinhaHistorico>
             <LinhaHistorico rotulo="Destino">{destinoLabel}</LinhaHistorico>
             <LinhaHistorico rotulo="Saldo antes">{movimentacao.saldo_antes != null ? formatKg(movimentacao.saldo_antes) : "-"}</LinhaHistorico>

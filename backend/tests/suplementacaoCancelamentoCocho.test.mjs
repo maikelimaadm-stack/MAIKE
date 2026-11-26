@@ -428,26 +428,35 @@ describe('D-PROD-268 — recusas (nada muda)', () => {
     ok(await cancelar(z, q.evento.id));
   });
 
-  test('D-PROD-273 (fatia 4): compra ou baixa de outro cocho depois → o cancelamento passa e RECALCULA o que veio depois (antes: movimento_posterior_no_deposito); camada estornada → lote_indisponivel_para_devolucao', async () => {
+  test('D-PROD-314: compra ou baixa de outro cocho depois → 409 registro posterior (nada muda); excluído o mais recente, o cancelamento passa pelo estorno exato; camada estornada → lote_indisponivel_para_devolucao', async () => {
     const x = await cenario();
     await entrar(x, '100', '2');
     const n = await lancar(x, { kg: 10, data: '2027-06-02' });
     const compra = await entrar(x, '10', '3');
-    const rx = ok(await cancelar(x, n.evento.id));
-    // sem o cocho: a compra entra com 100 já no galpão (saldo 90→100 antes, 100→110 depois); L1 volta a 100 a R$ 2, L2 fica a R$ 3
-    assert.deepEqual(rx.recalculo, { produtos: 1, movimentos: 1, camadas: 2, dependentes: 0 });
-    const mc = await mov(compra.itens[0].movimentacao_estoque_id);
-    assert.deepEqual([mc.saldo_antes.toFixed(4), mc.saldo_depois.toFixed(4)], ['100.0000', '110.0000']);
-    proximo((await poco(x)).valor, 230);
+    const movCompra = compra.itens[0].movimentacao_estoque_id;
+    await exigirRecusa(x, n.evento.id, 'registro_posterior', 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR');
+    const jx = (await cancelar(x, n.evento.id)).json();
+    assert.deepEqual([jx.details.posterior_id, jx.details.local_estoque_id], [movCompra, x.galpao.id], JSON.stringify(jx.details));
+    assert.equal(ok(await elegibilidade(x, n.evento.id)).detalhes.posterior_id, movCompra);
+    // exclui primeiro a compra (a mais recente); o cocho sai depois: o poço volta a 100 a R$ 2
+    ok(await chamar('POST', `/estoque/entradas/${compra.id}/excluir`, x.token, { empresa_id: x.e.id, versao: compra.versao, motivo: 'lançada errada', operation_id: op('ex') }));
+    ok(await cancelar(x, n.evento.id));
+    assert.equal(await estoqueAtual(x), '100');
+    proximo((await poco(x)).quantidade, 100);
+    proximo((await poco(x)).valor, 200);
     await reconciliacaoLimpa(x);
 
     const y = await cenario();
     await entrar(y, '100', '2');
     const m = await lancar(y, { kg: 10, data: '2027-06-02' });
     const outro = await lancar(y, { kg: 5, data: '2027-06-02', ponto: 'outro-cocho' });
-    const ry = ok(await cancelar(y, m.evento.id));
-    assert.equal(ry.recalculo.movimentos, 1, 'a baixa do outro cocho: mesmo custo (R$ 2), saldo 90→100');
-    assert.deepEqual([(await mov(outro.mov.id)).saldo_antes.toFixed(4), (await mov(outro.mov.id)).valor_total.toFixed(4)], ['100.0000', '10.0000']);
+    await exigirRecusa(y, m.evento.id, 'registro_posterior', 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR');
+    assert.equal((await cancelar(y, m.evento.id)).json().details.posterior_id, outro.mov.id);
+    // exclui primeiro a baixa do outro cocho (a mais recente); depois o primeiro sai
+    ok(await cancelar(y, outro.evento.id));
+    ok(await cancelar(y, m.evento.id));
+    assert.equal(await estoqueAtual(y), '100');
+    proximo((await poco(y)).valor, 200);
     await reconciliacaoLimpa(y);
 
     const z = await cenario();
@@ -751,8 +760,8 @@ describe('D-PROD-268 — revisão: concorrência real com duas conexões', () =>
     assert.equal(await prisma().movimentacaoEstoque.count({ where: { cliente_id: x.c } }), antesMov, 'nenhum estorno');
   });
 
-  const saidaOutroCocho = (x, kg = 5) => chamar('POST', '/movimentacoes-estoque/comandos/saida-suplementacao', x.token, {
-    operation_id: op('outro'), empresa_id: x.e.id, produto_id: x.p.id, local_origem_id: x.galpao.id, quantidade: kg, ponto_suplementacao_id: 'outro-cocho', data_movimentacao: '2027-06-12',
+  const saidaOutroCocho = (x, kg = 5, chave = op('outro')) => chamar('POST', '/movimentacoes-estoque/comandos/saida-suplementacao', x.token, {
+    operation_id: chave, empresa_id: x.e.id, produto_id: x.p.id, local_origem_id: x.galpao.id, quantidade: kg, ponto_suplementacao_id: 'outro-cocho', data_movimentacao: '2027-06-12',
   });
 
   test('cancelar × saída de outro cocho no mesmo depósito: cancelamento primeiro → os dois passam e o estoque fecha', async () => {
@@ -772,23 +781,41 @@ describe('D-PROD-268 — revisão: concorrência real com duas conexões', () =>
     await reconciliacaoLimpa(x);
   });
 
-  test('cancelar × saída de outro cocho no mesmo depósito: saída primeiro → o cancelamento espera, passa e RECALCULA a saída (D-PROD-273, fatia 4; antes: movimento_posterior_no_deposito)', async () => {
+  test('cancelar × saída de outro cocho no mesmo depósito: saída primeiro → o cancelamento espera, vê a saída e recusa 409 registro posterior (D-PROD-314), nada muda; cancelado o outro cocho, o N sai', async () => {
     const x = await cenario();
     const { n1, n } = await tresLancamentos(x);
+    const chaveOutro = op('outro');
     const produto = await segurar(travaDoProduto(x));
-    const saida = saidaOutroCocho(x);
+    const saida = saidaOutroCocho(x, 5, chaveOutro);
     await esperarNaFila(1);
     const canc = cancelar(x, n.evento.id);
     await esperarNaFila(2);
     await produto.soltar();
     const s = ok(await saida, 201).movimentacao;
-    const r = ok(await canc);
-    assert.equal(r.recalculo.produtos, 1);
+    const r = await canc;
+    assert.deepEqual(recusa(r), [409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior'], r.body);
+    assert.equal(r.json().details.posterior_id, s.id);
+    assert.equal((await evento(n.evento.id)).dados.situacao, undefined);
+    assert.notEqual((await evento(n1.evento.id)).dados.dias_periodo, null, 'N-1 não foi reaberto');
+    // 100 − 30 − 30 − 20 − 5 = 15; nenhum estorno
+    assert.equal(await estoqueAtual(x), '15');
+    assert.equal((await mov(n.mov.id)).status, 'Ativa');
+    // Do mais recente para o mais antigo: o lançamento do outro cocho (com a mesma chave da baixa) é cancelado, e o N sai.
+    const outro = ok(await comando(x, {
+      operation_id: chaveOutro,
+      evento: {
+        empresa_id: x.e.id, ponto_suplementacao_id: 'outro-cocho', ponto_nome: 'Cocho 2', area_id: 'area-2', area_ids: ['area-2'], data_lancamento: '2027-06-12',
+        produto: 'Sal mineral', produto_id: x.p.id, quantidade_total_kg: 5, sobra_kg: 0, dias_periodo: null, consumo_diario_grupo_kg: null,
+        total_cabecas_afetadas: 10, movimentacao_estoque_id: s.id, custo_unitario_kg: Number(s.valor_unitario),
+      },
+      lotes: [{ empresa_id: x.e.id, lote_id: 'lote-b', lote_nome: 'B', data_lancamento: '2027-06-12', percentual_consumo_lote: 1, dias_periodo: null, dias_ativos_periodo: null, animal_dias_periodo: null, consumo_unitario_dia: null, consumo_por_cabeca_dia_kg: null, consumo_total_lote_periodo_kg: null }],
+    }), 201).evento;
+    ok(await cancelar(x, outro.id));
+    ok(await cancelar(x, n.evento.id));
     assert.equal((await evento(n.evento.id)).dados.situacao, 'cancelado');
     assert.equal((await evento(n1.evento.id)).dados.dias_periodo, null, 'o período anterior reabre');
-    // 100 − 30 − 30 − 20 − 5 + 20 (estorno) = 35; a saída do outro cocho fica com o saldo de antes dela sem o N
-    assert.equal(await estoqueAtual(x), '35');
-    assert.equal((await mov(s.id)).saldo_antes.toFixed(4), '40.0000');
+    // 100 − 30 − 30 = 40
+    assert.equal(await estoqueAtual(x), '40');
     await reconciliacaoLimpa(x);
   });
 });

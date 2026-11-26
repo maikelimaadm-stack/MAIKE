@@ -435,6 +435,25 @@ const INVIAVEL_RECALCULO = /** @type {Record<string, string>} */ ({
   recalculo_nao_confere: 'O recálculo não fechou com o gravado.',
 });
 
+/** D-PROD-314: nome do registro posterior na mensagem "exclua primeiro…" (pelo tipo, ou pela origem). */
+const NOME_DO_POSTERIOR = /** @type {Record<string, string>} */ ({
+  suplementacao: 'o lançamento no cocho',
+  saida_manual: 'a saída',
+  venda_financeiro: 'a venda',
+  compra_financeiro: 'a compra',
+  transferencia_enviada: 'a transferência',
+  transferencia_recebida: 'a transferência',
+  ajuste_sobra: 'o ajuste de inventário',
+  ajuste_falta: 'o ajuste de inventário',
+  Entrada: 'a entrada',
+  'Saída': 'a saída',
+});
+const NOME_DA_ORIGEM_POSTERIOR = /** @type {Record<string, string>} */ ({
+  suplementacao: 'o lançamento no cocho',
+  abastecimento_patrimonio: 'o abastecimento',
+  apontamento_atividade: 'a atividade',
+});
+
 /**
  * D-PROD-273 (fatia 4) — recusas da exclusão com recálculo (iguais em todas as origens de saída): mensagem clara,
  * ou null para outro código.
@@ -449,6 +468,15 @@ export const mensagemRecalculoDaExclusao = (code, reason, details = {}) => {
     return reason === 'movimento_com_lote'
       ? 'Este movimento foi lançado quando o produto controlava lote, e o produto não controla mais. Ele não pode ser excluído nem estornado. Para corrigir, lance um ajuste ou um movimento novo. Nada foi alterado.'
       : 'Este movimento foi lançado quando o produto não controlava lote, e agora o produto controla. Ele não pode ser excluído nem estornado. Para corrigir, lance um ajuste ou um movimento novo. Nada foi alterado.';
+  }
+  // D-PROD-314 — só o último: há registro lançado depois, no mesmo produto e depósito, que ainda vale.
+  if (code === 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR') {
+    const d = details ?? {};
+    const nome = NOME_DA_ORIGEM_POSTERIOR[String(d.posterior_origem)] ?? NOME_DO_POSTERIOR[String(d.posterior_tipo)] ?? 'o movimento';
+    const dia = typeof d.posterior_data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.posterior_data) ? ` de ${d.posterior_data.split('-').reverse().join('/')}` : '';
+    const numero = d.posterior_numero != null ? ` nº ${d.posterior_numero}` : '';
+    const onde = d.local_nome ? ` no depósito ${d.local_nome}` : ' no depósito';
+    return `Há registro lançado depois deste${onde}. Exclua primeiro o mais recente: ${nome}${numero}${dia}. Nada foi alterado.`;
   }
   if (code === 'ESTOQUE_RECALCULO_VOLUME_EXCEDIDO') return 'Há movimentos demais deste produto depois deste para recalcular de uma vez. Procure o suporte. Nada foi alterado.';
   // Escolha do proprietário (2026-11-23): com contagem de inventário depois, no depósito, a exclusão é recusada.

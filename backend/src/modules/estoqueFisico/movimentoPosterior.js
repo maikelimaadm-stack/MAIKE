@@ -143,3 +143,142 @@ export const buscarMovimentoPosteriorA = async (tx, clienteId, a) => {
     ignorarParesNeutros: a.ignorarParesNeutros === true,
   });
 };
+
+/**
+ * D-PROD-314 — "só o último" no estoque: o primeiro REGISTRO POSTERIOR QUE AINDA VALE, no produto e nos `locais`
+ * (origem OU destino), depois da referência `desde` (o mesmo critério fail-closed de "depois" de
+ * `buscarMovimentoPosterior`), fora de `ignorarIds`. Não contam (não vinculam nada ao movimento de referência):
+ *  - os pares excluídos com recálculo (`MARCA_EXCLUSAO_RECALCULO`);
+ *  - o original 'Estornada' que tem um estorno `estorno_*` dele (o par saiu: volta o valor gravado);
+ *  - o estorno `estorno_*` de um original 'Estornada'.
+ * Qualquer outro movimento depois (cocho, saída, venda, atividade, abastecimento, transferência, entrada, compra,
+ * ajuste) foi lançado com o saldo e o médio que incluíam o movimento de referência: ele vincula e recusa a exclusão.
+ * Devolve o MAIS RECENTE deles (é o que tem de sair primeiro), com a data e o nome do depósito para a mensagem.
+ * @param {any} tx @param {string} clienteId do auth_context de quem chama
+ * @param {{ empresaId: string, produtoId: string, locais: string[], ignorarIds: string[], desde: { createdAt: Date, numero: string|null } }} a
+ * @returns {Promise<(MovimentoPosterior & { data_movimentacao: Date|null, origem_sistema: string|null, local_nome: string|null })|null>}
+ */
+export const buscarRegistroPosteriorValendo = async (tx, clienteId, a) => {
+  const locais = [...new Set((a.locais ?? []).filter((v) => typeof v === 'string' && v))];
+  const ignorar = [...new Set((a.ignorarIds ?? []).filter((v) => typeof v === 'string' && v))];
+  if (!locais.length) throw new Error('buscarRegistroPosteriorValendo: ao menos um local');
+  if (!(a.desde?.createdAt instanceof Date) || Number.isNaN(a.desde.createdAt.getTime())) throw new Error('buscarRegistroPosteriorValendo: desde.createdAt obrigatório');
+  const numero = a.desde.numero ?? '';
+  const [m] = /** @type {any[]} */ (await tx.$queryRaw`SELECT m.id, m.numero_movimentacao, m."createdAt", m.tipo_movimentacao, m.tipo_detalhado, m.status,
+        m.local_estoque_origem, m.local_estoque_destino, m.data_movimentacao, m.origem_sistema
+      FROM "MovimentacaoEstoque" m
+      WHERE m.cliente_id = ${clienteId} AND m.empresa_id = ${a.empresaId} AND m.produto_id = ${a.produtoId} AND m.id <> ALL(${ignorar}::text[])
+        AND (m.local_estoque_origem = ANY(${locais}::text[]) OR m.local_estoque_destino = ANY(${locais}::text[]))
+        AND NOT starts_with(COALESCE(m.movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})
+        AND (m."createdAt" >= ${a.desde.createdAt}
+          OR m.numero_movimentacao !~ '^[0-9]{1,30}$'
+          OR (${numero} ~ '^[0-9]{1,30}$' AND m.numero_movimentacao::numeric > ${numero}::numeric))
+        AND NOT (m.status = 'Estornada' AND EXISTS (SELECT 1 FROM "MovimentacaoEstoque" e
+          WHERE e.cliente_id = m.cliente_id AND e.movimento_pai_id = m.id AND starts_with(COALESCE(e.tipo_detalhado, ''), 'estorno_')))
+        AND NOT (starts_with(COALESCE(m.tipo_detalhado, ''), 'estorno_') AND EXISTS (SELECT 1 FROM "MovimentacaoEstoque" o
+          WHERE o.cliente_id = m.cliente_id AND o.id = m.movimento_pai_id AND o.status = 'Estornada'))
+      ORDER BY m."createdAt" DESC, m.id DESC LIMIT 1`);
+  if (!m) return null;
+  const base = comoPosterior(m, locais);
+  const local = base.local_estoque_id
+    ? await tx.localEstoque.findFirst({ where: { cliente_id: clienteId, id: base.local_estoque_id }, select: { nome: true } })
+    : null;
+  return { ...base, data_movimentacao: m.data_movimentacao ?? null, origem_sistema: m.origem_sistema ?? null, local_nome: local?.nome ?? null };
+};
+
+/** Nome do registro posterior para a mensagem (o mesmo vocabulário da tela). */
+const nomeDoRegistro = (m) => {
+  const t = typeof m.tipo_detalhado === 'string' ? m.tipo_detalhado : '';
+  if (t === 'suplementacao' || m.origem_sistema === 'suplementacao') return 'o lançamento no cocho';
+  if (m.origem_sistema === 'abastecimento_patrimonio') return 'o abastecimento';
+  if (m.origem_sistema === 'apontamento_atividade') return 'a atividade';
+  if (t.startsWith('transferencia')) return 'a transferência';
+  if (t === 'venda_financeiro') return 'a venda';
+  if (t === 'compra_financeiro') return 'a compra';
+  if (t === 'ajuste_sobra' || t === 'ajuste_falta') return 'o ajuste de inventário';
+  if (t === 'saida_manual') return 'a saída';
+  return m.tipo_movimentacao === 'Entrada' ? 'a entrada' : 'a saída';
+};
+
+const diaBr = (d) => (d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOString().slice(0, 10).split('-').reverse().join('/') : null);
+
+/**
+ * 409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR` (D-PROD-314): há um registro depois deste movimento, no mesmo produto e
+ * depósito, que ainda vale. Exclua primeiro o mais recente.
+ * @param {NonNullable<Awaited<ReturnType<typeof buscarRegistroPosteriorValendo>>>} p
+ * @param {{ movimento_id?: string, linha_id?: string }} [extra]
+ */
+export const recusaRegistroPosterior = (p, extra = {}) => {
+  const dia = diaBr(p.data_movimentacao);
+  const onde = p.local_nome ? ` no depósito ${p.local_nome}` : '';
+  const qual = `${nomeDoRegistro(p)} nº ${p.numero_movimentacao}${dia ? ` de ${dia}` : ''}`;
+  return new AppError('ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', `há registro lançado depois deste movimento${onde}; exclua primeiro o mais recente (${qual}); nada foi alterado`, {
+    details: {
+      field: 'movimento_id', reason: 'registro_posterior', ...extra,
+      posterior_id: p.id, posterior_numero: p.numero_movimentacao, posterior_tipo: p.tipo_detalhado ?? p.tipo_movimentacao,
+      posterior_origem: p.origem_sistema, posterior_data: dia ? /** @type {Date} */ (p.data_movimentacao).toISOString().slice(0, 10) : null,
+      local_estoque_id: p.local_estoque_id, local_nome: p.local_nome,
+    },
+  });
+};
+
+/**
+ * D-PROD-314 — os PARES JÁ EXCLUÍDOS pelo estorno exato (sem a marca do recálculo) lançados depois da referência, no
+ * produto e nos `locais`. Quando só eles vêm depois (`buscarRegistroPosteriorValendo` vazio), o recálculo os tira da
+ * sequência junto com o movimento excluído (e os marca), em vez de refazê-los: refeitos sem o movimento, a perna de
+ * saída do par deixaria um saldo negativo falso no meio da sequência e o movimento nunca mais sairia.
+ * Devolve os pares no desenho do replay (`paresMarcados`): [original, estorno]; na transferência, os DOIS pares
+ * (S + E_o e R + E_d) ou nenhum. Par com perna de grupo legado preenchido fica de fora (não se sobrescreve).
+ * @param {any} tx @param {string} clienteId do auth_context de quem chama
+ * @param {{ empresaId: string, produtoId: string, locais: string[], ignorarIds: string[], desde: { createdAt: Date, numero: string|null } }} a
+ * @returns {Promise<Array<[string, string]>>}
+ */
+export const buscarParesExcluidosDepois = async (tx, clienteId, a) => {
+  const locais = [...new Set((a.locais ?? []).filter((v) => typeof v === 'string' && v))];
+  const ignorar = [...new Set((a.ignorarIds ?? []).filter((v) => typeof v === 'string' && v))];
+  if (!locais.length) return [];
+  const numero = a.desde.numero ?? '';
+  const originais = /** @type {any[]} */ (await tx.$queryRaw`SELECT m.id FROM "MovimentacaoEstoque" m
+      WHERE m.cliente_id = ${clienteId} AND m.empresa_id = ${a.empresaId} AND m.produto_id = ${a.produtoId} AND m.id <> ALL(${ignorar}::text[])
+        AND (m.local_estoque_origem = ANY(${locais}::text[]) OR m.local_estoque_destino = ANY(${locais}::text[]))
+        AND m.status = 'Estornada' AND m.movimentacao_grupo_id IS NULL AND NOT starts_with(COALESCE(m.tipo_detalhado, ''), 'estorno_')
+        AND (m."createdAt" >= ${a.desde.createdAt}
+          OR m.numero_movimentacao !~ '^[0-9]{1,30}$'
+          OR (${numero} ~ '^[0-9]{1,30}$' AND m.numero_movimentacao::numeric > ${numero}::numeric))
+      ORDER BY m."createdAt", m.id LIMIT ${TETO_POSTERIORES}::int`);
+  if (!originais.length) return [];
+  const ids = originais.map((o) => o.id);
+  // As pernas e os estornos que podem estar envolvidos: os originais, os filhos e os pais deles e os filhos destes.
+  const ler = (lista) => tx.movimentacaoEstoque.findMany({
+    where: { cliente_id: clienteId, empresa_id: a.empresaId, OR: [{ id: { in: lista } }, { movimento_pai_id: { in: lista } }] },
+    select: { id: true, status: true, tipo_detalhado: true, movimento_pai_id: true, movimento_filho_id: true, movimentacao_grupo_id: true },
+  });
+  const primeiros = await ler(ids);
+  const ligados = [...new Set(primeiros.flatMap((m) => [m.movimento_pai_id, m.movimento_filho_id]).filter(Boolean))];
+  const todos = new Map([...primeiros, ...(ligados.length ? await ler(ligados) : [])].map((m) => [m.id, m]));
+  const livre = (m) => m && (m.movimentacao_grupo_id === null || m.movimentacao_grupo_id === undefined);
+  const ehEstorno = (m) => typeof m?.tipo_detalhado === 'string' && m.tipo_detalhado.startsWith('estorno_');
+  /** Par simples: original 'Estornada' + o filho estorno dele. */
+  const parSimples = (o) => {
+    const e = o?.movimento_filho_id ? todos.get(o.movimento_filho_id) : null;
+    return o?.status === 'Estornada' && livre(o) && e && ehEstorno(e) && e.movimento_pai_id === o.id && livre(e) ? [o.id, e.id] : null;
+  };
+  /** Transferência: S (filho = R) + E_o (pai = S) e R + E_d (filho de R). */
+  const parTransferencia = (s) => {
+    const r = s?.movimento_filho_id ? todos.get(s.movimento_filho_id) : null;
+    const eo = [...todos.values()].find((x) => x.movimento_pai_id === s?.id && x.tipo_detalhado === 'estorno_transferencia_enviada');
+    const pr = r && r.tipo_detalhado === 'transferencia_recebida' ? parSimples(r) : null;
+    if (!s || s.status !== 'Estornada' || !livre(s) || !eo || !livre(eo) || !pr) return [];
+    return [[s.id, eo.id], pr];
+  };
+  /** @type {Map<string, [string, string]>} */
+  const pares = new Map();
+  for (const id of ids) {
+    const o = todos.get(id);
+    if (!o) continue;
+    const s = o.tipo_detalhado === 'transferencia_enviada' ? o : o.tipo_detalhado === 'transferencia_recebida' ? todos.get(o.movimento_pai_id) : null;
+    const lista = s ? parTransferencia(s) : [parSimples(o)].filter(Boolean);
+    for (const p of lista) pares.set(p[0], /** @type {[string, string]} */ (p));
+  }
+  return [...pares.values()];
+};

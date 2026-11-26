@@ -246,6 +246,13 @@ export default function CadastroLotes() {
         notifyWarning("Correção recusada", `A entrada não pode ser corrigida: ${mensagemDoMotivoCorrecao(corpo?.details?.motivo)}.`);
         return;
       }
+      if (corpo?.code === "REGISTRO_VERSAO_CONFLITO") {
+        // D-PROD-316: outra pessoa alterou o lote depois que ele foi aberto: a mensagem diz quem e
+        // quando, e a lista é relida para o próximo "abrir" já vir com o que está no servidor.
+        invalidateLotesComMapa();
+        notifyWarning("Lote alterado por outra pessoa", getApiErrorMessage(err, "O lote foi alterado depois que você o abriu. Abra de novo e refaça a alteração."));
+        return;
+      }
       if (corpo?.code === "LOTE_ESTADO_CONFLITO") {
         notifyWarning("Lote alterado", "O lote mudou desde que foi aberto. Recarregue o registro e refaça a correção.");
         return;

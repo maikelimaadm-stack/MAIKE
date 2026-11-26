@@ -226,30 +226,53 @@ describe('L5 — troca do "Controla lote" só com saldo zero', () => {
 });
 
 describe('L6 — exclusões', () => {
-  test('excluir a saída devolve ao mesmo lote pelo custo dele (estorno exato, mesmo com movimento depois); replay = gravado', async () => {
+  /** D-PROD-314: 409 ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR apontando o registro mais recente que ainda vale. */
+  const recusaPosterior = (r, posteriorMovId) => {
+    const b = erro(r, 409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior');
+    assert.equal(b.details.posterior_id, posteriorMovId, r.body);
+    return b;
+  };
+  const excluirSaida = (x, doc) => H.req('POST', `/estoque/saidas/${doc.id}/excluir`, x.token, { empresa_id: x.e1.id, versao: doc.versao, motivo: 'lançada errada', operation_id: `ex-${randomUUID()}` });
+  const excluirEntrada = (x, doc) => H.req('POST', `/estoque/entradas/${doc.id}/excluir`, x.token, { empresa_id: x.e1.id, versao: doc.versao, motivo: 'lançada errada', operation_id: `ex-${randomUUID()}` });
+  const retrato = async (x, L) => ({
+    movimentos: await prisma().movimentacaoEstoque.count({ where: { cliente_id: x.c } }),
+    ativos: await prisma().movimentacaoEstoque.count({ where: { cliente_id: x.c, status: 'Ativa' } }),
+    A: await camada(L.A), B: await camada(L.B), C: await camada(L.C),
+  });
+
+  test('D-PROD-314: excluir a saída com outra saída depois → 409 registro posterior, nada gravado; exclui a mais recente primeiro e a saída devolve ao mesmo lote pelo custo dele; replay = gravado', async () => {
     const x = await montar();
     const L = await tresLotes(x);
     const s1 = ok(await sair(x, x.local, '20', [{ estoque_lote_nota_id: L.A, quantidade: '20' }]), 201);
-    ok(await sair(x, x.local, '10', [{ estoque_lote_nota_id: L.C, quantidade: '10' }]), 201); // depois, no mesmo depósito
-    ok(await H.req('POST', `/estoque/saidas/${s1.id}/excluir`, x.token, { empresa_id: x.e1.id, versao: s1.versao, motivo: 'lançada errada', operation_id: `ex-${randomUUID()}` }));
+    const s2 = ok(await sair(x, x.local, '10', [{ estoque_lote_nota_id: L.C, quantidade: '10' }]), 201); // depois, no mesmo depósito
+    const antes = await retrato(x, L);
+    recusaPosterior(await excluirSaida(x, s1), s2.itens[0].movimentacao_estoque_id);
+    assert.deepEqual(await retrato(x, L), antes, 'nada gravado');
+    // Do mais recente para o mais antigo: a s2 sai, depois a s1.
+    ok(await excluirSaida(x, s2));
+    ok(await excluirSaida(x, s1));
     assert.deepEqual(await camada(L.A), { disp: '100.0000', custo: '4.0000', status: 'Disponivel', lote: 'A', validade: '2027-12-31' });
-    assert.deepEqual(await camada(L.C), { disp: '30.0000', custo: '5.0000', status: 'Disponivel', lote: 'C', validade: '2028-01-31' });
+    assert.deepEqual(await camada(L.C), { disp: '40.0000', custo: '5.0000', status: 'Disponivel', lote: 'C', validade: '2028-01-31' });
     await provarReplay(x);
   });
 
-  test('excluir a entrada de um lote que já teve saída → 409 lote_consumido, nada gravado; a de um lote intocado sai', async () => {
+  test('excluir a entrada de um lote que já teve saída → 409 (D-PROD-314: registro posterior), nada gravado; excluídas a saída e as entradas do mais recente para o mais antigo, a de um lote intocado sai', async () => {
     const x = await montar();
     const L = await tresLotes(x);
-    ok(await sair(x, x.local, '10', [{ estoque_lote_nota_id: L.C, quantidade: '10' }]), 201);
-    const antes = await prisma().movimentacaoEstoque.count({ where: { cliente_id: x.c } });
-    const r = await H.req('POST', `/estoque/entradas/${L.c.id}/excluir`, x.token, { empresa_id: x.e1.id, versao: L.c.versao, motivo: 'lançada errada', operation_id: `ex-${randomUUID()}` });
-    erro(r, 409, 'ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', 'lote_consumido');
-    assert.match(r.json().message, /lote já teve saída/);
-    assert.equal(await prisma().movimentacaoEstoque.count({ where: { cliente_id: x.c } }), antes, 'nada gravado');
-    // O B não teve saída (a saída foi do C, escolhido à mão): a entrada dele sai, a camada fica Estornado.
-    ok(await H.req('POST', `/estoque/entradas/${L.b.id}/excluir`, x.token, { empresa_id: x.e1.id, versao: L.b.versao, motivo: 'lançada errada', operation_id: `ex-${randomUUID()}` }));
+    const s = ok(await sair(x, x.local, '10', [{ estoque_lote_nota_id: L.C, quantidade: '10' }]), 201);
+    const antes = await retrato(x, L);
+    // D-PROD-314: a recusa lote_consumido agora é precedida pela do registro posterior (toda saída do lote é posterior à entrada dele).
+    recusaPosterior(await excluirEntrada(x, L.c), s.itens[0].movimentacao_estoque_id);
+    // O B não teve saída, mas a entrada C e a saída vieram depois dele no mesmo depósito: a mais recente (a saída) vincula.
+    recusaPosterior(await excluirEntrada(x, L.b), s.itens[0].movimentacao_estoque_id);
+    assert.deepEqual(await retrato(x, L), antes, 'nada gravado');
+    // Do mais recente para o mais antigo: a saída, a entrada C, a entrada B.
+    ok(await excluirSaida(x, s));
+    ok(await excluirEntrada(x, L.c));
+    assert.deepEqual([(await camada(L.C)).status, (await camada(L.C)).disp], ['Estornado', '0.0000']);
+    ok(await excluirEntrada(x, L.b));
     assert.deepEqual([(await camada(L.B)).status, (await camada(L.B)).disp], ['Estornado', '0.0000']);
-    assert.deepEqual(await camada(L.C), { disp: '30.0000', custo: '5.0000', status: 'Disponivel', lote: 'C', validade: '2028-01-31' });
+    assert.deepEqual(await camada(L.A), { disp: '100.0000', custo: '4.0000', status: 'Disponivel', lote: 'A', validade: '2027-12-31' });
     await provarReplay(x);
   });
 });

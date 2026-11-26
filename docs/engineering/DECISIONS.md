@@ -9791,11 +9791,85 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** sem mudança.
 - **Testes:** `tests/smoke/saidaLoteUnidadeConvertida.test.js` (4 casos; 3 vermelhos no código da `main`): multiplica (3 SC = 75 kg e a soma confere), divide (10 CX ÷ 4 = 2,5 L), SACO do cadastro antes do legado, e os casos de sempre.
 
-## D-PROD-313 — Textos visíveis: "jato" passa a "implemento" (só a tela)
+
+## D-PROD-313 — A unidade digitada aparece na lista de movimentos do Estoque e no histórico do depósito
+
+**Data:** 2026-11-25 · **Origem:** pendência registrada na D-PROD-310, pedida pelo proprietário ("pode ser") · **Branch:** `claude/unidade-digitada-historico` · **Relatório:** [`MAIKE-UNIDADE-DIGITADA-HISTORICO-REPORT.md`](./MAIKE-UNIDADE-DIGITADA-HISTORICO-REPORT.md)
+
+- **Contexto:** desde a D-PROD-310, o cocho, as transferências e a linha de produto da atividade gravam no movimento a unidade em que a quantidade foi digitada (`unidade_lancamento`), a quantidade digitada e o fator. As telas de consulta mostravam só a quantidade na unidade de estoque (75 kg), sem dizer que foram 3 SC. A lista do Estoque (`GET /estoque/movimentos` e o detalhe) nem recebia as colunas: a resposta é uma lista fechada de campos.
+- **Decisão:**
+  - `GET /estoque/movimentos` e `GET /estoque/movimentos/:id` passam a devolver `unidade_lancamento`, `quantidade_lancamento` e `fator_lancamento` (texto canônico de 4 casas; nulos sem conversão), pela mesma `unidadePublica` da linha da atividade. Só leitura; nada muda no que é gravado.
+  - Na grade de Movimentos do Estoque, a quantidade fica "− 75 kg (3 SC)"; na janela do movimento, uma linha "Digitado como: 3 SC". Sem conversão, nada muda.
+  - No histórico do depósito no mapa, o cartão ganha "Digitado como: 3 SC" depois da unidade; no cartão curto do detalhe do depósito, "3 SC" fica no lugar dos sacos calculados pelo peso do saco do cadastro (e no "Saíram 75,00 kg, 3 SC" para o leitor de tela).
+  - O que ainda espera envio (feito sem internet) também mostra a digitada: `historicoAguardandoEnvioService` copia a unidade e a quantidade digitada do corpo guardado (o fator só o servidor grava).
+  - A quantidade que vale continua sendo a da unidade de estoque; a digitada é só informação.
+- **Migration:** nenhuma. **Constituição:** sem mudança.
+- **Testes:** `backend/tests/estoqueConsulta.test.mjs` ("unidade digitada (D-PROD-313)", vermelho sem a mudança), `tests/smoke/unidadeDigitadaHistorico.test.js` (novo), e casos novos em `estoqueTela`, `historicosMapaEstiloManejo`, `detalhesV12Deposito` e `depositoTransferenciaOffline` (ET-09).
+
+## D-PROD-314 — Estoque: só o último sai; o registro que já foi usado depois não pode ser excluído (substitui a exclusão com recálculo da D-PROD-273)
+
+**Data:** 2026-11-25 · **Origem:** pedido do proprietário ("não posso de forma alguma excluir registros posteriores que vincularam algo"), depois da D-PROD-311 (lote e cocho) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SO-O-ULTIMO-ESTOQUE-D314-REPORT.md`](./SO-O-ULTIMO-ESTOQUE-D314-REPORT.md)
+
+> **Numeração:** nasceu D-PROD-313 (a `main` `4d90d4df` indicava `Próxima decisão: D-PROD-312`, reservada pela PR #398). A #398 levou a D-PROD-312 (`1fa95ff5`) e a #401 (unidade digitada na lista de movimentos, `4d01f13d`) a D-PROD-313; a `main` passou a indicar `Próxima decisão: D-PROD-314`, que é esta (`node scripts/dev/proxima-decisao.mjs`). O marcador passa a D-PROD-315. Conferir de novo antes do merge (regra A5).
+
+- **Regra do proprietário:** no estoque vale a mesma regra do lote (D-PROD-311): um movimento só sai (é excluído ou cancelado) se nada que ainda vale foi lançado DEPOIS dele no mesmo produto e no mesmo depósito. Exclui-se sempre o mais recente primeiro. Na transferência, valem a origem E o destino.
+- **O que muda:** a D-PROD-273 deixava excluir qualquer movimento com algo depois e recalculava o custo médio de tudo o que veio depois (e dos valores copiados dele: cocho, atividade, abastecimento, venda, transferência). Agora isso é **recusado**: o registro posterior foi lançado com o saldo e o médio que incluíam o movimento excluído. A parte "excluir e recalcular" da D-PROD-273 e a emenda dela na Constituição deixam de valer para quem tem registro posterior; o "some das telas", o replay e a trilha continuam.
+- **Decisão — servidor (um ponto só):**
+  1. `buscarRegistroPosteriorValendo` (`estoqueFisico/movimentoPosterior.js`): o registro mais recente do produto, no(s) depósito(s) do movimento (origem ou destino), depois dele pelo critério fail-closed de sempre (`createdAt`, número provisório ou número maior). **Não contam**, porque não vinculam nada: o par já excluído com recálculo (a marca `exclusao_recalculo:`), o original 'Estornada' com o estorno dele e o estorno `estorno_*` de um original 'Estornada'. Qualquer outro conta: cocho, saída manual, venda, atividade, abastecimento, transferência, entrada, compra e ajuste.
+  2. `planejarExclusaoComRecalculo`, por onde passam todas as exclusões e cancelamentos de estoque (saída manual, cocho, atividade, abastecimento, venda e compra do financeiro, entrada documentada, ajuste de inventário e transferência), recusa antes de qualquer escrita com 409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR` (`posterior_id`, `posterior_numero`, `posterior_tipo`, `posterior_origem`, `posterior_data`, `local_estoque_id`, `local_nome`). O estorno exato como saída (abastecimento, atividade, venda, camada intocada) também não vale mais quando há registro posterior.
+  3. Quando depois só há pares já excluídos, a exclusão segue como antes. Se nada veio depois, ela é o estorno exato. Se o que veio depois são só pares excluídos, o recálculo de sempre tira o par da sequência, sem mudar o custo de nada que vale.
+  4. A prévia (`GET /estoque/movimentos/:id/exclusao/previa`) e a elegibilidade do cancelamento do cocho devolvem a mesma recusa, então o botão já mostra qual registro excluir antes.
+  5. Mantém-se a recusa com contagem de inventário posterior (2026-11-23) e todas as outras.
+- **Decisão — app:** `mensagemRecalculoDaExclusao` traduz o código novo em todas as telas de exclusão do estoque, do cocho, do depósito, da atividade e do patrimônio: "Há registro lançado depois deste no depósito X. Exclua primeiro o mais recente: o lançamento no cocho nº 42 de 12/11. Nada foi alterado."
+- **Escolhas do proprietário (2026-11-25, "vou seguir sua sugestão"):**
+  1. **Edição da linha de produto da atividade:** segue a mesma regra. Com registro posterior que ainda vale no depósito da linha, a edição é recusada com o mesmo 409, antes de qualquer escrita (`estornarLinhasProduto` sem `recalcular`). Antes, a edição fazia o estorno exato e relançava a linha. A edição da entrada e da saída manual (D-PROD-271) já exigia "nada depois", e o abastecimento só se cancela.
+  2. **Cancelar a atividade ou o apontamento:** a cascata que cancela os abastecimentos e as linhas ligados é recusada se houver consumo posterior no mesmo tanque ou depósito. Para corrigir uma atividade antiga, exclui-se antes o que veio depois naquele depósito. Isso confirma a regra, sem mudança de código.
+
+## D-PROD-315 — Índices da sincronização incremental (EXPAND, só CREATE INDEX)
+
+**Data:** 2026-11-25 · **Origem:** a revisão da D-PROD-309 (Etapa 2 da sincronização) e o plano das 5 etapas aprovado pelo proprietário ("isso vai virar um saas com milhões de registros") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** `20261126300000_sincronizacao_incremental_indices` (EXPAND) · **Relatório:** [`MAIKE-SINCRONIZACAO-INDICES-REPORT.md`](./MAIKE-SINCRONIZACAO-INDICES-REPORT.md) · **Runbook:** [`MAIKE-SINCRONIZACAO-INDICES-RUNBOOK-RELEASE.md`](./MAIKE-SINCRONIZACAO-INDICES-RUNBOOK-RELEASE.md)
+
+> **Numeração:** a `main` (`efb23995`) indica `Próxima decisão: D-PROD-315`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-316. O número não está no `migration.sql` (checksum inalterado). Conferir de novo antes do merge (regra A5).
+
+- **Contexto:** `GET /…/mudancas` (D-PROD-309) lê `WHERE cliente_id AND "updatedAt" >= desde ORDER BY "updatedAt", id` nas 4 listas (lotes, pontos, leituras de cocho, lançamentos) e as exclusões do período no `AuditLog` (`entidade`, `acao = 'delete'`, `"createdAt" >= desde`). Sem índice, cada sincronização lia toda a tabela do cliente.
+- **Decisão (banco, EXPAND, aplicar antes do merge):** 5 `CREATE INDEX` não-únicos, tenant primeiro (R10): `(cliente_id, updatedAt, id)` em `Lote`, `PontoSuplementacao`, `LEITURACOCHO` e `SuplementacaoEvento`; `(cliente_id, entidade, acao, createdAt, id)` em `AuditLog`. Sem `CONCURRENTLY`, que o classificador não aceita. Ordem das travas: domínio primeiro e `AuditLog` por último, como os comandos. Nenhuma tabela, coluna, constraint, dado, RLS ou GRANT muda; nenhum código de aplicação muda.
+- **Governança:** checksum `a1cdcd2f…fc3c` no manifesto; B47a/b/c; contagens e posições dos testes pinados atualizadas; espelhos dos "dias" antigos sem os índices (`schemaSemIndicesDaSincronizacao`). O preflight de schema do deploy não muda, porque o código funciona sem os índices.
+- **Prova:** `EXPLAIN` das 5 consultas usa os índices novos (MU-09); `prisma migrate diff` vazio.
+- **Produção:** aplicada em 2026-11-25 pelo caminho B, com o GO do proprietário ("Pode aplicar por favor"), antes do merge. Pós-checagem: 82 concluídas e 0 ruins, a nova com `a1cdcd2f…fc3c`, os 5 índices válidos.
+- **Fora:** índices para as outras listas, quando entrarem na sincronização incremental (Etapa 5).
+
+## D-PROD-316 — Sincronização, Etapa 3: versão do registro e quem alterou (lote e cocho)
+
+**Data:** 2026-11-25 · **Origem:** o plano de 5 etapas da sincronização aprovado pelo proprietário ("isso vai virar um saas com milhões de registros, clientes, vários usuários") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-ETAPA3-D316-REPORT.md`](./SINCRONIZACAO-ETAPA3-D316-REPORT.md)
+
+> **Numeração:** a `main` (`8090e2d0`) indica `Próxima decisão: D-PROD-316`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-317. Conferir de novo antes do merge (regra A5).
+
+- **Problema:** duas pessoas ou dois aparelhos editando o mesmo lote ou cocho; a última gravação apagava a outra em silêncio.
+- **Decisão — a versão é o `updatedAt`:** o Prisma atualiza esse campo em toda gravação, inclusive as internas (D-PROD-309), e o app já o recebe como `updated_date`. Não há migration nem "incremento" a lembrar em cada caminho de escrita.
+- **Decisão — servidor:**
+  1. `PATCH /lotes/:id` e `PATCH /pontos-suplementacao/:id` aceitam `versao_esperada`, que é a versão vista. Sob a trava da linha (o ponto passou a travar com `FOR NO KEY UPDATE`), se a versão for diferente da atual o servidor responde 409 `REGISTRO_VERSAO_CONFLITO` e não grava nada. Os detalhes trazem `versao_atual`, `alterado_por_nome`, `alterado_por_id` e `alterado_em`, lidos da última auditoria do registro.
+  2. Formato inválido dá 400.
+  3. Sem versão (app antigo, cascatas internas), grava como antes.
+- **Decisão — app:**
+  1. As telas mandam a versão do registro aberto: cadastro de lotes, Renomear lote e o cocho ou depósito no mapa. Na gravação em dois passos, o segundo vai com a versão nova.
+  2. **Fila sem internet:**
+     - a versão vai só no PATCH, nunca no registro guardado nem numa criação na fila;
+     - edições juntadas ficam com a versão da primeira;
+     - com internet e uma edição do mesmo registro ainda na fila, a nova vai como item próprio logo depois, sem versão, e a fila é enviada (antes ia direto, fora de ordem);
+     - conflito ao enviar: a edição fica retida com a mensagem, e a seguinte do mesmo registro espera.
+  3. **Mensagem:** "Este lote foi alterado por Maria em 25/11/2026 14:30, depois que você o abriu. Abra de novo, confira e refaça a alteração. Nada foi gravado."
+- **Fora:**
+  - duas gravações no mesmo milissegundo, que a trava da linha torna raras;
+  - os lançamentos de cocho, que são comandos com as próprias regras;
+  - as outras entidades, que ficam para a Etapa 5;
+  - o "alterado por" fora do conflito, que exigiria guardar o autor no registro.
+
+
+## D-PROD-317 — Textos visíveis: "jato" passa a "implemento" (só a tela)
 
 **Data:** 2026-11-26 · **Origem:** fase 1 do Diário da máquina, aprovada pelo proprietário ("perfeito vamos fazer com o claude ok") · **Branch:** `feat/diario-implemento-textos`
 
-> **Numeração:** a `main` indicava `Próxima decisão: D-PROD-313` (`node scripts/dev/proxima-decisao.mjs`). O plano da fase citava D-PROD-314 por engano (o marcador já era 313). Nenhuma PR aberta reivindicava o 313. O marcador passa a D-PROD-314. Conferir de novo antes do merge (regra A5).
+> **Numeração:** nasceu D-PROD-313 a partir da `main` `51bdd26ca` (marcador `Próxima decisão: D-PROD-313`). Antes do merge desta PR, a `main` já havia levado D-PROD-313 a D-PROD-316 (PRs #401, #403, #404 e #405); o marcador atual é `Próxima decisão: D-PROD-317`, que é esta (`node scripts/dev/proxima-decisao.mjs`). O plano da fase citava D-PROD-314 por engano. O marcador passa a D-PROD-318. Conferir de novo antes do merge (regra A5).
 
 - **Contexto:** no lançamento de atividades e no cadastro do implemento, a tela chamava de "jato" o tanque/implemento cheio (número do dia, cartões, totais, resumo ao finalizar a área). O termo não é o que a operação usa no campo. A troca é só de texto visível, primeira fase do Diário da máquina; o comportamento e o contrato não mudam.
 - **Decisão:**
@@ -9804,5 +9878,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** sem mudança.
 - **Testes:** `tests/smoke/jatosDoDia.test.jsx`, `fechamentoArea.test.jsx`, `servicoVariosDias.test.jsx` (asserções de texto da UI). Os demais smoke do fluxo (`registroDeCampoVariasLinhas`, `estoqueLoteAtividade`, `bensPatrimoniais`) não assertam essas strings.
 
-<!-- Próxima decisão: D-PROD-314 -->
-
+<!-- Próxima decisão: D-PROD-318 -->

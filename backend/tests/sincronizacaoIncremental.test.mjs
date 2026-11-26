@@ -9,6 +9,7 @@
  * MU-06 `desde` ou `cursor` inválido: 400, nada consultado
  * MU-07 exclusões demais no período: `recarregar` (o aparelho baixa a lista toda)
  * MU-08 leituras de cocho: mesma forma da listagem
+ * MU-09 (D-PROD-315) as consultas de mudanças e de exclusões usam os índices da sincronização
  */
 
 import { test, describe, before, after, beforeEach } from 'node:test';
@@ -206,4 +207,42 @@ describe('D-PROD-309 — GET /lotes/mudancas', () => {
     const depois = (await req('GET', `/leituras-cocho/mudancas?desde=${encodeURIComponent(desde)}`, c.token)).json();
     assert.deepEqual(depois.excluidos, [leitura.id]);
   });
+
+  test('MU-09 (D-PROD-315) as consultas de mudanças e de exclusões usam os índices da sincronização', async () => {
+    const c = await conta();
+    await criarLote(c, 'A');
+    const planoDe = async (sql) => {
+      const linhas = await prisma().$transaction(async (tx) => {
+        // Sem varredura e sem ordenação à parte: só um índice que já entrega a ordem ("updatedAt", id) ou
+        // ("createdAt", id) depois dos filtros de igualdade serve — o planejador não pode escolher outro índice
+        // e ordenar depois (com tabelas pequenas ele faria isso, e o teste ficaria dependente das estatísticas).
+        await tx.$executeRawUnsafe('SET LOCAL enable_seqscan = off');
+        await tx.$executeRawUnsafe('SET LOCAL enable_sort = off');
+        await tx.$executeRawUnsafe('SET LOCAL enable_incremental_sort = off');
+        return tx.$queryRawUnsafe(`EXPLAIN ${sql}`, c.cliente.id);
+      });
+      return linhas.map((l) => l['QUERY PLAN']).join('\n');
+    };
+    for (const [tabela, indice] of [
+      ['Lote', 'Lote_cliente_id_updatedAt_id_idx'],
+      ['PontoSuplementacao', 'PontoSuplementacao_cliente_id_updatedAt_id_idx'],
+      ['LEITURACOCHO', 'LEITURACOCHO_cliente_id_updatedAt_id_idx'],
+      ['SuplementacaoEvento', 'SuplementacaoEvento_cliente_id_updatedAt_id_idx'],
+    ]) {
+      const plano = await planoDe(`SELECT id FROM "${tabela}" WHERE cliente_id = $1 AND "updatedAt" >= now() - interval '1 day' ORDER BY "updatedAt", id LIMIT 1001`);
+      assert.match(plano, new RegExp(indice), `${tabela}: ${plano}`);
+    }
+    // Volume realista de auditoria do mesmo cliente (outras entidades e ações): com poucas linhas o planejador pode
+    // preferir o índice antigo (cliente_id, createdAt) e filtrar o resto; com volume, o novo é o caminho.
+    await prisma().auditLog.createMany({
+      data: Array.from({ length: 3000 }, (_, i) => ({
+        cliente_id: c.cliente.id, acao: i % 2 ? 'update' : 'create', entidade: i % 3 ? 'SuplementacaoEvento' : 'Lote',
+        entidade_id: `x-${i}`, request_id: `r-${i}`,
+      })),
+    });
+    await prisma().$executeRawUnsafe('ANALYZE "AuditLog"');
+    const auditoria = await planoDe(`SELECT entidade_id FROM "AuditLog" WHERE cliente_id = $1 AND entidade = 'Lote' AND acao = 'delete' AND "createdAt" >= now() - interval '1 day' ORDER BY "createdAt", id LIMIT 5001`);
+    assert.match(auditoria, /AuditLog_cliente_id_entidade_acao_createdAt_id_idx/, auditoria);
+  });
 });
+

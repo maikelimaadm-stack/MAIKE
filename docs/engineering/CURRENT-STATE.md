@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-25 (missão ativa D-PROD-311; antes D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-316; antes D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,43 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-25) — MAIKE-SO-O-ULTIMO: exclusão só do mais recente e revisão geral de lote, nutrição e depósito (D-PROD-311)
+## Missão ativa (2026-11-25) — MAIKE-SINCRONIZACAO-ETAPA3: versão do registro e quem alterou (D-PROD-316)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-316**: o PATCH do lote e do cocho aceita `versao_esperada` (o `updatedAt` visto); diferente → 409 `REGISTRO_VERSAO_CONFLITO` com quem e quando, nada gravado; a fila do aparelho guarda a versão da primeira edição e segura a seguinte após um conflito |
+| Banco | sem migration |
+| Relatório | [`SINCRONIZACAO-ETAPA3-D316-REPORT.md`](./SINCRONIZACAO-ETAPA3-D316-REPORT.md) |
+| Próximas | Etapa 4 (a tela nunca "pisca"); Etapa 5 (manutenção e as outras entidades) |
+
+## Missão anterior (2026-11-25) — MAIKE-SINCRONIZACAO-INDICES: índices da sincronização incremental (D-PROD-315)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-315**: 5 índices não-únicos, tenant primeiro: `(cliente_id, updatedAt, id)` em Lote, PontoSuplementacao, LEITURACOCHO e SuplementacaoEvento, e `(cliente_id, entidade, acao, createdAt, id)` em AuditLog |
+| Banco | migration EXPAND `20261126300000_sincronizacao_incremental_indices`; **aplicada em produção em 2026-11-25** (caminho B, GO do proprietário; pós-checagem 82/0, os 5 índices válidos) |
+| Relatório | [`MAIKE-SINCRONIZACAO-INDICES-REPORT.md`](./MAIKE-SINCRONIZACAO-INDICES-REPORT.md) · runbook [`MAIKE-SINCRONIZACAO-INDICES-RUNBOOK-RELEASE.md`](./MAIKE-SINCRONIZACAO-INDICES-RUNBOOK-RELEASE.md) |
+| Próximas | Etapa 3 da sincronização (versão por registro e quem alterou) |
+
+## Missão anterior (2026-11-25) — MAIKE-SO-O-ULTIMO-ESTOQUE: no depósito também só o último sai (D-PROD-314)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-314**: movimento de estoque só sai sem registro posterior que ainda vale no mesmo produto e depósito (transferência: origem e destino); 409 `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR` diz qual excluir antes; substitui a "exclusão com recálculo" da D-PROD-273 (emenda constitucional nova); pares já excluídos saem da conta junto |
+| Banco | sem migration |
+| Relatório | [`SO-O-ULTIMO-ESTOQUE-D314-REPORT.md`](./SO-O-ULTIMO-ESTOQUE-D314-REPORT.md) |
+| Próximas | índices da sincronização incremental; Etapa 3 (a edição da linha da atividade já segue a regra, por escolha do proprietário) |
+
+## Missão anterior (2026-11-25) — MAIKE-UNIDADE-DIGITADA-HISTORICO: a unidade digitada na lista de movimentos e no histórico do depósito (D-PROD-313)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-313**: `GET /estoque/movimentos` (lista e detalhe) devolve a unidade digitada, a quantidade digitada e o fator; a grade mostra "− 75 kg (3 SC)", a janela "Digitado como"; o histórico do depósito no mapa e o que espera envio mostram "3 SC" |
+| Banco | sem migration (só leitura das colunas da D-PROD-310) |
+| Branch | `claude/unidade-digitada-historico` (PR em rascunho) |
+| Relatório | [`MAIKE-UNIDADE-DIGITADA-HISTORICO-REPORT.md`](./MAIKE-UNIDADE-DIGITADA-HISTORICO-REPORT.md) |
+
+## Missão anterior (2026-11-25) — MAIKE-SO-O-ULTIMO: exclusão só do mais recente e revisão geral de lote, nutrição e depósito (D-PROD-311)
 
 | Item | Estado |
 |---|---|
@@ -27,7 +63,7 @@ rollout pausado **D-PROD-41**)
 | Banco | migration EXPAND `20261126200000_unidade_convertida_lancamentos` (6 colunas anuláveis em `MovimentacaoEstoque` e `AtividadeApontamentoProduto`) — **aplicada em produção em 2026-11-25** (caminho B, GO do proprietário, antes do merge; runbook §7) |
 | Branch | `claude/unidade-convertida-lancamentos` (PR #396, mergeada) |
 | Relatório | [`MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md`](./MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-REPORT.md) · runbook [`MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-RUNBOOK-RELEASE.md`](./MAIKE-UNIDADE-CONVERTIDA-LANCAMENTOS-RUNBOOK-RELEASE.md) |
-| Próximas | mostrar a unidade digitada na lista de movimentos e no histórico do depósito |
+| Próximas | mostrar a unidade digitada na lista de movimentos e no histórico do depósito: feito na D-PROD-313 |
 
 ## Missão anterior (2026-11-25) — MAIKE-SINCRONIZACAO-ETAPA2: só o que mudou (D-PROD-309)
 

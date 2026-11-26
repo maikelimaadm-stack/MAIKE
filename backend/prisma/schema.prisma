@@ -313,6 +313,9 @@ model AuditLog {
   @@index([cliente_id, entidade, entidade_id])
   @@index([cliente_id, usuario_id])
   @@index([cliente_id, request_id])
+  // MAIKE-SINCRONIZACAO-INDICES
+  /// D-PROD-315: as exclusões do período na sincronização incremental (entidade, `delete`, desde).
+  @@index([cliente_id, entidade, acao, createdAt, id])
 }
 
 // ---------------------------------------------------------------------------
@@ -1162,6 +1165,9 @@ model Lote {
   @@index([cliente_id, area_atual_id])
   @@index([cliente_id, status])
   @@index([cliente_id, nome])
+  // MAIKE-SINCRONIZACAO-INDICES
+  /// D-PROD-315: a sincronização incremental (`GET /…/mudancas`) lê por `updatedAt` e desempata pelo id.
+  @@index([cliente_id, updatedAt, id])
 }
 
 // ---------------------------------------------------------------------------
@@ -1675,6 +1681,9 @@ model PontoSuplementacao {
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_ponto])
   @@index([cliente_id, empresa_id])
+  // MAIKE-SINCRONIZACAO-INDICES
+  /// D-PROD-315: a sincronização incremental (`GET /…/mudancas`) lê por `updatedAt` e desempata pelo id.
+  @@index([cliente_id, updatedAt, id])
 }
 
 // ---------------------------------------------------------------------------
@@ -1708,6 +1717,9 @@ model LeituraCocho {
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id, data_leitura])
   @@index([cliente_id, ponto_suplementacao_id, data_leitura])
+  // MAIKE-SINCRONIZACAO-INDICES
+  /// D-PROD-315: a sincronização incremental (`GET /…/mudancas`) lê por `updatedAt` e desempata pelo id.
+  @@index([cliente_id, updatedAt, id])
   @@map("LEITURACOCHO")
 }
 
@@ -1942,6 +1954,9 @@ model SuplementacaoEvento {
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
+  // MAIKE-SINCRONIZACAO-INDICES
+  /// D-PROD-315: a sincronização incremental (`GET /…/mudancas`) lê por `updatedAt` e desempata pelo id.
+  @@index([cliente_id, updatedAt, id])
 }
 
 model SuplementacaoLote {
