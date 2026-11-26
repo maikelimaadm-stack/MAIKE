@@ -130,12 +130,17 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       const mudouStatus = data.status && data.status !== previous?.status;
       const evento = mudouLocal ? 'Mudança de Local' : payload.status === 'Concluída' && mudouStatus ? 'Conclusão' : payload.status === 'Cancelada' && mudouStatus ? 'Cancelamento' : mudouStatus ? 'Mudança de Status' : 'Edição';
       const descricao = mudouLocal ? 'Local da tarefa alterado pelo mapa.' : payload.status === 'Concluída' && mudouStatus ? 'Tarefa concluída pelo mapa.' : payload.status === 'Cancelada' && mudouStatus ? 'Tarefa cancelada pelo mapa.' : mudouStatus ? `Status alterado para ${payload.status}.` : 'Tarefa atualizada pelo mapa.';
-      const atualizada = await atualizarTarefa(id, {
-        ...payload,
-        historico_evento: evento,
-        historico_descricao: descricao,
-        historico_data_evento: new Date().toISOString(),
-      });
+      const atualizada = await atualizarTarefa(
+        id,
+        {
+          ...payload,
+          historico_evento: evento,
+          historico_descricao: descricao,
+          historico_data_evento: new Date().toISOString(),
+        },
+        // D-PROD-335: a foto que subiu sozinha enquanto o formulário estava aberto não é apagada.
+        { fotosDaTela: previous?.fotos }
+      );
       const fotosGuardadas = paraGuardar.length ? await guardarFotosDaTarefa(id, paraGuardar) : 0;
       return { ...atualizada, _fotosGuardadas: fotosGuardadas };
     },

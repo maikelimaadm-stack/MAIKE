@@ -53,6 +53,8 @@ const CAMPOS_HISTORICO_MAPA = Object.freeze({
 const CAMPOS_LANCAMENTO_ATUALIZACAO = Object.freeze({
   ...Object.fromEntries(Object.entries(CAMPOS_LANCAMENTO_CRIACAO).filter(([campo]) => campo !== 'empresa_id')),
   ...CAMPOS_HISTORICO_MAPA,
+  // D-PROD-335: fotos para SOMAR às que a tarefa já tem no servidor (a foto tirada sem internet que sobe depois).
+  fotos_adicionar: { type: 'array', minItems: 1, maxItems: 50, items: { type: 'string', minLength: 1 } },
 });
 
 const CAMPOS_LANCAMENTO_CRIACAO_COM_HISTORICO = Object.freeze({

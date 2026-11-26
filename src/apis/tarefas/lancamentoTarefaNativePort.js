@@ -56,6 +56,8 @@ const CAMPOS_DO_HISTORICO = Object.freeze(['historico_evento', 'historico_descri
 const CAMPOS_DE_ATUALIZACAO = Object.freeze([
   ...CAMPOS_DE_CRIACAO.filter((campo) => campo !== 'empresa_id'),
   ...CAMPOS_DO_HISTORICO,
+  // D-PROD-335: as fotos que sobem depois (tiradas sem internet) são SOMADAS no servidor às que a tarefa já tem.
+  'fotos_adicionar',
 ]);
 
 const valorDeEnvio = (valor) => {

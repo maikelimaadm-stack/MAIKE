@@ -711,8 +711,21 @@ const passada = async () => {
   };
 
   /** @param {ItemDaFila} item @param {ItemDaFila['ultimo_erro']} motivo */
+  /**
+   * D-PROD-335 — grava o que aconteceu no envio SÓ se o item ainda está na fila: a pessoa pode tê-lo excluído
+   * ("Excluir" na janela Sincronização) enquanto ele ia ao servidor. Antes, a gravação o recriava e ele era
+   * enviado assim mesmo na passada seguinte.
+   * @param {ItemDaFila} novo
+   */
+  const gravarSeAindaNaFila = (novo) =>
+    exclusivo(async () => {
+      if (!(await fila.ler(novo.id))) return false;
+      await fila.gravar(novo);
+      return true;
+    });
+
   const precisaDeAtencao = async (item, motivo) => {
-    await fila.gravar({ ...item, estado: 'atencao', ultimo_erro: motivo });
+    await gravarSeAindaNaFila({ ...item, estado: 'atencao', ultimo_erro: motivo });
     parar(item);
     emitir();
   };
@@ -831,7 +844,7 @@ const passada = async () => {
           });
         },
       });
-      await fila.gravar({
+      await gravarSeAindaNaFila({
         ...item,
         estado: 'enviado',
         resultado: JSON.parse(JSON.stringify(resultado ?? null)),
@@ -846,13 +859,13 @@ const passada = async () => {
       if (tipoDeFalha === 'sessao') return fim();
       const tentativas = item.tentativas + 1;
       if (tipoDeFalha === 'rede') {
-        await fila.gravar({ ...item, tentativas, proxima_tentativa_em: agora() + esperaDepoisDe(tentativas), ultimo_erro: resumoDoErro(erro) });
+        await gravarSeAindaNaFila({ ...item, tentativas, proxima_tentativa_em: agora() + esperaDepoisDe(tentativas), ultimo_erro: resumoDoErro(erro) });
         emitir();
         // Sem rede para um, sem rede para os outros: para a passada.
         return fim();
       }
       if (tipoDeFalha === 'servidor' && tentativas < TENTATIVAS_COM_ERRO_DO_SERVIDOR) {
-        await fila.gravar({ ...item, tentativas, proxima_tentativa_em: agora() + esperaDepoisDe(tentativas), ultimo_erro: resumoDoErro(erro) });
+        await gravarSeAindaNaFila({ ...item, tentativas, proxima_tentativa_em: agora() + esperaDepoisDe(tentativas), ultimo_erro: resumoDoErro(erro) });
         parar(item);
         emitir();
         continue;
@@ -875,6 +888,16 @@ const limparEnviadosAntigos = async (fila) => {
     const quando = Date.parse(item.enviado_em ?? '') || 0;
     if (quando < limite) await fila.remover(item.id);
   }
+};
+
+/**
+ * D-PROD-335 — há na fila desta sessão algum registro esperando envio cujo tipo ninguém registrou ainda (o módulo
+ * que sabe enviá-lo carrega sob demanda)? A passada carrega esses módulos antes de enviar.
+ */
+export const temTipoSemRegistroNaFila = async () => {
+  const fila = portaDaFila();
+  if (!fila || !sessao) return false;
+  return (await fila.listar()).some((i) => eDaSessao(i) && i.estado !== 'enviado' && !TIPOS.has(i.tipo));
 };
 
 /**

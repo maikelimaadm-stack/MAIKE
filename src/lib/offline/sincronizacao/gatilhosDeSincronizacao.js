@@ -20,9 +20,10 @@ import {
   syncOfflineEntityQueue,
   contarPendenciasDaFilaDeEntidades,
   idsComCriacaoPendenteNaFilaDeEntidades,
+  temEntidadeSemPortaNaFila,
 } from '@/lib/offline/offlineEntityRuntime';
 import { naVezDaSincronia } from './vezDaSincronia.js';
-import { sincronizar, resumoDaFila, definirEsperaDeFora, EVENTO_FILA_DE_ENVIO } from './motorDeSincronizacao.js';
+import { sincronizar, resumoDaFila, definirEsperaDeFora, EVENTO_FILA_DE_ENVIO, temTipoSemRegistroNaFila } from './motorDeSincronizacao.js';
 
 // D-PROD-308: registro do motor que cita um cadastro criado no aparelho (cocho, lote) ainda
 // na fila antiga espera essa criação chegar ao servidor — senão iria antes e seria recusado.
@@ -50,6 +51,31 @@ let iniciado = false;
 /** @type {Promise<void>|null} */
 let emCurso = null;
 
+/**
+ * D-PROD-335 — quem sabe enviar cada registro precisa estar carregado ANTES da passada. Os tipos de envio do
+ * cocho (lançamento, cancelamento) e do depósito (transferência e cancelamento) e as portas de cadastros como
+ * Marca, Unidade, Categoria e Tipo de atividade só se registram quando o módulo deles carrega (as telas carregam
+ * sob demanda, D-PROD-304). Depois de o Android fechar o app, nada disso estava carregado: a passada deixava os
+ * lançamentos do cocho parados (e os cadastros travavam a fila antiga) até alguém abrir a tela de um lote.
+ * Só carrega quando a fila tem algo que ninguém sabe enviar (o app continua leve na abertura).
+ */
+const carregarQuemEnvia = () =>
+  Promise.all([
+    import('@/services/suplementacaoService'),
+    import('@/services/suplementacaoEstoqueService'),
+    import('@/services/suplementacaoCancelamentoService'),
+    import('@/apis/offline').then((m) => m.carregarTodasAsPortas()),
+  ]).then(() => undefined);
+
+export const prepararTiposDeEnvio = async () => {
+  try {
+    const [faltaTipo, faltaPorta] = await Promise.all([temTipoSemRegistroNaFila(), temEntidadeSemPortaNaFila()]);
+    if (faltaTipo || faltaPorta) await carregarQuemEnvia();
+  } catch {
+    // sem carregar, o item fica na fila (como antes) e a próxima passada tenta de novo
+  }
+};
+
 const estaOnline = () => (typeof navigator === 'undefined' ? true : navigator.onLine !== false);
 
 /**
@@ -61,6 +87,7 @@ export const sincronizarTudo = () => {
     // D-PROD-307: na vez — nunca junto com uma baixa de dados (`vezDaSincronia`).
     emCurso = naVezDaSincronia(async () => {
       if (!estaOnline()) return;
+      await prepararTiposDeEnvio();
       let segurados = 0;
       try {
         segurados = (await sincronizar())?.seguradosPorFora ?? 0;

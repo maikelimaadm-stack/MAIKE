@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Check, CircleX, ClipboardList, FileText, History, MapPin, MessageSquare, MessageSquarePlus, Plus, Repeat, SquarePen, Trash2 } from "lucide-react";
 import { atualizarTarefa, excluirTarefa } from "@/services/tarefasMapaService";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
-import { excluirFotoGuardada, guardarFotosDaTarefa, enviarOuSepararFotos } from "@/services/fotosDeTarefaAguardandoService";
+import { excluirFotoGuardada, guardarFotosDaTarefa, enviarOuSepararFotos, EVENTO_TAREFA_COM_FOTOS_ENVIADAS } from "@/services/fotosDeTarefaAguardandoService";
 import useFotosGuardadasDaTarefa from "@/hooks/useFotosGuardadasDaTarefa";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -204,6 +204,17 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
     setCurrentTarefa(tarefa);
   }, [tarefa]);
 
+  // D-PROD-335: a foto guardada subiu com a tela aberta: ela sai da galeria "aguardando envio" e entra nas fotos da
+  // tarefa (antes sumia da tela, e editar em seguida a apagava do servidor).
+  useEffect(() => {
+    const aoEnviar = (/** @type {any} */ evento) => {
+      const nova = (evento?.detail?.tarefas ?? []).find((t) => t?.id && t.id === tarefa?.id);
+      if (nova) setCurrentTarefa((atual) => ({ ...atual, fotos: Array.isArray(nova.fotos) ? nova.fotos : atual?.fotos }));
+    };
+    window.addEventListener(EVENTO_TAREFA_COM_FOTOS_ENVIADAS, aoEnviar);
+    return () => window.removeEventListener(EVENTO_TAREFA_COM_FOTOS_ENVIADAS, aoEnviar);
+  }, [tarefa?.id]);
+
   const { data: historico = [], isLoading: loadingHistorico, isError: erroHistorico, error: causaErroHistorico, refetch: refetchHistorico } = useQuery({
     queryKey: ["historico-tarefa-detalhe", currentTarefa.id],
     queryFn: async () => {
@@ -294,12 +305,17 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
       mudouStatus ?
       `Status alterado para ${finalData.status}.` :
       "Tarefa editada.";
-      const atualizada = await atualizarTarefa(id, {
-        ...finalData,
-        historico_evento: evento,
-        historico_descricao: descricao,
-        historico_data_evento: new Date().toISOString(),
-      });
+      const atualizada = await atualizarTarefa(
+        id,
+        {
+          ...finalData,
+          historico_evento: evento,
+          historico_descricao: descricao,
+          historico_data_evento: new Date().toISOString(),
+        },
+        // D-PROD-335: a foto que subiu sozinha enquanto a tela estava aberta não é apagada.
+        { fotosDaTela: currentTarefa?.fotos }
+      );
       if (paraGuardar.length) await guardarFotosDaTarefa(id, paraGuardar);
       return atualizada;
     },

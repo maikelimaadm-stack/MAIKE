@@ -10267,4 +10267,35 @@ Vários itens ficavam presos para sempre, sem botão:
 
 > **Numeração:** nasceu D-PROD-332 (a `main` `0df374b61` indicava `Próxima decisão: D-PROD-332`). Antes do merge, a `main` deu a D-PROD-332 ao diário das atividades, parte 1 (PR #420, `2361f850f`) e passou a indicar `Próxima decisão: D-PROD-333`, que é esta (`node scripts/dev/proxima-decisao.mjs`, regra A5); o marcador passa a D-PROD-334.
 
-<!-- Próxima decisão: D-PROD-334 -->
+## D-PROD-335 — Sem internet, Grupo 1: nada se perde, nada duplica, nenhuma foto se apaga
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("Verifique os bugs offiline"). A varredura achou 21 defeitos confirmados, e ele escolheu corrigir primeiro o Grupo 1 ("Grupo 1 primeiro (Recomendado)") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SEM-INTERNET-GRUPO1-D335-REPORT.md`](./SEM-INTERNET-GRUPO1-D335-REPORT.md)
+
+**Decisão.** São seis correções; os Grupos 2 e 3 ficam para depois e estão no relatório.
+
+1. **Quem envia carrega antes da passada.**
+   - O que estava errado: o lançamento e o cancelamento do cocho e a transferência e o cancelamento do depósito só se registravam no motor quando a tela de um lote ou de um cocho carregava. O mesmo valia para as portas de Marca, Unidade, Categoria e Tipo de atividade. Depois de o Android fechar o app, a passada deixava esses registros parados (e mostrava "Tudo sincronizado").
+   - O que muda: a passada confere se a fila tem algo que ninguém sabe enviar (`temTipoSemRegistroNaFila`, `temEntidadeSemPortaNaFila`) e, nesse caso, carrega esses módulos antes de enviar (`prepararTiposDeEnvio`).
+2. **Uma passada por vez na fila de cadastros.** `syncOfflineEntityQueue` passa a fazer uma passada só por vez: quem pede durante uma passada recebe ela e mais uma volta em seguida. Antes, duas passadas ao mesmo tempo criavam o cadastro duas vezes no servidor.
+3. **Item em envio é intocável.**
+   - Na fila de cadastros: uma edição ou exclusão feita enquanto a criação do registro vai ao servidor (`EM_ENVIO`) vira um item próprio, depois dela. Antes, ela entrava no item que já estava subindo e se perdia, ou o apagava e o registro voltava.
+   - A edição nova também não entra numa edição recusada.
+   - No motor: o resultado do envio só é gravado se o item ainda está na fila. Antes, "Excluir" feito durante o envio era desfeito e o registro ia assim mesmo.
+4. **Lote manda a versão.** A edição do lote leva `versao_esperada` (D-PROD-316), que a porta descartava. Sem ela, a edição feita sem internet apagava, sem aviso, o que outra pessoa tinha mudado.
+5. **Fotos de tarefa são somadas no servidor.**
+   - `PATCH /lancamentos-tarefa/:id` aceita `fotos_adicionar`. O servidor trava a tarefa e soma essas fotos às que ela tem, sem repetir; com `fotos` junto, a soma é sobre a lista enviada.
+   - A passada das fotos manda só as novas. Antes ela mandava a lista inteira lida da cópia do aparelho, e uma cópia antiga ou de outra fazenda apagava as fotos da tarefa.
+   - A passada também:
+     - pula a foto excluída durante o envio;
+     - espera a criação ou edição da tarefa que está na fila;
+     - só apaga a foto do aparelho com a resposta do servidor.
+   - Quando a foto sobe, a tela de detalhes aberta passa a mostrá-la.
+   - Uma edição aberta antes não a apaga (`atualizarTarefa(..., { fotosDaTela })`). Se a pessoa tirar a foto de propósito, ela sai.
+6. **O lançamento do cocho que tentou subir não some.**
+   - O servidor grava `operation_id` no lançamento, fora do fingerprint, então o replay não muda.
+   - O lançamento que tentou subir sem resposta continua na lista com e sem internet, até a lista do servidor trazer o mesmo código.
+   - Antes ele sumia sempre que o celular dizia ter internet, e a pessoa lançava de novo.
+
+> **Numeração:** a `main` (`471ad9c9d`) indica `Próxima decisão: D-PROD-334`, mas esse número está reservado pela PR #424 (`node scripts/dev/proxima-decisao.mjs`). Esta é a D-PROD-335 e o marcador passa a D-PROD-336. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-336 -->
