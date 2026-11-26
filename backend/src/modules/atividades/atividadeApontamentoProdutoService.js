@@ -167,7 +167,8 @@ export const aceiteDeCombustivelQueVale = (clienteId, produtoId) => ({
  * unidade: o fator e a quantidade de estoque da linha editada (nunca entra no fingerprint nem na resposta).
  * @typedef {{ produto_id: string, local_estoque_id: string, quantidade?: string, observacao: string|null, vc_percentual?: string, jato?: number,
  *   lotes?: Array<{ estoque_lote_nota_id: string, quantidade: string }>, lotesDaLinhaAnterior?: Array<{ estoque_lote_nota_id: string, quantidade: string }>,
- *   unidade_lancamento?: string, quantidade_lancamento?: string, gravado?: { unidade: string, fator: any, quantidade_lancamento: string, quantidade: string } }} DadosDaLinha
+ *   unidade_lancamento?: string, quantidade_lancamento?: string, gravado?: { unidade: string, fator: any, quantidade_lancamento: string, quantidade: string },
+ *   mistura_id?: string, volume_aplicado?: string }} DadosDaLinha
  */
 
 /** MAIKE-ENTREGA2 (D-PROD-274) — o VC (%) da semente: texto decimal com até 2 casas, maior que 0 e até 100. */
@@ -461,6 +462,8 @@ const gravarLinha = async (tx, contexto, { clienteId, empresaId, atividade, apon
     ...(dados.vc_percentual ? { vc_percentual: dados.vc_percentual } : {}),
     // D-PROD-283: o número do jato (só na linha que o trouxe).
     ...(dados.jato ? { jato: dados.jato } : {}),
+    // D-PROD-319: a linha que sai de uma mistura no implemento (Passo 2) leva a mistura e o volume aplicado.
+    ...(dados.mistura_id ? { mistura_id: dados.mistura_id, volume_aplicado: dados.volume_aplicado } : {}),
     criado_por_usuario_id: auth.usuarioId ?? null,
   });
   await inserirFatias(

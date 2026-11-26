@@ -6,6 +6,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
 import { listar, listarPagina, criar, atualizar, excluir } from './produtoService.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
+import { AppError } from '../../shared/errors/AppError.js';
 
 const CAMPOS = Object.freeze({
   empresa_id: { type: 'string', minLength: 1, maxLength: 64, pattern: '\\S' },
@@ -31,6 +32,9 @@ const CAMPOS = Object.freeze({
   consumo_maximo_pv: { type: ['number', 'null'] },
   unidade_principal_estoque: { type: 'string', maxLength: 16 },
   peso_por_saco_kg: { type: ['number', 'null'] },
+  // D-PROD-319: quantidade padrão por implemento cheio (texto decimal; a unidade L ou KG). Opcionais: sem elas, nada muda.
+  quantidade_padrao: { type: ['string', 'null'], pattern: '^\\d{1,10}(\\.\\d{1,4})?$' },
+  quantidade_padrao_unidade: { type: ['string', 'null'], enum: ['L', 'KG', null] },
   // MAIKE-ENTREGA2 (D-PROD-274): carência da bula, em dias (0..365 no serviço; null limpa).
   carencia_dias: { type: ['integer', 'null'] },
   // D-PROD-282: controle de lote e de validade (Sim/Não; validade só com lote; trocar só com saldo zero).
@@ -60,6 +64,19 @@ const CAMPOS = Object.freeze({
     },
   },
 });
+
+/**
+ * D-PROD-319: a quantidade padrão é TEXTO decimal. O AJV coagiria um número antes do serviço (e o float já viria
+ * torto): número → 400, antes da coerção, como nas linhas de atividade.
+ */
+const recusarNumeroNaQuantidadePadrao = async (request) => {
+  const c = request.body;
+  if (c && typeof c === 'object' && c.quantidade_padrao !== undefined && c.quantidade_padrao !== null && typeof c.quantidade_padrao !== 'string') {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'quantidade_padrao deve ser texto decimal (ex.: "4"), nunca número', {
+      details: { field: 'quantidade_padrao', reason: 'valor_deve_ser_texto' },
+    });
+  }
+};
 
 const CRIAR_SCHEMA = {
   body: {
@@ -144,13 +161,13 @@ export const registrarProdutoRoutes = async (app) => {
     },
   );
 
-  app.post('/produtos', { onRequest: [app.autenticar], preHandler: [GUARDAS.produto.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/produtos', { onRequest: [app.autenticar], preHandler: [GUARDAS.produto.criar], preValidation: recusarNumeroNaQuantidadePadrao, schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const produto = await criar(request.contexto, corpoValidado(request.body));
     return reply.status(201).send(produto);
   });
 
-  app.patch('/produtos/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.produto.editar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/produtos/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.produto.editar], preValidation: recusarNumeroNaQuantidadePadrao, schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, corpoValidado(request.body));

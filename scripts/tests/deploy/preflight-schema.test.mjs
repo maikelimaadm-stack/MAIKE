@@ -118,6 +118,11 @@ const COLUNAS_OK = [
   { table_name: 'AtividadeApontamentoProduto', column_name: 'unidade_lancamento' },
   { table_name: 'AtividadeApontamentoProduto', column_name: 'quantidade_lancamento' },
   { table_name: 'AtividadeApontamentoProduto', column_name: 'fator_lancamento' },
+  // D-PROD-319: a quantidade padrão do produto e a mistura/volume da linha de produto da atividade.
+  { table_name: 'Produto', column_name: 'quantidade_padrao' },
+  { table_name: 'Produto', column_name: 'quantidade_padrao_unidade' },
+  { table_name: 'AtividadeApontamentoProduto', column_name: 'mistura_id' },
+  { table_name: 'AtividadeApontamentoProduto', column_name: 'volume_aplicado' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };

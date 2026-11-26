@@ -399,6 +399,35 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'a data do apontamento não muda com linha de produto, máquina, mão de obra ou serviço confirmada (details.linhas_produto/linhas_maquina/linhas_mao_obra/linhas_servico); cancele e lance de novo; nada foi gravado',
   },
+  // MAIKE-DIARIO-MAQUINA (D-PROD-319) — a mistura no implemento (Passo 1), a aplicação no pasto (Passo 2) e a sobra.
+  MISTURA_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica mistura desta atividade neste tenant',
+  },
+  MISTURA_ABERTA: {
+    http: 409,
+    meaning: 'já há mistura aberta com saldo deste implemento nesta atividade; aplique ou devolva o saldo antes (details.mistura_id, details.numero)',
+  },
+  MISTURA_STATUS_INVALIDO: {
+    http: 409,
+    meaning: 'a mistura não está aberta ou não tem saldo para esta ação (details.status, details.acao)',
+  },
+  MISTURA_AREA_DIFERENTE: {
+    http: 409,
+    meaning: 'o lançamento não é da área onde a mistura está agora (details.area_mistura_id, details.area_lancamento_id)',
+  },
+  MISTURA_INVALIDA: {
+    http: 422,
+    meaning: 'mistura recusada: implemento sem produto, capacidade ou unidade, área fora da atividade, produto ou local inválidos, quantidade não positiva (details.field, details.reason)',
+  },
+  MISTURA_SOBRA_INVALIDA: {
+    http: 422,
+    meaning: 'sobra fora da faixa: com esvaziou a sobra não vem; sem esvaziou ela fica entre 0 e o saldo, sem chegar a ele (details.saldo, details.sobra)',
+  },
+  MISTURA_MOVIMENTO_INVALIDO: {
+    http: 422,
+    meaning: 'movimento da sobra recusado: transferência sem área de destino, perda sem motivo (3 a 500) ou sem lançamento, horímetro ou área inválidos (details.tipo, details.reason)',
+  },
   // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
   ESTACAO_NOT_FOUND: {
     http: 404,

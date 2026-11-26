@@ -172,6 +172,9 @@ model Cliente {
 
   @@index([nome])
   @@index([ativo])
+  atividadeMisturas         AtividadeMistura[] // MAIKE-DIARIO-MAQUINA
+  atividadeMisturaItens     AtividadeMisturaItem[] // MAIKE-DIARIO-MAQUINA
+  atividadeMisturaMovimentos AtividadeMisturaMovimento[] // MAIKE-DIARIO-MAQUINA
 }
 
 // ---------------------------------------------------------------------------
@@ -262,6 +265,8 @@ model Usuario {
   // Login global entre contas ativas: migration `p6_1_login_global_hygiene` +
   // índice parcial SQL `Usuario_login_ativo_global_key` (D-PROD-35). No Prisma
   // permanece @@unique([cliente_id, login]); índice só em `login` violaria gate:indices.
+  atividadeMisturasCriadas  AtividadeMistura[] @relation("AtividadeMisturaCriadaPor") // MAIKE-DIARIO-MAQUINA
+  atividadeMisturaMovimentosCriados AtividadeMisturaMovimento[] @relation("AtividadeMisturaMovimentoCriadoPor") // MAIKE-DIARIO-MAQUINA
 }
 
 // ---------------------------------------------------------------------------
@@ -993,6 +998,9 @@ model AreaPastagem {
   @@index([cliente_id, ativo])
   @@index([cliente_id, nome])
   @@index([cliente_id, empresa_id, cultura_id])
+  atividadeMisturas         AtividadeMistura[] // MAIKE-DIARIO-MAQUINA
+  atividadeMisturaMovimentosDe   AtividadeMisturaMovimento[] @relation("AtividadeMisturaMovimentoDe") // MAIKE-DIARIO-MAQUINA
+  atividadeMisturaMovimentosPara AtividadeMisturaMovimento[] @relation("AtividadeMisturaMovimentoPara") // MAIKE-DIARIO-MAQUINA
 }
 
 // ---------------------------------------------------------------------------
@@ -1226,6 +1234,7 @@ model LocalEstoque {
   @@unique([cliente_id, id])
   @@index([cliente_id, ativo])
   @@index([cliente_id, nome])
+  atividadeMisturaItens     AtividadeMisturaItem[] // MAIKE-DIARIO-MAQUINA
 }
 
 // ---------------------------------------------------------------------------
@@ -1322,6 +1331,9 @@ model Produto {
   @@index([cliente_id, empresa_id])
   @@index([cliente_id, ativo])
   @@index([cliente_id, nome_produto])
+  quantidade_padrao         Decimal? @db.Decimal(14, 4) // MAIKE-DIARIO-MAQUINA
+  quantidade_padrao_unidade String?  @db.VarChar(8) // MAIKE-DIARIO-MAQUINA
+  atividadeMisturaItens     AtividadeMisturaItem[] // MAIKE-DIARIO-MAQUINA
 }
 
 // ---------------------------------------------------------------------------
@@ -1491,6 +1503,7 @@ model Empresa {
   @@unique([cliente_id, numero_empresa])
   @@unique([cliente_id, nome])
   @@index([cliente_id, apelido])
+  atividadeMisturas         AtividadeMistura[] // MAIKE-DIARIO-MAQUINA
 }
 
 model Permissao {
@@ -3178,6 +3191,7 @@ model BemPatrimonial {
   @@index([cliente_id, responsavel_usuario_id])
   @@index([cliente_id, empresa_id, centro_custo_id])
   @@index([cliente_id, area_id])
+  atividadeMisturas         AtividadeMistura[] // MAIKE-DIARIO-MAQUINA
 }
 
 /// Tanque de combustível do bem (MAQUINA/VEICULO/EQUIPAMENTO). Nunca removido,
@@ -3460,6 +3474,7 @@ model Atividade {
   @@index([cliente_id, empresa_id, bem_id])
   @@index([cliente_id, lancamento_tarefa_id])
   @@index([cliente_id, planejamento_id])
+  misturas                  AtividadeMistura[] // MAIKE-DIARIO-MAQUINA
 }
 
 /// D-PROD-200 — APONTAMENTO de um dia/turno, filho da atividade (o antigo ApontamentoAtividade, virando filho).
@@ -3522,6 +3537,7 @@ model AtividadeApontamento {
   @@index([cliente_id, operador_usuario_id])
   // D-PROD-249 — os lançamentos de uma área da atividade (e o lado que referencia da FK composta).
   @@index([cliente_id, empresa_id, atividade_id, atividade_area_id], map: "AtividadeApontamento_atividade_area_idx")
+  misturaMovimentos         AtividadeMisturaMovimento[] // MAIKE-DIARIO-MAQUINA
 }
 
 /// D-PROD-249 — as ÁREAS de uma atividade: uma atividade ("Combate à cigarrinha") feita em vários pastos ao longo do
@@ -3735,6 +3751,8 @@ model AtividadeApontamentoProduto {
   @@index([cliente_id, empresa_id, apontamento_id])
   @@index([cliente_id, produto_id])
   @@index([cliente_id, local_estoque_id])
+  mistura_id                String?   @db.VarChar(64) // MAIKE-DIARIO-MAQUINA
+  volume_aplicado           Decimal?  @db.Decimal(14, 4) // MAIKE-DIARIO-MAQUINA
 }
 
 /// D-PROD-202 — fatia FIFO consumida pela linha de produto (de qual lote, quanto, a que custo). O estorno devolve cada
@@ -4314,4 +4332,98 @@ model AjusteEstoqueEvento {
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id, ajuste_id, createdAt], map: "AjusteEstoqueEvento_ajuste_idx")
+}
+
+// MAIKE-DIARIO-MAQUINA
+/// D-PROD-319 — a MISTURA no implemento (Passo 1 "Implemento cheio"): o que foi colocado no implemento, na capacidade
+/// dele, e o saldo que ainda não foi aplicado. NÃO baixa estoque: a baixa é do Passo 2 (aplicar), pelo motor.
+/// `area_id` é onde o implemento está agora (muda na transferência). `numero` 1..n dentro da atividade.
+model AtividadeMistura {
+  id                    String   @id @default(cuid())
+  cliente_id            String   @db.VarChar(64)
+  empresa_id            String   @db.VarChar(64)
+  atividade_id          String   @db.VarChar(64)
+  implemento_bem_id     String   @db.VarChar(64)
+  area_id               String   @db.VarChar(64)
+  numero                Int
+  capacidade            Decimal  @db.Decimal(14, 4)
+  /// L | KG (CHECK): snapshot da unidade do implemento.
+  unidade               String   @db.VarChar(8)
+  saldo                 Decimal  @db.Decimal(14, 4)
+  /// ABERTA | ACABOU | DEVOLVIDA | PERDA (CHECK).
+  status                String   @db.VarChar(16)
+  operation_id          String   @db.VarChar(128)
+  criado_por_usuario_id String?  @db.VarChar(64)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  cliente    Cliente       @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa    Empresa       @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeMistura_empresa_fkey")
+  atividade  Atividade     @relation(fields: [cliente_id, empresa_id, atividade_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeMistura_atividade_fkey")
+  implemento BemPatrimonial @relation(fields: [cliente_id, empresa_id, implemento_bem_id], references: [cliente_id, empresa_id, id], onDelete: Restrict, map: "AtividadeMistura_implemento_fkey")
+  area       AreaPastagem  @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeMistura_area_fkey")
+  criadoPor  Usuario?      @relation("AtividadeMisturaCriadaPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeMistura_criado_por_fkey")
+  itens      AtividadeMisturaItem[]
+  movimentos AtividadeMisturaMovimento[]
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, operation_id])
+  @@unique([cliente_id, atividade_id, numero])
+  @@index([cliente_id, atividade_id, status])
+}
+
+// MAIKE-DIARIO-MAQUINA
+/// D-PROD-319 — um produto da mistura, com a quantidade POR IMPLEMENTO CHEIO (na unidade de estoque do produto) e o
+/// local de estoque de onde sai quando aplicado.
+model AtividadeMisturaItem {
+  id               String   @id @default(cuid())
+  cliente_id       String   @db.VarChar(64)
+  mistura_id       String   @db.VarChar(64)
+  produto_id       String   @db.VarChar(64)
+  local_estoque_id String   @db.VarChar(64)
+  quantidade       Decimal  @db.Decimal(14, 4)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  cliente      Cliente         @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  mistura      AtividadeMistura @relation(fields: [cliente_id, mistura_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeMisturaItem_mistura_fkey")
+  produto      Produto         @relation(fields: [cliente_id, produto_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeMisturaItem_produto_fkey")
+  localEstoque LocalEstoque    @relation(fields: [cliente_id, local_estoque_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeMisturaItem_local_fkey")
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, mistura_id])
+  @@index([cliente_id, produto_id])
+}
+
+// MAIKE-DIARIO-MAQUINA
+/// D-PROD-319 — o histórico da mistura: APLICACAO (Passo 2), TRANSFERENCIA (trocou de pasto, com horímetros), DEVOLUCAO
+/// (sobra não aplicada, sem estoque) e PERDA (com motivo; a baixa é pelo motor, na linha da atividade).
+model AtividadeMisturaMovimento {
+  id                    String    @id @default(cuid())
+  cliente_id            String    @db.VarChar(64)
+  mistura_id            String    @db.VarChar(64)
+  /// APLICACAO | TRANSFERENCIA | DEVOLUCAO | PERDA (CHECK).
+  tipo                  String    @db.VarChar(16)
+  apontamento_id        String?   @db.VarChar(64)
+  de_area_id            String?   @db.VarChar(64)
+  para_area_id          String?   @db.VarChar(64)
+  volume                Decimal   @db.Decimal(14, 4)
+  motivo                String?   @db.VarChar(500)
+  horimetro_saida       Decimal?  @db.Decimal(14, 4)
+  horimetro_chegada     Decimal?  @db.Decimal(14, 4)
+  operation_id          String    @db.VarChar(128)
+  criado_por_usuario_id String?   @db.VarChar(64)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  cliente     Cliente          @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  mistura     AtividadeMistura @relation(fields: [cliente_id, mistura_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeMisturaMovimento_mistura_fkey")
+  apontamento AtividadeApontamento? @relation(fields: [cliente_id, apontamento_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeMisturaMovimento_apontamento_fkey")
+  deArea      AreaPastagem?    @relation("AtividadeMisturaMovimentoDe", fields: [cliente_id, de_area_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeMisturaMovimento_de_area_fkey")
+  paraArea    AreaPastagem?    @relation("AtividadeMisturaMovimentoPara", fields: [cliente_id, para_area_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeMisturaMovimento_para_area_fkey")
+  criadoPor   Usuario?         @relation("AtividadeMisturaMovimentoCriadoPor", fields: [cliente_id, criado_por_usuario_id], references: [cliente_id, id], onDelete: Restrict, map: "AtividadeMisturaMovimento_criado_por_fkey")
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, operation_id])
+  @@index([cliente_id, mistura_id])
 }

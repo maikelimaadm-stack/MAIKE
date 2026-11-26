@@ -193,7 +193,9 @@ export const NOME_BEM_PRODUTO = '20261126100000_bem_implemento_produto';
 export const NOME_UNIDADE_CONVERTIDA = '20261126200000_unidade_convertida_lancamentos';
 /** D-PROD-315: os índices da sincronização incremental (5 CREATE INDEX em tabelas antigas), ainda posterior; fora da partida, sobe no GREEN. */
 export const NOME_SINC_INDICES = '20261126300000_sincronizacao_incremental_indices';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES]);
+/** D-PROD-319: a EXPAND da mistura no implemento, também posterior (fora da partida). */
+export const NOME_DM = '20261127100000_diario_maquina';
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
   'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];
@@ -203,9 +205,9 @@ const TABELAS_FORMULACOES = ['CADFORMULACAO', 'CADFORMULACAOINGREDIENTE', 'CADFO
 const TABELAS_LEITURA = ['LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM'];
 /** As tabelas que as MIGRATIONS_DEPOIS_DO_CONTRACT criam (fora da impressão digital das que FICAM) e as que sobram no fim. */
 // D-PROD-249: AtividadeArea (as áreas da atividade) nasce com a última delas e fica no fim.
-export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS, ...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio', 'Planejamento', 'PlanejamentoArea', 'ProdutoUnidadeConversao']);
+export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS, ...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio', 'Planejamento', 'PlanejamentoArea', 'ProdutoUnidadeConversao', 'AtividadeMistura', 'AtividadeMisturaItem', 'AtividadeMisturaMovimento']);
 // D-PROD-208: Funcionario nasce com a D-PROD-207 e sai com a D-PROD-208; não fica no fim.
-export const TABELAS_FINAIS_DEPOIS_DO_CONTRACT = Object.freeze(['Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS.filter((t) => t !== 'Funcionario'), ...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio', 'Planejamento', 'PlanejamentoArea', 'ProdutoUnidadeConversao']);
+export const TABELAS_FINAIS_DEPOIS_DO_CONTRACT = Object.freeze(['Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS.filter((t) => t !== 'Funcionario'), ...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio', 'Planejamento', 'PlanejamentoArea', 'ProdutoUnidadeConversao', 'AtividadeMistura', 'AtividadeMisturaItem', 'AtividadeMisturaMovimento']);
 /**
  * Migrations do repositório (pastas com `migration.sql`). A partida é TODAS menos a CONTRACT e as
  * `MIGRATIONS_DEPOIS_DO_CONTRACT`, e o GREEN é TODAS: as contagens saem da pasta, não de número fixo —
@@ -260,6 +262,8 @@ linhas AS (
      AND NOT (t.t = 'TipoAtividade' AND a.attname::text = 'alvo')
      -- D-PROD-310 (posterior, sobe no GREEN): a unidade de conversão digitada no movimento de estoque.
      AND NOT (t.t = 'MovimentacaoEstoque' AND a.attname::text IN ('unidade_lancamento', 'quantidade_lancamento', 'fator_lancamento'))
+     -- D-PROD-319 (posterior, sobe no GREEN): a quantidade padrão por implemento cheio do produto.
+     AND NOT (t.t = 'Produto' AND a.attname::text IN ('quantidade_padrao', 'quantidade_padrao_unidade'))
   UNION ALL
   SELECT 'constraint', t.t || '|' || k.conname::text || '|' || k.contype::text || '|' || pg_get_constraintdef(k.oid, true)
     FROM tab t JOIN pg_constraint k ON k.conrelid = t.oid
@@ -383,8 +387,9 @@ export const historico = async (db) =>
  * preenchida (tem de ser 0: elas nascem nulas).
  */
 // D-PROD-310: as 3 colunas da unidade de conversão no movimento de estoque (EXPAND posterior), também.
+// D-PROD-319: a quantidade padrão por implemento cheio e a sua unidade no Produto (EXPAND posterior), também.
 export const COLUNAS_POSTERIORES_NO_RETRATO = Object.freeze({
-  Produto: Object.freeze(['carencia_dias']),
+  Produto: Object.freeze(['carencia_dias', 'quantidade_padrao', 'quantidade_padrao_unidade']),
   MovimentacaoEstoque: Object.freeze(['unidade_lancamento', 'quantidade_lancamento', 'fator_lancamento']),
 });
 
