@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-26 (missão ativa D-PROD-331; antes D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-26 (missão ativa D-PROD-332; antes D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-26) — MAIKE-SINCRONIA-NO-MEIO: a sincronização num cartão no meio da tela (D-PROD-331)
+## Missão ativa (2026-11-26) — MAIKE-CADASTRO-MAPA-CELULAR: o cadastro do mapa no celular (D-PROD-332)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-332**: o cadastro do mapa abre no satélite com o ponto azul; as listas não fecham o formulário lateral; "+" redondo na aba Pontos abre o cadastro de ponto; "Usar minha localização" põe o ponto no GPS e "Continuar" abre o formulário |
+| Banco | sem migration; backend sem mudança |
+| Relatório | [`CADASTRO-MAPA-CELULAR-D332-REPORT.md`](./CADASTRO-MAPA-CELULAR-D332-REPORT.md) |
+| Próximas | a escolher com o proprietário |
+
+## Missão anterior (2026-11-26) — MAIKE-SINCRONIA-NO-MEIO: a sincronização num cartão no meio da tela (D-PROD-331)
 
 | Item | Estado |
 |---|---|

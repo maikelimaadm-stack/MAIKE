@@ -8,7 +8,9 @@ import { mapaPrecisaBuscarNoServidor } from "@/components/mapa/invalidarCachesMa
 import {
   bebedouroDoPonto, calcularSituacaoPasto, filtrarLotesPorArea, filtrarPontosSuplementacaoPorArea,
   filtrarTarefasPorArea, filtrarTarefasDoMapa, responsaveisDasTarefas, filtroDeAreaAtivo, statusOcupacaoPorArea } from "@/domain/mapa/mapaGeralDerivados";
-import { canAccessPage } from "@/lib/permissions";
+import { canAccessPage, canPerformAction } from "@/lib/permissions";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { MAPA_GERAL_ACESSO_TOTAL, normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 import { podeExcluirLancamentoBebedouro, podeLancarNoBebedouro } from "@/lib/bebedouroPermissions";
 import { Button } from "@/components/ui/button";
@@ -68,6 +70,7 @@ const MapaInsights = componenteSobDemanda(() => import("../components/mapa/MapaI
  *   e, ao voltar, ajusta o tamanho do mapa ao espaço da tela.
  */
 export default function MapaGeral({ ativo = true } = {}) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   // ─── State ───
   const [mapReady, setMapReady] = useState(false);
@@ -264,6 +267,9 @@ export default function MapaGeral({ ativo = true } = {}) {
     () => acessoTotalTelas || podeExcluirLancamentoBebedouro(permissaoAtual),
     [acessoTotalTelas, permissaoAtual]
   );
+
+  // D-PROD-332: o "+" da aba Pontos abre o cadastro de pontos — só para quem pode cadastrar no Cadastro do Mapa.
+  const podeCadastrarPonto = acessoTotalTelas || canPerformAction(permissaoAtual, 'pec-mapa-cadastro', 'mapa', 'novo');
 
   const podeUsarTarefasMapa = useMemo(() => {
     if (acessoTotalTelas) return mapaGeralPermissions.visualizar_tarefas;
@@ -1524,6 +1530,13 @@ export default function MapaGeral({ ativo = true } = {}) {
           </button>
         </> :
         <>
+        {/* D-PROD-332: na aba Pontos, o "+" redondo abre direto a marcação de um ponto novo no Cadastro do Mapa. */}
+        {focoAtivo === 'pastos' && podeCadastrarPonto &&
+        <button type="button" className="mk-mapa-novo-ponto" aria-label="Novo ponto" title="Novo ponto" data-mk-novo-ponto=""
+          onClick={() => navigate(`${createPageUrl('MapaCadastro')}?novo=ponto`)}>
+            <Plus size={30} strokeWidth={2.6} aria-hidden />
+          </button>
+        }
         {/* Resumo inferior (D-PROD-131): cartão único, números grandes e rótulos discretos */}
         {/* D-PROD-213: com permissão de ver lotes, o cartão abre o Resumo do Rebanho. */}
         <div className="mk-mapa-resumo mk-mapa-card" aria-label="Resumo do mapa"

@@ -10212,4 +10212,28 @@ Vários itens ficavam presos para sempre, sem botão:
 
 > **Numeração:** depois da D-PROD-330 (PR #421), a `main` indica `Próxima decisão: D-PROD-331`, que é esta; o marcador passa a D-PROD-332. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-332 -->
+## D-PROD-332 — O cadastro do mapa no celular: igual ao Mapa Geral, "+" na aba Pontos e "Usar minha localização"
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário, com as imagens aprovadas ("Pode implementar por favor") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`CADASTRO-MAPA-CELULAR-D332-REPORT.md`](./CADASTRO-MAPA-CELULAR-D332-REPORT.md)
+
+**Decisão.**
+1. **O mapa do cadastro (áreas, pontos e linhas) fica igual ao Mapa Geral.**
+   - Abre no satélite.
+   - Mostra o ponto azul da localização com o círculo da precisão real, usando o mesmo GPS do Mapa Geral (`useLocalizacaoNoMapa`, alta precisão, o ponto anda junto). O hook novo é `useMinhaLocalizacaoNoEditor`.
+   - O botão de localizar do topo centraliza nessa posição.
+2. **Tocar numa lista do formulário lateral não fecha mais o formulário.**
+   - As listas do celular (`B1Select` → `MobileSheet`) abriam fora do painel lateral, e o toque nelas contava como "fora" e fechava o painel.
+   - Agora elas abrem num lugar dentro do painel (`MobileSheetPortalCtx`, o mesmo arranjo do painel de filtros do Mapa Geral). Isso vale nos três formulários.
+   - Com uma lista aberta, o Esc fecha só a lista.
+3. **Botão redondo "+" ("Novo ponto") na aba Pontos do Mapa Geral.**
+   - Leva direto ao cadastro de ponto (`/mapacadastro?novo=ponto`), sem escolher nada no Cadastro do Mapa.
+   - Aparece só para quem pode cadastrar no mapa (`pec-mapa-cadastro`, ação `novo`, ou acesso total).
+   - O pedido sai do endereço depois de usado. Fechar o editor volta ao Mapa Geral.
+4. **No cadastro de ponto, tocar no mapa só marca o ponto.**
+   - O botão redondo azul "Usar minha localização" põe o ponto na posição do GPS e centraliza nela.
+   - A pessoa pode arrastar o ponto, tocar de novo e desfazer.
+   - O botão de baixo passa a se chamar "Continuar" e é ele que abre o formulário. Antes, o toque abria o formulário na hora.
+
+> **Numeração:** depois da D-PROD-331 (PR #422), a `main` indica `Próxima decisão: D-PROD-332`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-333. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-333 -->

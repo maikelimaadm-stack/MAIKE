@@ -18,7 +18,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, act, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 
 import MapaControlesMobile from '@/components/mapa/MapaControlesMobile';
 import { FOCOS_MAPA, FOCO_PADRAO, camadasDoFoco, focoEmVigor, focosPermitidos } from '@/lib/mapaFoco';
@@ -208,6 +208,13 @@ const TAREFAS = [
 const assentar = () => act(async () => { await new Promise((r) => setTimeout(r, 120)); });
 
 let client;
+/** Onde o roteador está (D-PROD-332: o "+" de Pontos leva ao cadastro). */
+const rota = { atual: '' };
+function SondaDeRota() {
+  const l = useLocation();
+  rota.atual = `${l.pathname}${l.search}`;
+  return null;
+}
 const permissaoCarregada = () =>
   client.getQueryCache().findAll({ queryKey: ['permissao-efetiva'] })
     .some((q) => q.state.status === 'success' && q.state.fetchStatus === 'idle');
@@ -215,7 +222,7 @@ const abrir = async () => {
   const { default: MapaGeral } = await import('@/pages/MapaGeral');
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   await act(async () => {
-    render(<MemoryRouter><QueryClientProvider client={client}><MapaGeral /></QueryClientProvider></MemoryRouter>);
+    render(<MemoryRouter><SondaDeRota /><QueryClientProvider client={client}><MapaGeral /></QueryClientProvider></MemoryRouter>);
   });
   await waitFor(() => {
     expect(permissaoCarregada()).toBe(true);
@@ -653,5 +660,34 @@ describe('BARRA-8 — D-PROD-326: cada aba com as suas camadas e os seus filtros
     await abrir();
     await tocar('Tarefas');
     expect(noMapa().tarefas).toBe(1);
+  });
+});
+
+describe('BARRA-9 — D-PROD-332: botão redondo "Novo ponto" na aba Pontos', () => {
+  const novoPonto = () => screen.queryByRole('button', { name: 'Novo ponto' });
+
+  it('só aparece na aba Pontos e leva direto ao cadastro de ponto', async () => {
+    await abrir();
+    expect(novoPonto(), 'na aba Lotes não aparece').toBeNull();
+    await tocar('Pontos');
+    expect(novoPonto()).toBeInTheDocument();
+    await act(async () => { fireEvent.click(novoPonto()); });
+    expect(rota.atual).toBe('/mapacadastro?novo=ponto');
+  });
+
+  it('sem permissão de cadastrar no mapa, o botão não aparece', async () => {
+    sessao.usuario = ANA;
+    sessao.permissoes = linha();
+    await abrir();
+    await tocar('Pontos');
+    expect(novoPonto()).toBeNull();
+  });
+
+  it('com permissão de novo cadastro no mapa, o botão aparece', async () => {
+    sessao.usuario = ANA;
+    sessao.permissoes = linha({}, [{ modulo_id: 'mapa', tela_id: 'pec-mapa-cadastro', visualizar: true, novo: true }]);
+    await abrir();
+    await tocar('Pontos');
+    expect(novoPonto()).toBeInTheDocument();
   });
 });

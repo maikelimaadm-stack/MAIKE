@@ -81,7 +81,8 @@ describe("D-PROD-67 — fluxo do editor (fonte)", () => {
     const fin = src.slice(src.indexOf("const finalizarDesenho = () => {"));
     expect(fin.indexOf("setDrawingClosed(true);")).toBeLessThan(fin.indexOf("setShowFormularioArea(true);"));
     expect(fin).toMatch(/if \(!drawingClosed && !itemEditando\) \{\s*if \(currentPoints\.length < 3\) return;\s*setDrawingClosed\(true\);/);
-    expect(src).toContain('tipoDesenho === "area" ? "Fechar área" : "Terminar"');
+    // D-PROD-332: no ponto o botão é "Continuar" (o toque só marca; "Continuar" abre o formulário).
+    expect(src).toContain('tipoDesenho === "area" ? "Fechar área" : tipoDesenho === "ponto" ? "Continuar" : "Terminar"');
   });
   it("formulário aberto desliga as interações do editor (modoInteracao) e o Delete", () => {
     expect(src).toContain("const modoInteracao = emPrevia ? MODOS.NAVEGAR : modo;");

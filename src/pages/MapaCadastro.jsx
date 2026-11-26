@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { cn } from "@/lib/utils";
 import FormularioArea, { FORMULARIO_AREA_ID } from "../components/mapa/FormularioArea";
 import FormularioPonto, { FORMULARIO_PONTO_ID } from "../components/mapa/FormularioPonto";
@@ -85,6 +87,10 @@ export default function MapaCadastro() {
   const queryClient = useQueryClient();
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const empresaAnteriorRef = useRef(empresaSelecionadaId);
+  const navigate = useNavigate();
+  const [parametros, setParametros] = useSearchParams();
+  // D-PROD-332: aberto pelo botão "+" do Mapa Geral (aba Pontos): ao terminar ou cancelar, volta para o mapa.
+  const voltarAoMapaGeralRef = useRef(false);
 
   useEffect(() => {
     const anterior = empresaAnteriorRef.current;
@@ -189,7 +195,25 @@ export default function MapaCadastro() {
     setTipoDesenho(null);
     setUsarGPS(false);
     setItemEditando(null);
+    if (voltarAoMapaGeralRef.current) {
+      voltarAoMapaGeralRef.current = false;
+      navigate(createPageUrl("MapaGeral"));
+    }
   };
+
+  // D-PROD-332: `?novo=ponto` (o botão "+" da aba Pontos do Mapa Geral) abre direto a marcação de um ponto novo.
+  useEffect(() => {
+    if (parametros.get("novo") !== "ponto") return;
+    voltarAoMapaGeralRef.current = true;
+    setAbaAtiva("pontos");
+    setTipoDesenho("ponto");
+    setUsarGPS(false);
+    setItemEditando(null);
+    setModo("mapa");
+    const resto = new URLSearchParams(parametros);
+    resto.delete("novo");
+    setParametros(resto, { replace: true });
+  }, [parametros, setParametros]);
 
   const carregarAreas = useCallback(() => mapaService.listarAreasAtivas(empresaSelecionadaId), [empresaSelecionadaId]);
   const carregarLinhas = useCallback(() => mapaService.listarLinhasAtivas(empresaSelecionadaId), [empresaSelecionadaId]);
