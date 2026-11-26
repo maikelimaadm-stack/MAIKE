@@ -89,8 +89,28 @@ Os Detalhes da área tinham três entradas de diário. Ficou uma: o "Diário das
 
 - **Religadas:** a pílula "Manejos" do rodapé (`DetalhesArea.jsx`) abre o Diário das atividades, com a permissão de lançar de sempre; a ação de linha "Diário da máquina" das atividades em andamento (`AcoesDaAtividadeDaArea.jsx`) virou "Diário das atividades" e abre o diário nessa atividade (com abertura, no cabeçalho do serviço; sem ela, no formulário de abertura).
 - **Removida:** o botão verde "Diário das atividades" do topo da aba Manejos (`AbaDetalhesDaArea.jsx`), com o estado e o código que só ele usava.
-- **Continuam na página Lançamento de Atividades:** a "Nova realização" (`RegistroDeCampo.jsx`) e o "Diário da máquina" (`DiarioDaMaquina.jsx`), com os arquivos inteiros. Os Detalhes da área deixaram de abrir o "Diário da máquina" e a "Nova realização" pela pílula. A ação de linha "+ Lançamento" continua abrindo a "Nova realização" presa à atividade (D-PROD-278).
+- **Continua na página Lançamento de Atividades:** a "Nova realização" (`RegistroDeCampo.jsx`), com o arquivo inteiro. Os Detalhes da área deixaram de abrir a "Nova realização" pela pílula. A ação de linha "+ Lançamento" continua abrindo a "Nova realização" presa à atividade (D-PROD-278). (A página deixou de usar o "Diário da máquina": ver "Organização das entradas" abaixo.)
 - **Testes:** `tests/smoke/diarioFase2.test.jsx` (a aba sem o botão; o `DiarioDoPasto` com a lista e a leitura no toque), `tests/smoke/detalhesAreaHistorico.test.jsx` (a pílula Manejos abre o diário: no tipo sem atividade aberta, na lista com uma), `tests/smoke/mapaAtividadeAcoes.test.jsx` (o rótulo "Diário das atividades" no menu e o toque que abre o diário nessa atividade). Os testes da "Nova realização" pela pílula saíram do `detalhesAreaHistorico`, porque essa ligação não existe mais; a janela continua coberta pelos testes do `RegistroDeCampo`.
+
+### Organização das entradas (pedido do dono, mesma D-PROD-335)
+
+Entradas finais do diário (o mesmo `DiarioDoPasto` nas três):
+
+1. **Pílula "Manejos" do rodapé da área** (Detalhes da área): sem atividade escolhida; lista "Em andamento neste pasto" ou, sem atividade aberta, o tipo.
+2. **Ação de linha "Diário das atividades"** da atividade em andamento na área (⚡ na aba Manejos): com a atividade escolhida.
+3. **Ação de linha "Diário das atividades"** na página Lançamento de Atividades (⚡ de atividade ABERTA com pasto em andamento; abre no primeiro pasto em andamento). A página lê a atividade e, ao gravar, relê a própria lista (`aoGravar`).
+
+**Religado:** a ação "Diário da máquina" da página virou "Diário das atividades" (`diarioItem` e `abrirDiario` em `src/pages/LancamentoAtividades.jsx`). **Removido da página:** o import e o uso de `DiarioDaMaquina`. Não há mais "Diário da máquina" em menu nenhum.
+
+**Não apagado:** `DiarioDaMaquina.jsx` (agora sem uso no app), os services e a porta do diário da máquina, o backend, as tabelas e os dados.
+
+**Sobrou e por quê:**
+- A "Nova realização" (`RegistroDeCampo`), na página (criar, e os cartões dos 7 tipos) e nos Detalhes da área ("+ Lançamento" e "Só <tipo>"). É o lançamento completo por área e tipo (máquina, mão de obra, insumo e serviço). O diário ainda não cobre isso: no serviço aberto, "Encerrar serviço" e as outras opções seguem "Em breve".
+- "Planejar" e "Nova atividade" na página: planejamento, não registro de campo.
+- A pílula "Manejos" e a ação de linha da área abrem o mesmo diário, cada uma com o seu caminho. Ficam as duas porque a lista do dono as nomeia. Se o dono quiser uma só, a ação de linha de `AcoesDaAtividadeDaArea.jsx` sai numa linha. É decisão dele.
+- "Iniciar serviço" é o botão de dentro do diário, não uma entrada. "Iniciar atividade" não existe mais no código.
+
+**Limite conhecido:** o `DiarioDoPasto` mostra o tamanho do pasto no subtítulo só se a área da atividade trouxer `tamanho_hectares`. A lista da página (`areas[].area`) não traz esse campo nos dados de teste, então ali o subtítulo sai só com o nome.
 
 ### Uma abertura por máquina + implemento (frentes, mesma D-PROD-335)
 
@@ -109,4 +129,4 @@ Vários tratores e implementos trabalham no mesmo pasto, no mesmo tipo, ao mesmo
 
 ## Fora desta parte
 
-Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia; o "Diário da máquina" (`DiarioDaMaquina`) saiu dos Detalhes da área e segue só na página Lançamento de Atividades.
+Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia; o "Diário da máquina" (`DiarioDaMaquina`) saiu dos Detalhes da área e da página Lançamento de Atividades; o arquivo fica no repositório, sem entrada.
