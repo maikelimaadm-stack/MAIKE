@@ -9902,7 +9902,10 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - Na medição e na tarefa (corpo fechado), o `id` entra no schema. No evento (corpo aberto), o id que não é UUID segue ignorado, como antes.
 - **Decisão — app:**
   1. As três portas ligam `idDoAparelho` e mandam o id.
-  2. A tarefa do mapa sem internet vai pela fila de cadastros, como os outros registros. As fotos precisam de internet: sem ela, a tela pede para salvar sem as fotos novas e anexá-las depois.
+  2. A tarefa do mapa sem internet vai pela fila de cadastros, como os outros registros. As fotos precisam de internet: sem ela, a tela pede para salvar sem as fotos novas e anexá-las depois, no painel e nos detalhes da tarefa.
+  2a. O evento do histórico (`historico_evento`, `historico_descricao`, `historico_data_evento`) vai ao servidor na criação e na edição.
+     - Antes, a porta do app descartava esses campos. O histórico feito pelo mapa (Criação, Conclusão, Mudança de Status) nunca era gravado.
+     - O "Registro" mandava um corpo vazio e era recusado.
   3. **Resgate:** a cada passada da sincronização com internet (`registrarPassadaExtra`), as tarefas presas no armazenamento antigo sobem (`tarefasGuardadasNoAparelhoService`):
      - cada uma ganha um id do aparelho, gravado antes de enviar;
      - as fotos sobem uma vez, e os endereços ficam gravados;

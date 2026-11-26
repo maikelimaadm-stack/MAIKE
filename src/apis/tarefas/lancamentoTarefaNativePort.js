@@ -46,9 +46,17 @@ const CAMPOS_DE_CRIACAO = Object.freeze([
   'anexos_urls',
 ]);
 
-const CAMPOS_DE_ATUALIZACAO = Object.freeze(
-  CAMPOS_DE_CRIACAO.filter((campo) => campo !== 'empresa_id')
-);
+/**
+ * D-PROD-319: o evento do histórico que a tela do mapa manda junto (Criação, Conclusão, Mudança de Status,
+ * Registro…). O servidor grava o histórico na mesma transação; antes estes campos eram descartados aqui e o
+ * histórico da tarefa feito pelo mapa nunca era gravado (o "Registro" mandava um corpo vazio e era recusado).
+ */
+const CAMPOS_DO_HISTORICO = Object.freeze(['historico_evento', 'historico_descricao', 'historico_data_evento']);
+
+const CAMPOS_DE_ATUALIZACAO = Object.freeze([
+  ...CAMPOS_DE_CRIACAO.filter((campo) => campo !== 'empresa_id'),
+  ...CAMPOS_DO_HISTORICO,
+]);
 
 const valorDeEnvio = (valor) => {
   if (valor === undefined) return undefined;
@@ -77,7 +85,7 @@ export const operacoesNativas = Object.freeze({
       {
         method: 'POST',
         body: {
-          ...corpoDeEnvio(dados, CAMPOS_DE_CRIACAO),
+          ...corpoDeEnvio(dados, [...CAMPOS_DE_CRIACAO, ...CAMPOS_DO_HISTORICO]),
           ...(eIdDoAparelho(/** @type {any} */ (dados)?.id) ? { id: /** @type {any} */ (dados).id } : {}),
         },
         autenticado: true,

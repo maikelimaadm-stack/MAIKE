@@ -9,6 +9,7 @@
  * 5A-05 tarefa com id do aparelho: repetir devolve a mesma, com UM registro no histórico
  * 5A-06 tarefa excluída: repetir não recria
  * 5A-07 evento de suplementação com id do aparelho: repetir devolve o mesmo (o id não vai para os dados)
+ * 5A-09 o "Registro" da tarefa (só o evento do histórico, sem outro campo) grava o histórico
  * 5A-08 sem id (ou id que não é UUID no evento): o caminho de sempre, o servidor gera o id; na medição e na tarefa,
  *       id que não é UUID é recusado pelo schema (400)
  */
@@ -181,5 +182,18 @@ describe('D-PROD-319 — sem id do aparelho', () => {
     const e = await req('POST', '/suplementacao-eventos', c.token, evento(c, 'offline_x_1'));
     assert.equal(e.statusCode, 201, e.body);
     assert.notEqual(e.json().id, 'offline_x_1');
+  });
+});
+
+describe('D-PROD-319 — histórico da tarefa pelo mapa', () => {
+  test('5A-09 o "Registro" (só o evento do histórico) grava o histórico', async () => {
+    const c = await conta();
+    const tipoId = await tipoDeTarefa(c);
+    const id = randomUUID();
+    assert.equal((await req('POST', '/lancamentos-tarefa', c.token, tarefa(c, tipoId, id))).statusCode, 201);
+    const r = await req('PATCH', `/lancamentos-tarefa/${id}`, c.token, { historico_evento: 'Registro', historico_descricao: 'Cerca arrumada', historico_data_evento: '2027-06-15T12:00:00.000Z' });
+    assert.equal(r.statusCode, 200, r.body);
+    const eventos = await prisma().historicoLancamentoTarefa.findMany({ where: { cliente_id: c.clienteId, tarefa_id: id }, orderBy: { createdAt: 'asc' } });
+    assert.deepEqual(eventos.map((e) => e.evento), ['Criação', 'Registro']);
   });
 });

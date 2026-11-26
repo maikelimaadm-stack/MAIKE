@@ -10,6 +10,7 @@
 | Tarefa criada no mapa **sem internet** ficava num armazenamento antigo do aparelho que nada enviava, mesmo com o aviso "sincronizará ao conectar" | Vai pela fila de envio como os outros registros e aparece na Sincronização |
 | As tarefas que já estavam presas nos aparelhos não chegavam nunca | Sobem sozinhas na próxima sincronização com internet, com as fotos, sem duplicar |
 | Sem internet, as fotos da tarefa ficavam guardadas e não subiam | A tela avisa que as fotos precisam de internet: salvar sem as fotos novas e anexar depois |
+| O histórico da tarefa feito pelo mapa (Criação, Conclusão, Mudança de Status) não era gravado, e o botão "Registro" dava erro | O evento vai junto e o servidor grava o histórico |
 
 ## Como
 
@@ -44,13 +45,14 @@ A leitura do id em qualquer tenant serve só para decidir. O registro de outro t
 
 | Arquivo | Casos |
 |---|---|
-| `backend/tests/idDoAparelhoEtapa5a.test.mjs` | 5A-01..08: repetir devolve o mesmo (uma linha, uma auditoria, um histórico); simultâneas viram uma; outro tenant dá 409; excluída não volta; sem id, como antes; id inválido dá 400 no corpo fechado |
-| `tests/smoke/idDoAparelhoEtapa5a.test.js` | AP-01..04: sem internet nasce com UUID e o id vai no envio; com a rede caindo, vai para a fila com o mesmo id. RT-01..04: o resgate (sobe com as fotos; recusada fica sem repetir as fotos e com o mesmo id; rede caindo vai para a fila; sem internet nada é tentado) |
+| `backend/tests/idDoAparelhoEtapa5a.test.mjs` | 5A-09: o "Registro" grava o histórico. 5A-01..08: repetir devolve o mesmo (uma linha, uma auditoria, um histórico); simultâneas viram uma; outro tenant dá 409; excluída não volta; sem id, como antes; id inválido dá 400 no corpo fechado |
+| `tests/smoke/idDoAparelhoEtapa5a.test.js` | HT-01: criar, editar e "Registro" levam o evento do histórico. AP-01..04: sem internet nasce com UUID e o id vai no envio; com a rede caindo, vai para a fila com o mesmo id. RT-01..04: o resgate (sobe com as fotos; recusada fica sem repetir as fotos e com o mesmo id; rede caindo vai para a fila; sem internet nada é tentado) |
 
 As suítes existentes de medição, tarefa, cancelamento do cocho, id do aparelho e permissões passaram: 95 testes no servidor e 411 no app (27 arquivos).
 
 ## Limites
 
+- **Duas edições da mesma tarefa sem internet:** juntam numa só na fila. O histórico fica com o evento da última.
 - **Foto sem internet:** continua sem subir. A tela pede para salvar sem ela. Guardar foto para enviar depois exige a fila guardar arquivos, o que fica fora desta parte.
 - **Tarefa presa de outra conta:** pode estar no mesmo aparelho, porque o armazenamento antigo não tinha dono. O servidor recusa pela fazenda, e ela fica guardada.
 - **Próximas partes da Etapa 5:**

@@ -236,3 +236,17 @@ describe('D-PROD-319 — tarefas presas no armazenamento antigo', () => {
     expect(await idb.getPendingTarefas()).toHaveLength(1);
   });
 });
+
+describe('D-PROD-319 — histórico da tarefa vai ao servidor', () => {
+  it('HT-01 criar, editar e "Registro" levam o evento do histórico (antes era descartado e o "Registro" ia vazio)', async () => {
+    const srv = servidor();
+    vi.stubGlobal('fetch', srv.fetch);
+    await carregar();
+    const { createLancamento, updateLancamento } = await import('@/apis/tarefas');
+    const criada = await createLancamento({ empresa_id: 'emp-1', titulo: 'Cerca', tipo: 'Manejo', tipo_tarefa_id: 't1', historico_evento: 'Criação', historico_descricao: 'Tarefa criada pelo mapa.' });
+    expect(envioDe(srv, '/lancamentos-tarefa')[0].corpo).toMatchObject({ historico_evento: 'Criação', historico_descricao: 'Tarefa criada pelo mapa.' });
+    await updateLancamento(criada.id, { historico_evento: 'Registro', historico_descricao: 'Cerca arrumada', historico_data_evento: '2026-11-26T12:00:00.000Z' });
+    const patch = srv.chamadas.find((c) => c.metodo === 'PATCH');
+    expect(patch.corpo).toEqual({ historico_evento: 'Registro', historico_descricao: 'Cerca arrumada', historico_data_evento: '2026-11-26T12:00:00.000Z' });
+  });
+});
