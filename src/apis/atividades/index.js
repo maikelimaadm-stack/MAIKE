@@ -49,3 +49,5 @@ export {
   completePlanejamento,
   cancelPlanejamento,
 } from './atividadesApi.js';
+// Diário da máquina (D-PROD-319): mistura do implemento, aplicação, sobra e resumo do dia.
+export { listMisturas, createMistura, aplicarMistura, registrarSobraMistura, getDiarioResumo } from './misturaPort.js';

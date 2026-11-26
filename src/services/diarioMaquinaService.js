@@ -10,7 +10,7 @@
  * resposta definitiva, "Repetir o mesmo envio" reaproveita a chave e o servidor não grava duas vezes.
  */
 
-import { misturaPort } from '@/apis/atividades/misturaPort';
+import { listMisturas, createMistura, aplicarMistura as aplicarMisturaNaApi, registrarSobraMistura, getDiarioResumo } from '@/apis/atividades';
 import { API_ERROR_CODES, isApiError } from '@/apis/_core/ApiError';
 import { confirmadosDoDia, itensDaLista } from '@/lib/atividadeApontamentoRegras';
 import { exigirEmpresa } from './gestaoCadastroComum.js';
@@ -29,7 +29,7 @@ export const diarioDisponivel = async (atividadeId) => {
   const empresaId = fazendaDaTelaAtual();
   if (!empresaId || !atividadeId) return false;
   try {
-    const resposta = /** @type {any} */ (await misturaPort.listar(String(atividadeId), empresaId));
+    const resposta = /** @type {any} */ (await listMisturas(String(atividadeId), empresaId));
     return Array.isArray(resposta?.items);
   } catch (erro) {
     if (isApiError(erro) && /** @type {any} */ (erro).code === API_ERROR_CODES.PROVIDER_UNAVAILABLE) throw erro;
@@ -40,7 +40,7 @@ export const diarioDisponivel = async (atividadeId) => {
 /** As misturas da atividade (todas: abertas e fechadas). @param {string} atividadeId @returns {Promise<any[]>} */
 export const listarMisturas = async (atividadeId) => {
   const empresaId = exigirEmpresa(fazendaDaTelaAtual(), 'listarMisturas', RECURSO);
-  const resposta = /** @type {any} */ (await misturaPort.listar(String(atividadeId), empresaId));
+  const resposta = /** @type {any} */ (await listMisturas(String(atividadeId), empresaId));
   return itensDaLista(resposta);
 };
 
@@ -70,7 +70,7 @@ export const criarMistura = (atividadeId, corpo) => {
     empresaId,
     alvo: `mistura:${atividadeId}:${corpo.area_id}`,
     corpo: payload,
-    enviar: (c) => misturaPort.criar(String(atividadeId), c),
+    enviar: (c) => createMistura(String(atividadeId), c),
   });
 };
 
@@ -86,7 +86,7 @@ export const aplicarMistura = (atividadeId, apontamentoId, misturaId, dados) => 
     empresaId,
     alvo: `aplicar:${apontamentoId}:${misturaId}`,
     corpo,
-    enviar: (c) => misturaPort.aplicar(String(atividadeId), String(apontamentoId), String(misturaId), c),
+    enviar: (c) => aplicarMisturaNaApi(String(atividadeId), String(apontamentoId), String(misturaId), c),
   });
 };
 
@@ -102,7 +102,7 @@ export const registrarSobra = (atividadeId, misturaId, dados) => {
     empresaId,
     alvo: `sobra:${misturaId}`,
     corpo,
-    enviar: (c) => misturaPort.sobra(String(atividadeId), String(misturaId), c),
+    enviar: (c) => registrarSobraMistura(String(atividadeId), String(misturaId), c),
   });
 };
 
@@ -122,5 +122,5 @@ export const apontamentoDoDia = async (atividadeId, areaAtividadeId, dia) => {
 /** O resumo do dia por pasto (o servidor manda o R$ só quando calcula). @param {string} atividadeId @param {string} dia */
 export const lerResumoDoDia = (atividadeId, dia) => {
   const empresaId = exigirEmpresa(fazendaDaTelaAtual(), 'lerResumoDoDia', RECURSO);
-  return misturaPort.resumoDoDia(String(atividadeId), empresaId, dia);
+  return getDiarioResumo(String(atividadeId), empresaId, dia);
 };

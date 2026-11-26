@@ -8,11 +8,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/apis/atividades/misturaPort", () => ({
-  misturaPort: { listar: vi.fn(), criar: vi.fn(), aplicar: vi.fn(), sobra: vi.fn(), resumoDoDia: vi.fn() },
+  misturaPort: {},
+  listMisturas: vi.fn(),
+  createMistura: vi.fn(),
+  aplicarMistura: vi.fn(),
+  registrarSobraMistura: vi.fn(),
+  getDiarioResumo: vi.fn(),
 }));
 
 import { API_ERROR_CODES, ApiError } from "@/apis/_core/ApiError";
-import { misturaPort } from "@/apis/atividades/misturaPort";
+import { listMisturas, createMistura, aplicarMistura, registrarSobraMistura, getDiarioResumo } from "@/apis/atividades/misturaPort";
 import { definirFazendaDaTela } from "@/services/lancamentoAtividadesService";
 import { diarioDisponivel } from "@/services/diarioMaquinaService";
 import { normalizarProduto } from "@/services/produtoService";
@@ -24,30 +29,30 @@ describe("diarioDisponivel — degradação", () => {
   });
 
   it("com dados (items) = ligado", async () => {
-    vi.mocked(misturaPort.listar).mockResolvedValue({ items: [] });
+    vi.mocked(listMisturas).mockResolvedValue({ items: [] });
     await expect(diarioDisponivel("atv-1")).resolves.toBe(true);
-    expect(misturaPort.listar).toHaveBeenCalledWith("atv-1", "emp-1");
+    expect(listMisturas).toHaveBeenCalledWith("atv-1", "emp-1");
   });
 
   it("recusa do servidor (rota que não existe) = indisponível, sem lançar", async () => {
-    vi.mocked(misturaPort.listar).mockRejectedValue(new ApiError(API_ERROR_CODES.OPERATION_FAILED, { operation: "listMisturas" }));
+    vi.mocked(listMisturas).mockRejectedValue(new ApiError(API_ERROR_CODES.OPERATION_FAILED, { operation: "listMisturas" }));
     await expect(diarioDisponivel("atv-1")).resolves.toBe(false);
   });
 
   it("resposta sem `items` = indisponível", async () => {
-    vi.mocked(misturaPort.listar).mockResolvedValue(null);
+    vi.mocked(listMisturas).mockResolvedValue(null);
     await expect(diarioDisponivel("atv-1")).resolves.toBe(false);
   });
 
   it("falta de rede é lançada (não marca o diário como indisponível)", async () => {
-    vi.mocked(misturaPort.listar).mockRejectedValue(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, { operation: "listMisturas" }));
+    vi.mocked(listMisturas).mockRejectedValue(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, { operation: "listMisturas" }));
     await expect(diarioDisponivel("atv-1")).rejects.toMatchObject({ code: API_ERROR_CODES.PROVIDER_UNAVAILABLE });
   });
 
   it("sem fazenda na tela, nem pergunta ao servidor", async () => {
     definirFazendaDaTela(null);
     await expect(diarioDisponivel("atv-1")).resolves.toBe(false);
-    expect(misturaPort.listar).not.toHaveBeenCalled();
+    expect(listMisturas).not.toHaveBeenCalled();
   });
 });
 

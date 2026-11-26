@@ -88,3 +88,15 @@ export const misturaPort = Object.freeze({
       ctx('diarioResumo', { atividadeId }),
     ),
 });
+
+// Superfície pública (index.js): funções, nunca o port (o service não importa arquivo interno do módulo).
+/** @param {string} atividadeId @param {string} empresaId */
+export const listMisturas = (atividadeId, empresaId) => misturaPort.listar(atividadeId, empresaId);
+/** @param {string} atividadeId @param {Record<string, any>} dados */
+export const createMistura = (atividadeId, dados) => misturaPort.criar(atividadeId, dados);
+/** @param {string} atividadeId @param {string} apontamentoId @param {string} misturaId @param {Record<string, any>} dados */
+export const aplicarMistura = (atividadeId, apontamentoId, misturaId, dados) => misturaPort.aplicar(atividadeId, apontamentoId, misturaId, dados);
+/** @param {string} atividadeId @param {string} misturaId @param {Record<string, any>} dados */
+export const registrarSobraMistura = (atividadeId, misturaId, dados) => misturaPort.sobra(atividadeId, misturaId, dados);
+/** @param {string} atividadeId @param {string} empresaId @param {string} dia */
+export const getDiarioResumo = (atividadeId, empresaId, dia) => misturaPort.resumoDoDia(atividadeId, empresaId, dia);
