@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-26 (missão ativa D-PROD-318; antes D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-26 (missão ativa D-PROD-319; antes D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-26) — MAIKE-SINCRONIZACAO-ETAPA4: a tela nunca "pisca" (D-PROD-318)
+## Missão ativa (2026-11-26) — MAIKE-SINCRONIZACAO-ETAPA5A: id do aparelho na medição, na tarefa e no evento de suplementação (D-PROD-319)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-319**: `POST` da medição de forragem, da tarefa e do evento de suplementação aceitam o id do aparelho (repetir não duplica); a tarefa do mapa sem internet vai pela fila de cadastros; as tarefas presas no armazenamento antigo do aparelho voltam a subir |
+| Banco | sem migration |
+| Relatório | [`SINCRONIZACAO-ETAPA5A-D319-REPORT.md`](./SINCRONIZACAO-ETAPA5A-D319-REPORT.md) |
+| Próximas | 5b (desenhos do mapa com numeração), 5c (cadastros administrativos), 5d (incremental nas outras listas), 5e (versão nas outras entidades), 5f (limpeza dos recibos) |
+
+## Missão anterior (2026-11-26) — MAIKE-SINCRONIZACAO-ETAPA4: a tela nunca "pisca" (D-PROD-318)
 
 | Item | Estado |
 |---|---|

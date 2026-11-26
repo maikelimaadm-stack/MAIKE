@@ -469,6 +469,9 @@ export const deletePendingTarefa = async (offlineId) => {
   return deleteItem(STORES.PENDING_TAREFAS, offlineId);
 };
 
+/** D-PROD-319: regrava a tarefa guardada (o id do aparelho e as fotos já enviadas, para não repetir). */
+export const putPendingTarefa = async (item) => putItem(STORES.PENDING_TAREFAS, item);
+
 // Salva blob de imagem vinculado a uma tarefa offline
 export const saveTarefaImageOffline = async (tarefaOfflineId, file) => {
   const buffer = await file.arrayBuffer();

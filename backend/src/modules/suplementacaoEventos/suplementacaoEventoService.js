@@ -6,6 +6,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { consultarMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
+import { criarComIdDoAparelho, idDoAparelhoDe } from '../../shared/idempotency/idDoAparelho.js';
 import { documentoComoPublico, montarDocumento } from '../../shared/jsonDocument/jsonDocumentPublic.js';
 import { exigirSomenteCamposPermitidos, movimentoExigeCancelamento } from '../../shared/operacional/protecaoOperacional.js';
 import { CAMPOS_PATCH_PERMITIDOS, CAMPO_FECHADO_POR_EVENTO, CAMPO_FECHADO_POR_TIPO, exigirTiposDoFechamento } from './camposFechamentoEvento.js';
@@ -23,6 +24,7 @@ import {
   buscarRegistro,
   inserirRegistro,
   atualizarRegistroPorId,
+  buscarEventoPorIdEmQualquerTenant,
 } from './suplementacaoEventoRepository.js';
 
 const ENTIDADE = 'SuplementacaoEvento';
@@ -60,11 +62,34 @@ export const mudancas = async (contexto, query) => {
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   rejeitarReservadosDaSuplementacao(entrada);
+  // D-PROD-319 (Etapa 5a): id gerado no aparelho — repetir a criação (resposta perdida, app fechado no meio)
+  // devolve o mesmo evento em vez de gravar outro (que dobraria o consumo do cocho). O evento nunca é apagado:
+  // o cancelado conta como excluído (não é recriado).
+  const { registro } = await criarComIdDoAparelho({
+    id: idDoAparelhoDe(/** @type {any} */ (entrada)?.id),
+    clienteId: auth.clienteId,
+    entidade: ENTIDADE,
+    buscar: async (id) => {
+      const existente = await buscarEventoPorIdEmQualquerTenant(id);
+      if (!existente) return null;
+      const cancelado = String(/** @type {any} */ (existente).dados?.situacao ?? '') === 'cancelado';
+      return { cliente_id: existente.cliente_id, excluido: cancelado, registro: documentoComoPublico(existente) };
+    },
+    criar: (id) => criarNaTransacao(contexto, auth, entrada, id),
+  });
+  return registro;
+};
+
+/**
+ * @param {any} contexto @param {import('../../shared/auth/authContext.js').AuthContext} auth
+ * @param {Record<string, unknown>} entrada @param {string|null} idDoAparelho
+ */
+const criarNaTransacao = async (contexto, auth, entrada, idDoAparelho) => {
   const criado = await emTransacao(TRANSACAO_CURTA, async (tx) => {
     const dados = montarDocumento(auth.clienteId, entrada);
     const ponto = textoOuNulo(dados.dados.ponto_suplementacao_id);
     if (ponto) await travarCocho(tx, auth.clienteId, dados.empresa_id, ponto);
-    const registro = await inserirRegistro(tx, dados);
+    const registro = await inserirRegistro(tx, idDoAparelho ? { ...dados, id: idDoAparelho } : dados);
     await registrarEvento(
       contexto,
       { acao: 'create', entidade: ENTIDADE, entidadeId: registro.id, dadosNovos: documentoComoPublico(registro) },

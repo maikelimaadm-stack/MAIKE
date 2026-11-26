@@ -254,6 +254,10 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
   const updateMutation = useMutation({
     /** @param {{ id: string, data: any, pendingImageFiles?: File[] }} variaveis */
     mutationFn: async ({ id, data, pendingImageFiles = [] }) => {
+      // D-PROD-319: sem internet a alteração vai para a fila de envio; as fotos novas precisam de internet.
+      if (pendingImageFiles.length > 0 && typeof navigator !== "undefined" && navigator.onLine === false) {
+        throw new Error("sem internet as fotos não sobem. Remova as fotos novas e salve; anexe as fotos quando a internet voltar.");
+      }
       // Upload de novas imagens antes de salvar
       const uploadedUrls = [];
       for (const file of pendingImageFiles) {

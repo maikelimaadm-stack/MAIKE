@@ -17,6 +17,8 @@ import {
 } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { sincronizarTudo, iniciarSincronizacaoAutomatica } from '@/lib/offline/sincronizacao/gatilhosDeSincronizacao';
 import { TIPO_LANCAMENTO_COCHO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
+// D-PROD-319: as tarefas presas no armazenamento antigo do aparelho sobem nas passadas da sincronização.
+import '@/services/tarefasGuardadasNoAparelhoService';
 import {
   contarPendenciasDaFilaDeEntidades,
   getOfflineSyncEventName,

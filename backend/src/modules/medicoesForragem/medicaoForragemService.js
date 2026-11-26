@@ -32,7 +32,9 @@ import {
 } from './medicaoForragemCalculo.js';
 import {
   listarMedicoes, buscarMedicao, buscarArea, buscarCultura, buscarFusoDaEmpresa, buscarNomeDoUsuario, inserirMedicao, excluirMedicaoPorId,
+  buscarMedicaoPorIdEmQualquerTenant,
 } from './medicaoForragemRepository.js';
+import { criarComIdDoAparelho, foiExcluidoNoHistorico, idDoAparelhoDe } from '../../shared/idempotency/idDoAparelho.js';
 import { ocupacaoPorPasto } from '../rebanhoLedger/rebanhoLedgerOcupacaoPasto.js';
 
 export { METODOS, SITUACOES };
@@ -172,6 +174,28 @@ export const listar = async (contexto, filtros = {}) => {
  */
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
+  // D-PROD-319 (Etapa 5a): id gerado no aparelho — repetir a criação (resposta perdida, app fechado no meio)
+  // devolve a mesma medição em vez de gravar outra.
+  const { registro } = await criarComIdDoAparelho({
+    id: idDoAparelhoDe(entrada?.id),
+    clienteId: auth.clienteId,
+    entidade: ENTIDADE,
+    buscar: async (id) => {
+      const medicao = await buscarMedicaoPorIdEmQualquerTenant(id);
+      if (medicao) return { cliente_id: medicao.cliente_id, registro: comoMedicaoPublica(medicao) };
+      // Exclusão física: o histórico de auditoria diz se este id já foi criado e excluído.
+      return (await foiExcluidoNoHistorico(auth.clienteId, ENTIDADE, id)) ? { cliente_id: auth.clienteId, excluido: true, registro: null } : null;
+    },
+    criar: (id) => criarNaTransacao(contexto, auth, entrada, id),
+  });
+  return registro;
+};
+
+/**
+ * @param {any} contexto @param {import('../../shared/auth/authContext.js').AuthContext} auth
+ * @param {Record<string, unknown>} entrada @param {string|null} idDoAparelho
+ */
+const criarNaTransacao = async (contexto, auth, entrada, idDoAparelho) => {
   const prisma = getPrismaClient();
   const criado = await prisma.$transaction(async (tx) => {
     const empresaId = await exigirEmpresaDoTenant(tx, auth.clienteId, entrada.empresa_id);
@@ -247,6 +271,7 @@ export const criar = async (contexto, entrada) => {
     const nome = (usuario?.nome || usuario?.login || auth.login || '').trim().slice(0, 255) || null;
 
     const registro = await inserirMedicao(tx, {
+      ...(idDoAparelho ? { id: idDoAparelho } : {}),
       cliente_id: auth.clienteId,
       empresa_id: empresaId,
       area_id: area.id,

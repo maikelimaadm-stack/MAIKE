@@ -35,6 +35,17 @@ definirEsperaDeFora(async (valores) => {
 
 const INTERVALO_MS = 60_000;
 
+/**
+ * D-PROD-319: trabalhos que rodam no fim de cada passada com internet (ex.: enviar as tarefas que ficaram no
+ * armazenamento antigo do aparelho). Registrados por quem os conhece; nunca derrubam a passada.
+ * @type {Set<() => Promise<unknown>>}
+ */
+const PASSADAS_EXTRAS = new Set();
+/** @param {() => Promise<unknown>} fn */
+export const registrarPassadaExtra = (fn) => {
+  PASSADAS_EXTRAS.add(fn);
+};
+
 let iniciado = false;
 /** @type {Promise<void>|null} */
 let emCurso = null;
@@ -66,6 +77,13 @@ export const sincronizarTudo = () => {
       if (segurados > 0) {
         try {
           await sincronizar();
+        } catch {
+          // idem
+        }
+      }
+      for (const extra of PASSADAS_EXTRAS) {
+        try {
+          await extra();
         } catch {
           // idem
         }
