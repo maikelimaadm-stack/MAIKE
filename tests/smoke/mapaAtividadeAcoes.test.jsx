@@ -45,6 +45,9 @@ vi.mock("@/components/lancamento-atividades/JanelaLancamentoPorTipo", async (imp
   ...(await importOriginal()),
   default: ({ atividade, tipo, areaInicial }) => <div data-testid="janela-tipo" data-atividade={atividade?.id} data-tipo={tipo} data-area={areaInicial ?? ""} />,
 }));
+vi.mock("@/components/mapa/detalhes-area/DiarioDoPasto", () => ({
+  default: ({ area, atividade }) => <div data-testid="janela-diario" data-area={area?.id ?? ""} data-atividade={atividade?.id ?? ""} />,
+}));
 vi.mock("@/components/lancamento-atividades/DialogoConcluirServico", () => ({
   default: ({ item, onConcluir }) => (
     <button type="button" data-testid="dialogo-concluir" data-versao={item?.versao} onClick={() => void onConcluir("2026-11-17")}>
@@ -132,8 +135,8 @@ describe("D-PROD-278 — ações da atividade nos Detalhes da área", () => {
     expect(linha).toHaveAttribute("aria-haspopup", "menu");
     await abrirMenu("at-1");
     // As operações chegam junto com o resumo: o menu aberto acompanha.
-    // D-PROD-314: o "Diário da máquina" entra logo depois do "+ Lançamento" numa atividade em andamento no pasto.
-    await waitFor(() => expect(rotulosDoMenu("at-1")).toEqual(["+ Lançamento", "Diário da máquina", "Só máquina", "Só mão de obra", "Finalizar"]));
+    // D-PROD-314/335: o "Diário das atividades" (a mesma entrada da pílula Manejos) entra logo depois do "+ Lançamento".
+    await waitFor(() => expect(rotulosDoMenu("at-1")).toEqual(["+ Lançamento", "Diário das atividades", "Só máquina", "Só mão de obra", "Finalizar"]));
     expect(rotulosDoMenu("at-1")).not.toContain("Abrir atividade");
   });
 
@@ -167,6 +170,17 @@ describe("D-PROD-278 — ações da atividade nos Detalhes da área", () => {
     expect(janela).toHaveAttribute("data-tipo", "maquinas");
     // A área da atividade (o vínculo) cuja área do mapa é a dos detalhes.
     expect(janela).toHaveAttribute("data-area", "aa-1");
+  });
+
+  it("\"Diário das atividades\" lê a atividade e abre o diário do pasto nela", async () => {
+    renderizar();
+    await abrirMenu("at-1");
+    await waitFor(() => expect(rotulosDoMenu("at-1")).toContain("Diário das atividades"));
+    clicarItem("at-1", "Diário das atividades");
+    const janela = await screen.findByTestId("janela-diario");
+    expect(atividades.obter).toHaveBeenCalledWith("at-1");
+    expect(janela).toHaveAttribute("data-atividade", "at-1");
+    expect(janela).toHaveAttribute("data-area", "area-A");
   });
 
   it("\"Concluir\" usa a versão do detalhe e relê o resumo da área", async () => {

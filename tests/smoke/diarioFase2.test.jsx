@@ -2,8 +2,8 @@
  * Diário da máquina, Fase 2 (só tela, sem banco):
  *  - `podeVerCusto(permissao)`: R$ só com a permissão efetiva de administrador da fazenda (`is_admin === true`);
  *  - as telas de lançamento do operador escondem os valores em R$ (o envio e o custo gravado não mudam);
- *  - "Diário das atividades" na janela do pasto (Detalhes da área do Mapa, D-PROD-332): abre já com ESTE pasto,
- *    só com permissão de lançar e fuso da fazenda.
+ *  - o "Diário das atividades" do pasto (Detalhes da área do Mapa, D-PROD-332/335): é a pílula "Manejos" do rodapé e a
+ *    ação de linha; a aba Manejos não tem mais o botão do topo.
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -136,7 +136,7 @@ describe("R$ escondido para o operador", () => {
   });
 });
 
-describe("Diário das atividades no pasto (Detalhes da área, D-PROD-332)", () => {
+describe("Diário das atividades no pasto (Detalhes da área, D-PROD-332, D-PROD-335)", () => {
   const PASTO = { id: "area-A", nome: "PASTO A", tipo_cultura: "Pastagem", tamanho_hectares: "22.0000" };
   const RESUMO_VAZIO = { area_id: "area-A", mes: "2026-11", atividades: [], custos: null, planejamentos: [] };
   const RESUMO_COM_CUSTO = {
@@ -155,31 +155,11 @@ describe("Diário das atividades no pasto (Detalhes da área, D-PROD-332)", () =
     );
   };
 
-  it("com permissão de lançar e fuso ok, o botão abre o Diário das atividades deste pasto (no tipo)", async () => {
-    await montar("manejos");
-    const botao = await screen.findByTestId("area-diario-atividades");
-    expect(botao).toHaveClass("tb-btn", "tb-btn-green");
-    expect(botao).toHaveTextContent("Diário das atividades");
-    expect(screen.queryByTestId("diario-atividades")).toBeNull();
-    fireEvent.click(botao);
-    expect(await screen.findByTestId("diario-atividades")).toBeInTheDocument();
-    expect(screen.getByTestId("diario-atividades-tipos")).toBeInTheDocument();
-    expect(screen.queryByTestId("area-diario-maquina")).toBeNull();
-  });
-
-  it("sem permissão de lançar, o botão não aparece", async () => {
-    sessao.acoes = { ...TUDO, lancarApontamento: false };
-    await montar("manejos");
-    await waitFor(() => expect(sessao.resumo).toHaveBeenCalled());
-    await screen.findByText("Nenhuma atividade nesta área agora.");
-    expect(screen.queryByTestId("area-diario-atividades")).toBeNull();
-  });
-
-  it("sem fuso da fazenda, o botão não aparece", async () => {
-    sessao.fusoOk = false;
+  it("D-PROD-335: a aba Manejos não tem mais o botão \"Diário das atividades\" (a entrada é a pílula Manejos do rodapé e a ação de linha)", async () => {
     await montar("manejos");
     await screen.findByText("Nenhuma atividade nesta área agora.");
     expect(screen.queryByTestId("area-diario-atividades")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Diário das atividades" })).toBeNull();
   });
 
   it("operador não vê a seção de custos (R$); o administrador vê", async () => {
@@ -196,12 +176,17 @@ describe("Diário das atividades no pasto (Detalhes da área, D-PROD-332)", () =
     expect(await within(admin.container).findByText("Custo total")).toBeTruthy();
   });
 
-  it("D-PROD-335: com atividades abertas no pasto, o botão abre a lista delas sem ler nada no clique; tocar numa lê a atividade", async () => {
+  it("D-PROD-335: o diário do pasto (DiarioDoPasto, a pílula e a ação de linha) abre a lista das abertas sem ler nada no clique; tocar numa lê a atividade", async () => {
     const { obterAtividade } = await import("@/services/lancamentoAtividadesService");
+    const DiarioDoPasto = (await import("@/components/mapa/detalhes-area/DiarioDoPasto")).default;
     const ABERTA = { atividade_id: "at-1", numero: 10, nome: "Aplicação · nov/26", tipo_atividade_id: "op-1", tipo_atividade_nome: "Aplicação", status: "ABERTA", area_status: "EM_ANDAMENTO", data_inicio: "2026-11-02" };
     const CONCLUIDA = { ...ABERTA, atividade_id: "at-9", nome: "Roçada · out/26", area_status: "CONCLUIDA" };
-    await montar("manejos", { ...RESUMO_VAZIO, atividades: [ABERTA, CONCLUIDA] });
-    fireEvent.click(await screen.findByTestId("area-diario-atividades"));
+    sessao.resumo.mockResolvedValue({ ...RESUMO_VAZIO, atividades: [ABERTA, CONCLUIDA] });
+    render(
+      <QueryClientProvider client={novoCliente()}>
+        <DiarioDoPasto area={PASTO} tipos={[]} onFechar={vi.fn()} />
+      </QueryClientProvider>,
+    );
     expect(await screen.findByTestId("diario-atividades-escolher")).toBeInTheDocument();
     expect(screen.getByTestId("diario-atividade-aberta-at-1")).toBeInTheDocument();
     // A concluída não entra na lista.
