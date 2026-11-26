@@ -529,3 +529,28 @@
   .mk-mapa-camadas__menu, .mk-mapa-aviso { animation: none; }
   .mk-mapa-barra__seg { transition: none; }
 }
+
+/* D-PROD-321: "Nova tarefa" no foco Tarefas — logo acima do cartão do resumo (canto de baixo à esquerda; a pilha
+   de botões da direita fica livre), verde das ações (o mesmo do rodapé dos detalhes). */
+.mk-mapa-nova-tarefa {
+  position: absolute;
+  z-index: 10;
+  left: var(--mk-mapa-gap);
+  bottom: calc(var(--mk-mapa-gap) + 56px);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #3fbf5f;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 6px 18px rgba(15, 23, 42, 0.18);
+  pointer-events: auto;
+  cursor: pointer;
+}
+.mk-mapa-nova-tarefa:disabled { opacity: 0.75; cursor: progress; }
+.mk-mapa-nova-tarefa:focus-visible { outline: 2px solid #166534; outline-offset: 2px; }

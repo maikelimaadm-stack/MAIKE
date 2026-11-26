@@ -30,6 +30,7 @@ describe("Gestão de Tarefas: primeira abertura (D-PROD-218)", () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={qc}><TarefasMapaPanel onClose={() => {}} /></QueryClientProvider>);
     await waitFor(() => expect(listarTarefasDaEmpresa).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText("Consertar cerca")).toBeTruthy();
+    // D-PROD-321: o resumo em cartões mostra o título em maiúsculas, como os lotes.
+    expect(await screen.findByText("CONSERTAR CERCA")).toBeTruthy();
   });
 });

@@ -9943,4 +9943,31 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - parte 2: a aba Tarefas no mapa, com resumo em cartões e "Nova tarefa" com o local de onde se está, no lugar da tabela;
   - parte 3: tarefas sem internet.
 
-<!-- Próxima decisão: D-PROD-321 -->
+## D-PROD-321 — Tarefas, parte 2: aba Tarefas no mapa, resumo em cartões e "Nova tarefa" onde a pessoa está
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("as tarefas atualmente abrem uma tabela no mapa… muito feio… queria um resumo… do lado de pontos vamos colocar tarefas… botão de novo… automaticamente ela já sabe onde eu to"), com o desenho aprovado em imagens · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFAS-MAPA-RESUMO-D321-REPORT.md`](./TAREFAS-MAPA-RESUMO-D321-REPORT.md)
+
+> **Numeração:** a `main` (`5f68cc60c`) indica `Próxima decisão: D-PROD-321`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-322. Conferir de novo antes do merge (regra A5).
+
+- **Problema:** a lista de tarefas do mapa era a grade de cadastro, com cards configuráveis, busca e seleção, e destoava dos detalhes do lote. O segmento "Tarefas" estava escondido da barra, e a "Nova tarefa" não sabia onde a pessoa estava.
+- **Decisão — barra e mapa:**
+  - "Tarefas" volta à barra: **Lotes · Pontos · Tarefas**, com a mesma permissão das tarefas no mapa.
+  - O toque só muda o foco: o mapa mostra os alfinetes das tarefas, mesmo com "ícones de tarefa" desligado nos filtros, e esconde lotes e cochos.
+  - No foco Tarefas, o **cartão de baixo** mostra "N tarefas abertas · M atrasadas" e abre a lista.
+  - O botão **Nova tarefa** fica acima do cartão:
+    - pega a **posição do celular**;
+    - dentro de um pasto, a tarefa já vem com o pasto e o ponto;
+    - sem posição (sem permissão ou sem GPS em 8 s), abre sem local, e a pessoa escolhe setor e pasto.
+- **Decisão — lista:** a grade sai e entra o **resumo em cartões** (`ResumoTarefasMapa`), na casca v12 dos detalhes do lote.
+  - Abas: **Abertas** e **Concluídas**.
+  - Números do topo: Pendentes, Andamento e Atrasadas (ou Concluídas e Canceladas).
+  - Um cartão por tarefa, com título, local, prazo, responsável, situação e selo da prioridade.
+  - Ordem: atrasadas primeiro, depois a prioridade e o prazo.
+  - O toque abre os **detalhes** (os de hoje), e "Nova tarefa" fica no rodapé.
+  - A janela abre como os detalhes do lote: `largo somenteLeitura popupDesde="tablet"`.
+- **Decisão — excluir:** o "Excluir" da grade antiga passa para os **detalhes da tarefa** (pílula no rodapé, com confirmação).
+  - A exclusão em massa por seleção sai junto com a grade.
+  - Saem `TarefasCardsMapa`, `TarefaDetalhesDialog` e o teste deles.
+- **Fora:** tarefas sem internet (parte 3).
+
+<!-- Próxima decisão: D-PROD-322 -->

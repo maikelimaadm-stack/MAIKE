@@ -13,6 +13,7 @@ import { MAPA_GERAL_ACESSO_TOTAL, normalizeMapaGeralPermissions } from "@/lib/ma
 import { podeExcluirLancamentoBebedouro, podeLancarNoBebedouro } from "@/lib/bebedouroPermissions";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { Plus } from "lucide-react";
 import MapaFiltrosPainel from "@/components/mapa/MapaFiltrosPainel";
 import { acaoDoCliqueNaArea } from "@/domain/mapa/cliqueArea";
 import { LancLoteDialogo } from "../components/lotes/LancamentoLoteUi";
@@ -695,6 +696,14 @@ export default function MapaGeral({ ativo = true } = {}) {
     new Set(setores.filter((setor) => filtroInclui(filtroSetor, setor.id)).map((setor) => setor.nome));
     return filtrarTarefasPorArea(tarefasMapa, { filtroSetor, filtroTipoCultura, filtroTipoPastagem, areaIdsFiltrados, nomesSetores });
   }, [filtroSetor, filtroTipoCultura, filtroTipoPastagem, tarefasMapa, setores, areaIdsFiltrados]);
+  // D-PROD-321: atrasada = o dia do prazo já passou (vencer hoje ainda não é atraso), como nos detalhes.
+  const tarefasAtrasadasNoMapa = useMemo(
+    () => tarefasMapaFiltradas.filter((t) => {
+      const prazo = String(t?.data_prevista ?? '').slice(0, 10);
+      return Boolean(prazo) && Boolean(hoje) && prazo < hoje;
+    }).length,
+    [tarefasMapaFiltradas, hoje]
+  );
 
   // Mapa de cores para categorias de manejo e pastagem
   const categoriasGadoCores = useMemo(() => {
@@ -964,6 +973,31 @@ export default function MapaGeral({ ativo = true } = {}) {
     });
     setShowTarefas(true);
   }, [detectarAreaPorCoordenada, podeUsarTarefasMapa]);
+
+  // D-PROD-321: "Nova tarefa" já sabe onde a pessoa está — a posição do celular escolhe o pasto (dentro de uma
+  // área) e o ponto. Sem posição (sem permissão, sem sinal de GPS em 8 s), abre sem local: escolhe setor e pasto.
+  const [buscandoPosicaoTarefa, setBuscandoPosicaoTarefa] = useState(false);
+  const novaTarefaAqui = useCallback(() => {
+    if (!podeUsarTarefasMapa || buscandoPosicaoTarefa) return;
+    const geo = typeof navigator !== 'undefined' ? navigator.geolocation : null;
+    if (!geo?.getCurrentPosition) {
+      abrirLancamentoTarefa(null);
+      return;
+    }
+    setBuscandoPosicaoTarefa(true);
+    geo.getCurrentPosition(
+      (posicao) => {
+        setBuscandoPosicaoTarefa(false);
+        abrirLancamentoTarefa({ lat: posicao.coords.latitude, lng: posicao.coords.longitude });
+      },
+      () => {
+        setBuscandoPosicaoTarefa(false);
+        toast.info('Não foi possível saber onde você está: escolha o setor e o pasto da tarefa.');
+        abrirLancamentoTarefa(null);
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  }, [podeUsarTarefasMapa, buscandoPosicaoTarefa, abrirLancamentoTarefa]);
 
   const handleSelectTaskLocation = useCallback((coords, area) => {
     setSelecionandoLocalTarefa(false);
@@ -1327,7 +1361,7 @@ export default function MapaGeral({ ativo = true } = {}) {
   }, [cochosFiltrados, depositosFiltrados, showCochos, showDepositos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, camadasFoco, handleClickPontoSupl]);
   // Lotes só no foco Lotes; tarefas em Lotes e Tarefas (D-PROD-218).
   useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes && camadasFoco.lotes, categoriasManejo, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes && dragLotesEnabled, showAlertas && !filtroInclui(filtroStatus, 'sem_alerta'));}, [lotesFiltrados, areas, showLotes, camadasFoco, categoriasManejo, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, dragLotesEnabled, showAlertas, filtroStatus, handleClickLotes, handleDragLotes]);
-  useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa && showTaskIcons && camadasFoco.tarefas ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, showTaskIcons, camadasFoco, handleClickTarefa]);
+  useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa && (showTaskIcons || focoAtivo === 'tarefas') && camadasFoco.tarefas ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, showTaskIcons, camadasFoco, handleClickTarefa, focoAtivo]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
 
   useEffect(() => {
@@ -1388,7 +1422,7 @@ export default function MapaGeral({ ativo = true } = {}) {
           onFoco={setFoco}
           focosPermitidos={focosDoMapa}
           showFiltrosButton={mapaGeralPermissions.visualizar_filtros_camadas}
-          onOpenTarefas={() => {if (!podeUsarTarefasMapa) return;setTarefasContext({});setShowTarefas(true);}}
+          onOpenTarefas={null}
           onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return;setShowFiltros(true);}}
           painel={
           <MapaVisualizacao
@@ -1412,6 +1446,35 @@ export default function MapaGeral({ ativo = true } = {}) {
           tiposPastagemCores={tiposPastagemCores} />
 
 
+        {/* D-PROD-321: no foco Tarefas, o cartão de baixo resume as tarefas do mapa e abre a lista; "Nova tarefa"
+            ao lado já sabe onde a pessoa está. */}
+        {focoAtivo === 'tarefas' && podeUsarTarefasMapa ?
+        <>
+          <div className="mk-mapa-resumo mk-mapa-card" aria-label="Resumo das tarefas" role="button" tabIndex={0}
+            title="Abrir a lista de tarefas" data-mk-resumo-rebanho="" data-mk-resumo-tarefas=""
+            onClick={() => {setTarefasContext({});setShowTarefas(true);}}
+            onKeyDown={(/** @type {React.KeyboardEvent} */ e) => {if (e.key === 'Enter' || e.key === ' ') {e.preventDefault();setTarefasContext({});setShowTarefas(true);}}}>
+            <div className="mk-mapa-resumo__item">
+              <span className="mk-mapa-resumo__num mk-mapa-resumo__num--verde">{tarefasMapaFiltradas.length.toLocaleString('pt-BR')}</span>
+              <span className="mk-mapa-resumo__rot">{tarefasMapaFiltradas.length === 1 ? 'tarefa aberta' : 'tarefas abertas'}</span>
+            </div>
+            {tarefasAtrasadasNoMapa > 0 &&
+            <div className="mk-mapa-resumo__item">
+                <span className="mk-mapa-resumo__num" style={{ color: '#dc2626' }}>{tarefasAtrasadasNoMapa.toLocaleString('pt-BR')}</span>
+                <span className="mk-mapa-resumo__rot">{tarefasAtrasadasNoMapa === 1 ? 'atrasada' : 'atrasadas'}</span>
+              </div>
+            }
+            <span className="mk-mapa-resumo__abrir" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="m9 6 6 6-6 6" /></svg>
+            </span>
+          </div>
+          <button type="button" className="mk-mapa-nova-tarefa" onClick={novaTarefaAqui} disabled={buscandoPosicaoTarefa}
+            aria-busy={buscandoPosicaoTarefa || undefined} data-mk-nova-tarefa="">
+            <Plus size={18} aria-hidden />
+            <span>{buscandoPosicaoTarefa ? 'Localizando…' : 'Nova tarefa'}</span>
+          </button>
+        </> :
+        <>
         {/* Resumo inferior (D-PROD-131): cartão único, números grandes e rótulos discretos */}
         {/* D-PROD-213: com permissão de ver lotes, o cartão abre o Resumo do Rebanho. */}
         <div className="mk-mapa-resumo mk-mapa-card" aria-label="Resumo do mapa"
@@ -1440,6 +1503,8 @@ export default function MapaGeral({ ativo = true } = {}) {
             </span>
           }
         </div>
+        </>
+        }
 
         {!mapReady && mapLoadError &&
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 max-w-md bg-white px-6 py-4 rounded-lg shadow-2xl border border-amber-300">
@@ -1518,12 +1583,13 @@ export default function MapaGeral({ ativo = true } = {}) {
           {selectedPontoSupl && <DetalhesPontoSuplementacao ponto={selectedPontoSupl} permissions={mapaGeralPermissions} subtitulo={localDoPontoSupl} subtituloDoPonto={localDoPonto} onClose={() => {setShowDetalhesPontoSupl(false);refetchEventosSupl();refetchLotes();refetchPontosSupl();}} />}
         </LancLoteDialogo>
 
-      <LancLoteDialogo open={showTarefas} onOpenChange={(open) => {setShowTarefas(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}} titulo="Gestão de Tarefas" lotes={localDasTarefas ? [{ nome: localDasTarefas }] : []} amplo somenteLeitura>
-          <TarefasMapaPanel areaId={tarefasContext.areaId} areaNome={tarefasContext.areaNome} loteId={tarefasContext.loteId} loteNome={tarefasContext.loteNome} pontoSuplId={tarefasContext.pontoSuplId} initialCoordinates={tarefasContext.initialCoordinates} initialDraft={tarefasContext.initialDraft} openCreateOnMount={tarefasContext.openCreateOnMount} onRequestSelectLocation={handleRequestSelectTaskLocation} onClose={() => {setShowTarefas(false);setTarefasContext({});if (podeUsarTarefasMapa) refetchTarefas();}} />
+      {/* D-PROD-321: a lista de tarefas no estilo dos detalhes do lote (resumo em cartões), no lugar da grade. */}
+      <LancLoteDialogo open={showTarefas} onOpenChange={(open) => {setShowTarefas(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}} titulo="Tarefas" lotes={localDasTarefas ? [{ nome: localDasTarefas }] : []} largo somenteLeitura popupDesde="tablet">
+          <TarefasMapaPanel hoje={hoje} onAbrirTarefa={handleClickTarefa} onNovaTarefa={novaTarefaAqui} areaId={tarefasContext.areaId} areaNome={tarefasContext.areaNome} loteId={tarefasContext.loteId} loteNome={tarefasContext.loteNome} pontoSuplId={tarefasContext.pontoSuplId} initialCoordinates={tarefasContext.initialCoordinates} initialDraft={tarefasContext.initialDraft} openCreateOnMount={tarefasContext.openCreateOnMount} onRequestSelectLocation={handleRequestSelectTaskLocation} onClose={() => {setShowTarefas(false);setTarefasContext({});if (podeUsarTarefasMapa) refetchTarefas();}} />
       </LancLoteDialogo>
 
       <LancLoteDialogo open={showDetalhesTarefa} onOpenChange={(open) => {setShowDetalhesTarefa(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}} titulo="Detalhes da tarefa" largo somenteLeitura popupDesde="tablet">
-          {selectedTarefa && <DetalhesTarefaMapa tarefa={selectedTarefa} hoje={hoje} onRequestSelectLocation={handleRequestSelectTaskLocation} onSaved={(updated) => {if (updated) setSelectedTarefa(updated);if (podeUsarTarefasMapa) refetchTarefas();}} />}
+          {selectedTarefa && <DetalhesTarefaMapa tarefa={selectedTarefa} hoje={hoje} onExcluida={() => {setShowDetalhesTarefa(false);setSelectedTarefa(null);if (podeUsarTarefasMapa) refetchTarefas();}} onRequestSelectLocation={handleRequestSelectTaskLocation} onSaved={(updated) => {if (updated) setSelectedTarefa(updated);if (podeUsarTarefasMapa) refetchTarefas();}} />}
       </LancLoteDialogo>
 
       <LancLoteDialogo open={showInsights} onOpenChange={setShowInsights} titulo="Insights do Mapa" largo somenteLeitura>

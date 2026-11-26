@@ -19,7 +19,7 @@ describe("Tarefas do Mapa no padrão (D-PROD-118)", () => {
     expect(f).not.toMatch(/__sem_setor__/);
   });
 
-  it("nova/editar tarefa, detalhes, evento, histórico e Gestão de Tarefas abrem no diálogo padrão", () => {
+  it("nova/editar tarefa, detalhes, evento, histórico e a lista de tarefas abrem no diálogo padrão", () => {
     expect(ler("src/components/mapa/TarefasMapaPanel.jsx")).toMatch(/<LancLoteDialogo[\s\S]*?titulo=\{editingTarefa \? 'Editar tarefa' : 'Nova tarefa'\}/);
     const det = ler("src/components/mapa/DetalhesTarefaMapa.jsx");
     for (const t of ["Editar tarefa", "Histórico da tarefa", "Registrar evento"]) {
@@ -27,9 +27,9 @@ describe("Tarefas do Mapa no padrão (D-PROD-118)", () => {
     }
     expect(det).not.toMatch(/Mesmo padrão da tela de lançamentos/);
     const mapa = ler("src/pages/MapaGeral.jsx");
-    expect(mapa).toMatch(/<LancLoteDialogo(?:(?!<\/?LancLoteDialogo)[\s\S])*?titulo="Gestão de Tarefas"(?:(?!<\/?LancLoteDialogo)[\s\S])*?amplo somenteLeitura/);
+    // D-PROD-321: a lista de tarefas abre como os detalhes do lote (largo, só leitura, popup a partir do tablet).
+    expect(mapa).toMatch(/<LancLoteDialogo(?:(?!<\/?LancLoteDialogo)[\s\S])*?titulo="Tarefas"(?:(?!<\/?LancLoteDialogo)[\s\S])*?largo somenteLeitura popupDesde="tablet"/);
     expect(mapa).toMatch(/<LancLoteDialogo(?:(?!<\/?LancLoteDialogo)[\s\S])*?titulo="Detalhes da tarefa"(?:(?!<\/?LancLoteDialogo)[\s\S])*?somenteLeitura/);
-    expect(ler("src/components/tarefas/TarefaDetalhesDialog.jsx")).toMatch(/<LancLoteDialogo[^>]*somenteLeitura/);
   });
 
   it("evento: o tipo escolhido é sempre um dos permitidos (não grava 'Em Andamento' numa tarefa já iniciada)", () => {
