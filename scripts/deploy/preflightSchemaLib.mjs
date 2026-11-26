@@ -164,7 +164,7 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['AtividadeApontamentoProduto', 'unidade_lancamento'],
   ['AtividadeApontamentoProduto', 'quantidade_lancamento'],
   ['AtividadeApontamentoProduto', 'fator_lancamento'],
-  // D-PROD-322 (MAIKE-DIARIO-MAQUINA): o cadastro de produto lê a quantidade padrão, e a linha de produto da atividade lê
+  // D-PROD-323 (MAIKE-DIARIO-MAQUINA): o cadastro de produto lê a quantidade padrão, e a linha de produto da atividade lê
   // a mistura e o volume aplicado; sem a migration `20261127100000_diario_maquina`, esses lugares respondem 500.
   ['Produto', 'quantidade_padrao'],
   ['Produto', 'quantidade_padrao_unidade'],

@@ -689,10 +689,10 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
           ORDER BY o.relname`
       ).map((x) => x.relname);
       // D-PROD-202: a linha de máquina da atividade (migration POSTERIOR) também referencia o bem (máquina e implemento).
-      // D-PROD-322: a mistura do Diário da máquina (migration POSTERIOR) referencia o implemento (um bem).
+      // D-PROD-323: a mistura do Diário da máquina (migration POSTERIOR) referencia o implemento (um bem).
       assert.deepEqual(deFora, ['Atividade', 'AtividadeApontamentoMaquina', 'AtividadeMistura'], 'só a atividade, a linha de máquina e a mistura (posteriores) referenciam as 7 tabelas');
       // D-PROD-202: as linhas do apontamento (migration POSTERIOR) referenciam o apontamento; saem antes dele.
-      // D-PROD-322: as 3 tabelas da mistura (POSTERIOR) e a linha de produto se referenciam; saem juntas, sem CASCADE.
+      // D-PROD-323: as 3 tabelas da mistura (POSTERIOR) e a linha de produto se referenciam; saem juntas, sem CASCADE.
       await tx.$executeRawUnsafe('DROP TABLE "AtividadeMisturaMovimento", "AtividadeMisturaItem", "AtividadeApontamentoProdutoConsumoLote", "AtividadeApontamentoProduto", "AtividadeMistura", "AtividadeApontamentoMaquina"');
       // D-PROD-207: as linhas de mão de obra e de serviço (migration POSTERIOR) também referenciam o apontamento e não
       // referenciam as 7; saem antes dele. Servico não referencia o apontamento nem as 7: fica (D-PROD-208: a Funcionario

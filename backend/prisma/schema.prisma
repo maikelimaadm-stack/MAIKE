@@ -4335,7 +4335,7 @@ model AjusteEstoqueEvento {
 }
 
 // MAIKE-DIARIO-MAQUINA
-/// D-PROD-322 — a MISTURA no implemento (Passo 1 "Implemento cheio"): o que foi colocado no implemento, na capacidade
+/// D-PROD-323 — a MISTURA no implemento (Passo 1 "Implemento cheio"): o que foi colocado no implemento, na capacidade
 /// dele, e o saldo que ainda não foi aplicado. NÃO baixa estoque: a baixa é do Passo 2 (aplicar), pelo motor.
 /// `area_id` é onde o implemento está agora (muda na transferência). `numero` 1..n dentro da atividade.
 model AtividadeMistura {
@@ -4373,7 +4373,7 @@ model AtividadeMistura {
 }
 
 // MAIKE-DIARIO-MAQUINA
-/// D-PROD-322 — um produto da mistura, com a quantidade POR IMPLEMENTO CHEIO (na unidade de estoque do produto) e o
+/// D-PROD-323 — um produto da mistura, com a quantidade POR IMPLEMENTO CHEIO (na unidade de estoque do produto) e o
 /// local de estoque de onde sai quando aplicado.
 model AtividadeMisturaItem {
   id               String   @id @default(cuid())
@@ -4396,7 +4396,7 @@ model AtividadeMisturaItem {
 }
 
 // MAIKE-DIARIO-MAQUINA
-/// D-PROD-322 — o histórico da mistura: APLICACAO (Passo 2), TRANSFERENCIA (trocou de pasto, com horímetros), DEVOLUCAO
+/// D-PROD-323 — o histórico da mistura: APLICACAO (Passo 2), TRANSFERENCIA (trocou de pasto, com horímetros), DEVOLUCAO
 /// (sobra não aplicada, sem estoque) e PERDA (com motivo; a baixa é pelo motor, na linha da atividade).
 model AtividadeMisturaMovimento {
   id                    String    @id @default(cuid())

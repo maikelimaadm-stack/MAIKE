@@ -1,5 +1,5 @@
 /**
- * D-PROD-322 (MAIKE-DIARIO-MAQUINA) — a MISTURA no implemento e o que se faz com ela:
+ * D-PROD-323 (MAIKE-DIARIO-MAQUINA) — a MISTURA no implemento e o que se faz com ela:
  *
  *  - Passo 1 "Implemento cheio" (`criarMistura`): o implemento é enchido com os produtos (quantidade POR IMPLEMENTO
  *    CHEIO). NÃO baixa estoque: a baixa é do Passo 2.

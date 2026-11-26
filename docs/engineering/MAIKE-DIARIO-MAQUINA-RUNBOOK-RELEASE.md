@@ -1,9 +1,9 @@
-# MAIKE — Diário da máquina (backend): runbook de release (D-PROD-322)
+# MAIKE — Diário da máquina (backend): runbook de release (D-PROD-323)
 
 > **Estado: `SCHEMA_APPLIED_PROD: SIM` (2026-11-26, caminho B, GO do proprietário, antes do merge da PR #406).**
 > Pós-checagem do §2.4 conferida. Registro no §5.
 
-Decisão: [D-PROD-322](./DECISIONS.md) · Migration: `20261127100000_diario_maquina` (EXPAND, sem `--contract`).
+Decisão: [D-PROD-323](./DECISIONS.md) · Migration: `20261127100000_diario_maquina` (EXPAND, sem `--contract`).
 
 ## 1. O que muda no banco
 

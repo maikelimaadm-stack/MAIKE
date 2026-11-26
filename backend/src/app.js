@@ -253,7 +253,7 @@ export const construirApp = async (opcoes = {}) => {
   // D-PROD-202 — as LINHAS que geram custo do apontamento: produto (baixa de
   // estoque pelo motor FIFO) e máquina (uso pelo medidor, custo por hora/km).
   await app.register(registrarAtividadeApontamentoProdutoRoutes);
-  // D-PROD-322: a mistura no implemento, a aplicação no pasto, a sobra e o resumo do dia (diário da máquina).
+  // D-PROD-323: a mistura no implemento, a aplicação no pasto, a sobra e o resumo do dia (diário da máquina).
   await app.register(registrarAtividadeMisturaRoutes);
   await app.register(registrarAtividadeApontamentoMaquinaRoutes);
   // D-PROD-207 (Fatia 4): linhas de MÃO DE OBRA e de SERVIÇO do apontamento e os seletores delas.

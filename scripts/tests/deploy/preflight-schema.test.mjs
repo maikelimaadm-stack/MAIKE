@@ -118,7 +118,7 @@ const COLUNAS_OK = [
   { table_name: 'AtividadeApontamentoProduto', column_name: 'unidade_lancamento' },
   { table_name: 'AtividadeApontamentoProduto', column_name: 'quantidade_lancamento' },
   { table_name: 'AtividadeApontamentoProduto', column_name: 'fator_lancamento' },
-  // D-PROD-322: a quantidade padrão do produto e a mistura/volume da linha de produto da atividade.
+  // D-PROD-323: a quantidade padrão do produto e a mistura/volume da linha de produto da atividade.
   { table_name: 'Produto', column_name: 'quantidade_padrao' },
   { table_name: 'Produto', column_name: 'quantidade_padrao_unidade' },
   { table_name: 'AtividadeApontamentoProduto', column_name: 'mistura_id' },

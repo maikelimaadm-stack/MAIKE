@@ -461,7 +461,7 @@ const NOME_UCL = '20261126200000_unidade_convertida_lancamentos';
  * a 82ª, depois da unidade convertida (D-PROD-310).
  */
 const NOME_SII = '20261126300000_sincronizacao_incremental_indices';
-/** D-PROD-322: a mistura no implemento (EXPAND), a 83ª, depois dos índices da sincronização (D-PROD-315). */
+/** D-PROD-323: a mistura no implemento (EXPAND), a 83ª, depois dos índices da sincronização (D-PROD-315). */
 const NOME_DM = '20261127100000_diario_maquina';
 const GUARDA_UNID = '86df7d20db22e4ae2596dba4c29788fa60537d41e6e4cfa35d68171266fd0ff8';
 const CONTRACT_UNID = {
@@ -513,7 +513,7 @@ test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas n
   // D-PROD-264: + as 4 tabelas da saída manual do Estoque (MotivoSaidaEstoque e as 3 SaidaEstoque*), EXPAND.
   // D-PROD-274: + a AtividadePlantio (os dados do Plantio de pastagem), EXPAND.
   // D-PROD-276: + o Planejamento e a PlanejamentoArea (a reforma de pastagem), EXPAND.
-  // D-PROD-322: + as 3 tabelas da mistura no implemento (AtividadeMistura*), EXPAND.
+  // D-PROD-323: + as 3 tabelas da mistura no implemento (AtividadeMistura*), EXPAND.
   assert.deepEqual(c.tabelas_novas, [
     'AbastecimentoBem', 'AbastecimentoBemConsumoLote', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote',
     'Atividade', 'AtividadeApontamento', 'AtividadeApontamentoMaoObra', 'AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
@@ -6099,7 +6099,7 @@ test('B46c (D-PROD-310/D-PROD-297): ordem de produção hoje — alvo com as 80 
   assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas: depois }), []);
 });
 
-test('B48a (D-PROD-322): o diário da máquina classificado SOZINHO, como na release: ok, EXPAND, três tabelas novas com RLS, quatro colunas anuláveis em tabelas antigas, checksum pinado e nenhum DROP/RENAME/ALTER COLUMN fora dos comentários', () => {
+test('B48a (D-PROD-323): o diário da máquina classificado SOZINHO, como na release: ok, EXPAND, três tabelas novas com RLS, quatro colunas anuláveis em tabelas antigas, checksum pinado e nenhum DROP/RENAME/ALTER COLUMN fora dos comentários', () => {
   const sql = readFileSync(`backend/prisma/migrations/${NOME_DM}/migration.sql`, 'utf8');
   const c = classificarMigrations([{ nome: NOME_DM, sql }]);
   assert.deepEqual(c.violacoes, []);
@@ -6155,7 +6155,7 @@ test('B47b (D-PROD-315): o mesmo arquivo com índice ÚNICO em tabela antiga ou 
 
 test('B47c (D-PROD-315/D-PROD-310): ordem de produção hoje — alvo com as 81 da main concluídas (por último a unidade convertida, D-PROD-310, checksum 3644b7fd…f169): o histórico confere, a única pendente são os índices, nenhum CONTRACT a autorizar; checksum diferente ou registro parcial é divergência; depois dela, 82 e nada pendente', () => {
   const raiz = 'backend/prisma/migrations';
-  // D-PROD-322: a mistura no implemento (NOME_DM) é de release posterior; "hoje" a main ainda não a tem.
+  // D-PROD-323: a mistura no implemento (NOME_DM) é de release posterior; "hoje" a main ainda não a tem.
   const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name !== NOME_DM)
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(locais.length, 82);

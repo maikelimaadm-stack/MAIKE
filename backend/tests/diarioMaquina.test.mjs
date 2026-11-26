@@ -1,5 +1,5 @@
 /**
- * D-PROD-322 (MAIKE-DIARIO-MAQUINA) — regras puras do diário da máquina, sem banco:
+ * D-PROD-323 (MAIKE-DIARIO-MAQUINA) — regras puras do diário da máquina, sem banco:
  *
  *  - a quantidade de cada produto no aplicar (item × volume ÷ capacidade, 4 casas, meio para cima);
  *  - o volume do aplicar (esvaziou, ou o saldo menos a sobra, com 0 ≤ sobra < saldo);
@@ -32,7 +32,7 @@ const erroDe = (fn) => {
   assert.fail('esperava um erro');
 };
 
-describe('D-PROD-322 — quantidade proporcional ao volume aplicado', () => {
+describe('D-PROD-323 — quantidade proporcional ao volume aplicado', () => {
   test('DM-01: 4 L por implemento de 2.000 L; aplicou 1.500 L → 3,0000 L', () => {
     assert.equal(quantidadeProporcional('4', '1500', '2000').toFixed(4), '3.0000');
   });
@@ -53,7 +53,7 @@ describe('D-PROD-322 — quantidade proporcional ao volume aplicado', () => {
   });
 });
 
-describe('D-PROD-322 — volume do aplicar: esvaziou ou sobra', () => {
+describe('D-PROD-323 — volume do aplicar: esvaziou ou sobra', () => {
   const saldo = dec('2000');
 
   test('DM-05: esvaziou leva o saldo inteiro, sem sobra', () => {
@@ -90,7 +90,7 @@ describe('D-PROD-322 — volume do aplicar: esvaziou ou sobra', () => {
   });
 });
 
-describe('D-PROD-322 — forma pública da mistura', () => {
+describe('D-PROD-323 — forma pública da mistura', () => {
   test('DM-12: capacidade, saldo e quantidades saem como texto de 4 casas; o produto vem com nome e unidade', () => {
     const publica = comoMisturaPublica({
       id: 'mis_1', numero: 2, implemento_bem_id: 'bem_1', area_id: 'area_1', capacidade: dec('2000'), unidade: 'L', saldo: dec('1700'), status: 'ABERTA',
@@ -104,7 +104,7 @@ describe('D-PROD-322 — forma pública da mistura', () => {
   });
 });
 
-describe('D-PROD-322 — quantidade padrão do produto', () => {
+describe('D-PROD-323 — quantidade padrão do produto', () => {
   test('DM-13: texto decimal > 0 volta com 4 casas; sem o campo fica como estava (undefined); nulo limpa', () => {
     assert.equal(quantidadePadraoDoCorpo('4'), '4.0000');
     assert.equal(quantidadePadraoDoCorpo('0.5'), '0.5000');
@@ -228,7 +228,7 @@ const montar = async () => {
   return { ...s, herbicida, adubo, lotes, pasto2, implemento, abrir, detalhe, ligacao, iniciar, lancarApontamento, criarMistura, criarMisturaOk, aplicar, sobra, aplicadoComSobra500, operador };
 };
 
-describe('D-PROD-322 — integração com PostgreSQL: mistura, aplicar, sobra, resumo e quantidade padrão', () => {
+describe('D-PROD-323 — integração com PostgreSQL: mistura, aplicar, sobra, resumo e quantidade padrão', () => {
   before(async () => {
     app = await criarApp();
     await app.ready();

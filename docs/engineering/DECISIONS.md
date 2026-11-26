@@ -9791,7 +9791,6 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** sem mudança.
 - **Testes:** `tests/smoke/saidaLoteUnidadeConvertida.test.js` (4 casos; 3 vermelhos no código da `main`): multiplica (3 SC = 75 kg e a soma confere), divide (10 CX ÷ 4 = 2,5 L), SACO do cadastro antes do legado, e os casos de sempre.
 
-
 ## D-PROD-313 — A unidade digitada aparece na lista de movimentos do Estoque e no histórico do depósito
 
 **Data:** 2026-11-25 · **Origem:** pendência registrada na D-PROD-310, pedida pelo proprietário ("pode ser") · **Branch:** `claude/unidade-digitada-historico` · **Relatório:** [`MAIKE-UNIDADE-DIGITADA-HISTORICO-REPORT.md`](./MAIKE-UNIDADE-DIGITADA-HISTORICO-REPORT.md)
@@ -9864,11 +9863,11 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - as outras entidades, que ficam para a Etapa 5;
   - o "alterado por" fora do conflito, que exigiria guardar o autor no registro.
 
-
 ## D-PROD-317 — Textos visíveis: "jato" passa a "implemento" (só a tela)
 
 **Data:** 2026-11-26 · **Origem:** fase 1 do Diário da máquina, aprovada pelo proprietário ("perfeito vamos fazer com o claude ok") · **Branch:** `feat/diario-implemento-textos`
 
+> **Numeração:** a `main` (`701f6ca8b`) indicava `Próxima decisão: D-PROD-317`, que é esta; a `main` a manteve reservada para esta PR enquanto levou D-PROD-318 a D-PROD-321 (PRs #407 a #410). Conferir de novo antes do merge (regra A5).
 
 - **Contexto:** no lançamento de atividades e no cadastro do implemento, a tela chamava de "jato" o tanque/implemento cheio (número do dia, cartões, totais, resumo ao finalizar a área). O termo não é o que a operação usa no campo. A troca é só de texto visível, primeira fase do Diário da máquina; o comportamento e o contrato não mudam.
 - **Decisão:**
@@ -9881,6 +9880,7 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Data:** 2026-11-26 · **Origem:** o plano de 5 etapas da sincronização aprovado pelo proprietário (Etapa 4: "pode sim") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-ETAPA4-D318-REPORT.md`](./SINCRONIZACAO-ETAPA4-D318-REPORT.md)
 
+> **Numeração:** a `main` (`701f6ca8b`) indica `Próxima decisão: D-PROD-317`, mas esse número está reservado pela PR #406 (`node scripts/dev/proxima-decisao.mjs`); esta é a D-PROD-318 e o marcador passa a D-PROD-319. Conferir de novo antes do merge (regra A5).
 
 - **Problema:** entre "salvo no aparelho" e "confirmado pelo servidor", as telas decidiam o que mostrar pelo **estado da fila**, cada uma a seu modo:
   - o lançamento recém-confirmado sumia da lista do cocho até a lista ser relida;
@@ -9903,6 +9903,7 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Data:** 2026-11-26 · **Origem:** Etapa 5 do plano de sincronização aprovado pelo proprietário ("vamos prosseguir") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-ETAPA5A-D319-REPORT.md`](./SINCRONIZACAO-ETAPA5A-D319-REPORT.md)
 
+> **Numeração:** a `main` (`51d02590`) indica `Próxima decisão: D-PROD-319`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-320. Conferir de novo antes do merge (regra A5).
 
 - **Problema:**
   1. A criação feita sem internet (ou com a rede caindo no meio) da medição de forragem, da tarefa do mapa e do evento de suplementação da chegada do gado não levava um id do aparelho. Repetir o envio depois de uma resposta perdida gravava o registro duas vezes; na tarefa, também o histórico.
@@ -9935,6 +9936,7 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Data:** 2026-11-26 · **Origem:** pedido do proprietário ("quero um jeito mais simples de lançamento de tarefas"; "deixamos só o tipo… se a pessoa não encontrar o tipo ela pode deixar sem e depois eu mudo"; "mudaria o nome de fazenda para setor"), com o desenho aprovado em imagens · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFAS-LANCAMENTO-SIMPLES-D320-REPORT.md`](./TAREFAS-LANCAMENTO-SIMPLES-D320-REPORT.md)
 
+> **Numeração:** a `main` (`93f8ea297`) indica `Próxima decisão: D-PROD-320`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-321. Conferir de novo antes do merge (regra A5).
 
 - **Problema:** o formulário tinha 16 campos e exigia grupo, tipo e data do pedido. O grupo e o tipo precisavam estar cadastrados antes, e uma pessoa com pouca familiaridade com o celular travava.
 - **Decisão — formulário:**
@@ -9954,10 +9956,38 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - parte 2: a aba Tarefas no mapa, com resumo em cartões e "Nova tarefa" com o local de onde se está, no lugar da tabela;
   - parte 3: tarefas sem internet.
 
-## D-PROD-321 — Diário da máquina, fase 2: R$ só para o administrador e "Iniciar atividade" no pasto (só tela)
+## D-PROD-321 — Tarefas, parte 2: aba Tarefas no mapa, resumo em cartões e "Nova tarefa" onde a pessoa está
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("as tarefas atualmente abrem uma tabela no mapa… muito feio… queria um resumo… do lado de pontos vamos colocar tarefas… botão de novo… automaticamente ela já sabe onde eu to"), com o desenho aprovado em imagens · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFAS-MAPA-RESUMO-D321-REPORT.md`](./TAREFAS-MAPA-RESUMO-D321-REPORT.md)
+
+> **Numeração:** a `main` (`5f68cc60c`) indica `Próxima decisão: D-PROD-321`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-322. Conferir de novo antes do merge (regra A5).
+
+- **Problema:** a lista de tarefas do mapa era a grade de cadastro, com cards configuráveis, busca e seleção, e destoava dos detalhes do lote. O segmento "Tarefas" estava escondido da barra, e a "Nova tarefa" não sabia onde a pessoa estava.
+- **Decisão — barra e mapa:**
+  - "Tarefas" volta à barra: **Lotes · Pontos · Tarefas**, com a mesma permissão das tarefas no mapa.
+  - O toque só muda o foco: o mapa mostra os alfinetes das tarefas, mesmo com "ícones de tarefa" desligado nos filtros, e esconde lotes e cochos.
+  - No foco Tarefas, o **cartão de baixo** mostra "N tarefas abertas · M atrasadas" e abre a lista.
+  - O botão **Nova tarefa** fica acima do cartão:
+    - pega a **posição do celular**;
+    - dentro de um pasto, a tarefa já vem com o pasto e o ponto;
+    - sem posição (sem permissão ou sem GPS em 8 s), abre sem local, e a pessoa escolhe setor e pasto.
+- **Decisão — lista:** a grade sai e entra o **resumo em cartões** (`ResumoTarefasMapa`), na casca v12 dos detalhes do lote.
+  - Abas: **Abertas** e **Concluídas**.
+  - Números do topo: Pendentes, Andamento e Atrasadas (ou Concluídas e Canceladas).
+  - Um cartão por tarefa, com título, local, prazo, responsável, situação e selo da prioridade.
+  - Ordem: atrasadas primeiro, depois a prioridade e o prazo.
+  - O toque abre os **detalhes** (os de hoje), e "Nova tarefa" fica no rodapé.
+  - A janela abre como os detalhes do lote: `largo somenteLeitura popupDesde="tablet"`.
+- **Decisão — excluir:** o "Excluir" da grade antiga passa para os **detalhes da tarefa** (pílula no rodapé, com confirmação).
+  - A exclusão em massa por seleção sai junto com a grade.
+  - Saem `TarefasCardsMapa`, `TarefaDetalhesDialog` e o teste deles.
+- **Fora:** tarefas sem internet (parte 3).
+
+## D-PROD-322 — Diário da máquina, fase 2: R$ só para o administrador e "Iniciar atividade" no pasto (só tela)
 
 **Data:** 2026-11-26 · **Origem:** plano do Diário da máquina aprovado pelo proprietário ("perfeito vamos fazer com o claude ok"; tudo na mesma PR #406) · **Branch:** `feat/diario-implemento-textos`
 
+> **Numeração:** nasceu D-PROD-318. Antes do merge, a `main` (`b4dcc1e8b`) levou D-PROD-318 a D-PROD-321 (PRs #407 a #410) e passou a indicar `Próxima decisão: D-PROD-322`, que é esta (renumerada pela regra A5).
 
 - **Decisão:**
   - `podeVerCusto(permissao)` (`src/lib/verCustoRegras.js`) = permissão efetiva com `is_admin === true` (o administrador da fazenda recebe o registro efetivo com `is_admin`). O `VerCustoContext` (padrão `true`) é passado pelo Lançamento de Atividades e pela janela do pasto no mapa.
@@ -9966,10 +9996,11 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** sem mudança.
 - **Testes:** `tests/smoke/diarioFase2.test.jsx`; testes que conferem R$ passam a simular o administrador.
 
-## D-PROD-322 — Diário da máquina, fases 3 a 7 (backend): mistura no implemento, aplicação, sobra, resumo e quantidade padrão
+## D-PROD-323 — Diário da máquina, fases 3 a 7 (backend): mistura no implemento, aplicação, sobra, resumo e quantidade padrão
 
 **Data:** 2026-11-26 · **Origem:** plano do Diário da máquina aprovado pelo proprietário (protótipo v5) · **Branch:** `feat/diario-implemento-textos` (PR #406)
 
+> **Numeração:** nasceu D-PROD-319; renumerada para D-PROD-323 pela regra A5 (a `main` `b4dcc1e8b` levou D-PROD-318 a D-PROD-321 e esta PR usa D-PROD-317 e D-PROD-322). O marcador passa a D-PROD-324.
 
 - **Contexto:** o diário da máquina precisa de uma mistura que existe DENTRO do implemento (o que foi colocado na caixa, na capacidade do bem, com o saldo que ainda não saiu), de uma aplicação no pasto que baixe o estoque só do que foi aplicado, e de um destino para a sobra. Hoje cada "jato" é só um número que agrupa linhas de produto: não há mistura, não há saldo e a sobra não existe.
 - **Decisão:**
@@ -9990,4 +10021,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Testes:** `backend/tests/diarioMaquina.test.mjs` 24/24 contra PostgreSQL LOCAL de teste (15 regras puras + 9 de integração: mistura sem baixa, 409, aplicar com sobra e baixa proporcional pelo motor, replay, transferência, devolução sem movimento, perda com motivo, resumo com/sem custo, quantidade padrão do produto); `test:gates` 1097/1097; smoke `diarioMaquina`, `diarioMaquinaService`, `implementoRegras`; smoke completo 4435/4435.
 - **Release:** `SCHEMA_APPLIED_PROD: SIM`: aplicada em produção em 2026-11-26, antes do merge, pelo caminho B com o GO do proprietário ("Sim, pode criar as tabelas no banco e fazer o merge"); 83 concluídas, 0 ruins, 3 tabelas com RLS, 4 colunas (ver o registro no runbook).
 
-<!-- Próxima decisão: D-PROD-323 -->
+<!-- Próxima decisão: D-PROD-324 -->
