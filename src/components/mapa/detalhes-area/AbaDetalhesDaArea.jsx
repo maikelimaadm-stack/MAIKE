@@ -15,8 +15,6 @@ import { QUERY_ATIVIDADES_DA_AREA, rotuloDoMesCurto } from "@/lib/registroDeCamp
 import { STATUS_AREA } from "@/lib/atividadeAreasRegras";
 import { textoDaReformaNaArea } from "@/lib/reformaRegras";
 import { definirFazendaDaTela, obterResumoDaArea } from "@/services/lancamentoAtividadesService";
-import { notifyWarning } from "@/lib/maikeNotify";
-import { mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
 import { lerAtividadeParaAcoes, useAcoesDaAtividadeDaArea } from "./AcoesDaAtividadeDaArea";
 
 import "@/styles/mk-dp-detalhes-v13.css";
@@ -101,9 +99,8 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
   const queryClient = useQueryClient();
   const acoesTela = useAcoesTelaAtividades();
   const { fusoOk } = useFusoDaFazenda(empresaId);
-  // D-PROD-332: "Diário das atividades" — o diário deste pasto (com a atividade em andamento, se houver; senão, do tipo).
-  const [abrindoDiario, setAbrindoDiario] = useState(false);
-  const [diarioAberto, setDiarioAberto] = useState(/** @type {{ atividade: any, chave: number } | null} */ (null));
+  // D-PROD-332: "Diário das atividades" — o diário deste pasto. D-PROD-336: abre sempre, sem ler nada aqui.
+  const [diarioAberto, setDiarioAberto] = useState(/** @type {{ chave: number } | null} */ (null));
   const podeIniciar = Boolean(empresaId) && fusoOk && acoesTela.lancarApontamento === true;
   definirFazendaDaTela(empresaId);
   const resumo = useQuery({
@@ -175,31 +172,18 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
     <Vazio icone={Sprout}>Nenhuma atividade nesta área agora.</Vazio>
   );
 
-  // D-PROD-332: com uma atividade EM ANDAMENTO nesta área, o diário abre nela (lida como as ações da atividade); sem ela,
-  // abre no tipo para começar uma nova.
-  const atividadeEmAndamento = atividades.find((a) => a.area_status === STATUS_AREA.EM_ANDAMENTO) ?? null;
-  const abrirDiario = async () => {
-    if (abrindoDiario) return;
-    if (!atividadeEmAndamento) {
-      setDiarioAberto({ atividade: null, chave: Date.now() });
-      return;
-    }
-    setAbrindoDiario(true);
-    try {
-      const atividade = await lerAtividadeParaAcoes(String(atividadeEmAndamento.atividade_id), String(area.id));
-      setDiarioAberto({ atividade, chave: Date.now() });
-    } catch (erro) {
-      notifyWarning("Não foi possível abrir o diário", mensagemDeErroAtividade(erro, "Confira a conexão e tente de novo."));
-    } finally {
-      setAbrindoDiario(false);
-    }
-  };
+  // D-PROD-336: o diário abre sempre. Com atividades abertas no pasto (as que não estão CONCLUIDA), a primeira tela é a lista
+  // delas ("Em andamento neste pasto") com "Nova atividade"; sem nenhuma, vai direto ao tipo. Tocar numa atividade lê a
+  // atividade dentro do diário (`lerAtividadeParaAcoes`, passado como função para o diário não importar esta pasta).
+  const atividadesAbertas = atividades.filter((a) => a.area_status !== STATUS_AREA.CONCLUIDA);
+  const abrirDiario = () => setDiarioAberto({ chave: Date.now() });
   const janelaDiario = diarioAberto ? (
     <DiarioDasAtividades
       key={`diario-${diarioAberto.chave}`}
       area={area}
       tipos={tipos}
-      atividade={diarioAberto.atividade}
+      atividadesAbertas={atividadesAbertas}
+      lerAtividade={(atividadeId) => lerAtividadeParaAcoes(atividadeId, String(area.id))}
       onFechar={() => setDiarioAberto(null)}
       onGravou={() => {
         void queryClient.invalidateQueries({ queryKey: [QUERY_ATIVIDADES_DA_AREA] });
@@ -212,7 +196,7 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
     return (
       <div className="mk-dp-area-organizada mk-dp-d13">
         {pronto && podeIniciar ? (
-          <button type="button" className="tb-btn tb-btn-green" data-testid="area-diario-atividades" onClick={() => void abrirDiario()} disabled={abrindoDiario}>
+          <button type="button" className="tb-btn tb-btn-green" data-testid="area-diario-atividades" onClick={abrirDiario}>
             Diário das atividades
           </button>
         ) : null}

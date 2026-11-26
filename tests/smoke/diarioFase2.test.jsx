@@ -40,6 +40,7 @@ vi.mock("@/services/lancamentoAtividadesService", async (importOriginal) => ({
   obterResumoDaArea: sessao.resumo,
   obterAtividade: vi.fn(),
   listarAtividades: vi.fn(async () => ({ items: [] })),
+  listarApontamentos: vi.fn(async () => ({ items: [] })),
 }));
 vi.mock("@/components/mapa/HistoricoAbateCurral", () => ({ default: () => null }));
 
@@ -193,5 +194,21 @@ describe("Diário das atividades no pasto (Detalhes da área, D-PROD-332)", () =
     sessao.permissaoEfetiva = ADMIN;
     const admin = await montar("custos", RESUMO_COM_CUSTO);
     expect(await within(admin.container).findByText("Custo total")).toBeTruthy();
+  });
+
+  it("D-PROD-336: com atividades abertas no pasto, o botão abre a lista delas sem ler nada no clique; tocar numa lê a atividade", async () => {
+    const { obterAtividade } = await import("@/services/lancamentoAtividadesService");
+    const ABERTA = { atividade_id: "at-1", numero: 10, nome: "Aplicação · nov/26", tipo_atividade_id: "op-1", tipo_atividade_nome: "Aplicação", status: "ABERTA", area_status: "EM_ANDAMENTO", data_inicio: "2026-11-02" };
+    const CONCLUIDA = { ...ABERTA, atividade_id: "at-9", nome: "Roçada · out/26", area_status: "CONCLUIDA" };
+    await montar("manejos", { ...RESUMO_VAZIO, atividades: [ABERTA, CONCLUIDA] });
+    fireEvent.click(await screen.findByTestId("area-diario-atividades"));
+    expect(await screen.findByTestId("diario-atividades-escolher")).toBeInTheDocument();
+    expect(screen.getByTestId("diario-atividade-aberta-at-1")).toBeInTheDocument();
+    // A concluída não entra na lista.
+    expect(screen.queryByTestId("diario-atividade-aberta-at-9")).toBeNull();
+    // Abrir o diário não lê a atividade: só o toque numa linha lê.
+    expect(obterAtividade).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("diario-atividade-aberta-at-1"));
+    await waitFor(() => expect(obterAtividade).toHaveBeenCalledWith("at-1"));
   });
 });
