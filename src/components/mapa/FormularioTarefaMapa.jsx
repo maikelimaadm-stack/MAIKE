@@ -24,12 +24,8 @@ import { confirmarExclusao } from "@/lib/maikeConfirmar";
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
 
-export const normalizeTaskPriority = (value) => {
-  const normalized = (value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-  if (["alta", "alto", "urgente", "critico", "critica", "crítico", "crítica"].includes(normalized)) return "Alta";
-  if (["media", "medio", "média", "médio", "normal"].includes(normalized)) return "Média";
-  return "Baixa";
-};
+export { normalizarPrioridadeTarefa as normalizeTaskPriority } from "@/lib/tarefas/prioridade";
+import { normalizarPrioridadeTarefa as normalizeTaskPriority, PRIORIDADES_TAREFA } from "@/lib/tarefas/prioridade";
 
 // D-PROD-320: lançamento simples — só o título é obrigatório. Sem tipo, o servidor usa "SEM TIPO" (o
 // administrador troca depois); o grupo vem do tipo; status, datas e quem pediu ficam com o servidor e com os
@@ -385,9 +381,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
         <FL label="Prioridade">
           <B1Select value={formData.prioridade ?? ""} onChange={(e) => { const value = e.target.value; setFormData((prev) => ({ ...prev, prioridade: value })); }} className={LL_CTL}>
-              <option value="Baixa">BAIXA</option>
-              <option value="Média">MÉDIA</option>
-              <option value="Alta">ALTA</option>
+              {PRIORIDADES_TAREFA.map((prioridade) => <option key={prioridade} value={prioridade}>{prioridade.toUpperCase()}</option>)}
           </B1Select>
         </FL>
 

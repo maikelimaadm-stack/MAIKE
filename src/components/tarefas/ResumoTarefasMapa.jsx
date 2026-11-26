@@ -1,3 +1,4 @@
+import { CORES_PRIORIDADE_TAREFA } from "@/lib/tarefas/prioridade";
 import React from "react";
 import { ClipboardList, Plus } from "lucide-react";
 import CascaDetalhe from "@/components/mapa/detalhes-lote/CascaDetalhe";
@@ -11,11 +12,11 @@ import { Abas, Chip, Item, Kpis, ListaItens, RodapePilulas, Vazio } from "@/comp
 
 /** Situações abertas (as outras são encerradas). */
 const ABERTAS = new Set(["Pendente", "Em Andamento"]);
-const PESO_PRIORIDADE = { Alta: 0, Média: 1, Baixa: 2 };
+const PESO_PRIORIDADE = { Urgente: -1, Alta: 0, Média: 1, Baixa: 2 };
 /** Cor da prioridade: a mesma dos alfinetes e dos detalhes. */
-export const COR_PRIORIDADE = { Alta: "#ef4444", Média: "#eab308", Baixa: "#60a5fa" };
-// O selo só destaca a Alta; a cor de cada prioridade fica no quadradinho do cartão.
-const TOM_PRIORIDADE = { Alta: "atencao", Média: "neutro", Baixa: "neutro" };
+export const COR_PRIORIDADE = CORES_PRIORIDADE_TAREFA;
+// O selo destaca a Urgente e a Alta; a cor de cada prioridade fica no quadradinho do cartão.
+const TOM_PRIORIDADE = { Urgente: "atencao", Alta: "atencao", Média: "neutro", Baixa: "neutro" };
 
 /** "2026-11-28…" → "28/11". @param {unknown} v */
 const diaCurto = (v) => {

@@ -75,6 +75,16 @@ describe('D-PROD-320 — formulário da tarefa simplificado', () => {
     expect(dados.prioridade).toBe('Média');
   });
 
+  it('Urgente aparece na seleção e sai do formulário sem ser reduzida a Alta', async () => {
+    const { onSubmit } = montar({ tarefa: { id: 'tar-urgente', titulo: 'CERCA ROMPIDA', prioridade: 'Urgente', status: 'Pendente' } });
+    fireEvent.click(screen.getByText('URGENTE'));
+    expect(screen.getByRole('option', { name: 'URGENTE' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('option', { name: 'URGENTE' }));
+    fireEvent.submit(document.querySelector('form'));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0].prioridade).toBe('Urgente');
+  });
+
   it('TS-03 sem título não salva', async () => {
     const { onSubmit } = montar();
     await act(async () => {

@@ -5,6 +5,9 @@
  * e a lista não os mostra.
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
+
+import { PRIORIDADES_TAREFA } from "@/lib/tarefas/prioridade";
+import { svgIconeTarefa } from "@/assets/icones/tarefas";
 import React, { useState } from "react";
 import {
   ICONES_QUERY_KEY,
@@ -46,7 +49,7 @@ const CATEGORIAS_SUGERIDAS = {
   "Ponto": ["Cocho", "Bebedouro", "Aguada", "Balança", "Curral", "Tronco", "Armazém", "Depósito", "Casa Sede", "Retiro", "Saleiro"],
   "Area": ["Pasto", "Lavoura", "Reserva Legal", "APP", "Curral", "Sede", "Talhão", "Piquete"],
   "Linha": ["Estrada", "Cerca", "Cerca Elétrica", "Rio", "Córrego", "Divisa"],
-  "Prioridade Tarefa": ["Baixa", "Média", "Alta"],
+  "Prioridade Tarefa": PRIORIDADES_TAREFA,
   "Icone Menu Mobile": ["Dashboard", "Mapa Geral Manejo", "Lançamentos Tarefas", "Lançamento Pesagens"]
 };
 
@@ -171,6 +174,20 @@ export default function GerenciadorIcones() {
       toast.success("Modelo carregado. Salve o cadastro para aplicar.");
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Não foi possível carregar o modelo de cocho."));
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const usarTarefaModelo = async () => {
+    setUploadingFile(true);
+    try {
+      const arquivo = new File([svgIconeTarefa(formData.categoria)], "tarefa-prioridade.svg", { type: "image/svg+xml" });
+      const url = await enviarArquivo(arquivo);
+      setFormData((anterior) => ({ ...anterior, icone_url: url }));
+      toast.success("Modelo carregado. Salve o cadastro para aplicar.");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Não foi possível carregar o modelo de tarefa."));
     } finally {
       setUploadingFile(false);
     }
@@ -373,6 +390,11 @@ export default function GerenciadorIcones() {
                 {formData.tipo_entidade === "Ponto" && formData.categoria.trim().toUpperCase() === "COCHO" && (
                   <Button type="button" variant="outline" size="sm" disabled={uploadingFile} onClick={usarCochoModelo}>
                     Usar modelo de cocho SVG
+                  </Button>
+                )}
+                {formData.tipo_entidade === "Prioridade Tarefa" && formData.categoria && (
+                  <Button type="button" variant="outline" size="sm" disabled={uploadingFile} onClick={usarTarefaModelo}>
+                    Usar modelo de tarefa SVG
                   </Button>
                 )}
                 <div className="flex gap-2">
