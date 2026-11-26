@@ -38,6 +38,8 @@ tenant(nome, ord) AS (
     -- D-PROD-323: a mistura do Diário da máquina sai antes do apontamento (o movimento o referencia), da atividade, do
     -- bem (implemento), do produto, do local e da área, que ela referencia: primeiro o movimento e o item, depois a mistura.
     'AtividadeMisturaMovimento','AtividadeMisturaItem','AtividadeMistura',
+    -- D-PROD-324 (GPS do Diário): o trajeto e os pontos referenciam a atividade, o apontamento e o bem; saem antes do apontamento.
+    'AtividadeTrajetoPonto','AtividadeTrajeto',
     'AtividadeApontamento',
     -- D-PROD-249: a área da atividade (AtividadeArea) sai logo depois do apontamento, que a referencia (FK composta), e
     -- antes da atividade, da área (AreaPastagem), do setor e dos usuários, que ela referencia.

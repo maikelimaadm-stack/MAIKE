@@ -240,9 +240,13 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // (Produto.quantidade_padrao e quantidade_padrao_unidade; AtividadeApontamentoProduto.mistura_id e volume_aplicado).
   // Sem DROP, sem ALTER COLUMN, sem DML; a baixa de estoque não está aqui (passa pelo estoqueFisicoMotor).
   '20261127100000_diario_maquina': 'b1896a7c2d350fe31a313563f97192bd961db4c9b905b235bbecced90bfc0aeb',
+  // MAIKE-DIARIO-GPS (D-PROD-324): EXPAND — só 2 tabelas novas (AtividadeTrajeto e AtividadeTrajetoPonto, com RLS). Sem DROP, sem ALTER, sem DML.
+  '20261127200000_diario_gps': 'b1baf403b5f1561c3936c7a20664af0f3ca22342ab59ea321c6b388ab4343167',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
+  // MAIKE-DIARIO-GPS (D-PROD-324): RLS/REVOKE das 2 tabelas do trajeto (AtividadeTrajeto e AtividadeTrajetoPonto).
+  '667e54d2b9d06f35c5bd0a63c010c7b816662b3530e6c48fbda23006a24e42db',
   // MAIKE-DIARIO-MAQUINA (D-PROD-323): RLS/REVOKE das 3 tabelas novas da mistura (mesmo corpo, lista nova).
   'aad031e709582b5873e4a1bf3e8c6461f5d22aa1d74f2f2a5fef8a83d8514b02',
   'b38a85816a49d2b3335e6a1bfa1098ed86ac38cc6d7e0b0bd1db979e97f770fd',

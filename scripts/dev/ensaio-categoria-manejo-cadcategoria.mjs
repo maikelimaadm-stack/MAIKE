@@ -137,7 +137,7 @@ export const TABELAS_DA_FORMULACAO = Object.freeze(['CADFORMULACAO', 'CADFORMULA
 export const NOME_LEITURA = '20261115100000_leitura_cocho';
 /** As tabelas criadas no GREEN depois desta CONTRACT: as 3 das Formulações (D-PROD-203), a LEITURACOCHO (D-PROD-205) e a CADCULTURAS (D-PROD-215). */
 // D-PROD-249: e a AtividadeArea (as áreas da atividade), da última CONTRACT.
-export const TABELAS_CRIADAS_NO_GREEN = Object.freeze([...TABELAS_DA_FORMULACAO, 'LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM', 'AtividadeArea', 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio', 'Planejamento', 'PlanejamentoArea', 'ProdutoUnidadeConversao', 'AtividadeMistura', 'AtividadeMisturaItem', 'AtividadeMisturaMovimento']);
+export const TABELAS_CRIADAS_NO_GREEN = Object.freeze([...TABELAS_DA_FORMULACAO, 'LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM', 'AtividadeArea', 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio', 'Planejamento', 'PlanejamentoArea', 'ProdutoUnidadeConversao', 'AtividadeMistura', 'AtividadeMisturaItem', 'AtividadeMisturaMovimento', 'AtividadeTrajeto', 'AtividadeTrajetoPonto']);
 /**
  * D-PROD-206: a EXPAND da faixa de tolerância (1 coluna anulável em CADFORMULACAO, que só existe depois da D-PROD-203),
  * de nome ainda posterior: fora da partida, sobe no GREEN por último. Nenhuma tabela nova.
@@ -197,6 +197,7 @@ export const NOME_UNIDADE_CONVERTIDA = '20261126200000_unidade_convertida_lancam
 export const NOME_SINC_INDICES = '20261126300000_sincronizacao_incremental_indices';
 /** D-PROD-323: a EXPAND da mistura no implemento, também posterior (fora da partida). */
 export const NOME_DM = '20261127100000_diario_maquina';
+export const NOME_DG = '20261127200000_diario_gps';
 export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_CONTROLE_LOTE, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
   readdirSync(MIGRATIONS, { withFileTypes: true })

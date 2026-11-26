@@ -36,6 +36,7 @@ import { normalizeText } from "../components/suplementacao/estoqueSuplementacaoU
 import { BASEMAP_IDS, CENTRO_PADRAO } from "@/lib/maplibre/basemap.js";
 import { createEditorMap } from "@/lib/maplibre/lifecycle.js";
 import { useLocalizacaoNoMapa } from "@/components/mapa/useLocalizacaoNoMapa";
+import { useLinhaDoTrajetoAberto } from "@/hooks/useRastreioGps";
 import { boundsDasAreas, lerVisaoSalva } from "@/lib/maplibre/mapaGeralRender.js";
 import { parseVertices } from "@/lib/geografia/coords.js";
 import useBasemap from "../components/mapa/useBasemap";
@@ -1363,6 +1364,10 @@ export default function MapaGeral({ ativo = true } = {}) {
   useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes && camadasFoco.lotes, categoriasManejo, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes && dragLotesEnabled, showAlertas && !filtroInclui(filtroStatus, 'sem_alerta'));}, [lotesFiltrados, areas, showLotes, camadasFoco, categoriasManejo, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, dragLotesEnabled, showAlertas, filtroStatus, handleClickLotes, handleDragLotes]);
   useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa && (showTaskIcons || focoAtivo === 'tarefas') && camadasFoco.tarefas ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, showTaskIcons, camadasFoco, handleClickTarefa, focoAtivo]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
+  // Trajeto do Diário da máquina (GPS fase 1): a linha do trajeto aberto, com a mesma permissão da localização. Sem trajeto, a fonte fica vazia.
+  const linhaDoTrajeto = useLinhaDoTrajetoAberto();
+  // `?.`: testes com renderer falso (sem a camada do trajeto) seguem valendo; em produção o renderer sempre tem `syncTrajeto`.
+  useEffect(() => {if (mapReady) renderer.syncTrajeto?.(mapaGeralPermissions.visualizar_localizacao ? linhaDoTrajeto : []);}, [linhaDoTrajeto, mapReady, mapaGeralPermissions.visualizar_localizacao]);
 
   useEffect(() => {
     const h = async (event) => {

@@ -209,6 +209,13 @@ export const API_ERROR_CODES = Object.freeze({
   // D-PROD-137 (EMP-01) — exclusão de empresa recusada: há registros dela
   // (`details.vinculos`). A tela Empresa mostra o bloqueio; nada foi apagado.
   EMPRESA_COM_VINCULOS: 'EMPRESA_COM_VINCULOS',
+  // Diário da máquina — rastreio do trajeto (GPS, fase 1). Sem estes códigos, a recusa do servidor novo cairia como
+  // falha genérica e a tela não saberia se é "rota não existe" (degrada) ou "trajeto recusado" (mostra o motivo).
+  TRAJETO_NOT_FOUND: 'TRAJETO_NOT_FOUND',
+  TRAJETO_ABERTO: 'TRAJETO_ABERTO',
+  TRAJETO_STATUS_INVALIDO: 'TRAJETO_STATUS_INVALIDO',
+  TRAJETO_INVALIDO: 'TRAJETO_INVALIDO',
+  TRAJETO_PONTOS_INVALIDOS: 'TRAJETO_PONTOS_INVALIDOS',
 });
 
 /** Mensagem pública por código. Nunca inclui dado do provider. */
@@ -358,6 +365,11 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.EMPRESA_NOT_FOUND]: 'Empresa não encontrada. Selecione a empresa novamente.',
   [API_ERROR_CODES.EMPRESA_COM_VINCULOS]:
     'Não é possível excluir a empresa: existem registros vinculados a ela (setores, áreas, lotes, produtos, tarefas…). Nada foi apagado.',
+  [API_ERROR_CODES.TRAJETO_NOT_FOUND]: 'O trajeto não foi encontrado. Atualize a tela e tente de novo.',
+  [API_ERROR_CODES.TRAJETO_ABERTO]: 'Esta máquina já está com o rastreio ligado nesta atividade. Nada foi iniciado de novo.',
+  [API_ERROR_CODES.TRAJETO_STATUS_INVALIDO]: 'O rastreio deste trajeto já foi encerrado. Os pontos não foram gravados.',
+  [API_ERROR_CODES.TRAJETO_INVALIDO]: 'Não foi possível iniciar o rastreio com estes dados. Confira a máquina e tente de novo.',
+  [API_ERROR_CODES.TRAJETO_PONTOS_INVALIDOS]: 'Alguns pontos do trajeto foram recusados pelo servidor. Os pontos ficaram guardados no aparelho.',
 });
 
 /**

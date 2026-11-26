@@ -15,7 +15,10 @@ import { RAIZ_CONSULTAS_ATIVIDADES, normalizarPaginaDeOpcoes } from "@/lib/ativi
 import { rotuloDaAreaDaAtividade, areasDaAtividade } from "@/lib/atividadeAreasRegras";
 import { LINHA_MAO_OBRA, LINHA_MAQUINA, flagsDoTipoDaAtividade } from "@/lib/atividadeLinhasRegras";
 import { mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
-import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
+import { notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
+import { useRastreioGps } from "@/hooks/useRastreioGps";
+import { formatarDistancia } from "@/lib/trajetoGpsRegras";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { QUERY_ATIVIDADES_DA_AREA } from "@/lib/registroDeCampoRegras";
 import { corpoDaAplicacao, corpoDaMistura, corpoDaSobra, misturaAberta, resumoDoImplemento, textoDaBarra } from "@/lib/implementoRegras";
 import {
@@ -110,6 +113,39 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
   const implementoNome = implementos.find((i) => String(i.id) === String(aberta?.implemento_bem_id ?? ""))?.nome ?? "";
   const ultimaImplementoId = misturas.slice().sort((a, b) => (Number(b.numero) || 0) - (Number(a.numero) || 0))[0]?.implemento_bem_id ?? null;
   const maquina = atividade?.bem?.nome ?? atividade?.maquina?.nome ?? "";
+
+  // ─── Rastreio do trajeto (GPS, fase 1): só por toque do operador; o trajeto aberto é retomado ao abrir ───
+  const rastreio = useRastreioGps(atividadeId);
+  const bemId = atividade?.bem_id ?? atividade?.bem?.id ?? null;
+  const [avisoRastreio, setAvisoRastreio] = useState(/** @type {string|null} */ (null));
+
+  /** Toque em "Iniciar rastreio". Sem máquina, avisa sem abrir nada. Erro de negócio/rede vira aviso; nada é apagado. */
+  const ligarRastreio = async () => {
+    setAvisoRastreio(null);
+    if (!bemId) return setAvisoRastreio("Escolha a máquina antes de iniciar o rastreio.");
+    try {
+      const r = await rastreio.iniciar({
+        atividadeId,
+        empresaId: String(empresaId),
+        bemId: String(bemId),
+        dataOperacional: String(hoje),
+        // Só vai ao servidor o que existe: sem mistura ou sem lançamento do dia, o trajeto abre só com a máquina.
+        implementoBemId: aberta?.implemento_bem_id ? String(aberta.implemento_bem_id) : null,
+        apontamentoId: dia?.id ? String(dia.id) : null,
+      });
+      if (r?.estado === "sem-gps") setAvisoRastreio("Este aparelho não tem GPS disponível.");
+      if (r?.estado === "outra-atividade") setAvisoRastreio("Já existe um rastreio aberto em outra atividade. Encerre o dia nela primeiro.");
+    } catch (erro) {
+      setAvisoRastreio(getApiErrorMessage(erro, "Não foi possível iniciar o rastreio. Tente de novo."));
+    }
+  };
+
+  /** "Encerrar o dia" fecha o trajeto ABERTO DESTA atividade (e só ele). Sem internet, o servidor encerra na volta. */
+  const encerrarRastreio = async () => {
+    if (!rastreio.abertoNestaAtividade) return;
+    const r = await rastreio.encerrarDia();
+    if (r?.estado === "pendente") notifyInfo("Rastreio", "O trajeto será encerrado quando a internet voltar.");
+  };
 
   const resumoQ = useQuery({
     queryKey: [CHAVE_DIARIO, "resumo", atividadeId, hoje],
@@ -218,6 +254,8 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
         );
       }
       reler();
+      // O GPS é fechado só depois do dia encerrado: falha no rastreio nunca impede o encerramento do dia.
+      await encerrarRastreio();
       if (fezTodo) setConcluindo(true);
       else onFechar();
     } catch (erro) {
@@ -333,6 +371,16 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
     const temMistura = Boolean(aberta);
     corpo = (
       <div className="flex flex-col gap-3" data-testid="diario-corpo">
+        {rastreio.abertoNestaAtividade ? (
+          <div className="rounded-[8px] bg-[#f3fdf6] px-3 py-1.5 text-[12.5px] font-semibold text-[#15803d]" data-testid="diario-trajeto-faixa">
+            {rastreio.gravando ? "Gravando trajeto" : "Rastreio parado"} · {formatarDistancia(rastreio.distanciaM)}
+          </div>
+        ) : null}
+        {rastreio.indisponivel ? (
+          <Nota testId="diario-rastreio-indisponivel">Rastreio do trajeto ainda não está ligado no servidor.</Nota>
+        ) : avisoRastreio || rastreio.aviso ? (
+          <AvisoGestao testId="diario-rastreio-aviso">{avisoRastreio || rastreio.aviso}</AvisoGestao>
+        ) : null}
         <p className="text-[13px] text-[#73726c]">
           Pasto: <b className="text-[#141413]">{pasto.nome || "—"}</b> · Máquina: <b className="text-[#141413]">{maquina || "—"}</b> · Implemento:{" "}
           <b className="text-[#141413]">{implementoNome || "—"}</b>
@@ -373,6 +421,15 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
     );
     rodape = (
       <Rodape>
+        {rastreio.indisponivel ? null : rastreio.gravando && rastreio.abertoNestaAtividade ? (
+          <button type="button" className={BOTAO_SECUNDARIO} onClick={() => void rastreio.parar()} data-testid="diario-rastreio-botao">
+            Parar rastreio
+          </button>
+        ) : (
+          <button type="button" className={BOTAO_SECUNDARIO} onClick={() => void ligarRastreio()} data-testid="diario-rastreio-botao">
+            Iniciar rastreio
+          </button>
+        )}
         <BotaoVoltar onClick={onFechar} testId="diario-fechar" children="Fechar" />
       </Rodape>
     );

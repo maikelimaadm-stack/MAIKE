@@ -428,6 +428,27 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 422,
     meaning: 'movimento da sobra recusado: transferência sem área de destino, perda sem motivo (3 a 500) ou sem lançamento, horímetro ou área inválidos (details.tipo, details.reason)',
   },
+  // MAIKE-DIARIO-GPS (D-PROD-324) — o trajeto da máquina no Diário (rastreio em primeiro plano, fase 1).
+  TRAJETO_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica trajeto desta atividade neste tenant',
+  },
+  TRAJETO_ABERTO: {
+    http: 409,
+    meaning: 'já há trajeto aberto desta máquina nesta atividade; encerre antes de abrir outro (details.trajeto_id)',
+  },
+  TRAJETO_STATUS_INVALIDO: {
+    http: 409,
+    meaning: 'o trajeto não está aberto para esta ação (details.status, details.acao); nada foi gravado',
+  },
+  TRAJETO_INVALIDO: {
+    http: 422,
+    meaning: 'trajeto recusado: máquina que não é máquina, implemento que não é implemento, atividade fechada ou data inválida (details.field, details.reason)',
+  },
+  TRAJETO_PONTOS_INVALIDOS: {
+    http: 422,
+    meaning: 'lote de pontos recusado: coordenada fora da faixa, medida negativa ou horário inválido; nada foi gravado (details.index, details.field, details.reason)',
+  },
   // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
   ESTACAO_NOT_FOUND: {
     http: 404,

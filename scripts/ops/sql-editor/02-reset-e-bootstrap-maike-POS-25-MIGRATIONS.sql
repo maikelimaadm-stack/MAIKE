@@ -72,6 +72,8 @@ DECLARE
     -- D-PROD-323: a mistura do Diário da máquina sai antes do apontamento (o movimento o referencia), da atividade, do
     -- bem (implemento), do produto, do local e da área, que ela referencia: primeiro o movimento e o item, depois a mistura.
     'AtividadeMisturaMovimento','AtividadeMisturaItem','AtividadeMistura',
+    -- D-PROD-324 (GPS do Diário): o trajeto e os pontos referenciam a atividade, o apontamento e o bem; saem antes do apontamento.
+    'AtividadeTrajetoPonto','AtividadeTrajeto',
     'AtividadeApontamento',
     -- D-PROD-249: a área da atividade (AtividadeArea) sai logo depois do apontamento, que a referencia (FK composta), e
     -- antes da atividade, da área (AreaPastagem), do setor e dos usuários, que ela referencia.
@@ -253,7 +255,7 @@ BEGIN
   END IF;
 
   -- 7. Trava as tabelas de tenant contra escrita e confere a impressão do inventário.
-  LOCK TABLE "AtividadeApontamentoMaoObra","AtividadeApontamentoServico","Servico","AtividadeApontamentoProdutoConsumoLote","AtividadeApontamentoProduto","AtividadeApontamentoMaquina","AtividadeMisturaMovimento","AtividadeMisturaItem","AtividadeMistura","AtividadeApontamento","AtividadeArea","AtividadePlantio","Atividade","PlanejamentoArea","Planejamento","TipoAtividade","HistoricoLancamentoTarefa","LancamentoTarefa","PesoRebanho","PartidaRebanho","EventoRebanho","PosicaoRebanho","RebanhoLedgerAtivacao",
+  LOCK TABLE "AtividadeApontamentoMaoObra","AtividadeApontamentoServico","Servico","AtividadeApontamentoProdutoConsumoLote","AtividadeApontamentoProduto","AtividadeApontamentoMaquina","AtividadeMisturaMovimento","AtividadeMisturaItem","AtividadeMistura","AtividadeTrajetoPonto","AtividadeTrajeto","AtividadeApontamento","AtividadeArea","AtividadePlantio","Atividade","PlanejamentoArea","Planejamento","TipoAtividade","HistoricoLancamentoTarefa","LancamentoTarefa","PesoRebanho","PartidaRebanho","EventoRebanho","PosicaoRebanho","RebanhoLedgerAtivacao",
     "OperacaoFinanceiraEvento","LiquidacaoFinanceiraEstorno","LiquidacaoFinanceira","TituloFinanceiro","OperacaoFinanceiraConsumoLote","OperacaoFinanceiraItemRateio","OperacaoFinanceiraItem","OperacaoFinanceiraRateio","OperacaoFinanceira","PerfilFinanceiroEmpresa","AbastecimentoBemConsumoLote","AbastecimentoBem","TanqueBemProduto","TanqueBem","BemPatrimonial","TipoPatrimonial","FamiliaPatrimonial","CentroCustoResultado","CentroCusto","CentroResultado","NaturezaFinanceira","CADESTACOES","CADFORMULACAOREGRA","CADFORMULACAOINGREDIENTE","CADFORMULACAO","LEITURACOCHO","MEDICAOFORRAGEM","CADCULTURAS",
     "AplicacaoMedicamento","AuditLog","Bebedouro","BebedouroAlerta","BebedouroHistorico","BebedouroSanidade",
     "Categoria","CADCATEGORIA","CADCURVAGANHO","ConfiguracaoIcone","Empresa","EntradaEstoqueEvento","EntradaEstoqueItem","EntradaEstoque","MotivoEntradaEstoque","SaidaEstoqueEvento","SaidaEstoqueItem","SaidaEstoque","MotivoSaidaEstoque","AjusteEstoqueEvento","AjusteEstoqueItem","AjusteEstoque","EntidadeCodigoSequencia","EstoqueLoteNota",

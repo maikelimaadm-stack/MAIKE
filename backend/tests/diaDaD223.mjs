@@ -330,32 +330,49 @@ let espelho = null;
  * A EXPAND `20261127100000_diario_maquina` é posterior a todos os "dias" destes espelhos.
  * @param {string} schema
  */
-export const schemaSemDiarioDaMaquina = (schema) => {
+/** Tira do schema os models e as linhas de campo/relação marcados com `// <marcador>` (EXPAND posterior ao dia). */
+export const schemaSemMarcador = (schema, marcador) => {
   const saida = [];
   let dentroDeModel = false;
-  for (const linha of schema.split('\n')) {
+  const abre = new RegExp(`^\\s*\\/\\/ ${marcador}\\s*$`);
+  const fim = new RegExp(`\\/\\/ ${marcador}\\s*$`);
+  for (const linha of schema.split("\n")) {
     if (dentroDeModel) {
-      if (linha === '}') dentroDeModel = false;
+      if (linha === "}") dentroDeModel = false;
       continue;
     }
-    if (/^\s*\/\/ MAIKE-DIARIO-MAQUINA\s*$/.test(linha)) {
+    if (abre.test(linha)) {
       dentroDeModel = true;
       continue;
     }
-    if (/\/\/ MAIKE-DIARIO-MAQUINA\s*$/.test(linha)) continue;
+    if (fim.test(linha)) continue;
     saida.push(linha);
   }
   // As linhas em branco que separavam os models novos ficam no fim: apara e devolve o mesmo \n final do arquivo.
-  while (saida.length > 0 && saida.at(-1) === '') saida.pop();
-  saida.push('');
-  return saida.join('\n');
+  while (saida.length > 0 && saida.at(-1) === "") saida.pop();
+  saida.push("");
+  return saida.join("\n");
 };
+
+/**
+ * D-PROD-323 — o `schema.prisma` de hoje sem o Diário da máquina (marcador `MAIKE-DIARIO-MAQUINA`).
+ * A EXPAND `20261127100000_diario_maquina` é posterior a todos os "dias" destes espelhos.
+ * @param {string} schema
+ */
+export const schemaSemDiarioDaMaquina = (schema) => schemaSemMarcador(schema, "MAIKE-DIARIO-MAQUINA");
+
+/**
+ * D-PROD-324 — o `schema.prisma` de hoje sem o GPS do Diário (marcador `MAIKE-DIARIO-GPS`: AtividadeTrajeto e
+ * AtividadeTrajetoPonto). A EXPAND `20261127200000_diario_gps` é posterior a todos os "dias" destes espelhos.
+ * @param {string} schema
+ */
+export const schemaSemDiarioGps = (schema) => schemaSemMarcador(schema, "MAIKE-DIARIO-GPS");
 
 export const espelhoDoDiaD223 = () => {
   if (espelho) return espelho;
   espelho = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D223 }).dir;
   const destino = join(espelho, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemDiarioDaMaquina(schemaSemIndicesDaSincronizacao(schemaSemUnidadeConvertida(schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')))))))))))))));
+  writeFileSync(destino, schemaSemDiarioGps(schemaSemDiarioDaMaquina(schemaSemIndicesDaSincronizacao(schemaSemUnidadeConvertida(schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))))))))))))))));
   const dir = espelho;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho;
@@ -376,7 +393,7 @@ export const espelhoDoDiaD249 = () => {
   if (espelho249) return espelho249;
   espelho249 = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D249 }).dir;
   const destino = join(espelho249, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemDiarioDaMaquina(schemaSemIndicesDaSincronizacao(schemaSemUnidadeConvertida(schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))))))))))))));
+  writeFileSync(destino, schemaSemDiarioGps(schemaSemDiarioDaMaquina(schemaSemIndicesDaSincronizacao(schemaSemUnidadeConvertida(schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')))))))))))))));
   const dir = espelho249;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho249;

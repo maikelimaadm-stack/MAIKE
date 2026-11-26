@@ -21,6 +21,7 @@ export const MG_SOURCE_IDS = Object.freeze({
   AREAS: "mg-areas",
   LINHAS: "mg-linhas",
   USER: "mg-user",
+  TRAJETO: "mg-trajeto",
 });
 
 export const MG_LAYER_IDS = Object.freeze({
@@ -28,9 +29,24 @@ export const MG_LAYER_IDS = Object.freeze({
   AREAS_LINE: "mg-areas-line",
   AREAS_DESTAQUE: "mg-areas-destaque",
   LINHAS: "mg-linhas",
+  TRAJETO_LINHA: "mg-trajeto-linha",
   USER_FILL: "mg-user-fill",
   USER_LINE: "mg-user-line",
 });
+
+/** Verde do trajeto do Diário: o `--mg-accent` (o MapLibre não lê variável CSS, então o valor vai fixo aqui). */
+export const COR_TRAJETO_MG = "#40de63";
+
+/**
+ * A linha do trajeto (GPS do Diário da máquina) como LineString. Menos de 2 pontos não desenha linha (vazio).
+ * @param {Array<{ lat: number, lng: number }>} linha
+ * @returns {GeoJSON.FeatureCollection}
+ */
+export function buildMgTrajetoCollection(linha) {
+  const coords = (linha || []).filter((p) => Number.isFinite(p?.lat) && Number.isFinite(p?.lng)).map((p) => [p.lng, p.lat]);
+  if (coords.length < 2) return { type: "FeatureCollection", features: [] };
+  return { type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: coords } }] };
+}
 
 const vazio = () => ({ type: "FeatureCollection", features: [] });
 
@@ -524,6 +540,7 @@ export function ensureMgLayers(map) {
   src(MG_SOURCE_IDS.AREAS, { promoteId: "id" });
   src(MG_SOURCE_IDS.LINHAS, { promoteId: "id" });
   src(MG_SOURCE_IDS.USER);
+  src(MG_SOURCE_IDS.TRAJETO);
   const layer = (spec) => {
     if (!map.getLayer(spec.id)) map.addLayer(spec);
   };
@@ -536,6 +553,14 @@ export function ensureMgLayers(map) {
     source: MG_SOURCE_IDS.LINHAS,
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": ["coalesce", ["get", "cor"], "#f59e0b"], "line-width": 3 },
+  });
+  // Trajeto do Diário (GPS fase 1): linha verde fina; vazia sem trajeto. Antes do ponto azul (fica por baixo dele).
+  layer({
+    id: MG_LAYER_IDS.TRAJETO_LINHA,
+    type: "line",
+    source: MG_SOURCE_IDS.TRAJETO,
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": COR_TRAJETO_MG, "line-width": 3, "line-opacity": 0.9 },
   });
   layer({ id: MG_LAYER_IDS.USER_FILL, type: "fill", source: MG_SOURCE_IDS.USER, paint: { "fill-color": "#4285F4", "fill-opacity": 0.15 } });
   layer({ id: MG_LAYER_IDS.USER_LINE, type: "line", source: MG_SOURCE_IDS.USER, paint: { "line-color": "#4285F4", "line-opacity": 0.3, "line-width": 1 } });

@@ -51,3 +51,5 @@ export {
 } from './atividadesApi.js';
 // Diário da máquina (D-PROD-323): mistura do implemento, aplicação, sobra e resumo do dia.
 export { listMisturas, createMistura, aplicarMistura, registrarSobraMistura, getDiarioResumo } from './misturaPort.js';
+// Diário da máquina — rastreio do trajeto (GPS, fase 1): abrir, enviar pontos, encerrar e ler o dia.
+export { abrirTrajeto, enviarPontosTrajeto, encerrarTrajeto, listarTrajetosDoDia } from './trajetoPort.js';

@@ -13,6 +13,7 @@ import {
   MG_SOURCE_IDS,
   buildMgAreasCollection,
   buildMgLinhasCollection,
+  buildMgTrajetoCollection,
   centroideArea,
   descreverMarcadorSuplementacao,
   escalaRotulo,
@@ -236,7 +237,7 @@ export default function useMapRenderer(mapInstanceRef) {
   const areasCallbacksRef = useRef({ onClick: null, onRightClick: null });
   const areasByIdRef = useRef(new Map());
   const linhasByIdRef = useRef(new Map());
-  const dataRef = useRef({ areas: null, linhas: null, user: null });
+  const dataRef = useRef({ areas: null, linhas: null, user: null, trajeto: null });
   const labelZoomHandlerRef = useRef(/** @type {null | (() => void)} */ (null));
   const arrumarRef = useRef(/** @type {null | { handler: () => void, quadro: number }} */ (null));
 
@@ -260,6 +261,7 @@ export default function useMapRenderer(mapInstanceRef) {
     if (d.areas) setSourceData(map, MG_SOURCE_IDS.AREAS, d.areas);
     if (d.linhas) setSourceData(map, MG_SOURCE_IDS.LINHAS, d.linhas);
     if (d.user) setSourceData(map, MG_SOURCE_IDS.USER, d.user);
+    if (d.trajeto) setSourceData(map, MG_SOURCE_IDS.TRAJETO, d.trajeto);
   }, [mapInstanceRef]);
 
   const clearAll = useCallback(() => {
@@ -293,7 +295,7 @@ export default function useMapRenderer(mapInstanceRef) {
     }
     areasByIdRef.current.clear();
     linhasByIdRef.current.clear();
-    dataRef.current = { areas: null, linhas: null, user: null };
+    dataRef.current = { areas: null, linhas: null, user: null, trajeto: null };
   }, [mapInstanceRef]);
 
   // ─── Áreas (polígonos) ───
@@ -877,6 +879,16 @@ export default function useMapRenderer(mapInstanceRef) {
     syncGrupo(prefix, itens);
   }, [mapInstanceRef]);
 
+  // ─── Trajeto do Diário da máquina (GPS fase 1): uma linha verde; vazia = nada desenhado ───
+  const syncTrajeto = useCallback((linha) => {
+    const map = getMap();
+    if (!map) return;
+    ensureMgLayers(map);
+    const fc = buildMgTrajetoCollection(linha);
+    dataRef.current.trajeto = /** @type {any} */ (fc);
+    setSourceData(map, MG_SOURCE_IDS.TRAJETO, /** @type {any} */ (fc));
+  }, [mapInstanceRef]);
+
   // ─── Localização do usuário ───
   const syncUserLocation = useCallback((userLocation, show) => {
     const map = getMap();
@@ -923,7 +935,7 @@ export default function useMapRenderer(mapInstanceRef) {
     }
   }, [mapInstanceRef]);
 
-  return { clearAll, ensureLayers, hitArea, syncAreas, syncLabels, syncPontos, syncLinhas, syncPontosSuplementacao, syncLotes, syncTarefas, syncUserLocation, setEstiloPasto };
+  return { clearAll, ensureLayers, hitArea, syncAreas, syncLabels, syncPontos, syncLinhas, syncPontosSuplementacao, syncLotes, syncTarefas, syncTrajeto, syncUserLocation, setEstiloPasto };
 }
 
 function identificadoresDoLote(lotesNaArea) {

@@ -39,6 +39,7 @@ import { registrarAtividadeRoutes } from './modules/atividades/atividadeRoutes.j
 import { registrarAtividadeApontamentoRoutes } from './modules/atividades/atividadeApontamentoRoutes.js';
 import { registrarAtividadeApontamentoProdutoRoutes } from './modules/atividades/atividadeApontamentoProdutoRoutes.js';
 import { registrarAtividadeMisturaRoutes } from './modules/atividades/atividadeMisturaRoutes.js';
+import { registrarAtividadeTrajetoRoutes } from './modules/atividades/atividadeTrajetoRoutes.js';
 import { registrarAtividadeApontamentoMaquinaRoutes } from './modules/atividades/atividadeApontamentoMaquinaRoutes.js';
 import { registrarAtividadeApontamentoMaoObraRoutes } from './modules/atividades/atividadeApontamentoMaoObraRoutes.js';
 import { registrarAtividadeApontamentoServicoRoutes } from './modules/atividades/atividadeApontamentoServicoRoutes.js';
@@ -255,6 +256,8 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarAtividadeApontamentoProdutoRoutes);
   // D-PROD-323: a mistura no implemento, a aplicação no pasto, a sobra e o resumo do dia (diário da máquina).
   await app.register(registrarAtividadeMisturaRoutes);
+  // D-PROD-324: o trajeto da máquina no Diário (GPS em primeiro plano, fase 1): abrir, pontos, encerrar e o dia.
+  await app.register(registrarAtividadeTrajetoRoutes);
   await app.register(registrarAtividadeApontamentoMaquinaRoutes);
   // D-PROD-207 (Fatia 4): linhas de MÃO DE OBRA e de SERVIÇO do apontamento e os seletores delas.
   await app.register(registrarAtividadeApontamentoMaoObraRoutes);
