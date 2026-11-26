@@ -29,7 +29,7 @@ const numeroDaCarga = (v) => {
 /**
  * Os apontamentos CONFIRMADOS de `dia` (o mais recente primeiro). Com `atividadeAreaId` (atividade com várias áreas), só os
  * da área do pasto aberto: a carga de um pasto nunca entra no apontamento de outro (consumo e custo do pasto certo).
- * @param {unknown} apontamentos @param {string} dia @param {string | null} [atividadeAreaId]
+ * @param {any[]} apontamentos @param {string} dia @param {string | null} [atividadeAreaId]
  * @returns {any[]}
  */
 const doPastoNoDia = (apontamentos, dia, atividadeAreaId = null) =>

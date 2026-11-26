@@ -203,6 +203,8 @@ function BlocoDeProduto({ atividadeId, bloco, indice, modo, erros, bloqueado, po
  * @param {{
  *   atividadeId: string,
  *   atividadeAreaId: string | null,   // a área (pasto) da atividade, quando ela tem áreas
+ *   filtrarPorArea?: boolean,         // a atividade tem VÁRIAS áreas: destino e numeração só do apontamento deste pasto
+ *   onEnviando?: (enviando: boolean) => void, // a carga está saindo (o pai trava o voltar e o fechar)
  *   apontamentos: any[],              // os apontamentos da atividade (a lista da consulta)
  *   hoje: string,                     // o "hoje" da fazenda (AAAA-MM-DD)
  *   implementoNome: string,
