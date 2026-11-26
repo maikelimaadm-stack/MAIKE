@@ -21,7 +21,9 @@ import {
   inserirLancamento,
   atualizarLancamentoPorId,
   excluirLancamentoPorId,
+  buscarLancamentoPorIdEmQualquerTenant,
 } from './lancamentoTarefaRepository.js';
+import { criarComIdDoAparelho, foiExcluidoNoHistorico, idDoAparelhoDe } from '../../shared/idempotency/idDoAparelho.js';
 import {
   listarHistoricos,
   buscarHistorico,
@@ -307,6 +309,34 @@ const separarHistoricoMapa = (entrada) => {
 
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
+  const { id: idInformado, ...semId } = entrada ?? {};
+  // D-PROD-319 (Etapa 5a): id gerado no aparelho — repetir a criação (resposta perdida, app fechado no meio)
+  // devolve a mesma tarefa, sem segunda tarefa nem segundo registro no histórico.
+  const { registro } = await criarComIdDoAparelho({
+    id: idDoAparelhoDe(idInformado),
+    clienteId: auth.clienteId,
+    entidade: 'LancamentoTarefa',
+    buscar: async (id) => {
+      const existente = await buscarLancamentoPorIdEmQualquerTenant(id);
+      if (existente) {
+        const { cliente_id: dono, ...publico } = existente;
+        return { cliente_id: dono, registro: comoLancamentoPublico(publico) };
+      }
+      return (await foiExcluidoNoHistorico(auth.clienteId, 'LancamentoTarefa', id))
+        ? { cliente_id: auth.clienteId, excluido: true, registro: null }
+        : null;
+    },
+    criar: (id) => criarNaTransacao(contexto, auth, semId, id),
+  });
+  return registro;
+};
+
+/**
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {import('../../shared/auth/authContext.js').AuthContext} auth
+ * @param {Record<string, unknown>} entrada @param {string|null} idDoAparelho
+ */
+const criarNaTransacao = async (contexto, auth, entrada, idDoAparelho) => {
   const prisma = getPrismaClient();
   const { corpo, historico } = separarHistoricoMapa(entrada);
   const campos = camposDeLancamento(corpo);
@@ -315,6 +345,7 @@ export const criar = async (contexto, entrada) => {
     const dados = await aplicarCachesDeFk(tx, auth.clienteId, campos);
     const registro = await inserirLancamento(tx, {
       ...dados,
+      ...(idDoAparelho ? { id: idDoAparelho } : {}),
       cliente_id: auth.clienteId,
     });
     const publico = comoLancamentoPublico(registro);

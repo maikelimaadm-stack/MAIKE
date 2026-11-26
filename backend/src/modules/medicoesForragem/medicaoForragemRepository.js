@@ -53,6 +53,14 @@ export const buscarFusoDaEmpresa = (tx, clienteId, empresaId) =>
 export const buscarNomeDoUsuario = (tx, clienteId, usuarioId) =>
   tx.usuario.findFirst({ where: { cliente_id: clienteId, id: usuarioId }, select: { nome: true, login: true } });
 
+/**
+ * D-PROD-319: lê pelo id em QUALQUER tenant, só para decidir a criação com o id do aparelho
+ * (`criarComIdDoAparelho`); nada daqui vai para a resposta de outro tenant.
+ * @param {string} id
+ */
+export const buscarMedicaoPorIdEmQualquerTenant = (id) =>
+  getPrismaClient().medicaoForragem.findUnique({ where: { id } });
+
 /** @param {any} tx @param {Record<string, unknown>} dados */
 export const inserirMedicao = (tx, dados) => tx.medicaoForragem.create({ data: dados });
 

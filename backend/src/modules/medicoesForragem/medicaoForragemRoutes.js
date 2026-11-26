@@ -12,6 +12,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js';
+import { SCHEMA_ID_DO_APARELHO } from '../../shared/idempotency/idDoAparelho.js';
 import { listar, criar, excluir, descansoDosPastos, METODOS, SITUACOES } from './medicaoForragemService.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
@@ -27,6 +28,8 @@ const CRIAR_SCHEMA = {
     required: ['empresa_id', 'area_id', 'data_medicao', 'metodo'],
     additionalProperties: false,
     properties: {
+      // D-PROD-319: o id gerado no aparelho (UUID); repetir a criação devolve a mesma medição.
+      id: SCHEMA_ID_DO_APARELHO,
       empresa_id: ID,
       area_id: ID,
       data_medicao: { type: 'string', minLength: 10, maxLength: 10 },

@@ -9886,4 +9886,34 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - o instante exato em que o servidor lê a lista. Uma leitura que sai antes do envio e é atendida depois pode contar o registro duas vezes até a próxima leitura (janela de milissegundos);
   - as outras entidades e a limpeza dos recibos, que ficam para a Etapa 5.
 
-<!-- Próxima decisão: D-PROD-319 -->
+## D-PROD-319 — Sincronização, Etapa 5a: id do aparelho na medição, na tarefa e no evento de suplementação; as tarefas presas voltam a subir
+
+**Data:** 2026-11-26 · **Origem:** Etapa 5 do plano de sincronização aprovado pelo proprietário ("vamos prosseguir") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-ETAPA5A-D319-REPORT.md`](./SINCRONIZACAO-ETAPA5A-D319-REPORT.md)
+
+> **Numeração:** a `main` (`51d02590`) indica `Próxima decisão: D-PROD-319`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-320. Conferir de novo antes do merge (regra A5).
+
+- **Problema:**
+  1. A criação feita sem internet (ou com a rede caindo no meio) da medição de forragem, da tarefa do mapa e do evento de suplementação da chegada do gado não levava um id do aparelho. Repetir o envio depois de uma resposta perdida gravava o registro duas vezes; na tarefa, também o histórico.
+  2. A tarefa criada ou editada no mapa **sem internet** ia para um armazenamento antigo do aparelho (`pending_tarefas` e `pending_tarefa_images`) que **nada mais enviava** ao servidor: o envio saiu na redução do escopo, e a tela continuava dizendo "sincronizará ao conectar".
+- **Decisão — servidor:** os três `POST` aceitam o `id` gerado no aparelho (UUID) e criam com `criarComIdDoAparelho` (D-PROD-308):
+  - repetir devolve o mesmo registro;
+  - o mesmo id em outro tenant dá 409 `ID_DO_APARELHO_EM_USO`;
+  - o já excluído dá 409 `ID_DO_APARELHO_EXCLUIDO`. A medição e a tarefa usam o histórico de exclusão; o evento conta como excluído quando está cancelado.
+  - Na medição e na tarefa (corpo fechado), o `id` entra no schema. No evento (corpo aberto), o id que não é UUID segue ignorado, como antes.
+- **Decisão — app:**
+  1. As três portas ligam `idDoAparelho` e mandam o id.
+  2. A tarefa do mapa sem internet vai pela fila de cadastros, como os outros registros. As fotos precisam de internet: sem ela, a tela pede para salvar sem as fotos novas e anexá-las depois.
+  3. **Resgate:** a cada passada da sincronização com internet (`registrarPassadaExtra`), as tarefas presas no armazenamento antigo sobem (`tarefasGuardadasNoAparelhoService`):
+     - cada uma ganha um id do aparelho, gravado antes de enviar;
+     - as fotos sobem uma vez, e os endereços ficam gravados;
+     - a criação vai pela porta de sempre. Sem resposta, entra na fila com o mesmo id;
+     - só então a tarefa sai do armazenamento antigo;
+     - a recusada fica guardada, e o servidor decide a conta.
+- **Fora (próximas partes da Etapa 5):**
+  - 5b: desenhos do mapa com numeração (área, ponto de referência, linha, bebedouro, depósito);
+  - 5c: cadastros administrativos;
+  - 5d: sincronização incremental das outras listas;
+  - 5e: versão do registro nas outras entidades;
+  - 5f: limpeza dos recibos. Hoje há 163 recibos, e o cancelamento e a conciliação leem recibos antigos.
+
+<!-- Próxima decisão: D-PROD-320 -->

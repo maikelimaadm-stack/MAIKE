@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { API_ERROR_CODES, getApiErrorMessage, hasApiErrorCode } from "@/apis/_core/ApiError";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import TarefasCardsMapa from "@/components/tarefas/TarefasCardsMapa";
-import { saveTarefaOffline, saveTarefaImageOffline } from "@/components/offline/IndexedDBManager";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, pontoSuplId, onClose, initialCoordinates, openCreateOnMount = false, initialDraft = null, onRequestSelectLocation }) {
@@ -53,17 +52,6 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     return iconesPrioridade.find((icone) => normalize(icone.categoria) === prioridadeNormalizada);
   };
 
-  // Salva tarefa offline no IndexedDB com imagens (Blobs)
-  const salvarTarefaOffline = async (action, data, pendingImageFiles = []) => {
-    const offlineKey = await saveTarefaOffline(action, data);
-    for (const file of pendingImageFiles) {
-      await saveTarefaImageOffline(offlineKey, file);
-    }
-    toast.success('💾 Tarefa salva offline — sincronizará ao conectar', { duration: 4000 });
-    setShowForm(false);
-    setEditingTarefa(null);
-  };
-
   const uploadImages = async (pendingImageFiles = []) => {
     const uploadedUrls = [];
     for (const file of pendingImageFiles) {
@@ -84,12 +72,13 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         historico_data_evento: new Date().toISOString(),
       });
     },
-    onSuccess: () => {
+    onSuccess: (criada) => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
       queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
       window.dispatchEvent(new CustomEvent('atualizar-mapa'));
-      toast.success('Tarefa criada!');
+      // D-PROD-319: sem internet a tarefa entra na fila de envio (com o id do aparelho) e sobe sozinha.
+      toast.success(criada?._isOffline ? 'Tarefa salva no aparelho — vai ao servidor quando a internet voltar.' : 'Tarefa criada!');
       setShowForm(false);
       setEditingTarefa(null);
     },
@@ -123,12 +112,12 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         historico_data_evento: new Date().toISOString(),
       });
     },
-    onSuccess: () => {
+    onSuccess: (atualizada) => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
       queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
       window.dispatchEvent(new CustomEvent('atualizar-mapa'));
-      toast.success('Tarefa atualizada!');
+      toast.success(atualizada?._isOffline ? 'Alteração salva no aparelho — vai ao servidor quando a internet voltar.' : 'Tarefa atualizada!');
       setShowForm(false);
       setEditingTarefa(null);
     },
@@ -211,11 +200,13 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
                 ponto_suplementacao_id: data.ponto_suplementacao_id || pontoSuplId,
                 coordenadas: data.coordenadas,
               };
-              if (!navigator.onLine) {
-                const action = (editingTarefa || data.id) ? 'update' : 'create';
-                const offlinePayload = action === 'create' ? { ...payload, empresa_id: empresaSelecionadaId } : payload;
-                salvarTarefaOffline(action, offlinePayload, pendingImageFiles);
-              } else if (editingTarefa || data.id) {
+              // D-PROD-319: sem internet, a tarefa vai para a fila de envio como os outros registros (o
+              // armazenamento antigo não era mais enviado). As fotos precisam de internet para subir.
+              if (!navigator.onLine && pendingImageFiles.length > 0) {
+                toast.error('Sem internet as fotos não sobem. Remova as fotos novas e salve a tarefa; anexe as fotos quando a internet voltar.');
+                return;
+              }
+              if (editingTarefa || data.id) {
                 updateMutation.mutate({ id: editingTarefa?.id || data.id, data: payload, previous: editingTarefa || data, pendingImageFiles });
               } else {
                 createMutation.mutate({ data: { ...payload, empresa_id: empresaSelecionadaId }, pendingImageFiles });

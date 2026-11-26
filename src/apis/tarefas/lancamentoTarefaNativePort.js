@@ -1,5 +1,8 @@
 /**
  * Porta nativa de LancamentoTarefa (P5.3, D-PROD-49).
+ *
+ * D-PROD-319 (Etapa 5a): o id da tarefa nova é gerado no aparelho (UUID) e é definitivo; repetir a criação
+ * (resposta perdida, app fechado no meio) devolve a mesma tarefa em vez de criar outra.
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
@@ -8,6 +11,7 @@ import {
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
 import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
+import { eIdDoAparelho } from '@/lib/offline/idDoAparelho';
 
 const RESOURCE = 'LancamentoTarefa';
 const CAMINHO = '/lancamentos-tarefa';
@@ -70,7 +74,14 @@ export const operacoesNativas = Object.freeze({
   create: (dados) =>
     nativeRequest(
       CAMINHO,
-      { method: 'POST', body: corpoDeEnvio(dados, CAMPOS_DE_CRIACAO), autenticado: true },
+      {
+        method: 'POST',
+        body: {
+          ...corpoDeEnvio(dados, CAMPOS_DE_CRIACAO),
+          ...(eIdDoAparelho(/** @type {any} */ (dados)?.id) ? { id: /** @type {any} */ (dados).id } : {}),
+        },
+        autenticado: true,
+      },
       ctx('createLancamento')
     ),
 
@@ -94,6 +105,7 @@ export const lancamentoTarefaPort = createOfflineEntityAdapter({
   operations: operacoesNativas,
   enabled: offlineStorageDisponivel(),
   tenantScoped: true,
+  idDoAparelho: true,
 });
 
 // D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes
