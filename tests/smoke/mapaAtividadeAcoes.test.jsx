@@ -132,7 +132,8 @@ describe("D-PROD-278 — ações da atividade nos Detalhes da área", () => {
     expect(linha).toHaveAttribute("aria-haspopup", "menu");
     await abrirMenu("at-1");
     // As operações chegam junto com o resumo: o menu aberto acompanha.
-    await waitFor(() => expect(rotulosDoMenu("at-1")).toEqual(["+ Lançamento", "Só máquina", "Só mão de obra", "Finalizar"]));
+    // D-PROD-314: o "Diário da máquina" entra logo depois do "+ Lançamento" numa atividade em andamento no pasto.
+    await waitFor(() => expect(rotulosDoMenu("at-1")).toEqual(["+ Lançamento", "Diário da máquina", "Só máquina", "Só mão de obra", "Finalizar"]));
     expect(rotulosDoMenu("at-1")).not.toContain("Abrir atividade");
   });
 

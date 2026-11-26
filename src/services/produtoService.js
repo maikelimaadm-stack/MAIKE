@@ -175,9 +175,27 @@ export const normalizarProduto = (formData, opcoes = {}) => {
     controla_validade: formData.controla_lote === true && formData.controla_validade === true,
     observacoes: maiusculoOuIndefinido(formData.observacoes),
     ativo: formData.ativo,
+    // Diário da máquina (Fase 3): a quantidade por implemento cheio só vai quando a pessoa a preencheu ou mudou.
+    ...quantidadePadraoDoFormulario(formData),
   };
 
   return payload;
+};
+
+/**
+ * `quantidade_padrao` (texto decimal, > 0) e `quantidade_padrao_unidade` (L|KG) — só quando o formulário marcou a
+ * alteração (`quantidade_padrao_alterada`). Campo limpo na edição vai como `null` (limpa); fora disso, ausente.
+ * @param {Record<string, any>} formData
+ * @returns {{ quantidade_padrao?: string|null, quantidade_padrao_unidade?: 'L'|'KG' }}
+ */
+const quantidadePadraoDoFormulario = (formData) => {
+  if (formData.quantidade_padrao_alterada !== true) return {};
+  const texto = String(formData.quantidade_padrao ?? '').trim();
+  const numero = parseDecimalPtBR(texto);
+  return {
+    quantidade_padrao: texto && numero !== null && numero > 0 ? String(Number(numero.toFixed(4))) : null,
+    quantidade_padrao_unidade: formData.quantidade_padrao_unidade === 'L' ? 'L' : 'KG',
+  };
 };
 
 /** Cria o produto com empresa; numeração é do backend nativo (P5.2). */

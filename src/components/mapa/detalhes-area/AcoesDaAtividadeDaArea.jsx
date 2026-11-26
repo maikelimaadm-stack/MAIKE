@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { CircleCheck, Plus } from "lucide-react";
+import { CircleCheck, Plus, Tractor } from "lucide-react";
 import DialogoConcluirServico from "@/components/lancamento-atividades/DialogoConcluirServico";
+import DiarioDaMaquina from "@/components/lancamento-atividades/DiarioDaMaquina";
 import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDeCampo";
 import JanelaLancamentoPorTipo, { lancamentoDoTipo, lancamentosPermitidos } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
@@ -74,7 +75,7 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
   const podeGravar = Boolean(empresaId) && fusoOk;
   const areaId = String(area?.id ?? "");
 
-  const [aberta, setAberta] = useState(/** @type {{ modo: 'dia'|'tipo'|'concluir', atividade: any, tipo?: string, chave: number } | null} */ (null));
+  const [aberta, setAberta] = useState(/** @type {{ modo: 'dia'|'tipo'|'concluir'|'diario', atividade: any, tipo?: string, chave: number } | null} */ (null));
   const [buscando, setBuscando] = useState(false);
 
   /** O resumo da área (atividades e custos), os registros e as consultas da tela de atividades se relêem. */
@@ -83,7 +84,7 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
     void queryClient.invalidateQueries({ queryKey: [RAIZ_CONSULTAS_ATIVIDADES] });
   };
 
-  /** @param {any} linha @param {'dia'|'tipo'|'concluir'} modo @param {string} [tipo] */
+  /** @param {any} linha @param {'dia'|'tipo'|'concluir'|'diario'} modo @param {string} [tipo] */
   const abrir = async (linha, modo, tipo) => {
     if (buscando) return;
     setBuscando(true);
@@ -108,6 +109,10 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
     const lancar = ac.lancarApontamento
       ? [
           { key: "lancar-dia", label: "+ Lançamento", icon: <Plus size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "dia") },
+          // Diário da máquina (D-PROD-314): só numa atividade em andamento NESTA área.
+          ...(emAndamentoNaArea
+            ? [{ key: "diario", label: "Diário da máquina", icon: <Tractor size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "diario") }]
+            : []),
           ...(emAndamentoNaArea
             ? lancamentosPermitidos(flagsDoTipoDaAtividade(linha, tipos))
                 .slice()
@@ -159,6 +164,18 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
         onFechar={fechar}
         onAtividadeAtualizada={reler}
         areaInicial={daArea ? String(daArea.id) : null}
+      />
+    );
+  } else if (aberta?.modo === "diario") {
+    janelas = (
+      <DiarioDaMaquina
+        key={`diario-${aberta.chave}`}
+        atividade={aberta.atividade}
+        areaId={areaId}
+        areaNome={area?.nome ?? ""}
+        tipos={tipos}
+        onFechar={fechar}
+        onGravou={reler}
       />
     );
   } else if (aberta?.modo === "concluir") {

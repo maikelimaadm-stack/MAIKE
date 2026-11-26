@@ -15,7 +15,10 @@ import { QUERY_ATIVIDADES_DA_AREA, rotuloDoMesCurto } from "@/lib/registroDeCamp
 import { STATUS_AREA } from "@/lib/atividadeAreasRegras";
 import { textoDaReformaNaArea } from "@/lib/reformaRegras";
 import { definirFazendaDaTela, obterResumoDaArea } from "@/services/lancamentoAtividadesService";
-import { useAcoesDaAtividadeDaArea } from "./AcoesDaAtividadeDaArea";
+import DiarioDaMaquina from "@/components/lancamento-atividades/DiarioDaMaquina";
+import { notifyWarning } from "@/lib/maikeNotify";
+import { mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
+import { lerAtividadeParaAcoes, useAcoesDaAtividadeDaArea } from "./AcoesDaAtividadeDaArea";
 
 import "@/styles/mk-dp-detalhes-v13.css";
 import "@/styles/mk-dp-area-v13.css";
@@ -101,6 +104,8 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
   const { fusoOk } = useFusoDaFazenda(empresaId);
   // "Iniciar atividade": a Nova realização com ESTE pasto já escolhido (a mesma janela do "Registrar" dos Detalhes).
   const [iniciando, setIniciando] = useState(false);
+  const [abrindoDiario, setAbrindoDiario] = useState(false);
+  const [diarioAberto, setDiarioAberto] = useState(/** @type {{ atividade: any, chave: number } | null} */ (null));
   const podeIniciar = Boolean(empresaId) && fusoOk && acoesTela.lancarApontamento === true;
   definirFazendaDaTela(empresaId);
   const resumo = useQuery({
@@ -172,6 +177,36 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
     <Vazio icone={Sprout}>Nenhuma atividade nesta área agora.</Vazio>
   );
 
+  // Diário da máquina (D-PROD-314): com uma atividade EM ANDAMENTO nesta área, abre o diário dela (só com permissão de lançar).
+  const atividadeEmAndamento = atividades.find((a) => a.area_status === STATUS_AREA.EM_ANDAMENTO) ?? null;
+  const podeDiario = Boolean(empresaId) && fusoOk && acoesTela.lancarApontamento === true && Boolean(atividadeEmAndamento);
+  const abrirDiario = async () => {
+    if (abrindoDiario || !atividadeEmAndamento) return;
+    setAbrindoDiario(true);
+    try {
+      const atividade = await lerAtividadeParaAcoes(String(atividadeEmAndamento.atividade_id), String(area.id));
+      setDiarioAberto({ atividade, chave: Date.now() });
+    } catch (erro) {
+      notifyWarning("Não foi possível abrir o diário", mensagemDeErroAtividade(erro, "Confira a conexão e tente de novo."));
+    } finally {
+      setAbrindoDiario(false);
+    }
+  };
+  const janelaDiario = diarioAberto ? (
+    <DiarioDaMaquina
+      key={`diario-${diarioAberto.chave}`}
+      atividade={diarioAberto.atividade}
+      areaId={String(area.id)}
+      areaNome={area?.nome ?? ""}
+      tipos={tipos}
+      onFechar={() => setDiarioAberto(null)}
+      onGravou={() => {
+        void queryClient.invalidateQueries({ queryKey: [QUERY_ATIVIDADES_DA_AREA] });
+        void queryClient.invalidateQueries({ queryKey: [RAIZ_CONSULTAS_ATIVIDADES] });
+      }}
+    />
+  ) : null;
+
   const janelaIniciar = iniciando ? (
     <JanelaRegistroDeCampo
       key="iniciar-atividade"
@@ -193,9 +228,15 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
             Iniciar atividade
           </button>
         ) : null}
+        {pronto && podeDiario ? (
+          <button type="button" className="tb-btn" data-testid="area-diario-maquina" onClick={() => void abrirDiario()} disabled={abrindoDiario}>
+            Diário da máquina
+          </button>
+        ) : null}
         {pronto ? <SecaoDetalhe titulo="Em andamento e planejado">{listaDeAtividades}</SecaoDetalhe> : null}
         {acoesDaAtividade.janelas}
         {janelaIniciar}
+        {janelaDiario}
       </div>
     );
   }

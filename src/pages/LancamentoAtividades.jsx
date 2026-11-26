@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CalendarPlus, CircleCheck, Copy, List, Pencil, RotateCcw } from "lucide-react";
+import { Ban, CalendarPlus, CircleCheck, Copy, List, Pencil, RotateCcw, Tractor } from "lucide-react";
 import { FiltrosDaTelaContext, opcoesDeOrdenacao } from "@/components/cadastro/base1/FiltrosRapidos";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
@@ -31,7 +31,8 @@ import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDe
 import { VerCustoContext, useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { podeVerCusto } from "@/lib/verCustoRegras";
 import JanelaLancamentoPorTipo, { lancamentoDoTipo } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
-import { areasDaAtividade, rotuloDaAreaDaAtividade, textoDaColunaArea } from "@/lib/atividadeAreasRegras";
+import DiarioDaMaquina from "@/components/lancamento-atividades/DiarioDaMaquina";
+import { areasDaAtividade, areasEmAndamento, rotuloDaAreaDaAtividade, textoDaColunaArea } from "@/lib/atividadeAreasRegras";
 import { situacaoDaAtividade, textoProgressoAreas } from "@/lib/atividadeFluxoCampo";
 import {
   OPCOES_DA_SITUACAO,
@@ -327,6 +328,8 @@ function LancamentoAtividadesTela() {
   const [lancandoDia, setLancandoDia] = useState(/** @type {any|null} */ (null));
   const [concluindoServico, setConcluindoServico] = useState(/** @type {any|null} */ (null));
   const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', areaId?: string|null, chave: number } | null} */ (null));
+  // Diário da máquina (D-PROD-314): a atividade e a área (pasto) em que ele abre.
+  const [diario, setDiario] = useState(/** @type {{ atividade: any, areaId: string, areaNome: string, chave: number } | null} */ (null));
   const celular = useCelular();
   const { clienteId } = useAuth();
   // Escopo da pendência de `operation_id` (cliente e login): o mesmo da lista de lançamentos.
@@ -791,6 +794,18 @@ function LancamentoAtividadesTela() {
     const ac = acoesDaAtividade(a, acoes);
     const gravar = podeGravar && Number.isInteger(a?.versao);
     const abrirItem = [{ key: "abrir", label: "Abrir atividade", icon: <List size={16} strokeWidth={1.75} />, onSelect: () => controller.handleEdit(a) }];
+    // Diário da máquina: numa atividade ABERTA com pasto em andamento, abre no primeiro deles (só com permissão de lançar).
+    const pastoEmAndamento = gravar && ac.lancarApontamento ? areasEmAndamento(a)[0] ?? null : null;
+    const diarioItem = pastoEmAndamento
+      ? [
+          {
+            key: "diario",
+            label: "Diário da máquina",
+            icon: <Tractor size={16} strokeWidth={1.75} />,
+            onSelect: () => void abrirDiario(a, pastoEmAndamento),
+          },
+        ]
+      : [];
     const gerir = gravar
       ? [
           ac.editar ? { key: "alterar", label: "Alterar atividade", icon: <Pencil size={16} strokeWidth={1.75} />, onSelect: () => alterarAtividade(a) } : null,
@@ -802,7 +817,17 @@ function LancamentoAtividadesTela() {
           ac.cancelar ? { key: "cancelar", label: "Cancelar atividade", icon: <Ban size={16} strokeWidth={1.75} />, danger: true, onSelect: () => abrirDialogo("cancelar", a) } : null,
         ].filter((x) => x !== null)
       : [];
-    return [abrirItem, /** @type {any[]} */ (gerir)];
+    return [abrirItem, diarioItem, /** @type {any[]} */ (gerir)];
+  };
+
+  /** Abre o diário da máquina da atividade no pasto dado (a atividade lida inteira, com as áreas). @param {any} a @param {any} pasto */
+  const abrirDiario = async (a, pasto) => {
+    try {
+      const atividade = await obterAtividade(String(a.id));
+      setDiario({ atividade, areaId: String(pasto.area_id ?? pasto.area?.id ?? ""), areaNome: rotuloDaAreaDaAtividade(pasto), chave: Date.now() });
+    } catch (erro) {
+      notifyWarning("Não foi possível abrir o diário", mensagemDeErroAtividade(erro, "Confira a conexão e tente de novo."));
+    }
   };
 
   /** O ⚡ da linha (grade e cards). @param {any} a */
@@ -1333,6 +1358,21 @@ function LancamentoAtividadesTela() {
             onFechar={() => setLancando(null)}
             onAtividadeAtualizada={aoEscreverNaJanelaDoTipo}
             areaInicial={lancando.areaId ?? null}
+          />
+        ) : null}
+
+        {diario ? (
+          <DiarioDaMaquina
+            key={`diario-${diario.chave}`}
+            atividade={diario.atividade}
+            areaId={diario.areaId}
+            areaNome={diario.areaNome}
+            tipos={/** @type {any[]} */ (tipos)}
+            onFechar={() => setDiario(null)}
+            onGravou={() => {
+              invalidarLista();
+              invalidarTotais();
+            }}
           />
         ) : null}
 
