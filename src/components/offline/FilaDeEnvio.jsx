@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CloudUpload, AlertTriangle, Clock, Hourglass, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { CloudUpload, AlertTriangle, Clock, Hourglass, Loader2, ChevronDown, ChevronUp, Trash2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useFilaDeEnvio } from '@/hooks/useFilaDeEnvio';
 import { enviarAgora, tentarEnviarDeNovo, descartarRegistroNaoEnviado, dependentesDoRegistro } from '@/services/sincronizacaoService';
@@ -21,6 +21,9 @@ const SITUACAO = {
 };
 
 const ICONE = { aguardando: Clock, confirmando: Loader2, esperando: Hourglass, atencao: AlertTriangle };
+
+/** Botão de ação do item: pequeno, para os três caberem numa linha no celular. */
+const ACAO = 'inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 disabled:opacity-50';
 
 /**
  * D-PROD-295 / D-PROD-328 — "Envio": a FILA ÚNICA do que foi feito sem internet e ainda não chegou ao sistema,
@@ -82,7 +85,7 @@ export default function FilaDeEnvio() {
       </div>
 
       {fila.itens.length > 0 && (
-        <ul className="max-h-80 space-y-1.5 overflow-y-auto" aria-label="Fila de envio">
+        <ul className="max-h-[60vh] space-y-1.5 overflow-y-auto" aria-label="Fila de envio">
           {fila.itens.map((item) => {
             const Icone = ICONE[item.estado] ?? Clock;
             const atencao = item.estado === 'atencao';
@@ -127,18 +130,21 @@ export default function FilaDeEnvio() {
                   </dl>
                 )}
 
-                <div className="mt-1.5 flex flex-wrap justify-end gap-1.5">
-                  <Button type="button" size="sm" variant="ghost" aria-expanded={mostrando} onClick={() => setAberto(mostrando ? null : item.id)}>
-                    {mostrando ? <ChevronUp className="mr-1 h-4 w-4" aria-hidden="true" /> : <ChevronDown className="mr-1 h-4 w-4" aria-hidden="true" />}
+                {/* Ações compactas numa linha só (cabem no celular): Ver detalhes · Excluir · Tentar de novo. */}
+                <div className="mt-1.5 flex items-center justify-end gap-1">
+                  <button type="button" className={ACAO} aria-expanded={mostrando} onClick={() => setAberto(mostrando ? null : item.id)}>
+                    {mostrando ? <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" /> : <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />}
                     {mostrando ? 'Fechar detalhes' : 'Ver detalhes'}
-                  </Button>
-                  <Button type="button" size="sm" variant="ghost" disabled={ocupado} onClick={() => excluir(item)}>
+                  </button>
+                  <button type="button" className={`${ACAO} text-red-700`} disabled={ocupado} onClick={() => excluir(item)}>
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                     Excluir
-                  </Button>
+                  </button>
                   {item.podeTentar && (
-                    <Button type="button" size="sm" variant="outline" disabled={ocupado || fila.enviando} onClick={() => executar(() => tentarEnviarDeNovo(item.id))}>
+                    <button type="button" className={`${ACAO} border-emerald-600 text-emerald-700`} disabled={ocupado || fila.enviando} onClick={() => executar(() => tentarEnviarDeNovo(item.id))}>
+                      <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                       Tentar de novo
-                    </Button>
+                    </button>
                   )}
                 </div>
               </li>
