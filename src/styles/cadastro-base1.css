@@ -2589,7 +2589,7 @@
     font-weight: 600;
     justify-content: center;
   }
-  .b1-aberto-janela.b1-realizacao .b1-form-embutido {
+  .b1-aberto-janela .b1-form-embutido {
     --mg-field-h: 58px;
   }
   .b1-aberto-janela .b1-form-embutido .mg-field input,
