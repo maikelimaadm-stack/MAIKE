@@ -181,7 +181,8 @@ Guia específico do ícone do lote: [src/assets/icones/lotes/README.md](../../sr
 - `src/lib/tarefas/prioridade.js`: nomes e cores compartilhados por formulário, detalhes, resumo e mapa.
   **Baixa** (cinza, um sinal), **Média** (azul, dois sinais), **Alta** (âmbar, três sinais) e **Urgente**
   (vermelho, exclamação). O nome legado **Normal** vira **Média**; Urgente não vira Alta.
-- `src/assets/icones/tarefas.js`: moldura quadrada arredondada com ponteira e fundo branco, SVG nativo.
+- `src/assets/icones/tarefas.js`: moldura redonda original com ponteira, fundo branco e borda cinza, a mesma do cocho/depósito
+  (`montarPontoRedondo` em `src/assets/icones/pontos/redondo.js`). A cor da prioridade fica só no símbolo interno.
   São só quatro URLs locais em cache. Não dependem de upload, API ou imagem externa.
 - `src/lib/tarefas/marcador.js`: selo separado do ícone (inclusive quando o desenho é um upload).
   Dias até o prazo; no dia, `0d`; depois dele, dias de atraso. Acima de 99, `99+` e o valor completo na descrição.
