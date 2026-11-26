@@ -5,6 +5,7 @@
  * caches (`setor_nome`, `area_*_nome`) derivados das FKs nativas na escrita.
  */
 
+import { exigirVersaoEsperada, separarVersaoEsperada } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { consultarMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
@@ -450,6 +451,8 @@ export const atualizar = async (contexto, id, entrada) => {
     const anterior = await buscarLote(auth.clienteId, id, tx);
     // Lote excluído logicamente (MAIKE-LOTES-R1) não volta a ser editável.
     if (!anterior || anterior.excluido_em) throw loteNotFound();
+    // D-PROD-316: a versão que a pessoa viu ainda é a atual (sob a trava da linha), senão 409 com quem alterou.
+    await exigirVersaoEsperada(tx, { clienteId: auth.clienteId, entidade: 'Lote', registro: anterior, versaoEsperada: separarVersaoEsperada(entrada).versaoEsperada, rotulo: 'O lote' });
 
     const campos = camposDe(entrada);
     /** @type {Record<string, unknown>} */

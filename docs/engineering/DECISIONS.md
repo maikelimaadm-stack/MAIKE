@@ -9837,4 +9837,30 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Produção:** aplicada em 2026-11-25 pelo caminho B, com o GO do proprietário ("Pode aplicar por favor"), antes do merge. Pós-checagem: 82 concluídas e 0 ruins, a nova com `a1cdcd2f…fc3c`, os 5 índices válidos.
 - **Fora:** índices para as outras listas, quando entrarem na sincronização incremental (Etapa 5).
 
-<!-- Próxima decisão: D-PROD-316 -->
+## D-PROD-316 — Sincronização, Etapa 3: versão do registro e quem alterou (lote e cocho)
+
+**Data:** 2026-11-25 · **Origem:** o plano de 5 etapas da sincronização aprovado pelo proprietário ("isso vai virar um saas com milhões de registros, clientes, vários usuários") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-ETAPA3-D316-REPORT.md`](./SINCRONIZACAO-ETAPA3-D316-REPORT.md)
+
+> **Numeração:** a `main` (`8090e2d0`) indica `Próxima decisão: D-PROD-316`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-317. Conferir de novo antes do merge (regra A5).
+
+- **Problema:** duas pessoas ou dois aparelhos editando o mesmo lote ou cocho; a última gravação apagava a outra em silêncio.
+- **Decisão — a versão é o `updatedAt`:** o Prisma atualiza esse campo em toda gravação, inclusive as internas (D-PROD-309), e o app já o recebe como `updated_date`. Não há migration nem "incremento" a lembrar em cada caminho de escrita.
+- **Decisão — servidor:**
+  1. `PATCH /lotes/:id` e `PATCH /pontos-suplementacao/:id` aceitam `versao_esperada`, que é a versão vista. Sob a trava da linha (o ponto passou a travar com `FOR NO KEY UPDATE`), se a versão for diferente da atual o servidor responde 409 `REGISTRO_VERSAO_CONFLITO` e não grava nada. Os detalhes trazem `versao_atual`, `alterado_por_nome`, `alterado_por_id` e `alterado_em`, lidos da última auditoria do registro.
+  2. Formato inválido dá 400.
+  3. Sem versão (app antigo, cascatas internas), grava como antes.
+- **Decisão — app:**
+  1. As telas mandam a versão do registro aberto: cadastro de lotes, Renomear lote e o cocho ou depósito no mapa. Na gravação em dois passos, o segundo vai com a versão nova.
+  2. **Fila sem internet:**
+     - a versão vai só no PATCH, nunca no registro guardado nem numa criação na fila;
+     - edições juntadas ficam com a versão da primeira;
+     - com internet e uma edição do mesmo registro ainda na fila, a nova vai como item próprio logo depois, sem versão, e a fila é enviada (antes ia direto, fora de ordem);
+     - conflito ao enviar: a edição fica retida com a mensagem, e a seguinte do mesmo registro espera.
+  3. **Mensagem:** "Este lote foi alterado por Maria em 25/11/2026 14:30, depois que você o abriu. Abra de novo, confira e refaça a alteração. Nada foi gravado."
+- **Fora:**
+  - duas gravações no mesmo milissegundo, que a trava da linha torna raras;
+  - os lançamentos de cocho, que são comandos com as próprias regras;
+  - as outras entidades, que ficam para a Etapa 5;
+  - o "alterado por" fora do conflito, que exigiria guardar o autor no registro.
+
+<!-- Próxima decisão: D-PROD-317 -->

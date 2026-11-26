@@ -144,6 +144,8 @@ export const API_ERROR_CODES = Object.freeze({
   ATIVIDADE_DATA_INVALIDA: 'ATIVIDADE_DATA_INVALIDA',
   ATIVIDADE_STATUS_INVALIDO: 'ATIVIDADE_STATUS_INVALIDO',
   ATIVIDADE_VERSAO_CONFLITO: 'ATIVIDADE_VERSAO_CONFLITO',
+  // D-PROD-316 — Etapa 3 da sincronização: o lote ou o cocho mudou depois que a pessoa o abriu (versão do registro).
+  REGISTRO_VERSAO_CONFLITO: 'REGISTRO_VERSAO_CONFLITO',
   ATIVIDADE_MOTIVO_INVALIDO: 'ATIVIDADE_MOTIVO_INVALIDO',
   // Exclusão de cadastro (tipo, grupo, área, setor, unidade, tarefa, bem, centro…) barrada por uma atividade.
   ATIVIDADE_VINCULADA: 'ATIVIDADE_VINCULADA',
@@ -298,6 +300,8 @@ const MENSAGENS = Object.freeze({
     'A data foi recusada: ela não pode ser futura, anterior ao início da atividade nem inexistente, e o fim previsto não pode ser antes do início. Nada foi gravado.',
   [API_ERROR_CODES.ATIVIDADE_STATUS_INVALIDO]:
     'Esta ação não é permitida no status atual: só a atividade aberta aceita edição, conclusão, cancelamento e apontamentos, e só a concluída é reaberta. Nada foi alterado.',
+  [API_ERROR_CODES.REGISTRO_VERSAO_CONFLITO]:
+    'Este registro foi alterado por outra pessoa depois que você o abriu. Abra de novo, confira e refaça a alteração. Nada foi gravado.',
   [API_ERROR_CODES.ATIVIDADE_VERSAO_CONFLITO]:
     'Este registro foi alterado por outra pessoa desde que você o abriu. Recarregue e tente de novo. Nada foi gravado.',
   [API_ERROR_CODES.ATIVIDADE_MOTIVO_INVALIDO]:
@@ -395,6 +399,30 @@ const MENSAGEM_PADRAO_TIPO_ATIVIDADE_POR_MOTIVO = Object.freeze({
  * @param {ApiError} erro
  * @returns {string|null}
  */
+/** D-PROD-316: o nome do registro na mensagem do conflito de versão, pela entidade. */
+const ROTULO_DA_ENTIDADE = Object.freeze({ Lote: 'Este lote', PontoSuplementacao: 'Este cocho' });
+
+/**
+ * D-PROD-316 — conflito de versão com quem alterou e quando ("Este lote foi alterado por Maria em 12/11/2026 14:30 …").
+ * Sem os detalhes, a mensagem do catálogo.
+ * @param {ApiError} erro
+ * @returns {string|null}
+ */
+const mensagemDoConflitoDeVersao = (erro) => {
+  if (erro.code !== API_ERROR_CODES.REGISTRO_VERSAO_CONFLITO) return null;
+  const d = /** @type {Record<string, unknown>} */ (erro.details ?? {});
+  const rotulo = typeof d.entidade === 'string' && Object.prototype.hasOwnProperty.call(ROTULO_DA_ENTIDADE, d.entidade)
+    ? ROTULO_DA_ENTIDADE[/** @type {keyof typeof ROTULO_DA_ENTIDADE} */ (d.entidade)]
+    : 'Este registro';
+  const nome = typeof d.alterado_por_nome === 'string' && d.alterado_por_nome.trim() ? d.alterado_por_nome.trim() : null;
+  const instante = typeof d.alterado_em === 'string' && !Number.isNaN(Date.parse(d.alterado_em)) ? new Date(d.alterado_em) : null;
+  const quando = instante
+    ? ` em ${instante.toLocaleDateString('pt-BR')} ${instante.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+    : '';
+  const quem = nome ? ` por ${nome}` : ' por outra pessoa';
+  return `${rotulo} foi alterado${quem}${quando}, depois que você o abriu. Abra de novo, confira e refaça a alteração. Nada foi gravado.`;
+};
+
 const mensagemDoPadraoTipoAtividade = (erro) => {
   const codigo = API_ERROR_CODES.TIPO_ATIVIDADE_PADRAO_INVALIDO;
   if (erro.code !== codigo) return null;
@@ -490,6 +518,8 @@ export const getApiErrorMessage = (erro, fallback = MENSAGEM_PADRAO) => {
     }
     const padraoDoTipo = mensagemDoPadraoTipoAtividade(erro);
     if (padraoDoTipo) return padraoDoTipo;
+    const conflito = mensagemDoConflitoDeVersao(erro);
+    if (conflito) return conflito;
     if (typeof erro.message === 'string' && erro.message.trim()) {
       return erro.message;
     }

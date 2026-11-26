@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-25 (missão ativa D-PROD-315; antes D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-25 (missão ativa D-PROD-316; antes D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-25) — MAIKE-SINCRONIZACAO-INDICES: índices da sincronização incremental (D-PROD-315)
+## Missão ativa (2026-11-25) — MAIKE-SINCRONIZACAO-ETAPA3: versão do registro e quem alterou (D-PROD-316)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-316**: o PATCH do lote e do cocho aceita `versao_esperada` (o `updatedAt` visto); diferente → 409 `REGISTRO_VERSAO_CONFLITO` com quem e quando, nada gravado; a fila do aparelho guarda a versão da primeira edição e segura a seguinte após um conflito |
+| Banco | sem migration |
+| Relatório | [`SINCRONIZACAO-ETAPA3-D316-REPORT.md`](./SINCRONIZACAO-ETAPA3-D316-REPORT.md) |
+| Próximas | Etapa 4 (a tela nunca "pisca"); Etapa 5 (manutenção e as outras entidades) |
+
+## Missão anterior (2026-11-25) — MAIKE-SINCRONIZACAO-INDICES: índices da sincronização incremental (D-PROD-315)
 
 | Item | Estado |
 |---|---|

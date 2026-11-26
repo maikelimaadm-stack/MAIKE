@@ -3,6 +3,7 @@
  */
 
 import { SCHEMA_ID_DO_APARELHO } from '../../shared/idempotency/idDoAparelho.js';
+import { SCHEMA_VERSAO_ESPERADA } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, excluir, buscarPorId, elegibilidadeExclusao, comoLotePublico, mudancas } from './loteService.js';
 import { schemaMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
@@ -82,6 +83,8 @@ const ATUALIZAR_SCHEMA = {
     additionalProperties: false,
     properties: {
       ...CAMPOS_ATUALIZACAO,
+      // D-PROD-316: a versão do lote que a pessoa viu (o `updated_date`); diferente da atual → 409, nada gravado.
+      versao_esperada: SCHEMA_VERSAO_ESPERADA,
       // R2A-R1 (D-PROD-99a): compare-and-swap dos campos de saldo/posição.
       estado_esperado: {
         type: 'object',

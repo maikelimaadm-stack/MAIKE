@@ -42,6 +42,9 @@ const OFFLINE_SYNC_EVENT = "offline-entity-queue-updated";
 /** Operações que a fila grava (as únicas que o replay sabe aplicar). */
 const OPERACOES_DA_FILA = Object.freeze(["create", "update", "delete"]);
 
+/** D-PROD-316: o campo da versão vista do registro na edição (vai só no PATCH; ver `versaoDoRegistro.js` no servidor). */
+export const CAMPO_VERSAO_ESPERADA = "versao_esperada";
+
 export const getOfflineSyncEventName = () => OFFLINE_SYNC_EVENT;
 
 const getEmpresaId = () => {
@@ -614,6 +617,21 @@ export const createOfflineEntityAdapter = ({
         (tenantId === undefined || (item.cliente_id ?? null) === tenantId)
     ) ?? null;
 
+  /**
+   * D-PROD-316: edição deste registro ainda na fila (não retida). Com ela, a próxima edição entra
+   * nela em vez de ir direto ao servidor (ordem e versão preservadas).
+   * @param {string} nome @param {string} recordId @param {string|null|undefined} tenantId
+   */
+  const edicaoPendenteDe = async (nome, recordId, tenantId) =>
+    (await porta.listarFila()).find(
+      (item) =>
+        item.entity_name === nome &&
+        item.operation === "update" &&
+        item.record_id === recordId &&
+        !item.quarentena &&
+        (tenantId === undefined || (item.cliente_id ?? null) === tenantId)
+    ) ?? null;
+
   if (typeof operations.list === "function") {
     adapter.list = async (order, limit) => {
       const empresaId = empresaIdParaEntidade(catalogoTenant);
@@ -731,14 +749,21 @@ export const createOfflineEntityAdapter = ({
   }
 
   if (typeof operations.update === "function") {
-    adapter.update = async (recordId, dados) => {
+    adapter.update = async (recordId, dadosRecebidos) => {
+      // D-PROD-316: a versão que a pessoa viu (`versao_esperada`) vai só no PATCH; nunca entra no
+      // registro guardado nem numa criação que ainda está na fila.
+      const { [CAMPO_VERSAO_ESPERADA]: versaoEsperada, ...dados } = dadosRecebidos ?? {};
       const empresaId = empresaIdParaEntidade(catalogoTenant, dados);
       const tenantId = tenantDe(tenantScoped);
 
       // D-PROD-308: com internet, mas a criação deste registro ainda está na fila (a rede caiu
       // ao criar): a edição entra na criação, em vez de ir a um servidor que pode não tê-lo.
-      if (estaOnline() && !(await criacaoPendenteDe(recordId, tenantId))) {
-        const atualizado = await operations.update(recordId, dados);
+      // D-PROD-316: o mesmo com uma EDIÇÃO dele ainda na fila: a nova vai para a fila DEPOIS dela
+      // (a cópia do aparelho tem uma versão local, e a ordem das duas edições se mantém), e a fila é
+      // enviada em seguida.
+      const edicaoNaFila = estaOnline() ? await edicaoPendenteDe(entityName, recordId, tenantId) : null;
+      if (estaOnline() && !edicaoNaFila && !(await criacaoPendenteDe(recordId, tenantId))) {
+        const atualizado = await operations.update(recordId, versaoEsperada ? { ...dados, [CAMPO_VERSAO_ESPERADA]: versaoEsperada } : dados);
         await atualizarCache(
           porta,
           entityName,
@@ -794,9 +819,26 @@ export const createOfflineEntityAdapter = ({
           mesmaEmpresa(item)
       );
 
-      if (atualizacaoPendente) {
+      if (edicaoNaFila) {
+        // D-PROD-316: com internet, a fila pode estar enviando a edição anterior agora: juntar nela
+        // poderia perder esta (o envio a tira da fila ao terminar). Vai como um item próprio, logo
+        // depois, sem versão: é a continuação da edição anterior, que já confere a versão.
+        await enfileirar(porta, {
+          entity_name: entityName,
+          empresa_id: empresaId,
+          ...carimboDeTenant(tenantScoped, tenantId),
+          operation: "update",
+          record_id: recordId,
+          data: dados,
+        });
+        emitirMudancaDeFila();
+        syncOfflineEntityQueue().catch(() => undefined);
+      } else if (atualizacaoPendente) {
+        // D-PROD-316: a versão que vale é a da PRIMEIRA edição na fila (a que a pessoa viu do
+        // servidor); a desta foi lida da cópia do aparelho, já com a edição anterior aplicada.
+        const versaoDaFila = atualizacaoPendente.data?.[CAMPO_VERSAO_ESPERADA];
         await porta.atualizarNaFila(atualizacaoPendente.id, {
-          data: { ...atualizacaoPendente.data, ...dados },
+          data: { ...atualizacaoPendente.data, ...dados, ...(versaoDaFila ? { [CAMPO_VERSAO_ESPERADA]: versaoDaFila } : {}) },
         });
         emitirMudancaDeFila();
       } else {
@@ -806,7 +848,7 @@ export const createOfflineEntityAdapter = ({
           ...carimboDeTenant(tenantScoped, tenantId),
           operation: "update",
           record_id: recordId,
-          data: dados,
+          data: versaoEsperada ? { ...dados, [CAMPO_VERSAO_ESPERADA]: versaoEsperada } : dados,
         });
       }
 
@@ -1007,6 +1049,12 @@ export const syncOfflineEntityQueue = async (onProgress) => {
     retidos += 1;
   };
 
+  // D-PROD-316: registro com uma edição RECUSADA na fila (ex.: conflito de versão): as edições
+  // seguintes dele esperam (a seguinte não leva versão; ir sozinha gravaria por cima de quem mudou).
+  /** @type {Set<string>} */
+  const edicoesRecusadas = new Set();
+  const chaveDaEdicao = (item) => `${item.entity_name}\u0000${item.record_id}`;
+
   for (let i = 0; i < emOrdem.length; i += 1) {
     const item = emOrdem[i];
     // D-PROD-307: a conta mudou no meio da passada (saiu e outra entrou): para. O token de
@@ -1040,7 +1088,14 @@ export const syncOfflineEntityQueue = async (onProgress) => {
 
     if (item.quarentena?.codigo === CODIGO_RECUSADO_PELO_SERVIDOR) {
       // Já recusado: espera a pessoa (tentar de novo ou descartar); não volta a cada passada.
+      if (item.operation === "update") edicoesRecusadas.add(chaveDaEdicao(item));
       recusados += 1;
+      continue;
+    }
+
+    if (item.operation === "update" && edicoesRecusadas.has(chaveDaEdicao(item))) {
+      // D-PROD-316: espera a edição anterior deste registro, recusada (fica na fila, intacta).
+      pulados += 1;
       continue;
     }
 
@@ -1205,6 +1260,7 @@ export const syncOfflineEntityQueue = async (onProgress) => {
         await storage.atualizarNaFila(item.id, { tentativas_com_erro: tentativasComErro }).catch(() => undefined);
       }
       if (falha === "recusado" || tentativasComErro >= TENTATIVAS_COM_ERRO_DO_SERVIDOR) {
+        if (item.operation === "update") edicoesRecusadas.add(chaveDaEdicao(item));
         await storage.atualizarNaFila(item.id, {
           quarentena: {
             codigo: CODIGO_RECUSADO_PELO_SERVIDOR,
