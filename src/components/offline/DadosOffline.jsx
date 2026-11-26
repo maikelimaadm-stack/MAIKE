@@ -7,7 +7,8 @@ import { useAuth } from '@/lib/AuthContext';
 import { useEmpresaSelecionadaId } from '@/hooks/useEmpresaSelecionadaId';
 import { isAppNativo } from '@/config/runtimeConfig';
 import { useBootSplash } from '@/lib/bootSplashContext';
-import { baixarDadosParaOffline, dadosNoFormatoAtual, estaSemInternet, situacaoDaBaixa, ultimaBaixaDosDados } from '@/services/dadosOfflineService';
+import { dadosNoFormatoAtual, estaSemInternet, situacaoDaBaixa, ultimaBaixaDosDados } from '@/services/dadosOfflineService';
+import { sincronizarNosDoisSentidos, deveSincronizarSozinho } from '@/services/sincronizacaoCompletaService';
 import { ligarEnvioDaSessao } from '@/services/sincronizacaoService';
 import FilaDeEnvio from '@/components/offline/FilaDeEnvio';
 
@@ -23,8 +24,6 @@ export const abrirDadosOffline = () => {
   }
 };
 
-/** Com internet, o app atualiza sozinho (em segundo plano) depois deste tempo. */
-const ATUALIZAR_SOZINHO_APOS_MS = 6 * 60 * 60 * 1000;
 
 const formatarQuando = (ms) =>
   ms
@@ -89,7 +88,8 @@ export default function DadosOffline() {
         emSegundoPlano.current = true;
       }
       try {
-        const r = await baixarDadosParaOffline({
+        // D-PROD-329: envia e baixa, com a porcentagem no círculo do canto.
+        const r = await sincronizarNosDoisSentidos({
           empresaId,
           aoAvancar: silencioso ? undefined : (p) => setProgresso({ titulo: p.titulo, feitas: p.feitas, total: p.total }),
         });
@@ -126,25 +126,29 @@ export default function DadosOffline() {
     return () => window.removeEventListener(EVENTO_ABRIR_DADOS_OFFLINE, abrir);
   }, []);
 
-  // Sincronização (D-PROD-294): já preparado, com internet, atualiza por baixo
-  // a cada 6 h (na abertura e enquanto o app fica aberto). A PRIMEIRA baixa é
-  // da tela de preparo (`PreparoDoApp`), antes de o sistema abrir.
+  // Sincronização automática (D-PROD-294, D-PROD-329), já preparado e com internet: envia e baixa
+  //  - quando a internet VOLTA: sempre;
+  //  - ao abrir ou voltar ao app: se a última baixa tem mais de 10 min;
+  //  - com o app aberto: a cada 6 h.
+  // A PRIMEIRA baixa é da tela de preparo (`PreparoDoApp`), antes de o sistema abrir.
   useEffect(() => {
     if (!isAuthenticated || !clienteId || !layoutBootReady || !isAppNativo()) return undefined;
-    const talvezSincronizar = () => {
-      const anterior = ultimaBaixaDosDados();
-      if (!anterior || estaSemInternet()) return;
-      // D-PROD-307: versão nova do app que guarda os dados em outro formato baixa já.
-      if (Date.now() - anterior > ATUALIZAR_SOZINHO_APOS_MS || !dadosNoFormatoAtual()) {
-        baixarRef.current({ silencioso: true });
-      }
+    const talvezSincronizar = (/** @type {'voltou'|'abriu'|'relogio'} */ motivo) => {
+      const situacao = { ultima: ultimaBaixaDosDados(), agora: Date.now(), formatoAtual: dadosNoFormatoAtual(), semInternet: estaSemInternet() };
+      if (deveSincronizarSozinho(motivo, situacao)) baixarRef.current({ silencioso: true });
     };
-    talvezSincronizar();
-    const intervalo = window.setInterval(talvezSincronizar, 15 * 60 * 1000);
-    window.addEventListener('online', talvezSincronizar);
+    const aoVoltar = () => talvezSincronizar('voltou');
+    const aoMostrar = () => {
+      if (document.visibilityState === 'visible') talvezSincronizar('abriu');
+    };
+    talvezSincronizar('abriu');
+    const intervalo = window.setInterval(() => talvezSincronizar('relogio'), 15 * 60 * 1000);
+    window.addEventListener('online', aoVoltar);
+    document.addEventListener('visibilitychange', aoMostrar);
     return () => {
       window.clearInterval(intervalo);
-      window.removeEventListener('online', talvezSincronizar);
+      window.removeEventListener('online', aoVoltar);
+      document.removeEventListener('visibilitychange', aoMostrar);
     };
   }, [isAuthenticated, clienteId, layoutBootReady]);
 
