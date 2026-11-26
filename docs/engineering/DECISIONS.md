@@ -10143,4 +10143,32 @@ Vários itens ficavam presos para sempre, sem botão:
 
 > **Numeração:** depois da D-PROD-327 (PR #417), a `main` indica `Próxima decisão: D-PROD-328`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-329. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-329 -->
+## D-PROD-329 — Sincronização automática nos dois sentidos, com a porcentagem num círculo no canto
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("a sincronização tem que ser automática ao voltar, tanto sincronizando os dados do sistema para o apk e do apk para o sistema, tem que aparecer uma tela de progresso de porcentagem redondo"); escolha dele: "Círculo pequeno no canto" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-DOIS-SENTIDOS-D329-REPORT.md`](./SINCRONIZACAO-DOIS-SENTIDOS-D329-REPORT.md)
+
+**Problema.** Ao voltar a internet, o app só **enviava**. A **baixa** (sistema → celular) só rodava se a última tinha mais de 6 h. Nenhuma porcentagem aparecia: só o aviso de texto "Enviando N registros…" e a barra dentro da janela, no "Sincronizar agora".
+
+**Decisão.**
+- `sincronizarNosDoisSentidos` (`src/services/sincronizacaoCompletaService.js`) faz, nesta ordem:
+  1. **envia** o que está no celular (`sincronizarTudo`);
+  2. **baixa** do sistema mapa, cadastros e telas (`baixarDadosParaOffline`).
+
+  Uma de cada vez: quem pede durante uma recebe a mesma. O andamento sai em porcentagem (`EVENTO_PROGRESSO_DA_SINCRONIA`): envio 0–25 %, mapa 25–55 %, cadastros 55–80 %, telas 80–100 %. A porcentagem só sobe.
+- **Quando sincroniza sozinho**, no app do celular já preparado (`deveSincronizarSozinho`):
+  - quando a internet **volta**, sempre;
+  - ao **abrir ou voltar** ao app, se a última baixa tem mais de 10 min;
+  - com o app aberto, a cada 6 h;
+  - com os dados no formato antigo, na hora.
+
+  No navegador nada é automático. O "Sincronizar agora" da janela usa a mesma função.
+- **Círculo pequeno no canto** (`CirculoDeSincronizacao`):
+  - fica embaixo, à direita, acima dos cartões do mapa e abaixo das janelas;
+  - mostra a porcentagem enquanto sincroniza, e a pessoa continua usando o app;
+  - tocar abre a janela "Sincronização";
+  - no fim mostra ✓, ou ! se parte não veio, e some em 2,5 s.
+- Com o círculo na tela, o aviso de texto não repete "Enviando…" nem "Tudo enviado". O aviso de "precisa de atenção" continua.
+
+> **Numeração:** depois da D-PROD-328 (PR #418), a `main` indica `Próxima decisão: D-PROD-329`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-330. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-330 -->

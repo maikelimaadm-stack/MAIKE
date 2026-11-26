@@ -18,6 +18,7 @@ import NativeLoginForm from '@/components/auth/NativeLoginForm';
 import NativeSessionUnavailable from '@/components/auth/NativeSessionUnavailable';
 import DadosOffline from '@/components/offline/DadosOffline';
 import AvisoDeSincronizacao from '@/components/offline/AvisoDeSincronizacao';
+import CirculoDeSincronizacao from '@/components/offline/CirculoDeSincronizacao';
 import AvisoDeVersao from '@/components/offline/AvisoDeVersao';
 import PreparoDoApp from '@/components/offline/PreparoDoApp';
 import { appPrecisaPreparar } from '@/services/dadosOfflineService';
@@ -144,6 +145,8 @@ const AuthenticatedApp = () => {
       <SplashScreen visible={showBootSplash} />
       {showMainApp && <DadosOffline />}
       {showMainApp && <AvisoDeSincronizacao />}
+      {/* D-PROD-329: a porcentagem da sincronização (envia e baixa), no canto. */}
+      {showMainApp && <CirculoDeSincronizacao />}
       {showMainApp && <AvisoDeVersao />}
       {showMainApp && (
         <Routes>
