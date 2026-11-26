@@ -10045,6 +10045,10 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - Toda foto abre em **tela cheia** ao tocar: a enviada, a guardada e a nova do formulário. É o `VisualizadorDeFotos`, separado da galeria.
   - O ✕ exclui a foto guardada do celular depois de confirmar. Para tirar de novo, é só adicionar outra.
   - O ✕ fica sempre visível; no celular não há "passar o mouse".
+  - **Duas opções para pôr foto** (pedido do proprietário: "tem que ter opções de tirar e subir"):
+    - **Tirar foto** abre a câmera direto (`<input capture="environment">`);
+    - **Galeria** escolhe as fotos já tiradas, várias de uma vez.
+    - O APK já tem a permissão de câmera e o `FileProvider`, então não precisa de APK novo: a mudança chega pela atualização automática.
 - **Fora:** a tarefa recusada pelo servidor: a foto dela fica guardada até a tarefa ser corrigida ou descartada.
 
 <!-- Próxima decisão: D-PROD-325 -->

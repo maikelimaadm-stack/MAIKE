@@ -10,6 +10,7 @@ Sem internet, a tarefa funciona como com internet. Criar, editar, concluir, regi
 |---|---|
 | Sem internet, tarefa com foto nova: "Remova as fotos e anexe quando a internet voltar" | Salva normalmente. A foto fica guardada no celular e **sobe sozinha** quando a internet volta |
 | Nada mostrava o que ainda não tinha subido | O resumo marca a tarefa com **"aguardando envio"**, e os detalhes mostram **"N fotos aguardando envio"** |
+| Só dava para escolher foto da galeria | Duas opções: **Tirar foto** (abre a câmera) e **Galeria** (escolhe as já tiradas) |
 | A foto não abria no formulário, e o ✕ só aparecia passando o mouse | A foto guardada **aparece** em miniatura (selo "Aguardando envio"); **toda foto abre em tela cheia** ao tocar; o ✕ fica sempre visível e **exclui** a foto guardada (depois é só tirar outra) |
 
 ## Como
@@ -27,7 +28,10 @@ Sem internet, a tarefa funciona como com internet. Criar, editar, concluir, regi
 - **`VisualizadorDeFotos` (novo):** a foto em tela cheia, separada da galeria. Abre as fotos dos detalhes e as do formulário.
 - **`useFotosGuardadasDaTarefa` (novo):** as fotos guardadas, com endereço local para a miniatura. Relê quando uma é guardada, enviada ou excluída.
 - **`FotosTarefaGaleria`:** mostra as guardadas depois das enviadas, com o selo e o ✕ (`excluirFotoGuardada`).
-- **`FormularioTarefaMapa`:** as miniaturas (enviadas, guardadas e novas) abrem ao tocar, e o ✕ fica sempre visível.
+- **`FormularioTarefaMapa`:**
+  - as miniaturas (enviadas, guardadas e novas) abrem ao tocar, e o ✕ fica sempre visível;
+  - **Tirar foto** usa `capture="environment"` e abre a câmera;
+  - **Galeria** usa `multiple` para escolher várias fotos.
 - **`tarefasMapaService.listarTodasAsTarefas`:** a lista do tenant, também a cópia do aparelho sem internet.
 
 As tarefas presas no armazenamento antigo (D-PROD-319) continuam sendo resgatadas pelo próprio serviço delas. As fotos das duas origens usam chaves diferentes no mesmo lugar e não se misturam.
@@ -38,7 +42,7 @@ As tarefas presas no armazenamento antigo (D-PROD-319) continuam sendo resgatada
 |---|---|
 | `tests/smoke/tarefaFotosSemInternet.test.js` | FS-01: tarefa nova com foto: a tarefa sobe, depois a foto entra nas fotos dela e sai do aparelho. FS-02: a criação ainda na fila faz a foto esperar. FS-03: se a gravação falha, a foto já enviada não sobe de novo. FS-04: as fotos antigas ficam. FS-05: sem internet nada é tentado |
 | `tests/smoke/tarefasResumoMapa.test.jsx` | RS-05: "aguardando envio" |
-| `tests/smoke/tarefaFotosGuardadasTela.test.jsx` | FG-01: galeria (aparece, abre em tela cheia, ✕ exclui). FG-02: formulário (toda foto abre, a guardada aparece, ✕ exclui depois de confirmar) |
+| `tests/smoke/tarefaFotosGuardadasTela.test.jsx` | FG-01: galeria (aparece, abre em tela cheia, ✕ exclui). FG-02: formulário (toda foto abre, a guardada aparece, ✕ exclui depois de confirmar). FG-03: Tirar foto (câmera) e Galeria |
 
 As suítes de tarefas passaram: 53 arquivos e 926 testes.
 

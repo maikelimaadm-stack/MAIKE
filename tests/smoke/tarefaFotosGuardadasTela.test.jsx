@@ -5,6 +5,8 @@
  *       tela cheia (com a legenda); o ✕ exclui
  * FG-02 formulário (editar): toda foto abre em tela cheia ao tocar; a guardada aparece com "AGUARDANDO ENVIO" e o
  *       ✕ (sempre visível) a exclui depois de confirmar; a nova continua com "NOVA"
+ * FG-03 duas opções: "Tirar foto" abre a câmera do celular (`capture`) e "Galeria" escolhe as já tiradas (várias);
+ *       a foto tirada entra como "NOVA"
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -86,5 +88,33 @@ describe('D-PROD-324 — foto guardada na tela', () => {
     });
     expect(confirmarExclusao).toHaveBeenCalledTimes(1);
     expect(excluirFotoGuardada).toHaveBeenCalledWith(3);
+  });
+
+  it('FG-03 "Tirar foto" (câmera) e "Galeria"; a foto tirada entra como NOVA', async () => {
+    const criar = URL.createObjectURL;
+    URL.createObjectURL = vi.fn(() => 'blob:nova-1');
+    try {
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(
+        <QueryClientProvider client={qc}>
+          <FormularioTarefaMapa onSubmit={() => {}} onCancel={() => {}} />
+        </QueryClientProvider>
+      );
+      const camera = screen.getByLabelText('Tirar foto com a câmera');
+      const galeria = screen.getByLabelText('Escolher fotos da galeria');
+      expect(camera.getAttribute('capture')).toBe('environment');
+      expect(camera.getAttribute('accept')).toBe('image/*');
+      expect(galeria.hasAttribute('capture')).toBe(false);
+      expect(galeria.hasAttribute('multiple')).toBe(true);
+      expect(screen.getByText('Tirar foto')).toBeTruthy();
+      expect(screen.getByText('Galeria')).toBeTruthy();
+      await act(async () => {
+        fireEvent.change(camera, { target: { files: [new File([new Uint8Array([1])], 'cam.jpg', { type: 'image/jpeg' })] } });
+      });
+      const [nova] = [...document.querySelectorAll('[data-mk-miniatura="nova"]')];
+      expect(nova?.textContent).toContain('NOVA');
+    } finally {
+      URL.createObjectURL = criar;
+    }
   });
 });

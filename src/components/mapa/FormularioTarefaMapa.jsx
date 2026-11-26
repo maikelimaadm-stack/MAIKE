@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Crosshair, MapPin, ImagePlus, X, WifiOff } from "lucide-react";
+import { Camera, Crosshair, MapPin, ImagePlus, X, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import TaskLocationPickerDialog from "./TaskLocationPickerDialog";
 import useSetorAreas from "@/hooks/useSetorAreas";
@@ -435,11 +435,17 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
                 {m.tipo === "guardada" ? <div className="pointer-events-none absolute bottom-0 left-0 right-0 bg-amber-500/90 text-white text-[7px] text-center leading-tight py-0.5">{ROTULO_FOTO_GUARDADA.toUpperCase()}</div> : null}
               </div>
             ))}
-            {/* Botão adicionar */}
-            <label className="w-16 h-16 rounded-md border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-colors">
+            {/* D-PROD-324: duas opções — tirar a foto na hora (câmera: `capture` abre a câmera do celular direto) ou
+                escolher uma já tirada (galeria). */}
+            <label className="w-16 h-16 rounded-md border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-colors" data-mk-foto-camera="">
+              <Camera className="w-5 h-5 text-slate-400" />
+              <span className="text-[9px] text-slate-400 mt-0.5">Tirar foto</span>
+              <input type="file" accept="image/*" capture="environment" className="hidden" aria-label="Tirar foto com a câmera" onChange={handleImageSelect} />
+            </label>
+            <label className="w-16 h-16 rounded-md border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-colors" data-mk-foto-galeria="">
               <ImagePlus className="w-5 h-5 text-slate-400" />
-              <span className="text-[9px] text-slate-400 mt-0.5">Adicionar</span>
-              <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelect} />
+              <span className="text-[9px] text-slate-400 mt-0.5">Galeria</span>
+              <input type="file" accept="image/*" multiple className="hidden" aria-label="Escolher fotos da galeria" onChange={handleImageSelect} />
             </label>
           </div>
           <VisualizadorDeFotos
