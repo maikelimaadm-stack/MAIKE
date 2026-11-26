@@ -9,6 +9,11 @@
  * FS-03 a gravação da tarefa falha: a foto já enviada não sobe de novo na próxima vez
  * FS-04 tarefa que já tinha fotos: as novas entram junto das antigas
  * FS-05 sem internet: nada é tentado; a contagem de fotos aguardando é a da tarefa
+ * D-PROD-335:
+ * FS-06 a foto é SOMADA no servidor: fora da cópia do aparelho, ou com foto posta no escritório, nada se apaga
+ * FS-07 foto excluída enquanto a anterior subia não vai para a tarefa nem volta
+ * FS-08 tarefa com edição na fila: a foto espera a edição subir
+ * FS-09 a edição aberta antes da foto subir não a apaga (a que a pessoa tirou, sai)
  */
 
 import 'fake-indexeddb/auto';
@@ -24,7 +29,7 @@ const respostaJson = (status, corpo) => ({
 
 let online = true;
 
-/** Servidor falso das tarefas: grava pelo id que chega; PATCH junta; upload devolve um endereço. */
+/** Servidor falso das tarefas: grava pelo id que chega; PATCH junta (e SOMA `fotos_adicionar`, D-PROD-335); upload devolve um endereço. */
 const servidor = () => {
   const s = {
     chamadas: /** @type {Array<{metodo: string, caminho: string, corpo: any}>} */ ([]),
@@ -54,8 +59,10 @@ const servidor = () => {
       const id = caminho.split('/').pop();
       const atual = s.tarefas.get(id);
       if (!atual) return respostaJson(404, { code: 'NOT_FOUND', message: 'não achou' });
-      const { historico_evento: _e, historico_descricao: _d, historico_data_evento: _t, ...resto } = corpo;
-      s.tarefas.set(id, { ...atual, ...resto });
+      const { historico_evento: _e, historico_descricao: _d, historico_data_evento: _t, fotos_adicionar: somar, ...resto } = corpo;
+      const proxima = { ...atual, ...resto };
+      if (Array.isArray(somar)) proxima.fotos = [...new Set([...(proxima.fotos ?? []), ...somar])];
+      s.tarefas.set(id, proxima);
       return respostaJson(200, s.tarefas.get(id));
     }
     if (metodo === 'GET' && caminho === '/lancamentos-tarefa') return respostaJson(200, [...s.tarefas.values()]);
@@ -118,7 +125,9 @@ describe('D-PROD-324 — fotos de tarefa sem internet', () => {
     expect(await fotos.enviarFotosDeTarefasGuardadas()).toEqual({ enviadas: 1, esperando: 0, falharam: 0 });
     expect(srv.uploads).toBe(1);
     const [patch] = envios(srv, 'PATCH', '/lancamentos-tarefa/');
-    expect(patch.corpo).toMatchObject({ fotos: ['https://arquivos.exemplo.invalido/foto-1.jpg'], historico_evento: 'Edição' });
+    // D-PROD-335: a foto é SOMADA no servidor; o aparelho não manda a lista inteira (que podia estar velha).
+    expect(patch.corpo).toMatchObject({ fotos_adicionar: ['https://arquivos.exemplo.invalido/foto-1.jpg'], historico_evento: 'Edição' });
+    expect(patch.corpo).not.toHaveProperty('fotos');
     expect(srv.tarefas.get(criada.id).fotos).toEqual(['https://arquivos.exemplo.invalido/foto-1.jpg']);
     expect(await fotos.fotosAguardandoDaTarefa(criada.id)).toBe(0);
     expect(await idb.getAllPendingTarefaImages()).toEqual([]);
@@ -175,5 +184,74 @@ describe('D-PROD-324 — fotos de tarefa sem internet', () => {
     expect(srv.fetch).not.toHaveBeenCalled();
     expect(await fotos.fotosAguardandoDaTarefa('t-1')).toBe(2);
     expect(await fotos.fotosAguardandoDaTarefa('t-2')).toBe(0);
+  });
+
+  // D-PROD-335 — as fotos que já estavam na tarefa nunca são apagadas pela foto que sobe depois.
+  it('FS-06 a tarefa fora da cópia do aparelho (ou com foto posta no escritório): nada do servidor é apagado', async () => {
+    const srv = servidor();
+    srv.tarefas.set('t-escritorio', { id: 't-escritorio', empresa_id: 'emp-1', titulo: 'Bebedouro', fotos: ['https://arquivos.exemplo.invalido/do-escritorio.jpg'] });
+    vi.stubGlobal('fetch', srv.fetch);
+    const { fotos } = await carregar();
+    await fotos.guardarFotosDaTarefa('t-escritorio', [foto()]);
+    // A lista de tarefas que o aparelho lê não traz esta (cópia de outra fazenda / sinal fraco): não importa.
+    srv.fetch.mockClear();
+    expect(await fotos.enviarFotosDeTarefasGuardadas()).toEqual({ enviadas: 1, esperando: 0, falharam: 0 });
+    expect(envios(srv, 'GET', '/lancamentos-tarefa')).toHaveLength(0);
+    expect(srv.tarefas.get('t-escritorio').fotos).toEqual(['https://arquivos.exemplo.invalido/do-escritorio.jpg', 'https://arquivos.exemplo.invalido/foto-1.jpg']);
+  });
+
+  it('FS-07 foto excluída enquanto a anterior subia: não vai para a tarefa nem volta ao aparelho', async () => {
+    const srv = servidor();
+    srv.tarefas.set('t-1', { id: 't-1', empresa_id: 'emp-1', titulo: 'Cerca', fotos: [] });
+    const { fotos, idb } = await carregar();
+    await fotos.guardarFotosDaTarefa('t-1', [foto('a.jpg'), foto('b.jpg')]);
+    const [, segunda] = await idb.getTarefaImagesOffline('tarefa:t-1');
+    const fetchOriginal = srv.fetch.getMockImplementation();
+    srv.fetch.mockImplementation(async (url, init) => {
+      const r = await fetchOriginal(url, init);
+      // A pessoa toca no ✕ da segunda foto enquanto a primeira está subindo.
+      if (String(url).endsWith('/arquivos/upload') && srv.uploads === 1) await fotos.excluirFotoGuardada(segunda._imgId);
+      return r;
+    });
+    vi.stubGlobal('fetch', srv.fetch);
+    expect(await fotos.enviarFotosDeTarefasGuardadas()).toEqual({ enviadas: 1, esperando: 0, falharam: 0 });
+    expect(srv.uploads).toBe(1);
+    expect(srv.tarefas.get('t-1').fotos).toEqual(['https://arquivos.exemplo.invalido/foto-1.jpg']);
+    expect(await idb.getAllPendingTarefaImages()).toEqual([]);
+  });
+
+  it('FS-08 tarefa com edição na fila: a foto espera a edição subir (não passa à frente)', async () => {
+    const srv = servidor();
+    srv.tarefas.set('t-1', { id: 't-1', empresa_id: 'emp-1', titulo: 'Cerca', fotos: [] });
+    vi.stubGlobal('fetch', srv.fetch);
+    const { rt, fotos } = await carregar();
+    const { updateLancamento } = await import('@/apis/tarefas');
+    online = false;
+    await updateLancamento('t-1', { titulo: 'Cerca nova' });
+    await fotos.guardarFotosDaTarefa('t-1', [foto()]);
+    online = true;
+    expect(await fotos.enviarFotosDeTarefasGuardadas()).toEqual({ enviadas: 0, esperando: 1, falharam: 0 });
+    expect(srv.uploads).toBe(0);
+    await rt.syncOfflineEntityQueue();
+    expect(await fotos.enviarFotosDeTarefasGuardadas()).toEqual({ enviadas: 1, esperando: 0, falharam: 0 });
+    expect(srv.tarefas.get('t-1')).toMatchObject({ titulo: 'Cerca nova', fotos: ['https://arquivos.exemplo.invalido/foto-1.jpg'] });
+  });
+
+  it('FS-09 a edição aberta antes da foto subir não apaga a foto (a que a pessoa tirou, sai)', async () => {
+    const srv = servidor();
+    srv.tarefas.set('t-1', { id: 't-1', empresa_id: 'emp-1', titulo: 'Cerca', fotos: ['https://arquivos.exemplo.invalido/antiga.jpg'] });
+    vi.stubGlobal('fetch', srv.fetch);
+    const { fotos } = await carregar();
+    const { atualizarTarefa } = await import('@/services/tarefasMapaService');
+    const telaAbriuCom = ['https://arquivos.exemplo.invalido/antiga.jpg'];
+    await fotos.guardarFotosDaTarefa('t-1', [foto()]);
+    expect(await fotos.enviarFotosDeTarefasGuardadas()).toMatchObject({ enviadas: 1 });
+    // O formulário, aberto antes, salva a lista que tinha:
+    await atualizarTarefa('t-1', { titulo: 'Cerca nova', fotos: telaAbriuCom }, { fotosDaTela: telaAbriuCom });
+    expect(srv.tarefas.get('t-1').fotos).toEqual(['https://arquivos.exemplo.invalido/antiga.jpg', 'https://arquivos.exemplo.invalido/foto-1.jpg']);
+    // Aberto depois (já com a foto), a pessoa a tira: sai.
+    const comAFoto = srv.tarefas.get('t-1').fotos;
+    await atualizarTarefa('t-1', { fotos: ['https://arquivos.exemplo.invalido/antiga.jpg'] }, { fotosDaTela: comAFoto });
+    expect(srv.tarefas.get('t-1').fotos).toEqual(['https://arquivos.exemplo.invalido/antiga.jpg']);
   });
 });

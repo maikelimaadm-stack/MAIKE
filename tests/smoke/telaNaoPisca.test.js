@@ -5,7 +5,8 @@
  * servidor acontece sem o registro sumir e voltar, sem aparecer duas vezes e sem o saldo pular.
  *
  * TN-01 lançamento confirmado: aparece com o id real até a lista do servidor trazê-lo; depois, uma vez só
- * TN-02 tentou sem resposta (a baixa já foi): sem internet aparece "aguardando"; com internet não aparece em dobro;
+ * TN-02 tentou sem resposta (a baixa já foi): aparece "aguardando" com e sem internet até a lista do servidor trazê-lo
+ *       (pelo código da operação, D-PROD-335) — nunca em dobro;
  *       a baixa aparece no histórico do depósito com o id real, nos dois casos
  * TN-03 histórico do depósito: casa pelo id (nem buraco, nem em dobro) depois da confirmação
  * TN-04 saldo: o que tentou só desconta se a cópia dos lotes é de ANTES da 1ª tentativa; hora desconhecida, como antes
@@ -157,8 +158,16 @@ describe('D-PROD-318 — lista do cocho', () => {
     srv.falharLancamento = 'rede';
     expect((await motor.sincronizar()).aguardando).toBe(1); // a baixa foi; o lançamento ficou
 
+    // D-PROD-335: com internet ele continua na lista (antes sumia, e a pessoa lançava de novo) até a lista do servidor
+    // mostrar que o tem — pelo código da operação gravado no lançamento; aí aparece uma vez só, o do servidor.
     const comInternet = await cocho.comLancamentosAguardandoEnvio([{ ...srv.eventos[0] }], EMP, 'c1');
-    expect(comInternet.map((e) => e.id)).toEqual(['ev-1']);
+    expect(comInternet.map((e) => e.id)).toEqual(['aguardando:op-tn02-0001', 'ev-1']);
+    const jaNoServidor = await cocho.comLancamentosAguardandoEnvio(
+      [{ id: 'ev-2', empresa_id: EMP, ponto_suplementacao_id: 'c1', data_lancamento: '2026-11-11', operation_id: 'op-tn02-0001' }, { ...srv.eventos[0] }],
+      EMP,
+      'c1'
+    );
+    expect(jaNoServidor.map((e) => e.id)).toEqual(['ev-2', 'ev-1']);
     online = false;
     const semInternet = await cocho.comLancamentosAguardandoEnvio([{ ...srv.eventos[0] }], EMP, 'c1');
     expect(semInternet.map((e) => e.id)).toEqual(['aguardando:op-tn02-0001', 'ev-1']);

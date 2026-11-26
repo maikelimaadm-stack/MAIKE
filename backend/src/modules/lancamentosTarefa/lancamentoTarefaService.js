@@ -440,13 +440,24 @@ const criarNaTransacao = async (contexto, auth, entrada, idDoAparelho) => {
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
-  const { corpo, historico } = separarHistoricoMapa(entrada);
+  const { corpo: corpoComFotosNovas, historico } = separarHistoricoMapa(entrada);
+  const { fotos_adicionar: fotosAdicionar, ...corpo } = corpoComFotosNovas;
+  const somarFotos = Array.isArray(fotosAdicionar) && fotosAdicionar.length > 0;
 
   return prisma.$transaction(async (tx) => {
+    // D-PROD-335: quem soma fotos trava a tarefa antes de ler as atuais (dois envios ao mesmo tempo não se apagam).
+    if (somarFotos) await tx.$queryRaw`SELECT id FROM "LancamentoTarefa" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
     const anterior = await buscarLancamento(auth.clienteId, id, tx);
     if (!anterior) throw attachmentOwnerInvalid();
 
     const campos = camposDeLancamento(corpo);
+    if (somarFotos) {
+      // D-PROD-335: a foto tirada sem internet sobe e é SOMADA às fotos que a tarefa tem agora no servidor. Antes o
+      // aparelho mandava a lista inteira lida da cópia dele: cópia antiga (ou de outra fazenda) apagava as fotos que
+      // a tarefa já tinha. Com `fotos` junto, a soma é sobre ela.
+      const base = Array.isArray(campos.fotos) ? campos.fotos : Array.isArray(anterior.fotos) ? anterior.fotos : [];
+      campos.fotos = [...new Set([...base.map(String), ...fotosAdicionar.map(String)])];
+    }
     const dados =
       Object.keys(campos).length > 0
         ? await aplicarCachesDeFk(tx, auth.clienteId, campos)

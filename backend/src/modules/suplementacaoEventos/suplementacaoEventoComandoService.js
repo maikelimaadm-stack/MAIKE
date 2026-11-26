@@ -87,7 +87,10 @@ export const comandoLancamentoComLotes = async (contexto, entrada) => {
           }
         }
 
-        const dadosEvento = montarDocumento(auth.clienteId, evento);
+        // D-PROD-335: o código da operação fica no lançamento. O app que tentou enviar sem receber a resposta
+        // (sinal fraco) confere por ele se o lançamento já está na lista do servidor — sem isso o lançamento sumia da
+        // tela e a pessoa lançava de novo. Fica fora do fingerprint (o replay não muda).
+        const dadosEvento = montarDocumento(auth.clienteId, { ...evento, operation_id: operationKey });
         const registroEvento = await inserirEvento(tx, dadosEvento);
         const eventoPublico = documentoComoPublico(registroEvento);
 

@@ -101,7 +101,9 @@ export const operacoesNativas = Object.freeze({
   update: (id, dados) =>
     nativeRequest(
       `${CAMINHO}/${encodeURIComponent(id)}`,
-      { method: 'PATCH', body: corpoDeEnvio(dados, CAMPOS_DE_ATUALIZACAO), autenticado: true },
+      // D-PROD-335: a versão que a pessoa viu (D-PROD-316) vai junto; sem ela o servidor não confere e a edição
+      // feita sem internet apagava, sem aviso, o que outra pessoa mudou no lote.
+      { method: 'PATCH', body: corpoDeEnvio(dados, [...CAMPOS_DE_ATUALIZACAO, 'versao_esperada']), autenticado: true },
       ctx('updateLote')
     ),
 
