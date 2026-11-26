@@ -4,12 +4,13 @@ import { EVENTO_PROGRESSO_DA_SINCRONIA, lerProgressoDaSincronia } from '@/servic
 import { abrirDadosOffline } from '@/components/offline/DadosOffline';
 import '@/styles/mk-sincronia.css';
 
-const RAIO = 20;
+const RAIO = 34;
 const VOLTA = 2 * Math.PI * RAIO;
 
 /**
- * D-PROD-329 — o círculo pequeno no canto com a porcentagem da sincronização (envia e baixa). A pessoa continua
- * usando o app; tocar abre a janela "Sincronização". No fim mostra ✓ (ou ! se parte não veio) e some.
+ * D-PROD-329 / D-PROD-331 — a sincronização (envia e baixa) num cartão NO MEIO DA TELA: o círculo grande com a
+ * porcentagem e o que está fazendo. Sem fundo escuro: a pessoa continua usando o app em volta. Tocar no cartão abre
+ * a janela "Sincronização"; no fim mostra ✓ (ou ! se parte não veio) e some sozinho.
  */
 export default function CirculoDeSincronizacao() {
   const [p, setP] = useState(lerProgressoDaSincronia);
@@ -32,29 +33,32 @@ export default function CirculoDeSincronizacao() {
       type="button"
       className="mk-circulo-sincronia"
       onClick={abrirDadosOffline}
-      title={rotulo}
       aria-label={`Sincronização: ${rotulo}. Toque para ver.`}
       data-fase={p.fase ?? ''}
     >
-      <svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true">
-        <circle cx="26" cy="26" r={RAIO} fill="none" stroke="#e2e8f0" strokeWidth="5" />
-        <circle
-          cx="26"
-          cy="26"
-          r={RAIO}
-          fill="none"
-          stroke={cor}
-          strokeWidth="5"
-          strokeLinecap="round"
-          strokeDasharray={VOLTA}
-          strokeDashoffset={VOLTA * (1 - p.percentual / 100)}
-          transform="rotate(-90 26 26)"
-          style={{ transition: 'stroke-dashoffset 300ms ease' }}
-        />
-      </svg>
-      <span className="mk-circulo-sincronia__texto" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={p.percentual}>
-        {pronto ? <Check size={18} color={cor} aria-hidden="true" /> : incompleto ? <AlertTriangle size={16} color={cor} aria-hidden="true" /> : `${p.percentual}%`}
+      <span className="mk-circulo-sincronia__anel">
+        <svg width="84" height="84" viewBox="0 0 84 84" aria-hidden="true">
+          <circle cx="42" cy="42" r={RAIO} fill="none" stroke="#e2e8f0" strokeWidth="7" />
+          <circle
+            cx="42"
+            cy="42"
+            r={RAIO}
+            fill="none"
+            stroke={cor}
+            strokeWidth="7"
+            strokeLinecap="round"
+            strokeDasharray={VOLTA}
+            strokeDashoffset={VOLTA * (1 - p.percentual / 100)}
+            transform="rotate(-90 42 42)"
+            style={{ transition: 'stroke-dashoffset 300ms ease' }}
+          />
+        </svg>
+        <span className="mk-circulo-sincronia__texto" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={p.percentual}>
+          {pronto ? <Check size={30} color={cor} aria-hidden="true" /> : incompleto ? <AlertTriangle size={26} color={cor} aria-hidden="true" /> : `${p.percentual}%`}
+        </span>
       </span>
+      <span className="mk-circulo-sincronia__titulo">{pronto || incompleto ? p.titulo : 'Sincronizando'}</span>
+      {!pronto && !incompleto ? <span className="mk-circulo-sincronia__etapa">{p.titulo}</span> : null}
     </button>
   );
 }
