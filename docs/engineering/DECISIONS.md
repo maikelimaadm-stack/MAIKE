@@ -9919,4 +9919,28 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - 5e: versão do registro nas outras entidades;
   - 5f: limpeza dos recibos. Hoje há 163 recibos, e o cancelamento e a conciliação leem recibos antigos.
 
-<!-- Próxima decisão: D-PROD-320 -->
+## D-PROD-320 — Tarefas, parte 1: lançamento simples (setor, tipo opcional, menos campos)
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("quero um jeito mais simples de lançamento de tarefas"; "deixamos só o tipo… se a pessoa não encontrar o tipo ela pode deixar sem e depois eu mudo"; "mudaria o nome de fazenda para setor"), com o desenho aprovado em imagens · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFAS-LANCAMENTO-SIMPLES-D320-REPORT.md`](./TAREFAS-LANCAMENTO-SIMPLES-D320-REPORT.md)
+
+> **Numeração:** a `main` (`93f8ea297`) indica `Próxima decisão: D-PROD-320`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-321. Conferir de novo antes do merge (regra A5).
+
+- **Problema:** o formulário tinha 16 campos e exigia grupo, tipo e data do pedido. O grupo e o tipo precisavam estar cadastrados antes, e uma pessoa com pouca familiaridade com o celular travava.
+- **Decisão — formulário:**
+  - Ficam: Título (o único obrigatório), **Setor** (o antigo rótulo "Fazenda", que já escolhia o setor), Local/pasto, **Tipo de tarefa (opcional)**, Responsável, Prioridade, Prazo previsto, **Descrição/observações**, ponto no mapa e fotos.
+  - O tipo lista todos os tipos ativos, e o grupo vem do próprio tipo.
+  - Saem: Grupo de atividade, Solicitante, Status, Data do pedido, Data de conclusão e Observações internas.
+  - O andamento (Em andamento, Concluída, Cancelada, Registro) continua nos eventos dos detalhes, que mostram todos os campos. Na edição, o que estava gravado fica.
+- **Decisão — servidor (sem mudar o banco):**
+  - `POST /lancamentos-tarefa` exige só `empresa_id` e `titulo`.
+  - Sem `tipo_tarefa_id`, a tarefa recebe o tipo **"SEM TIPO"** do cliente, no grupo padrão **"GERAL"** (o mesmo das operações, D-PROD-258).
+    - Os dois são criados na primeira vez, auditados, numa transação curta própria.
+    - Duas tarefas ao mesmo tempo usam o mesmo tipo: a unique do banco decide e a que perde relê.
+    - O administrador troca pelo tipo certo depois, na edição.
+  - Sem `tipo` base, vale "Outro". Sem `data_pedido`, vale o dia de hoje em São Paulo. Sem `solicitante`, vale quem está lançando.
+  - O que vier no corpo vale, como antes.
+- **Fora (próximas partes):**
+  - parte 2: a aba Tarefas no mapa, com resumo em cartões e "Nova tarefa" com o local de onde se está, no lugar da tabela;
+  - parte 3: tarefas sem internet.
+
+<!-- Próxima decisão: D-PROD-321 -->

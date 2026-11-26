@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { listarTodosGrupos, listarTodosTipos, listarUsuarios, listarPermissoes } from "@/services/tarefasMapaService";
+import { listarTodosTipos, listarUsuarios, listarPermissoes } from "@/services/tarefasMapaService";
 import { getCurrentUser } from "@/services/sessionService";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,10 @@ export const normalizeTaskPriority = (value) => {
   return "Baixa";
 };
 
-const REQUIRED_FIELDS = ["titulo", "grupo_atividade_id", "tipo_tarefa_id", "data_pedido"];
+// D-PROD-320: lançamento simples — só o título é obrigatório. Sem tipo, o servidor usa "SEM TIPO" (o
+// administrador troca depois); o grupo vem do tipo; status, datas e quem pediu ficam com o servidor e com os
+// eventos dos detalhes da tarefa.
+const REQUIRED_FIELDS = ["titulo"];
 
 /**
  * Contas oferecidas em Responsável/Solicitante, em ordem de nome de exibição.
@@ -85,15 +88,6 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   const [setorSelecionadoId, setSetorSelecionadoId] = useState("");
 
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
-
-  const { data: gruposAtividade = [] } = useQuery({
-    queryKey: ["grupos-atividade-mapa-form"],
-    queryFn: async () => {
-      const all = await listarTodosGrupos();
-      return all.filter((grupo) => grupo.ativo !== false);
-    },
-    initialData: []
-  });
 
   const { data: tiposTarefa = [] } = useQuery({
     queryKey: ["tipos-tarefa-mapa-form"],
@@ -232,9 +226,11 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   }, [formData.area_id, formData.area_nome, formData.setor_nome, areas, setores, setorSelecionadoId]);
 
   const areasDoSetor = setorSelecionadoId ? getAreasBySetor(setorSelecionadoId) : [];
-  const tiposTarefaFiltrados = formData.grupo_atividade_id ?
-  tiposTarefa.filter((tipo) => tipo.grupo_atividade_id === formData.grupo_atividade_id) :
-  [];
+  // D-PROD-320: todos os tipos de uma vez (o grupo saiu da tela; ele vem do próprio tipo).
+  const tiposTarefaOrdenados = useMemo(
+    () => [...tiposTarefa].sort((a, b) => String(a.nome_tipo || "").localeCompare(String(b.nome_tipo || ""), "pt-BR", { sensitivity: "base" })),
+    [tiposTarefa]
+  );
 
   useEffect(() => {
     if (!formData.tipo_tarefa_id && formData.tipo_tarefa_nome && tiposTarefa.length) {
@@ -268,10 +264,6 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
       }
     });
 
-    if (formData.status === "Concluída" && !String(formData.data_conclusao || "").trim()) {
-      nextErrors.data_conclusao = true;
-    }
-
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length === 0) return true;
@@ -291,33 +283,16 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     setFormData((prev) => ({ ...prev, area_id: selectedAreaId, area_nome: selectedArea?.nome || "", setor_nome: selectedArea?.setor_nome || prev.setor_nome, coordenadas: center || null }));
   };
 
-  const handleGrupoAtividadeChange = (selectedGrupoId) => {
-    const grupoSelecionado = gruposAtividade.find((grupo) => grupo.id === selectedGrupoId);
-    setErrors((prev) => ({ ...prev, grupo_atividade_id: false, tipo_tarefa_id: false }));
-    setFormData((prev) => ({
-      ...prev,
-      grupo_atividade_id: selectedGrupoId,
-      grupo_atividade_nome: grupoSelecionado?.nome_grupo || "",
-      tipo_tarefa_id: "",
-      tipo_tarefa_nome: "",
-      tipo: inferirTipoBase("", grupoSelecionado?.nome_grupo || "")
-    }));
-  };
-
   const handleTipoTarefaChange = (selectedTipoId) => {
-    const selectedTipo = tiposTarefaFiltrados.find((tipo) => tipo.id === selectedTipoId);
-    setErrors((prev) => ({ ...prev, tipo_tarefa_id: false }));
+    const selectedTipo = tiposTarefa.find((tipo) => tipo.id === selectedTipoId);
     setFormData((prev) => ({
       ...prev,
       tipo_tarefa_id: selectedTipoId,
       tipo_tarefa_nome: selectedTipo?.nome_tipo || "",
-      tipo: inferirTipoBase(selectedTipo?.nome_tipo, prev.grupo_atividade_nome || selectedTipo?.grupo_atividade_nome)
+      grupo_atividade_id: selectedTipo?.grupo_atividade_id || "",
+      grupo_atividade_nome: selectedTipo?.grupo_atividade_nome || "",
+      tipo: inferirTipoBase(selectedTipo?.nome_tipo, selectedTipo?.grupo_atividade_nome)
     }));
-  };
-
-  const handleSolicitanteChange = (selectedSolicitante) => {
-    setErrors((prev) => ({ ...prev, solicitante: false }));
-    setFormData((prev) => ({ ...prev, solicitante: selectedSolicitante, responsavel_geral: selectedSolicitante }));
   };
 
   const handleResponsavelChange = (selectedResponsavelId) => {
@@ -334,8 +309,11 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
     setIsSubmitting(true);
     try {
+      // Sem tipo escolhido: não manda o campo (o servidor usa "SEM TIPO"); na edição, o tipo gravado fica.
+      const { tipo_tarefa_id: tipoEscolhido, ...semTipo } = formData;
       onSubmit({
-        ...formData,
+        ...semTipo,
+        ...(tipoEscolhido ? { tipo_tarefa_id: tipoEscolhido } : {}),
         titulo: formData.titulo.trim(),
         prioridade: normalizeTaskPriority(formData.prioridade),
         solicitante: formData.solicitante || "",
@@ -356,7 +334,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
             </FL>
 
       <div className="mk-ll__grade mk-ll__grade--4">
-        <FL label="Fazenda">
+        <FL label="Setor">
           <B1Select value={setorSelecionadoId || ""} onChange={(e) => { const value = e.target.value; const setor = setores.find((item) => item.id === value); setSetorSelecionadoId(value); setFormData((prev) => ({ ...prev, setor_nome: setor?.nome || "", area_id: areaId || loteId ? prev.area_id : "", area_nome: areaId || loteId ? prev.area_nome : "" })); }} disabled={Boolean(areaId || loteId)} className={LL_CTL}>
               {setores.map((setor) => <option key={setor.id} value={setor.id}>{(setor.nome || "").toUpperCase()}</option>)}
           </B1Select>
@@ -372,23 +350,13 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </FL>
         }
 
-        <FL label="Grupo de atividade" required error={errors.grupo_atividade_id} dataField="grupo_atividade_id">
-          <B1Select value={formData.grupo_atividade_id ?? ""} onChange={(e) => handleGrupoAtividadeChange(e.target.value)} className={LL_CTL}>{gruposAtividade.map((grupo) => <option key={grupo.id} value={grupo.id}>{(grupo.nome_grupo || "").toUpperCase()}</option>)}
-          </B1Select>
-        </FL>
-
-        <FL label="Tipo de tarefa" required error={errors.tipo_tarefa_id} dataField="tipo_tarefa_id">
-          <B1Select value={formData.tipo_tarefa_id ?? ""} onChange={(e) => handleTipoTarefaChange(e.target.value)} disabled={!formData.grupo_atividade_id} className={LL_CTL}>{tiposTarefaFiltrados.map((tipo) => <option key={tipo.id} value={tipo.id}>{(tipo.nome_tipo || "").toUpperCase()}</option>)}
+        <FL label="Tipo de tarefa (opcional)" dataField="tipo_tarefa_id">
+          <B1Select value={formData.tipo_tarefa_id ?? ""} onChange={(e) => handleTipoTarefaChange(e.target.value)} className={LL_CTL}>{tiposTarefaOrdenados.map((tipo) => <option key={tipo.id} value={tipo.id}>{(tipo.nome_tipo || "").toUpperCase()}</option>)}
           </B1Select>
         </FL>
 
         <FL label="Responsável" dataField="responsavel_id">
           <B1Select value={formData.responsavel_id ?? ""} onChange={(e) => handleResponsavelChange(e.target.value)} className={LL_CTL}>{usuariosOrdenados.map((item) => { const permissao = permissoesUsuarios.find((registro) => (registro.user_email || registro.data?.user_email) === item.email); return <option key={item.id} value={item.id}>{getPermissionDisplayName(permissao?.data || permissao, item).toUpperCase()}</option>; })}
-          </B1Select>
-        </FL>
-
-        <FL label="Solicitante" dataField="solicitante">
-          <B1Select value={formData.solicitante ?? ""} onChange={(e) => handleSolicitanteChange(e.target.value)} className={LL_CTL}>{usuariosOrdenados.map((item) => { const permissao = permissoesUsuarios.find((registro) => (registro.user_email || registro.data?.user_email) === item.email); const nome = getPermissionDisplayName(permissao?.data || permissao, item); return <option key={item.id} value={nome}>{nome.toUpperCase()}</option>; })}
           </B1Select>
         </FL>
 
@@ -400,34 +368,14 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </B1Select>
         </FL>
 
-        <FL label="Status">
-          <B1Select value={formData.status ?? ""} onChange={(e) => { const value = e.target.value; setErrors((prev) => ({ ...prev, data_conclusao: false })); setFormData((prev) => ({ ...prev, status: value })); }} className={LL_CTL}>
-              <option value="Pendente">PENDENTE</option>
-              <option value="Em Andamento">EM ANDAMENTO</option>
-              <option value="Concluída">CONCLUÍDA</option>
-              <option value="Cancelada">CANCELADA</option>
-          </B1Select>
+        <FL label="Prazo previsto">
+          <Input type="date" value={formData.data_prevista} onChange={(e) => setFormData((prev) => ({ ...prev, data_prevista: e.target.value }))} className={LL_CTL} />
         </FL>
         </div>
 
-        <div className="mk-ll__grade mk-ll__grade--3">
-          <FL label="Data do pedido" required error={errors.data_pedido} dataField="data_pedido">
-            <Input type="date" value={formData.data_pedido} onChange={(e) => { setErrors((prev) => ({ ...prev, data_pedido: false })); setFormData((prev) => ({ ...prev, data_pedido: e.target.value })); }} className={LL_CTL} />
-          </FL>
-          <FL label="Prazo previsto">
-            <Input type="date" value={formData.data_prevista} onChange={(e) => setFormData((prev) => ({ ...prev, data_prevista: e.target.value }))} className={LL_CTL} />
-          </FL>
-          <FL label={`Data de conclusão${formData.status === "Concluída" ? "" : ""}`} required={formData.status === "Concluída"} error={errors.data_conclusao} dataField="data_conclusao">
-            <Input type="date" value={formData.data_conclusao} onChange={(e) => { setErrors((prev) => ({ ...prev, data_conclusao: false })); setFormData((prev) => ({ ...prev, data_conclusao: e.target.value })); }} className={LL_CTL} />
-          </FL>
-        </div>
-
         <div className="mk-ll__grade">
-          <FL label="Descrição da tarefa">
-            <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="DESCREVA O QUE PRECISA SER FEITO" className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} rows={2} />
-          </FL>
-          <FL label="Observações internas">
-            <Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} placeholder="OBSERVAÇÕES GERAIS..." className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} rows={2} />
+          <FL label="Descrição / observações">
+            <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="O QUE PRECISA SER FEITO, DETALHES…" className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} rows={3} />
           </FL>
         </div>
 

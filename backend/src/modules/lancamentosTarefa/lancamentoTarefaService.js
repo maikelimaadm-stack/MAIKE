@@ -24,6 +24,8 @@ import {
   buscarLancamentoPorIdEmQualquerTenant,
 } from './lancamentoTarefaRepository.js';
 import { criarComIdDoAparelho, foiExcluidoNoHistorico, idDoAparelhoDe } from '../../shared/idempotency/idDoAparelho.js';
+import { NOME_GRUPO_PADRAO_OPERACAO } from '../tiposAtividade/tipoAtividadePadroes.js';
+import { agoraDoServidor, diaNoFuso } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import {
   listarHistoricos,
   buscarHistorico,
@@ -249,6 +251,78 @@ const aplicarCachesDeFk = async (tx, clienteId, campos) => {
   return enriquecido;
 };
 
+/** D-PROD-320: o tipo de quem lança a tarefa sem escolher um ("deixa sem e depois eu mudo"). */
+export const NOME_TIPO_SEM_TIPO = 'SEM TIPO';
+/** Tipo base (enum do contrato) da tarefa sem tipo. */
+const TIPO_BASE_SEM_TIPO = 'Outro';
+/** Fuso do dia do pedido quando a tela não manda a data (a tarefa não lê a fazenda). */
+const FUSO_DO_PEDIDO = 'America/Sao_Paulo';
+
+/** @param {unknown} erro */
+const ehUnique = (erro) => /** @type {any} */ (erro)?.code === 'P2002';
+
+/**
+ * D-PROD-320 — o tipo "SEM TIPO" do cliente, no grupo padrão "GERAL" (o mesmo das operações, D-PROD-258).
+ * O banco exige um tipo em toda tarefa; em vez de mudar o banco, a tarefa lançada sem tipo usa este, criado na
+ * primeira vez (auditado), numa transação curta própria. Duas tarefas ao mesmo tempo: a unique do banco decide e
+ * a que perde relê (o mesmo grupo e o mesmo tipo). O administrador troca pelo tipo certo depois, na edição.
+ * @param {any} contexto @param {string} clienteId @returns {Promise<string>} o id do tipo
+ */
+const garantirTipoSemTipo = async (contexto, clienteId) => {
+  const prisma = getPrismaClient();
+  const ler = async () => {
+    const grupo = await prisma.grupoAtividade.findFirst({ where: { cliente_id: clienteId, nome_grupo: NOME_GRUPO_PADRAO_OPERACAO } });
+    const tipo = grupo
+      ? await prisma.tipoTarefa.findFirst({ where: { cliente_id: clienteId, grupo_atividade_id: grupo.id, nome_tipo: NOME_TIPO_SEM_TIPO } })
+      : null;
+    return { grupo, tipo };
+  };
+  for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+    const { grupo, tipo } = await ler();
+    if (tipo) return tipo.id;
+    try {
+      return await prisma.$transaction(async (tx) => {
+        let g = grupo;
+        if (!g) {
+          g = await tx.grupoAtividade.create({ data: { cliente_id: clienteId, nome_grupo: NOME_GRUPO_PADRAO_OPERACAO, ativo: true } });
+          await registrarEvento(contexto, { acao: 'create', entidade: 'GrupoAtividade', entidadeId: g.id, dadosNovos: { id: g.id, nome_grupo: g.nome_grupo, ativo: true, origem: 'tarefa_sem_tipo' } }, tx);
+        }
+        const t = await tx.tipoTarefa.create({
+          data: { cliente_id: clienteId, grupo_atividade_id: g.id, grupo_atividade_nome: g.nome_grupo, nome_tipo: NOME_TIPO_SEM_TIPO, ativo: true },
+        });
+        await registrarEvento(contexto, { acao: 'create', entidade: 'TipoTarefa', entidadeId: t.id, dadosNovos: { id: t.id, nome_tipo: t.nome_tipo, grupo_atividade_id: g.id, ativo: true, origem: 'tarefa_sem_tipo' } }, tx);
+        return t.id;
+      });
+    } catch (erro) {
+      if (!ehUnique(erro)) throw erro; // outra criou ao mesmo tempo: relê
+    }
+  }
+  const { tipo } = await ler();
+  if (tipo) return tipo.id;
+  throw tipoTarefaNotFound();
+};
+
+/**
+ * D-PROD-320 — o que a tela simplificada não manda mais e o servidor preenche: o tipo base ("Outro"), a data do
+ * pedido (hoje) e quem pediu (quem está lançando). O tipo "SEM TIPO" vem antes (`garantirTipoSemTipo`). O que vier
+ * no corpo vale.
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx @param {any} contexto
+ * @param {import('../../shared/auth/authContext.js').AuthContext} auth @param {Record<string, unknown>} campos
+ */
+const completarCriacao = async (tx, contexto, auth, campos) => {
+  const completo = { ...campos };
+  if (!completo.tipo) completo.tipo = TIPO_BASE_SEM_TIPO;
+  if (!completo.data_pedido) completo.data_pedido = parseData(diaNoFuso(agoraDoServidor(), FUSO_DO_PEDIDO));
+  if (!completo.solicitante) {
+    const usuario = auth.usuarioId
+      ? await tx.usuario.findFirst({ where: { cliente_id: auth.clienteId, id: auth.usuarioId }, select: { nome: true, login: true } })
+      : null;
+    const nome = String(usuario?.nome || usuario?.login || auth.login || '').trim().slice(0, 255);
+    if (nome) completo.solicitante = nome;
+  }
+  return completo;
+};
+
 /** @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto */
 export const listar = async (contexto) => {
   const auth = exigirAuthContext(contexto?.auth);
@@ -340,9 +414,10 @@ const criarNaTransacao = async (contexto, auth, entrada, idDoAparelho) => {
   const prisma = getPrismaClient();
   const { corpo, historico } = separarHistoricoMapa(entrada);
   const campos = camposDeLancamento(corpo);
+  if (!campos.tipo_tarefa_id) campos.tipo_tarefa_id = await garantirTipoSemTipo(contexto, auth.clienteId);
 
   const criado = await prisma.$transaction(async (tx) => {
-    const dados = await aplicarCachesDeFk(tx, auth.clienteId, campos);
+    const dados = await aplicarCachesDeFk(tx, auth.clienteId, await completarCriacao(tx, contexto, auth, campos));
     const registro = await inserirLancamento(tx, {
       ...dados,
       ...(idDoAparelho ? { id: idDoAparelho } : {}),
