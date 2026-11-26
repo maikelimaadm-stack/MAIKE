@@ -236,6 +236,8 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const [emBreve, setEmBreve] = useState(/** @type {string | null} */ (null));
   /** D-PROD-334: a "Carga de insumo" (opção Insumo) na mesma janela; o botão do rodapé fica no lugar que ela indica. */
   const [insumoAberto, setInsumoAberto] = useState(false);
+  /** A carga está sendo enviada: voltar e fechar ficam travados até a resposta. */
+  const [cargaEnviando, setCargaEnviando] = useState(false);
   const [alvoRodapeCarga, setAlvoRodapeCarga] = useState(/** @type {HTMLElement | null} */ (null));
   /** A área (pasto) da atividade: o `atividade_area_id` do apontamento novo, quando a atividade tem áreas. */
   const atividadeAreaId = useMemo(() => {
@@ -382,6 +384,7 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
         aria-label="Voltar ao serviço"
         title="Voltar ao serviço"
         onClick={() => setInsumoAberto(false)}
+        disabled={cargaEnviando}
         data-testid="carga-voltar"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -645,7 +648,7 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
     <B1Janela
       aberto
       onFechar={onFechar}
-      podeFechar={!enviando}
+      podeFechar={!enviando && !cargaEnviando}
       aoPedirFechar={() => !alvoFolha?.querySelector(".mk-sheet-root")}
       titulo={titulo}
       antesDoTitulo={voltar}
@@ -668,6 +671,8 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
           <CargaDeInsumo
             atividadeId={String(atividadeId)}
             atividadeAreaId={atividadeAreaId}
+            filtrarPorArea={areasDaAtividade(atividadeAtual).length > 1}
+            onEnviando={setCargaEnviando}
             apontamentos={apontamentosDaAtividade}
             hoje={hoje}
             implementoNome={abertura?.implementoNome ?? ""}

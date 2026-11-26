@@ -10288,4 +10288,6 @@ Vários itens ficavam presos para sempre, sem botão:
 - **Permissão e fuso:** os mesmos da abertura (`lancarApontamento` e fuso configurado).
 - **Sem backend e sem migration.** Testes: `tests/smoke/diarioDasAtividades.test.jsx` (opção Insumo, unidade, gravação, Mistura, saldo insuficiente, horímetro e a seta de voltar) e `tests/smoke/cargaInsumoRegras.test.js` (a próxima carga, o marcador, as linhas e o local).
 
+- **Revisão do Codex (PR #424):** (1) atividade com VÁRIAS áreas: o destino e a numeração da carga são só do apontamento de hoje DO PASTO aberto (`atividade_area_id`); sem ele, `criarApontamento` cria o do pasto; (2) mexer no formulário depois de uma falha esquece o envio guardado (`esquecerUltimo`), e a pendência pergunta antes de abandonar um envio incerto; (3) enquanto a carga sai, o voltar e o fechar da janela ficam travados.
+
 <!-- Próxima decisão: D-PROD-335 -->

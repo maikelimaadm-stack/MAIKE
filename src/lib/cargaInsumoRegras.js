@@ -27,15 +27,25 @@ const numeroDaCarga = (v) => {
 };
 
 /**
+ * Os apontamentos CONFIRMADOS de `dia` (o mais recente primeiro). Com `atividadeAreaId` (atividade com várias áreas), só os
+ * da área do pasto aberto: a carga de um pasto nunca entra no apontamento de outro (consumo e custo do pasto certo).
+ * @param {unknown} apontamentos @param {string} dia @param {string | null} [atividadeAreaId]
+ * @returns {any[]}
+ */
+const doPastoNoDia = (apontamentos, dia, atividadeAreaId = null) =>
+  confirmadosDoDia(apontamentos, dia).filter((ap) => !atividadeAreaId || String(ap?.atividade_area_id ?? "") === String(atividadeAreaId));
+
+/**
  * O número da próxima carga do dia: a maior carga entre as linhas de PRODUTO CONFIRMADAS dos apontamentos CONFIRMADOS de
  * `dia`, mais 1. Sem linha de carga no dia, 1. Canceladas e outros dias não contam.
  * @param {any[]} apontamentos a lista de apontamentos da atividade (qualquer ordem)
  * @param {string} dia o "hoje" da fazenda (AAAA-MM-DD)
+ * @param {string | null} [atividadeAreaId] só com várias áreas na atividade: conta só os apontamentos DESTA área
  * @returns {number}
  */
-export const proximaCarga = (apontamentos, dia) => {
+export const proximaCarga = (apontamentos, dia, atividadeAreaId = null) => {
   let maior = 0;
-  for (const ap of confirmadosDoDia(apontamentos, dia)) {
+  for (const ap of doPastoNoDia(apontamentos, dia, atividadeAreaId)) {
     const linhas = Array.isArray(ap?.produtos) ? ap.produtos : [];
     for (const l of linhas) {
       if (!l || typeof l !== "object" || l.status !== "CONFIRMADO") continue;
@@ -85,7 +95,7 @@ export const lerCarga = (observacao) => {
  * @param {string} dia
  * @returns {any | null}
  */
-export const apontamentoDeHoje = (apontamentos, dia) => confirmadosDoDia(apontamentos, dia)[0] ?? null;
+export const apontamentoDeHoje = (apontamentos, dia, atividadeAreaId = null) => doPastoNoDia(apontamentos, dia, atividadeAreaId)[0] ?? null;
 
 /**
  * Os corpos das linhas de produto de UMA carga (formulário já validado). Cada item é um formulário de linha de produto

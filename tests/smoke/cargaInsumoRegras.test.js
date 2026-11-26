@@ -116,3 +116,20 @@ describe("localMaisCheio", () => {
     expect(localMaisCheio([{ local_estoque_id: "l-a", disponivel: "lixo" }, { local_estoque_id: "l-b", disponivel: "0" }])).toBe("l-a");
   });
 });
+
+describe("atividade com várias áreas (só o pasto aberto)", () => {
+  const lista = [
+    apontamento({ id: "ap-a", atividade_area_id: "aa-1", produtos: [linha({ jato: 4 })] }),
+    apontamento({ id: "ap-b", atividade_area_id: "aa-2", produtos: [linha({ jato: 1 })] }),
+  ];
+  it("o destino é o apontamento DA ÁREA; sem ele, null (a carga cria o do pasto)", () => {
+    expect(apontamentoDeHoje(lista, HOJE, "aa-2")?.id).toBe("ap-b");
+    expect(apontamentoDeHoje(lista, HOJE, "aa-3")).toBeNull();
+    expect(apontamentoDeHoje(lista, HOJE)?.id).toBeTruthy();
+  });
+  it("a numeração conta só as cargas da área", () => {
+    expect(proximaCarga(lista, HOJE, "aa-2")).toBe(2);
+    expect(proximaCarga(lista, HOJE, "aa-1")).toBe(5);
+    expect(proximaCarga(lista, HOJE, "aa-3")).toBe(1);
+  });
+});

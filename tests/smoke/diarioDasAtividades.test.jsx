@@ -631,4 +631,48 @@ describe("Diário das atividades — Insumo (carga, D-PROD-334)", () => {
     expect(servico.adicionarLinha).not.toHaveBeenCalled();
     expect(servico.criarApontamento).not.toHaveBeenCalled();
   });
+  it("(i) atividade com várias áreas: a carga NÃO entra no apontamento de hoje de OUTRO pasto; cria o deste pasto com atividade_area_id", async () => {
+    const outroPasto = { ...apontamentoDeHoje(), atividade_area_id: "aa-1" };
+    servico.listarApontamentos.mockResolvedValue({ items: [outroPasto] });
+    servico.criarApontamento.mockResolvedValue({ apontamento: { id: "ap-9", versao: 1 }, atividade: null, alertas: [] });
+    const atividade = { id: "atv-9", tipo_atividade_id: "op-1", areas: [{ id: "aa-1", ordem: 1, area_id: "area-B" }, { id: "aa-2", ordem: 2, area_id: "area-A" }] };
+    renderizar({ atividade });
+    await screen.findByTestId("abertura-iniciado");
+    fireEvent.click(screen.getByTestId("servico-opcao-insumo"));
+    await screen.findByTestId("carga-form");
+    await escolherProduto(0, "Glifosato");
+    fireEvent.change(await screen.findByTestId("carga-item-0-quantidade"), { target: { value: "25" } });
+    fireEvent.click(screen.getByTestId("carga-salvar"));
+    await waitFor(() => expect(servico.criarApontamento).toHaveBeenCalledTimes(1));
+    expect(servico.criarApontamento.mock.calls[0][1]).toMatchObject({ data_operacional: "2026-11-26", atividade_area_id: "aa-2" });
+    expect(servico.adicionarLinha).not.toHaveBeenCalled();
+  });
+
+  it("(j) depois de uma falha, mexer na quantidade manda o conteúdo NOVO (o envio guardado é esquecido)", async () => {
+    servico.adicionarLinha.mockRejectedValueOnce({ name: "ApiError", code: "ESTOQUE_SALDO_INSUFICIENTE", details: { disponivel: "8500.0000", solicitado: "9000.0000" } });
+    servico.adicionarLinha.mockResolvedValueOnce({ apontamento: { id: "ap-1", versao: 4 }, atividade: null, alertas: [] });
+    await abrirInsumo();
+    await escolherProduto(0, "Glifosato");
+    fireEvent.change(await screen.findByTestId("carga-item-0-quantidade"), { target: { value: "9000" } });
+    fireEvent.click(screen.getByTestId("carga-salvar"));
+    await screen.findByText(/Saldo insuficiente deste produto no local escolhido/);
+    fireEvent.change(screen.getByTestId("carga-item-0-quantidade"), { target: { value: "30" } });
+    fireEvent.click(screen.getByTestId("carga-salvar"));
+    await waitFor(() => expect(servico.adicionarLinha).toHaveBeenCalledTimes(2));
+    expect(servico.adicionarLinha.mock.calls[1][3]).toMatchObject({ produto_id: "p-gli", quantidade: "30" });
+  });
+
+  it("(k) enquanto a carga está sendo enviada, o voltar fica desabilitado", async () => {
+    /** @type {(v: any) => void} */
+    let liberar = () => {};
+    servico.adicionarLinha.mockImplementation(() => new Promise((resolve) => { liberar = resolve; }));
+    await abrirInsumo();
+    await escolherProduto(0, "Glifosato");
+    fireEvent.change(await screen.findByTestId("carga-item-0-quantidade"), { target: { value: "25" } });
+    fireEvent.click(screen.getByTestId("carga-salvar"));
+    await waitFor(() => expect(servico.adicionarLinha).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId("carga-voltar")).toBeDisabled();
+    liberar({ apontamento: { id: "ap-1", versao: 4 }, atividade: null, alertas: [] });
+    await screen.findByTestId("servico-opcao-insumo");
+  });
 });

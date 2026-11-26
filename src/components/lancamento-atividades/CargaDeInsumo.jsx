@@ -212,9 +212,13 @@ function BlocoDeProduto({ atividadeId, bloco, indice, modo, erros, bloqueado, po
  *   onSalvo: (resposta: any) => void,
  * }} props
  */
-export default function CargaDeInsumo({ atividadeId, atividadeAreaId, apontamentos, hoje, implementoNome, podeGravar, escopo, alvoRodape, onSalvo }) {
+export default function CargaDeInsumo({ atividadeId, atividadeAreaId, filtrarPorArea = false, onEnviando = undefined, apontamentos, hoje, implementoNome, podeGravar, escopo, alvoRodape, onSalvo }) {
   const queryClient = useQueryClient();
   const empresaId = useEmpresaRealSelecionadaId();
+  // Atividade com várias áreas: o destino (e a numeração) é só o apontamento DESTE pasto.
+  const areaDoDestino = filtrarPorArea ? atividadeAreaId : null;
+  /** O envio guardado deixa de valer quando a pessoa mexe no formulário (a pendência pergunta antes de abandonar). */
+  const esquecerRef = useRef(() => {});
   const [modo, setModo] = useState(/** @type {"produto" | "mistura"} */ ("produto"));
   const [blocos, setBlocos] = useState(() => [novoBloco()]);
   const [horimetro, setHorimetro] = useState("");
@@ -222,7 +226,7 @@ export default function CargaDeInsumo({ atividadeId, atividadeAreaId, apontament
   const [errosPorBloco, setErrosPorBloco] = useState(/** @type {Record<string, Record<string, string>>} */ ({}));
   // A carga é fixa a partir do primeiro envio: a linha gravada muda a "próxima carga" e não pode mudar o número no meio.
   const [cargaFixa, setCargaFixa] = useState(/** @type {number | null} */ (null));
-  const carga = cargaFixa ?? proximaCarga(apontamentos, hoje);
+  const carga = cargaFixa ?? proximaCarga(apontamentos, hoje, areaDoDestino);
   /** O progresso da carga: o apontamento de destino (depois de criado), a `versao` atual e os produtos já gravados. */
   const progressoRef = useRef({ apontamentoId: /** @type {string | null} */ (null), versao: /** @type {number | null} */ (null), gravados: /** @type {string[]} */ ([]) });
   /** A mensagem de falha no meio da sequência ("N de M já foram lançados"); null = a mensagem comum. */
@@ -230,6 +234,7 @@ export default function CargaDeInsumo({ atividadeId, atividadeAreaId, apontament
 
   /** Os blocos e os erros de UM bloco (por uid). */
   const mudarBloco = (uid) => (fn) => {
+    esquecerRef.current();
     setBlocos((lista) => lista.map((b) => (b.uid === uid ? (() => {
       const nova = fn(b);
       return nova === b ? b : { ...nova, uid };
@@ -238,6 +243,7 @@ export default function CargaDeInsumo({ atividadeId, atividadeAreaId, apontament
   };
 
   const trocarModo = (novo) => {
+    esquecerRef.current();
     setErrosPorBloco({});
     if (novo === "mistura") {
       setBlocos((lista) => (lista.length >= 2 ? lista : [...lista, ...Array.from({ length: 2 - lista.length }, novoBloco)]));
@@ -247,8 +253,8 @@ export default function CargaDeInsumo({ atividadeId, atividadeAreaId, apontament
     setModo(novo);
   };
 
-  const adicionarBloco = () => setBlocos((lista) => (lista.length >= MAX_PRODUTOS_NA_CARGA ? lista : [...lista, novoBloco()]));
-  const removerBloco = (uid) => setBlocos((lista) => (lista.length > 2 ? lista.filter((b) => b.uid !== uid) : lista));
+  const adicionarBloco = () => (esquecerRef.current(), setBlocos((lista) => (lista.length >= MAX_PRODUTOS_NA_CARGA ? lista : [...lista, novoBloco()])));
+  const removerBloco = (uid) => (esquecerRef.current(), setBlocos((lista) => (lista.length > 2 ? lista.filter((b) => b.uid !== uid) : lista)));
 
   /**
    * O envio da carga: sem apontamento de destino, um `criarApontamento` (atômico); com ele, `adicionarLinha` por produto,
@@ -314,6 +320,12 @@ export default function CargaDeInsumo({ atividadeId, atividadeAreaId, apontament
     parcialRef.current ?? mensagemDeErroLinha(erro, FALLBACK_LINHA, {}),
   );
   const enviando = estado.fase === "enviando";
+  esquecerRef.current = esquecerUltimo;
+  // O pai trava o voltar e o fechar enquanto a carga está saindo (senão a janela some com o envio no ar).
+  useEffect(() => {
+    onEnviando?.(enviando);
+    return () => onEnviando?.(false);
+  }, [enviando]);
 
   const salvar = async () => {
     if (enviando || !podeGravar) return;
@@ -343,7 +355,7 @@ export default function CargaDeInsumo({ atividadeId, atividadeAreaId, apontament
     const p = progressoRef.current;
     const pendentes = blocos.filter((b) => !p.gravados.includes(String(b.produto.id)));
     const corpos = linhasDaCarga(pendentes, { carga, horimetro: horimetroCanonico });
-    const apontamentoDia = p.apontamentoId ? null : apontamentoDeHoje(apontamentos, dia);
+    const apontamentoDia = p.apontamentoId ? null : apontamentoDeHoje(apontamentos, dia, areaDoDestino);
     const arg = {
       carga,
       atividadeId,
@@ -369,7 +381,7 @@ export default function CargaDeInsumo({ atividadeId, atividadeAreaId, apontament
   const consultar = async () => {
     try {
       const lista = itensDaLista(await listarApontamentos(atividadeId));
-      const ap = apontamentoDeHoje(lista, hoje);
+      const ap = apontamentoDeHoje(lista, hoje, areaDoDestino);
       const arg = ultimaArgRef.current;
       const linhasDaCargaGravadas = ap ? (Array.isArray(ap.produtos) ? ap.produtos : []).filter((l) => l?.status === "CONFIRMADO" && String(l.jato) === String(carga)) : [];
       const cobertos = (arg?.itens ?? []).filter((/** @type {any} */ i) => linhasDaCargaGravadas.some((l) => String(l.produto_id) === i.produtoId));
@@ -442,6 +454,7 @@ export default function CargaDeInsumo({ atividadeId, atividadeAreaId, apontament
         label="Horímetro (opcional)"
         value={horimetro}
         onChange={(v) => {
+          esquecerRef.current();
           setHorimetro(v);
           setErroHorimetro("");
         }}
