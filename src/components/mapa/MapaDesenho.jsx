@@ -3,7 +3,7 @@ import { listarAreasAtivas, listarPontosAtivos, listarLinhasAtivas, listarIcones
 import { invalidarCachesDoMapa } from "./invalidarCachesMapa";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { X, Target } from "lucide-react";
+import { X, Target, LocateFixed } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -50,6 +50,9 @@ import { acertoEditor, pintarEdicao, pontaGuiaShift, resolverAlvoDesenho, rumoGr
 import CursorEditorOverlay from "./CursorEditorOverlay";
 import { pontoRotuloSeguro, textoHectares } from "@/lib/maplibre/mapaGeralRender.js";
 import useBasemap from "./useBasemap";
+import { useMinhaLocalizacaoNoEditor } from "./useMinhaLocalizacaoNoEditor";
+import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
+import "@/styles/mk-cadastro-mapa.css";
 import BasemapAtribuicao from "./BasemapAtribuicao";
 import { SOURCE_IDS, LAYER_IDS } from "@/lib/maplibre/estiloAreas.js";
 import {
@@ -640,8 +643,11 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       if (r.ima) toast.success("Encaixado!", { duration: 600 });
 
       if (tipoDesenho === "ponto") {
+        // D-PROD-333: o toque só marca (dá para arrastar ou usar a localização); "Continuar" abre o formulário.
+        undoStackRef.current.push(currentMarkerRef.current ? [{ ...currentMarkerRef.current }] : []);
+        redoStackRef.current = [];
+        syncHistoryUi();
         setCurrentMarker({ lat, lng });
-        setShowFormularioPonto(true);
       } else if (tipoDesenho === "area" || tipoDesenho === "linha") {
         const newPoint = { lat, lng };
         setCurrentPoints((prev) => {
@@ -1193,16 +1199,46 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     return () => window.removeEventListener("keydown", onKey);
   }, [verticeSelecionado, removerVerticeSelecionado, emPrevia]);
 
+  // D-PROD-333: o ponto azul da localização, como no Mapa Geral (GPS sempre ligado com o editor aberto).
+  const minhaLocalizacao = useMinhaLocalizacaoNoEditor({ mapInstanceRef, mapReady, aoErro: (m) => toast.error(m) });
+
   const basemapMap = mapReady ? mapInstanceRef.current : null;
+  // D-PROD-333: abre no satélite, como o Mapa Geral (antes abria no mapa de ruas).
   const basemap = useBasemap(basemapMap, {
+    inicial: BASEMAP_IDS.SATELITE,
     reaplicarCamadas: () => {
       const map = mapInstanceRef.current;
       if (!map) return;
       ensureBusinessLayers(map);
       syncDivisaWidth(map);
       rehydrateAllSources(map);
+      minhaLocalizacao.reaplicar();
     },
   });
+
+  /**
+   * D-PROD-333 — "Usar minha localização": o ponto vai para onde a pessoa está (a leitura mais recente do GPS;
+   * sem ela, pede uma agora) e o mapa centraliza nele. Dá para arrastar depois e desfazer.
+   */
+  const usarMinhaLocalizacao = () => {
+    const marcar = (/** @type {{lat: number, lng: number}} */ p) => {
+      undoStackRef.current.push(currentMarker ? [{ ...currentMarker }] : []);
+      redoStackRef.current = [];
+      syncHistoryUi();
+      setCurrentMarker({ lat: p.lat, lng: p.lng });
+      toast.success("Ponto na sua localização", { duration: 1200 });
+      return true;
+    };
+    minhaLocalizacao.localizar({ aoResponder: marcar });
+  };
+  /** As listas do celular (B1Select) abrem DENTRO do formulário lateral: tocar nelas não fecha o formulário. */
+  const [alvoFolhaArea, setAlvoFolhaArea] = useState(/** @type {HTMLElement|null} */ (null));
+  const [alvoFolhaPonto, setAlvoFolhaPonto] = useState(/** @type {HTMLElement|null} */ (null));
+  const [alvoFolhaLinha, setAlvoFolhaLinha] = useState(/** @type {HTMLElement|null} */ (null));
+  /** Esc com uma lista aberta fecha só a lista. @param {KeyboardEvent} e @param {HTMLElement|null} alvo */
+  const escSoDaLista = (e, alvo) => {
+    if (alvo?.querySelector(".mk-sheet-root")) e.preventDefault();
+  };
 
   const trocarBasemap = (id) => basemap.setBasemap(id);
 
@@ -1334,25 +1370,9 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
           <Button
             variant="secondary"
             size="icon"
-            onClick={() => {
-              if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                  (position) => {
-                    const pos = {
-                      lat: position.coords.latitude,
-                      lng: position.coords.longitude,
-                    };
-                    if (mapInstanceRef.current) {
-                      mapInstanceRef.current.setCenter([pos.lng, pos.lat]);
-                      mapInstanceRef.current.setZoom(18);
-                      toast.success("Centralizado na sua localização");
-                    }
-                  },
-                  () => toast.error("Erro ao obter localização")
-                );
-              }
-            }}
+            onClick={() => minhaLocalizacao.localizar()}
             className="w-9 bg-background text-[hsl(var(--foreground))] px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground active:bg-black active:text-white h-7"
+            aria-label="Centralizar na minha localização"
             title="Minha localização"
           >
             <Target className="w-4 h-4" />
@@ -1440,10 +1460,24 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
               </div>
             )}
 
+            {tipoDesenho === "ponto" && (
+              <button
+                type="button"
+                onClick={usarMinhaLocalizacao}
+                aria-label="Usar minha localização"
+                title="Usar minha localização"
+                data-mk-usar-localizacao=""
+                className="absolute right-4 z-20 flex h-16 w-16 items-center justify-center rounded-full bg-blue-600 text-white shadow-xl active:bg-blue-700"
+                style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 6.5rem)" }}
+              >
+                <LocateFixed className="h-8 w-8" aria-hidden="true" />
+              </button>
+            )}
+
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-1">
-              {tipoDesenho === "ponto" && !currentMarker && !itemEditando && (
+              {tipoDesenho === "ponto" && !itemEditando && (
                 <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
-                  Toque no mapa para marcar
+                  {currentMarker ? "Arraste o ponto para ajustar e toque em Continuar" : "Toque no mapa para marcar — ou use a sua localização"}
                 </div>
               )}
               {(tipoDesenho === "area" || tipoDesenho === "linha") && currentPoints.length === 0 && !itemEditando && (
@@ -1560,7 +1594,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                     }
                   }}
                 >
-                  {itemEditando || drawingClosed ? "Salvar" : tipoDesenho === "area" ? "Fechar área" : "Terminar"}
+                  {itemEditando || drawingClosed ? "Salvar" : tipoDesenho === "area" ? "Fechar área" : tipoDesenho === "ponto" ? "Continuar" : "Terminar"}
                 </Button>
               </div>
             </div>
@@ -1575,10 +1609,12 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
           if (!aberto) setCorPrevia(null);
         }}
       >
-        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
+        <SheetContent side="right" className="mk-form-mapa-host w-[320px] sm:w-[400px] overflow-y-auto" onEscapeKeyDown={(e) => escSoDaLista(e, alvoFolhaArea)}>
           <SheetHeader>
             <SheetTitle>{itemEditando ? "Editar Área" : "Cadastrar Área"}</SheetTitle>
           </SheetHeader>
+          <div ref={setAlvoFolhaArea} />
+          <MobileSheetPortalCtx.Provider value={alvoFolhaArea}>
           <FormularioArea
             coordenadas={currentPoints}
             usarGPS={usarGPS}
@@ -1596,14 +1632,17 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
               setCorPrevia(null);
             }}
           />
+          </MobileSheetPortalCtx.Provider>
         </SheetContent>
       </Sheet>
 
       <Sheet open={showFormularioPonto} onOpenChange={setShowFormularioPonto}>
-        <SheetContent side="right" className="bg-background px-1 py-1 fixed z-50 gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out inset-y-0 right-0 h-full border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm w-[320px] sm:w-[400px] overflow-y-auto">
+        <SheetContent side="right" className="bg-background px-1 py-1 fixed z-50 gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out inset-y-0 right-0 h-full border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm w-[320px] sm:w-[400px] overflow-y-auto mk-form-mapa-host" onEscapeKeyDown={(e) => escSoDaLista(e, alvoFolhaPonto)}>
           <SheetHeader>
             <SheetTitle>{itemEditando ? "Editar Ponto" : "Cadastrar Ponto"}</SheetTitle>
           </SheetHeader>
+          <div ref={setAlvoFolhaPonto} />
+          <MobileSheetPortalCtx.Provider value={alvoFolhaPonto}>
           <FormularioPonto
             coordenadas={currentMarker}
             usarGPS={usarGPS}
@@ -1621,14 +1660,17 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
               cancelarDesenho();
             }}
           />
+          </MobileSheetPortalCtx.Provider>
         </SheetContent>
       </Sheet>
 
       <Sheet open={showFormularioLinha} onOpenChange={setShowFormularioLinha}>
-        <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
+        <SheetContent side="right" className="mk-form-mapa-host w-[320px] sm:w-[400px] overflow-y-auto" onEscapeKeyDown={(e) => escSoDaLista(e, alvoFolhaLinha)}>
           <SheetHeader>
             <SheetTitle>{itemEditando ? "Editar Linha" : "Cadastrar Linha"}</SheetTitle>
           </SheetHeader>
+          <div ref={setAlvoFolhaLinha} />
+          <MobileSheetPortalCtx.Provider value={alvoFolhaLinha}>
           <FormularioLinha
             coordenadas={currentPoints}
             usarGPS={usarGPS}
@@ -1641,6 +1683,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
             }}
             onCancel={() => setShowFormularioLinha(false)}
           />
+          </MobileSheetPortalCtx.Provider>
         </SheetContent>
       </Sheet>
     </div>

@@ -10243,11 +10243,35 @@ Vários itens ficavam presos para sempre, sem botão:
   3. **Todas as páginas das opções:** máquinas, implementos e operadores são lidos com `lerTodasAsPaginas` (segue `next_cursor` enquanto `has_more`, até 40 páginas), não só a 1ª de 50 itens.
   - **Migration:** nenhuma (`Atividade.bem_id` já existe). **Testes:** `tests/smoke/aberturaServicoRegras.test.js` (`validarAbertura` com capim, `lerTodasAsPaginas`, `ehCampoDesconhecido`), `tests/smoke/diarioDasAtividades.test.jsx` (capim, plantio, `bem_id` sem `maquinas`, páginas, fallback) e `backend/tests/atividadeRegistro.test.mjs` (`bem_id` sem linha de uso, `bem_id` com `maquinas[]`, `bem_id` inexistente → 422). Os de backend pedem `DATABASE_URL` (CI).
 
+## D-PROD-333 — O cadastro do mapa no celular: igual ao Mapa Geral, "+" na aba Pontos e "Usar minha localização"
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário, com as imagens aprovadas ("Pode implementar por favor") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`CADASTRO-MAPA-CELULAR-D333-REPORT.md`](./CADASTRO-MAPA-CELULAR-D333-REPORT.md)
+
+**Decisão.**
+1. **O mapa do cadastro (áreas, pontos e linhas) fica igual ao Mapa Geral.**
+   - Abre no satélite.
+   - Mostra o ponto azul da localização com o círculo da precisão real, usando o mesmo GPS do Mapa Geral (`useLocalizacaoNoMapa`, alta precisão, o ponto anda junto). O hook novo é `useMinhaLocalizacaoNoEditor`.
+   - O botão de localizar do topo centraliza nessa posição.
+2. **Tocar numa lista do formulário lateral não fecha mais o formulário.**
+   - As listas do celular (`B1Select` → `MobileSheet`) abriam fora do painel lateral, e o toque nelas contava como "fora" e fechava o painel.
+   - Agora elas abrem num lugar dentro do painel (`MobileSheetPortalCtx`, o mesmo arranjo do painel de filtros do Mapa Geral). Isso vale nos três formulários.
+   - Com uma lista aberta, o Esc fecha só a lista.
+3. **Botão redondo "+" ("Novo ponto") na aba Pontos do Mapa Geral.**
+   - Leva direto ao cadastro de ponto (`/mapacadastro?novo=ponto`), sem escolher nada no Cadastro do Mapa.
+   - Aparece só para quem pode cadastrar no mapa (`pec-mapa-cadastro`, ação `novo`, ou acesso total).
+   - O pedido sai do endereço depois de usado. Fechar o editor volta ao Mapa Geral.
+4. **No cadastro de ponto, tocar no mapa só marca o ponto.**
+   - O botão redondo azul "Usar minha localização" põe o ponto na posição do GPS e centraliza nela.
+   - A pessoa pode arrastar o ponto, tocar de novo e desfazer.
+   - O botão de baixo passa a se chamar "Continuar" e é ele que abre o formulário. Antes, o toque abria o formulário na hora.
+
+> **Numeração:** nasceu D-PROD-332 (a `main` `0df374b61` indicava `Próxima decisão: D-PROD-332`). Antes do merge, a `main` deu a D-PROD-332 ao diário das atividades, parte 1 (PR #420, `2361f850f`) e passou a indicar `Próxima decisão: D-PROD-333`, que é esta (`node scripts/dev/proxima-decisao.mjs`, regra A5); o marcador passa a D-PROD-334.
+
 ## D-PROD-334 — Diário das atividades: Insumo por carga (a "Carga de insumo" do serviço aberto)
 
 **Data:** 2026-11-26 · **Origem:** pedido do proprietário (maquete v4, tela 06 "Insumo"): o insumo colocado no implemento é contado por carga, não por "jato" · **Branch:** `feat/atividades-insumo` · **Migration:** nenhuma · **Backend:** sem mudança · **Relatório:** [`ATIVIDADES-INSUMO-REPORT.md`](./ATIVIDADES-INSUMO-REPORT.md)
 
-> **Numeração:** a `main` indica `Próxima decisão: D-PROD-333`, mas a PR #423 (rascunho, cadastro do mapa no celular) já usa a D-PROD-333; por isso esta é a **D-PROD-334** e o marcador passa a D-PROD-335. Se a #423 mudar de número ou esta for primeiro, renumerar na hora do merge (regra A5).
+> **Numeração:** a `main` (com a D-PROD-333 da PR #423 já mesclada) indica `Próxima decisão: D-PROD-334`, que é esta; o marcador passa a D-PROD-335. Conferir de novo antes do merge (regra A5).
 
 - **Problema:** a opção "Insumo" do serviço aberto ainda abria o painel "Em breve". Além disso, a palavra "jato" aparecia na tela; para o operador, o que conta é a carga colocada no implemento.
 - **Decisão — a carga, não o jato:** a tela se chama **"Carga de insumo"**, com o título "Carga N" (numerada por serviço e por dia: a próxima é a maior carga das linhas de produto CONFIRMADAS de hoje, mais 1; `proximaCarga`). Só a PALAVRA visível mudou. O campo que a carga usa no fio é o `jato` que a linha de produto já tem (D-PROD-283/293): o nome do campo não muda, e a linha de "Lançado hoje" diz "Insumo · Carga N".

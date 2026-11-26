@@ -5,6 +5,7 @@
  * Geral voltava com o dado antigo por até 5 minutos.
  */
 import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, act, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -94,7 +95,7 @@ describe('MapaDesenho — salvar no editor invalida o Mapa Geral', () => {
 describe('MapaCadastro — excluir e salvar no registro invalida o Mapa Geral', () => {
   const abrir = async () => {
     const { default: MapaCadastro } = await import('@/pages/MapaCadastro.jsx');
-    render(<QueryClientProvider client={qc}><MapaCadastro /></QueryClientProvider>);
+    render(<QueryClientProvider client={qc}><MemoryRouter><MapaCadastro /></MemoryRouter></QueryClientProvider>);
   };
 
   it('excluir área', async () => {
