@@ -13,6 +13,7 @@
 import { ehCanonico, formatarNumero, lerNumeroLocal } from "./dinheiroDecimal.js";
 import { confirmadosDoDia, normalizarPaginaDeOpcoes } from "./atividadeApontamentoRegras.js";
 import { lerErroGestao } from "./gestaoErros.js";
+import { rotuloDaUnidade } from "./abastecimentoRegras.js";
 
 /** O início da linha de abertura, com o fechamento `]` e a quebra de linha (ou o fim do texto). */
 const LINHA_DA_ABERTURA = /^\[abertura-servico[^\]\n]*\](?:\r?\n|$)/;
@@ -254,8 +255,9 @@ export const lancamentosDoDia = (apontamentos, dia, fuso) => {
     };
     const junta = (...partes) => partes.filter(Boolean).join(" ");
     for (const l of (ap.produtos ?? []).filter(confirmada)) {
-      const titulo = l.jato != null ? `Insumo · Jato ${l.jato}` : "Insumo";
-      monta("insumo", l, titulo, sem(l.produto?.nome), junta(quantidadeTexto(l.quantidade_lancamento ?? l.quantidade), sem(l.unidade_lancamento) || sem(l.unidade)));
+      // D-PROD-334: a palavra visível é "Carga" (o campo `jato` do fio não muda).
+      const titulo = l.jato != null ? `Insumo · Carga ${l.jato}` : "Insumo";
+      monta("insumo", l, titulo, sem(l.produto?.nome), junta(quantidadeTexto(l.quantidade_lancamento ?? l.quantidade), sem(l.unidade_lancamento) || rotuloDaUnidade(l.unidade) || sem(l.unidade)));
     }
     for (const l of (ap.maquinas ?? []).filter(confirmada)) {
       const sub = sem(l.bem?.nome) || sem(l.implemento?.nome);
