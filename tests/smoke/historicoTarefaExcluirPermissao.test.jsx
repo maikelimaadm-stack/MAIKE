@@ -62,7 +62,14 @@ vi.mock("@/components/mapa/FormularioTarefaMapa", async (importOriginal) => {
 const { LancLoteDialogo } = await import("@/components/lotes/LancamentoLoteUi");
 const { default: HistoricoTarefaPanel } = await import("@/components/mapa/HistoricoTarefaPanel");
 const { default: DetalhesTarefaMapa } = await import("@/components/mapa/DetalhesTarefaMapa");
-const { default: TarefaDetalhesDialog } = await import("@/components/tarefas/TarefaDetalhesDialog");
+// D-PROD-321: o diálogo de detalhes como o mapa o abre (o `TarefaDetalhesDialog` da grade antiga saiu).
+const { LancLoteDialogo: LancLoteDialogoMapa } = await import("@/components/lotes/LancamentoLoteUi");
+const { default: DetalhesTarefaDoMapa } = await import("@/components/mapa/DetalhesTarefaMapa");
+const TarefaDetalhesDialog = ({ open, onOpenChange, tarefa, onSaved }) => (
+  <LancLoteDialogoMapa open={open} onOpenChange={onOpenChange} titulo="Detalhes da tarefa" largo somenteLeitura>
+    {tarefa ? <DetalhesTarefaDoMapa tarefa={tarefa} onSaved={onSaved} /> : null}
+  </LancLoteDialogoMapa>
+);
 const { podeExcluirEventoDaTarefa } = await import("@/hooks/usePodeExcluirEventoTarefa");
 
 const EMP = "emp-1";
