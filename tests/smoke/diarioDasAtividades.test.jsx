@@ -624,7 +624,9 @@ describe("Diário das atividades — Insumo (carga, D-PROD-334)", () => {
 
   it("(d) sem apontamento de hoje, a primeira carga cria o apontamento com criarApontamento e produtos[]", async () => {
     servico.criarApontamento.mockResolvedValue({ apontamento: { id: "ap-novo", versao: 1 }, atividade: null, alertas: [] });
-    await abrirInsumo([]);
+    // O serviço foi aberto ontem (a abertura está no apontamento de ontem); hoje ainda não há apontamento. D-PROD-335: sem
+    // nenhum apontamento com abertura o diário iria ao formulário de abertura, não ao serviço aberto.
+    await abrirInsumo([{ ...apontamentoDeHoje(), id: "ap-0", data_operacional: "2026-11-25", createdAt: "2026-11-25T09:00:00.000Z" }]);
     await escolherProduto(0, "Glifosato");
     fireEvent.change(await screen.findByTestId("carga-item-0-quantidade"), { target: { value: "25" } });
     fireEvent.click(screen.getByTestId("carga-salvar"));
