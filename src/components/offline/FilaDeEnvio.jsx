@@ -1,25 +1,40 @@
 import React, { useState } from 'react';
-import { CloudUpload, AlertTriangle, Clock } from 'lucide-react';
+import { CloudUpload, AlertTriangle, Clock, Hourglass, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useFilaDeEnvio } from '@/hooks/useFilaDeEnvio';
 import { enviarAgora, tentarEnviarDeNovo, descartarRegistroNaoEnviado, dependentesDoRegistro } from '@/services/sincronizacaoService';
 import { confirmar } from '@/lib/maikeConfirmar';
 import { notifyError } from '@/lib/maikeNotify';
 
-const quando = (iso) =>
-  new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const quando = (iso) => {
+  const d = new Date(iso);
+  if (!iso || Number.isNaN(d.getTime()) || d.getTime() === 0) return '—';
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+};
+
+/** O que a pessoa lê na situação de cada item. */
+const SITUACAO = {
+  aguardando: 'Aguardando envio',
+  confirmando: 'Enviado — esperando a confirmação do sistema',
+  esperando: 'Esperando outro registro subir antes',
+  atencao: 'Precisa de atenção',
+};
+
+const ICONE = { aguardando: Clock, confirmando: Loader2, esperando: Hourglass, atencao: AlertTriangle };
 
 /**
- * D-PROD-295 — "Envio": o que foi feito sem internet e ainda não chegou ao
- * sistema. Fica dentro da janela "Sincronização" (D-PROD-301).
- *
- * - aguardando envio: sai sozinho quando houver internet;
- * - precisa de atenção: o sistema recusou; mostra o motivo, e a pessoa tenta
- *   de novo (depois de corrigir) ou descarta. Nada sai daqui sem ela decidir.
+ * D-PROD-295 / D-PROD-328 — "Envio": a FILA ÚNICA do que foi feito sem internet e ainda não chegou ao sistema,
+ * dentro da janela "Sincronização" (D-PROD-301). Tudo entra aqui — cochos e depósitos, cadastros, tarefas e fotos —
+ * e cada item mostra o que é, quando foi feito e a situação, com três ações:
+ *  - "Ver detalhes": o que aconteceu (tentativas, última tentativa, motivo) e o conteúdo do registro;
+ *  - "Tentar de novo": envia já (e tira a recusa, se houver);
+ *  - "Excluir": a pessoa decide que ele não vai ao sistema (pede confirmação, com o aviso do que acontece).
+ * Nada fica preso sem saída.
  */
 export default function FilaDeEnvio() {
   const fila = useFilaDeEnvio();
   const [ocupado, setOcupado] = useState(false);
+  const [aberto, setAberto] = useState(/** @type {string|null} */ (null));
 
   if (fila.aguardando === 0 && fila.atencao === 0) {
     return <p className="text-sm text-slate-500">Tudo enviado: nenhum registro esperando.</p>;
@@ -35,7 +50,7 @@ export default function FilaDeEnvio() {
     }
   };
 
-  const descartar = async (item) => {
+  const excluir = async (item) => {
     // D-PROD-311: só o último da sequência sai — com um registro posterior que depende deste,
     // a pessoa exclui primeiro o mais recente.
     const dependentes = await dependentesDoRegistro(item.id);
@@ -43,13 +58,10 @@ export default function FilaDeEnvio() {
       notifyError('Exclua primeiro o mais recente', `Este registro tem outro depois dele que depende dele. Exclua antes: ${dependentes.map((d) => d.rotulo).join('; ')}.`);
       return;
     }
-    const avisoDependentes = '';
     const ok = await confirmar({
-      titulo: item.estado === 'atencao' ? 'Descartar este registro?' : 'Excluir este registro?',
-      descricao: (item.progresso?.saida_feita
-        ? `"${item.rotulo}" não vai chegar ao sistema. A baixa de ${item.progresso.saida_feita.quantidade} kg no estoque JÁ FOI FEITA e não será desfeita: depois, ajuste o estoque. Prefira "Tentar de novo". Isso não pode ser desfeito.`
-        : `"${item.rotulo}" não vai chegar ao sistema. Isso não pode ser desfeito.`) + avisoDependentes,
-      textoConfirmar: 'Descartar',
+      titulo: 'Excluir este registro?',
+      descricao: `"${item.rotulo}" não vai chegar ao sistema.${item.avisoAoExcluir ? ` ${item.avisoAoExcluir}` : ''} Isso não pode ser desfeito.`,
+      textoConfirmar: 'Excluir',
       perigo: true,
     });
     if (ok) await executar(() => descartarRegistroNaoEnviado(item.id));
@@ -70,47 +82,69 @@ export default function FilaDeEnvio() {
       </div>
 
       {fila.itens.length > 0 && (
-        <ul className="max-h-56 space-y-1.5 overflow-y-auto">
-          {fila.itens.map((item) => (
-            <li key={item.id} className={`rounded-md border px-2.5 py-2 text-sm ${item.estado === 'atencao' ? 'border-amber-300 bg-amber-50' : 'border-slate-200'}`}>
-              <div className="flex items-start gap-1.5">
-                {item.estado === 'atencao' ? (
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
-                ) : (
-                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-slate-800">{item.rotulo}</p>
-                  <p className="text-xs text-slate-500">Feito em {quando(item.criado_em)}</p>
-                  {item.estado === 'atencao' && item.ultimo_erro && (
-                    <p className="mt-0.5 text-xs text-amber-800">{item.ultimo_erro.mensagem}</p>
-                  )}
+        <ul className="max-h-80 space-y-1.5 overflow-y-auto" aria-label="Fila de envio">
+          {fila.itens.map((item) => {
+            const Icone = ICONE[item.estado] ?? Clock;
+            const atencao = item.estado === 'atencao';
+            const mostrando = aberto === item.id;
+            return (
+              <li key={item.id} data-mk-fila-item={item.origem} className={`rounded-md border px-2.5 py-2 text-sm ${atencao ? 'border-amber-300 bg-amber-50' : 'border-slate-200'}`}>
+                <div className="flex items-start gap-1.5">
+                  <Icone className={`mt-0.5 h-4 w-4 shrink-0 ${atencao ? 'text-amber-600' : 'text-slate-400'}`} aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-slate-800">{item.rotulo}</p>
+                    <p className="text-xs text-slate-500">Feito em {quando(item.criado_em)} · {SITUACAO[item.estado] ?? item.estado}</p>
+                    {item.motivo && <p className={`mt-0.5 text-xs ${atencao ? 'text-amber-800' : 'text-slate-600'}`}>{item.motivo}</p>}
+                  </div>
                 </div>
-              </div>
-              {item.estado === 'pendente' && !item.confirmando && (
-                <div className="mt-1.5 flex justify-end gap-1.5">
-                  <Button type="button" size="sm" variant="ghost" disabled={ocupado} onClick={() => descartar(item)}>
+
+                {mostrando && (
+                  <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 rounded bg-white/70 px-2 py-1.5 text-xs" aria-label={`Detalhes de ${item.rotulo}`}>
+                    <dt className="text-slate-500">Situação</dt>
+                    <dd className="text-slate-800">{SITUACAO[item.estado] ?? item.estado}</dd>
+                    <dt className="text-slate-500">Feito em</dt>
+                    <dd className="text-slate-800">{quando(item.criado_em)}</dd>
+                    <dt className="text-slate-500">Tentativas com erro</dt>
+                    <dd className="text-slate-800">{item.tentativas || 0}</dd>
+                    {item.ultimaTentativaEm && (
+                      <>
+                        <dt className="text-slate-500">Última tentativa</dt>
+                        <dd className="text-slate-800">{quando(item.ultimaTentativaEm)}</dd>
+                      </>
+                    )}
+                    {item.motivo && (
+                      <>
+                        <dt className="text-slate-500">O que aconteceu</dt>
+                        <dd className="text-slate-800">{item.motivo}</dd>
+                      </>
+                    )}
+                    {item.detalhes.map((d) => (
+                      <React.Fragment key={d.rotulo}>
+                        <dt className="text-slate-500">{d.rotulo}</dt>
+                        <dd className="break-words text-slate-800">{d.valor}</dd>
+                      </React.Fragment>
+                    ))}
+                  </dl>
+                )}
+
+                <div className="mt-1.5 flex flex-wrap justify-end gap-1.5">
+                  <Button type="button" size="sm" variant="ghost" aria-expanded={mostrando} onClick={() => setAberto(mostrando ? null : item.id)}>
+                    {mostrando ? <ChevronUp className="mr-1 h-4 w-4" aria-hidden="true" /> : <ChevronDown className="mr-1 h-4 w-4" aria-hidden="true" />}
+                    {mostrando ? 'Fechar detalhes' : 'Ver detalhes'}
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" disabled={ocupado} onClick={() => excluir(item)}>
                     Excluir
                   </Button>
+                  {item.podeTentar && (
+                    <Button type="button" size="sm" variant="outline" disabled={ocupado || fila.enviando} onClick={() => executar(() => tentarEnviarDeNovo(item.id))}>
+                      Tentar de novo
+                    </Button>
+                  )}
                 </div>
-              )}
-              {item.estado === 'pendente' && item.confirmando && <p className="mt-0.5 text-xs text-slate-500">Confirmando envio…</p>}
-              {item.estado === 'atencao' && (
-                <div className="mt-1.5 flex justify-end gap-1.5">
-                  <Button type="button" size="sm" variant="ghost" disabled={ocupado} onClick={() => descartar(item)}>
-                    Descartar
-                  </Button>
-                  <Button type="button" size="sm" variant="outline" disabled={ocupado} onClick={() => executar(() => tentarEnviarDeNovo(item.id))}>
-                    Tentar de novo
-                  </Button>
-                </div>
-              )}
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
-      )}
-      {fila.outrosAguardando > 0 && (
-        <p className="text-xs text-slate-500">Inclui {fila.outrosAguardando} alteração(ões) de cadastro feitas sem internet.</p>
       )}
     </div>
   );

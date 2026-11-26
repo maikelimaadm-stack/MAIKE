@@ -90,7 +90,7 @@ import { criarFilaIndexedDB, filaDeEnvioDisponivel } from './filaDeEnvio.js';
  *   seguradosPorFora?: number,
  *   itens: Array<{id: string, tipo: string, rotulo: string, estado: string, criado_em: string,
  *                 tentativas: number, ultimo_erro: ItemDaFila['ultimo_erro'], esperando: boolean,
- *                 confirmando: boolean, progresso: Record<string, any>}>,
+ *                 confirmando: boolean, progresso: Record<string, any>, payload?: unknown, proxima_tentativa_em?: number}>,
  * }} ResumoDaFila
  */
 
@@ -906,6 +906,9 @@ export const resumoDaFila = async () => {
       esperando: i.estado === 'pendente' && i.proxima_tentativa_em > agora(),
       confirmando: i.estado === 'pendente' && Boolean(i.tentado),
       progresso: i.progresso ?? {},
+      // D-PROD-328: o conteúdo, para o "Ver detalhes" da fila única.
+      payload: i.payload,
+      proxima_tentativa_em: i.proxima_tentativa_em ?? 0,
     })),
   };
 };
@@ -1052,16 +1055,18 @@ const tentarDeNovoJa = async (id) => {
  * "precisa de atenção" na próxima passada.
  * @param {string} id
  */
-export const descartarDaFila = (id) => exclusivo(() => descartarDaFilaJa(id));
+export const descartarDaFila = (id, opcoes = {}) => exclusivo(() => descartarDaFilaJa(id, opcoes));
 
-/** @param {string} id */
-const descartarDaFilaJa = async (id) => {
+/** @param {string} id @param {{ mesmoSemResposta?: boolean }} [opcoes] */
+const descartarDaFilaJa = async (id, opcoes = {}) => {
   const fila = portaDaFila();
   const item = fila ? await fila.ler(id) : undefined;
   if (!fila || !item || !eDaSessao(item) || item.estado === 'enviado') return false;
   // Já tentou subir e o servidor não respondeu: pode ter gravado. Só depois da
-  // resposta (enviado, ou recusado → atenção) dá para decidir.
-  if (item.estado === 'pendente' && item.tentado) return false;
+  // resposta (enviado, ou recusado → atenção) dá para decidir — a não ser que a
+  // pessoa, avisada disso, decida tirar assim mesmo (D-PROD-328: nada fica preso
+  // na fila sem saída; o id do aparelho impede a duplicata se ele já tiver chegado).
+  if (item.estado === 'pendente' && item.tentado && !opcoes.mesmoSemResposta) return false;
   // D-PROD-311: só o ÚLTIMO da sequência sai. Com um registro posterior que depende deste
   // (o lançamento seguinte do mesmo cocho), excluir este deixaria o outro órfão ("precisa de
   // atenção" ao voltar a internet): a pessoa exclui primeiro o mais recente.

@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-26 (missão ativa D-PROD-327; antes D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-26 (missão ativa D-PROD-328; antes D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-26) — MAIKE-TAREFA-FOTO-SALVA: tarefa com foto salva (D-PROD-327)
+## Missão ativa (2026-11-26) — MAIKE-FILA-UNICA: fila única da sincronização (D-PROD-328)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-328**: uma lista com tudo que espera envio (cochos/depósitos, cadastros, tarefas e fotos), com situação, motivo e detalhes; "Ver detalhes", "Tentar de novo" e "Excluir" em todo item; foto e tarefa antiga param depois de 3 falhas |
+| Banco | sem migration; backend sem mudança |
+| Relatório | [`FILA-UNICA-SINCRONIZACAO-D328-REPORT.md`](./FILA-UNICA-SINCRONIZACAO-D328-REPORT.md) |
+| Próximas | sincronização automática nos dois sentidos com o círculo de porcentagem no canto |
+
+## Missão anterior (2026-11-26) — MAIKE-TAREFA-FOTO-SALVA: tarefa com foto salva (D-PROD-327)
 
 | Item | Estado |
 |---|---|
