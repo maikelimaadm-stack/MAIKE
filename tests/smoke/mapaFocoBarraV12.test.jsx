@@ -7,7 +7,7 @@
  *
  * BARRA-1  regra pura do foco (src/lib/mapaFoco.js).
  * BARRA-2  barra: ⚙ "Filtros", segmentos por permissão, aria-pressed, Tarefas
- *          liga o foco e abre a Gestão de Tarefas a cada toque, setas.
+ *          liga o foco (D-PROD-321: a lista abre pelo cartão de baixo do mapa), setas.
  * BARRA-3  MapaGeral: argumentos dos renderer.sync* em Lotes, Pastos e Tarefas;
  *          movimentações lidas só quando o foco/cor pedem e relidas no servidor
  *          pelo "Atualizar mapa" no foco Pastos.
@@ -75,7 +75,8 @@ vi.mock('@/services/bebedouroDataService', async (importOriginal) => ({
 // A Gestão de Tarefas que JÁ existe (o diálogo é o real; o painel fica de fora).
 vi.mock('@/components/mapa/TarefasMapaPanel', async () => {
   const { createElement } = await import('react');
-  return { default: () => createElement('p', null, 'Lista de tarefas') };
+  // D-PROD-321: guarda as props (o "Nova tarefa" passa o local pela posição do celular).
+  return { default: (props) => { globalThis.__painelTarefas = props; return createElement('p', null, 'Lista de tarefas'); } };
 });
 vi.mock('@/lib/maplibre/falhaWebGL', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -306,24 +307,25 @@ describe('BARRA-2 — barra do topo (MapaControlesMobile)', () => {
 
   it('⚙ "Filtros" abre o painel Filtro de hoje; segmentos na ordem, Lotes pressionado', () => {
     const p = montar();
-    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pontos', 'Visualização do mapa: Mapa']);
+    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pontos', 'Tarefas', 'Visualização do mapa: Mapa']);
     const cfg = barra().getByRole('button', { name: 'Filtros' });
     expect(cfg).toHaveAttribute('title', 'Filtros');
     expect(cfg.className).toBe('mk-mapa-barra__cfg');
     expect(pressionado('Lotes')).toBe('true');
     expect(pressionado('Pontos')).toBe('false');
-    expect(barra().queryByRole('button', { name: 'Tarefas' })).toBeNull();
+    expect(pressionado('Tarefas')).toBe('false');
     fireEvent.click(cfg);
     expect(p.onOpenFiltros).toHaveBeenCalledTimes(1);
     expect(p.onFoco).not.toHaveBeenCalled();
     expect(barra().getByRole('button', { name: /Visualização do mapa:/ }).closest('.mk-mapa-dir')).toBeNull();
   });
 
-  it('Pontos mantém o foco de áreas e Tarefas fica oculto por enquanto', () => {
+  it('Pontos mantém o foco de áreas; Tarefas (D-PROD-321) só liga o foco, sem abrir a lista', () => {
     const p = montar();
     fireEvent.click(barra().getByRole('button', { name: 'Pontos' }));
     expect(p.onFoco).toHaveBeenLastCalledWith('pastos');
-    expect(barra().queryByRole('button', { name: 'Tarefas' })).toBeNull();
+    fireEvent.click(barra().getByRole('button', { name: 'Tarefas' }));
+    expect(p.onFoco).toHaveBeenLastCalledWith('tarefas');
     expect(p.onOpenTarefas).not.toHaveBeenCalled();
   });
 
@@ -368,9 +370,9 @@ describe('BARRA-2 — barra do topo (MapaControlesMobile)', () => {
 });
 
 describe('BARRA-3 — MapaGeral real: o que cada foco desenha', () => {
-  it('abre em Lotes (como hoje); Pastos tira lotes e tarefas; Tarefas tira lotes e cochos e abre a Gestão de Tarefas', async () => {
+  it('abre em Lotes (como hoje); Pastos tira lotes e tarefas; Tarefas (D-PROD-321) tira lotes e cochos, mostra o resumo das tarefas e abre a lista pelo cartão', async () => {
     await abrir();
-    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pontos', 'Visualização do mapa: Satélite']);
+    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pontos', 'Tarefas', 'Visualização do mapa: Satélite']);
     expect(pressionado('Lotes')).toBe('true');
     expect(noMapa()).toEqual({ lotes: true, lotesNaLista: 2, cochos: true, tarefas: 1, textoNoRotulo: false });
 
@@ -378,7 +380,17 @@ describe('BARRA-3 — MapaGeral real: o que cada foco desenha', () => {
     expect(pressionado('Pontos')).toBe('true');
     expect(noMapa()).toEqual({ lotes: false, lotesNaLista: 2, cochos: true, tarefas: 0, textoNoRotulo: true });
 
-    expect(barra().queryByRole('button', { name: 'Tarefas' })).toBeNull();
+    await tocar('Tarefas');
+    expect(pressionado('Tarefas')).toBe('true');
+    expect(noMapa()).toMatchObject({ lotes: false, cochos: false, tarefas: 1, textoNoRotulo: false });
+    // O cartão de baixo resume as tarefas (no lugar dos animais) e abre a lista; "Nova tarefa" ao lado.
+    const cartao = screen.getByRole('button', { name: 'Resumo das tarefas' });
+    expect(cartao.textContent).toContain('1tarefa aberta');
+    expect(screen.getByRole('button', { name: 'Nova tarefa' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Tarefas' })).toBeNull();
+    await act(async () => { fireEvent.click(cartao); });
+    expect(within(screen.getByRole('dialog', { name: 'Tarefas' })).getByText('Lista de tarefas')).toBeInTheDocument();
+    await act(async () => { fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' }); });
 
     await tocar('Lotes');
     expect(pressionado('Lotes')).toBe('true');
@@ -409,6 +421,37 @@ describe('BARRA-3 — MapaGeral real: o que cada foco desenha', () => {
     await atualizarMapa();
     expect(dados.forcadas, 'vai ao servidor').toContain('movimentacoes');
     await waitFor(() => expect(rotulo(A3), 'e o rótulo usa o dado novo').toBe('Descanso 5d'));
+  });
+});
+
+describe('BARRA-6 — D-PROD-321: "Nova tarefa" já sabe onde a pessoa está', () => {
+  const posicao = (resultado) => {
+    Object.defineProperty(window.navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition: (ok, falha) => (resultado ? ok({ coords: resultado }) : falha({ code: 1 })) },
+    });
+  };
+
+  it('dentro de um pasto: a tarefa nova abre com esse pasto e o ponto', async () => {
+    posicao({ latitude: -15.005, longitude: -47.005 });
+    await abrir();
+    await tocar('Tarefas');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Nova tarefa' })); });
+    expect(screen.getByRole('dialog', { name: 'Tarefas' })).toBeInTheDocument();
+    const p = /** @type {any} */ (globalThis).__painelTarefas;
+    expect(p).toMatchObject({ areaId: 'a1', areaNome: 'A1', openCreateOnMount: true, initialCoordinates: { lat: -15.005, lng: -47.005 } });
+    expect(typeof p.onNovaTarefa).toBe('function');
+    expect(typeof p.onAbrirTarefa).toBe('function');
+  });
+
+  it('sem a posição (sem permissão): abre a tarefa nova sem local, para escolher setor e pasto', async () => {
+    posicao(null);
+    await abrir();
+    await tocar('Tarefas');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Nova tarefa' })); });
+    const p = /** @type {any} */ (globalThis).__painelTarefas;
+    expect(p).toMatchObject({ openCreateOnMount: true, initialCoordinates: null });
+    expect(p.areaId).toBeUndefined();
   });
 });
 
@@ -451,23 +494,26 @@ describe('BARRA-5 — perdeu a permissão do foco atual: volta para Lotes', () =
     expect(noMapa().lotes).toBe(false);
 
     await trocarPermissao(linha({ visualizar_areas: false }, [TELA_TAREFAS]));
-    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Visualização do mapa: Satélite']);
+    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Tarefas', 'Visualização do mapa: Satélite']);
     expect(pressionado('Lotes')).toBe('true');
     expect(noMapa().lotes).toBe(true);
 
     await trocarPermissao(linha({}, [TELA_TAREFAS]));
-    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pontos', 'Visualização do mapa: Satélite']);
+    expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pontos', 'Tarefas', 'Visualização do mapa: Satélite']);
     expect(pressionado('Lotes'), 'o foco foi reposto, não só escondido').toBe('true');
   });
 
-  it('Tarefas some sem a tela de Tarefas; a Gestão de Tarefas fecha e o foco volta para Lotes', async () => {
+  it('Tarefas some sem a tela de Tarefas; a lista de tarefas fecha e o foco volta para Lotes', async () => {
     sessao.usuario = ANA;
     sessao.permissoes = linha({}, [TELA_TAREFAS]);
     await abrir();
-    expect(barra().queryByRole('button', { name: 'Tarefas' })).toBeNull();
+    await tocar('Tarefas');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resumo das tarefas' })); });
+    expect(screen.getByRole('dialog', { name: 'Tarefas' })).toBeInTheDocument();
 
     await trocarPermissao(linha({}, []));
-    expect(screen.queryByRole('dialog', { name: 'Gestão de Tarefas' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Tarefas' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Nova tarefa' })).toBeNull();
     expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pontos', 'Visualização do mapa: Satélite']);
     expect(pressionado('Lotes')).toBe('true');
     expect(noMapa()).toMatchObject({ lotes: true, cochos: true, tarefas: 0 });

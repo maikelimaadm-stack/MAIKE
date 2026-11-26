@@ -16,11 +16,14 @@ import { render, screen, cleanup, fireEvent, waitFor, within, act } from "@testi
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const atualizarTarefa = vi.fn();
+const excluirTarefa = vi.fn(async () => undefined);
+const confirmarExclusao = vi.fn(async () => true);
 const getMapaCachedData = vi.fn();
 const refreshMapaCacheEntry = vi.fn();
 
 vi.mock("@/services/tarefasMapaService", () => ({
   atualizarTarefa: (...a) => atualizarTarefa(...a),
+  excluirTarefa: (...a) => excluirTarefa(...a),
   enviarAnexo: vi.fn(),
   excluirHistorico: vi.fn(),
   listarTodosGrupos: vi.fn(async () => []),
@@ -31,6 +34,10 @@ vi.mock("@/services/tarefasMapaService", () => ({
 vi.mock("@/services/mapaCacheService", () => ({
   getMapaCachedData: (...a) => getMapaCachedData(...a),
   refreshMapaCacheEntry: (...a) => refreshMapaCacheEntry(...a),
+}));
+vi.mock("@/lib/maikeConfirmar", async (importOriginal) => ({
+  .../** @type {any} */ (await importOriginal()),
+  confirmarExclusao: (...a) => confirmarExclusao(...a),
 }));
 // O formulário de edição é o de hoje (não é desta peça): aqui um dublê que
 // devolve os dados pelo mesmo `onSubmit`; o `normalizeTaskPriority` é o real.
@@ -54,7 +61,12 @@ vi.mock("@/components/mapa/FormularioTarefaMapa", async (importOriginal) => {
 
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import DetalhesTarefaMapa from "@/components/mapa/DetalhesTarefaMapa";
-import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
+// D-PROD-321: o diálogo de detalhes como o mapa o abre (o `TarefaDetalhesDialog` da grade antiga saiu).
+const TarefaDetalhesDialog = ({ open, onOpenChange, tarefa, onSaved }) => (
+  <LancLoteDialogo open={open} onOpenChange={onOpenChange} titulo="Detalhes da tarefa" largo somenteLeitura>
+    {tarefa ? <DetalhesTarefaMapa tarefa={tarefa} onSaved={onSaved} /> : null}
+  </LancLoteDialogo>
+);
 
 /** Largura da tela para os `matchMedia` (desktop 1280, tablet 820, celular 390). */
 const largura = (w) => {
@@ -425,11 +437,11 @@ describe("Rodapé: Editar · Registrar evento · Concluir", () => {
     noDialogo();
     await esperarEventos();
     const grupo = screen.getByRole("group", { name: "Ações da tarefa" });
-    expect(within(grupo).getAllByRole("button").map((b) => b.textContent)).toEqual(["Editar", "Registrar evento", "Concluir"]);
+    expect(within(grupo).getAllByRole("button").map((b) => b.textContent)).toEqual(["Editar", "Registrar evento", "Concluir", "Excluir"]);
     expect(grupo.querySelector("svg.lucide-square-pen")).toBeTruthy();
     expect(grupo.querySelector("svg.lucide-message-square-plus")).toBeTruthy();
     expect(grupo.querySelector("svg.lucide-check")).toBeTruthy();
-    for (const nome of ["Editar", "Registrar evento", "Concluir"]) expect(pilula(nome).disabled).toBe(false);
+    for (const nome of ["Editar", "Registrar evento", "Concluir", "Excluir"]) expect(pilula(nome).disabled).toBe(false);
     await act(async () => {
       fireEvent.click(pilula("Registrar evento"));
     });
@@ -524,6 +536,23 @@ describe("Rodapé: Editar · Registrar evento · Concluir", () => {
   });
 });
 
+describe("D-PROD-321 — Excluir nos detalhes (saiu da grade antiga)", () => {
+  it("confirma, exclui no servidor e avisa quem abriu (que fecha o detalhe); cancelado não exclui", async () => {
+    largura(1280);
+    const onExcluida = vi.fn();
+    noDialogo({ onExcluida });
+    await esperarEventos();
+    const excluir = within(screen.getByRole("group", { name: "Ações da tarefa" })).getByRole("button", { name: "Excluir" });
+    confirmarExclusao.mockResolvedValueOnce(false);
+    await act(async () => { fireEvent.click(excluir); });
+    expect(excluirTarefa).not.toHaveBeenCalled();
+    await act(async () => { fireEvent.click(excluir); });
+    await waitFor(() => expect(onExcluida).toHaveBeenCalledTimes(1));
+    expect(excluirTarefa).toHaveBeenCalledWith(TAREFA.id);
+    expect(confirmarExclusao.mock.calls[1][0]).toMatch(/^Excluir a tarefa "Consertar cerca"\?/);
+  });
+});
+
 describe("Outras aberturas e CSS", () => {
   it("pela Gestão de Tarefas (TarefaDetalhesDialog): o mesmo detalhe v12 no diálogo padrão", async () => {
     largura(1280);
@@ -536,7 +565,7 @@ describe("Outras aberturas e CSS", () => {
     expect(document.querySelector(".mk-ll-dlg.is-desktop > .mk-ll > .mk-dp")).toBeTruthy();
     expect(document.querySelector(".mk-ll-dlg__titulo")?.textContent).toBe("Consertar cerca");
     expect(document.querySelector(".mk-ll-dlg__lotes")?.textContent).toBe("Detalhes da tarefa");
-    expect(within(screen.getByRole("group", { name: "Ações da tarefa" })).getAllByRole("button").map((b) => b.textContent)).toEqual(["Editar", "Registrar evento", "Concluir"]);
+    expect(within(screen.getByRole("group", { name: "Ações da tarefa" })).getAllByRole("button").map((b) => b.textContent)).toEqual(["Editar", "Registrar evento", "Concluir", "Excluir"]);
     await esperarEventos();
   });
 

@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { listarTarefasDaEmpresa, listarIconesPorTipo, criarTarefa, atualizarTarefa, excluirTarefa, enviarAnexo } from "@/services/tarefasMapaService";
+import { listarTarefasDaEmpresa, criarTarefa, atualizarTarefa, enviarAnexo } from "@/services/tarefasMapaService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import { toast } from "sonner";
 import { API_ERROR_CODES, getApiErrorMessage, hasApiErrorCode } from "@/apis/_core/ApiError";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
-import TarefasCardsMapa from "@/components/tarefas/TarefasCardsMapa";
+import ResumoTarefasMapa from "@/components/tarefas/ResumoTarefasMapa";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
-export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, pontoSuplId, onClose, initialCoordinates, openCreateOnMount = false, initialDraft = null, onRequestSelectLocation }) {
+/**
+ * D-PROD-321 — Tarefas, parte 2: o painel mostra o resumo em cartões (`ResumoTarefasMapa`, estilo dos detalhes do
+ * lote) no lugar da grade de cadastro; tocar numa tarefa abre os detalhes (`onAbrirTarefa`); "Nova tarefa" usa
+ * `onNovaTarefa` (o mapa descobre onde a pessoa está) ou, sem ele, abre o formulário com o local do painel.
+ */
+export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, pontoSuplId, onClose, initialCoordinates, openCreateOnMount = false, initialDraft = null, onRequestSelectLocation, onAbrirTarefa = null, onNovaTarefa = null, hoje = undefined }) {
   const [showForm, setShowForm] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState(null);
 
@@ -31,26 +36,12 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     staleTime: 60 * 1000,
   });
 
-  const { data: iconesPrioridade = [] } = useQuery({
-    queryKey: ['icones-prioridade-tarefa-mapa'],
-    queryFn: async () => {
-      return listarIconesPorTipo('Prioridade Tarefa');
-    },
-    staleTime: 10 * 60 * 1000
-  });
-
   useEffect(() => {
     if (openCreateOnMount) {
       setEditingTarefa(initialDraft?.id ? initialDraft : null);
       setShowForm(true);
     }
   }, [openCreateOnMount, initialCoordinates, initialDraft]);
-
-  const getIconePrioridade = (prioridade) => {
-    const normalize = (value) => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-    const prioridadeNormalizada = normalize(normalizeTaskPriority(prioridade));
-    return iconesPrioridade.find((icone) => normalize(icone.categoria) === prioridadeNormalizada);
-  };
 
   const uploadImages = async (pendingImageFiles = []) => {
     const uploadedUrls = [];
@@ -126,42 +117,40 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     }
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (ids) => {
-      const lista = Array.isArray(ids) ? ids : [ids];
-      for (const id of lista) await excluirTarefa(id);
-      return lista;
-    },
-    onSuccess: (ids) => {
-      queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
-      queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
-      queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
-      window.dispatchEvent(new CustomEvent('atualizar-mapa'));
-      toast.success(ids.length === 1 ? 'Tarefa excluída!' : `${ids.length} tarefas excluídas!`);
-    }
-  });
-
   const panelSubtitulo = areaNome || loteNome || '';
 
+  const abrirNova = () => {
+    if (typeof onNovaTarefa === "function") {
+      onNovaTarefa();
+      return;
+    }
+    setEditingTarefa(null);
+    setShowForm(true);
+  };
+
   return (
-    <div className="mk-map-task-panel space-y-1 w-full min-w-0">
+    <>
       {loadingTarefas ? (
         <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
           <div className="animate-spin w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
           <span className="text-xs font-medium text-slate-700">Carregando tarefas...</span>
         </div>
       ) : (
-      // D-PROD-133: tarefas em cards, no padrão dos cadastros (sem a tabela antiga).
-      <TarefasCardsMapa
-        tarefas={tarefas}
-        onDelete={(ids) => deleteMutation.mutate(/** @type {any} */ (ids))}
-        onEdit={(tarefa) => {
-          setEditingTarefa(tarefa);
-          setShowForm(true);
-        }}
-        normalizeTaskPriority={normalizeTaskPriority}
-        onAdd={() => { setEditingTarefa(null); setShowForm(true); }}
-      />
+        <ResumoTarefasMapa
+          tarefas={tarefas}
+          titulo="Tarefas"
+          sub={panelSubtitulo}
+          hoje={hoje}
+          prioridadeDe={normalizeTaskPriority}
+          onAbrir={(tarefa) => {
+            if (typeof onAbrirTarefa === "function") onAbrirTarefa(tarefa);
+            else {
+              setEditingTarefa(tarefa);
+              setShowForm(true);
+            }
+          }}
+          onNova={abrirNova}
+        />
       )}
 
       <LancLoteDialogo
@@ -215,6 +204,6 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
             onCancel={() => { setShowForm(false); setEditingTarefa(null); }}
           />
       </LancLoteDialogo>
-    </div>
+    </>
   );
 }

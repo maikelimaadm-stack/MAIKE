@@ -42,7 +42,7 @@ function andarNaBarra(event) {
  *   - filtro "Filtros" (`showFiltrosButton`) abre o painel Filtro de hoje (`onOpenFiltros`).
  *   - Segmentos `focosPermitidos` (Lotes sempre; Pastos e Tarefas pela
  *     permissão), com `aria-pressed` no `foco` atual; o toque chama `onFoco(id)`.
- *     Tarefas também abre a Gestão de Tarefas (`onOpenTarefas`) a cada toque.
+ *     Tarefas só muda o foco (D-PROD-321): a lista abre pelo cartão de baixo do mapa.
  *   - Visualização fecha a barra, inclusive quando só Lotes está liberado.
  * - Visualização (tipo, estilo e cores — `painel`) fica no fim da barra.
  * - À direita, abaixo dela: Atualizar, Minha localização e Mover lotes.
@@ -65,7 +65,8 @@ export default function MapaControlesMobile({
 }) {
   const [camadasAberto, setCamadasAberto] = React.useState(false);
 
-  const segmentos = FOCOS_MAPA.filter((f) => f.id !== "tarefas" && focosPermitidos.includes(f.id));
+  // D-PROD-321: Tarefas volta à barra (Lotes · Pontos · Tarefas), com a permissão das tarefas no mapa.
+  const segmentos = FOCOS_MAPA.filter((f) => focosPermitidos.includes(f.id));
 
   const camadaAtual = CAMADAS.find((c) => c.id === mapType) || CAMADAS[0];
 
@@ -106,10 +107,7 @@ export default function MapaControlesMobile({
             type="button"
             className="mk-mapa-barra__seg"
             aria-pressed={foco === f.id}
-            onClick={() => {
-              onFoco?.(f.id);
-              if (f.id === "tarefas") onOpenTarefas?.();
-            }}>
+            onClick={() => onFoco?.(f.id)}>
             {f.id === "pastos" ? "Pontos" : f.rotulo}
           </button>
         ))}

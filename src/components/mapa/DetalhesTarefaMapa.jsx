@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Check, CircleX, ClipboardList, FileText, History, MapPin, MessageSquare, MessageSquarePlus, Plus, Repeat, SquarePen } from "lucide-react";
-import { atualizarTarefa, enviarAnexo } from "@/services/tarefasMapaService";
+import { Check, CircleX, ClipboardList, FileText, History, MapPin, MessageSquare, MessageSquarePlus, Plus, Repeat, SquarePen, Trash2 } from "lucide-react";
+import { atualizarTarefa, enviarAnexo, excluirTarefa } from "@/services/tarefasMapaService";
+import { confirmarExclusao } from "@/lib/maikeConfirmar";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { toast } from "sonner";
@@ -175,12 +177,16 @@ const coordenada = (v) => (typeof v === "number" && Number.isFinite(v) ? v.toFix
  *   `hoje`: dia civil da fazenda (AAAA-MM-DD), o mesmo do mapa, para o prazo
  *   vencido; sem ele, o dia do relógio do aparelho.
  */
-export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLocation, hoje = null }) {
+/**
+ * D-PROD-321: `onExcluida` — a tarefa foi excluída aqui (o "Excluir" saiu da grade antiga para os detalhes).
+ */
+export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLocation, hoje = null, onExcluida = null }) {
   const queryClient = useQueryClient();
   const [currentTarefa, setCurrentTarefa] = useState(tarefa);
   const diaDoAparelho = useDiaCivil(null);
   const podeExcluirEvento = usePodeExcluirEventoTarefa();
   const [showEdit, setShowEdit] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
   const [showEvento, setShowEvento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [eventoTipo, setEventoTipo] = useState(tarefa.status === "Em Andamento" ? "Registro" : "Em Andamento");
@@ -392,6 +398,26 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
   const ultimosDias = diasDosEventos(historico.slice(0, ULTIMOS_EVENTOS));
 
   const motivoEncerrada = status === "Concluída" ? "A tarefa já está concluída." : "A tarefa está cancelada.";
+  // D-PROD-321: excluir a tarefa (antes, só pela grade antiga da Gestão de Tarefas).
+  const excluir = async () => {
+    if (excluindo) return;
+    const ok = await confirmarExclusao(`Excluir a tarefa "${titulo || "Tarefa"}"? O histórico dela também sai.`);
+    if (!ok) return;
+    setExcluindo(true);
+    try {
+      await excluirTarefa(currentTarefa.id);
+      queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
+      queryClient.invalidateQueries({ queryKey: ["mapa-tarefas"] });
+      queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
+      window.dispatchEvent(new CustomEvent("atualizar-mapa"));
+      toast.success("Tarefa excluída.");
+      onExcluida?.(currentTarefa);
+    } catch (erro) {
+      toast.error(`Erro ao excluir: ${getApiErrorMessage(erro, "Tente novamente")}`);
+    } finally {
+      setExcluindo(false);
+    }
+  };
   const semTipoDeEvento = opcoesEvento.length === 0;
   const concluirPermitido = opcoesEvento.some((o) => o.value === "Concluída");
   const rodape = (
@@ -416,6 +442,7 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
           desabilitado: !concluirPermitido,
           title: concluirPermitido ? "Concluir tarefa" : motivoEncerrada,
         },
+        { chave: "excluir", rotulo: "Excluir", icone: Trash2, onClick: excluir, desabilitado: excluindo, title: "Excluir tarefa" },
       ]}
     />
   );
