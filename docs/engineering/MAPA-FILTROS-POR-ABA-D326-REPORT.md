@@ -37,3 +37,8 @@ Na aba **Lotes**, os cochos, os depósitos e as tarefas não aparecem mais no ma
 - **BARRA-1/3/5** atualizados: aba Lotes sem cochos e tarefas.
 - `tests/smoke/mapaPreferenciasIntegrada.test.jsx` (PREF-04): a chave "Tarefas" saiu do painel e entrou a aba Tarefas na barra.
 - `tests/smoke/mapaV2Visualizacao.test.jsx`: forma das camadas do painel.
+
+## Verificação
+
+- `test:smoke` completo: 370 arquivos, 4486 testes, todos passaram.
+- `gate:types` passou (361 diagnósticos); gates rápidos passaram.
