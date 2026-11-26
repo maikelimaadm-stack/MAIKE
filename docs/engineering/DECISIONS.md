@@ -10065,4 +10065,24 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 > **Numeração:** a `main` (`3cbab18d5`) indica `Próxima decisão: D-PROD-325`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-326. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-326 -->
+## D-PROD-326 — Mapa Geral: cada aba com as suas camadas e os seus filtros (Lotes · Pontos · Tarefas)
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("nos filtros e camadas … vai de acordo onde eu tiver, se é em lotes, ou pontos ou tarefas, eles não vão se misturar … cada um com suas coisas e seus filtros") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`MAPA-FILTROS-POR-ABA-D326-REPORT.md`](./MAPA-FILTROS-POR-ABA-D326-REPORT.md)
+
+**Decisão.**
+- O painel de filtro (⚙) mostra só o que é da aba (`painelDoFoco` em `src/lib/mapaFoco.js`):
+
+  | Aba | Mostrar no mapa | Filtros |
+  |---|---|---|
+  | Lotes | áreas, detalhes, hectares, pontos de referência, linhas, lotes, alertas, localização | áreas (setor, cultura, pastagem) e categorias de manejo |
+  | Pontos | áreas, detalhes, hectares, pontos de referência, linhas, cochos, depósitos, localização | áreas (setor, cultura, pastagem) |
+  | Tarefas | áreas, detalhes, pontos de referência, linhas, localização | tarefas: setor, situação (pendente / em andamento), prioridade, responsável, prazo ("só atrasadas") |
+
+- O mapa segue a mesma regra: a aba **Lotes deixa de desenhar cochos/depósitos e tarefas** (`camadasDoFoco('lotes')`). Cochos e depósitos ficam na aba Pontos e as tarefas na aba Tarefas. A chave "Tarefas" sai do painel, porque as tarefas têm a sua aba.
+- Um filtro que a aba não mostra também não vale nela: os filtros de lote só na aba Lotes (na aba Pontos o resumo de baixo conta todos os lotes das áreas filtradas); na aba Tarefas, das áreas só vale o setor; os filtros de tarefa só na aba Tarefas. O "limpar" do painel limpa só os filtros da aba.
+- Os filtros de tarefa são salvos com as outras preferências do mapa, por usuário (`filtroTarefaStatus`, `filtroTarefaPrioridade`, `filtroTarefaResponsavel`, `filtroTarefaPrazo`; multisseleção). Sem a permissão de filtros, valem o padrão (D-PROD-137). "Atrasada" é a mesma regra do resumo: o dia do prazo já passou.
+- A prioridade usa a regra e a lista da `main` (`src/lib/tarefas/prioridade.js`, PR #413: Baixa, Média, Alta, Urgente).
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-326` depois da D-PROD-325 (PR #414), que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-327. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-327 -->

@@ -7,7 +7,7 @@ import { listarBebedourosAtivos } from "@/services/mapaService";
 import { mapaPrecisaBuscarNoServidor } from "@/components/mapa/invalidarCachesMapa";
 import {
   bebedouroDoPonto, calcularSituacaoPasto, filtrarLotesPorArea, filtrarPontosSuplementacaoPorArea,
-  filtrarTarefasPorArea, filtroDeAreaAtivo, statusOcupacaoPorArea } from "@/domain/mapa/mapaGeralDerivados";
+  filtrarTarefasPorArea, filtrarTarefasDoMapa, responsaveisDasTarefas, filtroDeAreaAtivo, statusOcupacaoPorArea } from "@/domain/mapa/mapaGeralDerivados";
 import { canAccessPage } from "@/lib/permissions";
 import { MAPA_GERAL_ACESSO_TOTAL, normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 import { podeExcluirLancamentoBebedouro, podeLancarNoBebedouro } from "@/lib/bebedouroPermissions";
@@ -44,7 +44,7 @@ import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { useDiaCivil } from "@/hooks/useDiaCivil";
 import { listEmpresas } from "@/services/empresaService";
 import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral, normalizarFiltrosMapa, camadasVisiveis, preferenciaAplicada } from "@/lib/mapaGeralFiltrosStorage";
-import { camadasDoFoco, focoEmVigor, focosPermitidos } from "@/lib/mapaFoco";
+import { camadasDoFoco, focoEmVigor, focosPermitidos, painelDoFoco } from "@/lib/mapaFoco";
 import { useAuth } from "@/lib/AuthContext";
 import { useFiltroDoAssistente } from "@/hooks/useFiltroDoAssistente";
 import { casarNomes } from "@/domain/assistente/filtroTela";
@@ -102,6 +102,11 @@ export default function MapaGeral({ ativo = true } = {}) {
   const [prefFiltroSetor, setFiltroSetor] = useState(/** @type {string | string[]} */ ('todos'));
   const [prefFiltroPesoMin, setFiltroPesoMin] = useState(null);
   const [prefFiltroPesoMax, setFiltroPesoMax] = useState(null);
+  // D-PROD-326: filtros da aba Tarefas.
+  const [prefFiltroTarefaStatus, setFiltroTarefaStatus] = useState(/** @type {string | string[]} */ ('todos'));
+  const [prefFiltroTarefaPrioridade, setFiltroTarefaPrioridade] = useState(/** @type {string | string[]} */ ('todas'));
+  const [prefFiltroTarefaResponsavel, setFiltroTarefaResponsavel] = useState(/** @type {string | string[]} */ ('todos'));
+  const [prefFiltroTarefaPrazo, setFiltroTarefaPrazo] = useState(/** @type {string | string[]} */ ('todos'));
   const [prefModoColoracao, setModoColoracao] = useState('padrao');
   const [estiloPasto, setEstiloPasto] = useState('cheio');
 
@@ -324,11 +329,14 @@ export default function MapaGeral({ ativo = true } = {}) {
     filtroSistema: prefFiltroSistema, filtroAlertaTipo: prefFiltroAlertaTipo, filtroTipoCultura: prefFiltroTipoCultura,
     filtroTipoPastagem: prefFiltroTipoPastagem, filtroSetor: prefFiltroSetor,
     filtroPesoMin: prefFiltroPesoMin, filtroPesoMax: prefFiltroPesoMax, modoColoracao: prefModoColoracao,
+    filtroTarefaStatus: prefFiltroTarefaStatus, filtroTarefaPrioridade: prefFiltroTarefaPrioridade,
+    filtroTarefaResponsavel: prefFiltroTarefaResponsavel, filtroTarefaPrazo: prefFiltroTarefaPrazo,
   }, { podeFiltrar, podeColorir });
   const {
     showHectaresAreas, showTaskIcons,
     filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroAlertaTipo,
     filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao,
+    filtroTarefaStatus, filtroTarefaPrioridade, filtroTarefaResponsavel, filtroTarefaPrazo,
   } = prefAplicada;
 
   const {
@@ -366,6 +374,10 @@ export default function MapaGeral({ ativo = true } = {}) {
     setFiltroSetor(st.filtroSetor);
     setFiltroPesoMin(st.filtroPesoMin);
     setFiltroPesoMax(st.filtroPesoMax);
+    setFiltroTarefaStatus(st.filtroTarefaStatus);
+    setFiltroTarefaPrioridade(st.filtroTarefaPrioridade);
+    setFiltroTarefaResponsavel(st.filtroTarefaResponsavel);
+    setFiltroTarefaPrazo(st.filtroTarefaPrazo);
     setModoColoracao(st.modoColoracao);
     setEstiloPasto(st.estiloPasto);
     setFiltrosCarregados(escopoFiltros.chave);
@@ -401,10 +413,14 @@ export default function MapaGeral({ ativo = true } = {}) {
       filtroSetor: prefFiltroSetor,
       filtroPesoMin: prefFiltroPesoMin,
       filtroPesoMax: prefFiltroPesoMax,
+      filtroTarefaStatus: prefFiltroTarefaStatus,
+      filtroTarefaPrioridade: prefFiltroTarefaPrioridade,
+      filtroTarefaResponsavel: prefFiltroTarefaResponsavel,
+      filtroTarefaPrazo: prefFiltroTarefaPrazo,
       modoColoracao: prefModoColoracao,
       estiloPasto,
     });
-  }, [escopoFiltros, filtrosCarregados, mapType, prefShowAreas, prefShowPontos, prefShowLinhas, prefShowLotes, prefShowTaskIcons, prefDragLotesEnabled, prefShowCochos, prefShowDepositos, prefShowAlertas, prefShowUserLocation, prefShowNomesAreas, prefShowHectaresAreas, prefFiltroCategoria, prefFiltroIdentificador, prefFiltroStatus, prefFiltroSistema, prefFiltroAlertaTipo, prefFiltroTipoCultura, prefFiltroTipoPastagem, prefFiltroSetor, prefFiltroPesoMin, prefFiltroPesoMax, prefModoColoracao, estiloPasto]);
+  }, [escopoFiltros, filtrosCarregados, mapType, prefFiltroTarefaStatus, prefFiltroTarefaPrioridade, prefFiltroTarefaResponsavel, prefFiltroTarefaPrazo, prefShowAreas, prefShowPontos, prefShowLinhas, prefShowLotes, prefShowTaskIcons, prefDragLotesEnabled, prefShowCochos, prefShowDepositos, prefShowAlertas, prefShowUserLocation, prefShowNomesAreas, prefShowHectaresAreas, prefFiltroCategoria, prefFiltroIdentificador, prefFiltroStatus, prefFiltroSistema, prefFiltroAlertaTipo, prefFiltroTipoCultura, prefFiltroTipoPastagem, prefFiltroSetor, prefFiltroPesoMin, prefFiltroPesoMax, prefModoColoracao, estiloPasto]);
 
   // ─── Queries ───
   const ST = 5 * 60 * 1000;
@@ -656,20 +672,28 @@ export default function MapaGeral({ ativo = true } = {}) {
     });
   }, [pontosSuplementacao, estoqueLotes, produtos, eventosSupl, leiturasCocho, alertasMapa, showAlertas, hoje]);
 
+  // D-PROD-326: cada aba com os seus filtros — o que o painel da aba não mostra também não vale nela
+  // (na aba Tarefas só o setor das áreas; os filtros de lote só na aba Lotes; os de tarefa só na aba Tarefas).
+  const painelFoco = painelDoFoco(focoAtivo);
+  const filtroTipoCulturaEmVigor = painelFoco.filtrosDeArea === 'todos' ? filtroTipoCultura : 'todas';
+  const filtroTipoPastagemEmVigor = painelFoco.filtrosDeArea === 'todos' ? filtroTipoPastagem : 'todas';
+  const filtrosDeLoteValem = painelFoco.filtrosDeLote;
+
   // Filtrar áreas
   const areasFiltradas = useMemo(() => areas.filter((a) => {
     if (!filtroInclui(filtroSetor, a.setor_id)) return false;
-    if (!filtroInclui(filtroTipoCultura, a.tipo_cultura)) return false;
-    if (!filtroInclui(filtroTipoPastagem, a.tipo_pastagem)) return false;
+    if (!filtroInclui(filtroTipoCulturaEmVigor, a.tipo_cultura)) return false;
+    if (!filtroInclui(filtroTipoPastagemEmVigor, a.tipo_pastagem)) return false;
     return true;
-  }), [areas, filtroSetor, filtroTipoCultura, filtroTipoPastagem]);
+  }), [areas, filtroSetor, filtroTipoCulturaEmVigor, filtroTipoPastagemEmVigor]);
 
   const areaIdsFiltrados = useMemo(() => new Set(areasFiltradas.map((area) => area.id)), [areasFiltradas]);
   // Setor, tipo de uso ou tipo de pastagem: o que está numa área escondida some junto.
-  const filtroAreaAtivo = filtroDeAreaAtivo({ filtroSetor, filtroTipoCultura, filtroTipoPastagem });
+  const filtroAreaAtivo = filtroDeAreaAtivo({ filtroSetor, filtroTipoCultura: filtroTipoCulturaEmVigor, filtroTipoPastagem: filtroTipoPastagemEmVigor });
 
   // Filtrar lotes
   const lotesFiltrados = useMemo(() => filtrarLotesPorArea(lotesComAlerta, { filtroAreaAtivo, areaIdsFiltrados }).filter((lote) => {
+    if (!filtrosDeLoteValem) return true;
     if (!filtroInclui(filtroCategoria, lote.categoria)) return false;
     const identificadorLote = lote.identificador_nome || lote.identificador_sigla || '';
     if (!filtroInclui(filtroIdentificador, identificadorLote)) return false;
@@ -679,7 +703,7 @@ export default function MapaGeral({ ativo = true } = {}) {
     if (filtroPesoMin && (!lote.peso_medio_kg || lote.peso_medio_kg < filtroPesoMin)) return false;
     if (filtroPesoMax && lote.peso_medio_kg && lote.peso_medio_kg > filtroPesoMax) return false;
     return true;
-  }), [lotesComAlerta, filtroAreaAtivo, areaIdsFiltrados, filtroCategoria, filtroIdentificador, filtroStatus, filtroAlertaTipo, filtroSistema, filtroPesoMin, filtroPesoMax, showAlertas]);
+  }), [lotesComAlerta, filtroAreaAtivo, areaIdsFiltrados, filtrosDeLoteValem, filtroCategoria, filtroIdentificador, filtroStatus, filtroAlertaTipo, filtroSistema, filtroPesoMin, filtroPesoMax, showAlertas]);
 
   // Depósito não tem área: com filtro de setor vale o setor dele (antes todos sumiam).
   const pontosSuplementacaoFiltrados = useMemo(() => filtrarPontosSuplementacaoPorArea(pontosSuplementacaoDecorados, {
@@ -698,8 +722,11 @@ export default function MapaGeral({ ativo = true } = {}) {
     const nomesSetores = filtroSemRestricao(filtroSetor) ?
     new Set() :
     new Set(setores.filter((setor) => filtroInclui(filtroSetor, setor.id)).map((setor) => setor.nome));
-    return filtrarTarefasPorArea(tarefasMapa, { filtroSetor, filtroTipoCultura, filtroTipoPastagem, areaIdsFiltrados, nomesSetores });
-  }, [filtroSetor, filtroTipoCultura, filtroTipoPastagem, tarefasMapa, setores, areaIdsFiltrados]);
+    const porArea = filtrarTarefasPorArea(tarefasMapa, { filtroSetor, filtroTipoCultura: filtroTipoCulturaEmVigor, filtroTipoPastagem: filtroTipoPastagemEmVigor, areaIdsFiltrados, nomesSetores });
+    return painelFoco.filtrosDeTarefa ? filtrarTarefasDoMapa(porArea, { filtroTarefaStatus, filtroTarefaPrioridade, filtroTarefaResponsavel, filtroTarefaPrazo, hoje }) : porArea;
+  }, [filtroSetor, filtroTipoCulturaEmVigor, filtroTipoPastagemEmVigor, tarefasMapa, setores, areaIdsFiltrados, painelFoco, filtroTarefaStatus, filtroTarefaPrioridade, filtroTarefaResponsavel, filtroTarefaPrazo, hoje]);
+  // Opções do filtro "Responsável" (das tarefas do mapa).
+  const responsaveisTarefas = useMemo(() => responsaveisDasTarefas(tarefasMapa), [tarefasMapa]);
   // D-PROD-321: atrasada = o dia do prazo já passou (vencer hoje ainda não é atraso), como nos detalhes.
   const tarefasAtrasadasNoMapa = useMemo(
     () => tarefasMapaFiltradas.filter((t) => {
@@ -1576,6 +1603,12 @@ export default function MapaGeral({ ativo = true } = {}) {
               tiposPastagem={tiposPastagem}
               setores={setores}
               sistemasProdutivos={sistemasProdutivos}
+              filtroTarefaStatus={filtroTarefaStatus} setFiltroTarefaStatus={setFiltroTarefaStatus}
+              filtroTarefaPrioridade={filtroTarefaPrioridade} setFiltroTarefaPrioridade={setFiltroTarefaPrioridade}
+              filtroTarefaResponsavel={filtroTarefaResponsavel} setFiltroTarefaResponsavel={setFiltroTarefaResponsavel}
+              filtroTarefaPrazo={filtroTarefaPrazo} setFiltroTarefaPrazo={setFiltroTarefaPrazo}
+              responsaveisTarefa={responsaveisTarefas}
+              foco={focoAtivo}
               permissions={permissoesDoPainelFiltros}
               mostrarCores={false} />
 

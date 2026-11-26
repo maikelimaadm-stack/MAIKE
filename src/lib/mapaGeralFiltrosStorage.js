@@ -39,6 +39,11 @@ export const PADRAO_FILTROS_MAPA = Object.freeze({
   filtroSetor: 'todos',
   filtroPesoMin: null,
   filtroPesoMax: null,
+  // D-PROD-326: filtros da aba Tarefas (situação, prioridade, responsável e prazo).
+  filtroTarefaStatus: 'todos',
+  filtroTarefaPrioridade: 'todas',
+  filtroTarefaResponsavel: 'todos',
+  filtroTarefaPrazo: 'todos',
   modoColoracao: 'padrao',
   // Visualização (PR #200): como o pasto é pintado. Enum validado abaixo.
   estiloPasto: 'cheio',
@@ -100,7 +105,7 @@ export const normalizarFiltrosMapa = (salvo) => {
     else if (typeof padrao === 'string' && typeof s[k] === 'string') out[k] = s[k];
   }
   // Multisseleção nos filtros; preferências antigas em texto continuam válidas.
-  for (const k of ['filtroCategoria', 'filtroIdentificador', 'filtroStatus', 'filtroSistema', 'filtroAlertaTipo', 'filtroTipoCultura', 'filtroTipoPastagem', 'filtroSetor']) {
+  for (const k of ['filtroCategoria', 'filtroIdentificador', 'filtroStatus', 'filtroSistema', 'filtroAlertaTipo', 'filtroTipoCultura', 'filtroTipoPastagem', 'filtroSetor', 'filtroTarefaStatus', 'filtroTarefaPrioridade', 'filtroTarefaResponsavel', 'filtroTarefaPrazo']) {
     if (Array.isArray(s[k])) {
       const valores = [...new Set(s[k].filter(v => typeof v === 'string' && v.trim() && v !== 'todos' && v !== 'todas'))];
       out[k] = valores.length ? valores : PADRAO_FILTROS_MAPA[k];
@@ -128,6 +133,7 @@ export const CAMPOS_DO_PAINEL_FILTROS = Object.freeze([
   'showCochos', 'showDepositos', 'showAlertas', 'showTaskIcons',
   'filtroCategoria', 'filtroIdentificador', 'filtroStatus', 'filtroSistema', 'filtroAlertaTipo',
   'filtroTipoCultura', 'filtroTipoPastagem', 'filtroSetor', 'filtroPesoMin', 'filtroPesoMax',
+  'filtroTarefaStatus', 'filtroTarefaPrioridade', 'filtroTarefaResponsavel', 'filtroTarefaPrazo',
 ]);
 
 /**
