@@ -51,6 +51,18 @@ Depois da abertura, o serviço aberto segue a maquete 05 (`05-servico-aberto-men
 
 **Limites:** o "Abastecimento" da lista ainda não tem fonte (os abastecimentos não vêm no apontamento). As opções e o "Encerrar serviço" chegam nas próximas etapas.
 
+## Emenda — correções da abertura (review Codex)
+
+Três correções de P2 do review do PR #420 (a abertura do serviço; sem migration, sem mudar D-PROD-332):
+
+1. **Plantio pede o capim.** No Plantio de pastagem, a tela 02 tem "Capim" (`abertura-capim`) depois do Responsável, obrigatório. As opções são as culturas ativas de pastagem/capineira (`listarCulturas`, `capinsDoCadastro`). O envio leva `plantio: { cultura_id }`, e só isso. Nos outros tipos o campo não aparece e `plantio` não vai. Trocar de tipo limpa o capim.
+2. **Máquina da abertura no contrato, sem linha de uso.** `POST /atividades/registrar` aceita `bem_id` opcional: é o `bem_id` da atividade criada e não cria linha de uso. A ordem é `bem_id`, a 1ª linha de `maquinas[]` e, por fim, nulo. A validação é a do `abrirNa` (422 como antes). Sem `bem_id`, o fingerprint é byte a byte o de antes. A tela envia `bem_id` e a máquina na observação, mas não envia `maquinas`.
+   - **Fallback** (o front chegou antes do backend): se o servidor recusar o campo desconhecido `bem_id`, a tela repete uma vez sem ele (`enviarAbertura` em `DiarioDasAtividades.jsx`; `ehCampoDesconhecido` em `aberturaServicoRegras.js`, via `lerErroGestao`). O `registrarCampo` compartilhado não muda.
+   - **Limite:** até o backend novo ser publicado, a atividade nasce sem `bem_id`, e tipo com `exige_maquina` segue recusado (422).
+3. **Todas as páginas das opções.** Máquinas, implementos e operadores são lidos com `lerTodasAsPaginas` (segue `next_cursor` enquanto `has_more`, até 40 páginas), e não só a 1ª de 50.
+
+**Migration:** nenhuma. **Testes:** `aberturaServicoRegras.test.js` (capim, paginação, campo desconhecido), `diarioDasAtividades.test.jsx` (Capim só no Plantio, erro sem capim, `plantio` com o capim, `bem_id` sem `maquinas`, páginas, fallback e erro que não é o campo) e `backend/tests/atividadeRegistro.test.mjs` (3 casos novos: `bem_id` sem linha de uso, `bem_id` com `maquinas[]`, `bem_id` inexistente). Os de backend não rodaram aqui (`DATABASE_URL` não definida): ficam para o CI.
+
 ## Fora desta parte
 
 Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia; o "Diário da máquina" continua sendo o caminho do diário antigo (com o pasto, pela linha de ação).

@@ -11,7 +11,8 @@
  * Horímetro: o campo é pt-BR (ponto = milhar, vírgula = decimal); o valor guardado é canônico ("1245.0").
  */
 import { ehCanonico, formatarNumero, lerNumeroLocal } from "./dinheiroDecimal.js";
-import { confirmadosDoDia } from "./atividadeApontamentoRegras.js";
+import { confirmadosDoDia, normalizarPaginaDeOpcoes } from "./atividadeApontamentoRegras.js";
+import { lerErroGestao } from "./gestaoErros.js";
 
 /** O início da linha de abertura, com o fechamento `]` e a quebra de linha (ou o fim do texto). */
 const LINHA_DA_ABERTURA = /^\[abertura-servico[^\]\n]*\](?:\r?\n|$)/;
@@ -128,17 +129,59 @@ export const formatarHorimetro = (canonico) => (ehCanonico(canonico) ? formatarN
 /**
  * Os erros da abertura por campo (vazio = válida). A operação só é exigida quando `pedirOperacao` (o tipo tem mais de uma).
  * O horímetro é o TEXTO do campo (pt-BR), não o canônico.
- * @param {{ operacaoId?: unknown, pedirOperacao?: boolean, bemId?: unknown, horimetro?: unknown, responsavelId?: unknown }} p
- * @returns {Partial<Record<"operacaoId" | "bemId" | "horimetro" | "responsavelId", string>>}
+ * D-PROD-332 (emenda): o capim do Plantio de pastagem (`pedirCapim`) é exigido só quando pedido; sem ele, não há erro.
+ * @param {{ operacaoId?: unknown, pedirOperacao?: boolean, bemId?: unknown, horimetro?: unknown, responsavelId?: unknown, pedirCapim?: boolean, culturaId?: unknown }} p
+ * @returns {Partial<Record<"operacaoId" | "bemId" | "horimetro" | "responsavelId" | "culturaId", string>>}
  */
-export const validarAbertura = ({ operacaoId, pedirOperacao = false, bemId, horimetro, responsavelId } = {}) => {
-  /** @type {Partial<Record<"operacaoId" | "bemId" | "horimetro" | "responsavelId", string>>} */
+export const validarAbertura = ({ operacaoId, pedirOperacao = false, bemId, horimetro, responsavelId, pedirCapim = false, culturaId } = {}) => {
+  /** @type {Partial<Record<"operacaoId" | "bemId" | "horimetro" | "responsavelId" | "culturaId", string>>} */
   const erros = {};
   if (pedirOperacao && !texto(operacaoId)) erros.operacaoId = "Escolha a operação.";
   if (!texto(bemId)) erros.bemId = "Escolha a máquina.";
   if (parseHorimetroPtBr(horimetro) === null) erros.horimetro = "Informe o horímetro inicial.";
   if (!texto(responsavelId)) erros.responsavelId = "Escolha o responsável.";
+  if (pedirCapim && !texto(culturaId)) erros.culturaId = "Escolha o capim.";
   return erros;
+};
+
+// ─── Envio da abertura (D-PROD-332, emenda: máquina no contrato, fallback e paginação) ─────
+
+/**
+ * O erro é "campo desconhecido" (`REQUEST_VALIDATION_FAILED`, razão `unknown_field`) no campo `campo`: o servidor ainda não
+ * aceita esse campo (o front chegou antes do backend). Lê o código, o campo e a razão com `lerErroGestao`.
+ * @param {unknown} erro
+ * @param {string} campo
+ */
+export const ehCampoDesconhecido = (erro, campo) => {
+  const { code, field, reason } = lerErroGestao(erro);
+  const publico = typeof /** @type {any} */ (erro)?.code === "string" ? /** @type {any} */ (erro).code : null;
+  // O cliente HTTP traduz `REQUEST_VALIDATION_FAILED` para `API_INVALID_ARGUMENT` e guarda o corpo em `cause`
+  // (`lerErroGestao` lê o código original da causa). Os dois códigos valem.
+  const recusa = code === "REQUEST_VALIDATION_FAILED" || code === "API_INVALID_ARGUMENT" || publico === "REQUEST_VALIDATION_FAILED" || publico === "API_INVALID_ARGUMENT";
+  return recusa && reason === "unknown_field" && field === campo;
+};
+
+/** Páginas no máximo ao juntar as opções (40 × 50 itens = 2.000; acima disso, o cadastro está fora do uso da tela). */
+export const LIMITE_DE_PAGINAS_DAS_OPCOES = 40;
+
+/**
+ * Junta TODAS as páginas de uma lista de opções (bens, implementos, operadores): a 1ª chamada é `listar({})`, as seguintes
+ * `listar({ cursor })`, enquanto `has_more` for verdadeiro (com o limite de páginas). Devolve a lista inteira.
+ * @param {(opts: { cursor?: string }) => Promise<unknown>} listar
+ * @param {number} [limitePaginas]
+ * @returns {Promise<{ itens: any[], has_more: false, next_cursor: null }>}
+ */
+export const lerTodasAsPaginas = async (listar, limitePaginas = LIMITE_DE_PAGINAS_DAS_OPCOES) => {
+  /** @type {any[]} */
+  const itens = [];
+  let cursor = null;
+  for (let pagina = 0; pagina < limitePaginas; pagina++) {
+    const atual = normalizarPaginaDeOpcoes(await listar(cursor ? { cursor } : {}));
+    itens.push(...atual.itens);
+    if (!atual.has_more || !atual.next_cursor) break;
+    cursor = atual.next_cursor;
+  }
+  return { itens, has_more: false, next_cursor: null };
 };
 
 /**

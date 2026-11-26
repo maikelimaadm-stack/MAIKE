@@ -1,9 +1,11 @@
 /**
  * D-PROD-332 — regras puras da abertura de serviço (marcador na observação, horímetro pt-BR, validação).
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   aberturaDosApontamentos,
+  ehCampoDesconhecido,
+  lerTodasAsPaginas,
   formatarHorimetro,
   lancamentosDoDia,
   lerAbertura,
@@ -141,6 +143,17 @@ describe("validarAbertura", () => {
     expect(validarAbertura({ ...ok, operacaoId: "", pedirOperacao: true }).operacaoId).toBe("Escolha a operação.");
     expect(validarAbertura({ ...ok, operacaoId: "", pedirOperacao: false })).toEqual({});
   });
+
+  it("D-PROD-332 (emenda): o capim é exigido só com pedirCapim; sem o capim, a frase da tela", () => {
+    expect(validarAbertura({ ...ok, pedirCapim: true, culturaId: "" }).culturaId).toBe("Escolha o capim.");
+    expect(validarAbertura({ ...ok, pedirCapim: true, culturaId: undefined })).toEqual({ culturaId: "Escolha o capim." });
+  });
+
+  it("D-PROD-332 (emenda): com o capim, ou com pedirCapim false/omitido, não há erro de capim", () => {
+    expect(validarAbertura({ ...ok, pedirCapim: true, culturaId: "cul-1" })).toEqual({});
+    expect(validarAbertura({ ...ok, pedirCapim: false, culturaId: "" })).toEqual({});
+    expect(validarAbertura({ ...ok, culturaId: "" })).toEqual({});
+  });
 });
 
 describe("aberturaDosApontamentos", () => {
@@ -228,3 +241,64 @@ describe("lancamentosDoDia — \"Lançado hoje\" do serviço aberto (D-PROD-332,
   });
 });
 
+
+describe("lerTodasAsPaginas (D-PROD-332 emenda)", () => {
+  it("junta duas páginas: a 1ª chamada é listar({}) e a 2ª passa o cursor", async () => {
+    const listar = vi.fn(async (opts) =>
+      opts.cursor === "c2"
+        ? { itens: [{ id: "bem-2", nome: "Trator 08" }], has_more: false, next_cursor: null }
+        : { itens: [{ id: "bem-1", nome: "Trator 12" }], has_more: true, next_cursor: "c2" },
+    );
+    const r = await lerTodasAsPaginas(listar);
+    expect(r).toEqual({ itens: [{ id: "bem-1", nome: "Trator 12" }, { id: "bem-2", nome: "Trator 08" }], has_more: false, next_cursor: null });
+    expect(listar.mock.calls).toEqual([[{}], [{ cursor: "c2" }]]);
+  });
+
+  it("para quando has_more é falso (uma página só, sem 2ª chamada)", async () => {
+    const listar = vi.fn(async () => ({ itens: [{ id: "a" }], has_more: false, next_cursor: "ignorado" }));
+    const r = await lerTodasAsPaginas(listar);
+    expect(r.itens).toEqual([{ id: "a" }]);
+    expect(listar).toHaveBeenCalledTimes(1);
+  });
+
+  it("para quando has_more é verdadeiro mas não há next_cursor (sem laço infinito)", async () => {
+    const listar = vi.fn(async () => ({ itens: [{ id: "a" }], has_more: true, next_cursor: null }));
+    await lerTodasAsPaginas(listar);
+    expect(listar).toHaveBeenCalledTimes(1);
+  });
+
+  it("para no limite de páginas", async () => {
+    const listar = vi.fn(async () => ({ itens: [{ id: "x" }], has_more: true, next_cursor: "sempre" }));
+    const r = await lerTodasAsPaginas(listar, 3);
+    expect(listar).toHaveBeenCalledTimes(3);
+    expect(r.itens).toHaveLength(3);
+  });
+});
+
+describe("ehCampoDesconhecido (D-PROD-332 emenda)", () => {
+  // O ApiError guarda o contexto do servidor em `details` (e `cause`), que é o que o lerErroGestao lê.
+  const recusa = (field, reason = "unknown_field") => ({ name: "ApiError", code: "REQUEST_VALIDATION_FAILED", details: { field, reason } });
+
+  it("reconhece o campo desconhecido pedido", () => {
+    expect(ehCampoDesconhecido(recusa("bem_id"), "bem_id")).toBe(true);
+  });
+
+  it("lê também o campo na causa (cause.field / cause.reason)", () => {
+    const erro = { code: "REQUEST_VALIDATION_FAILED", cause: { field: "bem_id", reason: "unknown_field" } };
+    expect(ehCampoDesconhecido(erro, "bem_id")).toBe(true);
+  });
+
+  it("reconhece o formato real do ApiError (código público API_INVALID_ARGUMENT e causa com o código do servidor)", () => {
+    const erro = { name: "ApiError", code: "API_INVALID_ARGUMENT", cause: { code: "REQUEST_VALIDATION_FAILED", field: "bem_id", reason: "unknown_field", message: "requisição inválida" } };
+    expect(ehCampoDesconhecido(erro, "bem_id")).toBe(true);
+    expect(ehCampoDesconhecido(erro, "outro")).toBe(false);
+  });
+
+  it("não é o campo pedido, outra razão ou outro código: false", () => {
+    expect(ehCampoDesconhecido(recusa("outro_campo"), "bem_id")).toBe(false);
+    expect(ehCampoDesconhecido(recusa("bem_id", "required"), "bem_id")).toBe(false);
+    expect(ehCampoDesconhecido({ code: "ATIVIDADE_REFERENCIA_INVALIDA", details: { field: "bem_id", reason: "unknown_field" } }, "bem_id")).toBe(false);
+    expect(ehCampoDesconhecido(null, "bem_id")).toBe(false);
+    expect(ehCampoDesconhecido(new Error("rede"), "bem_id")).toBe(false);
+  });
+});

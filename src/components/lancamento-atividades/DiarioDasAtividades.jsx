@@ -9,8 +9,18 @@ import { AvisoGestao, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
-import { aberturaDosApontamentos, formatarHorimetro, lancamentosDoDia, marcadorDaAbertura, parseHorimetroPtBr, validarAbertura } from "@/lib/aberturaServicoRegras";
+import {
+  aberturaDosApontamentos,
+  ehCampoDesconhecido,
+  formatarHorimetro,
+  lancamentosDoDia,
+  lerTodasAsPaginas,
+  marcadorDaAbertura,
+  parseHorimetroPtBr,
+  validarAbertura,
+} from "@/lib/aberturaServicoRegras";
 import { RAIZ_CONSULTAS_ATIVIDADES, chaveApontamentos, itensDaLista, normalizarPaginaDeOpcoes } from "@/lib/atividadeApontamentoRegras";
+import { capinsDoCadastro } from "@/lib/camposPorTipo";
 import { medidorDaResposta, textoDaLeituraVigente } from "@/lib/atividadeLinhasRegras";
 import { tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
@@ -27,6 +37,7 @@ import {
   obterMedidorDoBem,
   registrarCampo,
 } from "@/services/lancamentoAtividadesService";
+import { listarCulturas } from "@/services/culturaCadastroService";
 
 /** D-PROD-332 — a linha de apoio embaixo do nome do cartão (só o tipo que precisa). */
 const SUB_DO_TIPO = Object.freeze({ PREPARO_SOLO: "Gradeação, calagem" });
@@ -96,7 +107,8 @@ function CampoEscolha({ label, value, onChange, options, required = false, error
  * D-PROD-332 — o "Diário das atividades", só a ABERTURA de um serviço (Mapa Geral → Detalhes da área → Manejos). Uma janela
  * Base1 com três passos:
  *  - `tipo` (tela 01): os 7 tipos fixos em cartões; "Continuar" leva ao passo seguinte;
- *  - `abrir` (tela 02): "Nova atividade de <Tipo>" — Máquina *, Implemento (opcional), Horímetro inicial *, Responsável *;
+ *  - `abrir` (tela 02): "Nova atividade de <Tipo>" — Máquina *, Implemento (opcional), Horímetro inicial *, Responsável *
+ *    (e, no Plantio de pastagem, Capim *, depois do Responsável);
  *    com mais de uma operação do tipo, a Operação * vem antes (com uma só, ela é escolhida sozinha; com nenhuma, aviso);
  *  - `iniciado` (tela 05): o serviço aberto — o cabeçalho (tipo, máquina, implemento, responsável, pasto e horímetro),
  *    as 7 opções (cada uma abre um painel "Em breve") e "Lançado hoje" (as linhas de hoje, lidas dos apontamentos).
@@ -147,6 +159,8 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   // A pessoa digitou o horímetro: a leitura da máquina não sobrescreve mais (só ao trocar de máquina).
   const [horimetroMexido, setHorimetroMexido] = useState(false);
   const [responsavelId, setResponsavelId] = useState("");
+  /** D-PROD-332 (emenda): o capim do Plantio de pastagem (só esse tipo; some ao trocar de tipo). */
+  const [culturaId, setCulturaId] = useState("");
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
   const [enviando, setEnviando] = useState(false);
   const enviandoRef = useRef(false);
@@ -154,24 +168,33 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const [aberturaSalva, setAberturaSalva] = useState(/** @type {ReturnType<typeof aberturaDosApontamentos>} */ (null));
 
   // ─── Opções (só no passo da abertura) ───────────────────────────────
+  // D-PROD-332 (emenda): as opções vêm TODAS as páginas (`lerTodasAsPaginas`), não só a 1ª de 50.
   const bensLidos = useQuery({
     queryKey: [RAIZ_CONSULTAS_ATIVIDADES, "abertura", "bens", empresaId],
-    queryFn: () => listarOpcoesBens({}),
+    queryFn: () => lerTodasAsPaginas(listarOpcoesBens),
     enabled: Boolean(empresaId) && passo === "abrir",
     staleTime: 30 * 1000,
   });
   const implementosLidos = useQuery({
     queryKey: [RAIZ_CONSULTAS_ATIVIDADES, "abertura", "implementos", empresaId],
-    queryFn: () => listarOpcoesImplementos({}),
+    queryFn: () => lerTodasAsPaginas(listarOpcoesImplementos),
     enabled: Boolean(empresaId) && passo === "abrir",
     staleTime: 30 * 1000,
   });
   const operadoresLidos = useQuery({
     queryKey: [RAIZ_CONSULTAS_ATIVIDADES, "abertura", "operadores", empresaId],
-    queryFn: () => listarOpcoesOperadores({}),
+    queryFn: () => lerTodasAsPaginas(listarOpcoesOperadores),
     enabled: Boolean(empresaId) && passo === "abrir",
     staleTime: 30 * 1000,
   });
+  // D-PROD-332 (emenda): o capim do Plantio de pastagem (as culturas ATIVAS de pastagem/capineira, como no registro de campo).
+  const culturasLidas = useQuery({
+    queryKey: [RAIZ_CONSULTAS_ATIVIDADES, "culturas", empresaId],
+    queryFn: () => listarCulturas(String(empresaId)),
+    enabled: Boolean(empresaId) && passo === "abrir" && tipoFixo === "PLANTIO",
+    staleTime: 60 * 1000,
+  });
+  const capins = useMemo(() => capinsDoCadastro(Array.isArray(culturasLidas.data) ? culturasLidas.data : []), [culturasLidas.data]);
   const bens = useMemo(() => normalizarPaginaDeOpcoes(bensLidos.data).itens, [bensLidos.data]);
   const implementos = useMemo(() => normalizarPaginaDeOpcoes(implementosLidos.data).itens, [implementosLidos.data]);
   const operadores = useMemo(() => normalizarPaginaDeOpcoes(operadoresLidos.data).itens, [operadoresLidos.data]);
@@ -223,6 +246,7 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const escolherTipo = (valor) => {
     if (valor !== tipoFixo) {
       setOperacaoEscolhidaId("");
+      setCulturaId("");
       setErros({});
     }
     setTipoFixo(valor);
@@ -251,10 +275,27 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
     setErros((e) => semCampo(e, "horimetro"));
   };
 
+  /**
+   * D-PROD-332 (emenda) — envia a abertura com `bem_id`. FALLBACK: um servidor que ainda não aceita `bem_id` (o backend desta
+   * emenda não foi publicado) recusa o campo desconhecido; aí tenta UMA vez sem ele (o resto do corpo é o mesmo; a máquina
+   * continua na observação). A recusa limpa a pendência do envio, então a 2ª tentativa tem chave nova. Outro erro segue como
+   * estava. Fica aqui (não no `registrarCampo` compartilhado).
+   * @param {Record<string, unknown>} corpo @param {string} bem
+   */
+  const enviarAbertura = async (corpo, bem) => {
+    try {
+      return await registrarCampo({ ...corpo, bem_id: bem }, { escopo });
+    } catch (erro) {
+      if (!ehCampoDesconhecido(erro, "bem_id")) throw erro;
+      return registrarCampo(corpo, { escopo });
+    }
+  };
+
   /** "Iniciar serviço": valida, grava (um envio só) e, com a atividade de volta, vai ao cabeçalho. */
   const iniciarServico = async () => {
     if (enviandoRef.current || !podeGravar || semOperacao) return;
-    const novosErros = validarAbertura({ operacaoId, pedirOperacao, bemId, horimetro, responsavelId });
+    const plantio = tipoFixo === "PLANTIO";
+    const novosErros = validarAbertura({ operacaoId, pedirOperacao, bemId, horimetro, responsavelId, pedirCapim: plantio, culturaId });
     setErros(novosErros);
     if (Object.keys(novosErros).length) {
       notifyWarning("Atenção", "Revise os campos destacados.");
@@ -272,16 +313,17 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
     enviandoRef.current = true;
     setEnviando(true);
     try {
-      const resposta = await registrarCampo(
-        {
-          area_id: String(area.id),
-          tipo_atividade_id: operacaoId,
-          data_operacional: hoje,
-          observacao: marcadorDaAbertura(abertura),
-          operador_usuario_id: responsavelId,
-        },
-        { escopo },
-      );
+      // A máquina vai em `bem_id` (o `bem_id` da atividade; NÃO é uma linha de uso, então `maquinas` não é enviado) e na
+      // observação (a leitura do cabeçalho). O capim vai em `plantio` só no Plantio de pastagem (só `cultura_id`).
+      const corpo = {
+        area_id: String(area.id),
+        tipo_atividade_id: operacaoId,
+        data_operacional: hoje,
+        observacao: marcadorDaAbertura(abertura),
+        operador_usuario_id: responsavelId,
+        ...(plantio ? { plantio: { cultura_id: culturaId } } : {}),
+      };
+      const resposta = await enviarAbertura(corpo, bemId);
       const id = resposta?.atividade?.id ?? resposta?.apontamento?.atividade_id;
       if (id == null || id === "") {
         notifyWarning("Atenção", "O servidor não devolveu o serviço. Confira o Histórico da área antes de tentar de novo.");
@@ -425,6 +467,22 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
         readOnly={enviando}
         testId="abertura-responsavel"
       />
+      {tipoFixo === "PLANTIO" ? (
+        <CampoEscolha
+          label="Capim"
+          required
+          value={culturaId}
+          onChange={(v) => {
+            setCulturaId(v);
+            setErros((e) => semCampo(e, "culturaId"));
+          }}
+          options={capins.map((c) => ({ value: String(c.id), label: String(c.nome ?? "") }))}
+          opcaoVazia={capins.length ? "Escolha o capim" : culturasLidas.isLoading ? "Lendo o cadastro…" : "Nenhum capim no cadastro"}
+          error={erros.culturaId}
+          readOnly={enviando}
+          testId="abertura-capim"
+        />
+      ) : null}
     </form>
   );
 
