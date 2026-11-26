@@ -55,6 +55,9 @@ import { criarEstadoAbastecimentos, rotearAbastecimentos, semearAbastecimento } 
 const notify = vi.hoisted(() => ({ notifyWarning: vi.fn(), notifySuccess: vi.fn(), notifyInfo: vi.fn(), notifyError: vi.fn() }));
 vi.mock("@/lib/maikeNotify", async (importOriginal) => ({ ...(await importOriginal()), ...notify }));
 
+// Diário da máquina (Fase 2): estes testes conferem o cálculo e a gravação dos custos (R$) da tela; a visibilidade de R$
+// por tipo de usuário tem testes próprios (diarioFase2.test.jsx). Aqui todo mundo vê R$, como antes.
+vi.mock("@/lib/verCustoRegras", async (importOriginal) => ({ ...(await importOriginal()), podeVerCusto: () => true }));
 const sessao = vi.hoisted(() => ({ permissao: /** @type {any} */ (null), clienteId: "cli-1" }));
 vi.mock("@/components/lancamento-atividades/AtividadeAberta", async (importOriginal) => {
   const real = await importOriginal();

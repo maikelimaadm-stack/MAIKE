@@ -9863,6 +9863,19 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - as outras entidades, que ficam para a Etapa 5;
   - o "alterado por" fora do conflito, que exigiria guardar o autor no registro.
 
+## D-PROD-317 — Textos visíveis: "jato" passa a "implemento" (só a tela)
+
+**Data:** 2026-11-26 · **Origem:** fase 1 do Diário da máquina, aprovada pelo proprietário ("perfeito vamos fazer com o claude ok") · **Branch:** `feat/diario-implemento-textos`
+
+> **Numeração:** a `main` (`701f6ca8b`) indicava `Próxima decisão: D-PROD-317`, que é esta; a `main` a manteve reservada para esta PR enquanto levou D-PROD-318 a D-PROD-321 (PRs #407 a #410). Conferir de novo antes do merge (regra A5).
+
+- **Contexto:** no lançamento de atividades e no cadastro do implemento, a tela chamava de "jato" o tanque/implemento cheio (número do dia, cartões, totais, resumo ao finalizar a área). O termo não é o que a operação usa no campo. A troca é só de texto visível, primeira fase do Diário da máquina; o comportamento e o contrato não mudam.
+- **Decisão:**
+  - Nas strings da tela, "jato"/"Jato"/"jatos" passam a "implemento" com plural e concordância naturais: "Implementos cheios de hoje", "Implemento N", "igual ao implemento M", "+ Implemento cheio" / "+ Implemento diferente", "1 implemento cheio" / "N implementos cheios", "Implemento nº", "o implemento cheio do dia… (em branco: nenhum)", e no bem: "contado por implemento cheio (tanque cheio)".
+  - Não mudam coluna, campo Prisma, chave de API, enum `forma_produto` `'JATO'`, nomes de variável/função/arquivo, classes CSS (`b1-jato*`), `data-testid` nem migrations.
+- **Migration:** nenhuma. **Constituição:** sem mudança.
+- **Testes:** `tests/smoke/jatosDoDia.test.jsx`, `fechamentoArea.test.jsx`, `servicoVariosDias.test.jsx` (asserções de texto da UI). Os demais smoke do fluxo (`registroDeCampoVariasLinhas`, `estoqueLoteAtividade`, `bensPatrimoniais`) não assertam essas strings.
+
 ## D-PROD-318 — Sincronização, Etapa 4: a tela nunca "pisca"
 
 **Data:** 2026-11-26 · **Origem:** o plano de 5 etapas da sincronização aprovado pelo proprietário (Etapa 4: "pode sim") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-ETAPA4-D318-REPORT.md`](./SINCRONIZACAO-ETAPA4-D318-REPORT.md)
@@ -9970,4 +9983,42 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - Saem `TarefasCardsMapa`, `TarefaDetalhesDialog` e o teste deles.
 - **Fora:** tarefas sem internet (parte 3).
 
-<!-- Próxima decisão: D-PROD-322 -->
+## D-PROD-322 — Diário da máquina, fase 2: R$ só para o administrador e "Iniciar atividade" no pasto (só tela)
+
+**Data:** 2026-11-26 · **Origem:** plano do Diário da máquina aprovado pelo proprietário ("perfeito vamos fazer com o claude ok"; tudo na mesma PR #406) · **Branch:** `feat/diario-implemento-textos`
+
+> **Numeração:** nasceu D-PROD-318. Antes do merge, a `main` (`b4dcc1e8b`) levou D-PROD-318 a D-PROD-321 (PRs #407 a #410) e passou a indicar `Próxima decisão: D-PROD-322`, que é esta (renumerada pela regra A5).
+
+- **Decisão:**
+  - `podeVerCusto(permissao)` (`src/lib/verCustoRegras.js`) = permissão efetiva com `is_admin === true` (o administrador da fazenda recebe o registro efetivo com `is_admin`). O `VerCustoContext` (padrão `true`) é passado pelo Lançamento de Atividades e pela janela do pasto no mapa.
+  - Sem `podeVerCusto`, as telas de lançamento escondem os valores em R$ (lista, cartões, linhas, resumo das áreas, totalizador, serviço, conclusão do serviço, da atividade e da reforma, barra da reforma, aba de custos do pasto). O custo continua sendo gravado e calculado no servidor; os campos que o operador PRECISA digitar (custo do terceiro, valor do serviço) continuam visíveis.
+  - Janela do pasto (aba Manejos): botão "Iniciar atividade" abre a Nova realização (`JanelaRegistroDeCampo`) presa a este pasto; só com permissão de lançar e fuso da fazenda.
+- **Migration:** nenhuma. **Constituição:** sem mudança.
+- **Testes:** `tests/smoke/diarioFase2.test.jsx`; testes que conferem R$ passam a simular o administrador.
+
+## D-PROD-323 — Diário da máquina, fases 3 a 7 (backend): mistura no implemento, aplicação, sobra, resumo e quantidade padrão
+
+**Data:** 2026-11-26 · **Origem:** plano do Diário da máquina aprovado pelo proprietário (protótipo v5) · **Branch:** `feat/diario-implemento-textos` (PR #406)
+
+> **Numeração:** nasceu D-PROD-319; renumerada para D-PROD-323 pela regra A5 (a `main` `b4dcc1e8b` levou D-PROD-318 a D-PROD-321 e esta PR usa D-PROD-317 e D-PROD-322). O marcador passa a D-PROD-324.
+
+- **Contexto:** o diário da máquina precisa de uma mistura que existe DENTRO do implemento (o que foi colocado na caixa, na capacidade do bem, com o saldo que ainda não saiu), de uma aplicação no pasto que baixe o estoque só do que foi aplicado, e de um destino para a sobra. Hoje cada "jato" é só um número que agrupa linhas de produto: não há mistura, não há saldo e a sobra não existe.
+- **Decisão:**
+  - **Passo 1 — "Implemento cheio"** (`POST /atividades/:id/misturas`): cria a mistura ABERTA com capacidade e unidade (L|KG) do bem quando não vêm no corpo, a área onde o implemento está, os produtos com a quantidade POR IMPLEMENTO CHEIO e o local de estoque. **Não baixa estoque.** Recusa mistura ABERTA com saldo > 0 do mesmo implemento na atividade (409 `MISTURA_ABERTA`).
+  - **Passo 2 — "Aplicar no pasto"** (`POST …/apontamentos/:apontamentoId/misturas/:misturaId/aplicar`): `volume = esvaziou ? saldo : saldo − sobra` (0 ≤ sobra < saldo, senão 422 `MISTURA_SOBRA_INVALIDA`). Cada produto sai como `quantidade = item × volume ÷ capacidade` (4 casas, meio para cima), pela linha de produto da atividade (`criarLinhasProduto`), que chama o `estoqueFisicoMotor`. A linha grava `mistura_id`, `volume_aplicado` e `jato` = número da mistura (até 999), para o resumo antigo continuar contando. Saldo 0 → `ACABOU`. Grava movimento `APLICACAO`.
+  - **Sobra** (`POST /atividades/:id/misturas/:misturaId/sobra`), três tipos:
+    - `TRANSFERENCIA`: para outra área da atividade; muda `area_id`, saldo igual, grava horímetro de saída e de chegada no movimento (trajeto **sem custo**, sem linha de produto).
+    - `DEVOLUCAO`: saldo → 0, status `DEVOLVIDA`. **Nenhum movimento de estoque**: o não aplicado nunca saiu do depósito. Só o movimento fica no histórico.
+    - `PERDA`: exige motivo (3 a 500) e lançamento; baixa proporcional ao saldo pelo motor, na linha da atividade com observação `Perda: <motivo>`. As linhas de perda **não** levam `jato` nem `mistura_id`, para não contar como aplicação. Saldo → 0, status `PERDA`.
+  - **Resumo do dia** (`GET /atividades/:id/diario-resumo?empresa_id=&dia=`): por área, volume aplicado, implementos cheios (misturas aplicadas no dia naquela área), produtos somados, horas de máquina (`HORIMETRO`), sobra atual e onde está. **`custo_total` só para o administrador da fazenda** (`acessoTotal(carregarAutorizacao)`: `papel_tenant = administrador` ou `is_admin` efetivo). Para os outros, os campos de custo não existem na resposta.
+  - **Produto:** `quantidade_padrao` (texto decimal > 0, 4 casas, ou nulo) e `quantidade_padrao_unidade` (L|KG|nulo), opcionais. Número no campo → 400, antes da coerção do AJV.
+  - **Padrões escolhidos** (perguntas em aberto do plano): quantidade padrão por implemento cheio; R$ só para o administrador (com `is_admin`); sobra devolvida como não aplicada (sem movimento); perda com motivo e baixa proporcional; trajeto sem custo; distribuidor em kg com a mesma lógica (só a unidade muda); lançamentos antigos por jato só para leitura.
+  - **Códigos novos** (`errorCodes.js`): `MISTURA_NOT_FOUND` (404), `MISTURA_ABERTA` (409), `MISTURA_STATUS_INVALIDO` (409), `MISTURA_AREA_DIFERENTE` (409), `MISTURA_INVALIDA` (422), `MISTURA_SOBRA_INVALIDA` (422), `MISTURA_MOVIMENTO_INVALIDO` (422).
+  - **Idempotência:** `operation_id` de cada escrita; reenvio igual → 200 com `replay: true`; payload diferente → 409 `IDEMPOTENCY_CONFLICT`.
+  - **Guardas:** as da tela de apontamentos (`GUARDAS.atividadeApontamentos`): leitura com `ver`, escrita com `criar` (`lancar_apontamento`).
+- **Migration:** `20261127100000_diario_maquina` — EXPAND: duas colunas anuláveis em `Produto` e duas em `AtividadeApontamentoProduto` (`mistura_id`, `volume_aplicado`), três tabelas novas (`AtividadeMistura`, `AtividadeMisturaItem`, `AtividadeMisturaMovimento`) com tenant primeiro, CHECKs, FKs compostas e RLS. Sem DROP, sem ALTER COLUMN, sem DML. Checksum no manifesto de `scripts/deploy/premergeMigrateLib.mjs`, bloco DO de RLS aprovado por hash. **Não aplicada em produção**: ver `MAIKE-DIARIO-MAQUINA-RUNBOOK-RELEASE.md`.
+- **Constituição:** sem mudança.
+- **Testes:** `backend/tests/diarioMaquina.test.mjs` 24/24 contra PostgreSQL LOCAL de teste (15 regras puras + 9 de integração: mistura sem baixa, 409, aplicar com sobra e baixa proporcional pelo motor, replay, transferência, devolução sem movimento, perda com motivo, resumo com/sem custo, quantidade padrão do produto); `test:gates` 1097/1097; smoke `diarioMaquina`, `diarioMaquinaService`, `implementoRegras`; smoke completo 4435/4435.
+- **Release:** `SCHEMA_APPLIED_PROD: SIM`: aplicada em produção em 2026-11-26, antes do merge, pelo caminho B com o GO do proprietário ("Sim, pode criar as tabelas no banco e fazer o merge"); 83 concluídas, 0 ruins, 3 tabelas com RLS, 4 colunas (ver o registro no runbook).
+
+<!-- Próxima decisão: D-PROD-324 -->

@@ -117,6 +117,7 @@ import {
   obterTotaisAtividade,
 } from "@/services/lancamentoAtividadesService";
 import { bemParaAbastecer } from "@/lib/atividadeFluxoCampo";
+import { useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { hectaresParaDose } from "@/lib/lancamentosDaAreaRegras";
 import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
@@ -848,6 +849,7 @@ const rotuloDoCusto = (medida) => (medida === "DIARIA" ? "Custo da diária" : me
  */
 export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, comObservacao = true, tituloGrupo = "Lançamento" }) {
   const empresaId = useEmpresaRealSelecionadaId();
+  const verCusto = useVerCusto();
   const secoes = useContext(SecoesDoFormularioContext);
   const comTopo = Boolean(secoes?.topo);
   // Na janela (com seções) o formulário é enxuto; no "Repetir" (sem seções) ficam as notas e os campos de leitura de antes.
@@ -913,14 +915,14 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
           error={erros.custo_unitario}
           testId={`${prefixo}-custo-unitario`}
         />
-      ) : (
+      ) : verCusto ? (
         <ValorCalculado
           label={`${rotuloDoCusto(medida)} (${deOnde})`}
           valor={!form.parceiro ? "—" : formatarCustoLinha(unitario) || (mantido ? "Sem custo gravado" : "Sem custo no cadastro")}
           span={6}
           testId={`${prefixo}-custo-unitario`}
         />
-      )}
+      ) : null}
       {!digitado ? <ErroDoCampo texto={erros.custo_unitario} /> : null}
       {terceiro && !compacto ? (
         <p className={NOTA} data-testid={`${prefixo}-terceiro`}>
@@ -1328,7 +1330,7 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
       />
       {tanque || Number.isInteger(form.jato) ? (
         <CampoTexto
-          label="Jato nº"
+          label="Implemento nº"
           value={Number.isInteger(form.jato) ? String(form.jato) : ""}
           onChange={(v) => {
             const n = Number(String(v).replace(/\D/g, "").slice(0, 3));
@@ -1339,7 +1341,7 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
           inputMode="numeric"
           maxLength={3}
           keepCase
-          dica={<p className="mt-1 px-1 text-[12px] text-[var(--mg-text-2,#475569)]">o jato do dia em que este produto foi (em branco: sem jato)</p>}
+          dica={<p className="mt-1 px-1 text-[12px] text-[var(--mg-text-2,#475569)]">o implemento cheio do dia em que este produto foi (em branco: nenhum)</p>}
           testId="linha-produto-jato"
         />
       ) : null}

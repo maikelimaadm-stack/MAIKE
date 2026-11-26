@@ -4,6 +4,7 @@ import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { useCelular } from "@/components/common/MobileSheet";
 import { Selo } from "@/components/financeiroGestao/ConsultaLancamento";
 import DialogoAreaDaAtividade from "@/components/lancamento-atividades/DialogoAreaDaAtividade";
+import { useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import TabelaBase1 from "@/components/lancamento-atividades/TabelaBase1";
 import {
   CHAVE_DO_SELO_AREA,
@@ -57,6 +58,7 @@ function Barra({ barra, texto, testId }) {
  *   andamento ou concluída se informa pelo número da coluna ou pelo ⚡ ("Hectares feitos"); grava no lançamento da área.
  */
 export default function CardAreasDaAtividade({ atividade, totais, lendoTotais, podeGerir, apontamentos = [], podeInformarFeita = false, onAbrirArea, onAtividadeAtualizada }) {
+  const verCusto = useVerCusto();
   const celular = useCelular();
   const [dialogo, setDialogo] = useState(/** @type {{ modo: any, area: any } | null} */ (null));
   const areas = areasDaAtividade(atividade);
@@ -89,7 +91,7 @@ export default function CardAreasDaAtividade({ atividade, totais, lendoTotais, p
       <B1MenuAcoesDaLinha
         rotulo={`Ações da área ${l.nome}`}
         titulo={l.nome}
-        subtitulo={[rotuloDoStatusArea(area.status), emAndamento || area.status === STATUS_AREA.CONCLUIDA ? textoFeitaDePlanejada(l) : l.planejada, l.custo !== "—" ? l.custo : ""].filter(Boolean).join(" · ")}
+        subtitulo={[rotuloDoStatusArea(area.status), emAndamento || area.status === STATUS_AREA.CONCLUIDA ? textoFeitaDePlanejada(l) : l.planejada, verCusto && l.custo !== "—" ? l.custo : ""].filter(Boolean).join(" · ")}
         grupos={[abrir, feita, gerir]}
         testId={`area-acoes-${id}`}
       />
@@ -107,7 +109,9 @@ export default function CardAreasDaAtividade({ atividade, totais, lendoTotais, p
     { id: "ultimo", label: "Último lançamento", sortable: true, width: 150 },
   ];
   const ORDEM_CELULAR = ["area", "custo", "feita", "percentual", "situacao", "planejada", "ultimo"];
-  const colunas = celular ? ORDEM_CELULAR.map((id) => /** @type {any} */ (COLUNAS.find((c) => c.id === id))) : COLUNAS;
+  const colunasDaTela = celular ? ORDEM_CELULAR.map((id) => /** @type {any} */ (COLUNAS.find((c) => c.id === id))) : COLUNAS;
+  // Sem permissão de ver R$ (operador), a coluna de custo some.
+  const colunas = verCusto ? colunasDaTela : colunasDaTela.filter((c) => c.id !== "custo");
 
   /** O texto de cada coluna de uma área (também o do filtro, da ordem e do balão da grade). @param {any} area @param {string} coluna */
   const texto = (area, coluna) => {

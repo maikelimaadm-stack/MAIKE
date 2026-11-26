@@ -1,9 +1,13 @@
-import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sprout } from "lucide-react";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
+import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDeCampo";
+import { VerCustoContext, useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { Cartao, Celula, Chip, Grade, Linha, SecaoDetalhe, Vazio } from "@/components/mapa/detalhes-lote/blocos";
-import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
+import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
+import { podeVerCusto } from "@/lib/verCustoRegras";
+import { RAIZ_CONSULTAS_ATIVIDADES } from "@/lib/atividadeApontamentoRegras";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
 import { formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
 import { formatarDiaAtividade } from "@/lib/lancamentoAtividadesRegras";
@@ -11,7 +15,10 @@ import { QUERY_ATIVIDADES_DA_AREA, rotuloDoMesCurto } from "@/lib/registroDeCamp
 import { STATUS_AREA } from "@/lib/atividadeAreasRegras";
 import { textoDaReformaNaArea } from "@/lib/reformaRegras";
 import { definirFazendaDaTela, obterResumoDaArea } from "@/services/lancamentoAtividadesService";
-import { useAcoesDaAtividadeDaArea } from "./AcoesDaAtividadeDaArea";
+import DiarioDaMaquina from "@/components/lancamento-atividades/DiarioDaMaquina";
+import { notifyWarning } from "@/lib/maikeNotify";
+import { mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
+import { lerAtividadeParaAcoes, useAcoesDaAtividadeDaArea } from "./AcoesDaAtividadeDaArea";
 
 import "@/styles/mk-dp-detalhes-v13.css";
 import "@/styles/mk-dp-area-v13.css";
@@ -77,8 +84,29 @@ const subDaAtividade = (a) => {
  * @param {{ area: any, setorNome?: string, ocupada?: boolean | null, verAtividades: boolean, tipos?: any[], secao?: "detalhes" | "manejos" | "custos", onIrAba?: (aba: string) => void }} props
  *   `tipos`: as operações ativas (as que os Detalhes da área já leem), para as ações da atividade.
  */
-export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos = [], secao = "detalhes", onIrAba }) {
+/** @param {{ area: any, setorNome?: string, ocupada?: boolean | null, verAtividades: boolean, tipos?: any[], secao?: "detalhes" | "manejos" | "custos", onIrAba?: (aba: string) => void }} props */
+export default function AbaDetalhesDaArea(props) {
+  // Diário da máquina (Fase 2): R$ só para o administrador da fazenda (`podeVerCusto`).
+  const acoesTela = useAcoesTelaAtividades();
+  return (
+    <VerCustoContext.Provider value={podeVerCusto(acoesTela.permissaoEfetiva)}>
+      <ConteudoAbaDetalhesDaArea {...props} />
+    </VerCustoContext.Provider>
+  );
+}
+
+/** @param {{ area: any, setorNome?: string, ocupada?: boolean | null, verAtividades: boolean, tipos?: any[], secao?: "detalhes" | "manejos" | "custos", onIrAba?: (aba: string) => void }} props */
+function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos = [], secao = "detalhes", onIrAba }) {
   const empresaId = useEmpresaRealSelecionadaId();
+  const verCusto = useVerCusto();
+  const queryClient = useQueryClient();
+  const acoesTela = useAcoesTelaAtividades();
+  const { fusoOk } = useFusoDaFazenda(empresaId);
+  // "Iniciar atividade": a Nova realização com ESTE pasto já escolhido (a mesma janela do "Registrar" dos Detalhes).
+  const [iniciando, setIniciando] = useState(false);
+  const [abrindoDiario, setAbrindoDiario] = useState(false);
+  const [diarioAberto, setDiarioAberto] = useState(/** @type {{ atividade: any, chave: number } | null} */ (null));
+  const podeIniciar = Boolean(empresaId) && fusoOk && acoesTela.lancarApontamento === true;
   definirFazendaDaTela(empresaId);
   const resumo = useQuery({
     queryKey: [QUERY_ATIVIDADES_DA_AREA, "resumo", empresaId, area.id],
@@ -149,20 +177,76 @@ export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades,
     <Vazio icone={Sprout}>Nenhuma atividade nesta área agora.</Vazio>
   );
 
+  // Diário da máquina (D-PROD-314): com uma atividade EM ANDAMENTO nesta área, abre o diário dela (só com permissão de lançar).
+  const atividadeEmAndamento = atividades.find((a) => a.area_status === STATUS_AREA.EM_ANDAMENTO) ?? null;
+  const podeDiario = Boolean(empresaId) && fusoOk && acoesTela.lancarApontamento === true && Boolean(atividadeEmAndamento);
+  const abrirDiario = async () => {
+    if (abrindoDiario || !atividadeEmAndamento) return;
+    setAbrindoDiario(true);
+    try {
+      const atividade = await lerAtividadeParaAcoes(String(atividadeEmAndamento.atividade_id), String(area.id));
+      setDiarioAberto({ atividade, chave: Date.now() });
+    } catch (erro) {
+      notifyWarning("Não foi possível abrir o diário", mensagemDeErroAtividade(erro, "Confira a conexão e tente de novo."));
+    } finally {
+      setAbrindoDiario(false);
+    }
+  };
+  const janelaDiario = diarioAberto ? (
+    <DiarioDaMaquina
+      key={`diario-${diarioAberto.chave}`}
+      atividade={diarioAberto.atividade}
+      areaId={String(area.id)}
+      areaNome={area?.nome ?? ""}
+      tipos={tipos}
+      onFechar={() => setDiarioAberto(null)}
+      onGravou={() => {
+        void queryClient.invalidateQueries({ queryKey: [QUERY_ATIVIDADES_DA_AREA] });
+        void queryClient.invalidateQueries({ queryKey: [RAIZ_CONSULTAS_ATIVIDADES] });
+      }}
+    />
+  ) : null;
+
+  const janelaIniciar = iniciando ? (
+    <JanelaRegistroDeCampo
+      key="iniciar-atividade"
+      tipos={tipos}
+      area={area}
+      onGravou={() => {
+        void queryClient.invalidateQueries({ queryKey: [QUERY_ATIVIDADES_DA_AREA] });
+        void queryClient.invalidateQueries({ queryKey: [RAIZ_CONSULTAS_ATIVIDADES] });
+      }}
+      onFechar={() => setIniciando(false)}
+    />
+  ) : null;
+
   if (secao === "manejos") {
     return (
       <div className="mk-dp-area-organizada mk-dp-d13">
+        {pronto && podeIniciar ? (
+          <button type="button" className="tb-btn tb-btn-green" data-testid="area-iniciar-atividade" onClick={() => setIniciando(true)}>
+            Iniciar atividade
+          </button>
+        ) : null}
+        {pronto && podeDiario ? (
+          <button type="button" className="tb-btn" data-testid="area-diario-maquina" onClick={() => void abrirDiario()} disabled={abrindoDiario}>
+            Diário da máquina
+          </button>
+        ) : null}
         {pronto ? <SecaoDetalhe titulo="Em andamento e planejado">{listaDeAtividades}</SecaoDetalhe> : null}
         {acoesDaAtividade.janelas}
+        {janelaIniciar}
+        {janelaDiario}
       </div>
     );
   }
 
   if (secao === "custos") {
+    // Sem permissão de ver R$ (operador), a seção de custos não aparece.
     return (
       <div className="mk-dp-area-organizada mk-dp-d13">
-        {pronto && custos ? <BlocoDeCustos custos={custos} mes={mes} /> : null}
-        {pronto && !custos ? <Vazio icone={Sprout}>Nenhum custo lançado nesta área no mês.</Vazio> : null}
+        {verCusto && pronto && custos ? <BlocoDeCustos custos={custos} mes={mes} /> : null}
+        {verCusto && pronto && !custos ? <Vazio icone={Sprout}>Nenhum custo lançado nesta área no mês.</Vazio> : null}
       </div>
     );
   }
@@ -214,14 +298,16 @@ export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades,
               onClick={onIrAba ? () => onIrAba("manejos") : undefined}
               data-testid="area-resumo-manejos"
             />
-            <Linha
-              rotulo={`Custos${mes ? ` · ${mes}` : ""}`}
-              sub={custos ? `${formatarMoedaAtividade(custos.custo_por_ha) || "—"} por hectare` : "Nenhum custo no mês"}
-              valor={custos ? <strong className="mk-da13-total">{formatarMoedaAtividade(custos.custo_total) || "—"}</strong> : null}
-              chevron
-              onClick={onIrAba ? () => onIrAba("custos") : undefined}
-              data-testid="area-resumo-custos"
-            />
+            {verCusto ? (
+              <Linha
+                rotulo={`Custos${mes ? ` · ${mes}` : ""}`}
+                sub={custos ? `${formatarMoedaAtividade(custos.custo_por_ha) || "—"} por hectare` : "Nenhum custo no mês"}
+                valor={custos ? <strong className="mk-da13-total">{formatarMoedaAtividade(custos.custo_total) || "—"}</strong> : null}
+                chevron
+                onClick={onIrAba ? () => onIrAba("custos") : undefined}
+                data-testid="area-resumo-custos"
+              />
+            ) : null}
           </Cartao>
         </SecaoDetalhe>
       ) : null}

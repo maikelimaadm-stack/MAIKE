@@ -773,7 +773,7 @@ describe("D-PROD-283: jatos de hoje no Novo lançamento", () => {
     expect(await within(janela).findByTestId("jatos-vazio")).toHaveTextContent("Tanque de 2.000 L");
     // + Jato: o editor do insumo abre dentro do jato 1.
     fireEvent.click(within(janela).getByTestId("jatos-novo"));
-    expect(within(janela).getByText("Jato 1 · o que foi no tanque (2.000 L)")).toBeTruthy();
+    expect(within(janela).getByText("Implemento 1 · o que foi no implemento (2.000 L)")).toBeTruthy();
     const editor = within(janela).getByTestId("registro-insumo-editor");
     await escolherNoSeletor(editor, "registro-produto-produto", /GLIFOSATO/);
     await waitFor(() => expect(within(editor).getByRole("combobox", { name: /Local do estoque/ })).toHaveTextContent("Galpão"));
@@ -782,8 +782,8 @@ describe("D-PROD-283: jatos de hoje no Novo lançamento", () => {
     await waitFor(() => expect(within(janela).getByTestId("jato-1")).toHaveTextContent("GLIFOSATO10 L"));
     // Repetir o jato anterior: o jato 2 igual ao 1; o total do dia.
     fireEvent.click(within(janela).getByTestId("jatos-repetir"));
-    expect(within(janela).getByTestId("jato-2")).toHaveTextContent("Jato 2 · igual ao jato 1");
-    expect(within(janela).getByTestId("jatos-total")).toHaveTextContent("Hoje: 2 jatos · glifosato 20 L");
+    expect(within(janela).getByTestId("jato-2")).toHaveTextContent("Implemento 2 · igual ao implemento 1");
+    expect(within(janela).getByTestId("jatos-total")).toHaveTextContent("Hoje: 2 implementos cheios · glifosato 20 L");
     // Os insumos não se repetem no "Vai junto".
     expect(within(janela).getByTestId("registro-de-campo-vai-junto")).not.toHaveTextContent("GLIFOSATO");
     // D-PROD-292: com jato, os hectares não são perguntados no dia (só ao finalizar).
@@ -815,13 +815,13 @@ describe("D-PROD-283: jatos de hoje no Novo lançamento", () => {
     await within(janela).findByTestId("jato-1");
     fireEvent.click(within(janela).getByTestId("jatos-repetir"));
     fireEvent.click(within(janela).getByTestId("jato-2-editar"));
-    expect(within(janela).getByText("Jato 2 · o que foi no tanque (2.000 L)")).toBeTruthy();
+    expect(within(janela).getByText("Implemento 2 · o que foi no implemento (2.000 L)")).toBeTruthy();
     expect(within(janela).queryAllByTestId(/^registro-insumo-linha-\d+$/)).toHaveLength(1);
     fireEvent.click(within(janela).getByTestId("registro-insumo-linha-1"));
     const ed = within(janela).getByTestId("registro-insumo-editor");
     fireEvent.change(within(ed).getByTestId("registro-produto-quantidade"), { target: { value: "14" } });
     fireEvent.click(within(janela).getByTestId("jatos-pronto"));
-    await waitFor(() => expect(within(janela).getByTestId("jato-2")).toHaveTextContent("Jato 2 · 2.000 L"));
+    await waitFor(() => expect(within(janela).getByTestId("jato-2")).toHaveTextContent("Implemento 2 · 2.000 L"));
     expect(within(janela).getByTestId("jato-2")).toHaveTextContent("14 L");
     expect(within(janela).getByTestId("jatos-total")).toHaveTextContent("glifosato 24 L");
   });

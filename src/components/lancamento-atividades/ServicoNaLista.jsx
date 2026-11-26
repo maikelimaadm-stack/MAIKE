@@ -1,6 +1,7 @@
 import React from "react";
 import { Plus } from "lucide-react";
 import { formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
+import { useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import {
   barraDoAndamento,
   capimDoServico,
@@ -118,7 +119,8 @@ export function SituacaoDoServico({ item, podeLancar, podeConcluir, onLancarDia,
  */
 export function BlocoDoServico({ item, tipos, podeLancar, podeConcluir, comAcoes, onLancarDia, onConcluir }) {
   const situacao = situacaoDoServico(item);
-  const custo = formatarMoedaAtividade(item?.custo_total);
+  const verCusto = useVerCusto();
+  const custo = verCusto ? formatarMoedaAtividade(item?.custo_total) : "";
   // D-PROD-274: o capim do plantio fecha a linha ("SEMEADURA DE CAPIM · PASTO DA AROEIRA · capim PANICUM CV. MOMBAÇA").
   const operacaoArea = [String(item?.tipo_atividade_nome ?? ""), textoDaAreaDoServico(item), textoDoCapim(capimDoServico(item))].filter(Boolean).join(" · ");
   const concluidaHa = situacao === "CONCLUIDA" ? hectaresDaConcluida(item) : "";

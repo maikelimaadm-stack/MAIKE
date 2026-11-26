@@ -49,7 +49,7 @@ describe("regras do fechamento", () => {
   it("por hectare com os hectares informados; sem hectares, os totais", () => {
     const r = resumoDosLancamentos(APONTAMENTOS);
     const l = linhasDoResumo(r, 10);
-    expect(l.jatos).toBe("3 jatos em 2 dias");
+    expect(l.jatos).toBe("3 implementos cheios em 2 dias");
     expect(l.horas).toBe("12 horas");
     expect(l.porHectare).toEqual([{ rotulo: "HERBICIDA FOLHA LARGA", texto: "3,4 L/ha" }, { rotulo: "ADUBO FOLIAR", texto: "2,4 kg/ha" }]);
     expect(l.custoTotal).toMatch(/1\.210,00/);
@@ -83,7 +83,7 @@ describe("o diálogo Finalizar com o pasto", () => {
     const onConcluir = montar();
     const grupo = await screen.findByTestId("dialogo-concluir-fez-tudo-aa1");
     await waitFor(() => expect(screen.getByTestId("dialogo-concluir-servico-enviar")).not.toBeDisabled());
-    expect(screen.getByTestId("dialogo-concluir-resumo-uso")).toHaveTextContent("3 jatos em 2 dias");
+    expect(screen.getByTestId("dialogo-concluir-resumo-uso")).toHaveTextContent("3 implementos cheios em 2 dias");
     expect(screen.getByTestId("dialogo-concluir-resumo-uso")).toHaveTextContent("12 horas");
     expect(screen.getByTestId("dialogo-concluir-resumo-produtos")).toHaveTextContent("34 L");
     // Sem escolha: o aviso e nada vai.

@@ -102,6 +102,9 @@ export const comoProdutoPublico = (registro) => ({
   consumo_maximo_pv: comoNumero(registro.consumo_maximo_pv),
   unidade_principal_estoque: registro.unidade_principal_estoque ?? 'KG',
   peso_por_saco_kg: comoNumero(registro.peso_por_saco_kg),
+  // D-PROD-323: quantidade padrão por implemento cheio, em texto (nulo = sem padrão).
+  quantidade_padrao: registro.quantidade_padrao === null || registro.quantidade_padrao === undefined ? null : dec(registro.quantidade_padrao).toFixed(CASAS_QUANTIDADE),
+  quantidade_padrao_unidade: registro.quantidade_padrao_unidade ?? null,
   // MAIKE-ENTREGA2 (D-PROD-274): a carência da bula, em dias (nulo = sem carência cadastrada).
   carencia_dias: registro.carencia_dias ?? null,
   // D-PROD-282: controle de lote e de validade.
@@ -138,6 +141,33 @@ export const carenciaDoCorpo = (v) => {
   return v;
 };
 
+/** D-PROD-323: texto decimal de 4 casas, maior que zero (ou nulo, que limpa). Sem o campo = `undefined` (não muda). */
+const PADRAO_QUANTIDADE_PADRAO = /^\d{1,10}(\.\d{1,4})?$/;
+export const quantidadePadraoDoCorpo = (v) => {
+  if (v === undefined) return undefined;
+  if (v === null) return null;
+  if (typeof v !== 'string' || !PADRAO_QUANTIDADE_PADRAO.test(v.trim())) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'quantidade_padrao deve ser um número em texto, com até 4 casas (ex.: "4")', {
+      details: { field: 'quantidade_padrao', reason: 'formato' },
+    });
+  }
+  const q = dec(v.trim());
+  if (!q.gt(0)) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'quantidade_padrao deve ser maior que zero', { details: { field: 'quantidade_padrao', reason: 'nao_positiva' } });
+  }
+  return q.toFixed(CASAS_QUANTIDADE);
+};
+
+/** D-PROD-323: a unidade da quantidade padrão: L, KG ou nulo (limpa). Sem o campo = `undefined`. */
+export const unidadeQuantidadePadraoDoCorpo = (v) => {
+  if (v === undefined) return undefined;
+  if (v === null) return null;
+  if (v !== 'L' && v !== 'KG') {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'quantidade_padrao_unidade deve ser L ou KG', { details: { field: 'quantidade_padrao_unidade', reason: 'unidade' } });
+  }
+  return v;
+};
+
 /**
  * D-PROD-288: campos que saíram da tela do produto. O corpo que os traz é aceito (cliente antigo) e IGNORADO: nada é
  * gravado neles e o valor antigo continua no banco. `codigo_interno` passa a ser automático (= `numero_produto`) na
@@ -163,6 +193,8 @@ const CAMPOS_EDITAVEIS = Object.freeze({
   consumo_maximo_pv: (v) => decimalOuNulo(v),
   unidade_principal_estoque: (v) => textoOuNulo(v) ?? undefined,
   peso_por_saco_kg: (v) => decimalOuNulo(v),
+  quantidade_padrao: (v) => quantidadePadraoDoCorpo(v),
+  quantidade_padrao_unidade: (v) => unidadeQuantidadePadraoDoCorpo(v),
   carencia_dias: (v) => carenciaDoCorpo(v),
   controla_lote: (v) => (typeof v === 'boolean' ? v : undefined),
   controla_validade: (v) => (typeof v === 'boolean' ? v : undefined),

@@ -58,6 +58,21 @@ const parseNumero = (val) => {
  */
 const CAMPOS_MASCARADOS = ["estoque_minimo"];
 
+/** Texto decimal do servidor ("4.0000") para o campo, com vírgula ("4" e "0,5"). Sem número, vazio. @param {unknown} valor */
+const textoDecimalParaCampo = (valor) => {
+  if (valor === null || valor === undefined || String(valor).trim() === "") return "";
+  const n = Number(String(valor).trim().replace(",", "."));
+  return Number.isFinite(n) ? String(n).replace(".", ",") : "";
+};
+
+/** A quantidade padrão é válida quando vazia (sem padrão) ou um número maior que zero. @param {unknown} valor */
+const quantidadePadraoValida = (valor) => {
+  const t = String(valor ?? "").trim();
+  if (!t) return true;
+  const n = parseDecimalPtBR(t);
+  return n !== null && n > 0;
+};
+
 /**
  * Valor lido do servidor ainda não é texto de máscara: decimal canônico
  * ("30.0000") vira número uma vez, para a máscara não o ler como 300000 centavos.
@@ -120,6 +135,11 @@ export default function FormularioProduto({
       peso_por_saco_kg: "",
       // D-PROD-274: a carência da bula, em dias (texto do campo; vazio = sem carência).
       carencia_dias: "",
+      // Diário da máquina (Fase 3): a quantidade por implemento cheio (texto) e a unidade (L ou KG). Só vai ao servidor
+      // quando a pessoa mexe no campo (`quantidade_padrao_alterada`): o servidor antigo recusa campo desconhecido.
+      quantidade_padrao: "",
+      quantidade_padrao_unidade: "KG",
+      quantidade_padrao_alterada: false,
       // D-PROD-282: controle de lote e de validade (Sim/Não; padrão Não).
       controla_lote: false,
       controla_validade: false,
@@ -132,6 +152,10 @@ export default function FormularioProduto({
         ...initialData,
         ...valoresIniciaisMascarados(initialData),
         carencia_dias: Number.isInteger(initialData.carencia_dias) ? String(initialData.carencia_dias) : "",
+        // Mostra o que vier do servidor (texto decimal com vírgula); sem ele, o campo abre vazio na unidade de estoque.
+        quantidade_padrao: textoDecimalParaCampo(initialData.quantidade_padrao),
+        quantidade_padrao_unidade: initialData.quantidade_padrao_unidade ?? (initialData.unidade_principal_estoque === "L" ? "L" : "KG"),
+        quantidade_padrao_alterada: false,
         controla_lote: initialData.controla_lote === true,
         controla_validade: initialData.controla_validade === true,
         ativo: initialData.ativo !== false,
@@ -199,7 +223,9 @@ export default function FormularioProduto({
     !ehUnidadeDeLitros(formData.unidade_medida, unidadeMedidaEscolhida?.descricao);
 
   const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    // Diário da máquina (Fase 3): mexer na quantidade padrão marca o campo como alterado (é o que vai ao servidor).
+    const marcaAlteracao = field === "quantidade_padrao" || field === "quantidade_padrao_unidade" ? { quantidade_padrao_alterada: true } : {};
+    setFormData((prev) => ({ ...prev, [field]: value, ...marcaAlteracao }));
     setInvalidFields((prev) => prev.filter((f) => f !== field));
   };
 
@@ -232,6 +258,8 @@ export default function FormularioProduto({
     }
     // D-PROD-274: a carência, quando informada, é um número inteiro de dias de 0 a 365.
     if (erroDaCarencia(formData.carencia_dias)) missingFields.push("carencia_dias");
+    // Diário da máquina (Fase 3): a quantidade por implemento cheio, quando a pessoa mexeu, tem de ser um número > 0.
+    if (formData.quantidade_padrao_alterada && !quantidadePadraoValida(formData.quantidade_padrao)) missingFields.push("quantidade_padrao");
 
     if (missingFields.length > 0) {
       setInvalidFields(missingFields);
@@ -356,6 +384,47 @@ export default function FormularioProduto({
                     data-testid="produto-carencia-dias"
                     aria-invalid={invalidFields.includes("carencia_dias")}
                   />
+                </B1Field>
+
+                {/* Diário da máquina (Fase 3): quanto do produto vai em cada implemento cheio (ex.: 4 L em 2.000 L). Opcional. */}
+                <B1Field
+                  label="Quantidade por implemento cheio"
+                  span={6}
+                  hasValue={Boolean(String(formData.quantidade_padrao ?? "").trim())}
+                  locked={readOnly}
+                  disabled={locked}
+                  error={invalidFields.includes("quantidade_padrao") ? "Informe um número maior que zero, ou deixe vazio." : undefined}
+                  dica={<p className="mt-1 px-1 text-[12px] text-[var(--mg-text-2,#475569)]">opcional: o diário da máquina preenche a mistura com este valor</p>}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={formData.quantidade_padrao ?? ""}
+                      onChange={(e) => handleChange("quantidade_padrao", e.target.value.slice(0, 12))}
+                      placeholder="Ex.: 4"
+                      className={`${B1_FIELD_CTL_CLS} text-right tabular-nums`}
+                      readOnly={readOnly}
+                      data-testid="produto-quantidade-padrao"
+                      aria-invalid={invalidFields.includes("quantidade_padrao")}
+                    />
+                    {readOnly ? (
+                      <span className="text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="produto-quantidade-padrao-unidade">
+                        {formData.quantidade_padrao_unidade === "L" ? "L" : "kg"}
+                      </span>
+                    ) : (
+                      <B1Select
+                        value={formData.quantidade_padrao_unidade === "L" ? "L" : "KG"}
+                        onChange={(e) => handleChange("quantidade_padrao_unidade", e.target.value)}
+                        className={B1_FIELD_CTL_CLS}
+                        aria-label="Unidade da quantidade por implemento cheio"
+                        data-testid="produto-quantidade-padrao-unidade"
+                      >
+                        <option value="L">L</option>
+                        <option value="KG">kg</option>
+                      </B1Select>
+                    )}
+                  </div>
                 </B1Field>
 
                 <B1Field label="Observações" span={12} hasValue={Boolean(formData.observacoes?.trim())} locked={readOnly} disabled={locked}>

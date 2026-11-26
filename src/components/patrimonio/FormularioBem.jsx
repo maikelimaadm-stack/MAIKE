@@ -424,7 +424,7 @@ export default function FormularioBem({
                 testId="bem-capacidade-unidade"
               />
               <p className="col-span-12 text-[12px] text-[var(--mg-text-2,#475569)]" data-testid="bem-produto-dica">
-                No lançamento, o produto é contado por tanque cheio (jato).
+                No lançamento, o produto é contado por implemento cheio (tanque cheio).
               </p>
             </>
           ) : null}

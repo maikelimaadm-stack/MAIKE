@@ -126,7 +126,7 @@ export const textoDosJatosSalvos = (linhasProduto, linhasMaquina = []) => {
     porProduto.set(id, atual);
   }
   const n = numeros.size;
-  const cabeca = `${n} ${n === 1 ? 'jato' : 'jatos'}${tanque ? ` de ${rotuloDoTanque(tanque)}` : ''}`;
+  const cabeca = `${n} ${n === 1 ? 'implemento cheio' : 'implementos cheios'}${tanque ? ` de ${rotuloDoTanque(tanque)}` : ''}`;
   const totais = [...porProduto.values()].map((t) => `${t.rotulo.toLowerCase()} ${formatarQuantidadeLinha(String(t.soma), t.unidade)}`.trim());
   return [cabeca, ...totais].join(' · ');
 };

@@ -292,7 +292,10 @@ describe('INERTE-3 — sessão: hooks do Patrimônio com linhas antigas', () => 
     });
     // D-PROD-276: o hook também diz se a troca do capim da área (conclusão da reforma) é permitida — o editar do Cadastro
     // do Mapa; a linha antiga não concede nada.
-    expect(JSON.parse((await screen.findByTestId('atividades')).textContent)).toEqual({ ...SEM_ACOES_ATIVIDADES, trocarCapimDaArea: false, carregando: false, login: 'vaqueiro' });
+    // Diário da máquina (Fase 2): o hook também devolve a permissão efetiva (para `podeVerCusto`); o operador não é admin.
+    const { permissaoEfetiva, ...acoesLidas } = JSON.parse((await screen.findByTestId('atividades')).textContent);
+    expect(acoesLidas).toEqual({ ...SEM_ACOES_ATIVIDADES, trocarCapimDaArea: false, carregando: false, login: 'vaqueiro' });
+    expect(permissaoEfetiva.is_admin).toBe(false);
   });
 });
 

@@ -42,6 +42,9 @@ const CAMPOS_DE_CRIACAO = Object.freeze([
   'peso_por_saco_kg',
   // D-PROD-274: a carência da bula, em dias (0..365; vazio limpa).
   'carencia_dias',
+  // Diário da máquina (Fase 3): quantidade por implemento cheio (texto decimal) e a unidade (L|KG). Só vai quando preenchida.
+  'quantidade_padrao',
+  'quantidade_padrao_unidade',
   // D-PROD-282: controle de lote e de validade.
   'controla_lote',
   'controla_validade',
