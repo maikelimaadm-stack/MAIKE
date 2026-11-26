@@ -45,13 +45,17 @@ vi.mock("@/services/lancamentoAtividadesService", async (importOriginal) => ({
   registrarCampo: vi.fn(),
   obterAtividade: vi.fn(),
   listarApontamentos: vi.fn(),
+  listarOpcoesProdutos: vi.fn(),
+  listarLocaisDoProduto: vi.fn(),
+  adicionarLinha: vi.fn(),
+  criarApontamento: vi.fn(),
 }));
 
 import DiarioDasAtividades from "@/components/lancamento-atividades/DiarioDasAtividades";
 import { lerAbertura, marcadorDaAbertura } from "@/lib/aberturaServicoRegras";
 import * as servico from "@/services/lancamentoAtividadesService";
 import * as culturas from "@/services/culturaCadastroService";
-import { notifyWarning } from "@/lib/maikeNotify";
+import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 
 const AREA = { id: "area-A", nome: "Pasto 04", tamanho_hectares: "28.3500" };
 const OPERACAO_APLICACAO = { id: "op-1", nome_tipo: "Aplicação de defensivo", categoria: "APLICACAO", ativo: true };
@@ -244,7 +248,7 @@ describe("Diário das atividades — abertura", () => {
     renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
     await screen.findByTestId("abertura-iniciado");
     const esperado = [
-      ["insumo", "Insumo", "Produto ou mistura no implemento (jatos, L, kg ou sacos)"],
+      ["insumo", "Insumo", "Produto ou mistura no implemento, por carga"],
       ["maquina", "Máquina", "Trocar implemento, problema ou parada, corrigir horímetro"],
       ["abastecimento", "Abastecimento", "Diesel, litros e horímetro"],
       ["trocar-pasto", "Trocar pasto", "Horímetro de saída e de chegada"],
@@ -289,7 +293,7 @@ describe("Diário das atividades — abertura", () => {
     const linhas = await screen.findAllByTestId("servico-lancado-item");
     expect(linhas).toHaveLength(2);
     expect(linhas[0]).toHaveTextContent("07:45");
-    expect(linhas[0]).toHaveTextContent("Insumo · Jato 1");
+    expect(linhas[0]).toHaveTextContent("Insumo · Carga 1");
     expect(linhas[0]).toHaveTextContent("Glifosato");
     expect(linhas[0]).toHaveTextContent("1.000 L");
     expect(linhas[1]).toHaveTextContent("09:20");
@@ -432,5 +436,199 @@ describe("Diário das atividades — abertura", () => {
     fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
     await waitFor(() => expect(notifyWarning).toHaveBeenCalledWith("Não foi possível iniciar o serviço", expect.any(String)));
     expect(servico.registrarCampo).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * D-PROD-334 — a opção Insumo abre a "Carga de insumo" na MESMA janela (sem popup): título "Insumo", "Carga N" (a próxima
+ * do dia), Produto | Mistura, unidade do cadastro ao lado da quantidade, gravação pelas rotas existentes e as recusas.
+ */
+const PRODUTOS_INSUMO = {
+  itens: [
+    { id: "p-gli", nome: "Glifosato", unidade_principal_estoque: "L" },
+    { id: "p-ure", nome: "Ureia", unidade_principal_estoque: "KG" },
+  ],
+  has_more: false,
+  next_cursor: null,
+};
+const LOCAIS_DO_PRODUTO = {
+  "p-gli": { itens: [{ local_estoque_id: "l-dep", local_nome: "Depósito", disponivel: "8500.0000", unidade: "L" }], has_more: false, next_cursor: null },
+  "p-ure": {
+    itens: [
+      { local_estoque_id: "l-a", local_nome: "Galpão", disponivel: "100.0000", unidade: "KG" },
+      { local_estoque_id: "l-b", local_nome: "Depósito", disponivel: "900.0000", unidade: "KG" },
+    ],
+    has_more: false,
+    next_cursor: null,
+  },
+};
+const ESCOPO = "c1:operador";
+
+/** O apontamento de hoje com a abertura (o cabeçalho do serviço) e as linhas dadas. */
+const apontamentoDeHoje = (produtos = []) => ({
+  id: "ap-1",
+  data_operacional: "2026-11-26",
+  status: "CONFIRMADO",
+  versao: 3,
+  createdAt: "2026-11-26T09:00:00.000Z",
+  observacao: marcadorDaAbertura({ bemId: "bem-7", implementoId: "imp-2", horimetro: "1245.0", responsavelId: "usr-3", bemNome: "Trator 12", implementoNome: "Pulverizador 2.000 L", responsavelNome: "João Pereira" }),
+  produtos,
+  maquinas: [],
+  mao_obra: [],
+  servicos: [],
+});
+
+/** Abre o serviço aberto (com a lista dada) e vai à Carga de insumo pela opção Insumo. */
+const abrirInsumo = async (apontamentos = [apontamentoDeHoje()]) => {
+  servico.listarApontamentos.mockResolvedValue({ items: apontamentos });
+  renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+  await screen.findByTestId("abertura-iniciado");
+  fireEvent.click(screen.getByTestId("servico-opcao-insumo"));
+  await screen.findByTestId("carga-form");
+};
+
+/**
+ * Escolhe um produto no seletor paginado do bloco `i` (o botão abre a lista; a opção é clicada). A lista é um popover no
+ * body (desktop), que o diálogo Radix marca como `aria-hidden`: por isso `hidden: true` na busca da opção.
+ */
+const escolherProduto = async (i, nome) => {
+  fireEvent.click(screen.getByTestId(`carga-item-${i}-produto`));
+  const opcao = await screen.findByRole("option", { name: new RegExp(`^${nome}`), hidden: true });
+  fireEvent.click(opcao);
+  // O saldo do produto chega depois (o local com saldo é escolhido ao chegar): espera a nota do bloco.
+  await screen.findByTestId(`carga-item-${i}-disponivel`);
+};
+
+beforeEach(() => {
+  servico.listarOpcoesProdutos.mockResolvedValue(PRODUTOS_INSUMO);
+  servico.listarLocaisDoProduto.mockImplementation(async (produtoId) => LOCAIS_DO_PRODUTO[produtoId] ?? { itens: [], has_more: false, next_cursor: null });
+});
+
+describe("Diário das atividades — Insumo (carga, D-PROD-334)", () => {
+  it("(a) a opção Insumo abre a Carga na mesma janela: título \"Insumo\", \"Carga N\" (a próxima do dia), o alternador e nenhum \"jato\"", async () => {
+    // Já há uma carga de hoje (jato 1): a próxima é a 2.
+    await abrirInsumo([apontamentoDeHoje([{ id: "pl-1", status: "CONFIRMADO", produto_id: "p-gli", produto: { nome: "Glifosato" }, quantidade: "1000.0000", unidade: "L", jato: 1, createdAt: "2026-11-26T09:10:00.000Z" }])]);
+    expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Insumo");
+    expect(screen.getByTestId("carga-cabecalho")).toHaveTextContent("Carga 2");
+    expect(screen.getByTestId("carga-cabecalho")).toHaveTextContent("Encher o Pulverizador 2.000 L");
+    expect(screen.getByTestId("carga-modo-produto")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("carga-modo-mistura")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("carga-voltar")).toHaveAttribute("aria-label", "Voltar ao serviço");
+    expect(screen.getByTestId("carga-salvar")).toHaveTextContent("Salvar carga");
+    expect(document.body.textContent).not.toMatch(/jato/i);
+  });
+
+  it("(b) escolher o produto mostra a unidade do cadastro ao lado da quantidade e o disponível do local", async () => {
+    await abrirInsumo();
+    await escolherProduto(0, "Glifosato");
+    expect(await screen.findByTestId("carga-item-0-disponivel")).toHaveTextContent("Disponível neste local: 8.500 L · Depósito");
+    expect(screen.getByTestId("carga-item-0-unidade")).toHaveTextContent("L");
+    await escolherProduto(0, "Ureia");
+    expect(await screen.findByTestId("carga-item-0-disponivel")).toHaveTextContent("Disponível neste local: 900 kg · Depósito");
+    expect(screen.getByTestId("carga-item-0-unidade")).toHaveTextContent("kg");
+    // Dois locais com saldo: o de maior disponível entra sozinho, e aparece o campo "Local do estoque".
+    expect(screen.getByRole("combobox", { name: "Local do estoque" })).toHaveTextContent("Depósito");
+  });
+
+  it("(c) salvar com apontamento de hoje chama adicionarLinha com jato, quantidade e local; volta ao serviço com a linha em \"Lançado hoje\"", async () => {
+    // A consulta dos apontamentos dispara já na montagem: o mock vem ANTES do render.
+    let gravado = false;
+    servico.listarApontamentos.mockImplementation(async () => ({ items: [apontamentoDeHoje(gravado ? [{ id: "pl-1", status: "CONFIRMADO", produto_id: "p-gli", produto: { nome: "Glifosato" }, quantidade: "25.0000", unidade: "L", jato: 1, createdAt: "2026-11-26T09:10:00.000Z" }] : [])] }));
+    servico.adicionarLinha.mockImplementation(async () => {
+      gravado = true;
+      return { apontamento: { id: "ap-1", versao: 4 }, atividade: null, alertas: [] };
+    });
+    const { onGravou } = renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+    await screen.findByTestId("abertura-iniciado");
+    fireEvent.click(screen.getByTestId("servico-opcao-insumo"));
+    await screen.findByTestId("carga-form");
+    await escolherProduto(0, "Glifosato");
+    fireEvent.change(await screen.findByTestId("carga-item-0-quantidade"), { target: { value: "25" } });
+    fireEvent.click(screen.getByTestId("carga-salvar"));
+    await waitFor(() => expect(servico.adicionarLinha).toHaveBeenCalledTimes(1));
+    const [tipo, atividadeId, apontamento, corpo, opcoes] = servico.adicionarLinha.mock.calls[0];
+    expect({ tipo, atividadeId, apontamento }).toEqual({ tipo: "produtos", atividadeId: "atv-9", apontamento: { id: "ap-1", versao: 3 } });
+    expect(corpo).toMatchObject({ produto_id: "p-gli", local_estoque_id: "l-dep", quantidade: "25", jato: "1" });
+    expect(corpo.observacao).toBeNull();
+    expect(opcoes).toMatchObject({ escopo: ESCOPO, retentativa: false });
+    expect(servico.criarApontamento).not.toHaveBeenCalled();
+    // Volta ao serviço (sem a Carga) com a linha em "Lançado hoje".
+    await screen.findByTestId("servico-opcao-insumo");
+    expect(screen.queryByTestId("carga-form")).toBeNull();
+    expect(await screen.findByText("Insumo · Carga 1")).toBeInTheDocument();
+    expect(notifySuccess).toHaveBeenCalledWith("Sucesso", "Carga 1 lançada.");
+    expect(onGravou).toHaveBeenCalled();
+  });
+
+  it("(d) sem apontamento de hoje, a primeira carga cria o apontamento com criarApontamento e produtos[]", async () => {
+    servico.criarApontamento.mockResolvedValue({ apontamento: { id: "ap-novo", versao: 1 }, atividade: null, alertas: [] });
+    await abrirInsumo([]);
+    await escolherProduto(0, "Glifosato");
+    fireEvent.change(await screen.findByTestId("carga-item-0-quantidade"), { target: { value: "25" } });
+    fireEvent.click(screen.getByTestId("carga-salvar"));
+    await waitFor(() => expect(servico.criarApontamento).toHaveBeenCalledTimes(1));
+    const [atividadeId, dados, opcoes] = servico.criarApontamento.mock.calls[0];
+    expect(atividadeId).toBe("atv-9");
+    expect(dados).toMatchObject({ data_operacional: "2026-11-26", produtos: [expect.objectContaining({ produto_id: "p-gli", local_estoque_id: "l-dep", quantidade: "25", jato: "1" })] });
+    expect(dados).not.toHaveProperty("atividade_area_id");
+    expect(opcoes).toMatchObject({ escopo: ESCOPO, retentativa: false });
+    expect(servico.adicionarLinha).not.toHaveBeenCalled();
+  });
+
+  it("(e) Mistura com dois produtos grava duas linhas com o MESMO jato, em sequência (a versão da 1ª vai para a 2ª)", async () => {
+    servico.adicionarLinha
+      .mockResolvedValueOnce({ apontamento: { id: "ap-1", versao: 5 }, atividade: null, alertas: [] })
+      .mockResolvedValueOnce({ apontamento: { id: "ap-1", versao: 6 }, atividade: null, alertas: [] });
+    await abrirInsumo();
+    fireEvent.click(screen.getByTestId("carga-modo-mistura"));
+    expect(screen.getByTestId("carga-item-1")).toBeInTheDocument();
+    await escolherProduto(0, "Glifosato");
+    await escolherProduto(1, "Ureia");
+    fireEvent.change(await screen.findByTestId("carga-item-0-quantidade"), { target: { value: "25" } });
+    fireEvent.change(screen.getByTestId("carga-item-1-quantidade"), { target: { value: "40" } });
+    fireEvent.click(screen.getByTestId("carga-salvar"));
+    await waitFor(() => expect(servico.adicionarLinha).toHaveBeenCalledTimes(2));
+    const [primeira, segunda] = servico.adicionarLinha.mock.calls;
+    expect(primeira[3]).toMatchObject({ produto_id: "p-gli", jato: "1" });
+    expect(segunda[3]).toMatchObject({ produto_id: "p-ure", local_estoque_id: "l-b", quantidade: "40", jato: "1" });
+    expect(segunda[2]).toEqual({ id: "ap-1", versao: 5 });
+  });
+
+  it("(f) ESTOQUE_SALDO_INSUFICIENTE mostra a mensagem e a janela NÃO volta ao serviço", async () => {
+    servico.adicionarLinha.mockRejectedValueOnce({
+      name: "ApiError",
+      code: "ESTOQUE_SALDO_INSUFICIENTE",
+      details: { disponivel: "8500.0000", solicitado: "9000.0000" },
+    });
+    await abrirInsumo();
+    await escolherProduto(0, "Glifosato");
+    fireEvent.change(await screen.findByTestId("carga-item-0-quantidade"), { target: { value: "9000" } });
+    fireEvent.click(screen.getByTestId("carga-salvar"));
+    expect(await screen.findByText(/Saldo insuficiente deste produto no local escolhido/)).toBeInTheDocument();
+    expect(screen.getByTestId("carga-form")).toBeInTheDocument();
+    expect(screen.queryByTestId("servico-opcao-insumo")).toBeNull();
+    expect(servico.adicionarLinha).toHaveBeenCalledTimes(1);
+  });
+
+  it("(g) horímetro inválido barra o envio", async () => {
+    await abrirInsumo();
+    await escolherProduto(0, "Glifosato");
+    fireEvent.change(await screen.findByTestId("carga-item-0-quantidade"), { target: { value: "25" } });
+    fireEvent.change(screen.getByTestId("carga-horimetro"), { target: { value: "abc" } });
+    fireEvent.click(screen.getByTestId("carga-salvar"));
+    expect(await screen.findByText("Horímetro inválido.")).toBeInTheDocument();
+    expect(servico.adicionarLinha).not.toHaveBeenCalled();
+    expect(servico.criarApontamento).not.toHaveBeenCalled();
+  });
+
+  it("(h) a seta \"Voltar ao serviço\" volta sem gravar", async () => {
+    await abrirInsumo();
+    await escolherProduto(0, "Glifosato");
+    fireEvent.click(screen.getByTestId("carga-voltar"));
+    expect(screen.queryByTestId("carga-form")).toBeNull();
+    expect(screen.getByTestId("servico-opcao-insumo")).toBeInTheDocument();
+    expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Diário das atividades");
+    expect(servico.adicionarLinha).not.toHaveBeenCalled();
+    expect(servico.criarApontamento).not.toHaveBeenCalled();
   });
 });

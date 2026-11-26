@@ -7,6 +7,7 @@ import B1Select from "@/components/cadastro/base1/B1Select";
 import { MobileSheetPortalCtx, useCelular } from "@/components/common/MobileSheet";
 import { AvisoGestao, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
+import CargaDeInsumo from "@/components/lancamento-atividades/CargaDeInsumo";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
 import {
@@ -22,6 +23,7 @@ import {
 import { RAIZ_CONSULTAS_ATIVIDADES, chaveApontamentos, itensDaLista, normalizarPaginaDeOpcoes } from "@/lib/atividadeApontamentoRegras";
 import { capinsDoCadastro } from "@/lib/camposPorTipo";
 import { medidorDaResposta, textoDaLeituraVigente } from "@/lib/atividadeLinhasRegras";
+import { areasDaAtividade } from "@/lib/atividadeAreasRegras";
 import { tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
 import { mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
@@ -57,10 +59,10 @@ const hectaresDaArea = (v) => {
 
 /**
  * D-PROD-332 (tela 05) — as 7 opções do serviço aberto, na ordem da maquete. A `chave` é o final do `data-testid`
- * (`servico-opcao-<chave>`). Por enquanto cada uma abre o painel "Em breve" (as ações vêm nas próximas etapas).
+ * (`servico-opcao-<chave>`). O Insumo abre a carga (D-PROD-334, na mesma janela); as outras 6 abrem o painel "Em breve".
  */
 const OPCOES_DO_SERVICO = Object.freeze([
-  { chave: "insumo", titulo: "Insumo", sub: "Produto ou mistura no implemento (jatos, L, kg ou sacos)", Icone: FlaskConical },
+  { chave: "insumo", titulo: "Insumo", sub: "Produto ou mistura no implemento, por carga", Icone: FlaskConical },
   { chave: "maquina", titulo: "Máquina", sub: "Trocar implemento, problema ou parada, corrigir horímetro", Icone: Truck },
   { chave: "abastecimento", titulo: "Abastecimento", sub: "Diesel, litros e horímetro", Icone: Fuel },
   { chave: "trocar-pasto", titulo: "Trocar pasto", sub: "Horímetro de saída e de chegada", Icone: ArrowLeftRight },
@@ -232,6 +234,14 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const semAbertura = passo === "iniciado" && !abertura && (Boolean(aberturaSalva) || apontamentosLidos.isSuccess);
   /** O painel "Em breve" da tela 05: o título da opção tocada (ou "Encerrar serviço"); null = o serviço aberto. */
   const [emBreve, setEmBreve] = useState(/** @type {string | null} */ (null));
+  /** D-PROD-334: a "Carga de insumo" (opção Insumo) na mesma janela; o botão do rodapé fica no lugar que ela indica. */
+  const [insumoAberto, setInsumoAberto] = useState(false);
+  const [alvoRodapeCarga, setAlvoRodapeCarga] = useState(/** @type {HTMLElement | null} */ (null));
+  /** A área (pasto) da atividade: o `atividade_area_id` do apontamento novo, quando a atividade tem áreas. */
+  const atividadeAreaId = useMemo(() => {
+    const achada = areasDaAtividade(atividadeAtual).find((a) => String(a?.area?.id ?? a?.area_id ?? "") === String(area?.id ?? ""));
+    return achada ? String(achada.id) : null;
+  }, [atividadeAtual, area]);
 
   // ─── Permissão e fuso (como na Nova realização) ─────────────────────
   const podeGravar = acoes?.lancarApontamento === true && Boolean(empresaId) && Boolean(fuso) && fusoOk;
@@ -349,8 +359,11 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   // ─── Títulos ────────────────────────────────────────────────────────
   const hectares = hectaresDaArea(area?.tamanho_hectares);
   const subDaArea = [area?.nome, hectares ? `${hectares} ha` : ""].filter(Boolean).join(" · ");
-  const tituloTexto = passo === "iniciado" ? "Diário das atividades" : passo === "abrir" ? `Nova atividade de ${rotuloTipo}` : "Nova atividade";
-  const subTitulo = passo === "iniciado" ? [rotuloTipo, "Hoje", diaCurto(hoje)].filter(Boolean).join(" · ") : subDaArea;
+  const carga = passo === "iniciado" && insumoAberto;
+  const tituloTexto = carga ? "Insumo" : passo === "iniciado" ? "Diário das atividades" : passo === "abrir" ? `Nova atividade de ${rotuloTipo}` : "Nova atividade";
+  const subTitulo = carga
+    ? [rotuloTipo, abertura?.implementoNome].filter(Boolean).join(" · ")
+    : passo === "iniciado" ? [rotuloTipo, "Hoje", diaCurto(hoje)].filter(Boolean).join(" · ") : subDaArea;
   const titulo = (
     <span className="b1-realizacao__titulo" data-testid="diario-atividades-titulo">
       <span className="b1-realizacao__titulo-nome">{tituloTexto}</span>
@@ -360,6 +373,17 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const voltar =
     passo === "abrir" ? (
       <button type="button" className="tb-btn tb-btn-icon tb-btn-sm b1-realizacao__voltar" aria-label="Voltar" title="Voltar" onClick={voltarAoTipo} disabled={enviando} data-testid="abertura-voltar">
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+      </button>
+    ) : carga ? (
+      <button
+        type="button"
+        className="tb-btn tb-btn-icon tb-btn-sm b1-realizacao__voltar"
+        aria-label="Voltar ao serviço"
+        title="Voltar ao serviço"
+        onClick={() => setInsumoAberto(false)}
+        data-testid="carga-voltar"
+      >
         <ArrowLeft className="h-4 w-4" aria-hidden />
       </button>
     ) : null;
@@ -529,7 +553,7 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
               const Icone = o.Icone;
               return (
                 <div key={o.chave} role="listitem" className={o.chave === "outros-custos" ? "b1-aberto-opcao--inteira" : undefined}>
-                  <button type="button" className="b1-aberto-opcao" onClick={() => setEmBreve(o.titulo)} data-testid={`servico-opcao-${o.chave}`}>
+                  <button type="button" className="b1-aberto-opcao" onClick={() => (o.chave === "insumo" ? setInsumoAberto(true) : setEmBreve(o.titulo))} data-testid={`servico-opcao-${o.chave}`}>
                     <span className="b1-aberto-opcao__icone" aria-hidden>
                       <Icone size={18} strokeWidth={1.75} />
                     </span>
@@ -603,6 +627,9 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
           {enviando ? "Iniciando…" : "Iniciar serviço"}
         </button>
       </>
+    ) : carga ? (
+      // D-PROD-334: o "Salvar carga" é desenhado pela própria CargaDeInsumo, neste lugar (portal).
+      <div ref={setAlvoRodapeCarga} className="contents" />
     ) : emBreve !== null ? (
       <button type="button" className={`${BOTAO_SECUNDARIO} b1-aberto-rodape-unico`} onClick={() => setEmBreve(null)} data-testid="servico-voltar">
         Voltar ao serviço
@@ -637,7 +664,23 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
             {formulario}
           </>
         ) : null}
-        {passo === "iniciado" ? iniciado : null}
+        {passo === "iniciado" && carga ? (
+          <CargaDeInsumo
+            atividadeId={String(atividadeId)}
+            atividadeAreaId={atividadeAreaId}
+            apontamentos={apontamentosDaAtividade}
+            hoje={hoje}
+            implementoNome={abertura?.implementoNome ?? ""}
+            podeGravar={podeGravar}
+            escopo={escopo}
+            alvoRodape={alvoRodapeCarga}
+            onSalvo={(resposta) => {
+              onGravou?.(resposta);
+              setInsumoAberto(false);
+            }}
+          />
+        ) : null}
+        {passo === "iniciado" && !carga ? iniciado : null}
       </MobileSheetPortalCtx.Provider>
     </B1Janela>
   );

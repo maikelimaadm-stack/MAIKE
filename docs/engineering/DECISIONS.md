@@ -10243,4 +10243,25 @@ Vários itens ficavam presos para sempre, sem botão:
   3. **Todas as páginas das opções:** máquinas, implementos e operadores são lidos com `lerTodasAsPaginas` (segue `next_cursor` enquanto `has_more`, até 40 páginas), não só a 1ª de 50 itens.
   - **Migration:** nenhuma (`Atividade.bem_id` já existe). **Testes:** `tests/smoke/aberturaServicoRegras.test.js` (`validarAbertura` com capim, `lerTodasAsPaginas`, `ehCampoDesconhecido`), `tests/smoke/diarioDasAtividades.test.jsx` (capim, plantio, `bem_id` sem `maquinas`, páginas, fallback) e `backend/tests/atividadeRegistro.test.mjs` (`bem_id` sem linha de uso, `bem_id` com `maquinas[]`, `bem_id` inexistente → 422). Os de backend pedem `DATABASE_URL` (CI).
 
-<!-- Próxima decisão: D-PROD-333 -->
+## D-PROD-334 — Diário das atividades: Insumo por carga (a "Carga de insumo" do serviço aberto)
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário (maquete v4, tela 06 "Insumo"): o insumo colocado no implemento é contado por carga, não por "jato" · **Branch:** `feat/atividades-insumo` · **Migration:** nenhuma · **Backend:** sem mudança · **Relatório:** [`ATIVIDADES-INSUMO-REPORT.md`](./ATIVIDADES-INSUMO-REPORT.md)
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-333`, mas a PR #423 (rascunho, cadastro do mapa no celular) já usa a D-PROD-333; por isso esta é a **D-PROD-334** e o marcador passa a D-PROD-335. Se a #423 mudar de número ou esta for primeiro, renumerar na hora do merge (regra A5).
+
+- **Problema:** a opção "Insumo" do serviço aberto ainda abria o painel "Em breve". Além disso, a palavra "jato" aparecia na tela; para o operador, o que conta é a carga colocada no implemento.
+- **Decisão — a carga, não o jato:** a tela se chama **"Carga de insumo"**, com o título "Carga N" (numerada por serviço e por dia: a próxima é a maior carga das linhas de produto CONFIRMADAS de hoje, mais 1; `proximaCarga`). Só a PALAVRA visível mudou. O campo que a carga usa no fio é o `jato` que a linha de produto já tem (D-PROD-283/293): o nome do campo não muda, e a linha de "Lançado hoje" diz "Insumo · Carga N".
+- **Decisão — a unidade é a do cadastro, sem conversão:** a unidade aparece como rótulo fixo, somente leitura, ao lado da quantidade (L, ou kg para o produto cujo estoque é em quilos; o rótulo vem de `rotuloDaUnidade`). Não há seletor de unidade nem conversão (D-PROD-310 não se aplica aqui): a quantidade digitada já é na unidade de estoque.
+- **Decisão — Mistura é vários produtos reais na mesma carga:** não existe cadastro de "misturas de insumo" no sistema (a Formulação é de suplementação e tem outra permissão). Então "Mistura" são **dois ou mais produtos** dentro da MESMA carga, cada um com o seu produto, o seu local e a sua quantidade (até 10 blocos). Todas as linhas gravam o mesmo número de carga.
+- **Decisão — horímetro opcional por carga:** um campo só por carga, no fim. Preenchido, o valor canônico vai no marcador `[carga hor=<valor>]` no início da OBSERVAÇÃO de cada linha da carga (`marcadorDaCarga`, `lerCarga`, `src/lib/cargaInsumoRegras.js`). Sem migration. **Não há conferência de salto** contra a leitura da máquina nesta tela.
+- **Decisão — gravação pelas rotas que já existem:**
+  - com o apontamento CONFIRMADO de hoje, `adicionarLinha("produtos", …)` UMA linha por produto, em sequência (a `versao` de cada resposta vai para a seguinte);
+  - sem ele (serviço aberto em dia anterior), UM `criarApontamento` com `produtos[]` e, quando a atividade tem áreas, o `atividade_area_id` do pasto.
+  - **Estoque:** só o servidor baixa (o motor de estoque físico). O cliente não calcula nem grava saldo. O produto que controla lote **não tem tela de lote aqui**: o servidor aplica o FEFO na baixa.
+- **Decisão — a Mistura não é atômica na sequência:** com o apontamento de hoje, cada produto é uma chamada. O progresso (produtos já gravados DEFINITIVAMENTE e a última `versao`) fica num ref. Na retentativa de um envio incerto, o que já saiu não é reenviado e a pendente vai com o mesmo corpo e a mesma `versao`. Numa falha no meio, a tela diz "N de M produtos já foram lançados na Carga X; revise e salve de novo para lançar os restantes", tira do formulário os produtos que já saíram e mantém o número da carga. "Consultar" relê o dia: o que já aparece gravado com o número da carga conta como gravado. (Com o `criarApontamento`, a gravação é atômica.)
+- **Decisão — escolha do local:** um local com saldo, sozinho; mais de um, entra o de MAIOR disponível, e aparece o campo "Local do estoque" para trocar. Sem saldo, o aviso de sempre, sem liberar o envio.
+- **Fora:** a sobra (o que sobrou do produto no implemento, a devolução ao estoque) fica para depois, com a sua própria decisão. Também fica para depois a conferência do horímetro da carga contra a máquina, e a tela de lote.
+- **Permissão e fuso:** os mesmos da abertura (`lancarApontamento` e fuso configurado).
+- **Sem backend e sem migration.** Testes: `tests/smoke/diarioDasAtividades.test.jsx` (opção Insumo, unidade, gravação, Mistura, saldo insuficiente, horímetro e a seta de voltar) e `tests/smoke/cargaInsumoRegras.test.js` (a próxima carga, o marcador, as linhas e o local).
+
+<!-- Próxima decisão: D-PROD-335 -->
