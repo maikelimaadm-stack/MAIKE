@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sprout } from "lucide-react";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
-import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDeCampo";
+import DiarioDasAtividades from "@/components/lancamento-atividades/DiarioDasAtividades";
 import { VerCustoContext, useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { Cartao, Celula, Chip, Grade, Linha, SecaoDetalhe, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
@@ -15,7 +15,6 @@ import { QUERY_ATIVIDADES_DA_AREA, rotuloDoMesCurto } from "@/lib/registroDeCamp
 import { STATUS_AREA } from "@/lib/atividadeAreasRegras";
 import { textoDaReformaNaArea } from "@/lib/reformaRegras";
 import { definirFazendaDaTela, obterResumoDaArea } from "@/services/lancamentoAtividadesService";
-import DiarioDaMaquina from "@/components/lancamento-atividades/DiarioDaMaquina";
 import { notifyWarning } from "@/lib/maikeNotify";
 import { mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
 import { lerAtividadeParaAcoes, useAcoesDaAtividadeDaArea } from "./AcoesDaAtividadeDaArea";
@@ -102,8 +101,7 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
   const queryClient = useQueryClient();
   const acoesTela = useAcoesTelaAtividades();
   const { fusoOk } = useFusoDaFazenda(empresaId);
-  // "Iniciar atividade": a Nova realização com ESTE pasto já escolhido (a mesma janela do "Registrar" dos Detalhes).
-  const [iniciando, setIniciando] = useState(false);
+  // D-PROD-332: "Diário das atividades" — o diário deste pasto (com a atividade em andamento, se houver; senão, do tipo).
   const [abrindoDiario, setAbrindoDiario] = useState(false);
   const [diarioAberto, setDiarioAberto] = useState(/** @type {{ atividade: any, chave: number } | null} */ (null));
   const podeIniciar = Boolean(empresaId) && fusoOk && acoesTela.lancarApontamento === true;
@@ -177,11 +175,15 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
     <Vazio icone={Sprout}>Nenhuma atividade nesta área agora.</Vazio>
   );
 
-  // Diário da máquina (D-PROD-314): com uma atividade EM ANDAMENTO nesta área, abre o diário dela (só com permissão de lançar).
+  // D-PROD-332: com uma atividade EM ANDAMENTO nesta área, o diário abre nela (lida como as ações da atividade); sem ela,
+  // abre no tipo para começar uma nova.
   const atividadeEmAndamento = atividades.find((a) => a.area_status === STATUS_AREA.EM_ANDAMENTO) ?? null;
-  const podeDiario = Boolean(empresaId) && fusoOk && acoesTela.lancarApontamento === true && Boolean(atividadeEmAndamento);
   const abrirDiario = async () => {
-    if (abrindoDiario || !atividadeEmAndamento) return;
+    if (abrindoDiario) return;
+    if (!atividadeEmAndamento) {
+      setDiarioAberto({ atividade: null, chave: Date.now() });
+      return;
+    }
     setAbrindoDiario(true);
     try {
       const atividade = await lerAtividadeParaAcoes(String(atividadeEmAndamento.atividade_id), String(area.id));
@@ -193,12 +195,11 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
     }
   };
   const janelaDiario = diarioAberto ? (
-    <DiarioDaMaquina
+    <DiarioDasAtividades
       key={`diario-${diarioAberto.chave}`}
-      atividade={diarioAberto.atividade}
-      areaId={String(area.id)}
-      areaNome={area?.nome ?? ""}
+      area={area}
       tipos={tipos}
+      atividade={diarioAberto.atividade}
       onFechar={() => setDiarioAberto(null)}
       onGravou={() => {
         void queryClient.invalidateQueries({ queryKey: [QUERY_ATIVIDADES_DA_AREA] });
@@ -207,35 +208,16 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
     />
   ) : null;
 
-  const janelaIniciar = iniciando ? (
-    <JanelaRegistroDeCampo
-      key="iniciar-atividade"
-      tipos={tipos}
-      area={area}
-      onGravou={() => {
-        void queryClient.invalidateQueries({ queryKey: [QUERY_ATIVIDADES_DA_AREA] });
-        void queryClient.invalidateQueries({ queryKey: [RAIZ_CONSULTAS_ATIVIDADES] });
-      }}
-      onFechar={() => setIniciando(false)}
-    />
-  ) : null;
-
   if (secao === "manejos") {
     return (
       <div className="mk-dp-area-organizada mk-dp-d13">
         {pronto && podeIniciar ? (
-          <button type="button" className="tb-btn tb-btn-green" data-testid="area-iniciar-atividade" onClick={() => setIniciando(true)}>
-            Iniciar atividade
-          </button>
-        ) : null}
-        {pronto && podeDiario ? (
-          <button type="button" className="tb-btn" data-testid="area-diario-maquina" onClick={() => void abrirDiario()} disabled={abrindoDiario}>
-            Diário da máquina
+          <button type="button" className="tb-btn tb-btn-green" data-testid="area-diario-atividades" onClick={() => void abrirDiario()} disabled={abrindoDiario}>
+            Diário das atividades
           </button>
         ) : null}
         {pronto ? <SecaoDetalhe titulo="Em andamento e planejado">{listaDeAtividades}</SecaoDetalhe> : null}
         {acoesDaAtividade.janelas}
-        {janelaIniciar}
         {janelaDiario}
       </div>
     );

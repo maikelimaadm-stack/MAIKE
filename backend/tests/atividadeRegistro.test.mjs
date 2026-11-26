@@ -163,6 +163,32 @@ describe('registrar', () => {
     assert.equal(await prisma().atividadeApontamento.count({ where: { cliente_id: s.c } }), 0);
   });
 
+  test('D-PROD-332 (emenda): exige máquina + bem_id na abertura, sem maquinas[] → 201, o bem da atividade e NENHUMA linha de uso', async () => {
+    const s = await montar();
+    await prisma().tipoAtividade.update({ where: { id: s.tipo.id }, data: { exige_maquina: true } });
+    const r = await s.ok({ bem_id: s.trator.id });
+    assert.equal(r.apontamento.maquinas.length, 0);
+    const [a] = await s.atividades();
+    assert.equal(a.bem_id, s.trator.id);
+  });
+
+  test('D-PROD-332 (emenda): bem_id da abertura com maquinas[] → o bem da atividade é o bem_id e as linhas de uso seguem gravadas', async () => {
+    const s = await montar();
+    await prisma().tipoAtividade.update({ where: { id: s.tipo.id }, data: { exige_maquina: true } });
+    const r = await s.ok({ bem_id: s.trator.id, maquinas: [{ bem_id: s.trator.id, sem_medidor: true, quantidade_uso: '2' }] });
+    assert.equal(r.apontamento.maquinas.length, 1);
+    const [a] = await s.atividades();
+    assert.equal(a.bem_id, s.trator.id);
+  });
+
+  test('D-PROD-332 (emenda): bem_id inexistente na abertura → 422 (a mesma validação do bem) e nada criado', async () => {
+    const s = await montar();
+    await prisma().tipoAtividade.update({ where: { id: s.tipo.id }, data: { exige_maquina: true } });
+    const r = await s.registrar({ bem_id: 'bem-que-nao-existe' });
+    assert.equal(r.statusCode, 422, r.body);
+    assert.equal((await s.atividades()).length, 0);
+  });
+
   test('a corrida: dois registros paralelos (chaves diferentes) → UMA atividade e dois apontamentos', async () => {
     const s = await montar();
     const [a, b] = await Promise.all([s.registrar(), s.registrar({ data_operacional: '2027-06-11' })]);

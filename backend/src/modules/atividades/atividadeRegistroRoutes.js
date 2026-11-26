@@ -6,6 +6,8 @@
  *    operação na área (D-PROD-267: em qualquer mês) ou cria uma, e grava o apontamento + linhas, numa transação (ver
  *    `atividadeRegistroService.js`).
  *    201; reenvio igual da mesma `operation_id` → 200 com `replay: true`.
+ *    D-PROD-332 (emenda): `bem_id` (opcional) é a máquina do serviço na abertura (o `bem_id` da atividade criada); não
+ *    cria linha de uso. Com `maquinas[]`, as linhas de uso seguem como antes.
  *  - `GET  /atividades-por-area/:areaId/resumo` (ver) — atividades da área e custos do mês.
  *  - `GET  /atividades-por-area/:areaId/registros` (ver) — histórico de registros de campo da área (keyset).
  *
@@ -82,6 +84,9 @@ const REGISTRAR = {
       area_id: ID,
       areas: { type: 'array', minItems: 1, maxItems: AREAS_NO_REGISTRO_MAXIMO, items: AREA_DO_REGISTRO },
       tipo_atividade_id: ID,
+      // D-PROD-332 (emenda): a máquina do serviço NA ABERTURA (o "Iniciar serviço" da tela de campo). É o `bem_id` da
+      // atividade criada; NÃO cria linha de uso (para isso, `maquinas[]`). Opcional, fora de `required`.
+      bem_id: ID,
       safra_ciclo: { type: ['string', 'null'], maxLength: 32 },
       ...CAMPOS_DO_REGISTRO,
       // D-PROD-265: o último dia do serviço (Nova realização), opcional.
