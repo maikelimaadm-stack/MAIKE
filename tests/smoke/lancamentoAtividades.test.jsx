@@ -1454,6 +1454,32 @@ describe("LA-PORTA — porta por allowlist e service sem fazenda", () => {
     expect(montarCaminhoOpcoes("operadores", { empresa_id: "emp-1", q: "jo", natureza: "MAQUINA" })).toBe("/atividades-opcoes/operadores?empresa_id=emp-1&q=jo");
   });
 
+  // D-PROD-335: a máquina da abertura vai em `bem_id` (a atividade criada). A porta descartava o campo em silêncio.
+  it("LA-PORTA-BEM — o registro de campo leva `bem_id` no corpo (a máquina da atividade) e continua descartando o que não é do contrato", async () => {
+    const { operacoesNativas } = await import("@/apis/atividades/lancamentoAtividadePort.js");
+    await operacoesNativas.registrar({
+      empresa_id: "emp-1",
+      area_id: "ar1",
+      tipo_atividade_id: "t1",
+      data_operacional: HOJE,
+      bem_id: "bem-7",
+      observacao: "[abertura-servico]",
+      operador_usuario_id: "usr-3",
+      maquinas: [],
+      cliente_id: "outro-tenant",
+    });
+    expect(ultimaEscrita().path).toBe("/atividades/registrar");
+    expect(ultimaEscrita().body).toEqual({
+      empresa_id: "emp-1",
+      area_id: "ar1",
+      tipo_atividade_id: "t1",
+      data_operacional: HOJE,
+      bem_id: "bem-7",
+      observacao: "[abertura-servico]",
+      operador_usuario_id: "usr-3",
+    });
+  });
+
   it("LA-PORTA-3 — paridade: cada allowlist da porta é exatamente o corpo fechado da rota do servidor (o PATCH sem a empresa, que lá é opcional)", async () => {
     const porta = await import("@/apis/atividades/lancamentoAtividadePort.js");
     /** Chaves de um `Object.freeze({ chave: SCHEMA, … })` da fonte. @param {string} fonte @param {string} nome */
