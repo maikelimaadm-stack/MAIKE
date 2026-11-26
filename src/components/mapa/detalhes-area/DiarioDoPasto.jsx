@@ -17,10 +17,12 @@ import { lerAtividadeParaAcoes } from "./lerAtividadeParaAcoes";
  * carrega pela 1ª vez (e não há `atividade`), não se renderiza nada. Se a consulta falhar, o diário abre com lista vazia
  * (vai ao tipo).
  *
- * @param {{ area: any, tipos?: any[], atividade?: any | null, verAtividades?: boolean, onFechar: () => void }} props
+ * @param {{ area: any, tipos?: any[], atividade?: any | null, verAtividades?: boolean, onFechar: () => void, aoGravar?: () => void }} props
  *   `atividade`: a atividade já lida (a ação de linha); sem ela, o diário decide pelas atividades abertas do pasto.
+ *   `aoGravar`: além das consultas do mapa (que este componente já relê), para quem mostra a lista de atividades por fora
+ *   (a página Lançamento de Atividades) reler a sua.
  */
-export default function DiarioDoPasto({ area, tipos = [], atividade = null, verAtividades = true, onFechar }) {
+export default function DiarioDoPasto({ area, tipos = [], atividade = null, verAtividades = true, onFechar, aoGravar = undefined }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const queryClient = useQueryClient();
   definirFazendaDaTela(empresaId);
@@ -47,6 +49,7 @@ export default function DiarioDoPasto({ area, tipos = [], atividade = null, verA
       onGravou={() => {
         void queryClient.invalidateQueries({ queryKey: [QUERY_ATIVIDADES_DA_AREA] });
         void queryClient.invalidateQueries({ queryKey: [RAIZ_CONSULTAS_ATIVIDADES] });
+        aoGravar?.();
       }}
     />
   );
