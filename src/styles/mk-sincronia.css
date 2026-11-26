@@ -1,0 +1,30 @@
+/* D-PROD-329 — o círculo da sincronização: pequeno, no canto de baixo à direita, acima dos cartões do mapa e
+   abaixo das janelas (z-index 50). */
+.mk-circulo-sincronia {
+  position: fixed;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+  z-index: 45;
+  width: 56px;
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+  padding: 0;
+  cursor: pointer;
+}
+.mk-circulo-sincronia > svg {
+  position: absolute;
+  inset: 2px;
+}
+.mk-circulo-sincronia__texto {
+  position: relative;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
