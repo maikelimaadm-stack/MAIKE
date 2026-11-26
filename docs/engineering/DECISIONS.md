@@ -10085,4 +10085,21 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 > **Numeração:** a `main` indica `Próxima decisão: D-PROD-326` depois da D-PROD-325 (PR #414), que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-327. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-327 -->
+## D-PROD-327 — Tarefa com foto salva: a foto é reduzida no celular e o servidor aceita a tarefa com fotos
+
+**Data:** 2026-11-26 · **Origem:** teste do proprietário ("tarefas sem imagens ela salva e com imagem não salva") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFA-FOTO-SALVA-D327-REPORT.md`](./TAREFA-FOTO-SALVA-D327-REPORT.md)
+
+**Causa.** A foto vai dentro da tarefa, como endereço `data:` devolvido por `/arquivos/upload`. A foto da câmera tem de 2 a 5 MB, e as rotas da tarefa (`POST` e `PATCH /lancamentos-tarefa`) usavam o limite padrão do Fastify, de 1 MB. Com isso, a tarefa com foto voltava 413 e não era gravada, e a foto grande passava também do limite do próprio upload. Sem internet, a mesma foto ficava tentando subir para sempre.
+
+**Decisão.**
+- O app reduz a foto antes de subir (`src/lib/imagens/reduzirFoto.js`):
+  - o lado maior passa a no máximo 1600 px, em JPEG com qualidade 0,75;
+  - foto já pequena (até 400 KB e dentro do tamanho) sobe como está;
+  - sem canvas, com imagem que o aparelho não abre ou quando a reduzida não fica menor, sobe a original (nunca piora).
+- A redução vale para todo envio de foto de tarefa (`enviarAnexo` em `tarefasMapaService`): na hora, a guardada sem internet (D-PROD-324) e a da fila antiga.
+- As rotas `POST` e `PATCH /lancamentos-tarefa` aceitam até 4 MB, abaixo do teto da função serverless (4,5 MB), como no upload (D-PROD-79). Com as fotos reduzidas, cabem cerca de 10 por tarefa.
+- No smoke, o jsdom passa a se comportar como aparelho sem canvas (`getContext` devolve `null`), sem o aviso "Not implemented".
+
+> **Numeração:** a `main` (`727a8ac61`) indica `Próxima decisão: D-PROD-327`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-328. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-328 -->
