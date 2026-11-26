@@ -1,6 +1,5 @@
-import { TAMANHO_PONTO_MAPA_PX } from "@/lib/maplibre/marcadoresVisuais";
 import { resolverIconeTarefa } from "@/lib/maplibre/mapaGeralRender";
-import { aplicarIndicadorTarefa } from "@/lib/tarefas/marcador";
+import { aplicarIndicadorTarefa, TAMANHO_TAREFA_MAPA_PX } from "@/lib/tarefas/marcador";
 import { useDiaCivil } from "@/hooks/useDiaCivil";
 import { listEmpresas } from "@/services/empresaService";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -408,12 +407,12 @@ export default function TaskLocationPickerDialog({
       const { iconUrl } = resolverIconeTarefa(t, iconesConfig);
       const el = document.createElement("button");
       el.type = "button";
-      el.style.cssText = "border:0;background:transparent;padding:0;cursor:default;pointer-events:none;width:36px;height:36px;display:flex;align-items:center;justify-content:center;";
+      el.style.cssText = `border:0;background:transparent;padding:0;cursor:default;pointer-events:none;width:${TAMANHO_TAREFA_MAPA_PX}px;height:${TAMANHO_TAREFA_MAPA_PX}px;display:flex;align-items:center;justify-content:center;`;
       const img = document.createElement("img");
       img.src = iconUrl;
       img.alt = "";
       img.draggable = false;
-      img.style.cssText = `width:${TAMANHO_PONTO_MAPA_PX}px;height:${TAMANHO_PONTO_MAPA_PX}px;object-fit:contain;display:block;`;
+      img.style.cssText = `width:${TAMANHO_TAREFA_MAPA_PX}px;height:${TAMANHO_TAREFA_MAPA_PX}px;object-fit:contain;display:block;`;
       el.appendChild(img);
       aplicarIndicadorTarefa(el, t, hoje);
 

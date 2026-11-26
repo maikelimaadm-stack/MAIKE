@@ -3,6 +3,9 @@ import { diasEntre, hojeNoFuso } from '../diaCivil.js';
 import { urlIconeTarefa } from '../../assets/icones/tarefas.js';
 import { normalizarPrioridadeTarefa } from './prioridade.js';
 
+/** Tarefa compacta: aplicada também a uploads, sem alterar os pontos de cocho/depósito. */
+export const TAMANHO_TAREFA_MAPA_PX = 26;
+
 /** Dias são civis, no mesmo "hoje" da fazenda usado pelo mapa (inclusive na virada do dia).
  * @param {{ status?: string, data_prevista?: string | null }} tarefa @param {string | null} [hoje]
  */
@@ -37,7 +40,11 @@ export function aplicarIndicadorTarefa(el, tarefa, hoje) {
   badge.textContent = indicador.texto;
   badge.setAttribute('aria-hidden', 'true');
   // Contador no canto superior, no mesmo selo do nível do cocho.
-  badge.style.cssText = estiloSeloPonto('#6b7280', '#ffffff', indicador.texto.length > 2 ? 7 : 9);
+  badge.style.cssText = estiloSeloPonto('#6b7280', '#ffffff', indicador.texto.length > 2 ? 5.5 : 7);
+  Object.assign(badge.style, {
+    width: '11px', height: '11px', borderWidth: '1px',
+    left: 'calc(50% + 8px)', top: 'calc(50% - 9px)', boxShadow: 'none',
+  });
   const descricao = `${tarefa.titulo || 'Tarefa'} — prioridade ${normalizarPrioridadeTarefa(tarefa.prioridade)} — ${indicador.descricao}`;
   el.title = descricao;
   el.setAttribute('aria-label', descricao);

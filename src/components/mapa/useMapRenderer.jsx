@@ -5,7 +5,7 @@
  */
 
 import { TAMANHO_PONTO_MAPA_PX, estiloSeloPonto, estiloFarolPonto } from "@/lib/maplibre/marcadoresVisuais";
-import { aplicarIndicadorTarefa } from "@/lib/tarefas/marcador";
+import { aplicarIndicadorTarefa, TAMANHO_TAREFA_MAPA_PX } from "@/lib/tarefas/marcador";
 import { normalizarPrioridadeTarefa } from "@/lib/tarefas/prioridade";
 import { useRef, useCallback } from "react";
 import { CONTAGEM_TOPO_PCT, LARGURA_MARCADOR_PX } from "@/assets/icones/lotes";
@@ -865,7 +865,7 @@ export default function useMapRenderer(mapInstanceRef) {
         estado: JSON.stringify([pos.lat, pos.lng, t.titulo, t.prioridade, t.status, t.data_prevista, hoje, iconUrl]),
         ref,
         criar: () => {
-          const entry = criarMarcadorClicavel({ iconUrl, baseSize: TAMANHO_PONTO_MAPA_PX, cor, titulo: t.titulo }, () => {
+          const entry = criarMarcadorClicavel({ iconUrl, baseSize: TAMANHO_TAREFA_MAPA_PX, cor, titulo: t.titulo }, () => {
             onClickTarefa?.(markersRef.current.get(key)?.ultimo?.ref?.tarefa || t);
           });
           aplicarIndicadorTarefa(entry.el, t, hoje);
@@ -875,7 +875,7 @@ export default function useMapRenderer(mapInstanceRef) {
         atualizar: (entry) => {
           entry.el.title = String(t.titulo || "");
           entry.marker.getElement().style.zIndex = urgente ? "3000" : "2500";
-          aplicarCorpo(entry.el, { iconUrl, baseSize: TAMANHO_PONTO_MAPA_PX, cor });
+          aplicarCorpo(entry.el, { iconUrl, baseSize: TAMANHO_TAREFA_MAPA_PX, cor });
           aplicarIndicadorTarefa(entry.el, t, hoje);
         },
       });
