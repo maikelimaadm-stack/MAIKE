@@ -29,7 +29,7 @@ const SELECAO = Object.freeze({
   consumo_maximo_pv: true,
   unidade_principal_estoque: true,
   peso_por_saco_kg: true,
-  // D-PROD-319: a quantidade padrão por implemento cheio (a mistura pré-preenche com ela).
+  // D-PROD-322: a quantidade padrão por implemento cheio (a mistura pré-preenche com ela).
   quantidade_padrao: true,
   quantidade_padrao_unidade: true,
   carencia_dias: true,

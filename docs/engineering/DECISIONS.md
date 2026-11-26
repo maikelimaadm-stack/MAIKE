@@ -9869,7 +9869,7 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 **Data:** 2026-11-26 · **Origem:** fase 1 do Diário da máquina, aprovada pelo proprietário ("perfeito vamos fazer com o claude ok") · **Branch:** `feat/diario-implemento-textos`
 
-> **Numeração:** nasceu D-PROD-313 a partir da `main` `51bdd26ca` (marcador `Próxima decisão: D-PROD-313`). Antes do merge desta PR, a `main` já havia levado D-PROD-313 a D-PROD-316 (PRs #401, #403, #404 e #405); o marcador atual é `Próxima decisão: D-PROD-317`, que é esta (`node scripts/dev/proxima-decisao.mjs`). O plano da fase citava D-PROD-314 por engano. O marcador passa a D-PROD-318. Conferir de novo antes do merge (regra A5).
+> **Numeração:** nasceu D-PROD-313 a partir da `main` `51bdd26ca` (marcador `Próxima decisão: D-PROD-313`). Antes do merge desta PR, a `main` já havia levado D-PROD-313 a D-PROD-316 (PRs #401, #403, #404 e #405); o marcador atual é `Próxima decisão: D-PROD-317`, que é esta (`node scripts/dev/proxima-decisao.mjs`). O plano da fase citava D-PROD-314 por engano. Depois, a `main` (`5f68cc60c`) levou D-PROD-318 a D-PROD-320 (PRs #407 a #409), com a D-PROD-317 reservada para esta PR; as fases 2 e 3-7 desta PR foram renumeradas de D-PROD-318 e D-PROD-319 para D-PROD-321 e D-PROD-322 (regra A5).
 
 - **Contexto:** no lançamento de atividades e no cadastro do implemento, a tela chamava de "jato" o tanque/implemento cheio (número do dia, cartões, totais, resumo ao finalizar a área). O termo não é o que a operação usa no campo. A troca é só de texto visível, primeira fase do Diário da máquina; o comportamento e o contrato não mudam.
 - **Decisão:**
@@ -9878,11 +9878,11 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** sem mudança.
 - **Testes:** `tests/smoke/jatosDoDia.test.jsx`, `fechamentoArea.test.jsx`, `servicoVariosDias.test.jsx` (asserções de texto da UI). Os demais smoke do fluxo (`registroDeCampoVariasLinhas`, `estoqueLoteAtividade`, `bensPatrimoniais`) não assertam essas strings.
 
-## D-PROD-318 — Diário da máquina, fase 2: R$ só para o administrador e "Iniciar atividade" no pasto (só tela)
+## D-PROD-321 — Diário da máquina, fase 2: R$ só para o administrador e "Iniciar atividade" no pasto (só tela)
 
 **Data:** 2026-11-26 · **Origem:** plano do Diário da máquina aprovado pelo proprietário ("perfeito vamos fazer com o claude ok"; tudo na mesma PR #406) · **Branch:** `feat/diario-implemento-textos`
 
-> **Numeração:** a `main` (`701f6ca8`) indica `Próxima decisão: D-PROD-317`, tomada pela fase 1 desta PR; esta é a D-PROD-318 e o marcador passa a D-PROD-319. Conferir de novo antes do merge (regra A5).
+> **Numeração:** nasceu D-PROD-318 (a `main` `701f6ca8` indicava D-PROD-317, tomada pela fase 1 desta PR). Antes do merge, a `main` (`5f68cc60c`) levou D-PROD-318 a D-PROD-320 (PRs #407 a #409) e indica `Próxima decisão: D-PROD-321`; esta foi renumerada para D-PROD-321 (regra A5).
 
 - **Decisão:**
   - `podeVerCusto(permissao)` (`src/lib/verCustoRegras.js`) = permissão efetiva com `is_admin === true` (o administrador da fazenda recebe o registro efetivo com `is_admin`). O `VerCustoContext` (padrão `true`) é passado pelo Lançamento de Atividades e pela janela do pasto no mapa.
@@ -9891,11 +9891,11 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** sem mudança.
 - **Testes:** `tests/smoke/diarioFase2.test.jsx`; testes que conferem R$ passam a simular o administrador.
 
-## D-PROD-319 — Diário da máquina, fases 3 a 7 (backend): mistura no implemento, aplicação, sobra, resumo e quantidade padrão
+## D-PROD-322 — Diário da máquina, fases 3 a 7 (backend): mistura no implemento, aplicação, sobra, resumo e quantidade padrão
 
 **Data:** 2026-11-26 · **Origem:** plano do Diário da máquina aprovado pelo proprietário (protótipo v5) · **Branch:** `feat/diario-implemento-textos` (PR #406)
 
-> **Numeração:** a `main` (`701f6ca8`) indica `Próxima decisão: D-PROD-317`; esta PR já usa D-PROD-317 (fase 1) e D-PROD-318 (fase 2), e esta é a D-PROD-319; o marcador passa a D-PROD-320. Conferir de novo antes do merge (regra A5).
+> **Numeração:** nasceu D-PROD-319. Antes do merge, a `main` (`5f68cc60c`) levou D-PROD-318 a D-PROD-320 (PRs #407 a #409) e indica `Próxima decisão: D-PROD-321`; esta PR usa D-PROD-317 (fase 1), D-PROD-321 (fase 2) e esta, renumerada para D-PROD-322 (regra A5). O marcador passa a D-PROD-323.
 
 - **Contexto:** o diário da máquina precisa de uma mistura que existe DENTRO do implemento (o que foi colocado na caixa, na capacidade do bem, com o saldo que ainda não saiu), de uma aplicação no pasto que baixe o estoque só do que foi aplicado, e de um destino para a sobra. Hoje cada "jato" é só um número que agrupa linhas de produto: não há mistura, não há saldo e a sobra não existe.
 - **Decisão:**
@@ -9915,4 +9915,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Constituição:** sem mudança.
 - **Testes:** `backend/tests/diarioMaquina.test.mjs` 24/24 contra PostgreSQL LOCAL de teste (15 regras puras + 9 de integração: mistura sem baixa, 409, aplicar com sobra e baixa proporcional pelo motor, replay, transferência, devolução sem movimento, perda com motivo, resumo com/sem custo, quantidade padrão do produto); `test:gates` 1097/1097; smoke `diarioMaquina`, `diarioMaquinaService`, `implementoRegras`. A migration NÃO foi aplicada em produção (ver runbook).
 
-<!-- Próxima decisão: D-PROD-320 -->
+<!-- Próxima decisão: D-PROD-323 -->

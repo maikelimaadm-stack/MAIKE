@@ -32,7 +32,7 @@ const CAMPOS = Object.freeze({
   consumo_maximo_pv: { type: ['number', 'null'] },
   unidade_principal_estoque: { type: 'string', maxLength: 16 },
   peso_por_saco_kg: { type: ['number', 'null'] },
-  // D-PROD-319: quantidade padrão por implemento cheio (texto decimal; a unidade L ou KG). Opcionais: sem elas, nada muda.
+  // D-PROD-322: quantidade padrão por implemento cheio (texto decimal; a unidade L ou KG). Opcionais: sem elas, nada muda.
   quantidade_padrao: { type: ['string', 'null'], pattern: '^\\d{1,10}(\\.\\d{1,4})?$' },
   quantidade_padrao_unidade: { type: ['string', 'null'], enum: ['L', 'KG', null] },
   // MAIKE-ENTREGA2 (D-PROD-274): carência da bula, em dias (0..365 no serviço; null limpa).
@@ -66,7 +66,7 @@ const CAMPOS = Object.freeze({
 });
 
 /**
- * D-PROD-319: a quantidade padrão é TEXTO decimal. O AJV coagiria um número antes do serviço (e o float já viria
+ * D-PROD-322: a quantidade padrão é TEXTO decimal. O AJV coagiria um número antes do serviço (e o float já viria
  * torto): número → 400, antes da coerção, como nas linhas de atividade.
  */
 const recusarNumeroNaQuantidadePadrao = async (request) => {

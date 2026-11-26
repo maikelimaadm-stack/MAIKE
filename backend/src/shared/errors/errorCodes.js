@@ -399,7 +399,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'a data do apontamento não muda com linha de produto, máquina, mão de obra ou serviço confirmada (details.linhas_produto/linhas_maquina/linhas_mao_obra/linhas_servico); cancele e lance de novo; nada foi gravado',
   },
-  // MAIKE-DIARIO-MAQUINA (D-PROD-319) — a mistura no implemento (Passo 1), a aplicação no pasto (Passo 2) e a sobra.
+  // MAIKE-DIARIO-MAQUINA (D-PROD-322) — a mistura no implemento (Passo 1), a aplicação no pasto (Passo 2) e a sobra.
   MISTURA_NOT_FOUND: {
     http: 404,
     meaning: 'id não identifica mistura desta atividade neste tenant',

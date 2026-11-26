@@ -325,7 +325,7 @@ export const schemaSemInsumoPorJato = (schema) => {
 let espelho = null;
 /** O diretório do espelho do runner até a D-PROD-223, com o schema do dia dela. */
 /**
- * D-PROD-319 — o `schema.prisma` de hoje sem o Diário da máquina: os models novos (a linha `// MAIKE-DIARIO-MAQUINA`
+ * D-PROD-322 — o `schema.prisma` de hoje sem o Diário da máquina: os models novos (a linha `// MAIKE-DIARIO-MAQUINA`
  * sozinha, o bloco `///` e o `model` até o `}` que o fecha) e as linhas de campo/relação com o marcador no fim.
  * A EXPAND `20261127100000_diario_maquina` é posterior a todos os "dias" destes espelhos.
  * @param {string} schema

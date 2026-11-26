@@ -141,7 +141,7 @@ describe('D-PROD-187 — migration CONTRACT CategoriaManejo → CADCATEGORIA sem
     // D-PROD-297: a EXPAND do produto do implemento no bem, também: agora 24.
     // D-PROD-310: a EXPAND da unidade convertida, também: agora 25.
     // D-PROD-315: a EXPAND dos índices da sincronização, também: agora 26.
-    // D-PROD-319: a EXPAND da mistura no implemento, também: agora 27.
+    // D-PROD-322: a EXPAND da mistura no implemento, também: agora 27.
     assert.equal(CONCLUIDAS_ANTES, CONCLUIDAS_DEPOIS - 27, 'todas as pastas menos esta CONTRACT, a D-PROD-195, a D-PROD-198, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-210, a D-PROD-215, a D-PROD-216, a D-PROD-219, a D-PROD-223, a D-PROD-249, a D-PROD-257, a D-PROD-259, a D-PROD-264, a D-PROD-265, a D-PROD-272, a D-PROD-274, a D-PROD-276, a D-PROD-282 e a D-PROD-282');
     assert.equal(partida.tabelas, TABELAS_PUBLIC);
     assert.equal(TABELAS_PUBLIC, 90, 'as 82 da main com a CADCURVAGANHO (D-PROD-189) + ApontamentoAtividade (D-PROD-190) + os 2 de itens do apontamento (D-PROD-193) − essas 3 + as 2 da atividade (D-PROD-200, na partida) + as 3 das linhas de produto e de máquina (D-PROD-202, na partida) + as 4 da mão de obra e do serviço (D-PROD-207, na partida); a curva mensal (D-PROD-194) e os padrões do TipoAtividade (D-PROD-197) não mudam a contagem; − a Funcionario (D-PROD-208, na partida, por último)');

@@ -157,7 +157,7 @@ export const limparBanco = async () => {
   // bens e usuários (RESTRICT): saem antes do apontamento.
   // D-PROD-211 (Fatia 5): o abastecimento referencia a atividade, o apontamento e o centro de custo
   // (RESTRICT): as fatias e o abastecimento saem antes deles (e continuam antes de bem, tanque e produto).
-  // D-PROD-319 (diário da máquina): a mistura referencia atividade, implemento, área e (no movimento) o apontamento:
+  // D-PROD-322 (diário da máquina): a mistura referencia atividade, implemento, área e (no movimento) o apontamento:
   // movimentos → itens → misturas, antes do apontamento, da atividade e do bem.
   await prisma.atividadeMisturaMovimento.deleteMany({});
   await prisma.atividadeMisturaItem.deleteMany({});

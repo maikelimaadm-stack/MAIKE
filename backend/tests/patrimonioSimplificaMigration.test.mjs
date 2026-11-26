@@ -115,7 +115,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     // D-PROD-297: a EXPAND do produto do implemento no bem, também: agora 30.
     // D-PROD-310: a EXPAND da unidade convertida, também: agora 31.
     // D-PROD-315: a EXPAND dos índices da sincronização, também: agora 32.
-    // D-PROD-319: a EXPAND da mistura no implemento, também: agora 33.
+    // D-PROD-322: a EXPAND da mistura no implemento, também: agora 33.
     assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 33, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216, a D-PROD-217, a D-PROD-219, a D-PROD-223, a D-PROD-249, a D-PROD-257, a D-PROD-259, a D-PROD-264, a D-PROD-265, a D-PROD-272, a D-PROD-274, a D-PROD-276, a D-PROD-279 e a D-PROD-283');
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabelas, 88);
@@ -201,7 +201,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.equal(h.concluidas, TOTAL_MIGRATIONS);
     assert.equal(h.abertas, 0);
     assert.equal(h.contract_concluida, 1);
-    assert.equal(await contarTabelas(db), 115, 'D-PROD-319: + a AtividadeMistura, a AtividadeMisturaItem e a AtividadeMisturaMovimento; D-PROD-288: + a ProdutoUnidadeConversao; D-PROD-276: + o Planejamento e a PlanejamentoArea; D-PROD-274: + a AtividadePlantio; D-PROD-272: + as 3 do ajuste de inventário (a D-PROD-265, data de término, não cria tabela); D-PROD-264: + as 4 da saída manual do Estoque; D-PROD-259: + a MotivoEntradaEstoque; D-PROD-257: + as 3 das Entradas do Estoque; D-PROD-249: + a AtividadeArea; D-PROD-219: + a MEDICAOFORRAGEM; D-PROD-215: + a CADCULTURAS; D-PROD-208: − Funcionario (nasce com a D-PROD-207 e sai com a D-PROD-208); as 82 do formato novo (com a CADESTACOES, D-PROD-188, e a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento (D-PROD-200) + as 3 das linhas de produto e de máquina (D-PROD-202) + as 3 das Formulações (D-PROD-203) + a LEITURACOCHO (D-PROD-205) + as 4 da mão de obra e do serviço (D-PROD-207); as 3 do apontamento antigo (D-PROD-190/D-PROD-193) nascem e saem com a D-PROD-200');
+    assert.equal(await contarTabelas(db), 115, 'D-PROD-322: + a AtividadeMistura, a AtividadeMisturaItem e a AtividadeMisturaMovimento; D-PROD-288: + a ProdutoUnidadeConversao; D-PROD-276: + o Planejamento e a PlanejamentoArea; D-PROD-274: + a AtividadePlantio; D-PROD-272: + as 3 do ajuste de inventário (a D-PROD-265, data de término, não cria tabela); D-PROD-264: + as 4 da saída manual do Estoque; D-PROD-259: + a MotivoEntradaEstoque; D-PROD-257: + as 3 das Entradas do Estoque; D-PROD-249: + a AtividadeArea; D-PROD-219: + a MEDICAOFORRAGEM; D-PROD-215: + a CADCULTURAS; D-PROD-208: − Funcionario (nasce com a D-PROD-207 e sai com a D-PROD-208); as 82 do formato novo (com a CADESTACOES, D-PROD-188, e a CADCURVAGANHO, D-PROD-189) + Atividade e AtividadeApontamento (D-PROD-200) + as 3 das linhas de produto e de máquina (D-PROD-202) + as 3 das Formulações (D-PROD-203) + a LEITURACOCHO (D-PROD-205) + as 4 da mão de obra e do serviço (D-PROD-207); as 3 do apontamento antigo (D-PROD-190/D-PROD-193) nascem e saem com a D-PROD-200');
     // D-PROD-190/191/198/201: subiram DEPOIS da CONTRACT (o runner aplica em ordem de nome); no fim ficam as 2 da atividade, as 3 das linhas, as 3 das Formulações (D-PROD-203), a LEITURACOCHO (D-PROD-205) e as 4 da mão de obra e do serviço (D-PROD-207), vazias, com RLS e sem FORCE.
     const ordem = await db.$queryRawUnsafe(
       `SELECT migration_name AS nome FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[]) AND finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY finished_at, migration_name`,
@@ -216,7 +216,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
       ['AtividadeApontamentoProdutoConsumoLote', true, false], ['AtividadeApontamentoServico', true, false],
       // D-PROD-249: as áreas da atividade, também vazias, com RLS e sem FORCE.
       ['AtividadeArea', true, false],
-      // D-PROD-319: as 3 tabelas do Diário da máquina (mistura, itens e movimentos), vazias, com RLS e sem FORCE.
+      // D-PROD-322: as 3 tabelas do Diário da máquina (mistura, itens e movimentos), vazias, com RLS e sem FORCE.
       ['AtividadeMistura', true, false], ['AtividadeMisturaItem', true, false], ['AtividadeMisturaMovimento', true, false],
       // D-PROD-274: os dados do plantio, também vazios, com RLS e sem FORCE.
       ['AtividadePlantio', true, false],

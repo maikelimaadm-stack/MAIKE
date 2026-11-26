@@ -1,5 +1,5 @@
 /**
- * D-PROD-319 (MAIKE-DIARIO-MAQUINA) — rotas da mistura no implemento, da aplicação no pasto, da sobra e do resumo do dia:
+ * D-PROD-322 (MAIKE-DIARIO-MAQUINA) — rotas da mistura no implemento, da aplicação no pasto, da sobra e do resumo do dia:
  *
  *  - `GET   /atividades/:id/misturas?empresa_id=` (ver) — as misturas (a ABERTA primeiro), com itens e saldo
  *  - `POST  /atividades/:id/misturas` (`lancar_apontamento`) — Passo 1 "Implemento cheio"; 201; sem baixa de estoque

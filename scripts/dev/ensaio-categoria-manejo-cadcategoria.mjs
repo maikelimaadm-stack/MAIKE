@@ -195,7 +195,7 @@ export const NOME_BEM_PRODUTO = '20261126100000_bem_implemento_produto';
 export const NOME_UNIDADE_CONVERTIDA = '20261126200000_unidade_convertida_lancamentos';
 /** D-PROD-315: os índices da sincronização incremental (5 CREATE INDEX em tabelas antigas), ainda posterior; fora da partida, sobe no GREEN. */
 export const NOME_SINC_INDICES = '20261126300000_sincronizacao_incremental_indices';
-/** D-PROD-319: a EXPAND da mistura no implemento, também posterior (fora da partida). */
+/** D-PROD-322: a EXPAND da mistura no implemento, também posterior (fora da partida). */
 export const NOME_DM = '20261127100000_diario_maquina';
 export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_CONTROLE_LOTE, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(

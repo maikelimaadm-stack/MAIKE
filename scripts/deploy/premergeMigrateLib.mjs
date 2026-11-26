@@ -235,7 +235,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // primeiro: (cliente_id, updatedAt, id) em Lote, PontoSuplementacao, LEITURACOCHO e SuplementacaoEvento, e
   // (cliente_id, entidade, acao, createdAt, id) em AuditLog; nenhuma tabela, coluna, constraint ou dado muda.
   '20261126300000_sincronizacao_incremental_indices': 'a1cdcd2f6f4b21499f5d1b1b5a905abeb1ef84e426d85c460bb03a8edb5ffc3c',
-  // MAIKE-DIARIO-MAQUINA (D-PROD-319): EXPAND — a mistura no implemento (AtividadeMistura, AtividadeMisturaItem e
+  // MAIKE-DIARIO-MAQUINA (D-PROD-322): EXPAND — a mistura no implemento (AtividadeMistura, AtividadeMisturaItem e
   // AtividadeMisturaMovimento, só tabelas novas, com RLS) e 4 colunas anuláveis sem DEFAULT em tabelas antigas
   // (Produto.quantidade_padrao e quantidade_padrao_unidade; AtividadeApontamentoProduto.mistura_id e volume_aplicado).
   // Sem DROP, sem ALTER COLUMN, sem DML; a baixa de estoque não está aqui (passa pelo estoqueFisicoMotor).
@@ -243,7 +243,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
-  // MAIKE-DIARIO-MAQUINA (D-PROD-319): RLS/REVOKE das 3 tabelas novas da mistura (mesmo corpo, lista nova).
+  // MAIKE-DIARIO-MAQUINA (D-PROD-322): RLS/REVOKE das 3 tabelas novas da mistura (mesmo corpo, lista nova).
   'aad031e709582b5873e4a1bf3e8c6461f5d22aa1d74f2f2a5fef8a83d8514b02',
   'b38a85816a49d2b3335e6a1bfa1098ed86ac38cc6d7e0b0bd1db979e97f770fd',
   'e6e0a232e9b893ae8bf24387e3455f89256930eef2aed29d7ac96130f4c62ae9',
