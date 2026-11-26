@@ -63,6 +63,17 @@ Três correções de P2 do review do PR #420 (a abertura do serviço; sem migrat
 
 **Migration:** nenhuma. **Testes:** `aberturaServicoRegras.test.js` (capim, paginação, campo desconhecido), `diarioDasAtividades.test.jsx` (Capim só no Plantio, erro sem capim, `plantio` com o capim, `bem_id` sem `maquinas`, páginas, fallback e erro que não é o campo) e `backend/tests/atividadeRegistro.test.mjs` (3 casos novos: `bem_id` sem linha de uso, `bem_id` com `maquinas[]`, `bem_id` inexistente). Os de backend não rodaram aqui (`DATABASE_URL` não definida): ficam para o CI.
 
+## Emenda — pasto com serviço antigo e máquina no envio (D-PROD-335)
+
+Dois defeitos em produção, uma correção (sem migration, sem mudar o backend):
+
+1. **Pasto com serviço em andamento sem abertura.** Os serviços do fluxo antigo (Gradagem, Combate à cigarrinha) não têm a linha de abertura na observação. O Diário abria direto no cabeçalho, com "Abertura não registrada", e não dava para iniciar nada. Agora, lida a abertura sem sucesso, o Diário vai ao formulário de abertura com o tipo e a operação do serviço já escolhidos, com a linha "Este pasto já tem o serviço <nome> em andamento, sem abertura. Preencha para iniciar.". Enquanto lê, aparece "Carregando…". Se a leitura falhar, segue como antes. "Iniciar serviço" reaproveita a atividade aberta (o servidor acha a do mesmo tipo e área).
+2. **Máquina não gravada.** `bem_id` não estava na allowlist do registro de campo (`CAMPOS_DO_REGISTRO_DE_CAMPO`, em `lancamentoAtividadePort.js`), então a porta o descartava. Incluído, com comentário.
+
+**Arquivos:** `src/components/lancamento-atividades/DiarioDasAtividades.jsx` (o passo "abrir" a partir do serviço existente, o "Carregando…", a ajuda e o rodapé enquanto lê), `src/apis/atividades/lancamentoAtividadePort.js` (`bem_id`).
+
+**Testes:** `tests/smoke/diarioDasAtividades.test.jsx` (f2 e f3; 1; 3) e `tests/smoke/lancamentoAtividades.test.jsx` (LA-PORTA-BEM).
+
 ## Fora desta parte
 
 Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia; o "Diário da máquina" continua sendo o caminho do diário antigo (com o pasto, pela linha de ação).

@@ -10267,4 +10267,22 @@ Vários itens ficavam presos para sempre, sem botão:
 
 > **Numeração:** nasceu D-PROD-332 (a `main` `0df374b61` indicava `Próxima decisão: D-PROD-332`). Antes do merge, a `main` deu a D-PROD-332 ao diário das atividades, parte 1 (PR #420, `2361f850f`) e passou a indicar `Próxima decisão: D-PROD-333`, que é esta (`node scripts/dev/proxima-decisao.mjs`, regra A5); o marcador passa a D-PROD-334.
 
-<!-- Próxima decisão: D-PROD-334 -->
+## D-PROD-335 — Abertura do Diário das atividades: pasto com serviço antigo e máquina no envio
+
+**Causa (defeito 1).** Um pasto com uma atividade EM ANDAMENTO que não tem a linha `[abertura-servico ...]` na observação dos apontamentos (as criadas pelo fluxo antigo, como Gradagem e Combate à cigarrinha) abria o Diário direto no cabeçalho, com "Abertura não registrada neste serviço.". Não havia tela de tipo nem de abertura, então o usuário não conseguia iniciar nada.
+
+**Correção.**
+- Com a atividade recebida, lida a abertura com sucesso e sem ela, o Diário vai ao passo "abrir" com o tipo fixo e a operação da atividade já escolhidos (`tipoFixoDaOperacao`, `operacaoEscolhidaId`). Uma linha de ajuda diz "Este pasto já tem o serviço <nome> em andamento, sem abertura. Preencha para iniciar.".
+- Enquanto a abertura carrega, aparece só "Carregando…" (sem cabeçalho nem menu). Com abertura gravada, começa no cabeçalho como antes. Se a leitura falhar, o comportamento de antes continua.
+- "Iniciar serviço" manda o `tipo_atividade_id` da atividade aberta. O servidor reaproveita essa atividade e grava o apontamento de abertura nela.
+- Voltar leva ao passo "tipo". A mensagem "Abertura não registrada neste serviço." saiu (ficou sem uso).
+
+**Causa (defeito 2).** `bem_id` não estava em `CAMPOS_DO_REGISTRO_DE_CAMPO` (`src/apis/atividades/lancamentoAtividadePort.js`), então `registrar()` o descartava antes do envio. A atividade criada ficava sem máquina, só com ela na observação, contra o que a D-PROD-332 (emenda) diz. Não havia outro filtro no caminho (`registrarCampo` → `registerAtividadeDeCampo` → porta).
+
+**Correção.** `bem_id` entra na allowlist, com comentário. O backend não muda: ele já aceita `bem_id`. Sem migration.
+
+**Testes.** `tests/smoke/diarioDasAtividades.test.jsx` (f2 e f3: o formulário com o tipo e a operação do serviço, e o `tipo_atividade_id` no envio; 1: "Carregando…" sem cabeçalho; 3: falha na leitura mantém o cabeçalho) e `tests/smoke/lancamentoAtividades.test.jsx` (LA-PORTA-BEM: `registrar()` leva `bem_id` no corpo).
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`471ad9c9d`) indicou D-PROD-334. A PR #424 (Insumo) reservou o 334, então esta correção é a D-PROD-335, e o marcador passa a D-PROD-336. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-336 -->
