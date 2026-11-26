@@ -6,12 +6,15 @@
  *  (4) tocar a aberta COM abertura: lê a atividade (`lerAtividade`) e vai ao cabeçalho do serviço;
  *  (5) tocar a aberta SEM abertura: formulário de abertura com o tipo e a operação dela já definidos;
  *  (6) falha ao ler: aviso (notifyWarning) e fica na lista;
- *  (7) tipo com atividade aberta no pasto: "Já existe … iniciar entra nela." (só aviso); outro tipo, sem o aviso.
+ *  (7) tipo com atividade aberta no pasto: "Já existe … entra nela como mais uma frente." (só aviso); outro tipo, sem o aviso.
+ * D-PROD-335 (emenda, frentes): (b) um cartão por frente (máquina, implemento, responsável, início); (c) tocar uma frente abre só
+ *  ela; (e) Nova atividade do mesmo tipo com outra máquina envia; (f)/(f2) mesma máquina+implemento não envia (ou envia, com outro
+ *  implemento); (g)/(g2) continuar com duas abertas do mesmo tipo não envia (P1), com uma só envia.
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, fireEvent, waitFor, cleanup, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup, within, act } from "@testing-library/react";
 
 vi.mock("@/hooks/useLancamentoAtividadesSessao", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -39,7 +42,7 @@ vi.mock("@/services/lancamentoAtividadesService", async (importOriginal) => ({
 }));
 
 import DiarioDasAtividades from "@/components/lancamento-atividades/DiarioDasAtividades";
-import { marcadorDaAbertura } from "@/lib/aberturaServicoRegras";
+import { lerAbertura, marcadorDaAbertura } from "@/lib/aberturaServicoRegras";
 import * as servico from "@/services/lancamentoAtividadesService";
 import * as culturas from "@/services/culturaCadastroService";
 import { notifyWarning } from "@/lib/maikeNotify";
@@ -125,12 +128,15 @@ describe("Diário das atividades — Em andamento neste pasto (D-PROD-335)", () 
     expect(screen.getByTestId("diario-atividades-escolher")).toBeInTheDocument();
     expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Em andamento neste pasto");
     expect(screen.queryByTestId("diario-atividades-tipos")).toBeNull();
-    const primeira = screen.getByTestId("diario-atividade-aberta-at-1");
+    // A atividade COM abertura vira um cartão por frente (máquina + implemento, responsável, início); a SEM, "Sem abertura".
+    const frente = await screen.findByTestId("diario-frente-at-1-bem-7%7C");
+    expect(frente).toHaveTextContent("Trator 12");
+    expect(frente).toHaveTextContent("Responsável: João Pereira · Início 02/11");
+    expect(frente).toHaveTextContent("Aplicação · nov/26");
+    expect(within(frente).getByText("Em andamento")).toBeInTheDocument();
     const segunda = screen.getByTestId("diario-atividade-aberta-at-2");
-    expect(primeira).toHaveTextContent("Aplicação · nov/26");
-    expect(primeira).toHaveTextContent("Início 02/11");
+    expect(segunda).toHaveTextContent("Gradagem · nov/26");
     expect(segunda).toHaveTextContent("Início 20/11");
-    expect(await within(primeira).findByText("Com abertura")).toBeInTheDocument();
     expect(await within(segunda).findByText("Sem abertura")).toBeInTheDocument();
     expect(screen.getByTestId("diario-nova-atividade")).toHaveTextContent("Nova atividade");
   });
@@ -191,9 +197,175 @@ describe("Diário das atividades — Em andamento neste pasto (D-PROD-335)", () 
     fireEvent.click(screen.getByTestId("diario-nova-atividade"));
     fireEvent.click(screen.getByTestId("abertura-tipo-APLICACAO"));
     expect(screen.getByTestId("abertura-ja-existe")).toHaveTextContent(
-      "Já existe Aplicação · nov/26 em andamento neste pasto: iniciar entra nela.",
+      "Já existe Aplicação · nov/26 em andamento neste pasto: este serviço entra nela como mais uma frente (outra máquina ou implemento).",
     );
     fireEvent.click(screen.getByTestId("abertura-tipo-PLANTIO"));
     expect(screen.queryByTestId("abertura-ja-existe")).toBeNull();
+  });
+});
+
+// ─── D-PROD-335 (emenda): uma abertura por máquina + implemento (frentes) ─────
+
+const MSG_FRENTE_DUPLICADA = "Esta máquina com este implemento já tem serviço aberto neste pasto. Toque nele na lista para continuar.";
+const MSG_TIPO_AMBIGUO = "Há mais de uma atividade deste tipo aberta neste pasto, e o servidor não deixa escolher qual recebe a abertura. Conclua uma delas e tente de novo.";
+
+/** Quatro máquinas: três já têm frente na atividade at-1 (Trator 12, 08 e 09); o Trator 10 não tem nenhuma. */
+const BENS_TRES = {
+  itens: [
+    { id: "bem-7", nome: "Trator 12" },
+    { id: "bem-8", nome: "Trator 08" },
+    { id: "bem-9", nome: "Trator 09" },
+    { id: "bem-10", nome: "Trator 10" },
+  ],
+  has_more: false,
+  next_cursor: null,
+};
+const IMPLEMENTOS_UM = { itens: [{ id: "imp-2", nome: "Pulverizador 2.000 L" }], has_more: false, next_cursor: null };
+const OPERADORES_DUAS = {
+  itens: [
+    { id: "usr-3", nome: "João Pereira" },
+    { id: "usr-4", nome: "Maria Souza" },
+  ],
+  has_more: false,
+  next_cursor: null,
+};
+/** Um apontamento CONFIRMADO de um dia, com a observação e as linhas de produto dadas. */
+const apontamento = (id, dia, observacao, produtos = []) => ({ id, data_operacional: dia, status: "CONFIRMADO", versao: 2, createdAt: `${dia}T09:00:00.000Z`, observacao, produtos, maquinas: [], mao_obra: [], servicos: [] });
+/** Uma linha de produto CONFIRMADA (a carga `jato`). */
+const linhaProduto = (id, nome, quantidade, unidade, jato) => ({ id, status: "CONFIRMADO", produto_id: id, produto: { nome }, quantidade, unidade, jato, createdAt: "2026-11-26T09:10:00.000Z" });
+const abertura3 = (bemId, bemNome, responsavelId, responsavelNome, implementoId = "", implementoNome = "") =>
+  marcadorDaAbertura({ bemId, bemNome, implementoId, implementoNome, horimetro: "1000.0", responsavelId, responsavelNome });
+/**
+ * A atividade at-1 com TRÊS máquinas, em dias diferentes: Trator 12 + Pulverizador (início 02/11, com Glifosato hoje), Trator 08
+ * sem implemento (início 20/11, com Ureia hoje) e Trator 09 + Pulverizador (início 10/11, sem nada hoje).
+ */
+const FRENTES_DO_PASTO = [
+  apontamento("ap-1", "2026-11-02", abertura3("bem-7", "Trator 12", "usr-3", "João Pereira", "imp-2", "Pulverizador 2.000 L")),
+  apontamento("ap-1h", "2026-11-26", abertura3("bem-7", "Trator 12", "usr-3", "João Pereira", "imp-2", "Pulverizador 2.000 L"), [linhaProduto("pl-1", "Glifosato", "10.0000", "L", 1)]),
+  apontamento("ap-2", "2026-11-20", abertura3("bem-8", "Trator 08", "usr-4", "Maria Souza")),
+  apontamento("ap-2h", "2026-11-26", abertura3("bem-8", "Trator 08", "usr-4", "Maria Souza"), [linhaProduto("pl-2", "Ureia", "500.0000", "kg", 1)]),
+  apontamento("ap-3", "2026-11-10", abertura3("bem-9", "Trator 09", "usr-3", "João Pereira", "imp-2", "Pulverizador 2.000 L")),
+];
+
+/** Escolhe uma opção de um campo de escolha Base1 (o botão combobox abre a lista; a opção é clicada). */
+const escolherOpcao = async (combobox, rotulo) => {
+  await act(async () => fireEvent.click(combobox));
+  const opcao = await screen.findByRole("option", { name: rotulo });
+  await act(async () => fireEvent.click(opcao));
+};
+
+/** Abre "Nova atividade" do tipo Aplicação e chega ao formulário de abertura (com a atividade aberta do pasto na lista). */
+const novaAplicacao = async () => {
+  fireEvent.click(await screen.findByTestId("diario-nova-atividade"));
+  fireEvent.click(screen.getByTestId("abertura-tipo-APLICACAO"));
+  fireEvent.click(screen.getByTestId("abertura-continuar"));
+  await screen.findByTestId("abertura-form");
+};
+
+describe("Diário das atividades — frentes: uma abertura por máquina + implemento (D-PROD-335, emenda)", () => {
+  beforeEach(() => {
+    servico.listarOpcoesBens.mockResolvedValue(BENS_TRES);
+    servico.listarOpcoesOperadores.mockResolvedValue(OPERADORES_DUAS);
+    servico.listarOpcoesImplementos.mockResolvedValue(IMPLEMENTOS_UM);
+    servico.listarApontamentos.mockImplementation(async (id) => (id === "at-1" ? { items: FRENTES_DO_PASTO } : { items: [apontamento("ap-x", "2026-11-02", "Só texto")] }));
+  });
+
+  it("(b) a lista mostra um cartão por frente, com máquina, implemento e responsável, em ordem de início", async () => {
+    renderizar({ atividadesAbertas: [ABERTA_COM_ABERTURA] });
+    const lista = screen.getByRole("list", { name: "Atividades em andamento neste pasto" });
+    const trator12 = await screen.findByTestId("diario-frente-at-1-bem-7%7Cimp-2");
+    expect(trator12).toHaveTextContent("Trator 12 + Pulverizador 2.000 L");
+    expect(trator12).toHaveTextContent("Responsável: João Pereira · Início 02/11");
+    expect(trator12).toHaveTextContent("Aplicação · nov/26");
+    const trator08 = screen.getByTestId("diario-frente-at-1-bem-8%7C");
+    expect(trator08).toHaveTextContent("Trator 08");
+    expect(trator08.textContent).not.toContain(" + ");
+    expect(trator08).toHaveTextContent("Responsável: Maria Souza · Início 20/11");
+    const trator09 = screen.getByTestId("diario-frente-at-1-bem-9%7Cimp-2");
+    expect(trator09).toHaveTextContent("Trator 09 + Pulverizador 2.000 L");
+    expect(trator09).toHaveTextContent("Início 10/11");
+    // Três cartões de frente (um por máquina+implemento), na ordem do início: 02/11, 10/11, 20/11.
+    const ordem = Array.from(lista.querySelectorAll('[data-testid^="diario-frente-at-1-"]')).map((el) => el.getAttribute("data-testid"));
+    expect(ordem).toEqual(["diario-frente-at-1-bem-7%7Cimp-2", "diario-frente-at-1-bem-9%7Cimp-2", "diario-frente-at-1-bem-8%7C"]);
+  });
+
+  it("(c) tocar numa frente abre só o serviço dela: o cabeçalho e o \"Lançado hoje\" são os dela", async () => {
+    const { lerAtividade } = renderizar({ atividadesAbertas: [ABERTA_COM_ABERTURA] });
+    fireEvent.click(await screen.findByTestId("diario-frente-at-1-bem-8%7C"));
+    const cabecalho = await screen.findByTestId("abertura-iniciado");
+    expect(lerAtividade).toHaveBeenCalledWith("at-1");
+    expect(within(cabecalho).getByText("Trator 08")).toBeInTheDocument();
+    expect(within(cabecalho).getByText("Maria Souza")).toBeInTheDocument();
+    expect(within(cabecalho).queryByText("Trator 12")).toBeNull();
+    const lancados = await screen.findAllByTestId("servico-lancado-item");
+    expect(lancados).toHaveLength(1);
+    expect(lancados[0]).toHaveTextContent("Ureia");
+    expect(screen.queryByText(/Glifosato/)).toBeNull();
+  });
+
+  it("(e) \"Nova atividade\" do mesmo tipo com outra máquina envia registrarCampo normalmente e avisa que entra como mais uma frente", async () => {
+    renderizar({ atividadesAbertas: [ABERTA_COM_ABERTURA] });
+    await novaAplicacao();
+    expect(screen.getByTestId("abertura-ja-existe")).toHaveTextContent("Já existe Aplicação · nov/26 em andamento neste pasto: este serviço entra nela como mais uma frente");
+    // Trator 10: uma máquina sem frente no pasto (a Trator 08 já tem uma, e seria duplicidade).
+    await escolherOpcao(screen.getByRole("combobox", { name: "Máquina" }), "Trator 10");
+    fireEvent.change(screen.getByTestId("abertura-horimetro"), { target: { value: "900" } });
+    await escolherOpcao(screen.getByRole("combobox", { name: "Responsável" }), "Maria Souza");
+    expect(screen.queryByTestId("abertura-trava")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
+    await screen.findByTestId("abertura-iniciado");
+    expect(servico.registrarCampo).toHaveBeenCalledTimes(1);
+    const [dados] = servico.registrarCampo.mock.calls[0];
+    expect(dados).toMatchObject({ tipo_atividade_id: "op-1", bem_id: "bem-10", operador_usuario_id: "usr-4" });
+    expect(lerAbertura(dados.observacao)).toMatchObject({ bemId: "bem-10", responsavelId: "usr-4" });
+    expect(notifyWarning).not.toHaveBeenCalled();
+  });
+
+  it("(f) a mesma máquina com o mesmo implemento já aberta no pasto: não envia, mostra a ajuda e desabilita Iniciar serviço", async () => {
+    renderizar({ atividadesAbertas: [ABERTA_COM_ABERTURA] });
+    await novaAplicacao();
+    await escolherOpcao(screen.getByRole("combobox", { name: "Máquina" }), "Trator 12");
+    await escolherOpcao(screen.getByRole("combobox", { name: "Implemento" }), "Pulverizador 2.000 L");
+    expect(await screen.findByTestId("abertura-trava")).toHaveTextContent(MSG_FRENTE_DUPLICADA);
+    expect(screen.getByRole("button", { name: "Iniciar serviço" })).toBeDisabled();
+    // Mesmo pelo envio (Enter no formulário): não manda, e avisa com a mesma frase.
+    fireEvent.submit(screen.getByTestId("abertura-form"));
+    expect(notifyWarning).toHaveBeenCalledWith("Não foi possível iniciar o serviço", MSG_FRENTE_DUPLICADA);
+    expect(servico.registrarCampo).not.toHaveBeenCalled();
+  });
+
+  it("(f2) a mesma máquina com OUTRO implemento (ou sem) não é duplicidade: envia", async () => {
+    renderizar({ atividadesAbertas: [ABERTA_COM_ABERTURA] });
+    await novaAplicacao();
+    // Trator 12 SEM implemento: a chave é "bem-7|", diferente de "bem-7|imp-2" já aberta.
+    await escolherOpcao(screen.getByRole("combobox", { name: "Máquina" }), "Trator 12");
+    expect(screen.queryByTestId("abertura-trava")).toBeNull();
+    expect(screen.getByRole("button", { name: "Iniciar serviço" })).not.toBeDisabled();
+  });
+
+  it("(g) continuar a atividade SEM abertura com DUAS abertas do mesmo tipo: aviso, botão desabilitado e sem envio (P1)", async () => {
+    const segundaSemAbertura = { ...ABERTA_SEM_ABERTURA, atividade_id: "at-3", numero: 12, nome: "Gradagem · dez/26", data_inicio: "2026-11-05" };
+    renderizar({ atividadesAbertas: [ABERTA_SEM_ABERTURA, segundaSemAbertura] });
+    fireEvent.click(await screen.findByTestId("diario-atividade-aberta-at-2"));
+    await screen.findByTestId("abertura-form");
+    expect(screen.getByTestId("abertura-trava")).toHaveTextContent(MSG_TIPO_AMBIGUO);
+    expect(screen.getByRole("button", { name: "Iniciar serviço" })).toBeDisabled();
+    fireEvent.submit(screen.getByTestId("abertura-form"));
+    expect(notifyWarning).toHaveBeenCalledWith("Não foi possível iniciar o serviço", MSG_TIPO_AMBIGUO);
+    expect(servico.registrarCampo).not.toHaveBeenCalled();
+  });
+
+  it("(g2) continuar a atividade SEM abertura com uma só do tipo: envia normalmente", async () => {
+    renderizar({ atividadesAbertas: [ABERTA_SEM_ABERTURA] });
+    fireEvent.click(await screen.findByTestId("diario-atividade-aberta-at-2"));
+    await screen.findByTestId("abertura-form");
+    expect(screen.queryByTestId("abertura-trava")).toBeNull();
+    await escolherOpcao(screen.getByRole("combobox", { name: "Máquina" }), "Trator 12");
+    fireEvent.change(screen.getByTestId("abertura-horimetro"), { target: { value: "1200" } });
+    await escolherOpcao(screen.getByRole("combobox", { name: "Responsável" }), "João Pereira");
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
+    await screen.findByTestId("abertura-iniciado");
+    expect(servico.registrarCampo).toHaveBeenCalledTimes(1);
+    expect(servico.registrarCampo.mock.calls[0][0]).toMatchObject({ tipo_atividade_id: "op-g", bem_id: "bem-7" });
   });
 });

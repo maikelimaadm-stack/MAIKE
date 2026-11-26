@@ -740,3 +740,79 @@ describe("Diário das atividades — Insumo (carga, D-PROD-334)", () => {
     await screen.findByTestId("servico-opcao-insumo");
   });
 });
+
+// ─── D-PROD-335 (emenda, frentes): a carga é POR FRENTE (máquina + implemento) ─────
+
+/** A frente do Trator 12 (sem implemento) com um apontamento de HOJE e a carga 1 dela. */
+const FRENTE_TRATOR_12_HOJE = {
+  id: "ap-A1",
+  data_operacional: "2026-11-26",
+  status: "CONFIRMADO",
+  versao: 3,
+  createdAt: "2026-11-26T09:00:00.000Z",
+  observacao: marcadorDaAbertura({ bemId: "bem-7", implementoId: "", horimetro: "1245.0", responsavelId: "usr-3", bemNome: "Trator 12", responsavelNome: "João Pereira" }),
+  produtos: [{ id: "pl-A", status: "CONFIRMADO", produto_id: "p-gli", produto: { nome: "Glifosato" }, quantidade: "10.0000", unidade: "L", jato: 1, createdAt: "2026-11-26T09:10:00.000Z" }],
+  maquinas: [],
+  mao_obra: [],
+  servicos: [],
+};
+/** A frente do Trator 08 com um apontamento de HOJE, sem linhas (a carga 1 dela, mesmo com a carga 1 do Trator 12 no dia). */
+const FRENTE_TRATOR_08_HOJE = {
+  id: "ap-B1",
+  data_operacional: "2026-11-26",
+  status: "CONFIRMADO",
+  versao: 3,
+  createdAt: "2026-11-26T09:20:00.000Z",
+  observacao: marcadorDaAbertura({ bemId: "bem-8", implementoId: "", horimetro: "900.0", responsavelId: "usr-3", bemNome: "Trator 08", responsavelNome: "João Pereira" }),
+  produtos: [],
+  maquinas: [],
+  mao_obra: [],
+  servicos: [],
+};
+/** A frente do Trator 08 SÓ com o apontamento de ONTEM (o serviço aberto ontem, sem nada hoje). */
+const FRENTE_TRATOR_08_ONTEM = { ...FRENTE_TRATOR_08_HOJE, id: "ap-B0", data_operacional: "2026-11-25", createdAt: "2026-11-25T09:00:00.000Z" };
+
+/** Abre a atividade com as frentes dadas (duas máquinas: a lista por frente), toca a frente `bem-8` e vai à Carga de insumo. */
+const abrirCargaDaFrenteTrator08 = async (apontamentos) => {
+  servico.listarApontamentos.mockResolvedValue({ items: apontamentos });
+  renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+  fireEvent.click(await screen.findByTestId("diario-frente-atv-9-bem-8%7C"));
+  await screen.findByTestId("abertura-iniciado");
+  fireEvent.click(screen.getByTestId("servico-opcao-insumo"));
+  await screen.findByTestId("carga-form");
+};
+
+describe("Diário das atividades — carga por frente (D-PROD-335, emenda)", () => {
+  it("(d1) a carga numa frente usa o apontamento de hoje DELA (adicionarLinha no id dela) e numera só entre as dela", async () => {
+    // A Carga 1 do Trator 12 é do OUTRO apontamento: a do Trator 08 começa em 1.
+    await abrirCargaDaFrenteTrator08([FRENTE_TRATOR_12_HOJE, FRENTE_TRATOR_08_HOJE]);
+    expect(screen.getByTestId("carga-cabecalho")).toHaveTextContent("Carga 1");
+    // Sem implemento nesta frente: a linha de apoio é "Carga de insumo" (não "Encher o …").
+    expect(screen.getByTestId("carga-cabecalho")).toHaveTextContent("Carga de insumo");
+    await escolherProduto(0, "Glifosato");
+    fireEvent.change(await screen.findByTestId("carga-item-0-quantidade"), { target: { value: "25" } });
+    servico.adicionarLinha.mockResolvedValue({ apontamento: { id: "ap-B1", versao: 4 }, atividade: null, alertas: [] });
+    fireEvent.click(screen.getByTestId("carga-salvar"));
+    await waitFor(() => expect(servico.adicionarLinha).toHaveBeenCalledTimes(1));
+    const [, atividadeId, apontamento, corpo] = servico.adicionarLinha.mock.calls[0];
+    expect(atividadeId).toBe("atv-9");
+    expect(apontamento).toEqual({ id: "ap-B1", versao: 3 });
+    expect(corpo).toMatchObject({ produto_id: "p-gli", quantidade: "25", jato: "1" });
+    expect(servico.criarApontamento).not.toHaveBeenCalled();
+  });
+
+  it("(d2) sem apontamento de hoje DA FRENTE, a carga cria o apontamento com a linha de abertura DELA na observação", async () => {
+    servico.criarApontamento.mockResolvedValue({ apontamento: { id: "ap-novo", versao: 1 }, atividade: null, alertas: [] });
+    // Só o Trator 12 tem apontamento hoje: o Trator 08 não tem nada hoje, então a carga cria o dele.
+    await abrirCargaDaFrenteTrator08([FRENTE_TRATOR_12_HOJE, FRENTE_TRATOR_08_ONTEM]);
+    expect(screen.getByTestId("carga-cabecalho")).toHaveTextContent("Carga 1");
+    await escolherProduto(0, "Glifosato");
+    fireEvent.change(await screen.findByTestId("carga-item-0-quantidade"), { target: { value: "25" } });
+    fireEvent.click(screen.getByTestId("carga-salvar"));
+    await waitFor(() => expect(servico.criarApontamento).toHaveBeenCalledTimes(1));
+    const [, dados] = servico.criarApontamento.mock.calls[0];
+    expect(lerAbertura(dados.observacao)).toMatchObject({ bemId: "bem-8", horimetro: "900.0" });
+    expect(dados).toMatchObject({ data_operacional: "2026-11-26", produtos: [expect.objectContaining({ produto_id: "p-gli", jato: "1" })] });
+    expect(servico.adicionarLinha).not.toHaveBeenCalled();
+  });
+});
