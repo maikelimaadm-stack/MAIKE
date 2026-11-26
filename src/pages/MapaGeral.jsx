@@ -117,11 +117,15 @@ export default function MapaGeral({ ativo = true } = {}) {
   const [showDetalhesBebedouro, setShowDetalhesBebedouro] = useState(false);
   const [selectedBebedouro, setSelectedBebedouro] = useState(null);
   const [showTarefas, setShowTarefas] = useState(false);
-  const [tarefasContext, setTarefasContext] = useState({});
+  const [tarefasContext, setTarefasContext] = useState(/** @type {{ areaId?: string, areaNome?: string, loteId?: string, loteNome?: string, pontoSuplId?: string, initialCoordinates?: any, initialDraft?: any }} */ ({}));
   /** Nome do local no subtítulo da Gestão de Tarefas (D-PROD-118). */
   const localDasTarefas = /** @type {{ areaNome?: string, loteNome?: string }} */ (tarefasContext).areaNome || /** @type {{ loteNome?: string }} */ (tarefasContext).loteNome || "";
   const [selectedTarefa, setSelectedTarefa] = useState(null);
   const [showDetalhesTarefa, setShowDetalhesTarefa] = useState(false);
+  // D-PROD-325: lista, detalhes e formulário da tarefa dividem UMA janela (nada aparece atrás). O formulário
+  // aberto fica aqui (o cabeçalho ganha o ✓ no mesmo instante); `animTelaTarefa` desliza a troca de tela.
+  const [formularioTarefa, setFormularioTarefa] = useState(/** @type {{ tarefa: any | null, voltarParaLista: boolean } | null} */ (null));
+  const [animTelaTarefa, setAnimTelaTarefa] = useState(/** @type {"empurrar" | "voltar" | null} */ (null));
   const [selecionandoLocalTarefa, setSelecionandoLocalTarefa] = useState(false);
   const [rascunhoTarefa, setRascunhoTarefa] = useState(null);
   const [showInsights, setShowInsights] = useState(false);
@@ -962,17 +966,27 @@ export default function MapaGeral({ ativo = true } = {}) {
       area_nome: areaDetectada?.nome || draft.area_nome || "",
       coordenadas: coords || draft.coordenadas || null
     };
-    setTarefasContext({
+    // D-PROD-325: "Nova tarefa" da lista abre o formulário no lugar dela (mesma janela) e, ao sair, volta para
+    // ela com o mesmo recorte; pelo mapa, o formulário abre sozinho e ao sair fecha tudo.
+    const daLista = showTarefas && !showDetalhesTarefa;
+    setTarefasContext((anterior) => daLista ? {
+      ...anterior,
+      initialCoordinates: draftCompleto.coordenadas || null,
+      initialDraft: draftCompleto
+    } : {
       areaId: draftCompleto.area_id || undefined,
       areaNome: draftCompleto.area_nome || undefined,
       loteId: draftCompleto.lote_id || undefined,
       loteNome: draftCompleto.lote_nome || undefined,
       initialCoordinates: draftCompleto.coordenadas || null,
-      initialDraft: draftCompleto,
-      openCreateOnMount: true
+      initialDraft: draftCompleto
     });
+    // O rascunho com id (editar → marcar o ponto no mapa) volta como edição.
+    setFormularioTarefa({ tarefa: /** @type {any} */ (draftCompleto).id ? draftCompleto : null, voltarParaLista: daLista });
+    setAnimTelaTarefa(null);
+    setShowDetalhesTarefa(false);
     setShowTarefas(true);
-  }, [detectarAreaPorCoordenada, podeUsarTarefasMapa]);
+  }, [detectarAreaPorCoordenada, podeUsarTarefasMapa, showTarefas, showDetalhesTarefa]);
 
   // D-PROD-321: "Nova tarefa" já sabe onde a pessoa está — a posição do celular escolhe o pasto (dentro de uma
   // área) e o ponto. Sem posição (sem permissão, sem sinal de GPS em 8 s), abre sem local: escolhe setor e pasto.
@@ -1076,7 +1090,9 @@ export default function MapaGeral({ ativo = true } = {}) {
     setShowDetalhesLote(true);
   }, [mapaGeralPermissions.visualizar_detalhes_lotes]);
 
-  const handleClickTarefa = useCallback((t) => {setSelectedTarefa(t);setShowDetalhesTarefa(true);}, []);
+  // Pelo alfinete no mapa: só os detalhes (sem lista). Pela lista: os detalhes entram na mesma janela.
+  const handleClickTarefa = useCallback((t) => {setSelectedTarefa(t);setAnimTelaTarefa(null);setFormularioTarefa(null);setShowDetalhesTarefa(true);}, []);
+  const abrirTarefaDaLista = useCallback((t) => {setSelectedTarefa(t);setAnimTelaTarefa('empurrar');setShowDetalhesTarefa(true);}, []);
 
   const handleDragLotes = useCallback((newPos, lotesNaArea, areaId, allAreas) => {
     if (!mapaGeralPermissions.mover_lotes) return;
@@ -1397,6 +1413,12 @@ export default function MapaGeral({ ativo = true } = {}) {
     setTarefasContext({});
   }, [podeUsarTarefasMapa]);
 
+  // D-PROD-325: a tela da janela de tarefas. Ao fechar, fica a última (a janela some sem trocar de conteúdo).
+  const telaTarefaAberta = showDetalhesTarefa ? 'detalhes' : showTarefas ? 'lista' : null;
+  const ultimaTelaTarefa = useRef(/** @type {'detalhes' | 'lista'} */ ('lista'));
+  if (telaTarefaAberta) ultimaTelaTarefa.current = telaTarefaAberta;
+  const telaTarefa = telaTarefaAberta || ultimaTelaTarefa.current;
+
   // ─── Render ───
   const totalCabecas = lotesFiltrados.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
   const pesoTotalFiltrado = lotesFiltrados.reduce((s, l) => s + (Number(l.peso_medio_kg) || 0) * (Number(l.quantidade_cabecas) || 0), 0);
@@ -1452,8 +1474,8 @@ export default function MapaGeral({ ativo = true } = {}) {
         <>
           <div className="mk-mapa-resumo mk-mapa-card" aria-label="Resumo das tarefas" role="button" tabIndex={0}
             title="Abrir a lista de tarefas" data-mk-resumo-rebanho="" data-mk-resumo-tarefas=""
-            onClick={() => {setTarefasContext({});setShowTarefas(true);}}
-            onKeyDown={(/** @type {React.KeyboardEvent} */ e) => {if (e.key === 'Enter' || e.key === ' ') {e.preventDefault();setTarefasContext({});setShowTarefas(true);}}}>
+            onClick={() => {setTarefasContext({});setFormularioTarefa(null);setAnimTelaTarefa(null);setShowTarefas(true);}}
+            onKeyDown={(/** @type {React.KeyboardEvent} */ e) => {if (e.key === 'Enter' || e.key === ' ') {e.preventDefault();setTarefasContext({});setFormularioTarefa(null);setAnimTelaTarefa(null);setShowTarefas(true);}}}>
             <div className="mk-mapa-resumo__item">
               <span className="mk-mapa-resumo__num mk-mapa-resumo__num--verde">{tarefasMapaFiltradas.length.toLocaleString('pt-BR')}</span>
               <span className="mk-mapa-resumo__rot">{tarefasMapaFiltradas.length === 1 ? 'tarefa aberta' : 'tarefas abertas'}</span>
@@ -1583,13 +1605,28 @@ export default function MapaGeral({ ativo = true } = {}) {
           {selectedPontoSupl && <DetalhesPontoSuplementacao ponto={selectedPontoSupl} permissions={mapaGeralPermissions} subtitulo={localDoPontoSupl} subtituloDoPonto={localDoPonto} onClose={() => {setShowDetalhesPontoSupl(false);refetchEventosSupl();refetchLotes();refetchPontosSupl();}} />}
         </LancLoteDialogo>
 
-      {/* D-PROD-321: a lista de tarefas no estilo dos detalhes do lote (resumo em cartões), no lugar da grade. */}
-      <LancLoteDialogo open={showTarefas} onOpenChange={(open) => {setShowTarefas(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}} titulo="Tarefas" lotes={localDasTarefas ? [{ nome: localDasTarefas }] : []} largo somenteLeitura popupDesde="tablet">
-          <TarefasMapaPanel hoje={hoje} onAbrirTarefa={handleClickTarefa} onNovaTarefa={novaTarefaAqui} areaId={tarefasContext.areaId} areaNome={tarefasContext.areaNome} loteId={tarefasContext.loteId} loteNome={tarefasContext.loteNome} pontoSuplId={tarefasContext.pontoSuplId} initialCoordinates={tarefasContext.initialCoordinates} initialDraft={tarefasContext.initialDraft} openCreateOnMount={tarefasContext.openCreateOnMount} onRequestSelectLocation={handleRequestSelectTaskLocation} onClose={() => {setShowTarefas(false);setTarefasContext({});if (podeUsarTarefasMapa) refetchTarefas();}} />
-      </LancLoteDialogo>
-
-      <LancLoteDialogo open={showDetalhesTarefa} onOpenChange={(open) => {setShowDetalhesTarefa(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}} titulo="Detalhes da tarefa" largo somenteLeitura popupDesde="tablet">
-          {selectedTarefa && <DetalhesTarefaMapa tarefa={selectedTarefa} hoje={hoje} onExcluida={() => {setShowDetalhesTarefa(false);setSelectedTarefa(null);if (podeUsarTarefasMapa) refetchTarefas();}} onRequestSelectLocation={handleRequestSelectTaskLocation} onSaved={(updated) => {if (updated) setSelectedTarefa(updated);if (podeUsarTarefasMapa) refetchTarefas();}} />}
+      {/* D-PROD-321: a lista de tarefas no estilo dos detalhes do lote (resumo em cartões), no lugar da grade.
+          D-PROD-325: lista, detalhes e formulário numa janela só — tocar numa tarefa troca o conteúdo (‹ volta para
+          a lista), em vez de abrir outra janela por cima com a lista aparecendo atrás. */}
+      <LancLoteDialogo open={showTarefas || showDetalhesTarefa}
+        onOpenChange={(open) => {
+          if (open) return;
+          setShowTarefas(false);
+          setShowDetalhesTarefa(false);
+          setTarefasContext({});
+          if (podeUsarTarefasMapa) refetchTarefas();
+        }}
+        titulo={formularioTarefa && telaTarefa === 'lista' ? formularioTarefa.tarefa ? 'Editar tarefa' : 'Nova tarefa' : telaTarefa === 'detalhes' ? 'Detalhes da tarefa' : 'Tarefas'}
+        lotes={telaTarefa === 'lista' && localDasTarefas ? [{ nome: localDasTarefas }] : []}
+        largo somenteLeitura={!(formularioTarefa && telaTarefa === 'lista')} popupDesde="tablet">
+          {telaTarefa === 'detalhes' ?
+          selectedTarefa && <DetalhesTarefaMapa key={selectedTarefa.id} tarefa={selectedTarefa} hoje={hoje} anim={animTelaTarefa}
+            onVoltar={showTarefas ? () => {setAnimTelaTarefa('voltar');setShowDetalhesTarefa(false);if (podeUsarTarefasMapa) refetchTarefas();} : null}
+            onExcluida={() => {setAnimTelaTarefa('voltar');setShowDetalhesTarefa(false);setSelectedTarefa(null);if (podeUsarTarefasMapa) refetchTarefas();}} onRequestSelectLocation={handleRequestSelectTaskLocation} onSaved={(updated) => {if (updated) setSelectedTarefa(updated);if (podeUsarTarefasMapa) refetchTarefas();}} /> :
+          <TarefasMapaPanel hoje={hoje} anim={animTelaTarefa} onAbrirTarefa={abrirTarefaDaLista} onNovaTarefa={novaTarefaAqui}
+            formulario={formularioTarefa} onFormularioChange={setFormularioTarefa}
+            areaId={tarefasContext.areaId} areaNome={tarefasContext.areaNome} loteId={tarefasContext.loteId} loteNome={tarefasContext.loteNome} pontoSuplId={tarefasContext.pontoSuplId} initialCoordinates={tarefasContext.initialCoordinates} initialDraft={tarefasContext.initialDraft} onRequestSelectLocation={handleRequestSelectTaskLocation} onClose={() => {setShowTarefas(false);setShowDetalhesTarefa(false);setTarefasContext({});if (podeUsarTarefasMapa) refetchTarefas();}} />
+          }
       </LancLoteDialogo>
 
       <LancLoteDialogo open={showInsights} onOpenChange={setShowInsights} titulo="Insights do Mapa" largo somenteLeitura>

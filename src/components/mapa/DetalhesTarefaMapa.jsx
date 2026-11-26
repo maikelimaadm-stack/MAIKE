@@ -180,7 +180,7 @@ const coordenada = (v) => (typeof v === "number" && Number.isFinite(v) ? v.toFix
 /**
  * D-PROD-321: `onExcluida` — a tarefa foi excluída aqui (o "Excluir" saiu da grade antiga para os detalhes).
  */
-export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLocation, hoje = null, onExcluida = null }) {
+export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLocation, hoje = null, onExcluida = null, onVoltar = null, anim = null }) {
   const queryClient = useQueryClient();
   const [currentTarefa, setCurrentTarefa] = useState(tarefa);
   const diaDoAparelho = useDiaCivil(null);
@@ -476,7 +476,8 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
 
   return (
     <>
-      <CascaDetalhe titulo={titulo} sub="Detalhes da tarefa" rodape={rodape} className="mk-dp-tarefa">
+      {/* D-PROD-325: aberta pela lista, a tarefa entra na MESMA janela (sem a lista atrás) e o ‹ volta para ela. */}
+      <CascaDetalhe titulo={titulo} sub="Detalhes da tarefa" rodape={rodape} className="mk-dp-tarefa" onVoltar={onVoltar} anim={anim}>
         <Cartao
           icone={ClipboardList}
           titulo={titulo || "Tarefa"}

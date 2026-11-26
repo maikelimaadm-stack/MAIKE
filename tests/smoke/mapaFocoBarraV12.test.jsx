@@ -78,6 +78,11 @@ vi.mock('@/components/mapa/TarefasMapaPanel', async () => {
   // D-PROD-321: guarda as props (o "Nova tarefa" passa o local pela posição do celular).
   return { default: (props) => { globalThis.__painelTarefas = props; return createElement('p', null, 'Lista de tarefas'); } };
 });
+// D-PROD-325: os detalhes da tarefa ficam de fora (guarda as props: o ‹ Voltar só existe vindo da lista).
+vi.mock('@/components/mapa/DetalhesTarefaMapa', async () => {
+  const { createElement } = await import('react');
+  return { default: (props) => { globalThis.__detalhesTarefa = props; return createElement('p', null, `Detalhes de ${props.tarefa?.titulo}`); } };
+});
 vi.mock('@/lib/maplibre/falhaWebGL', async (importOriginal) => ({
   ...(await importOriginal()),
   navegadorTemWebGL: () => true,
@@ -437,9 +442,11 @@ describe('BARRA-6 — D-PROD-321: "Nova tarefa" já sabe onde a pessoa está', (
     await abrir();
     await tocar('Tarefas');
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Nova tarefa' })); });
-    expect(screen.getByRole('dialog', { name: 'Tarefas' })).toBeInTheDocument();
     const p = /** @type {any} */ (globalThis).__painelTarefas;
-    expect(p).toMatchObject({ areaId: 'a1', areaNome: 'A1', openCreateOnMount: true, initialCoordinates: { lat: -15.005, lng: -47.005 } });
+    expect(p).toMatchObject({ areaId: 'a1', areaNome: 'A1', initialCoordinates: { lat: -15.005, lng: -47.005 } });
+    // D-PROD-325: o formulário abre na própria janela (pelo mapa: ao sair, fecha tudo).
+    expect(p.formulario).toEqual({ tarefa: null, voltarParaLista: false });
+    expect(screen.getByRole('dialog', { name: 'Nova tarefa' })).toBeInTheDocument();
     expect(typeof p.onNovaTarefa).toBe('function');
     expect(typeof p.onAbrirTarefa).toBe('function');
   });
@@ -450,7 +457,7 @@ describe('BARRA-6 — D-PROD-321: "Nova tarefa" já sabe onde a pessoa está', (
     await tocar('Tarefas');
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Nova tarefa' })); });
     const p = /** @type {any} */ (globalThis).__painelTarefas;
-    expect(p).toMatchObject({ openCreateOnMount: true, initialCoordinates: null });
+    expect(p).toMatchObject({ formulario: { tarefa: null, voltarParaLista: false }, initialCoordinates: null });
     expect(p.areaId).toBeUndefined();
   });
 });
@@ -528,5 +535,65 @@ describe('BARRA-5 — perdeu a permissão do foco atual: volta para Lotes', () =
 
     await trocarPermissao(linha({ visualizar_filtros_camadas: false }));
     expect(nomesDaBarra()).toEqual(['Lotes', 'Pontos', 'Visualização do mapa: Satélite']);
+  });
+});
+
+describe('BARRA-7 — D-PROD-325: a tarefa abre numa janela só', () => {
+  const janelas = () => screen.queryAllByRole('dialog');
+
+  it('da lista: os detalhes entram NO LUGAR da lista (uma janela) e o ‹ volta para ela', async () => {
+    await abrir();
+    await tocar('Tarefas');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resumo das tarefas' })); });
+    expect(janelas()).toHaveLength(1);
+    await act(async () => { /** @type {any} */ (globalThis).__painelTarefas.onAbrirTarefa({ id: 't-9', titulo: 'CERCA' }); });
+
+    expect(janelas(), 'sem a lista atrás').toHaveLength(1);
+    const detalhes = screen.getByRole('dialog');
+    expect(within(detalhes).getByText('Detalhes de CERCA')).toBeInTheDocument();
+    expect(screen.queryByText('Lista de tarefas')).toBeNull();
+    const props = /** @type {any} */ (globalThis).__detalhesTarefa;
+    expect(typeof props.onVoltar).toBe('function');
+    expect(props.anim).toBe('empurrar');
+
+    await act(async () => { props.onVoltar(); });
+    expect(janelas()).toHaveLength(1);
+    expect(within(screen.getByRole('dialog', { name: 'Tarefas' })).getByText('Lista de tarefas')).toBeInTheDocument();
+  });
+
+  it('o formulário entra na mesma janela, com o título certo e o ✓; ao sair volta a ser a lista', async () => {
+    await abrir();
+    await tocar('Tarefas');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resumo das tarefas' })); });
+    const painel = () => /** @type {any} */ (globalThis).__painelTarefas;
+    await act(async () => { painel().onFormularioChange({ tarefa: null, voltarParaLista: true }); });
+    expect(janelas()).toHaveLength(1);
+    const form = screen.getByRole('dialog', { name: 'Nova tarefa' });
+    expect(within(form).getByRole('button', { name: 'Salvar' })).toBeInTheDocument();
+
+    await act(async () => { painel().onFormularioChange({ tarefa: { id: 't-1' }, voltarParaLista: true }); });
+    expect(screen.getByRole('dialog', { name: 'Editar tarefa' })).toBeInTheDocument();
+    await act(async () => { painel().onFormularioChange(null); });
+    expect(screen.getByRole('dialog', { name: 'Tarefas' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull();
+  });
+
+  it('"Nova tarefa" pela lista volta para a lista ao sair; pelo mapa, fecha tudo', async () => {
+    Object.defineProperty(window.navigator, 'geolocation', { configurable: true, value: { getCurrentPosition: (_ok, falha) => falha({ code: 1 }) } });
+    await abrir();
+    await tocar('Tarefas');
+    const painel = () => /** @type {any} */ (globalThis).__painelTarefas;
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Nova tarefa' })); });
+    expect(painel().formulario).toEqual({ tarefa: null, voltarParaLista: false });
+    await act(async () => { painel().onClose(); });
+    expect(janelas()).toHaveLength(0);
+
+    // Abrir a lista de novo começa pela lista (o formulário de antes não volta).
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resumo das tarefas' })); });
+    expect(painel().formulario).toBeNull();
+    await act(async () => { painel().onNovaTarefa(); });
+    expect(painel().formulario).toEqual({ tarefa: null, voltarParaLista: true });
+    expect(janelas()).toHaveLength(1);
+    expect(screen.getByRole('dialog', { name: 'Nova tarefa' })).toBeInTheDocument();
   });
 });
