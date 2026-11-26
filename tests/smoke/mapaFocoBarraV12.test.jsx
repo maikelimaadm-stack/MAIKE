@@ -290,7 +290,8 @@ describe('BARRA-1 — regra pura do foco (src/lib/mapaFoco.js)', () => {
   });
 
   it('o que cada foco deixa no mapa (o mesmo objeto a cada chamada)', () => {
-    expect(camadasDoFoco('lotes')).toEqual({ lotes: true, suplementacao: true, tarefas: true, lotacaoNoRotulo: false });
+    // D-PROD-326: cada aba com as suas coisas — Lotes sem cochos/depósitos e sem tarefas.
+    expect(camadasDoFoco('lotes')).toEqual({ lotes: true, suplementacao: false, tarefas: false, lotacaoNoRotulo: false });
     expect(camadasDoFoco('pastos')).toEqual({ lotes: false, suplementacao: true, tarefas: false, lotacaoNoRotulo: true });
     expect(camadasDoFoco('tarefas')).toEqual({ lotes: false, suplementacao: false, tarefas: true, lotacaoNoRotulo: false });
     expect(camadasDoFoco('outro')).toBe(camadasDoFoco('lotes'));
@@ -379,7 +380,7 @@ describe('BARRA-3 — MapaGeral real: o que cada foco desenha', () => {
     await abrir();
     expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pontos', 'Tarefas', 'Visualização do mapa: Satélite']);
     expect(pressionado('Lotes')).toBe('true');
-    expect(noMapa()).toEqual({ lotes: true, lotesNaLista: 2, cochos: true, tarefas: 1, textoNoRotulo: false });
+    expect(noMapa()).toEqual({ lotes: true, lotesNaLista: 2, cochos: false, tarefas: 0, textoNoRotulo: false });
 
     await tocar('Pontos');
     expect(pressionado('Pontos')).toBe('true');
@@ -399,7 +400,7 @@ describe('BARRA-3 — MapaGeral real: o que cada foco desenha', () => {
 
     await tocar('Lotes');
     expect(pressionado('Lotes')).toBe('true');
-    expect(noMapa()).toEqual({ lotes: true, lotesNaLista: 2, cochos: true, tarefas: 1, textoNoRotulo: false });
+    expect(noMapa()).toEqual({ lotes: true, lotesNaLista: 2, cochos: false, tarefas: 0, textoNoRotulo: false });
   });
 
   it('o ⚙ abre o painel Filtro de sempre', async () => {
@@ -523,7 +524,7 @@ describe('BARRA-5 — perdeu a permissão do foco atual: volta para Lotes', () =
     expect(screen.queryByRole('button', { name: 'Nova tarefa' })).toBeNull();
     expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pontos', 'Visualização do mapa: Satélite']);
     expect(pressionado('Lotes')).toBe('true');
-    expect(noMapa()).toMatchObject({ lotes: true, cochos: true, tarefas: 0 });
+    expect(noMapa()).toMatchObject({ lotes: true, cochos: false, tarefas: 0 });
   });
 
   it('sem filtros a barra mantém Visualização e só os segmentos autorizados', async () => {
@@ -595,5 +596,62 @@ describe('BARRA-7 — D-PROD-325: a tarefa abre numa janela só', () => {
     expect(painel().formulario).toEqual({ tarefa: null, voltarParaLista: true });
     expect(janelas()).toHaveLength(1);
     expect(screen.getByRole('dialog', { name: 'Nova tarefa' })).toBeInTheDocument();
+  });
+});
+
+describe('BARRA-8 — D-PROD-326: cada aba com as suas camadas e os seus filtros', () => {
+  const filtro = async () => {
+    await act(async () => { fireEvent.click(barra().getByRole('button', { name: 'Filtros' })); });
+    return within(screen.getByRole('dialog', { name: 'Filtro' }));
+  };
+  const caixas = (f) => f.queryAllByRole('checkbox').map((c) => c.getAttribute('aria-label'));
+  const fecharFiltro = async () => { await act(async () => { fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' }); }); };
+
+  it('o painel mostra só o que é da aba', async () => {
+    await abrir();
+    let f = await filtro();
+    expect(caixas(f)).toEqual(['Mapa de Áreas', 'Detalhes Áreas', 'Hectares', 'Pontos Referência', 'Lotes', 'Linhas (cercas, rios)', 'Alertas', 'Localização']);
+    expect(f.getByText('Filtros de Áreas')).toBeInTheDocument();
+    expect(f.getByText('Filtros de Categorias de Manejo')).toBeInTheDocument();
+    expect(f.queryByText('Filtros de Tarefas')).toBeNull();
+    await fecharFiltro();
+
+    await tocar('Pontos');
+    f = await filtro();
+    expect(caixas(f)).toEqual(['Mapa de Áreas', 'Detalhes Áreas', 'Hectares', 'Pontos Referência', 'Linhas (cercas, rios)', 'Cochos', 'Depósitos', 'Localização']);
+    expect(f.getByText('Filtros de Áreas')).toBeInTheDocument();
+    expect(f.queryByText('Filtros de Categorias de Manejo')).toBeNull();
+    await fecharFiltro();
+
+    await tocar('Tarefas');
+    f = await filtro();
+    expect(caixas(f)).toEqual(['Mapa de Áreas', 'Detalhes Áreas', 'Pontos Referência', 'Linhas (cercas, rios)', 'Localização']);
+    expect(f.getByText('Filtros de Tarefas')).toBeInTheDocument();
+    for (const campo of ['Setor', 'Situação', 'Prioridade', 'Responsável', 'Prazo']) expect(f.getByRole('combobox', { name: campo }), campo).toBeInTheDocument();
+    expect(f.queryByText('Filtros de Áreas')).toBeNull();
+    expect(f.queryByText('Filtros de Categorias de Manejo')).toBeNull();
+  });
+
+  it('o filtro de lote só vale na aba Lotes', async () => {
+    salvarFiltrosMapaGeral(ESCOPO, { filtroCategoria: ['VACA'] });
+    await abrir();
+    expect(noMapa().lotesNaLista).toBe(1);
+    await tocar('Pontos');
+    expect(noMapa().lotesNaLista, 'na aba Pontos o filtro de lote não vale').toBe(2);
+  });
+
+  it('na aba Tarefas valem os filtros de tarefa (e não a cultura/pastagem das áreas)', async () => {
+    salvarFiltrosMapaGeral(ESCOPO, { filtroTarefaPrioridade: ['Baixa'], filtroTipoCultura: ['Agricultura'] });
+    await abrir();
+    await tocar('Tarefas');
+    expect(noMapa().tarefas, 'prioridade Baixa: a tarefa Alta sai').toBe(0);
+    expect(screen.getByRole('button', { name: 'Resumo das tarefas' }).textContent).toContain('0tarefas abertas');
+  });
+
+  it('sem filtro de tarefa, a cultura escolhida na aba Lotes não esconde a tarefa', async () => {
+    salvarFiltrosMapaGeral(ESCOPO, { filtroTarefaPrioridade: ['Alta'], filtroTipoCultura: ['Agricultura'] });
+    await abrir();
+    await tocar('Tarefas');
+    expect(noMapa().tarefas).toBe(1);
   });
 });

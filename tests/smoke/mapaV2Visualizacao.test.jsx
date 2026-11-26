@@ -53,7 +53,9 @@ describe("Shell e controles (D-PROD-132)", () => {
     expect(mg).toMatch(/<MapaVisualizacao/);
     expect(mg).not.toMatch(/camadas=\{/);
     const filtros = readFileSync("src/components/mapa/MapaFiltrosAvancados.jsx", "utf8");
-    expect(filtros).toMatch(/const availableLayers = camadasDoMapa\(/);
+    // D-PROD-326: as camadas do painel são as da aba (`painelDoFoco`).
+    expect(filtros).toMatch(/const todasAsCamadas = camadasDoMapa\(/);
+    expect(filtros).toMatch(/const availableLayers = painel \? todasAsCamadas\.filter/);
     expect(filtros).toContain(">Mostrar no mapa</span>");
   });
 });

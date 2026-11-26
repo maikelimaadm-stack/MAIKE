@@ -10,6 +10,8 @@ import MapaFiltroSelecao from "./MapaFiltroSelecao";
 import { filtroSemRestricao } from "@/lib/mapaFiltroSelecao";
 import { MapaFiltrosHeaderRightCtx } from "./MapaFiltrosPainel";
 import { LEGENDA_FORRAGEM, MARCA_OLHO } from "@/domain/pastagem/farolForragem";
+import { painelDoFoco } from "@/lib/mapaFoco";
+import { PRIORIDADES_TAREFA } from "@/lib/tarefas/prioridade";
 
 // Cores por tipo de cultura
 export const CORES_TIPO_CULTURA = {
@@ -131,17 +133,30 @@ export default function MapaFiltrosAvancados({
   setores = [],
   sistemasProdutivos = [],
   permissions = null,
-  mostrarCores = true
+  mostrarCores = true,
+  // D-PROD-326: a aba do mapa (Lotes · Pontos · Tarefas). Com ela, o painel mostra só as camadas e os filtros
+  // da aba; sem ela, tudo (como antes).
+  foco = null,
+  filtroTarefaStatus = 'todos', setFiltroTarefaStatus = undefined,
+  filtroTarefaPrioridade = 'todas', setFiltroTarefaPrioridade = undefined,
+  filtroTarefaResponsavel = 'todos', setFiltroTarefaResponsavel = undefined,
+  filtroTarefaPrazo = 'todos', setFiltroTarefaPrazo = undefined,
+  responsaveisTarefa = [],
 }) {
+  const painel = foco ? painelDoFoco(foco) : null;
+  const mostraFiltrosDeArea = permissions?.visualizar_areas !== false && (!painel || painel.filtrosDeArea === 'todos');
+  const mostraFiltrosDeLote = permissions?.visualizar_lotes !== false && (!painel || painel.filtrosDeLote);
+  const mostraFiltrosDeTarefa = Boolean(painel?.filtrosDeTarefa);
+  const mostraSetorNasTarefas = mostraFiltrosDeTarefa && permissions?.visualizar_areas !== false;
 
   // D-PROD-132: "mostrar ou não" (camadas) fica nos Filtros; o "Demarcar áreas
   // por" (cores) vai para o painel Visualização quando `mostrarCores` é false.
-  const availableLayers = camadasDoMapa({ showAreas, setShowAreas, showPontos, setShowPontos, showLinhas, setShowLinhas, showLotes, setShowLotes, showTarefas, setShowTarefas, showCochos, setShowCochos, showDepositos, setShowDepositos, showAlertas, setShowAlertas, showUserLocation, setShowUserLocation, showNomesAreas, setShowNomesAreas, showHectaresAreas, setShowHectaresAreas, permissions });
+  const todasAsCamadas = camadasDoMapa({ showAreas, setShowAreas, showPontos, setShowPontos, showLinhas, setShowLinhas, showLotes, setShowLotes, showTarefas, setShowTarefas, showCochos, setShowCochos, showDepositos, setShowDepositos, showAlertas, setShowAlertas, showUserLocation, setShowUserLocation, showNomesAreas, setShowNomesAreas, showHectaresAreas, setShowHectaresAreas, permissions });
+  const availableLayers = painel ? todasAsCamadas.filter((item) => /** @type {readonly string[]} */ (painel.camadas).includes(item.id)) : todasAsCamadas;
 
-  const temFiltroAtivo =
-    !filtroSemRestricao(filtroSetor) ||
-    !filtroSemRestricao(filtroTipoCultura) ||
-    !filtroSemRestricao(filtroTipoPastagem) ||
+  // O "limpar" e o aviso de filtro ligado olham só os filtros que a aba mostra.
+  const filtroDeAreaLigado = !filtroSemRestricao(filtroTipoCultura) || !filtroSemRestricao(filtroTipoPastagem);
+  const filtroDeLoteLigado =
     !filtroSemRestricao(filtroCategoria) ||
     !filtroSemRestricao(filtroSistema) ||
     !filtroSemRestricao(filtroIdentificador) ||
@@ -149,22 +164,44 @@ export default function MapaFiltrosAvancados({
     !filtroSemRestricao(filtroAlertaTipo) ||
     filtroPesoMin != null ||
     filtroPesoMax != null;
+  const filtroDeTarefaLigado =
+    !filtroSemRestricao(filtroTarefaStatus) ||
+    !filtroSemRestricao(filtroTarefaPrioridade) ||
+    !filtroSemRestricao(filtroTarefaResponsavel) ||
+    !filtroSemRestricao(filtroTarefaPrazo);
+  const temFiltroAtivo =
+    ((mostraFiltrosDeArea || mostraSetorNasTarefas) && !filtroSemRestricao(filtroSetor)) ||
+    (mostraFiltrosDeArea && filtroDeAreaLigado) ||
+    (mostraFiltrosDeLote && filtroDeLoteLigado) ||
+    (mostraFiltrosDeTarefa && filtroDeTarefaLigado);
 
   const limparFiltros = React.useCallback(() => {
-    setFiltroSetor("todos");
-    setFiltroTipoCultura("todas");
-    setFiltroTipoPastagem("todas");
-    setFiltroCategoria("todas");
-    setFiltroSistema("todos");
-    setFiltroIdentificador("todos");
-    setFiltroStatus("todos");
-    setFiltroAlertaTipo("todos");
-    setFiltroPesoMin(null);
-    setFiltroPesoMax(null);
+    if (mostraFiltrosDeArea || mostraSetorNasTarefas) setFiltroSetor("todos");
+    if (mostraFiltrosDeArea) {
+      setFiltroTipoCultura("todas");
+      setFiltroTipoPastagem("todas");
+    }
+    if (mostraFiltrosDeLote) {
+      setFiltroCategoria("todas");
+      setFiltroSistema("todos");
+      setFiltroIdentificador("todos");
+      setFiltroStatus("todos");
+      setFiltroAlertaTipo("todos");
+      setFiltroPesoMin(null);
+      setFiltroPesoMax(null);
+    }
+    if (mostraFiltrosDeTarefa) {
+      setFiltroTarefaStatus?.("todos");
+      setFiltroTarefaPrioridade?.("todas");
+      setFiltroTarefaResponsavel?.("todos");
+      setFiltroTarefaPrazo?.("todos");
+    }
   }, [
+    mostraFiltrosDeArea, mostraSetorNasTarefas, mostraFiltrosDeLote, mostraFiltrosDeTarefa,
     setFiltroSetor, setFiltroTipoCultura, setFiltroTipoPastagem, setFiltroCategoria,
     setFiltroSistema, setFiltroIdentificador, setFiltroStatus, setFiltroAlertaTipo,
     setFiltroPesoMin, setFiltroPesoMax,
+    setFiltroTarefaStatus, setFiltroTarefaPrioridade, setFiltroTarefaResponsavel, setFiltroTarefaPrazo,
   ]);
 
   // Cabeçalho: ✕ à esquerda, limpar (só ícone) à direita — espelho do fechar.
@@ -260,8 +297,57 @@ export default function MapaFiltrosAvancados({
         </div>
       }
 
+      {/* ─── Filtros de Tarefas (D-PROD-326: só na aba Tarefas) ─── */}
+      {mostraFiltrosDeTarefa &&
+      <div className="mk-map-filter-section mk-map-filter-section--fields" data-mk-filtros-tarefas="">
+          <div className="mk-map-filter-heading">
+            <span>Filtros de Tarefas</span>
+          </div>
+          <div className="mk-map-filter-fields">
+            {mostraSetorNasTarefas &&
+            <div>
+              <label>Setor</label>
+              <MapaFiltroSelecao value={filtroSetor} onChange={(e) => setFiltroSetor(e.target.value)} aria-label="Setor">
+                  <option value="todos">Todos</option>
+                  {setores.map((setor) => <option key={setor.id} value={setor.id}>{setor.nome}</option>)}
+              </MapaFiltroSelecao>
+            </div>
+            }
+            <div>
+              <label>Situação</label>
+              <MapaFiltroSelecao value={filtroTarefaStatus} onChange={(e) => setFiltroTarefaStatus?.(e.target.value)} aria-label="Situação">
+                  <option value="todos">Todas</option>
+                  <option value="Pendente">Pendente</option>
+                  <option value="Em Andamento">Em andamento</option>
+              </MapaFiltroSelecao>
+            </div>
+            <div>
+              <label>Prioridade</label>
+              <MapaFiltroSelecao value={filtroTarefaPrioridade} onChange={(e) => setFiltroTarefaPrioridade?.(e.target.value)} aria-label="Prioridade">
+                  <option value="todas">Todas</option>
+                  {PRIORIDADES_TAREFA.map((p) => <option key={p} value={p}>{p}</option>)}
+              </MapaFiltroSelecao>
+            </div>
+            <div>
+              <label>Responsável</label>
+              <MapaFiltroSelecao value={filtroTarefaResponsavel} onChange={(e) => setFiltroTarefaResponsavel?.(e.target.value)} aria-label="Responsável">
+                  <option value="todos">Todos</option>
+                  {responsaveisTarefa.map((r) => <option key={r.valor} value={r.valor}>{r.rotulo}</option>)}
+              </MapaFiltroSelecao>
+            </div>
+            <div>
+              <label>Prazo</label>
+              <MapaFiltroSelecao value={filtroTarefaPrazo} onChange={(e) => setFiltroTarefaPrazo?.(e.target.value)} aria-label="Prazo">
+                  <option value="todos">Todos</option>
+                  <option value="atrasadas">Só atrasadas</option>
+              </MapaFiltroSelecao>
+            </div>
+          </div>
+        </div>
+      }
+
       {/* ─── Filtros de Áreas ─── */}
-      {permissions?.visualizar_areas !== false &&
+      {mostraFiltrosDeArea &&
       <div className="mk-map-filter-section mk-map-filter-section--fields">
           <div className="mk-map-filter-heading">
             <span>Filtros de Áreas</span>
@@ -297,7 +383,7 @@ export default function MapaFiltrosAvancados({
       }
 
       {/* ─── Filtros de Lotes ─── */}
-      {permissions?.visualizar_lotes !== false &&
+      {mostraFiltrosDeLote &&
       <div className="mk-map-filter-section mk-map-filter-section--fields">
           <div className="mk-map-filter-heading">
             <span>Filtros de Categorias de Manejo</span>
