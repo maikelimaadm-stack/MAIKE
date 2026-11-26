@@ -129,7 +129,8 @@ export default function ResumoTarefasMapa({ tarefas, onAbrir, onNova = null, pri
                 cor={COR_PRIORIDADE[prioridade] || COR_PRIORIDADE.Média}
                 titulo={String(t?.titulo || "Tarefa").toUpperCase()}
                 meta={meta}
-                sub={atrasada ? `${status} · atrasada` : status}
+                // D-PROD-324: feita ou alterada sem internet e ainda não enviada.
+                sub={[status, atrasada ? "atrasada" : null, t?._isOffline ? "aguardando envio" : null].filter(Boolean).join(" · ")}
                 chip={<Chip tom={TOM_PRIORIDADE[prioridade] || "neutro"}>{prioridade}</Chip>}
                 chevron
                 onClick={() => onAbrir(t)}

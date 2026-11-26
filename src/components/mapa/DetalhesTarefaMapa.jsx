@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Check, CircleX, ClipboardList, FileText, History, MapPin, MessageSquare, MessageSquarePlus, Plus, Repeat, SquarePen, Trash2 } from "lucide-react";
 import { atualizarTarefa, enviarAnexo, excluirTarefa } from "@/services/tarefasMapaService";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
+import { excluirFotoGuardada, guardarFotosDaTarefa } from "@/services/fotosDeTarefaAguardandoService";
+import useFotosGuardadasDaTarefa from "@/hooks/useFotosGuardadasDaTarefa";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
@@ -13,7 +15,7 @@ import { LancLoteDialogo, LancLoteForm, LancLoteRodape, LancLoteSegmento, LL_CTL
 import LancField from "@/components/cadastro/base1/LancField";
 import CascaDetalhe from "@/components/mapa/detalhes-lote/CascaDetalhe";
 import LinhaDoTempo from "@/components/mapa/detalhes-lote/LinhaDoTempo";
-import { Cartao, Celula, Chip, Grade, Linha, RodapePilulas, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
+import { Cartao, Celula, Chip, Grade, Linha, Nota, RodapePilulas, TituloBloco, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import { VAZIO, rotuloDoDia } from "@/components/mapa/detalhes-lote/historicoDoPasto";
 import { TONS } from "@/components/mapa/detalhes-lote/catalogo";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
@@ -187,6 +189,13 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
   const podeExcluirEvento = usePodeExcluirEventoTarefa();
   const [showEdit, setShowEdit] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
+  // D-PROD-324: fotos desta tarefa tiradas sem internet, guardadas no aparelho esperando a internet: aparecem na
+  // galeria (abrem em tela cheia) e podem ser excluídas antes de subir.
+  const fotosGuardadas = useFotosGuardadasDaTarefa(tarefa?.id);
+  const excluirGuardada = async (chave) => {
+    const ok = await confirmarExclusao("Excluir esta foto? Ela ainda não foi enviada e sai do celular.");
+    if (ok) await excluirFotoGuardada(chave);
+  };
   const [showEvento, setShowEvento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [eventoTipo, setEventoTipo] = useState(tarefa.status === "Em Andamento" ? "Registro" : "Em Andamento");
@@ -260,13 +269,12 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
   const updateMutation = useMutation({
     /** @param {{ id: string, data: any, pendingImageFiles?: File[] }} variaveis */
     mutationFn: async ({ id, data, pendingImageFiles = [] }) => {
-      // D-PROD-319: sem internet a alteração vai para a fila de envio; as fotos novas precisam de internet.
-      if (pendingImageFiles.length > 0 && typeof navigator !== "undefined" && navigator.onLine === false) {
-        throw new Error("sem internet as fotos não sobem. Remova as fotos novas e salve; anexe as fotos quando a internet voltar.");
-      }
+      // D-PROD-324: sem internet a alteração vai para a fila e as fotos novas ficam guardadas no aparelho (sobem
+      // sozinhas quando a internet voltar).
+      const guardar = pendingImageFiles.length > 0 && typeof navigator !== "undefined" && navigator.onLine === false;
       // Upload de novas imagens antes de salvar
       const uploadedUrls = [];
-      for (const file of pendingImageFiles) {
+      for (const file of guardar ? [] : pendingImageFiles) {
         const { file_url } = await enviarAnexo({ file });
         uploadedUrls.push(file_url);
       }
@@ -293,12 +301,14 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
       mudouStatus ?
       `Status alterado para ${finalData.status}.` :
       "Tarefa editada.";
-      return atualizarTarefa(id, {
+      const atualizada = await atualizarTarefa(id, {
         ...finalData,
         historico_evento: evento,
         historico_descricao: descricao,
         historico_data_evento: new Date().toISOString(),
       });
+      if (guardar) await guardarFotosDaTarefa(id, pendingImageFiles);
+      return atualizada;
     },
     onSuccess: (updated) => {
       // Otimista no mapa e nas listas
@@ -514,12 +524,17 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
           {obsConclusao ? <Linha rotulo="Obs. conclusão" valor={obsConclusao} quebra /> : null}
         </Cartao>
 
-        {temFotos ? (
+        {temFotos || fotosGuardadas.length > 0 ? (
           <>
             <TituloBloco>Fotos</TituloBloco>
             <div className="mk-dp-tarefa__fotos">
-              <FotosTarefaGaleria tarefa={currentTarefa} />
+              <FotosTarefaGaleria tarefa={currentTarefa} guardadas={fotosGuardadas} onExcluirGuardada={excluirGuardada} />
             </div>
+            {fotosGuardadas.length > 0 ? (
+              <Nota data-mk-fotos-guardadas="">
+                {fotosGuardadas.length === 1 ? "1 foto aguardando envio" : `${fotosGuardadas.length} fotos aguardando envio`} — sobe quando a internet voltar.
+              </Nota>
+            ) : null}
           </>
         ) : null}
 

@@ -10021,4 +10021,34 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Testes:** `backend/tests/diarioMaquina.test.mjs` 24/24 contra PostgreSQL LOCAL de teste (15 regras puras + 9 de integração: mistura sem baixa, 409, aplicar com sobra e baixa proporcional pelo motor, replay, transferência, devolução sem movimento, perda com motivo, resumo com/sem custo, quantidade padrão do produto); `test:gates` 1097/1097; smoke `diarioMaquina`, `diarioMaquinaService`, `implementoRegras`; smoke completo 4435/4435.
 - **Release:** `SCHEMA_APPLIED_PROD: SIM`: aplicada em produção em 2026-11-26, antes do merge, pelo caminho B com o GO do proprietário ("Sim, pode criar as tabelas no banco e fazer o merge"); 83 concluídas, 0 ruins, 3 tabelas com RLS, 4 colunas (ver o registro no runbook).
 
-<!-- Próxima decisão: D-PROD-324 -->
+## D-PROD-324 — Tarefas, parte 3: tarefas sem internet, com as fotos guardadas no aparelho
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário (tarefas funcionando sem internet), com a escolha dele: "Guardar e subir depois" as fotos tiradas sem internet · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFAS-SEM-INTERNET-D324-REPORT.md`](./TAREFAS-SEM-INTERNET-D324-REPORT.md)
+
+> **Numeração:** a `main` (`4e55caa43`) indica `Próxima decisão: D-PROD-324`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-325. Conferir de novo antes do merge (regra A5).
+
+- **Problema:** a tarefa já ia pela fila sem internet, com o id do aparelho (D-PROD-319). As fotos não: a tela pedia para salvar sem elas e anexá-las depois.
+- **Decisão — fotos guardadas (`fotosDeTarefaAguardandoService`):**
+  - Sem internet, a tarefa (criação ou edição) vai pela fila sem as fotos novas. As fotos ficam no IndexedDB do aparelho, ligadas ao id da tarefa (`pending_tarefa_images`, `tarefa_offline_id = "tarefa:<id>"`).
+  - A cada passada da sincronização com internet (`registrarPassadaExtra`):
+    1. a foto espera a **criação** da tarefa chegar ao servidor;
+    2. sobe **uma vez**, e o endereço fica gravado na própria foto;
+    3. entra nas fotos que a tarefa já tem, gravada pela porta de sempre, com um evento "Edição" no histórico;
+    4. só então sai do aparelho.
+  - A tarefa que falha não impede as outras.
+- **Decisão — telas:**
+  - O painel (nova ou editar) e os detalhes (editar) usam isso no lugar do aviso de recusa. A mensagem diz "salva no aparelho com as fotos".
+  - Os detalhes mostram "N fotos aguardando envio".
+  - O resumo marca a tarefa feita sem internet e ainda não enviada com "aguardando envio".
+- **Decisão — a foto guardada se vê e se mexe** (pedido do proprietário: "o certo era a foto aparecer e eu poder… excluir a foto e tirar de novo… clicar nela e abrir"):
+  - Nos detalhes (galeria) e na edição (formulário), a foto guardada aparece em miniatura com o selo "Aguardando envio".
+  - Toda foto abre em **tela cheia** ao tocar: a enviada, a guardada e a nova do formulário. É o `VisualizadorDeFotos`, separado da galeria.
+  - O ✕ exclui a foto guardada do celular depois de confirmar. Para tirar de novo, é só adicionar outra.
+  - O ✕ fica sempre visível; no celular não há "passar o mouse".
+  - **Duas opções para pôr foto** (pedido do proprietário: "tem que ter opções de tirar e subir"):
+    - **Tirar foto** abre a câmera direto (`<input capture="environment">`);
+    - **Galeria** escolhe as fotos já tiradas, várias de uma vez.
+    - O APK já tem a permissão de câmera e o `FileProvider`, então não precisa de APK novo: a mudança chega pela atualização automática.
+- **Fora:** a tarefa recusada pelo servidor: a foto dela fica guardada até a tarefa ser corrigida ou descartada.
+
+<!-- Próxima decisão: D-PROD-325 -->
