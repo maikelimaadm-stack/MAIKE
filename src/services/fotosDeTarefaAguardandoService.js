@@ -64,6 +64,35 @@ export const listarFotosGuardadasDaTarefa = async (tarefaId) => {
   }
 };
 
+/**
+ * D-PROD-330 — sobe as fotos novas na hora ou, sem rede, separa as que ficam guardadas no aparelho.
+ *
+ * O celular às vezes "acha" que tem internet (sinal fraco, Wi-Fi sem dados): `navigator.onLine` diz que sim e o
+ * envio falha sem resposta. Antes a tarefa inteira dava erro; agora a foto que não subiu por falta de rede (e as que
+ * vinham depois dela) fica guardada e sobe sozinha depois — a tarefa salva do mesmo jeito. Recusa do servidor (com
+ * resposta) continua sendo erro.
+ *
+ * @param {Array<File|Blob>} arquivos
+ * @returns {Promise<{ urls: string[], paraGuardar: Array<File|Blob> }>}
+ */
+export const enviarOuSepararFotos = async (arquivos) => {
+  const lista = Array.isArray(arquivos) ? arquivos : [];
+  if (!lista.length) return { urls: [], paraGuardar: [] };
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return { urls: [], paraGuardar: lista };
+  /** @type {string[]} */
+  const urls = [];
+  for (let i = 0; i < lista.length; i += 1) {
+    try {
+      const { file_url } = await enviarAnexo({ file: lista[i] });
+      urls.push(file_url);
+    } catch (erro) {
+      if (classificarFalhaDeEnvio(erro) === 'rede') return { urls, paraGuardar: lista.slice(i) };
+      throw erro;
+    }
+  }
+  return { urls, paraGuardar: [] };
+};
+
 /** Exclui do aparelho uma foto guardada (antes de ela subir). @param {number|string} chave */
 export const excluirFotoGuardada = async (chave) => {
   await deleteTarefaImageOffline(chave);

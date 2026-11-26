@@ -1,9 +1,9 @@
 import { CORES_PRIORIDADE_TAREFA } from "@/lib/tarefas/prioridade";
 import React, { useEffect, useState } from "react";
 import { Check, CircleX, ClipboardList, FileText, History, MapPin, MessageSquare, MessageSquarePlus, Plus, Repeat, SquarePen, Trash2 } from "lucide-react";
-import { atualizarTarefa, enviarAnexo, excluirTarefa } from "@/services/tarefasMapaService";
+import { atualizarTarefa, excluirTarefa } from "@/services/tarefasMapaService";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
-import { excluirFotoGuardada, guardarFotosDaTarefa } from "@/services/fotosDeTarefaAguardandoService";
+import { excluirFotoGuardada, guardarFotosDaTarefa, enviarOuSepararFotos } from "@/services/fotosDeTarefaAguardandoService";
 import useFotosGuardadasDaTarefa from "@/hooks/useFotosGuardadasDaTarefa";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -269,13 +269,8 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
     mutationFn: async ({ id, data, pendingImageFiles = [] }) => {
       // D-PROD-324: sem internet a alteração vai para a fila e as fotos novas ficam guardadas no aparelho (sobem
       // sozinhas quando a internet voltar).
-      const guardar = pendingImageFiles.length > 0 && typeof navigator !== "undefined" && navigator.onLine === false;
-      // Upload de novas imagens antes de salvar
-      const uploadedUrls = [];
-      for (const file of guardar ? [] : pendingImageFiles) {
-        const { file_url } = await enviarAnexo({ file });
-        uploadedUrls.push(file_url);
-      }
+      // D-PROD-330: com o sinal fraco (o envio da foto falha por falta de rede), a foto também fica guardada.
+      const { urls: uploadedUrls, paraGuardar } = await enviarOuSepararFotos(pendingImageFiles);
       const finalData = uploadedUrls.length > 0
         ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] }
         : data;
@@ -305,7 +300,7 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
         historico_descricao: descricao,
         historico_data_evento: new Date().toISOString(),
       });
-      if (guardar) await guardarFotosDaTarefa(id, pendingImageFiles);
+      if (paraGuardar.length) await guardarFotosDaTarefa(id, paraGuardar);
       return atualizada;
     },
     onSuccess: (updated) => {

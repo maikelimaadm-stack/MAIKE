@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-26 (missão ativa D-PROD-329; antes D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-26 (missão ativa D-PROD-330; antes D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-26) — MAIKE-SINCRONIA-DOIS-SENTIDOS: sincronização automática nos dois sentidos com o círculo (D-PROD-329)
+## Missão ativa (2026-11-26) — MAIKE-TAREFA-SEM-INTERNET-MAPA-FOTO: tarefa sem internet no mapa e foto com sinal fraco (D-PROD-330)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-330**: a tarefa feita sem internet aparece no mapa (a fila por cima da cópia do mapa); com o sinal fraco, a foto que não sobe fica guardada e a tarefa salva |
+| Banco | sem migration; backend sem mudança |
+| Relatório | [`TAREFA-SEM-INTERNET-MAPA-FOTO-D330-REPORT.md`](./TAREFA-SEM-INTERNET-MAPA-FOTO-D330-REPORT.md) |
+| Próximas | D-PROD-331: a sincronização num cartão no meio da tela |
+
+## Missão anterior (2026-11-26) — MAIKE-SINCRONIA-DOIS-SENTIDOS: sincronização automática nos dois sentidos com o círculo (D-PROD-329)
 
 | Item | Estado |
 |---|---|

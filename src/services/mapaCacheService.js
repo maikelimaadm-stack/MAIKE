@@ -54,6 +54,7 @@ import { comLancamentosAguardandoEnvio } from '@/services/lancamentoCochoAguarda
 import { comTransferenciasCanceladasAguardando } from '@/services/cancelamentosAguardandoService';
 import { comMovimentacoesDoAparelho } from '@/services/historicoAguardandoEnvioService';
 import { listMedicoesForragem, listDescansoPastos } from '@/apis/medicoes-forragem';
+import { listarItensDaFilaDeEntidades } from '@/lib/offline/offlineEntityRuntime';
 import {
   listAplicacoesMedicamento,
   listEventosSanitarios,
@@ -122,10 +123,7 @@ const CAPACIDADES = {
   descansoPastos: async (empresaId) => (empresaId ? listDescansoPastos(empresaId) : []),
   estoqueLotes: async (empresaId) =>
     daEmpresa(await listLotesNota(), empresaId).filter((item) => item.status === 'Disponivel'),
-  tarefas: async (empresaId) =>
-    daEmpresa(await listLancamentos(), empresaId).filter(
-      (t) => t.coordenadas && (t.status === 'Pendente' || t.status === 'Em Andamento')
-    ),
+  tarefas: async (empresaId) => daEmpresa(await listLancamentos(), empresaId).filter(tarefaAbertaNoMapa),
   // Cancelado (R2A) não tem efeito atual: fora do cache que alimenta mapa e lotes.
   movimentacoes: async (empresaId) => daEmpresa(await listMovimentacoes(), empresaId).filter(ehMovimentoAtivo),
   // Histórico (R2A-R1, P1-B): ativos E cancelados, com situação, motivo e autor.
@@ -193,8 +191,36 @@ const donoDoCache = (cacheKey, empresaId) => {
  */
 const SEM_MARCAS = (/** @type {any[]} */ itens) =>
   (Array.isArray(itens) ? itens : []).filter((i) => !String(i?.id ?? '').startsWith('aguardando:'));
+/** A tarefa entra no mapa: tem ponto e está aberta. @param {any} t */
+const tarefaAbertaNoMapa = (t) => Boolean(t?.coordenadas) && (t.status === 'Pendente' || t.status === 'Em Andamento');
+
+/**
+ * D-PROD-330 — as tarefas feitas ou mudadas SEM internet aparecem no mapa já (antes só na lista): a cópia do mapa
+ * é a do servidor, e a criação/alteração/exclusão que espera envio fica na fila de cadastros. Aplica a fila, na
+ * ordem, por cima da cópia, casando pelo id (nem buraco, nem em dobro): criação entra (com `_isOffline`),
+ * alteração mistura, exclusão tira. O recusado pelo servidor não entra.
+ * @param {any[]} itens @param {string|null} empresaId
+ */
+const comTarefasDaFila = async (itens, empresaId) => {
+  const fila = (await listarItensDaFilaDeEntidades()).filter((f) => f.entidade === 'LancamentoTarefa' && f.situacao === 'aguardando');
+  if (!fila.length) return itens;
+  /** @type {Map<string, any>} */
+  const porId = new Map(itens.map((t) => [String(t?.id), t]));
+  for (const f of fila) {
+    const id = f.registroId ?? (f.dados && typeof f.dados.id === 'string' ? f.dados.id : null);
+    if (!id) continue;
+    if (f.operacao === 'delete') porId.delete(id);
+    // A criação feita no app não leva a situação (o servidor põe "Pendente").
+    else if (f.operacao === 'create') porId.set(id, { status: 'Pendente', ...(porId.get(id) ?? {}), ...f.dados, id, _isOffline: true });
+    else if (f.operacao === 'update' && porId.has(id)) porId.set(id, { ...porId.get(id), ...f.dados, id, _isOffline: true });
+    else if (f.operacao === 'update' && f.dados?.coordenadas) porId.set(id, { ...f.dados, id, _isOffline: true });
+  }
+  return [...porId.values()].filter((t) => (!empresaId || !t.empresa_id || t.empresa_id === empresaId) && tarefaAbertaNoMapa(t));
+};
+
 /** @type {Record<string, (itens: any[], empresaId: string|null) => Promise<any[]>>} */
 const VISAO_DO_QUE_ESPERA_ENVIO = {
+  tarefas: (itens, empresaId) => comTarefasDaFila(itens, empresaId),
   leiturasCocho: async (itens, empresaId) => [...(await leiturasAguardandoEnvio(empresaId)), ...SEM_MARCAS(itens)],
   eventosSuplementacao: (itens, empresaId) => comLancamentosAguardandoEnvio(SEM_MARCAS(itens), empresaId),
   estoqueLotes: async (itens, empresaId) =>
