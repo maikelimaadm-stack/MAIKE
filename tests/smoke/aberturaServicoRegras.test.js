@@ -4,6 +4,9 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   aberturaDosApontamentos,
+  apontamentosDaFrente,
+  chaveDaFrente,
+  frentesDosApontamentos,
   ehCampoDesconhecido,
   lerTodasAsPaginas,
   formatarHorimetro,
@@ -305,5 +308,59 @@ describe("ehCampoDesconhecido (D-PROD-332 emenda)", () => {
     expect(ehCampoDesconhecido({ code: "ATIVIDADE_REFERENCIA_INVALIDA", details: { field: "bem_id", reason: "unknown_field" } }, "bem_id")).toBe(false);
     expect(ehCampoDesconhecido(null, "bem_id")).toBe(false);
     expect(ehCampoDesconhecido(new Error("rede"), "bem_id")).toBe(false);
+  });
+});
+
+// ─── Frentes: uma abertura por máquina + implemento (D-PROD-335, emenda) ─────
+
+describe("frentes: uma abertura por máquina + implemento (D-PROD-335)", () => {
+  const obs = (bemId, bemNome, implementoId = "", implementoNome = "", horimetro = "1000.0") =>
+    marcadorDaAbertura({ bemId, bemNome, implementoId, implementoNome, horimetro, responsavelId: "usr-3", responsavelNome: "João Pereira" });
+  /** Três máquinas na MESMA atividade, em dias diferentes; a Trator 12 tem duas leituras (a do dia 20 é a mais recente). */
+  const ITENS = [
+    { id: "a1", data_operacional: "2026-11-02", status: "CONFIRMADO", observacao: obs("bem-7", "Trator 12", "imp-2", "Pulverizador", "1000.0") },
+    { id: "a2", data_operacional: "2026-11-20", status: "CONFIRMADO", observacao: obs("bem-7", "Trator 12", "imp-2", "Pulverizador", "1200.0") },
+    { id: "b1", data_operacional: "2026-11-10", status: "CONFIRMADO", observacao: obs("bem-8", "Trator 08", "", "", "900.0") },
+    { id: "c1", data_operacional: "2026-11-15", status: "CONFIRMADO", observacao: obs("bem-9", "Trator 09", "imp-2", "Pulverizador", "50.0") },
+    { id: "c2", data_operacional: "2026-11-26", status: "CONFIRMADO", observacao: "Só texto, sem abertura" },
+    { id: "x1", data_operacional: "2026-11-01", status: "CANCELADO", observacao: obs("bem-10", "Trator 10", "", "", "5.0") },
+  ];
+
+  it("chaveDaFrente: máquina|implemento; implemento vazio vale como chave própria", () => {
+    expect(chaveDaFrente({ bemId: "bem-7", implementoId: "imp-2" })).toBe("bem-7|imp-2");
+    expect(chaveDaFrente({ bemId: "bem-7", implementoId: "" })).toBe("bem-7|");
+    expect(chaveDaFrente({ bemId: "bem-7" })).toBe("bem-7|");
+    expect(chaveDaFrente({ bemId: "bem-7", implementoId: "imp-2" })).not.toBe(chaveDaFrente({ bemId: "bem-7", implementoId: "" }));
+  });
+
+  it("frentesDosApontamentos: uma frente por chave, com a leitura mais recente e o início (menor dia), por início", () => {
+    const frentes = frentesDosApontamentos(ITENS);
+    // Trator 12 (início 02/11), Trator 09 (15/11), Trator 08 (10/11): ordenadas por início → 02/11, 10/11, 15/11.
+    expect(frentes.map((f) => f.chave)).toEqual(["bem-7|imp-2", "bem-8|", "bem-9|imp-2"]);
+    const trator12 = frentes[0];
+    expect(trator12.inicio).toBe("2026-11-02");
+    expect(trator12.abertura.horimetro).toBe("1200.0");
+    expect(frentes[1].inicio).toBe("2026-11-10");
+    expect(frentes[2].abertura.bemNome).toBe("Trator 09");
+  });
+
+  it("frentesDosApontamentos: ignora cancelados e apontamentos sem abertura; sem nenhuma, []", () => {
+    expect(frentesDosApontamentos(ITENS).some((f) => f.chave === "bem-10|")).toBe(false);
+    expect(frentesDosApontamentos([{ id: "t", data_operacional: "2026-11-26", status: "CONFIRMADO", observacao: "Só texto" }])).toEqual([]);
+    expect(frentesDosApontamentos(null)).toEqual([]);
+  });
+
+  it("apontamentosDaFrente: só os apontamentos (não cancelados) com a chave dela, nos dias diferentes", () => {
+    const da12 = apontamentosDaFrente(ITENS, "bem-7|imp-2").map((a) => a.id);
+    expect(da12).toEqual(["a1", "a2"]);
+    expect(apontamentosDaFrente(ITENS, "bem-8|").map((a) => a.id)).toEqual(["b1"]);
+    // Mesma máquina com outro implemento (ou sem) é outra frente.
+    expect(apontamentosDaFrente(ITENS, "bem-7|")).toEqual([]);
+    expect(apontamentosDaFrente(ITENS, "bem-10|")).toEqual([]);
+    expect(apontamentosDaFrente(ITENS, null)).toEqual([]);
+  });
+
+  it("aberturaDosApontamentos continua igual (usado por quem não filtra por frente)", () => {
+    expect(aberturaDosApontamentos(ITENS)?.bemId).toBe("bem-7");
   });
 });
