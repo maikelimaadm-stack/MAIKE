@@ -185,8 +185,8 @@ Guia específico do ícone do lote: [src/assets/icones/lotes/README.md](../../sr
   São só quatro URLs locais em cache. Não dependem de upload, API ou imagem externa.
 - `src/lib/tarefas/marcador.js`: selo separado do ícone (inclusive quando o desenho é um upload).
   Dias até o prazo; no dia, `0d`; depois dele, dias de atraso. Acima de 99, `99+` e o valor completo na descrição.
-  Pendente: cinza; em andamento: azul; atrasada: vermelho. Sem prazo: `…` ou `▶`, respectivamente.
-  Encerradas: `✓` verde ou `×` cinza, sem contador de atraso. O filtro do mapa continua mostrando só abertas.
+  O selo é cinza, sem bolinha inferior de status. Sem prazo: `…` (pendente) ou `▶` (andamento).
+  Encerradas: `✓` ou `×`, sem contador de atraso. O filtro do mapa continua mostrando só abertas.
 - O dia vem do `useDiaCivil` da fazenda. A virada do dia, mudança de prazo ou status atualiza o selo no mesmo
   marcador; título/`aria-label` informam prioridade, andamento e prazo completo. O toque abre os detalhes.
 - Tanto o mapa geral quanto o seletor de localização usam o mesmo resolver e o mesmo indicador.
