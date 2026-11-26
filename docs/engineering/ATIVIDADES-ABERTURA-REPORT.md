@@ -75,10 +75,11 @@ Dois defeitos em produção, uma correção (sem migration, sem mudar o backend)
 **Testes:** `tests/smoke/diarioDasAtividades.test.jsx` (f2 e f3; 1; 3) e `tests/smoke/lancamentoAtividades.test.jsx` (LA-PORTA-BEM).
 
 ### Escolher atividade em andamento (mesma D-PROD-335)
+> Desde a emenda das frentes, cada atividade aberta vira um cartão por frente (ver abaixo); o que segue descreve a lista inicial.
 
 Com atividades abertas no pasto, o Diário abre na lista "Em andamento neste pasto" (uma linha por atividade não concluída do resumo da área: nome, início, "Com abertura" ou "Sem abertura") com "Nova atividade". Tocar numa linha lê a atividade: com abertura, vai ao cabeçalho; sem ela, cai no formulário do defeito 1. Sem atividade aberta, o Diário abre no tipo, como antes. Do tipo, o Voltar volta à lista. O tipo com atividade aberta no pasto mostra "Já existe <nome> em andamento neste pasto: iniciar entra nela." (aviso).
 
-**Limite:** o servidor reaproveita a atividade aberta do mesmo tipo e área, então "Nova atividade" do mesmo tipo não cria uma segunda. Uma segunda do mesmo tipo no pasto exige mudança de backend (decisão futura). Uma aberta parada há mais de 30 dias responde 409 `ATIVIDADE_SERVICO_PARADO`; o Diário só mostra a frase e não grava (a escolha fica na Nova realização).
+**Limite:** superado pelas frentes (abaixo): "Nova atividade" do mesmo tipo não cria uma segunda atividade; entra como mais uma frente da que existe. Uma aberta parada há mais de 30 dias responde 409 `ATIVIDADE_SERVICO_PARADO`; o Diário só mostra a frase e não grava (a escolha fica na Nova realização).
 
 **Arquivos da emenda:** `src/components/lancamento-atividades/DiarioDasAtividades.jsx` (o passo `escolher`, a linha `ItemAtividadeAberta`), `src/components/mapa/detalhes-area/AbaDetalhesDaArea.jsx` (abre sem ler; passa `atividadesAbertas` e `lerAtividade`), `src/styles/cadastro-base1.css` (duas regras: `.b1-aberto-opcoes--lista` e `.b1-aberto-chip--neutro`; sem seletor `.b1-realizacao`). **Testes:** `tests/smoke/diarioEmAndamentoNoPasto.test.jsx` e `tests/smoke/diarioFase2.test.jsx`.
 
@@ -90,6 +91,21 @@ Os Detalhes da área tinham três entradas de diário. Ficou uma: o "Diário das
 - **Removida:** o botão verde "Diário das atividades" do topo da aba Manejos (`AbaDetalhesDaArea.jsx`), com o estado e o código que só ele usava.
 - **Continuam na página Lançamento de Atividades:** a "Nova realização" (`RegistroDeCampo.jsx`) e o "Diário da máquina" (`DiarioDaMaquina.jsx`), com os arquivos inteiros. Os Detalhes da área deixaram de abrir o "Diário da máquina" e a "Nova realização" pela pílula. A ação de linha "+ Lançamento" continua abrindo a "Nova realização" presa à atividade (D-PROD-278).
 - **Testes:** `tests/smoke/diarioFase2.test.jsx` (a aba sem o botão; o `DiarioDoPasto` com a lista e a leitura no toque), `tests/smoke/detalhesAreaHistorico.test.jsx` (a pílula Manejos abre o diário: no tipo sem atividade aberta, na lista com uma), `tests/smoke/mapaAtividadeAcoes.test.jsx` (o rótulo "Diário das atividades" no menu e o toque que abre o diário nessa atividade). Os testes da "Nova realização" pela pílula saíram do `detalhesAreaHistorico`, porque essa ligação não existe mais; a janela continua coberta pelos testes do `RegistroDeCampo`.
+
+### Uma abertura por máquina + implemento (frentes, mesma D-PROD-335)
+
+Vários tratores e implementos trabalham no mesmo pasto, no mesmo tipo, ao mesmo tempo. Cada um tem o seu serviço aberto, com a sua abertura, lançado separado.
+
+- **Decisão:** uma atividade por pasto e tipo; cada serviço é uma **frente**, isto é, os apontamentos dessa atividade cuja linha de abertura tem a mesma chave `bemId|implementoId` (implemento vazio vale como chave própria). Sem backend e sem migration: `chaveDaFrente`, `frentesDosApontamentos` e `apontamentosDaFrente` em `src/lib/aberturaServicoRegras.js`.
+- **No Diário:** a lista "Em andamento neste pasto" mostra um cartão por frente (máquina + implemento, "Responsável: …", início, e a atividade embaixo). Tocar abre só aquela frente: o cabeçalho, o "Lançado hoje" e a carga usam só os apontamentos dela, e a numeração da carga e o "apontamento de hoje" são por frente. A carga que cria o apontamento do dia leva a linha de abertura da frente na observação (`CargaDeInsumo`, prop `observacaoDoApontamento`), então o dia seguinte continua na frente certa.
+- **"Nova atividade" do mesmo tipo** com outra máquina ou implemento envia `registrarCampo` normalmente e o aviso diz que o serviço entra como mais uma frente.
+- **Trava:** a mesma máquina com o mesmo implemento não abre uma segunda frente no pasto. Não envia, o botão "Iniciar serviço" fica desabilitado e a ajuda diz para tocar no serviço na lista. Antes do envio, a conferência lê as atividades abertas do tipo (o cache serve quando há).
+- **Como casa com o modelo futuro:** uma atividade por área e tipo, com várias frentes dentro, cada uma com a sua abertura, horímetro, responsável, insumo e encerramento. A frente já é a unidade que o modelo vai guardar; hoje a chave mora na observação do apontamento, depois terá registro próprio.
+- **Limites:** "Encerrar serviço" ainda é "Em breve", então uma frente aberta não fecha. Frentes não aparecem fora do Diário: o Lançamento de Atividades continua vendo uma atividade só. Apontamentos de dias anteriores gravados antes desta emenda (sem a linha de abertura) não entram em frente nenhuma.
+
+**Revisão do Codex (PR #426, P1):** continuar uma atividade sem abertura, com mais de uma atividade aberta do mesmo tipo no pasto, deixava o servidor escolher a mais recente, e a abertura podia cair em outra. Agora não envia (aviso e botão desabilitado): conclua uma delas e tente de novo.
+
+**Testes:** `tests/smoke/aberturaServicoRegras.test.js` (frentes), `tests/smoke/diarioEmAndamentoNoPasto.test.jsx` (b, c, e, f, f2, g, g2), `tests/smoke/diarioDasAtividades.test.jsx` (carga por frente, d1 e d2).
 
 ## Fora desta parte
 
