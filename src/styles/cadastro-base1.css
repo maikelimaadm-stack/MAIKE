@@ -2517,6 +2517,12 @@
   padding: 3px 8px;
   white-space: nowrap;
 }
+/* D-PROD-336: a etiqueta "Sem abertura" (e "…" enquanto lê) não é verde. */
+.b1-aberto-chip--neutro {
+  color: #57534e;
+  background: #f7f6f2;
+  border-color: #e7e5df;
+}
 .b1-aberto-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2580,6 +2586,10 @@
 }
 .b1-aberto-opcoes > div {
   min-width: 0;
+}
+/* D-PROD-336: a lista "Em andamento neste pasto" é uma coluna só (as linhas são compactas, mas largas). */
+.b1-aberto-opcoes--lista {
+  grid-template-columns: minmax(0, 1fr);
 }
 .b1-aberto-opcao--inteira {
   grid-column: 1 / -1;
