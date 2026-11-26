@@ -44,6 +44,31 @@ export const guardarFotosDaTarefa = async (tarefaId, arquivos) => {
   return arquivos.length;
 };
 
+/**
+ * As fotos guardadas da tarefa (para mostrar e abrir): `{ chave, nome, tipo, conteudo }`.
+ * @param {string} tarefaId
+ * @returns {Promise<Array<{ chave: number|string, nome: string, tipo: string, conteudo: ArrayBuffer }>>}
+ */
+export const listarFotosGuardadasDaTarefa = async (tarefaId) => {
+  if (!tarefaId) return [];
+  try {
+    return (await getTarefaImagesOffline(chaveDa(tarefaId))).map((f) => ({
+      chave: f._imgId,
+      nome: f.name || 'foto',
+      tipo: f.type || 'image/jpeg',
+      conteudo: f.buffer,
+    }));
+  } catch {
+    return [];
+  }
+};
+
+/** Exclui do aparelho uma foto guardada (antes de ela subir). @param {number|string} chave */
+export const excluirFotoGuardada = async (chave) => {
+  await deleteTarefaImageOffline(chave);
+  avisar();
+};
+
 /** Quantas fotos da tarefa esperam a internet. @param {string} tarefaId */
 export const fotosAguardandoDaTarefa = async (tarefaId) => {
   if (!tarefaId) return 0;

@@ -10040,8 +10040,11 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - O painel (nova ou editar) e os detalhes (editar) usam isso no lugar do aviso de recusa. A mensagem diz "salva no aparelho com as fotos".
   - Os detalhes mostram "N fotos aguardando envio".
   - O resumo marca a tarefa feita sem internet e ainda não enviada com "aguardando envio".
-- **Fora:**
-  - ver a foto guardada antes de ela subir (só a contagem aparece);
-  - a tarefa recusada pelo servidor: a foto dela fica guardada até a tarefa ser corrigida ou descartada.
+- **Decisão — a foto guardada se vê e se mexe** (pedido do proprietário: "o certo era a foto aparecer e eu poder… excluir a foto e tirar de novo… clicar nela e abrir"):
+  - Nos detalhes (galeria) e na edição (formulário), a foto guardada aparece em miniatura com o selo "Aguardando envio".
+  - Toda foto abre em **tela cheia** ao tocar: a enviada, a guardada e a nova do formulário. É o `VisualizadorDeFotos`, separado da galeria.
+  - O ✕ exclui a foto guardada do celular depois de confirmar. Para tirar de novo, é só adicionar outra.
+  - O ✕ fica sempre visível; no celular não há "passar o mouse".
+- **Fora:** a tarefa recusada pelo servidor: a foto dela fica guardada até a tarefa ser corrigida ou descartada.
 
 <!-- Próxima decisão: D-PROD-325 -->

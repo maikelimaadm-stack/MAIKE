@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Check, CircleX, ClipboardList, FileText, History, MapPin, MessageSquare, MessageSquarePlus, Plus, Repeat, SquarePen, Trash2 } from "lucide-react";
 import { atualizarTarefa, enviarAnexo, excluirTarefa } from "@/services/tarefasMapaService";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
-import { EVENTO_FOTOS_DE_TAREFA, fotosAguardandoDaTarefa, guardarFotosDaTarefa } from "@/services/fotosDeTarefaAguardandoService";
+import { excluirFotoGuardada, guardarFotosDaTarefa } from "@/services/fotosDeTarefaAguardandoService";
+import useFotosGuardadasDaTarefa from "@/hooks/useFotosGuardadasDaTarefa";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
@@ -188,22 +189,13 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
   const podeExcluirEvento = usePodeExcluirEventoTarefa();
   const [showEdit, setShowEdit] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
-  // D-PROD-324: fotos desta tarefa tiradas sem internet, guardadas no aparelho esperando a internet.
-  const [fotosGuardadas, setFotosGuardadas] = useState(0);
-  useEffect(() => {
-    let vivo = true;
-    const ler = () => {
-      fotosAguardandoDaTarefa(tarefa?.id).then((n) => {
-        if (vivo) setFotosGuardadas(n);
-      });
-    };
-    ler();
-    window.addEventListener(EVENTO_FOTOS_DE_TAREFA, ler);
-    return () => {
-      vivo = false;
-      window.removeEventListener(EVENTO_FOTOS_DE_TAREFA, ler);
-    };
-  }, [tarefa?.id]);
+  // D-PROD-324: fotos desta tarefa tiradas sem internet, guardadas no aparelho esperando a internet: aparecem na
+  // galeria (abrem em tela cheia) e podem ser excluídas antes de subir.
+  const fotosGuardadas = useFotosGuardadasDaTarefa(tarefa?.id);
+  const excluirGuardada = async (chave) => {
+    const ok = await confirmarExclusao("Excluir esta foto? Ela ainda não foi enviada e sai do celular.");
+    if (ok) await excluirFotoGuardada(chave);
+  };
   const [showEvento, setShowEvento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [eventoTipo, setEventoTipo] = useState(tarefa.status === "Em Andamento" ? "Registro" : "Em Andamento");
@@ -532,17 +524,15 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
           {obsConclusao ? <Linha rotulo="Obs. conclusão" valor={obsConclusao} quebra /> : null}
         </Cartao>
 
-        {temFotos || fotosGuardadas > 0 ? (
+        {temFotos || fotosGuardadas.length > 0 ? (
           <>
             <TituloBloco>Fotos</TituloBloco>
-            {temFotos ? (
-              <div className="mk-dp-tarefa__fotos">
-                <FotosTarefaGaleria tarefa={currentTarefa} />
-              </div>
-            ) : null}
-            {fotosGuardadas > 0 ? (
+            <div className="mk-dp-tarefa__fotos">
+              <FotosTarefaGaleria tarefa={currentTarefa} guardadas={fotosGuardadas} onExcluirGuardada={excluirGuardada} />
+            </div>
+            {fotosGuardadas.length > 0 ? (
               <Nota data-mk-fotos-guardadas="">
-                {fotosGuardadas === 1 ? "1 foto aguardando envio" : `${fotosGuardadas} fotos aguardando envio`} — sobe quando a internet voltar.
+                {fotosGuardadas.length === 1 ? "1 foto aguardando envio" : `${fotosGuardadas.length} fotos aguardando envio`} — sobe quando a internet voltar.
               </Nota>
             ) : null}
           </>

@@ -15,6 +15,11 @@ import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import B1Select from "@/components/cadastro/base1/B1Select";
 import { LancLoteForm, LancLoteRodape, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import LancField from "@/components/cadastro/base1/LancField";
+import VisualizadorDeFotos from "@/components/tarefas/VisualizadorDeFotos";
+import { ROTULO_FOTO_GUARDADA } from "@/components/tarefas/FotosTarefaGaleria";
+import useFotosGuardadasDaTarefa from "@/hooks/useFotosGuardadasDaTarefa";
+import { excluirFotoGuardada } from "@/services/fotosDeTarefaAguardandoService";
+import { confirmarExclusao } from "@/lib/maikeConfirmar";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
@@ -155,6 +160,10 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // D-PROD-324: fotos desta tarefa guardadas no celular (tiradas sem internet), na edição.
+  const fotosGuardadas = useFotosGuardadasDaTarefa(tarefa?.id || null);
+  const [fotoAberta, setFotoAberta] = useState(/** @type {number | null} */ (null));
+
   const removeSavedImage = (url) => {
     setFormData((prev) => ({ ...prev, fotos: (prev.fotos || []).filter((f) => f !== url) }));
   };
@@ -250,6 +259,20 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     () => ordenarResponsaveisTarefa(usuariosSistema, permissoesUsuarios),
     [usuariosSistema, permissoesUsuarios]
   );
+
+  /** Todas as fotos do formulário, na ordem da tela: enviadas, guardadas no celular e novas. */
+  const miniaturas = [
+    ...(formData.fotos || []).map((url, i) => ({ chave: `salva-${i}-${url}`, url, tipo: "salva", remover: () => removeSavedImage(url) })),
+    ...fotosGuardadas.map((g) => ({
+      chave: `guardada-${g.chave}`,
+      url: g.url,
+      tipo: "guardada",
+      remover: async () => {
+        if (await confirmarExclusao("Excluir esta foto? Ela ainda não foi enviada e sai do celular.")) await excluirFotoGuardada(g.chave);
+      },
+    })),
+    ...previewUrls.map((url, i) => ({ chave: `nova-${i}-${url}`, url, tipo: "nova", remover: () => removeNewImage(i) })),
+  ];
 
   const getFieldClassName = (field, baseClass) => {
     return `${baseClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
@@ -397,24 +420,19 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
             <div className="mk-ll__item-titulo">Fotos da tarefa</div>
             {isOffline && <span className="flex items-center gap-1 text-[10px] text-amber-600"><WifiOff className="w-3 h-3" />Offline — fotos salvas localmente</span>}
           </div>
+          {/* D-PROD-324: toda foto abre em tela cheia ao tocar; o ✕ fica sempre visível (no celular não há "passar o
+              mouse"); editando, as fotos tiradas sem internet e guardadas no celular aparecem com "Aguardando envio". */}
           <div className="flex flex-wrap gap-2">
-            {/* Fotos já salvas */}
-            {(formData.fotos || []).map((url, idx) => (
-              <div key={`saved-${idx}`} className="relative w-16 h-16 rounded-md overflow-hidden border border-slate-300 group">
-                <img src={url} alt="" className="w-full h-full object-cover" />
-                <button type="button" onClick={() => removeSavedImage(url)} className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <X className="w-2.5 h-2.5" />
+            {miniaturas.map((m, idx) => (
+              <div key={m.chave} className={`relative w-16 h-16 rounded-md overflow-hidden border ${m.tipo === "nova" ? "border-2 border-emerald-400" : m.tipo === "guardada" ? "border-2 border-amber-400" : "border-slate-300"}`} data-mk-miniatura={m.tipo}>
+                <button type="button" onClick={() => setFotoAberta(idx)} aria-label={`Abrir foto ${idx + 1}`} className="w-full h-full">
+                  <img src={m.url} alt="" className="w-full h-full object-cover" />
                 </button>
-              </div>
-            ))}
-            {/* Novos previews */}
-            {previewUrls.map((url, idx) => (
-              <div key={`new-${idx}`} className="relative w-16 h-16 rounded-md overflow-hidden border-2 border-emerald-400 group">
-                <img src={url} alt="" className="w-full h-full object-cover" />
-                <button type="button" onClick={() => removeNewImage(idx)} className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <X className="w-2.5 h-2.5" />
+                <button type="button" onClick={m.remover} aria-label={`Remover foto ${idx + 1}`} className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full w-5 h-5 flex items-center justify-center">
+                  <X className="w-3 h-3" />
                 </button>
-                <div className="absolute bottom-0 left-0 right-0 bg-emerald-500/80 text-white text-[8px] text-center leading-tight py-0.5">NOVA</div>
+                {m.tipo === "nova" ? <div className="pointer-events-none absolute bottom-0 left-0 right-0 bg-emerald-500/80 text-white text-[8px] text-center leading-tight py-0.5">NOVA</div> : null}
+                {m.tipo === "guardada" ? <div className="pointer-events-none absolute bottom-0 left-0 right-0 bg-amber-500/90 text-white text-[7px] text-center leading-tight py-0.5">{ROTULO_FOTO_GUARDADA.toUpperCase()}</div> : null}
               </div>
             ))}
             {/* Botão adicionar */}
@@ -424,6 +442,13 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
               <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelect} />
             </label>
           </div>
+          <VisualizadorDeFotos
+            fotos={miniaturas.map((m) => m.url)}
+            legendas={miniaturas.map((m) => (m.tipo === "guardada" ? ROTULO_FOTO_GUARDADA : m.tipo === "nova" ? "Nova (sobe ao salvar)" : null))}
+            indice={fotoAberta}
+            onMudar={setFotoAberta}
+            onFechar={() => setFotoAberta(null)}
+          />
           {pendingImageFiles.length > 0 && (
             <p className="text-[10px] text-emerald-700 pl-1">{pendingImageFiles.length} foto(s) nova(s) {isOffline ? '— serão enviadas ao sincronizar' : '— serão enviadas ao salvar'}</p>
           )}
