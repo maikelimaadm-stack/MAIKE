@@ -109,6 +109,19 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("D-PROD-192 — categoria digitada no cadastro de ícone", () => {
+  it("Urgente permite escolher e salvar o novo modelo SVG sem trocar o subícone", async () => {
+    await montar([]);
+    const { dialogo, seletorCategoria } = await novoIconeDoTipo("Prioridade de Tarefa");
+    await escolher(seletorCategoria, "Urgente");
+    const botoes = dialogo.getAllByRole("button", { name: "Usar modelo de tarefa SVG" });
+    expect(botoes).toHaveLength(1);
+    fireEvent.click(botoes[0]);
+    await waitFor(() => expect(dialogo.getByAltText("Preview")).toHaveAttribute("src", "https://arquivos.exemplo/icone.png"));
+    await salvar(dialogo);
+    await waitFor(() => expect(icones.criar).toHaveBeenCalledTimes(1));
+    expect(icones.criar.mock.calls[0][0]).toMatchObject({ tipo_entidade: "Prioridade Tarefa", categoria: "URGENTE", icone_url: "https://arquivos.exemplo/icone.png", sub_icone_url: "" });
+  });
+
   it("CAT-01 digitar 'MEU PONTO': o valor fica no campo e é salvo em maiúsculas", async () => {
     await montar([]);
     const { dialogo, seletorCategoria, campo } = await novoIconeDoTipo("Ponto de Referência");

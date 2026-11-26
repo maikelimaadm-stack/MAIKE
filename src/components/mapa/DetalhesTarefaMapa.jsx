@@ -1,3 +1,4 @@
+import { CORES_PRIORIDADE_TAREFA } from "@/lib/tarefas/prioridade";
 import React, { useEffect, useState } from "react";
 import { Check, CircleX, ClipboardList, FileText, History, MapPin, MessageSquare, MessageSquarePlus, Plus, Repeat, SquarePen, Trash2 } from "lucide-react";
 import { atualizarTarefa, enviarAnexo, excluirTarefa } from "@/services/tarefasMapaService";
@@ -60,11 +61,8 @@ const CLASSE_DO_STATUS = {
   Cancelada: "mk-dp-tarefa__status--cancelada",
 };
 
-/**
- * Bolinha da prioridade (v12 `COR_PRIORIDADE`). A chave é a prioridade de
- * `normalizeTaskPriority`, que hoje junta "Urgente" com "Alta".
- */
-const COR_PRIORIDADE = { Urgente: "#dc2626", Alta: "#f59e0b", Média: "#0ea5e9", Baixa: "#64748b" };
+/** Mesma paleta dos marcadores e do resumo. */
+const COR_PRIORIDADE = CORES_PRIORIDADE_TAREFA;
 
 /** Prazo vencido de tarefa em aberto (v12: o valor do Prazo em vermelho). */
 // O vermelho de atraso do v12 (COR_INVESTIGAR), o mesmo da pesagem atrasada do Detalhes do Lote.
