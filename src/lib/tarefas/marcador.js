@@ -1,4 +1,4 @@
-import { estiloSeloPonto, estiloFarolPonto } from "../maplibre/marcadoresVisuais.js";
+import { estiloSeloPonto } from "../maplibre/marcadoresVisuais.js";
 import { diasEntre, hojeNoFuso } from '../diaCivil.js';
 import { urlIconeTarefa } from '../../assets/icones/tarefas.js';
 import { normalizarPrioridadeTarefa } from './prioridade.js';
@@ -38,15 +38,6 @@ export function aplicarIndicadorTarefa(el, tarefa, hoje) {
   badge.setAttribute('aria-hidden', 'true');
   // Contador no canto superior, no mesmo selo do nível do cocho.
   badge.style.cssText = estiloSeloPonto('#6b7280', '#ffffff', indicador.texto.length > 2 ? 7 : 9);
-  let farol = el.querySelector('[data-status-tarefa]');
-  if (!farol) {
-    farol = document.createElement('span');
-    farol.setAttribute('data-status-tarefa', '');
-    farol.setAttribute('aria-hidden', 'true');
-    el.appendChild(farol);
-  }
-  // Status embaixo, com a mesma bolinha da leitura do cocho.
-  /** @type {HTMLElement} */ (farol).style.cssText = estiloFarolPonto(indicador.cor);
   const descricao = `${tarefa.titulo || 'Tarefa'} — prioridade ${normalizarPrioridadeTarefa(tarefa.prioridade)} — ${indicador.descricao}`;
   el.title = descricao;
   el.setAttribute('aria-label', descricao);
