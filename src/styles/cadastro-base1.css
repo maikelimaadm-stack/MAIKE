@@ -2461,7 +2461,7 @@
   }
 }
 
-/* ─── Diário das atividades (D-PROD-329): cartão com a linha de apoio, título com subtítulo, a abertura e o cabeçalho ─── */
+/* ─── Diário das atividades (D-PROD-330): cartão com a linha de apoio, título com subtítulo, a abertura e o cabeçalho ─── */
 .b1-realizacao__cartao .cartao-sub {
   display: block;
   margin-top: 2px;
@@ -2570,11 +2570,11 @@
     font-size: 15px;
   }
 }
-/* D-PROD-329 — o valor escolhido na abertura (Trator 12, João Pereira) aparece como foi cadastrado, sem caixa alta. */
+/* D-PROD-330 — o valor escolhido na abertura (Trator 12, João Pereira) aparece como foi cadastrado, sem caixa alta. */
 .b1-aberto-janela .b1-form-embutido .mg-field :is(button, select, input, [role="combobox"]) {
   text-transform: none;
 }
-/* D-PROD-329 — no celular a abertura é "do operador" (maquete v4): rodapé com os botões lado a lado, campos e letras
+/* D-PROD-330 — no celular a abertura é "do operador" (maquete v4): rodapé com os botões lado a lado, campos e letras
    maiores. Só nesta janela (`b1-aberto-janela`); as outras janelas Base1 não mudam. */
 @media (max-width: 767px) {
   .cadastro-b1 .b1-aberto-janela .b1-janela__rodape {

@@ -1,5 +1,5 @@
 /**
- * D-PROD-329 — o "Diário das atividades" (só a abertura) com o service mockado:
+ * D-PROD-330 — o "Diário das atividades" (só a abertura) com o service mockado:
  *  (a) 7 cartões; "Continuar" só com um tipo escolhido;
  *  (b) Aplicação → campos na ordem Máquina, Implemento, Horímetro inicial, Responsável; sem "Hora de início";
  *  (c) escolher a máquina preenche o horímetro com a leitura dela (editável);

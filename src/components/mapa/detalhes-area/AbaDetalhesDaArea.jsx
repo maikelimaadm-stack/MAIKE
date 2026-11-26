@@ -101,7 +101,7 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
   const queryClient = useQueryClient();
   const acoesTela = useAcoesTelaAtividades();
   const { fusoOk } = useFusoDaFazenda(empresaId);
-  // D-PROD-329: "Diário das atividades" — o diário deste pasto (com a atividade em andamento, se houver; senão, do tipo).
+  // D-PROD-330: "Diário das atividades" — o diário deste pasto (com a atividade em andamento, se houver; senão, do tipo).
   const [abrindoDiario, setAbrindoDiario] = useState(false);
   const [diarioAberto, setDiarioAberto] = useState(/** @type {{ atividade: any, chave: number } | null} */ (null));
   const podeIniciar = Boolean(empresaId) && fusoOk && acoesTela.lancarApontamento === true;
@@ -175,7 +175,7 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
     <Vazio icone={Sprout}>Nenhuma atividade nesta área agora.</Vazio>
   );
 
-  // D-PROD-329: com uma atividade EM ANDAMENTO nesta área, o diário abre nela (lida como as ações da atividade); sem ela,
+  // D-PROD-330: com uma atividade EM ANDAMENTO nesta área, o diário abre nela (lida como as ações da atividade); sem ela,
   // abre no tipo para começar uma nova.
   const atividadeEmAndamento = atividades.find((a) => a.area_status === STATUS_AREA.EM_ANDAMENTO) ?? null;
   const abrirDiario = async () => {

@@ -1,5 +1,5 @@
 /**
- * D-PROD-329 — a ABERTURA de um serviço no "Diário das atividades" (só a abertura: tipo → máquina, implemento, horímetro
+ * D-PROD-330 — a ABERTURA de um serviço no "Diário das atividades" (só a abertura: tipo → máquina, implemento, horímetro
  * inicial e responsável → serviço iniciado).
  *
  * Sem migration: a abertura é guardada como PRIMEIRA LINHA da observação do apontamento do dia (o que o servidor já
