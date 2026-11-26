@@ -11,6 +11,7 @@
  * Horímetro: o campo é pt-BR (ponto = milhar, vírgula = decimal); o valor guardado é canônico ("1245.0").
  */
 import { ehCanonico, formatarNumero, lerNumeroLocal } from "./dinheiroDecimal.js";
+import { confirmadosDoDia } from "./atividadeApontamentoRegras.js";
 
 /** O início da linha de abertura, com o fechamento `]` e a quebra de linha (ou o fim do texto). */
 const LINHA_DA_ABERTURA = /^\[abertura-servico[^\]\n]*\](?:\r?\n|$)/;
@@ -153,4 +154,78 @@ export const aberturaDosApontamentos = (itens) => {
     if (abertura) return abertura;
   }
   return null;
+};
+
+// ─── Serviço aberto: "Lançado hoje" (D-PROD-330, emenda da tela 05) ─────
+
+/** Unidade de quem é medido por tempo (a linha de mão de obra): "8 h", "1 diária", "2 tarefas". */
+const UNIDADE_DA_MEDIDA = Object.freeze({ HORA: "h", DIARIA: "diária", TAREFA: "tarefa" });
+
+/** Quantidade canônica ("1000.0000") → pt-BR ("1.000"); sem valor, "". @param {unknown} v */
+const quantidadeTexto = (v) => (ehCanonico(v) ? formatarNumero(/** @type {string} */ (v), { locale: "pt-BR", casasMin: 0, casasMax: 4 }) : "");
+
+/** A hora HH:MM de um instante no fuso da fazenda; sem instante válido ou fuso, "". @param {unknown} iso @param {string|null} fuso */
+const horaNoFuso = (iso, fuso) => {
+  const ms = typeof iso === "string" || typeof iso === "number" ? Date.parse(String(iso)) : Number.NaN;
+  if (!Number.isFinite(ms) || !fuso) return "";
+  try {
+    return new Intl.DateTimeFormat("pt-BR", { timeZone: fuso, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(ms);
+  } catch {
+    return "";
+  }
+};
+
+/**
+ * Os lançamentos CONFIRMADOS de UM dia da atividade, uma linha por linha lançada (produto, máquina, mão de obra e serviço
+ * de terceiro), na ordem do horário. Sem valor em R$: a tela de campo não mostra custo. Só entram apontamentos
+ * CONFIRMADO do `dia` e linhas CONFIRMADO. A hora é da LINHA (`createdAt`, com o do apontamento como reserva), no fuso
+ * da fazenda. Quantidade vazia sai vazia; o sinal da linha não é conferido aqui (o servidor já validou).
+ *
+ * @param {any[]} apontamentos a lista de apontamentos da atividade (`itensDaLista`), em qualquer ordem
+ * @param {string} dia o "hoje" da fazenda (AAAA-MM-DD)
+ * @param {string|null} fuso o fuso IANA da fazenda
+ * @returns {Array<{ chave: string, hora: string, tipo: "insumo"|"maquina"|"mao_obra"|"servico", titulo: string, sub: string, quantidade: string, instante: number }>}
+ */
+export const lancamentosDoDia = (apontamentos, dia, fuso) => {
+  /** @type {ReturnType<typeof lancamentosDoDia>} */
+  const linhas = [];
+  const confirmada = (/** @type {any} */ l) => Boolean(l) && typeof l === "object" && l.status === "CONFIRMADO";
+  /** @param {unknown} v */
+  const sem = (v) => (v == null ? "" : String(v).trim());
+  for (const ap of confirmadosDoDia(apontamentos, dia)) {
+    /**
+     * @param {"insumo"|"maquina"|"mao_obra"|"servico"} tipo @param {any} l @param {string} titulo @param {string} sub @param {string} quantidade
+     */
+    const monta = (tipo, l, titulo, sub, quantidade) => {
+      const iso = l.createdAt ?? ap.createdAt;
+      const ms = Date.parse(String(iso ?? ""));
+      linhas.push({
+        chave: `${ap.id}:${tipo}:${l.id ?? linhas.length}`,
+        hora: horaNoFuso(iso, fuso),
+        tipo,
+        titulo,
+        sub,
+        quantidade,
+        instante: Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY,
+      });
+    };
+    const junta = (...partes) => partes.filter(Boolean).join(" ");
+    for (const l of (ap.produtos ?? []).filter(confirmada)) {
+      const titulo = l.jato != null ? `Insumo · Jato ${l.jato}` : "Insumo";
+      monta("insumo", l, titulo, sem(l.produto?.nome), junta(quantidadeTexto(l.quantidade_lancamento ?? l.quantidade), sem(l.unidade_lancamento) || sem(l.unidade)));
+    }
+    for (const l of (ap.maquinas ?? []).filter(confirmada)) {
+      const sub = sem(l.bem?.nome) || sem(l.implemento?.nome);
+      monta("maquina", l, "Máquina", sub, junta(quantidadeTexto(l.quantidade_uso), sem(l.medidor_unidade)));
+    }
+    for (const l of (ap.mao_obra ?? []).filter(confirmada)) {
+      const medida = sem(l.tipo_medida);
+      const unidade = UNIDADE_DA_MEDIDA[/** @type {keyof typeof UNIDADE_DA_MEDIDA} */ (medida)] ?? medida.toLowerCase();
+      monta("mao_obra", l, "Mão de obra", sem(l.parceiro?.nome), junta(quantidadeTexto(l.quantidade), unidade));
+    }
+    for (const l of (ap.servicos ?? []).filter(confirmada)) {
+      monta("servico", l, "Serviço de terceiro", sem(l.servico?.nome) || sem(l.parceiro?.nome), junta(quantidadeTexto(l.quantidade), sem(l.unidade)));
+    }
+  }
+  return linhas.sort((a, b) => a.instante - b.instante);
 };

@@ -5,6 +5,7 @@ import { describe, it, expect } from "vitest";
 import {
   aberturaDosApontamentos,
   formatarHorimetro,
+  lancamentosDoDia,
   lerAbertura,
   marcadorDaAbertura,
   observacaoComAbertura,
@@ -160,3 +161,70 @@ describe("aberturaDosApontamentos", () => {
     expect(aberturaDosApontamentos(undefined)).toBeNull();
   });
 });
+
+describe("lancamentosDoDia — \"Lançado hoje\" do serviço aberto (D-PROD-330, tela 05)", () => {
+  const HOJE = "2026-11-26";
+  const FUSO = "America/Sao_Paulo";
+  // 07:45 de São Paulo (UTC-3) = 10:45Z.
+  const produto = (id, extra = {}) => ({ id, status: "CONFIRMADO", produto: { nome: "Glifosato" }, quantidade: "1000.0000", unidade: "L", createdAt: "2026-11-26T10:45:00.000Z", ...extra });
+  const apontamento = (extra = {}) => ({ id: "ap-1", data_operacional: HOJE, status: "CONFIRMADO", createdAt: "2026-11-26T10:00:00.000Z", produtos: [], maquinas: [], mao_obra: [], servicos: [], ...extra });
+
+  it("sem apontamentos ou sem nada de hoje, a lista é vazia", () => {
+    expect(lancamentosDoDia([], HOJE, FUSO)).toEqual([]);
+    expect(lancamentosDoDia(undefined, HOJE, FUSO)).toEqual([]);
+    expect(lancamentosDoDia([apontamento({ data_operacional: "2026-11-25", produtos: [produto("pl-1")] })], HOJE, FUSO)).toEqual([]);
+  });
+
+  it("uma linha por linha CONFIRMADA: insumo com o jato, a hora no fuso da fazenda e a quantidade em pt-BR", () => {
+    const [linha] = lancamentosDoDia([apontamento({ produtos: [produto("pl-1", { jato: 1 })] })], HOJE, FUSO);
+    expect(linha).toMatchObject({ tipo: "insumo", hora: "07:45", titulo: "Insumo · Jato 1", sub: "Glifosato", quantidade: "1.000 L" });
+  });
+
+  it("ordena pela hora e cobre máquina, mão de obra (com a medida) e serviço de terceiro", () => {
+    const linhas = lancamentosDoDia(
+      [
+        apontamento({
+          produtos: [produto("pl-1")],
+          maquinas: [{ id: "ml-1", status: "CONFIRMADO", bem: { nome: "Trator 12" }, quantidade_uso: "3.5000", medidor_unidade: "h", createdAt: "2026-11-26T13:00:00.000Z" }],
+          mao_obra: [{ id: "mo-1", status: "CONFIRMADO", parceiro: { nome: "Pedro" }, tipo_medida: "HORA", quantidade: "8.0000", createdAt: "2026-11-26T12:20:00.000Z" }],
+          servicos: [{ id: "sv-1", status: "CONFIRMADO", servico: { nome: "Frete" }, quantidade: "2.0000", unidade: "viagem", createdAt: "2026-11-26T14:00:00.000Z" }],
+        }),
+      ],
+      HOJE,
+      FUSO,
+    );
+    expect(linhas.map((l) => [l.hora, l.tipo, l.titulo, l.sub, l.quantidade])).toEqual([
+      ["07:45", "insumo", "Insumo", "Glifosato", "1.000 L"],
+      ["09:20", "mao_obra", "Mão de obra", "Pedro", "8 h"],
+      ["10:00", "maquina", "Máquina", "Trator 12", "3,5 h"],
+      ["11:00", "servico", "Serviço de terceiro", "Frete", "2 viagem"],
+    ]);
+  });
+
+  it("ignora linhas CANCELADAS e apontamentos CANCELADOS, e nunca traz valor em R$", () => {
+    const linhas = lancamentosDoDia(
+      [
+        apontamento({ produtos: [produto("pl-1", { status: "CANCELADO", custo_total: "99.0000" }), produto("pl-2", { custo_total: "250.0000" })] }),
+        apontamento({ id: "ap-2", status: "CANCELADO", produtos: [produto("pl-3")] }),
+      ],
+      HOJE,
+      FUSO,
+    );
+    expect(linhas).toHaveLength(1);
+    expect(JSON.stringify(linhas.map(({ instante, ...r }) => r))).not.toMatch(/R\$|custo|250|99/);
+  });
+
+  it("a hora cai no apontamento quando a linha não tem createdAt; sem nenhum instante, a hora fica vazia e a linha vai para o fim", () => {
+    const linhas = lancamentosDoDia(
+      [
+        apontamento({ createdAt: "2026-11-26T12:30:00.000Z", produtos: [{ id: "pl-1", status: "CONFIRMADO", produto: { nome: "A" }, quantidade: "1.0000", unidade: "L" }] }),
+        apontamento({ id: "ap-2", createdAt: null, produtos: [{ id: "pl-2", status: "CONFIRMADO", produto: { nome: "B" }, quantidade: "2.0000", unidade: "KG" }] }),
+      ],
+      HOJE,
+      FUSO,
+    );
+    expect(linhas[0]).toMatchObject({ hora: "09:30", sub: "A", quantidade: "1 L" });
+    expect(linhas[1]).toMatchObject({ hora: "", sub: "B", quantidade: "2 KG" });
+  });
+});
+

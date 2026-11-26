@@ -2570,6 +2570,176 @@
     font-size: 15px;
   }
 }
+/* D-PROD-330 (emenda, tela 05) — o serviço aberto: as 7 opções em duas colunas (a última ocupa a linha), "Lançado hoje"
+   e o painel "Em breve". Celular é o padrão; no desktop, o título e a linha de apoio ficam menores e aparece a seta. */
+.b1-aberto-opcoes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.b1-aberto-opcoes > div {
+  min-width: 0;
+}
+.b1-aberto-opcao--inteira {
+  grid-column: 1 / -1;
+}
+.b1-aberto-opcao {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  min-height: 64px;
+  padding: 10px 8px 10px 10px;
+  border: 1px solid #e7e5df;
+  border-radius: 12px;
+  background: #fff;
+  color: #141413;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+.b1-aberto-opcao:hover {
+  border-color: #40de63;
+  background: rgba(64, 222, 99, 0.06);
+}
+.b1-aberto-opcao:focus-visible {
+  outline: 2px solid #15803d;
+  outline-offset: 2px;
+}
+.b1-aberto-opcao__icone {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: rgba(64, 222, 99, 0.14);
+  color: #15803d;
+}
+.b1-aberto-opcao__texto {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.b1-aberto-opcao__titulo {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.b1-aberto-opcao__sub {
+  font-size: 12.5px;
+  color: #73726c;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.b1-aberto-opcao__seta {
+  display: none;
+  flex-shrink: 0;
+  color: #73726c;
+}
+.b1-aberto-secao {
+  margin: 14px 2px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e7e5df;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #73726c;
+}
+.b1-aberto-lancados {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.b1-aberto-lancado {
+  display: grid;
+  grid-template-columns: 44px 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 2px;
+  border-bottom: 1px solid #efeee9;
+  font-size: 14px;
+  color: #141413;
+}
+.b1-aberto-lancado__hora {
+  font-size: 13px;
+  color: #73726c;
+  font-variant-numeric: tabular-nums;
+}
+.b1-aberto-lancado__icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(64, 222, 99, 0.14);
+  color: #15803d;
+}
+.b1-aberto-lancado__texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.b1-aberto-lancado__texto > strong {
+  font-weight: 700;
+}
+.b1-aberto-lancado__sub {
+  font-size: 12.5px;
+  color: #73726c;
+  overflow-wrap: anywhere;
+}
+.b1-aberto-lancado__qtd {
+  font-size: 14px;
+  white-space: nowrap;
+}
+.b1-aberto-vazio {
+  margin: 10px 2px 0;
+  font-size: 13px;
+  color: #73726c;
+}
+.b1-aberto-painel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid #e7e5df;
+  border-radius: 12px;
+  background: #fff;
+}
+.b1-aberto-painel__titulo {
+  font-size: 16px;
+  font-weight: 700;
+  color: #141413;
+}
+.b1-aberto-painel .b1-aberto-breve {
+  margin: 0;
+}
+/* A ação única do rodapé do serviço aberto ("Encerrar serviço" / "Voltar ao serviço"): à direita no desktop, como na maquete. */
+.b1-aberto-rodape-unico {
+  margin-left: auto;
+}
+@media (min-width: 768px) {
+  .b1-aberto-opcao {
+    align-items: center;
+  }
+  .b1-aberto-opcao__titulo {
+    font-size: 13.5px;
+  }
+  .b1-aberto-opcao__sub {
+    font-size: 12px;
+  }
+  .b1-aberto-opcao__seta {
+    display: block;
+  }
+}
 /* D-PROD-330 — o valor escolhido na abertura (Trator 12, João Pereira) aparece como foi cadastrado, sem caixa alta. */
 .b1-aberto-janela .b1-form-embutido .mg-field :is(button, select, input, [role="combobox"]) {
   text-transform: none;

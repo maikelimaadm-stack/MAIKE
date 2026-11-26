@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Play } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, ChevronRight, FileText, FlaskConical, Fuel, Loader2, Play, Square, Truck, User, Wrench } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import B1Select from "@/components/cadastro/base1/B1Select";
@@ -9,7 +9,7 @@ import { AvisoGestao, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
-import { aberturaDosApontamentos, formatarHorimetro, marcadorDaAbertura, parseHorimetroPtBr, validarAbertura } from "@/lib/aberturaServicoRegras";
+import { aberturaDosApontamentos, formatarHorimetro, lancamentosDoDia, marcadorDaAbertura, parseHorimetroPtBr, validarAbertura } from "@/lib/aberturaServicoRegras";
 import { RAIZ_CONSULTAS_ATIVIDADES, chaveApontamentos, itensDaLista, normalizarPaginaDeOpcoes } from "@/lib/atividadeApontamentoRegras";
 import { medidorDaResposta, textoDaLeituraVigente } from "@/lib/atividadeLinhasRegras";
 import { tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
@@ -43,6 +43,23 @@ const hectaresDaArea = (v) => {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
 };
+
+/**
+ * D-PROD-330 (tela 05) — as 7 opções do serviço aberto, na ordem da maquete. A `chave` é o final do `data-testid`
+ * (`servico-opcao-<chave>`). Por enquanto cada uma abre o painel "Em breve" (as ações vêm nas próximas etapas).
+ */
+const OPCOES_DO_SERVICO = Object.freeze([
+  { chave: "insumo", titulo: "Insumo", sub: "Produto ou mistura no implemento (jatos, L, kg ou sacos)", Icone: FlaskConical },
+  { chave: "maquina", titulo: "Máquina", sub: "Trocar implemento, problema ou parada, corrigir horímetro", Icone: Truck },
+  { chave: "abastecimento", titulo: "Abastecimento", sub: "Diesel, litros e horímetro", Icone: Fuel },
+  { chave: "trocar-pasto", titulo: "Trocar pasto", sub: "Horímetro de saída e de chegada", Icone: ArrowLeftRight },
+  { chave: "mao-de-obra", titulo: "Mão de obra", sub: "Quem ajudou e as horas", Icone: User },
+  { chave: "servico-terceiro", titulo: "Serviço de terceiro", sub: "Conserto, frete, aplicação contratada", Icone: Wrench },
+  { chave: "outros-custos", titulo: "Outros custos", sub: "Qualquer outro gasto deste serviço", Icone: FileText },
+]);
+
+/** O ícone de cada linha de "Lançado hoje" (o tipo da linha, como `lancamentosDoDia` devolve). */
+const ICONE_DO_LANCAMENTO = Object.freeze({ insumo: FlaskConical, maquina: Truck, mao_obra: User, servico: Wrench });
 
 /** "26/11" a partir do dia ISO (AAAA-MM-DD); sem dia, "". @param {string} iso */
 const diaCurto = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso || "") ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : "");
@@ -81,8 +98,8 @@ function CampoEscolha({ label, value, onChange, options, required = false, error
  *  - `tipo` (tela 01): os 7 tipos fixos em cartões; "Continuar" leva ao passo seguinte;
  *  - `abrir` (tela 02): "Nova atividade de <Tipo>" — Máquina *, Implemento (opcional), Horímetro inicial *, Responsável *;
  *    com mais de uma operação do tipo, a Operação * vem antes (com uma só, ela é escolhida sozinha; com nenhuma, aviso);
- *  - `iniciado` (tela 03): o cabeçalho do serviço aberto (tipo, máquina, implemento, responsável, pasto e horímetro). As
- *    próximas ações (Encher implemento, Trocar pasto…) chegam nas próximas etapas.
+ *  - `iniciado` (tela 05): o serviço aberto — o cabeçalho (tipo, máquina, implemento, responsável, pasto e horímetro),
+ *    as 7 opções (cada uma abre um painel "Em breve") e "Lançado hoje" (as linhas de hoje, lidas dos apontamentos).
  *
  * Abrir o serviço é um envio só: `registrarCampo` acha/abre a atividade do tipo na área e cria o apontamento do dia, com a
  * abertura na observação (`marcadorDaAbertura`, sem migration). Sem `atividade`, a janela começa no tipo; com uma atividade EM
@@ -176,15 +193,22 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
 
   // ─── Cabeçalho do serviço aberto (passo "iniciado") ─────────────────
   const atividadeId = atividadeAtual?.id != null ? String(atividadeAtual.id) : null;
-  const aberturaConsultada = useQuery({
+  // Os apontamentos da atividade (o cabeçalho e "Lançado hoje" leem daqui; a lista já traz as linhas).
+  const apontamentosLidos = useQuery({
     queryKey: chaveApontamentos(empresaId, atividadeId),
     queryFn: () => listarApontamentos(/** @type {string} */ (atividadeId)),
-    enabled: Boolean(empresaId && atividadeId && passo === "iniciado" && !aberturaSalva),
+    enabled: Boolean(empresaId && atividadeId && passo === "iniciado"),
     staleTime: 15 * 1000,
-    select: (resposta) => aberturaDosApontamentos(itensDaLista(resposta)),
   });
-  const abertura = aberturaSalva ?? (aberturaConsultada.isSuccess ? aberturaConsultada.data : null);
-  const semAbertura = passo === "iniciado" && !abertura && (Boolean(aberturaSalva) || aberturaConsultada.isSuccess);
+  const apontamentosDaAtividade = useMemo(() => itensDaLista(apontamentosLidos.data), [apontamentosLidos.data]);
+  const aberturaLida = useMemo(() => (apontamentosLidos.isSuccess ? aberturaDosApontamentos(apontamentosDaAtividade) : null), [apontamentosLidos.isSuccess, apontamentosDaAtividade]);
+  /** Os lançamentos de hoje (CONFIRMADO, por linha, sem R$), na ordem do horário. */
+  const lancadosHoje = useMemo(() => lancamentosDoDia(apontamentosDaAtividade, hoje, fuso), [apontamentosDaAtividade, hoje, fuso]);
+  // A abertura que acabou de ser gravada tem prioridade; sem ela, a da consulta.
+  const abertura = aberturaSalva ?? aberturaLida;
+  const semAbertura = passo === "iniciado" && !abertura && (Boolean(aberturaSalva) || apontamentosLidos.isSuccess);
+  /** O painel "Em breve" da tela 05: o título da opção tocada (ou "Encerrar serviço"); null = o serviço aberto. */
+  const [emBreve, setEmBreve] = useState(/** @type {string | null} */ (null));
 
   // ─── Permissão e fuso (como na Nova realização) ─────────────────────
   const podeGravar = acoes?.lancarApontamento === true && Boolean(empresaId) && Boolean(fuso) && fusoOk;
@@ -265,6 +289,8 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
         return;
       }
       const detalhe = await obterAtividade(String(id)).catch(() => null);
+      // O apontamento recém-criado entra na lista ("Lançado hoje") quando a consulta for feita.
+      void queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, String(id)) });
       setAtividadeAtual(detalhe ?? resposta?.atividade ?? { id });
       setAberturaSalva(abertura);
       onGravou?.(resposta);
@@ -402,7 +428,7 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
     </form>
   );
 
-  /** Passo 3 (tela 03): o cabeçalho do serviço aberto. As próximas ações ficam para as próximas etapas. */
+  /** Passo 3 (tela 05): o serviço aberto — o cabeçalho, as 7 opções, "Lançado hoje" e o "Encerrar serviço". */
   const iniciado = (
     <div className="b1-realizacao__passo" data-testid="abertura-iniciado">
       <section className="b1-aberto-topo" aria-label="Serviço aberto">
@@ -433,9 +459,59 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
         </div>
       </section>
       {semAbertura ? <p className="b1-realizacao__ajuda">Abertura não registrada neste serviço.</p> : null}
-      <p className="b1-aberto-breve" data-testid="abertura-em-breve">
-        Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia chegam nas próximas etapas.
-      </p>
+      {emBreve !== null ? (
+        <section className="b1-aberto-painel" aria-label={emBreve} data-testid="servico-em-breve">
+          <strong className="b1-aberto-painel__titulo">{emBreve}</strong>
+          <p className="b1-aberto-breve">Em breve: esta parte ainda vai ser feita.</p>
+        </section>
+      ) : (
+        <>
+          <div className="b1-aberto-opcoes" role="list" aria-label="O que fazer no serviço">
+            {OPCOES_DO_SERVICO.map((o) => {
+              const Icone = o.Icone;
+              return (
+                <div key={o.chave} role="listitem" className={o.chave === "outros-custos" ? "b1-aberto-opcao--inteira" : undefined}>
+                  <button type="button" className="b1-aberto-opcao" onClick={() => setEmBreve(o.titulo)} data-testid={`servico-opcao-${o.chave}`}>
+                    <span className="b1-aberto-opcao__icone" aria-hidden>
+                      <Icone size={18} strokeWidth={1.75} />
+                    </span>
+                    <span className="b1-aberto-opcao__texto">
+                      <strong className="b1-aberto-opcao__titulo">{o.titulo}</strong>
+                      <span className="b1-aberto-opcao__sub">{o.sub}</span>
+                    </span>
+                    <ChevronRight className="b1-aberto-opcao__seta" size={18} aria-hidden />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <h3 className="b1-aberto-secao">Lançado hoje</h3>
+          {lancadosHoje.length ? (
+            <ul className="b1-aberto-lancados" aria-label="Lançado hoje">
+              {lancadosHoje.map((l) => {
+                const Icone = ICONE_DO_LANCAMENTO[/** @type {keyof typeof ICONE_DO_LANCAMENTO} */ (l.tipo)];
+                return (
+                  <li key={l.chave} className="b1-aberto-lancado" data-testid="servico-lancado-item">
+                    <span className="b1-aberto-lancado__hora">{l.hora}</span>
+                    <span className="b1-aberto-lancado__icone" aria-hidden>
+                      <Icone size={16} strokeWidth={1.75} />
+                    </span>
+                    <span className="b1-aberto-lancado__texto">
+                      <strong>{l.titulo}</strong>
+                      {l.sub ? <span className="b1-aberto-lancado__sub">{l.sub}</span> : null}
+                    </span>
+                    <span className="b1-aberto-lancado__qtd">{l.quantidade}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="b1-aberto-vazio" data-testid="servico-nada-lancado">
+              Nada lançado ainda
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 
@@ -469,9 +545,14 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
           {enviando ? "Iniciando…" : "Iniciar serviço"}
         </button>
       </>
+    ) : emBreve !== null ? (
+      <button type="button" className={`${BOTAO_SECUNDARIO} b1-aberto-rodape-unico`} onClick={() => setEmBreve(null)} data-testid="servico-voltar">
+        Voltar ao serviço
+      </button>
     ) : (
-      <button type="button" className={BOTAO_SECUNDARIO} onClick={onFechar} data-testid="abertura-fechar">
-        Fechar
+      <button type="button" className={`${BOTAO_SECUNDARIO} b1-aberto-rodape-unico`} onClick={() => setEmBreve("Encerrar serviço")} data-testid="servico-encerrar">
+        <Square className="h-4 w-4" aria-hidden />
+        Encerrar serviço
       </button>
     );
 

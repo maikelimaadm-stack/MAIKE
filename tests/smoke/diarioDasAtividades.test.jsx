@@ -6,7 +6,9 @@
  *  (d) confirmar vazio mostra os erros e não envia;
  *  (e) confirmar envia `registrarCampo` uma vez, com a abertura na observação, e mostra o cabeçalho "Aberto";
  *  (f) aberto com uma atividade existente, começa direto no cabeçalho (lido dos apontamentos);
- *  (g) com duas operações do tipo, a Operação vem primeiro e é obrigatória.
+ *  (g) com duas operações do tipo, a Operação vem primeiro e é obrigatória;
+ *  (h) D-PROD-330 emenda (tela 05): 7 opções com títulos; "Nada lançado ainda"; "Lançado hoje" com as linhas de hoje
+ *      na ordem do horário e sem R$; tocar uma opção ou "Encerrar serviço" mostra o painel "Em breve" e "Voltar" volta.
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -179,8 +181,11 @@ describe("Diário das atividades — abertura", () => {
     expect(within(cabecalho).getByText("Pasto 04")).toBeInTheDocument();
     expect(within(cabecalho).getByText("Horímetro inicial 1.250,5")).toBeInTheDocument();
     expect(within(cabecalho).getByText("● Aberto")).toBeInTheDocument();
-    expect(screen.getByTestId("abertura-em-breve")).toHaveTextContent("Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia chegam nas próximas etapas.");
-    expect(screen.getByTestId("abertura-fechar")).toHaveTextContent("Fechar");
+    // A tela 05: as 7 opções, "Nada lançado ainda" (sem linhas) e o "Encerrar serviço" no rodapé; sem o "Fechar" antigo.
+    expect(screen.getByTestId("servico-nada-lancado")).toHaveTextContent("Nada lançado ainda");
+    expect(screen.getByTestId("servico-encerrar")).toHaveTextContent("Encerrar serviço");
+    expect(screen.queryByTestId("abertura-fechar")).toBeNull();
+    expect(screen.queryByTestId("abertura-em-breve")).toBeNull();
   });
 
   it("(f) aberto com uma atividade existente, começa no cabeçalho com a abertura lida dos apontamentos", async () => {
@@ -195,6 +200,7 @@ describe("Diário das atividades — abertura", () => {
     expect(await within(cabecalho).findByText("Horímetro inicial 1.245,0")).toBeInTheDocument();
     expect(within(cabecalho).getByText("Trator 12")).toBeInTheDocument();
     expect(screen.queryByTestId("diario-atividades-tipos")).toBeNull();
+    expect(screen.getByTestId("servico-encerrar")).toBeInTheDocument();
   });
 
   it("(f2) sem abertura gravada na atividade, o cabeçalho diz que não foi registrada", async () => {
@@ -212,5 +218,92 @@ describe("Diário das atividades — abertura", () => {
     fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
     expect(await screen.findByText("Escolha a operação.")).toBeInTheDocument();
     expect(servico.registrarCampo).not.toHaveBeenCalled();
+  });
+
+  it("(h1) a tela 05 mostra as 7 opções, cada uma com o título e a linha de apoio da maquete", async () => {
+    renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+    await screen.findByTestId("abertura-iniciado");
+    const esperado = [
+      ["insumo", "Insumo", "Produto ou mistura no implemento (jatos, L, kg ou sacos)"],
+      ["maquina", "Máquina", "Trocar implemento, problema ou parada, corrigir horímetro"],
+      ["abastecimento", "Abastecimento", "Diesel, litros e horímetro"],
+      ["trocar-pasto", "Trocar pasto", "Horímetro de saída e de chegada"],
+      ["mao-de-obra", "Mão de obra", "Quem ajudou e as horas"],
+      ["servico-terceiro", "Serviço de terceiro", "Conserto, frete, aplicação contratada"],
+      ["outros-custos", "Outros custos", "Qualquer outro gasto deste serviço"],
+    ];
+    for (const [chave, titulo, sub] of esperado) {
+      const cartao = screen.getByTestId(`servico-opcao-${chave}`);
+      expect(cartao.tagName).toBe("BUTTON");
+      expect(cartao).toHaveAttribute("type", "button");
+      expect(within(cartao).getByText(titulo)).toBeInTheDocument();
+      expect(within(cartao).getByText(sub)).toBeInTheDocument();
+    }
+    expect(screen.getByText("Lançado hoje")).toBeInTheDocument();
+  });
+
+  it("(h2) Lançado hoje: as linhas de hoje na ordem do horário (fuso da fazenda), sem R$ e sem as canceladas", async () => {
+    servico.listarApontamentos.mockResolvedValue({
+      items: [
+        {
+          id: "ap-1",
+          data_operacional: "2026-11-26",
+          status: "CONFIRMADO",
+          createdAt: "2026-11-26T10:00:00.000Z",
+          observacao: marcadorDaAbertura({ bemId: "bem-7", implementoId: "imp-2", horimetro: "1245.0", responsavelId: "usr-3", bemNome: "Trator 12", implementoNome: "Pulverizador 2.000 L", responsavelNome: "João Pereira" }),
+          produtos: [{ id: "pl-1", status: "CONFIRMADO", produto: { nome: "Glifosato" }, quantidade: "1000.0000", unidade: "L", jato: 1, custo_total: "250.0000", createdAt: "2026-11-26T10:45:00.000Z" }],
+          maquinas: [],
+          mao_obra: [
+            { id: "mo-1", status: "CONFIRMADO", parceiro: { nome: "Pedro Ajudante" }, tipo_medida: "HORA", quantidade: "8.0000", custo_total: "400.0000", createdAt: "2026-11-26T12:20:00.000Z" },
+            { id: "mo-2", status: "CANCELADO", parceiro: { nome: "Linha cancelada" }, tipo_medida: "HORA", quantidade: "2.0000", createdAt: "2026-11-26T11:00:00.000Z" },
+          ],
+          servicos: [],
+        },
+        // Um apontamento CANCELADO não aparece, mesmo com linhas confirmadas.
+        { id: "ap-2", data_operacional: "2026-11-26", status: "CANCELADO", createdAt: "2026-11-26T10:00:00.000Z", produtos: [{ id: "pl-9", status: "CONFIRMADO", produto: { nome: "Outro" }, quantidade: "5.0000", unidade: "L", createdAt: "2026-11-26T10:05:00.000Z" }], maquinas: [], mao_obra: [], servicos: [] },
+        // Outro dia: não entra em "Lançado hoje".
+        { id: "ap-3", data_operacional: "2026-11-25", status: "CONFIRMADO", createdAt: "2026-11-25T10:00:00.000Z", produtos: [{ id: "pl-7", status: "CONFIRMADO", produto: { nome: "Ontem" }, quantidade: "1.0000", unidade: "L", createdAt: "2026-11-25T10:05:00.000Z" }], maquinas: [], mao_obra: [], servicos: [] },
+      ],
+    });
+    renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+    const linhas = await screen.findAllByTestId("servico-lancado-item");
+    expect(linhas).toHaveLength(2);
+    expect(linhas[0]).toHaveTextContent("07:45");
+    expect(linhas[0]).toHaveTextContent("Insumo · Jato 1");
+    expect(linhas[0]).toHaveTextContent("Glifosato");
+    expect(linhas[0]).toHaveTextContent("1.000 L");
+    expect(linhas[1]).toHaveTextContent("09:20");
+    expect(linhas[1]).toHaveTextContent("Mão de obra");
+    expect(linhas[1]).toHaveTextContent("Pedro Ajudante");
+    expect(linhas[1]).toHaveTextContent("8 h");
+    expect(document.body.textContent).not.toContain("R$");
+    expect(screen.queryByTestId("servico-nada-lancado")).toBeNull();
+  });
+
+  it("(h3) tocar uma opção mostra o painel \"Em breve\" na mesma janela; Voltar ao serviço volta", async () => {
+    renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+    await screen.findByTestId("abertura-iniciado");
+    fireEvent.click(screen.getByTestId("servico-opcao-maquina"));
+    const painel = screen.getByTestId("servico-em-breve");
+    expect(within(painel).getByText("Máquina")).toBeInTheDocument();
+    expect(within(painel).getByText("Em breve: esta parte ainda vai ser feita.")).toBeInTheDocument();
+    // Com o painel aberto, as opções somem e o rodapé só tem "Voltar ao serviço".
+    expect(screen.queryByTestId("servico-opcao-insumo")).toBeNull();
+    expect(screen.queryByTestId("servico-encerrar")).toBeNull();
+    expect(screen.getByTestId("servico-voltar")).toHaveTextContent("Voltar ao serviço");
+    fireEvent.click(screen.getByTestId("servico-voltar"));
+    expect(screen.queryByTestId("servico-em-breve")).toBeNull();
+    expect(screen.getByTestId("servico-opcao-maquina")).toBeInTheDocument();
+    expect(screen.getByTestId("servico-encerrar")).toBeInTheDocument();
+  });
+
+  it("(h4) Encerrar serviço mostra o painel \"Em breve\" com o título dele", async () => {
+    renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+    await screen.findByTestId("abertura-iniciado");
+    fireEvent.click(screen.getByTestId("servico-encerrar"));
+    const painel = screen.getByTestId("servico-em-breve");
+    expect(within(painel).getByText("Encerrar serviço")).toBeInTheDocument();
+    expect(within(painel).getByText("Em breve: esta parte ainda vai ser feita.")).toBeInTheDocument();
+    expect(screen.getByTestId("servico-voltar")).toBeInTheDocument();
   });
 });
