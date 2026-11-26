@@ -6,7 +6,7 @@
  * o cancelamento chega (e pode recusar → "precisa de atenção").
  */
 
-import { registrosAguardandoDoTipo } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
+import { registrosDoAparelhoDoTipo } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { TIPO_CANCELAMENTO_LANCAMENTO_COCHO, TIPO_CANCELAMENTO_TRANSFERENCIA } from '@/lib/offline/sincronizacao/tiposDeEnvio';
 
 /** @param {string} tipo */
@@ -14,7 +14,9 @@ const payloadsAguardando = async (tipo) => {
   try {
     // D-PROD-311: cancelamento RECUSADO pelo servidor ("precisa de atenção") não vale: a tela
     // volta a mostrar o lançamento/transferência original (como o saldo já mostrava).
-    return (await registrosAguardandoDoTipo(tipo)).filter((r) => r.estado !== 'atencao').map((r) => /** @type {any} */ (r.payload));
+    // D-PROD-318: o cancelamento confirmado há pouco continua valendo na tela: a lista do servidor
+    // na tela pode ser de antes dele, e o original voltaria a aparecer até ela ser relida.
+    return (await registrosDoAparelhoDoTipo(tipo)).filter((r) => r.estado !== 'atencao').map((r) => /** @type {any} */ (r.payload));
   } catch {
     return [];
   }

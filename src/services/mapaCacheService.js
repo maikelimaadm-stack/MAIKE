@@ -52,7 +52,7 @@ import { leiturasAguardandoEnvio } from '@/services/leituraCochoService';
 import { comEstoqueAguardandoEnvio } from '@/services/estoqueAguardandoEnvioService';
 import { comLancamentosAguardandoEnvio } from '@/services/lancamentoCochoAguardandoService';
 import { comTransferenciasCanceladasAguardando } from '@/services/cancelamentosAguardandoService';
-import { movimentacoesAguardandoEnvio } from '@/services/historicoAguardandoEnvioService';
+import { comMovimentacoesDoAparelho } from '@/services/historicoAguardandoEnvioService';
 import { listMedicoesForragem, listDescansoPastos } from '@/apis/medicoes-forragem';
 import {
   listAplicacoesMedicamento,
@@ -201,7 +201,8 @@ const VISAO_DO_QUE_ESPERA_ENVIO = {
     (await comEstoqueAguardandoEnvio(SEM_MARCAS(itens))).filter((l) => !empresaId || l.empresa_id === empresaId),
   // D-PROD-301: o que espera envio também aparece no histórico do depósito.
   movimentacaoEstoque: async (itens, empresaId) =>
-    comTransferenciasCanceladasAguardando([...(await movimentacoesAguardandoEnvio(empresaId)), ...SEM_MARCAS(itens)]),
+    // D-PROD-318: casa pelo id o que o aparelho sabe com a lista do servidor (nem buraco, nem em dobro).
+    comTransferenciasCanceladasAguardando(await comMovimentacoesDoAparelho(SEM_MARCAS(itens), empresaId)),
 };
 
 /**

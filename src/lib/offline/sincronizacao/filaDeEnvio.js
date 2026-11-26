@@ -36,6 +36,7 @@ const VERSAO_DO_BANCO = 1;
  *   sequencia?: number,
  *   estado: EstadoDoItem,
  *   tentado?: boolean,
+ *   tentado_em?: string|null,
  *   revisao?: number,
  *   tentativas: number,
  *   proxima_tentativa_em: number,

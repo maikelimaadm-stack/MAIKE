@@ -9863,4 +9863,27 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - as outras entidades, que ficam para a Etapa 5;
   - o "alterado por" fora do conflito, que exigiria guardar o autor no registro.
 
-<!-- Próxima decisão: D-PROD-317 -->
+## D-PROD-318 — Sincronização, Etapa 4: a tela nunca "pisca"
+
+**Data:** 2026-11-26 · **Origem:** o plano de 5 etapas da sincronização aprovado pelo proprietário (Etapa 4: "pode sim") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-ETAPA4-D318-REPORT.md`](./SINCRONIZACAO-ETAPA4-D318-REPORT.md)
+
+> **Numeração:** a `main` (`701f6ca8b`) indica `Próxima decisão: D-PROD-317`, mas esse número está reservado pela PR #406 (`node scripts/dev/proxima-decisao.mjs`); esta é a D-PROD-318 e o marcador passa a D-PROD-319. Conferir de novo antes do merge (regra A5).
+
+- **Problema:** entre "salvo no aparelho" e "confirmado pelo servidor", as telas decidiam o que mostrar pelo **estado da fila**, cada uma a seu modo:
+  - o lançamento recém-confirmado sumia da lista do cocho até a lista ser relida;
+  - a baixa que já tinha tentado subir sumia do histórico do depósito;
+  - o saldo voltava ao de antes depois da primeira tentativa e pulava de novo (100 → 70 → 100 → 70);
+  - o cancelamento recém-confirmado deixava o original reaparecer.
+- **Decisão — casar pelo id, não pelo estado da fila.** A fila guarda o confirmado por 30 minutos (`JANELA_CONFIRMADO_NA_TELA_MS`), com a resposta do servidor. `registrosDoAparelhoDoTipo` devolve o que espera e o que foi confirmado há pouco, com a hora da 1ª tentativa (`tentado_em`, nova no item da fila).
+  1. **Lista do cocho:** o confirmado aparece com o evento que o servidor devolveu (id real) até a lista do servidor trazê-lo; depois, uma vez só.
+  2. **Histórico do depósito:** a transferência e a baixa confirmadas aparecem com as movimentações devolvidas pelo servidor. A baixa já feita, com o lançamento ainda na fila, aparece com o id real dela. `comMovimentacoesDoAparelho` não repete o que a lista do servidor já tem.
+  3. **Tentou sem resposta** (`mostrarComoAguardando`): sem internet aparece "aguardando", porque a lista guardada é de antes e não pode tê-lo. Com internet não aparece, porque a lista do servidor pode já tê-lo e não há como casar os dois; a próxima passada confirma em segundos. O recusado ("precisa de atenção") continua na lista do cocho, como antes, e não vale no saldo nem no histórico.
+  4. **Cancelamento:** o confirmado há pouco continua escondendo o original até a lista ser relida.
+- **Decisão — o saldo pela hora da cópia.** O que já tentou subir só é descontado se a lista de lotes é de **antes** da 1ª tentativa, quando o servidor não podia tê-lo. As duas horas são do relógio do aparelho, sem diferença com o do servidor.
+  - A hora da lista é a da saída do pedido que a trouxe. O `nativeRequest` a registra para cada leitura (`horaDasRespostas`) e a grava junto da cópia guardada (`pedido_em`), para valer depois de reabrir o app.
+  - Hora desconhecida (cópia antiga): como antes, só o que nunca tentou.
+- **Fora:**
+  - o instante exato em que o servidor lê a lista. Uma leitura que sai antes do envio e é atendida depois pode contar o registro duas vezes até a próxima leitura (janela de milissegundos);
+  - as outras entidades e a limpeza dos recibos, que ficam para a Etapa 5.
+
+<!-- Próxima decisão: D-PROD-319 -->

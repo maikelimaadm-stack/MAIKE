@@ -19,7 +19,10 @@ import {
   TIPO_CANCELAMENTO_LANCAMENTO_COCHO,
   TIPO_CANCELAMENTO_TRANSFERENCIA,
 } from '@/lib/offline/sincronizacao/tiposDeEnvio';
-import { registrosAguardandoDoTipo } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
+import { registrosDoAparelhoDoTipo } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
+import { horaDaResposta } from '@/lib/offline/horaDasRespostas';
+import { lerResposta } from '@/lib/offline/respostasOffline';
+import { getOfflineTenant } from '@/lib/offline/offlineTenant';
 
 /**
  * @typedef {{ operationId: string, empresa_id: string, produto_id: string, quantidade: number,
@@ -104,18 +107,34 @@ export const registrarEfeitoNoEstoque = (tipo, movimento) => {
 };
 
 /**
- * Movimentos de estoque desta sessão que ainda não chegaram ao servidor, em ordem.
- * @param {{ ignorar?: string|null }} [opcoes] `ignorar`: o registro que está sendo editado
- *        (o saldo do formulário não pode descontar o próprio registro).
+ * D-PROD-318 (Etapa 4, a tela nunca "pisca"): a cópia dos lotes já mostra este registro?
+ *  - nunca tentou subir: não (o servidor não o tem);
+ *  - tentou (ou foi confirmado): a cópia é de ANTES da primeira tentativa → não (aplica); de depois → pode já
+ *    mostrar (não aplica, para não contar duas vezes). As duas horas são do aparelho (sem diferença de relógio).
+ *    Sem a hora da cópia, como antes: só o que nunca tentou.
+ * Antes, o que tinha tentado nunca era aplicado: sem internet depois de uma tentativa, ou entre a confirmação e a
+ * próxima leitura dos lotes, o saldo voltava ao de antes e depois pulava (100 → 70 → 100 → 70).
+ * @param {{ tentado: boolean, tentado_em: string|null, criado_em: string }} r @param {number|string|null|undefined} copiaDe
+ */
+const aindaNaoNaCopia = (r, copiaDe) => {
+  if (!r.tentado) return true;
+  const copia = typeof copiaDe === 'number' ? copiaDe : Date.parse(copiaDe ?? '');
+  const inicio = Date.parse(r.tentado_em ?? r.criado_em ?? '');
+  return Number.isFinite(copia) && Number.isFinite(inicio) && copia < inicio;
+};
+
+/**
+ * Movimentos de estoque desta sessão que a cópia dos lotes ainda não mostra, em ordem.
+ * @param {{ ignorar?: string|null, copiaDe?: number|string|null }} [opcoes] `ignorar`: o registro que está sendo editado
+ *        (o saldo do formulário não pode descontar o próprio registro). `copiaDe`: quando a cópia dos lotes foi
+ *        gravada no aparelho (D-PROD-318).
  */
 export const movimentosDeEstoqueAguardando = async (opcoes = {}) => {
   const porTipo = await Promise.all(
     EFEITOS.map(async ({ tipo, movimento }) =>
-      (await registrosAguardandoDoTipo(tipo))
-        // Já tentou subir: o servidor pode ter gravado (a resposta pode ter se perdido), e
-        // os lotes lidos do servidor já mostrariam. Aplicar de novo contaria duas vezes.
-        // Só o que nunca saiu do aparelho é certamente "ainda não aplicado".
-        .filter((r) => !r.tentado && r.operationId !== opcoes.ignorar)
+      (await registrosDoAparelhoDoTipo(tipo))
+        // Recusado pelo servidor ("precisa de atenção"): não vale no saldo.
+        .filter((r) => r.estado !== 'atencao' && r.operationId !== opcoes.ignorar && aindaNaoNaCopia(r, opcoes.copiaDe))
         .map((r) => ({ criado_em: r.criado_em, mov: movimento(r.payload, r.operationId) }))
     )
   );
@@ -185,15 +204,37 @@ export const aplicarMovimentosAosLotes = (lotes, movimentos) => {
   return resultado;
 };
 
+/** A leitura dos lotes de estoque (a mesma da porta `estoque-lotes-nota`). */
+export const CAMINHO_DOS_LOTES = '/estoque-lotes-nota';
+
+/**
+ * D-PROD-318: de quando é a lista de lotes que o aparelho tem (a última resposta do servidor, ou a cópia guardada),
+ * no relógio do aparelho. Desconhecida → `null`.
+ * @returns {Promise<number|null>}
+ */
+export const horaDaCopiaDosLotes = async () => {
+  const tenant = getOfflineTenant();
+  if (!tenant) return null;
+  const naMemoria = horaDaResposta(tenant, CAMINHO_DOS_LOTES);
+  if (naMemoria !== null) return naMemoria;
+  try {
+    return (await lerResposta(tenant, CAMINHO_DOS_LOTES))?.pedido_em ?? null;
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Os lotes com o efeito do que espera envio. Sem nada esperando, devolve a
  * própria lista. Falha ao ler a fila nunca derruba a tela: devolve os lotes.
  * @param {any[]} lotes
- * @param {{ ignorar?: string|null }} [opcoes]
+ * @param {{ ignorar?: string|null, copiaDe?: number|string|null }} [opcoes] sem `copiaDe`, a hora da lista do
+ *        aparelho (`horaDaCopiaDosLotes`)
  */
 export const comEstoqueAguardandoEnvio = async (lotes, opcoes = {}) => {
   try {
-    const movimentos = await movimentosDeEstoqueAguardando(opcoes);
+    const copiaDe = opcoes.copiaDe !== undefined ? opcoes.copiaDe : await horaDaCopiaDosLotes();
+    const movimentos = await movimentosDeEstoqueAguardando({ ...opcoes, copiaDe });
     return movimentos.length ? aplicarMovimentosAosLotes(lotes, movimentos) : lotes;
   } catch {
     return lotes;
