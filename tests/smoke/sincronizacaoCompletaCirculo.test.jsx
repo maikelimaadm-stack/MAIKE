@@ -7,6 +7,8 @@
  * SC-03 envia ANTES de baixar; a porcentagem só anda para a frente; termina em 100 ("Tudo sincronizado") e some
  * SC-04 sem internet não faz nada; pedir de novo durante uma devolve a mesma
  * SC-05 o círculo mostra a porcentagem, ✓ no fim, e tocar abre a janela "Sincronização"
+ * SC-06 (D-PROD-337) ficou registro no celular: o fim diz quantos ficaram (nunca "Tudo sincronizado"); o envio pede
+ *       que o que esperava por falta de rede tente já
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -14,6 +16,8 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 const chamadas = [];
 let resolverBaixa;
+const filaRestante = vi.hoisted(() => ({ aguardando: 0, atencao: 0 }));
+vi.mock('@/services/sincronizacaoService', () => ({ lerFilaDeEnvio: vi.fn(async () => ({ ...filaRestante, itens: [] })) }));
 vi.mock('@/lib/offline/sincronizacao/gatilhosDeSincronizacao', () => ({
   sincronizarTudo: vi.fn(async () => { chamadas.push('envio'); }),
 }));
@@ -36,6 +40,8 @@ let svc;
 beforeEach(async () => {
   vi.resetModules();
   chamadas.length = 0;
+  filaRestante.aguardando = 0;
+  filaRestante.atencao = 0;
   online(true);
   svc = await import('@/services/sincronizacaoCompletaService');
 });
@@ -123,5 +129,22 @@ describe('D-PROD-329 — sincronização nos dois sentidos', () => {
     expect(screen.getByRole('button', { name: /Tudo sincronizado/ }).getAttribute('data-fase')).toBe('pronto');
     window.removeEventListener('teste:abrir', abriu);
     vi.doUnmock('@/components/offline/DadosOffline');
+  });
+
+  it('SC-06 ficou registro no celular: o fim diz quantos (nunca "Tudo sincronizado")', async () => {
+    filaRestante.aguardando = 1;
+    filaRestante.atencao = 1;
+    const fases = [];
+    const ouvir = (e) => fases.push(`${e.detail.fase}:${e.detail.titulo}`);
+    window.addEventListener(svc.EVENTO_PROGRESSO_DA_SINCRONIA, ouvir);
+    const p = svc.sincronizarNosDoisSentidos({ empresaId: 'emp-1' });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    resolverBaixa();
+    await p;
+    window.removeEventListener(svc.EVENTO_PROGRESSO_DA_SINCRONIA, ouvir);
+    expect(fases.at(-1)).toBe('incompleto:2 registros ficaram no celular');
+    expect(fases.some((f) => f.includes('Tudo sincronizado'))).toBe(false);
+    const { sincronizarTudo } = await import('@/lib/offline/sincronizacao/gatilhosDeSincronizacao');
+    expect(sincronizarTudo).toHaveBeenCalledWith({ jaEmVoltaDaRede: true });
   });
 });

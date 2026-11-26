@@ -40,7 +40,7 @@ const VERSAO_DO_BANCO = 1;
  *   revisao?: number,
  *   tentativas: number,
  *   proxima_tentativa_em: number,
- *   ultimo_erro: null | {codigo: string, mensagem: string, em: string},
+ *   ultimo_erro: null | {codigo: string, mensagem: string, em: string, falha?: 'rede'|'sessao'},
  *   resultado?: unknown,
  *   progresso?: Record<string, any>,
  *   enviado_em?: string|null,
