@@ -19,7 +19,7 @@ export { useEmpresaRealSelecionadaId } from '@/hooks/useGestaoSessao';
 /**
  * @returns {{ ver: boolean, criar: boolean, editar: boolean, cancelar: boolean, reabrir: boolean,
  *   lancarApontamento: boolean, editarApontamento: boolean, cancelarApontamento: boolean,
- *   trocarCapimDaArea: boolean, carregando: boolean, login: string|null }}
+ *   trocarCapimDaArea: boolean, permissaoEfetiva: object|null, carregando: boolean, login: string|null }}
  *   D-PROD-276: `trocarCapimDaArea` — a troca do capim na conclusão da reforma (o editar do Cadastro do Mapa).
  */
 export const useAcoesTelaAtividades = () => {
@@ -40,6 +40,8 @@ export const useAcoesTelaAtividades = () => {
   return {
     ...acoesDaTelaAtividades(permissao),
     trocarCapimDaArea: podeTrocarCapimDaArea(permissao),
+    // Diário da máquina (Fase 2): a permissão efetiva inteira, para `podeVerCusto` (R$ só do administrador).
+    permissaoEfetiva: permissao,
     carregando: carregandoUsuario || (Boolean(login) && carregandoPermissao),
     login,
   };

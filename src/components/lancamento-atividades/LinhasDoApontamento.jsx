@@ -8,6 +8,7 @@ import { SeloAbastecimento } from "@/components/patrimonio/TabelaAbastecimentos"
 import FormularioAbastecimento from "@/components/patrimonio/FormularioAbastecimento";
 import { BOTAO_PERIGO, BOTAO_SECUNDARIO, DialogoCancelarAbastecimento, DialogoPreviaAbastecimento } from "@/components/patrimonio/DialogosAbastecimento";
 import { useAcoesTelaAbastecimento } from "@/hooks/usePatrimonioSessao";
+import { useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { useEmpresaRealSelecionadaId } from "@/hooks/useLancamentoAtividadesSessao";
 import { chaveAbastecimentosDoApontamento, useFluxoAbastecimento } from "@/hooks/useFluxoAbastecimento";
 import { useAuth } from "@/lib/AuthContext";
@@ -90,6 +91,7 @@ const LIMITE_ABASTECIMENTOS_DO_LANCAMENTO = 100;
  * @param {{ atividade: any, apontamento: any, gravavel: boolean, fuso: string|null }} props
  */
 function AbastecimentosDoApontamento({ atividade, apontamento, gravavel, fuso }) {
+  const verCusto = useVerCusto();
   const queryClient = useQueryClient();
   const empresaId = useEmpresaRealSelecionadaId();
   const acoes = useAcoesTelaAbastecimento();
@@ -162,7 +164,7 @@ function AbastecimentosDoApontamento({ atividade, apontamento, gravavel, fuso })
         <span>· {a.produto?.nome ?? "Produto"}</span>
         <span data-testid={`linha-abastecimento-${id}-quantidade`}>· {formatarQuantidadeCurta(a.quantidade, a.unidade) || "—"}</span>
         <span data-testid={`linha-abastecimento-${id}-origem`}>· {rotuloDaOrigem(a)}</span>
-        {custo ? <span data-testid={`linha-abastecimento-${id}-custo`}>· custo {custo}</span> : null}
+        {verCusto && custo ? <span data-testid={`linha-abastecimento-${id}-custo`}>· custo {custo}</span> : null}
         <SeloAbastecimento status={String(a.status ?? "")} testId={`linha-abastecimento-${id}-status`} />
         {!cancelado && podeCancelar ? (
           <span className="ml-auto flex flex-wrap gap-2">
@@ -307,6 +309,7 @@ export default function LinhasDoApontamento({
   onEscrita,
   onMudou,
 }) {
+  const verCusto = useVerCusto();
   const [janela, setJanela] = useState(/** @type {JanelaDaLinha | null} */ (null));
   const [cancelando, setCancelando] = useState(/** @type {CancelamentoDaLinha | null} */ (null));
   const apId = String(apontamento?.id ?? "");
@@ -340,7 +343,7 @@ export default function LinhasDoApontamento({
         <span data-testid={`linha-produto-${id}-quantidade`}>· {formatarQuantidadeLinha(l.quantidade, l.unidade) || "—"}</span>
         {local ? <span>· de {local}</span> : null}
         {dose ? <span data-testid={`linha-produto-${id}-dose`}>· dose {formatarDose(dose, l.unidade)}</span> : null}
-        {custo ? <span data-testid={`linha-produto-${id}-custo`}>· custo {custo}</span> : null}
+        {verCusto && custo ? <span data-testid={`linha-produto-${id}-custo`}>· custo {custo}</span> : null}
         <SeloAbastecimento status={statusDaLinha(l)} testId={`linha-produto-${id}-status`} />
         {cancelada ? (
           <span className="break-words" data-testid={`linha-produto-${id}-cancelamento`}>
@@ -387,7 +390,7 @@ export default function LinhasDoApontamento({
         </span>
         {leituras ? <span data-testid={`linha-maquina-${id}-leituras`}>· {leituras}</span> : null}
         <span data-testid={`linha-maquina-${id}-uso`}>· uso {formatarUso(l.quantidade_uso, l.medidor_tipo, l.medidor_unidade) || "—"}</span>
-        {custo ? <span data-testid={`linha-maquina-${id}-custo`}>· custo {custo}</span> : null}
+        {verCusto && custo ? <span data-testid={`linha-maquina-${id}-custo`}>· custo {custo}</span> : null}
         {typeof l.justificativa_salto === "string" && l.justificativa_salto.trim() ? <span className="break-words">· salto: {l.justificativa_salto.trim()}</span> : null}
         <SeloAbastecimento status={statusDaLinha(l)} testId={`linha-maquina-${id}-status`} />
         {cancelada ? (
@@ -447,8 +450,8 @@ export default function LinhasDoApontamento({
         <span data-testid={`${prefixo}-quantidade`}>
           · {ROTULO_MEDIDA[String(l.tipo_medida ?? "")] ?? "—"} · {formatarQuantidadeMaoObra(l.quantidade, l.tipo_medida) || "—"}
         </span>
-        {unitario ? <span data-testid={`${prefixo}-unitario`}>· {unitario} cada</span> : null}
-        <span data-testid={`${prefixo}-custo`}>· custo {custo || "sem custo no cadastro"}</span>
+        {verCusto && unitario ? <span data-testid={`${prefixo}-unitario`}>· {unitario} cada</span> : null}
+        {verCusto ? <span data-testid={`${prefixo}-custo`}>· custo {custo || "sem custo no cadastro"}</span> : null}
         <SeloAbastecimento status={statusDaLinha(l)} testId={`${prefixo}-status`} />
         {cancelada ? (
           <span className="break-words" data-testid={`${prefixo}-cancelamento`}>

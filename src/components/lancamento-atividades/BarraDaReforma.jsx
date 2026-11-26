@@ -1,4 +1,5 @@
 import React from "react";
+import { useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { Ban, CircleCheck, Sprout } from "lucide-react";
 import { formatarDecimalLinha, formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
 import { ROTULO_DA_SITUACAO } from "@/lib/servicoVariosDias";
@@ -23,6 +24,8 @@ const ha = (v) => (v ? `${formatarDecimalLinha(String(v))} ha` : "—");
  *   onConcluir?: (reforma: any) => void, onCancelar?: (reforma: any) => void }} props
  */
 export default function BarraDaReforma({ reforma, carregando = false, erro = null, podeConcluir = false, podeCancelar = false, onConcluir, onCancelar }) {
+  // Diário da máquina (Fase 2): R$ só para o administrador da fazenda.
+  const verCusto = useVerCusto();
   if (erro) {
     return (
       <div className="b1-reforma-barra" role="alert" data-testid="barra-reforma-erro">
@@ -83,6 +86,8 @@ export default function BarraDaReforma({ reforma, carregando = false, erro = nul
       </div>
 
       <dl className="b1-reforma-barra__numeros">
+        {verCusto ? (
+          <>
         <div>
           <dt>Custo total</dt>
           <dd data-testid="barra-reforma-custo-total">{formatarMoedaAtividade(custo.custo_total) || "R$ 0,00"}</dd>
@@ -91,6 +96,8 @@ export default function BarraDaReforma({ reforma, carregando = false, erro = nul
           <dt>R$/ha</dt>
           <dd data-testid="barra-reforma-custo-ha">{formatarMoedaAtividade(custo.custo_por_ha) || "—"}</dd>
         </div>
+          </>
+        ) : null}
         <div>
           <dt>Área da reforma</dt>
           <dd data-testid="barra-reforma-hectares">{ha(custo.hectares ?? reforma.hectares)}</dd>
@@ -101,7 +108,7 @@ export default function BarraDaReforma({ reforma, carregando = false, erro = nul
         </div>
       </dl>
 
-      {porTipo.length ? (
+      {verCusto && porTipo.length ? (
         <ul className="b1-reforma-barra__tipos" aria-label="Custo por tipo" data-testid="barra-reforma-por-tipo">
           {porTipo.map((t) => (
             <li key={t.tipo_fixo}>
@@ -121,7 +128,7 @@ export default function BarraDaReforma({ reforma, carregando = false, erro = nul
                 <strong>{rotuloDoTipoFixo(x.tipo_fixo)}</strong> · {x.tipo_atividade_nome}
               </span>
               <span className={`b1-reforma-barra__situacao b1-reforma-barra__situacao--${String(x.situacao).toLowerCase()}`}>{ROTULO_DA_SITUACAO[x.situacao] ?? x.situacao}</span>
-              <span className="b1-reforma-barra__valor">{x.conta_no_custo ? formatarMoedaAtividade(x.custo_total) || "—" : "não soma"}</span>
+              <span className="b1-reforma-barra__valor">{!verCusto ? "" : x.conta_no_custo ? formatarMoedaAtividade(x.custo_total) || "—" : "não soma"}</span>
             </li>
           ))}
         </ol>

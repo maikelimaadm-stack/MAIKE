@@ -28,6 +28,8 @@ import { BlocoDoServico, OperacaoDoServico, SituacaoDoServico } from "@/componen
 import AtividadesEmAndamento from "@/components/lancamento-atividades/AtividadesEmAndamento";
 import FormularioAtividade from "@/components/lancamento-atividades/FormularioAtividade";
 import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDeCampo";
+import { VerCustoContext, useVerCusto } from "@/components/lancamento-atividades/VerCusto";
+import { podeVerCusto } from "@/lib/verCustoRegras";
 import JanelaLancamentoPorTipo, { lancamentoDoTipo } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
 import { areasDaAtividade, rotuloDaAreaDaAtividade, textoDaColunaArea } from "@/lib/atividadeAreasRegras";
 import { situacaoDaAtividade, textoProgressoAreas } from "@/lib/atividadeFluxoCampo";
@@ -279,11 +281,25 @@ const textoDoNumero = (atividade) => (atividade?.numero != null ? `nº ${ativida
  * servidor recusaria). Toda ação leva a `versao` lida (CAS no servidor).
  */
 export default function LancamentoAtividades() {
+  // Diário da máquina (Fase 2): R$ só para o administrador da fazenda (`podeVerCusto`); o resto da tela não muda.
+  const permissaoTela = useAcoesTelaAtividades();
+  return (
+    <VerCustoContext.Provider value={podeVerCusto(permissaoTela.permissaoEfetiva)}>
+      <LancamentoAtividadesTela />
+    </VerCustoContext.Provider>
+  );
+}
+
+function LancamentoAtividadesTela() {
   const queryClient = useQueryClient();
   const empresaId = useEmpresaRealSelecionadaId();
   // A fazenda que o service injeta nas leituras e gravações (inclusive as dos componentes filhos).
   definirFazendaDaTela(empresaId);
   const acoes = useAcoesTelaAtividades();
+  // Diário da máquina (Fase 2): sem permissão de ver R$, a coluna e o campo de custo da lista somem (o custo segue no servidor).
+  const verCusto = useVerCusto();
+  const colunasDaGrade = useMemo(() => (verCusto ? ATIVIDADES_COLUNAS : ATIVIDADES_COLUNAS.filter((c) => c.id !== "valor_total")), [verCusto]);
+  const camposDoCard = useMemo(() => (verCusto ? ATIVIDADES_CAMPOS_CARD : ATIVIDADES_CAMPOS_CARD.filter((c) => c !== "valor_total")), [verCusto]);
   const { fuso, fusoOk, semFuso, hoje } = useFusoDaFazenda(empresaId);
 
   // D-PROD-267: Situação (no lugar do Status) e Tipo (o tipo fixo ou, dentro dele, a operação).
@@ -366,14 +382,14 @@ export default function LancamentoAtividades() {
 
   const controller = useCadastroBase1Controller({
     storageKey: ATIVIDADES_STORAGE_KEY,
-    columnIds: ATIVIDADES_CAMPOS_CARD,
+    columnIds: camposDoCard,
     listEnabled,
     queryKey: [QUERY_RAIZ, "page", empresaId, situacaoFiltro, tipoFiltro, areaFiltro, reformaFiltro, dataDe, dataAte],
     fetchPage,
     duplicateLabelField: "nome",
     searchPlaceholder: "Buscar nº, nome, tipo ou área…",
     exportFileName: "lancamento-atividades.csv",
-    exportColumns: ATIVIDADES_COLUNAS,
+    exportColumns: colunasDaGrade,
     getExportFieldValue: valorDoCampoAtividade,
     getRecordTitle: (/** @type {any} */ item) => (item?.id ? `Atividade ${textoDoNumero(item)}${item.nome ? ` — ${item.nome}` : ""}` : "Planejar atividade"),
     getRecordCode: (/** @type {any} */ item) => (item?.id && item?.numero != null ? String(item.numero) : undefined),
@@ -795,7 +811,7 @@ export default function LancamentoAtividades() {
       rotulo={`Ações da atividade ${textoDoNumero(a)}`.trim()}
       titulo={[a?.numero != null ? `Nº ${a.numero}` : "", String(a?.nome ?? "")].filter(Boolean).join(" · ")}
       // D-PROD-234: o valor total vem da lista (o `custo_total` que o servidor soma por página); sem custo, fica de fora.
-      subtitulo={[String(a?.tipo_atividade_nome ?? ""), textoDaColunaArea(a), formatarMoedaAtividade(a?.custo_total)].filter(Boolean).join(" · ")}
+      subtitulo={[String(a?.tipo_atividade_nome ?? ""), textoDaColunaArea(a), verCusto ? formatarMoedaAtividade(a?.custo_total) : ""].filter(Boolean).join(" · ")}
       grupos={gruposDoMenu(a)}
       testId={`atividade-acoes-${a.id}`}
     />
@@ -1166,7 +1182,7 @@ export default function LancamentoAtividades() {
           searchPlaceholder="Buscar nº, nome, tipo ou área…"
           createLabel="Nova atividade"
           createText="Nova atividade"
-          columnsForCardsToolbar={ATIVIDADES_COLUNAS}
+          columnsForCardsToolbar={colunasDaGrade}
           controller={controller}
           listErrorMessage={listErrorMessage}
           recordCode={registroAberto?.numero != null ? String(registroAberto.numero) : undefined}
@@ -1195,7 +1211,7 @@ export default function LancamentoAtividades() {
           listSlot={
             <Grade
               rows={controller.visibleRows}
-              columns={ATIVIDADES_COLUNAS}
+              columns={colunasDaGrade}
               storageKey={ATIVIDADES_STORAGE_KEY}
               droppableId="colunas-lancamento-atividades"
               getFieldValue={valorDoCampoAtividade}

@@ -7,6 +7,7 @@ import { CampoDia, EscolhaSegmentada } from "@/components/financeiroGestao/Campo
 import { CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import { mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
+import { useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 import { barraDoAndamento, erroDoUltimoDia, feitoNoConcluir, servicoSemArea, tituloDoConcluir } from "@/lib/servicoVariosDias";
 import { areasEmAndamento, rotuloDaAreaDaAtividade } from "@/lib/atividadeAreasRegras";
@@ -30,6 +31,7 @@ import { RAIZ_CONSULTAS_ATIVIDADES } from "@/lib/atividadeApontamentoRegras";
  *   onConcluir: (dia: string, areas?: Array<{ atividade_area_id: string, hectares: string }>) => Promise<unknown> }} props
  */
 export default function DialogoConcluirServico({ item, hoje, onFechar, onConcluir }) {
+  const verCusto = useVerCusto();
   const a = item?.andamento ?? {};
   const sugerido = typeof a.ultimo_dia === "string" && a.ultimo_dia ? a.ultimo_dia : hoje || "";
   const [dia, setDia] = useState(sugerido);
@@ -263,7 +265,7 @@ export default function DialogoConcluirServico({ item, hoje, onFechar, onConclui
                 ))}
               </div>
             ) : null}
-            {linhas.custoTotal ? (
+            {verCusto && linhas.custoTotal ? (
               <div className="col-span-12 min-w-0 b1-jato" data-testid="dialogo-concluir-resumo-custo">
                 <div className="b1-jato__linha">
                   <span>Custo total</span>

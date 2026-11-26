@@ -4,6 +4,7 @@ import { AvisoGestao, SecaoForm } from "@/components/gestao/GestaoFormParts";
 import { ValorCalculado } from "@/components/financeiroGestao/CamposLancamento";
 import { chaveTotais, totaisParaExibir } from "@/lib/atividadeLinhasRegras";
 import TabelaBase1 from "@/components/lancamento-atividades/TabelaBase1";
+import { useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { obterTotaisAtividade } from "@/services/lancamentoAtividadesService";
 
 const COLUNAS_DOS_ITENS = [
@@ -35,6 +36,7 @@ export default function TotalizadorAtividade({ atividade, empresaId, habilitado,
     staleTime: 15 * 1000,
     refetchOnWindowFocus: false,
   });
+  const verCusto = useVerCusto();
   const t = totaisParaExibir(consulta.data ?? null, atividade);
   // O que foi gasto por item: uma tabela Base1 (Tipo, Item, Quantidade, Custo) em vez de um campo por item.
   const itens = [
@@ -48,10 +50,10 @@ export default function TotalizadorAtividade({ atividade, empresaId, habilitado,
     <div className={`b1 mg-b1-form-grid w-full min-h-0 bg-white${fixo ? " sticky top-0 z-10" : ""}`} data-testid="totalizador-atividade">
       <SecaoForm titulo="Totais da atividade" />
       <ValorCalculado label="Área executada / planejada" valor={t.area} span={4} testId="totalizador-area" />
-      <ValorCalculado label="Custo acumulado" valor={t.custo} span={4} testId="totalizador-custo" destaque />
-      <ValorCalculado label="Custo por hectare" valor={t.custoPorHa} span={4} testId="totalizador-custo-ha" />
-      {t.combustivel !== null ? <ValorCalculado label="Combustível" valor={t.combustivel} span={4} testId="totalizador-combustivel" /> : null}
-      {t.custoCombustivelPorHa !== null ? (
+      {verCusto ? <ValorCalculado label="Custo acumulado" valor={t.custo} span={4} testId="totalizador-custo" destaque /> : null}
+      {verCusto ? <ValorCalculado label="Custo por hectare" valor={t.custoPorHa} span={4} testId="totalizador-custo-ha" /> : null}
+      {verCusto && t.combustivel !== null ? <ValorCalculado label="Combustível" valor={t.combustivel} span={4} testId="totalizador-combustivel" /> : null}
+      {verCusto && t.custoCombustivelPorHa !== null ? (
         <ValorCalculado label="Custo de combustível por hectare" valor={t.custoCombustivelPorHa} span={4} testId="totalizador-combustivel-ha" />
       ) : null}
       {t.consumoPorBem.map((b) => (
@@ -63,7 +65,7 @@ export default function TotalizadorAtividade({ atividade, empresaId, habilitado,
             solta
             testId="totalizador-itens"
             chave="lancamento-atividade-totais-itens"
-            colunas={COLUNAS_DOS_ITENS}
+            colunas={verCusto ? COLUNAS_DOS_ITENS : COLUNAS_DOS_ITENS.filter((c) => c.id !== "custo")}
             linhas={itens}
             valorDoCampo={(i, id) => TEXTO[id](i)}
             renderCelula={(i, id) =>

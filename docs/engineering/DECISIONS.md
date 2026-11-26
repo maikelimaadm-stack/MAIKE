@@ -9878,4 +9878,17 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** sem mudança.
 - **Testes:** `tests/smoke/jatosDoDia.test.jsx`, `fechamentoArea.test.jsx`, `servicoVariosDias.test.jsx` (asserções de texto da UI). Os demais smoke do fluxo (`registroDeCampoVariasLinhas`, `estoqueLoteAtividade`, `bensPatrimoniais`) não assertam essas strings.
 
-<!-- Próxima decisão: D-PROD-318 -->
+## D-PROD-318 — Diário da máquina, fase 2: R$ só para o administrador e "Iniciar atividade" no pasto (só tela)
+
+**Data:** 2026-11-26 · **Origem:** plano do Diário da máquina aprovado pelo proprietário ("perfeito vamos fazer com o claude ok"; tudo na mesma PR #406) · **Branch:** `feat/diario-implemento-textos`
+
+> **Numeração:** a `main` (`701f6ca8`) indica `Próxima decisão: D-PROD-317`, tomada pela fase 1 desta PR; esta é a D-PROD-318 e o marcador passa a D-PROD-319. Conferir de novo antes do merge (regra A5).
+
+- **Decisão:**
+  - `podeVerCusto(permissao)` (`src/lib/verCustoRegras.js`) = permissão efetiva com `is_admin === true` (o administrador da fazenda recebe o registro efetivo com `is_admin`). O `VerCustoContext` (padrão `true`) é passado pelo Lançamento de Atividades e pela janela do pasto no mapa.
+  - Sem `podeVerCusto`, as telas de lançamento escondem os valores em R$ (lista, cartões, linhas, resumo das áreas, totalizador, serviço, conclusão do serviço, da atividade e da reforma, barra da reforma, aba de custos do pasto). O custo continua sendo gravado e calculado no servidor; os campos que o operador PRECISA digitar (custo do terceiro, valor do serviço) continuam visíveis.
+  - Janela do pasto (aba Manejos): botão "Iniciar atividade" abre a Nova realização (`JanelaRegistroDeCampo`) presa a este pasto; só com permissão de lançar e fuso da fazenda.
+- **Migration:** nenhuma. **Constituição:** sem mudança.
+- **Testes:** `tests/smoke/diarioFase2.test.jsx`; testes que conferem R$ passam a simular o administrador.
+
+<!-- Próxima decisão: D-PROD-319 -->

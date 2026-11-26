@@ -58,6 +58,9 @@ vi.mock("@/components/lancamento-atividades/AtividadeAberta", async (importOrigi
   return { ...real, default: comDiasLegados(real.default) };
 });
 vi.mock("@/lib/AuthContext", () => ({ useAuth: () => ({ clienteId: sessao.clienteId, user: { id: "u1" } }) }));
+// Diário da máquina (Fase 2): estes testes conferem a tela de atividades com R$ visível (como antes); a visibilidade
+// por tipo de usuário tem testes próprios (diarioFase2.test.jsx).
+vi.mock("@/lib/verCustoRegras", async (importOriginal) => ({ ...(await importOriginal()), podeVerCusto: () => true }));
 vi.mock("@/services/sessionService", async (importOriginal) => ({
   ...(await importOriginal()),
   getCurrentUser: vi.fn(async () => ({ login: "operador", cliente_id: sessao.clienteId })),

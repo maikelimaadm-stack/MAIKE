@@ -37,7 +37,8 @@ const atividades = vi.hoisted(() => ({
   registrar: vi.fn(),
 }));
 vi.mock("@/hooks/useLancamentoAtividadesSessao", () => ({
-  useAcoesTelaAtividades: () => ({ ...atividades.acoes, carregando: false, login: "operador" }),
+  // Diário da máquina (Fase 2): este painel mostra R$ para o administrador (a aba Custos é dele).
+  useAcoesTelaAtividades: () => ({ ...atividades.acoes, permissaoEfetiva: { is_admin: true, modulos_permitidos: [], permissoes_telas: [] }, carregando: false, login: "operador" }),
   useEmpresaRealSelecionadaId: () => "emp-1",
   useFusoDaFazenda: () => ({ fuso: "America/Cuiaba", fusoOk: true, semFuso: false, hoje: "2026-11-18" }),
 }));

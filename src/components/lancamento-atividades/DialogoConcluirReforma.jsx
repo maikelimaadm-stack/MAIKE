@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { Check, Loader2 } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
@@ -21,6 +22,8 @@ import { ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
  *   onConcluir: (dados: { data_conclusao: string, trocar_capim: boolean }) => Promise<unknown> }} props
  */
 export default function DialogoConcluirReforma({ reforma, hoje, podeTrocarCapim, onFechar, onConcluir }) {
+  // Diário da máquina (Fase 2): R$ só para o administrador da fazenda.
+  const verCusto = useVerCusto();
   const [dia, setDia] = useState(hoje || "");
   const [erro, setErro] = useState(/** @type {string|null} */ (null));
   const [aviso, setAviso] = useState(/** @type {string|null} */ (null));
@@ -113,6 +116,7 @@ export default function DialogoConcluirReforma({ reforma, hoje, podeTrocarCapim,
           error={erro}
           testId="dialogo-concluir-reforma-dia"
         />
+        {verCusto ? (
         <p className="col-span-12 min-w-0 text-[13px] text-[#141413]" data-testid="dialogo-concluir-reforma-custo">
           Custo total <strong>{formatarMoedaAtividade(custo.custo_total) || "R$ 0,00"}</strong>
           {custo.custo_por_ha ? (
@@ -122,6 +126,7 @@ export default function DialogoConcluirReforma({ reforma, hoje, podeTrocarCapim,
             </>
           ) : null}
         </p>
+        ) : null}
         {pergunta ? (
           <div className="col-span-12 min-w-0 b1-parado b1-reforma-capim" role="group" aria-label="Trocar o capim" data-testid="dialogo-concluir-reforma-pergunta">
             <p className="b1-parado__pergunta">{pergunta}</p>

@@ -117,6 +117,7 @@ import {
   obterTotaisAtividade,
 } from "@/services/lancamentoAtividadesService";
 import { bemParaAbastecer } from "@/lib/atividadeFluxoCampo";
+import { useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { hectaresParaDose } from "@/lib/lancamentosDaAreaRegras";
 import { CODIGO_ENVIO_PENDENTE, codigoDoServidor, ehRecusaDefinitiva, ehResultadoIncerto } from "@/services/operacaoFinanceiraService";
 
@@ -848,6 +849,7 @@ const rotuloDoCusto = (medida) => (medida === "DIARIA" ? "Custo da diária" : me
  */
 export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, comObservacao = true, tituloGrupo = "Lançamento" }) {
   const empresaId = useEmpresaRealSelecionadaId();
+  const verCusto = useVerCusto();
   const secoes = useContext(SecoesDoFormularioContext);
   const comTopo = Boolean(secoes?.topo);
   // Na janela (com seções) o formulário é enxuto; no "Repetir" (sem seções) ficam as notas e os campos de leitura de antes.
@@ -913,14 +915,14 @@ export function CamposDaLinhaMaoObra({ form, mudar, erros, bloqueado, prefixo, c
           error={erros.custo_unitario}
           testId={`${prefixo}-custo-unitario`}
         />
-      ) : (
+      ) : verCusto ? (
         <ValorCalculado
           label={`${rotuloDoCusto(medida)} (${deOnde})`}
           valor={!form.parceiro ? "—" : formatarCustoLinha(unitario) || (mantido ? "Sem custo gravado" : "Sem custo no cadastro")}
           span={6}
           testId={`${prefixo}-custo-unitario`}
         />
-      )}
+      ) : null}
       {!digitado ? <ErroDoCampo texto={erros.custo_unitario} /> : null}
       {terceiro && !compacto ? (
         <p className={NOTA} data-testid={`${prefixo}-terceiro`}>

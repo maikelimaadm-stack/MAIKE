@@ -1,9 +1,13 @@
-import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sprout } from "lucide-react";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
+import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDeCampo";
+import { VerCustoContext, useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { Cartao, Celula, Chip, Grade, Linha, SecaoDetalhe, Vazio } from "@/components/mapa/detalhes-lote/blocos";
-import { useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
+import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
+import { podeVerCusto } from "@/lib/verCustoRegras";
+import { RAIZ_CONSULTAS_ATIVIDADES } from "@/lib/atividadeApontamentoRegras";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
 import { formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
 import { formatarDiaAtividade } from "@/lib/lancamentoAtividadesRegras";
@@ -77,8 +81,27 @@ const subDaAtividade = (a) => {
  * @param {{ area: any, setorNome?: string, ocupada?: boolean | null, verAtividades: boolean, tipos?: any[], secao?: "detalhes" | "manejos" | "custos", onIrAba?: (aba: string) => void }} props
  *   `tipos`: as operações ativas (as que os Detalhes da área já leem), para as ações da atividade.
  */
-export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos = [], secao = "detalhes", onIrAba }) {
+/** @param {{ area: any, setorNome?: string, ocupada?: boolean | null, verAtividades: boolean, tipos?: any[], secao?: "detalhes" | "manejos" | "custos", onIrAba?: (aba: string) => void }} props */
+export default function AbaDetalhesDaArea(props) {
+  // Diário da máquina (Fase 2): R$ só para o administrador da fazenda (`podeVerCusto`).
+  const acoesTela = useAcoesTelaAtividades();
+  return (
+    <VerCustoContext.Provider value={podeVerCusto(acoesTela.permissaoEfetiva)}>
+      <ConteudoAbaDetalhesDaArea {...props} />
+    </VerCustoContext.Provider>
+  );
+}
+
+/** @param {{ area: any, setorNome?: string, ocupada?: boolean | null, verAtividades: boolean, tipos?: any[], secao?: "detalhes" | "manejos" | "custos", onIrAba?: (aba: string) => void }} props */
+function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos = [], secao = "detalhes", onIrAba }) {
   const empresaId = useEmpresaRealSelecionadaId();
+  const verCusto = useVerCusto();
+  const queryClient = useQueryClient();
+  const acoesTela = useAcoesTelaAtividades();
+  const { fusoOk } = useFusoDaFazenda(empresaId);
+  // "Iniciar atividade": a Nova realização com ESTE pasto já escolhido (a mesma janela do "Registrar" dos Detalhes).
+  const [iniciando, setIniciando] = useState(false);
+  const podeIniciar = Boolean(empresaId) && fusoOk && acoesTela.lancarApontamento === true;
   definirFazendaDaTela(empresaId);
   const resumo = useQuery({
     queryKey: [QUERY_ATIVIDADES_DA_AREA, "resumo", empresaId, area.id],
@@ -149,20 +172,40 @@ export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades,
     <Vazio icone={Sprout}>Nenhuma atividade nesta área agora.</Vazio>
   );
 
+  const janelaIniciar = iniciando ? (
+    <JanelaRegistroDeCampo
+      key="iniciar-atividade"
+      tipos={tipos}
+      area={area}
+      onGravou={() => {
+        void queryClient.invalidateQueries({ queryKey: [QUERY_ATIVIDADES_DA_AREA] });
+        void queryClient.invalidateQueries({ queryKey: [RAIZ_CONSULTAS_ATIVIDADES] });
+      }}
+      onFechar={() => setIniciando(false)}
+    />
+  ) : null;
+
   if (secao === "manejos") {
     return (
       <div className="mk-dp-area-organizada mk-dp-d13">
+        {pronto && podeIniciar ? (
+          <button type="button" className="tb-btn tb-btn-green" data-testid="area-iniciar-atividade" onClick={() => setIniciando(true)}>
+            Iniciar atividade
+          </button>
+        ) : null}
         {pronto ? <SecaoDetalhe titulo="Em andamento e planejado">{listaDeAtividades}</SecaoDetalhe> : null}
         {acoesDaAtividade.janelas}
+        {janelaIniciar}
       </div>
     );
   }
 
   if (secao === "custos") {
+    // Sem permissão de ver R$ (operador), a seção de custos não aparece.
     return (
       <div className="mk-dp-area-organizada mk-dp-d13">
-        {pronto && custos ? <BlocoDeCustos custos={custos} mes={mes} /> : null}
-        {pronto && !custos ? <Vazio icone={Sprout}>Nenhum custo lançado nesta área no mês.</Vazio> : null}
+        {verCusto && pronto && custos ? <BlocoDeCustos custos={custos} mes={mes} /> : null}
+        {verCusto && pronto && !custos ? <Vazio icone={Sprout}>Nenhum custo lançado nesta área no mês.</Vazio> : null}
       </div>
     );
   }
@@ -214,14 +257,16 @@ export default function AbaDetalhesDaArea({ area, ocupada = null, verAtividades,
               onClick={onIrAba ? () => onIrAba("manejos") : undefined}
               data-testid="area-resumo-manejos"
             />
-            <Linha
-              rotulo={`Custos${mes ? ` · ${mes}` : ""}`}
-              sub={custos ? `${formatarMoedaAtividade(custos.custo_por_ha) || "—"} por hectare` : "Nenhum custo no mês"}
-              valor={custos ? <strong className="mk-da13-total">{formatarMoedaAtividade(custos.custo_total) || "—"}</strong> : null}
-              chevron
-              onClick={onIrAba ? () => onIrAba("custos") : undefined}
-              data-testid="area-resumo-custos"
-            />
+            {verCusto ? (
+              <Linha
+                rotulo={`Custos${mes ? ` · ${mes}` : ""}`}
+                sub={custos ? `${formatarMoedaAtividade(custos.custo_por_ha) || "—"} por hectare` : "Nenhum custo no mês"}
+                valor={custos ? <strong className="mk-da13-total">{formatarMoedaAtividade(custos.custo_total) || "—"}</strong> : null}
+                chevron
+                onClick={onIrAba ? () => onIrAba("custos") : undefined}
+                data-testid="area-resumo-custos"
+              />
+            ) : null}
           </Cartao>
         </SecaoDetalhe>
       ) : null}

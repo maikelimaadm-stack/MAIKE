@@ -2,6 +2,7 @@ import React from "react";
 import { useCelular } from "@/components/common/MobileSheet";
 import TabelaBase1 from "@/components/lancamento-atividades/TabelaBase1";
 import { resumoDasAreas } from "@/lib/lancamentosDaAreaRegras";
+import { useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 
 const NOTA = "min-w-0 break-words text-[12px] text-[var(--mg-text-2,#475569)]";
 
@@ -30,7 +31,10 @@ const ORDEM_CELULAR = ["nome", "total", "porHa", "ha", "maquinas", "insumos", "m
 export default function ResumoDasAreas({ atividade, totais, lendoTotais }) {
   const celular = useCelular();
   const { linhas, total } = resumoDasAreas({ atividade, totais });
-  const colunas = celular ? ORDEM_CELULAR.map((id) => /** @type {any} */ (COLUNAS.find((c) => c.id === id))) : COLUNAS;
+  const verCusto = useVerCusto();
+  const colunasDaTela = celular ? ORDEM_CELULAR.map((id) => /** @type {any} */ (COLUNAS.find((c) => c.id === id))) : COLUNAS;
+  // Sem permissão de ver R$ (operador), só Área e ha: as demais colunas são todas em reais.
+  const colunas = verCusto ? colunasDaTela : colunasDaTela.filter((c) => c.id === "nome" || c.id === "ha");
   const valor = (/** @type {any} */ l, /** @type {string} */ id) => (l[id] === "—" && lendoTotais ? "…" : l[id]);
 
   return (

@@ -1,4 +1,5 @@
 import React from "react";
+import { useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { useQuery } from "@tanstack/react-query";
 import { Check, CircleCheck } from "lucide-react";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
@@ -39,6 +40,8 @@ const CONTEXTO_MENSAGENS = Object.freeze({ locale: LOCALE_ATIVIDADE, moeda: "BRL
  * }} props
  */
 export default function DialogoConcluirAtividade({ atividade, empresaId, hoje, dataConclusao, onDataConclusao, erroData, onFechar, onEnviar, onConsultar }) {
+  // Diário da máquina (Fase 2): R$ só para o administrador da fazenda.
+  const verCusto = useVerCusto();
   const id = atividade?.id ? String(atividade.id) : null;
   const totaisQuery = useQuery({
     queryKey: chaveTotais(empresaId, id),
@@ -89,10 +92,14 @@ export default function DialogoConcluirAtividade({ atividade, empresaId, hoje, d
           <SecaoForm titulo="Resumo" />
           <ValorCalculado label="Período" valor={valor(resumo.periodo, lendoDias)} span={6} testId="concluir-resumo-periodo" />
           <ValorCalculado label="Área feita" valor={valor(resumo.area, lendoTotais)} span={6} testId="concluir-resumo-area" />
-          <ValorCalculado label="Custo total" valor={valor(resumo.custo, lendoTotais)} span={6} testId="concluir-resumo-custo" />
-          <ValorCalculado label="Custo por hectare" valor={valor(resumo.custoPorHa, lendoTotais)} span={6} testId="concluir-resumo-custo-ha" />
+          {verCusto ? (
+            <>
+              <ValorCalculado label="Custo total" valor={valor(resumo.custo, lendoTotais)} span={6} testId="concluir-resumo-custo" />
+              <ValorCalculado label="Custo por hectare" valor={valor(resumo.custoPorHa, lendoTotais)} span={6} testId="concluir-resumo-custo-ha" />
+            </>
+          ) : null}
           <ValorCalculado label="Combustível" valor={valor(resumo.combustivel, lendoTotais)} span={6} testId="concluir-resumo-combustivel" />
-          {totaisQuery.isError ? (
+          {verCusto && totaisQuery.isError ? (
             <p className="col-span-12 text-[12px] text-amber-800" data-testid="concluir-resumo-erro">
               Não foi possível ler os custos agora; a conclusão não depende deles.
             </p>

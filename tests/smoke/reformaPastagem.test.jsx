@@ -28,6 +28,8 @@ vi.mock("@/hooks/useLancamentoAtividadesSessao", () => ({
   useFusoDaFazenda: () => ({ fuso: "America/Cuiaba", fusoOk: true, semFuso: false, hoje: "2026-11-28" }),
 }));
 vi.mock("@/lib/AuthContext", () => ({ useAuth: () => ({ clienteId: "cli-1", user: { id: "u1" } }) }));
+// Diário da máquina (Fase 2): este teste confere o custo da reforma; o usuário é administrador (vê R$).
+vi.mock("@/lib/verCustoRegras", async (importOriginal) => ({ ...(await importOriginal()), podeVerCusto: () => true }));
 const confirmacao = vi.hoisted(() => ({ confirmar: vi.fn(async () => true) }));
 vi.mock("@/lib/maikeConfirmar", () => confirmacao);
 const cadastros = vi.hoisted(() => ({ tipos: /** @type {any[]} */ ([]), areas: /** @type {any[]} */ ([]) }));
