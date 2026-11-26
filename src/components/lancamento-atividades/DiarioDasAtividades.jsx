@@ -28,7 +28,7 @@ import {
   registrarCampo,
 } from "@/services/lancamentoAtividadesService";
 
-/** D-PROD-325 — a linha de apoio embaixo do nome do cartão (só o tipo que precisa). */
+/** D-PROD-329 — a linha de apoio embaixo do nome do cartão (só o tipo que precisa). */
 const SUB_DO_TIPO = Object.freeze({ PREPARO_SOLO: "Gradeação, calagem" });
 
 /** Tira o erro de um campo (sem ele, o objeto volta igual). @param {Record<string, string>} e @param {string} campo */
@@ -76,7 +76,7 @@ function CampoEscolha({ label, value, onChange, options, required = false, error
 }
 
 /**
- * D-PROD-325 — o "Diário das atividades", só a ABERTURA de um serviço (Mapa Geral → Detalhes da área → Manejos). Uma janela
+ * D-PROD-329 — o "Diário das atividades", só a ABERTURA de um serviço (Mapa Geral → Detalhes da área → Manejos). Uma janela
  * Base1 com três passos:
  *  - `tipo` (tela 01): os 7 tipos fixos em cartões; "Continuar" leva ao passo seguinte;
  *  - `abrir` (tela 02): "Nova atividade de <Tipo>" — Máquina *, Implemento (opcional), Horímetro inicial *, Responsável *;

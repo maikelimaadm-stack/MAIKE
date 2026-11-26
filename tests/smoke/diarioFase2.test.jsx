@@ -2,7 +2,7 @@
  * Diário da máquina, Fase 2 (só tela, sem banco):
  *  - `podeVerCusto(permissao)`: R$ só com a permissão efetiva de administrador da fazenda (`is_admin === true`);
  *  - as telas de lançamento do operador escondem os valores em R$ (o envio e o custo gravado não mudam);
- *  - "Diário das atividades" na janela do pasto (Detalhes da área do Mapa, D-PROD-325): abre já com ESTE pasto,
+ *  - "Diário das atividades" na janela do pasto (Detalhes da área do Mapa, D-PROD-329): abre já com ESTE pasto,
  *    só com permissão de lançar e fuso da fazenda.
  */
 import React from "react";
@@ -135,7 +135,7 @@ describe("R$ escondido para o operador", () => {
   });
 });
 
-describe("Diário das atividades no pasto (Detalhes da área, D-PROD-325)", () => {
+describe("Diário das atividades no pasto (Detalhes da área, D-PROD-329)", () => {
   const PASTO = { id: "area-A", nome: "PASTO A", tipo_cultura: "Pastagem", tamanho_hectares: "22.0000" };
   const RESUMO_VAZIO = { area_id: "area-A", mes: "2026-11", atividades: [], custos: null, planejamentos: [] };
   const RESUMO_COM_CUSTO = {

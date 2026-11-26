@@ -10051,11 +10051,11 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
     - O APK já tem a permissão de câmera e o `FileProvider`, então não precisa de APK novo: a mudança chega pela atualização automática.
 - **Fora:** a tarefa recusada pelo servidor: a foto dela fica guardada até a tarefa ser corrigida ou descartada.
 
-## D-PROD-325 — Diário das atividades, parte 1: abertura do serviço (tipo → máquina, implemento, horímetro e responsável), do zero
+## D-PROD-329 — Diário das atividades, parte 1: abertura do serviço (tipo → máquina, implemento, horímetro e responsável), do zero
 
 **Data:** 2026-11-26 · **Origem:** pedido do proprietário (maquete v4 "Diário das atividades"): começar o serviço pelo pasto, com a máquina, o implemento, o horímetro inicial e o responsável · **Branch:** `feat/atividades-abertura` · **Migration:** nenhuma · **Relatório:** [`ATIVIDADES-ABERTURA-REPORT.md`](./ATIVIDADES-ABERTURA-REPORT.md)
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indica D-PROD-325 (a `main` ainda tem o marcador em D-PROD-325). O marcador passa a D-PROD-326. Conferir de novo antes do merge (regra A5).
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`8ae384693`, com as D-PROD-325 a 328) indica D-PROD-329, que é esta; o marcador passa a D-PROD-330. Conferir de novo antes do merge (regra A5).
 
 - **Problema:** o "Iniciar atividade" e o "Diário da máquina" eram duas janelas separadas, e o começo do serviço pedia a Nova realização inteira (áreas, insumos, equipe) antes de a máquina ser registrada.
 - **Decisão — um botão, um diário do zero:** a área (Detalhes, Manejos) tem um botão só, "Diário das atividades". O diário novo (`DiarioDasAtividades`) faz só a **abertura** nesta parte:
@@ -10070,4 +10070,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Permissão:** só com `lancarApontamento` e fuso configurado; senão, o mesmo aviso da Nova realização.
 - **Fora:** a Nova realização (`RegistroDeCampo`) e o "Diário da máquina" (`DiarioDaMaquina`) continuam no código, sem a entrada no pasto. O "Diário da máquina" da linha de ação (`AcoesDaAtividadeDaArea`) não mudou.
 
-<!-- Próxima decisão: D-PROD-326 -->
+<!-- Próxima decisão: D-PROD-330 -->

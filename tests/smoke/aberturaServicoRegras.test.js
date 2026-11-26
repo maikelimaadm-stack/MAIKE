@@ -1,5 +1,5 @@
 /**
- * D-PROD-325 — regras puras da abertura de serviço (marcador na observação, horímetro pt-BR, validação).
+ * D-PROD-329 — regras puras da abertura de serviço (marcador na observação, horímetro pt-BR, validação).
  */
 import { describe, it, expect } from "vitest";
 import {

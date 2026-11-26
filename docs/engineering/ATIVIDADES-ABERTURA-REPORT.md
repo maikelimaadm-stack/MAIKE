@@ -1,6 +1,6 @@
-# Diário das atividades, parte 1: abertura do serviço (D-PROD-325)
+# Diário das atividades, parte 1: abertura do serviço (D-PROD-329)
 
-**Data:** 2026-11-26 · **Decisão:** [D-PROD-325](./DECISIONS.md) · **Branch:** `feat/atividades-abertura` · **Migration:** nenhuma · **Backend:** sem mudança
+**Data:** 2026-11-26 · **Decisão:** [D-PROD-329](./DECISIONS.md) · **Branch:** `feat/atividades-abertura` · **Migration:** nenhuma · **Backend:** sem mudança
 
 ## O que a pessoa vê
 
