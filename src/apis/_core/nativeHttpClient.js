@@ -33,6 +33,7 @@ import { getOfflineTenant } from '@/lib/offline/offlineTenant';
 import { guardarResposta, lerResposta } from '@/lib/offline/respostasOffline';
 import { FORMATO_INCREMENTAL, incrementalDe, lerIncremental } from '@/lib/offline/sincronizacaoIncremental';
 import { registrarCopiaServida } from '@/lib/offline/copiasDoAparelho';
+import { registrarHoraDaResposta } from '@/lib/offline/horaDasRespostas';
 
 /** Requisição sem resposta em 20 s é tratada como indisponibilidade. */
 const TIMEOUT_MS = 20000;
@@ -412,10 +413,15 @@ const esperar = (ms) => new Promise((r) => setTimeout(() => r(SEM_RESPOSTA_A_TEM
 /** Leitura com cópia no aparelho espera a rede no máximo isto (D-PROD-294). */
 const TIMEOUT_COM_COPIA_MS = 6000;
 
-/** D-PROD-307: a cópia do aparelho, avisando quem grava cache (`copiasDoAparelho`). @param {unknown} corpo */
-const daCopia = (corpo) => {
+/**
+ * D-PROD-307: a cópia do aparelho, avisando quem grava cache (`copiasDoAparelho`).
+ * D-PROD-318: e de quando ela é (o início do pedido que a gravou; desconhecida em cópia antiga).
+ * @param {{corpo: unknown, pedido_em?: number|null}} guardada @param {string} tenant @param {string} caminho
+ */
+const daCopia = (guardada, tenant, caminho) => {
   registrarCopiaServida();
-  return corpo;
+  registrarHoraDaResposta(tenant, caminho, guardada.pedido_em ?? null);
+  return guardada.corpo;
 };
 
 /**
@@ -442,7 +448,7 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
   // `somenteRede` (baixar dados): a leitura precisa vir do servidor agora.
   const podeUsarGuardado = opcoes.somenteRede !== true;
   const guardada = podeUsarGuardado ? await lerResposta(tenant, caminho) : undefined;
-  if (guardada && semInternetAgora()) return daCopia(guardada.corpo);
+  if (guardada && semInternetAgora()) return daCopia(guardada, tenant, caminho);
 
   // Internet fraca (campo): com uma cópia guardada, não espera os 20 s do
   // servidor — em 6 s sem resposta, a tela abre com a cópia do aparelho.
@@ -459,6 +465,9 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
       const sincronia = naVezDaLista(`${tenant}\u0000${caminho}`, async (marcarIdaARede) => {
         // Lida AQUI (não antes): a sincronização anterior pode ter acabado de gravar a marca.
         const comMarca = await lerResposta(tenant, caminho);
+        // D-PROD-318: a hora da 1ª página (esta sincronização pode ter esperado a anterior na fila).
+        /** @type {number|null} */
+        let saiuEm = null;
         const { corpo, marca } = await lerIncremental({
           caminho,
           guardada: comMarca,
@@ -466,11 +475,14 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
             // Saiu da conta (ou entrou outra) no meio das páginas: para; nada é misturado.
             if (contaTrocou()) throw new Error('incremental: a conta trocou durante a sincronização');
             marcarIdaARede();
+            saiuEm ??= Date.now();
             return requisitarNaRede(c, opcoesCompartilhadas, contexto);
           },
         });
         if (contaTrocou()) throw new Error('incremental: a conta trocou durante a sincronização');
-        await guardarResposta(tenant, caminho, corpo, { marca, formato: FORMATO_INCREMENTAL }).catch(() => {});
+        const de = saiuEm ?? comMarca?.pedido_em ?? null;
+        await guardarResposta(tenant, caminho, corpo, { marca, formato: FORMATO_INCREMENTAL, ...(de === null ? {} : { pedido_em: de }) }).catch(() => {});
+        registrarHoraDaResposta(tenant, caminho, de);
         return corpo;
       });
       try {
@@ -480,7 +492,7 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
           const r = await Promise.race([sincronia, esperar(TIMEOUT_COM_COPIA_MS)]);
           if (r === SEM_RESPOSTA_A_TEMPO) {
             sincronia.catch(() => undefined);
-            return daCopia(guardada.corpo);
+            return daCopia(guardada, tenant, caminho);
           }
           return r;
         }
@@ -495,12 +507,15 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
         }
       }
     }
+    // D-PROD-318: a hora em que o pedido saiu (o que começou a subir depois dela, a resposta em regra ainda não tem).
+    const pedidoEm = Date.now();
     const corpo = await requisitarNaRede(caminho, opcoesDaRede, contexto);
-    guardarResposta(tenant, caminho, corpo).catch(() => {});
+    guardarResposta(tenant, caminho, corpo, { pedido_em: pedidoEm }).catch(() => {});
+    registrarHoraDaResposta(tenant, caminho, pedidoEm);
     return corpo;
   } catch (erro) {
     if (guardada && /** @type {any} */ (erro)?.code === API_ERROR_CODES.PROVIDER_UNAVAILABLE && !opcoes.signal?.aborted) {
-      return daCopia(guardada.corpo);
+      return daCopia(guardada, tenant, caminho);
     }
     throw erro;
   }

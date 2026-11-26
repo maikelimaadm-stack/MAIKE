@@ -3,22 +3,29 @@
  * ainda espera envio: a transferência (as duas pernas) e a baixa do lançamento
  * do cocho aparecem como movimentações, marcadas `_aguardandoEnvio`.
  *
- * Só visão, aplicada na leitura do cache do mapa (nunca gravada). Entra só o
- * que NUNCA tentou subir: o que já tentou pode estar no servidor, e a lista do
- * servidor já mostraria (aparecer duas vezes seria pior). Quando o registro
- * chega, a movimentação de verdade toma o lugar desta.
+ * Só visão, aplicada na leitura do cache do mapa (nunca gravada).
+ *
+ * D-PROD-318 (Etapa 4, a tela nunca "pisca"): o registro do aparelho casa com o do servidor PELO ID, e não mais
+ * pelo estado da fila. Antes, o que já tinha tentado subir sumia do histórico (para não aparecer duas vezes) e o que
+ * acabava de ser confirmado sumia até a lista ser relida: um buraco. Agora:
+ *  - nunca tentou: aparece como "aguardando envio";
+ *  - confirmado há pouco: aparece com a movimentação que o servidor devolveu (id real) até a lista do servidor
+ *    trazê-la (`comMovimentacoesDoAparelho` não repete o que a lista já tem);
+ *  - baixa do cocho já feita no servidor (o lançamento ainda espera): aparece com o id real da baixa;
+ *  - tentou e não teve resposta: sem internet aparece (a lista guardada é de antes, não pode tê-lo); com
+ *    internet não, a próxima passada confirma em segundos (e a lista do servidor pode já tê-lo, sem como casar).
  */
 
-import { registrosAguardandoDoTipo } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
+import { mostrarComoAguardando as mostraComoAguardando, registrosDoAparelhoDoTipo } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { TIPO_LANCAMENTO_COCHO, TIPO_TRANSFERENCIA_DEPOSITO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
 
 /** Prefixo das movimentações que ainda não estão no servidor (o cache nunca as grava). */
 export const PREFIXO_AGUARDANDO = 'aguardando:';
 
 /** @param {string} tipo */
-const nuncaTentados = async (tipo) => {
+const doAparelho = async (tipo) => {
   try {
-    return (await registrosAguardandoDoTipo(tipo)).filter((r) => !r.tentado);
+    return (await registrosDoAparelhoDoTipo(tipo)).filter((r) => r.estado !== 'atencao');
   } catch {
     return [];
   }
@@ -56,12 +63,19 @@ const base = (p, r) => ({
  */
 export const movimentacoesAguardandoEnvio = async (empresaId = null) => {
   const [transferencias, lancamentos] = await Promise.all([
-    nuncaTentados(TIPO_TRANSFERENCIA_DEPOSITO),
-    nuncaTentados(TIPO_LANCAMENTO_COCHO),
+    doAparelho(TIPO_TRANSFERENCIA_DEPOSITO),
+    doAparelho(TIPO_LANCAMENTO_COCHO),
   ]);
   const lista = [];
   for (const r of transferencias) {
     const p = /** @type {any} */ (r.payload);
+    if (r.estado === 'enviado') {
+      // Confirmada: as duas pernas que o servidor devolveu (ids reais).
+      const res = /** @type {any} */ (r.resultado);
+      for (const m of [res?.movimentacao_saida, res?.movimentacao_entrada]) if (m?.id) lista.push({ ...m, _confirmadoAgora: true });
+      continue;
+    }
+    if (!mostraComoAguardando(r)) continue;
     const comum = {
       ...base(p, r),
       local_estoque_destino: p?.local_destino_id ?? null,
@@ -75,8 +89,33 @@ export const movimentacoesAguardandoEnvio = async (empresaId = null) => {
   }
   for (const r of lancamentos) {
     const p = /** @type {any} */ (r.payload);
-    // Sem baixa (cocho sem depósito) ou baixa já feita no servidor: nada a mostrar aqui.
-    if (!p?.saida || r.progresso?.saida_feita) continue;
+    if (r.estado === 'enviado') {
+      // Confirmado: a baixa que o servidor devolveu (id real).
+      const m = /** @type {any} */ (r.resultado)?.movimentacao;
+      if (m?.id) lista.push({ ...m, _confirmadoAgora: true });
+      continue;
+    }
+    // Sem baixa (cocho sem depósito): nada a mostrar aqui.
+    if (!p?.saida) continue;
+    const feita = r.progresso?.saida_feita;
+    if (feita?.movimentacao_id) {
+      // A baixa já está no servidor (o lançamento ainda espera): com o id real, para casar com a lista.
+      lista.push({
+        ...base(p.saida, r),
+        id: feita.movimentacao_id,
+        tipo_movimentacao: 'Saída',
+        tipo_detalhado: 'suplementacao',
+        local_estoque_destino: null,
+        local_destino: null,
+        ponto_suplementacao_id: p.saida.ponto_suplementacao_id ?? p?.evento?.ponto_suplementacao_id ?? null,
+        area_vinculada_nome: p.saida.area_nome ?? null,
+        origem_sistema: 'suplementacao',
+        _aguardandoEnvio: false,
+        _baixaFeita: true,
+      });
+      continue;
+    }
+    if (!mostraComoAguardando(r)) continue;
     lista.push({
       ...base(p.saida, r),
       id: `${PREFIXO_AGUARDANDO}${r.operationId}:baixa`,
@@ -91,4 +130,16 @@ export const movimentacoesAguardandoEnvio = async (empresaId = null) => {
   return lista
     .filter((m) => !empresaId || m.empresa_id === empresaId)
     .sort((a, b) => String(b.created_date ?? '').localeCompare(String(a.created_date ?? '')));
+};
+
+/**
+ * D-PROD-318: a lista do servidor com o que o aparelho sabe e ela ainda não traz — sem repetir (casa pelo id).
+ * @param {any[]} itens a lista do servidor (cópia do aparelho)
+ * @param {string|null} [empresaId]
+ */
+export const comMovimentacoesDoAparelho = async (itens, empresaId = null) => {
+  const doServidor = Array.isArray(itens) ? itens : [];
+  const ids = new Set(doServidor.map((m) => m?.id).filter(Boolean));
+  const extras = (await movimentacoesAguardandoEnvio(empresaId)).filter((m) => !ids.has(m.id));
+  return [...extras, ...doServidor];
 };

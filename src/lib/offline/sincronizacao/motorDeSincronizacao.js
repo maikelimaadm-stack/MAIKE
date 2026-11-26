@@ -509,6 +509,8 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
       sequencia: proximaSequencia(itens),
       estado,
       tentado: tentado || estado === 'enviado',
+      // D-PROD-318: quando o servidor PODE ter começado a receber (a primeira tentativa). O envio direto começa agora.
+      tentado_em: tentado || estado === 'enviado' || extra.direto_ate ? new Date(agora()).toISOString() : null,
       tentativas: 0,
       proxima_tentativa_em: 0,
       ultimo_erro: null,
@@ -616,7 +618,7 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
         await regravar((i) => {
           if (!aindaNossaReserva(i, marcaDaReserva)) return i; // a passada já tomou o item
           const { direto_ate: _reserva, reserva_de: _marca, ...resto } = /** @type {any} */ (i);
-          return { ...resto, estado: 'pendente', tentado: true, progresso: { ...(i.progresso ?? {}), ...progressoDoEnvio } };
+          return { ...resto, estado: 'pendente', tentado: true, tentado_em: i.tentado_em ?? i.criado_em, progresso: { ...(i.progresso ?? {}), ...progressoDoEnvio } };
         }).catch(() => undefined);
         emitir();
         agendarSincronizacao();
@@ -802,9 +804,11 @@ const passada = async () => {
         delete fresco.direto_ate;
         delete fresco.reserva_de;
         fresco.tentado = true;
+        fresco.tentado_em = fresco.tentado_em ?? fresco.criado_em;
         await fila.gravar(fresco);
       } else if (!fresco.tentado) {
         fresco.tentado = true;
+        fresco.tentado_em = fresco.tentado_em ?? new Date(agora()).toISOString();
         await fila.gravar(fresco);
       }
       return fresco;
@@ -930,6 +934,54 @@ export const registrosAguardandoDoTipo = async (tipo) => {
       // Já tentou subir: o servidor pode ter gravado (ou gravado parte, ver `progresso`).
       tentado: Boolean(i.tentado),
       progresso: i.progresso ?? {},
+    }));
+};
+
+/**
+ * D-PROD-318: o registro do aparelho (de `registrosDoAparelhoDoTipo`) aparece na tela como "aguardando envio"?
+ *  - nunca tentou subir: sim (o servidor não o tem);
+ *  - tentou e não teve resposta: sem internet sim (a lista guardada é de antes, não pode tê-lo); com internet não —
+ *    a lista do servidor pode já tê-lo e não há como casar os dois; a próxima passada confirma em segundos;
+ *  - confirmado: não (aparece com o que o servidor devolveu, até a lista do servidor trazê-lo).
+ * @param {{ estado: string, tentado: boolean }} r
+ */
+export const mostrarComoAguardando = (r) =>
+  r.estado !== 'enviado' && r.estado !== 'atencao' && (!r.tentado || (typeof navigator !== 'undefined' && navigator.onLine === false));
+
+/** D-PROD-318: por quanto tempo um registro já confirmado continua na visão da tela (até a lista do servidor o trazer). */
+export const JANELA_CONFIRMADO_NA_TELA_MS = 30 * 60 * 1000;
+
+/**
+ * D-PROD-318 — Etapa 4 (a tela nunca "pisca"): os registros deste tipo que a tela deve mostrar a partir do aparelho,
+ * com o que se sabe deles no servidor, para quem mistura com a lista do servidor casar pelo id e nunca deixar um
+ * buraco nem mostrar em dobro:
+ *  - os que esperam envio (como `registrosAguardandoDoTipo`), inclusive os já tentados (`tentado`);
+ *  - os CONFIRMADOS há pouco (`JANELA_CONFIRMADO_NA_TELA_MS`), com o `resultado` do servidor: a lista do servidor
+ *    na tela pode ser de antes da confirmação, e sem eles o registro sumiria até ela ser relida.
+ * Fora: o item que a tela está enviando agora (envio direto: a tela mostra a resposta).
+ * @param {string} tipo
+ * @returns {Promise<Array<{operationId: string, payload: unknown, estado: string, criado_em: string,
+ *   tentado: boolean, tentado_em: string|null, enviado_em: string|null, progresso: Record<string, any>, resultado: unknown}>>}
+ */
+export const registrosDoAparelhoDoTipo = async (tipo) => {
+  const fila = portaDaFila();
+  if (!fila || !sessao) return [];
+  const limite = agora() - JANELA_CONFIRMADO_NA_TELA_MS;
+  return (await fila.listar())
+    .filter((i) => eDaSessao(i) && i.tipo === tipo && !reservadoPeloEnvioDireto(i))
+    .filter((i) => i.estado !== 'enviado' || (Date.parse(i.enviado_em ?? '') || 0) >= limite)
+    .sort(emOrdem)
+    .map((i) => ({
+      operationId: i.id,
+      payload: i.payload,
+      estado: i.estado,
+      criado_em: i.criado_em,
+      tentado: Boolean(i.tentado) || i.estado === 'enviado',
+      // Desde quando o servidor pode ter o registro (a primeira tentativa); sem o campo (fila antiga), a criação.
+      tentado_em: i.tentado || i.estado === 'enviado' ? (i.tentado_em ?? i.criado_em) : null,
+      enviado_em: i.estado === 'enviado' ? (i.enviado_em ?? null) : null,
+      progresso: i.progresso ?? {},
+      resultado: i.estado === 'enviado' ? i.resultado : undefined,
     }));
 };
 
