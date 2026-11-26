@@ -82,6 +82,15 @@ Com atividades abertas no pasto, o Diário abre na lista "Em andamento neste pas
 
 **Arquivos da emenda:** `src/components/lancamento-atividades/DiarioDasAtividades.jsx` (o passo `escolher`, a linha `ItemAtividadeAberta`), `src/components/mapa/detalhes-area/AbaDetalhesDaArea.jsx` (abre sem ler; passa `atividadesAbertas` e `lerAtividade`), `src/styles/cadastro-base1.css` (duas regras: `.b1-aberto-opcoes--lista` e `.b1-aberto-chip--neutro`; sem seletor `.b1-realizacao`). **Testes:** `tests/smoke/diarioEmAndamentoNoPasto.test.jsx` e `tests/smoke/diarioFase2.test.jsx`.
 
+### Uma entrada só (pedido do dono, mesma D-PROD-335)
+
+Os Detalhes da área tinham três entradas de diário. Ficou uma: o "Diário das atividades" (`DiarioDoPasto`, que é o `DiarioDasAtividades` com a lista do pasto).
+
+- **Religadas:** a pílula "Manejos" do rodapé (`DetalhesArea.jsx`) abre o Diário das atividades, com a permissão de lançar de sempre; a ação de linha "Diário da máquina" das atividades em andamento (`AcoesDaAtividadeDaArea.jsx`) virou "Diário das atividades" e abre o diário nessa atividade (com abertura, no cabeçalho do serviço; sem ela, no formulário de abertura).
+- **Removida:** o botão verde "Diário das atividades" do topo da aba Manejos (`AbaDetalhesDaArea.jsx`), com o estado e o código que só ele usava.
+- **Continuam na página Lançamento de Atividades:** a "Nova realização" (`RegistroDeCampo.jsx`) e o "Diário da máquina" (`DiarioDaMaquina.jsx`), com os arquivos inteiros. Os Detalhes da área deixaram de abrir o "Diário da máquina" e a "Nova realização" pela pílula. A ação de linha "+ Lançamento" continua abrindo a "Nova realização" presa à atividade (D-PROD-278).
+- **Testes:** `tests/smoke/diarioFase2.test.jsx` (a aba sem o botão; o `DiarioDoPasto` com a lista e a leitura no toque), `tests/smoke/detalhesAreaHistorico.test.jsx` (a pílula Manejos abre o diário: no tipo sem atividade aberta, na lista com uma), `tests/smoke/mapaAtividadeAcoes.test.jsx` (o rótulo "Diário das atividades" no menu e o toque que abre o diário nessa atividade). Os testes da "Nova realização" pela pílula saíram do `detalhesAreaHistorico`, porque essa ligação não existe mais; a janela continua coberta pelos testes do `RegistroDeCampo`.
+
 ## Fora desta parte
 
-Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia; o "Diário da máquina" continua sendo o caminho do diário antigo (com o pasto, pela linha de ação).
+Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia; o "Diário da máquina" (`DiarioDaMaquina`) saiu dos Detalhes da área e segue só na página Lançamento de Atividades.
