@@ -4,6 +4,7 @@
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
 
+import { TAMANHO_PONTO_MAPA_PX, estiloSeloPonto, estiloFarolPonto } from "@/lib/maplibre/marcadoresVisuais";
 import { aplicarIndicadorTarefa } from "@/lib/tarefas/marcador";
 import { normalizarPrioridadeTarefa } from "@/lib/tarefas/prioridade";
 import { useRef, useCallback } from "react";
@@ -182,7 +183,7 @@ function aplicarTextoESeloSuplementacao(entry, titulo, selo) {
   s.textContent = selo.texto;
   // Canto de cima à direita do ícone de 36 px, fora do fluxo: não mexe na âncora.
   s.style.cssText =
-    `position:absolute;left:calc(50% + 13px);top:calc(50% - 14px);transform:translate(-50%,-50%);width:16px;height:16px;box-sizing:border-box;border-radius:9999px;border:2px solid #fff;background:${cores.fundo};color:${cores.texto};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;box-shadow:0 1px 2px rgba(0,0,0,.35);pointer-events:none;`;
+    estiloSeloPonto(cores.fundo, cores.texto);
   el.appendChild(s);
   entry.selo = s;
 }
@@ -205,7 +206,7 @@ function aplicarFarolSuplementacao(entry, farol) {
   f.dataset.farol = farol.cor;
   f.setAttribute("aria-hidden", "true");
   f.style.cssText =
-    `position:absolute;left:calc(50% + 13px);top:calc(50% + 12px);transform:translate(-50%,-50%);width:12px;height:12px;box-sizing:border-box;border-radius:9999px;border:2px solid #fff;background:${farol.hex};box-shadow:0 1px 2px rgba(0,0,0,.35);pointer-events:none;`;
+    estiloFarolPonto(farol.hex);
   entry.el.appendChild(f);
   entry.farol = f;
 }
@@ -717,7 +718,7 @@ export default function useMapRenderer(mapInstanceRef) {
         const { iconUrl, cor, categoria } = resolverIconeSuplementacao(ponto, iconesConfig);
         // Nível no marcador (D-PROD-178): texto do SSOT no title/aria-label e selo.
         const { titulo, selo, farol } = descreverMarcadorSuplementacao(ponto);
-        const baseSize = (categoria.includes("COCHO") || categoria.includes("DEPOSITO")) ? 36 : 40;
+        const baseSize = (categoria.includes("COCHO") || categoria.includes("DEPOSITO")) ? TAMANHO_PONTO_MAPA_PX : 40;
         const corpoChave = JSON.stringify([iconUrl, baseSize, cor]);
         const key = prefix + ponto.id;
         const ref = { ponto };
@@ -864,7 +865,7 @@ export default function useMapRenderer(mapInstanceRef) {
         estado: JSON.stringify([pos.lat, pos.lng, t.titulo, t.prioridade, t.status, t.data_prevista, hoje, iconUrl]),
         ref,
         criar: () => {
-          const entry = criarMarcadorClicavel({ iconUrl, baseSize: 40, cor, titulo: t.titulo }, () => {
+          const entry = criarMarcadorClicavel({ iconUrl, baseSize: TAMANHO_PONTO_MAPA_PX, cor, titulo: t.titulo }, () => {
             onClickTarefa?.(markersRef.current.get(key)?.ultimo?.ref?.tarefa || t);
           });
           aplicarIndicadorTarefa(entry.el, t, hoje);
@@ -874,7 +875,7 @@ export default function useMapRenderer(mapInstanceRef) {
         atualizar: (entry) => {
           entry.el.title = String(t.titulo || "");
           entry.marker.getElement().style.zIndex = urgente ? "3000" : "2500";
-          aplicarCorpo(entry.el, { iconUrl, baseSize: 40, cor });
+          aplicarCorpo(entry.el, { iconUrl, baseSize: TAMANHO_PONTO_MAPA_PX, cor });
           aplicarIndicadorTarefa(entry.el, t, hoje);
         },
       });

@@ -88,7 +88,7 @@ Arquivo: `src/components/mapa/useMapRenderer.jsx`.
 | Gado/lotes | `LARGURA_MARCADOR_PX` (44), em `src/assets/icones/lotes/quadradinho.js`, usado por `syncLotes` |
 | Cochos e depósitos | `baseSize` de 36, em `syncPontosSuplementacao` |
 | Pontos de referência | `baseSize: 40`, em `syncPontos` |
-| Tarefas | `baseSize: 40`, em `syncTarefas`; selo DOM de 22 px independente do desenho |
+| Tarefas | `TAMANHO_PONTO_MAPA_PX` (36 px), igual aos cochos; contador de 16 px e farol de 12 px |
 | Deslocamento do gado em relação ao ponto | `OFFSET_LOTE_PX = [0, -26]` |
 | Contagem dentro do ícone do gado | `left:50%`, `top: CONTAGEM_TOPO_PCT%` (centro da faixa reservada, ≈ 73,46%), com `translate(-50%,-50%)` |
 | Avisos no alto à direita do gado | `left:calc(50% + 22px)`, `top:calc(50% - 24px)` |
@@ -192,3 +192,8 @@ Guia específico do ícone do lote: [src/assets/icones/lotes/README.md](../../sr
 - Tanto o mapa geral quanto o seletor de localização usam o mesmo resolver e o mesmo indicador.
 - Backend: `backend/src/modules/lancamentosTarefa/lancamentoTarefaService.js` aceita Urgente no contrato HTTP.
   A coluna já é texto de 32 caracteres: não há migration nem alteração de registros existentes.
+
+
+As medidas dos selos e faróis vêm de `src/lib/maplibre/marcadoresVisuais.js`, compartilhadas pelo cocho,
+depósito e tarefa. O desenho da tarefa tem folga no viewBox para igualar o tamanho visível dos pontos.
+Na tarefa, os dias ficam no selo superior cinza; a situação fica no farol inferior colorido.
