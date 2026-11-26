@@ -1,7 +1,7 @@
 # MAIKE — Diário da máquina (backend): runbook de release (D-PROD-319)
 
-> **Estado: `SCHEMA_APPLIED_PROD: NÃO`.** Esta release NÃO foi aplicada em produção. Só se aplica com o GO do proprietário,
-> pelo caminho oficial, **antes do merge** da PR #406. Sem o GO, a release fica parada e a tela degrada.
+> **Estado: `SCHEMA_APPLIED_PROD: SIM` (2026-11-26, caminho B, GO do proprietário, antes do merge da PR #406).**
+> Pós-checagem do §2.4 conferida. Registro no §5.
 
 Decisão: [D-PROD-319](./DECISIONS.md) · Migration: `20261127100000_diario_maquina` (EXPAND, sem `--contract`).
 
@@ -43,5 +43,17 @@ mostra o fluxo antigo com o aviso "Diário da máquina ainda não está ligado n
 
 ## 5. Registro
 
-- `SCHEMA_APPLIED_PROD`: NÃO (pendente de GO).
-- Aplicação em produção: _(preencher com data, contagens e checksum conferidos)_.
+- `SCHEMA_APPLIED_PROD`: SIM.
+- Cópia antes de aplicar (só leitura): estrutura (colunas, constraints, índices) e todas as linhas de `Produto` (2) e
+  `AtividadeApontamentoProduto` (11), capturadas em 2026-11-26 11:13 UTC, guardadas fora do repositório.
+- Preflight em produção (só leitura): `sid` 7692130048193495360, 82 concluídas e 0 ruins, a última
+  `20261126300000_sincronizacao_incremental_indices` com `a1cdcd2f…fc3c`, esta não registrada, nenhuma das 4 colunas e
+  nenhuma das 3 tabelas existia, 112 tabelas.
+- Aplicação (2026-11-26, GO do proprietário: "Sim, pode criar as tabelas no banco e fazer o merge"): **caminho B**
+  (conector Supabase, uma única transação com as guardas de alvo, histórico, anterior e tabelas, `lock_timeout` 5 s,
+  desvio da D-PROD-74 autorizado como nas anteriores), com o conteúdo integral de `migration.sql` (SHA-256
+  `b1896a7c…aeb`) e o registro em `_prisma_migrations`. Ensaiada antes no PostgreSQL local (82 → 83, `migrate status`
+  em dia, `migrate diff` vazio).
+- Pós-checagem: 83 concluídas e 0 ruins; a nova com `b1896a7c…aeb` e 1 passo; as 4 colunas existem; as 3 tabelas existem
+  com RLS ligado (sem FORCE) e 1 política cada; 115 tabelas; linhas de `Produto` e `AtividadeApontamentoProduto`
+  inalteradas (2 e 11). `get_advisors` security: sem alerta.
