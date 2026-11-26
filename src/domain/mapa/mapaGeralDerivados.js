@@ -6,6 +6,7 @@
  * Puro: sem React, sem provider, sem `window`, sem storage.
  */
 import { filtroInclui, filtroSemRestricao } from '@/lib/mapaFiltroSelecao';
+import { normalizarPrioridadeTarefa } from '@/lib/tarefas/prioridade';
 
 const TRANSFERENCIA = 'Transferência de Área';
 const UMA_UA_KG = 450;
@@ -108,6 +109,49 @@ export const filtrarTarefasPorArea = (tarefas, { filtroSetor, filtroTipoCultura,
     }
     return setorAtivo ? nomesSetores.has(tarefa?.setor_nome) : true;
   });
+};
+
+/**
+ * D-PROD-326 — filtros da aba Tarefas: situação (Pendente / Em Andamento), prioridade, responsável e prazo
+ * ("atrasadas" = o dia do prazo já passou; vencer hoje ainda não é atraso). Sem restrição, nada sai.
+ *
+ * @param {any[]} tarefas
+ * @param {{ filtroTarefaStatus?: any, filtroTarefaPrioridade?: any, filtroTarefaResponsavel?: any, filtroTarefaPrazo?: any, hoje?: string | null }} filtros
+ */
+export const filtrarTarefasDoMapa = (tarefas, { filtroTarefaStatus, filtroTarefaPrioridade, filtroTarefaResponsavel, filtroTarefaPrazo, hoje = null }) => {
+  const soAtrasadas = filtroInclui(filtroTarefaPrazo, 'atrasadas') && !filtroSemRestricao(filtroTarefaPrazo);
+  if (filtroSemRestricao(filtroTarefaStatus) && filtroSemRestricao(filtroTarefaPrioridade) && filtroSemRestricao(filtroTarefaResponsavel) && !soAtrasadas) return tarefas;
+  return tarefas.filter((t) => {
+    if (!filtroInclui(filtroTarefaStatus, String(t?.status || 'Pendente'))) return false;
+    if (!filtroInclui(filtroTarefaPrioridade, normalizarPrioridadeTarefa(t?.prioridade || 'Média'))) return false;
+    if (!filtroInclui(filtroTarefaResponsavel, String(t?.responsavel || '').trim() || SEM_RESPONSAVEL)) return false;
+    if (soAtrasadas) {
+      const prazo = String(t?.data_prevista ?? '').slice(0, 10);
+      if (!prazo || !hoje || !(prazo < hoje)) return false;
+    }
+    return true;
+  });
+};
+
+/** Valor do filtro de responsável para a tarefa sem responsável. */
+export const SEM_RESPONSAVEL = '__sem_responsavel__';
+
+/**
+ * Responsáveis das tarefas do mapa, em ordem alfabética (opções do filtro); "Sem responsável" no fim, se houver.
+ * @param {any[]} tarefas
+ * @returns {{ valor: string, rotulo: string }[]}
+ */
+export const responsaveisDasTarefas = (tarefas) => {
+  const nomes = new Set();
+  let semResponsavel = false;
+  for (const t of tarefas || []) {
+    const nome = String(t?.responsavel || '').trim();
+    if (nome) nomes.add(nome);
+    else semResponsavel = true;
+  }
+  const lista = [...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR')).map((n) => ({ valor: n, rotulo: n }));
+  if (semResponsavel) lista.push({ valor: SEM_RESPONSAVEL, rotulo: 'Sem responsável' });
+  return lista;
 };
 
 // ─── Ocupação ───────────────────────────────────────────────────────────
