@@ -2768,6 +2768,87 @@
   }
 }
 
+/* D-PROD-334 — a "Carga de insumo" (maquete 06), na janela do serviço aberto. Os seletores NÃO levam `.b1-realizacao` nem
+   `--mg-field-h` (o teste de campo conta essa variável); a altura da caixa da unidade é fixa. */
+.b1-aberto-janela .b1-carga-cab {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f3fdf6;
+  border: 1px solid #c9f2d4;
+}
+.b1-aberto-janela .b1-carga-cab strong {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1c1b18;
+}
+.b1-aberto-janela .b1-carga-cab span {
+  font-size: 12.5px;
+  color: #73726c;
+}
+.b1-aberto-janela .b1-carga-modo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.b1-aberto-janela .b1-carga-modo button {
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid #e7e5df;
+  background: #fff;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #1c1b18;
+  cursor: pointer;
+}
+.b1-aberto-janela .b1-carga-modo button.on {
+  border-color: #16a34a;
+  background: #f3fdf6;
+  color: #15803d;
+}
+.b1-aberto-janela .b1-carga-nota {
+  margin: 0;
+  font-size: 12.5px;
+  color: #73726c;
+}
+.b1-aberto-janela .b1-carga-qtd {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+.b1-aberto-janela .b1-carga-un {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: #16a34a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+@media (max-width: 767px) {
+  .b1-aberto-janela .b1-carga-cab strong {
+    font-size: 18px;
+  }
+  .b1-aberto-janela .b1-carga-modo button {
+    height: 46px;
+    font-size: 15.5px;
+  }
+  .b1-aberto-janela .b1-carga-nota {
+    font-size: 13.5px;
+  }
+  .b1-aberto-janela .b1-carga-un {
+    font-size: 14px;
+  }
+}
+
 .cadastro-b1 .b1-tipo-cab {
   display: flex;
   flex-direction: column;
