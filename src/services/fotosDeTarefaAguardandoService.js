@@ -21,6 +21,7 @@ import {
   saveTarefaImageOffline,
 } from '@/components/offline/IndexedDBManager';
 import { registrarPassadaExtra } from '@/lib/offline/sincronizacao/gatilhosDeSincronizacao';
+import { classificarFalhaDeEnvio } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { idsComCriacaoPendenteNaFilaDeEntidades } from '@/lib/offline/offlineEntityRuntime';
 import { atualizarTarefa, enviarAnexo, listarTodasAsTarefas } from '@/services/tarefasMapaService';
 
@@ -104,6 +105,65 @@ const enviarDaTarefa = async (tarefaId, fotos) => {
   for (const foto of fotos) await deleteTarefaImageOffline(foto._imgId);
 };
 
+/** D-PROD-328: depois de tantas falhas seguidas, a foto para de tentar sozinha e pede a pessoa (fila única). */
+export const TENTATIVAS_DA_FOTO = 3;
+
+/** @param {any} erro */
+const mensagemDoErro = (erro) => String(erro?.message || erro || 'Não foi possível enviar a foto.').slice(0, 300);
+
+/**
+ * D-PROD-328: guarda o erro nas fotos da tarefa (contando a tentativa). Relê do aparelho: uma foto pode ter subido
+ * nesta mesma tentativa (`url_enviada`) e não pode perder isso. @param {string} tarefaId @param {any} erro
+ */
+const registrarFalha = async (tarefaId, erro) => {
+  const em = new Date().toISOString();
+  for (const foto of await getTarefaImagesOffline(chaveDa(tarefaId)).catch(() => [])) {
+    await putTarefaImageOffline({ ...foto, tentativas: Number(foto.tentativas ?? 0) + 1, ultimo_erro: { mensagem: mensagemDoErro(erro), em } }).catch(() => undefined);
+  }
+  avisar();
+};
+
+/**
+ * D-PROD-328 — as fotos de tarefa guardadas no aparelho, para a fila única da janela "Sincronização".
+ * `situacao`: "esperando a tarefa" (a criação dela ainda está na fila), "aguardando" ou "atencao" (falhou
+ * `TENTATIVAS_DA_FOTO` vezes: só volta com "Tentar de novo").
+ * @returns {Promise<Array<{ chave: number|string, tarefaId: string, nome: string, tamanho: number, criado_em: string|null,
+ *   situacao: 'esperando'|'aguardando'|'atencao', tentativas: number, motivo: string|null, ultimaTentativaEm: string|null }>>}
+ */
+export const listarFotosAguardandoEnvio = async () => {
+  let todas = [];
+  try {
+    todas = (await getAllPendingTarefaImages()).filter((f) => String(f?.tarefa_offline_id ?? '').startsWith(PREFIXO));
+  } catch {
+    return [];
+  }
+  const criacoesNaFila = await idsComCriacaoPendenteNaFilaDeEntidades().catch(() => new Set());
+  return todas.map((f) => {
+    const tarefaId = String(f.tarefa_offline_id).slice(PREFIXO.length);
+    const tentativas = Number(f.tentativas ?? 0);
+    return {
+      chave: f._imgId,
+      tarefaId,
+      nome: f.name || 'foto',
+      tamanho: Number(f.buffer?.byteLength ?? 0),
+      criado_em: f._offlineTimestamp ?? null,
+      situacao: tentativas >= TENTATIVAS_DA_FOTO ? 'atencao' : criacoesNaFila.has(tarefaId) ? 'esperando' : 'aguardando',
+      tentativas,
+      motivo: f.ultimo_erro?.mensagem ?? null,
+      ultimaTentativaEm: f.ultimo_erro?.em ?? null,
+    };
+  });
+};
+
+/** D-PROD-328 — "Tentar de novo" nas fotos de uma tarefa: zera as falhas e envia já. @param {string} tarefaId */
+export const tentarDeNovoFotosDaTarefa = async (tarefaId) => {
+  for (const f of await getTarefaImagesOffline(chaveDa(tarefaId)).catch(() => [])) {
+    await putTarefaImageOffline({ ...f, tentativas: 0 });
+  }
+  avisar();
+  return enviarFotosDeTarefasGuardadas();
+};
+
 /**
  * Sobe as fotos guardadas das tarefas que já estão no servidor.
  * @returns {Promise<{ enviadas: number, esperando: number, falharam: number }>}
@@ -132,11 +192,19 @@ export const enviarFotosDeTarefasGuardadas = async () => {
       esperando += 1;
       continue;
     }
+    // D-PROD-328: a que já falhou várias vezes espera a pessoa ("Tentar de novo" na fila única).
+    if (fotos.some((f) => Number(f.tentativas ?? 0) >= TENTATIVAS_DA_FOTO)) {
+      falharam += 1;
+      continue;
+    }
     try {
       await enviarDaTarefa(tarefaId, fotos);
       enviadas += 1;
-    } catch {
+    } catch (erro) {
       falharam += 1;
+      // Sem internet (ou sessão vencida) não conta: só a falha com resposta do servidor conta tentativa.
+      const falha = classificarFalhaDeEnvio(erro);
+      if (falha !== 'rede' && falha !== 'sessao') await registrarFalha(tarefaId, erro);
     }
   }
   if (enviadas > 0) {

@@ -1256,8 +1256,12 @@ export const syncOfflineEntityQueue = async (onProgress) => {
       // D-PROD-308: erro do servidor que se repete (sempre o mesmo registro) não trava a fila
       // para sempre: na 5ª vez fica retido com o motivo, como a recusa.
       const tentativasComErro = falha === "servidor" ? Number(item.tentativas_com_erro ?? 0) + 1 : 0;
+      // D-PROD-328: o último erro fica no item, para a fila da janela "Sincronização" mostrar o que aconteceu.
+      const ultimoErro = { mensagem: getApiErrorMessage(error, "Não foi possível enviar."), falha, em: new Date().toISOString() };
       if (falha === "servidor" && tentativasComErro < TENTATIVAS_COM_ERRO_DO_SERVIDOR) {
-        await storage.atualizarNaFila(item.id, { tentativas_com_erro: tentativasComErro }).catch(() => undefined);
+        await storage.atualizarNaFila(item.id, { tentativas_com_erro: tentativasComErro, ultimo_erro: ultimoErro }).catch(() => undefined);
+      } else if (falha !== "recusado") {
+        await storage.atualizarNaFila(item.id, { ultimo_erro: ultimoErro }).catch(() => undefined);
       }
       if (falha === "recusado" || tentativasComErro >= TENTATIVAS_COM_ERRO_DO_SERVIDOR) {
         if (item.operation === "update") edicoesRecusadas.add(chaveDaEdicao(item));
@@ -1369,6 +1373,90 @@ export const descartarRecusadoDaFilaDeEntidades = async (id) => {
   await armazenamentoDe(item.entity_name).storage.removerDaFila(item.id);
   emitirMudancaDeFila();
   return true;
+};
+
+/** A porta da fila do item; entidade que saiu do catálogo usa a porta comum (a fila é uma só). @param {string} nome */
+const portaDaFilaDe = (nome) => CATALOGO.get(nome) ?? { storage: [...CATALOGO.values()][0].storage, tenantScoped: false };
+
+/**
+ * D-PROD-328 — TODOS os itens da fila antiga desta sessão, para a fila única da janela "Sincronização" (antes só os
+ * recusados apareciam; o resto era só um número). `situacao`:
+ *  - "aguardando": vai na próxima passada;
+ *  - "recusado": o servidor recusou de vez (ou errou 5 vezes): a pessoa tenta de novo ou exclui;
+ *  - "retido": a regra da entidade não deixa subir pela fila (exclusão só com internet, entidade fora da lista):
+ *    só excluir.
+ * @returns {Promise<Array<{ id: number|string, entidade: string, operacao: string, registroId: string|null,
+ *   situacao: 'aguardando'|'recusado'|'retido', motivo: string|null, criado_em: string|null, tentativas: number,
+ *   ultimaTentativaEm: string|null, dados: Record<string, unknown>|null }>>}
+ */
+export const listarItensDaFilaDeEntidades = async () =>
+  (await filaDaSessao())
+    .slice()
+    .sort((a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime())
+    .map((item) => {
+      const codigo = item.quarentena?.codigo ?? null;
+      const situacao = codigo === CODIGO_RECUSADO_PELO_SERVIDOR ? "recusado" : codigo ? "retido" : "aguardando";
+      const motivo =
+        situacao === "recusado"
+          ? item.quarentena?.motivo || "O servidor não aceitou este registro."
+          : codigo === API_ERROR_CODES.OFFLINE_DELETE_QUARANTINED
+            ? "Esta exclusão só pode ser feita com internet, na própria tela."
+            : situacao === "retido"
+              ? "Este tipo de registro não sobe pela fila do aparelho."
+              : item.ultimo_erro?.mensagem ?? null;
+      return {
+        id: item.id,
+        entidade: item.entity_name,
+        operacao: item.operation,
+        registroId: item.record_id != null ? String(item.record_id) : null,
+        situacao,
+        motivo,
+        criado_em: item.created_at ?? null,
+        tentativas: Number(item.tentativas_com_erro ?? 0) + (situacao === "recusado" ? 1 : 0),
+        ultimaTentativaEm: item.quarentena?.em ?? item.ultimo_erro?.em ?? null,
+        dados: item.data && typeof item.data === "object" ? item.data : null,
+      };
+    });
+
+/**
+ * D-PROD-328 — "Tentar de novo" em qualquer item da fila antiga desta sessão: tira a recusa e o contador de erros;
+ * o retido (regra da entidade) não volta (só excluir). @param {number|string} id
+ */
+export const tentarDeNovoNaFilaDeEntidades = async (id) => {
+  const item = (await filaDaSessao()).find((i) => i.id === id);
+  if (!item) return false;
+  if (item.quarentena && item.quarentena.codigo !== CODIGO_RECUSADO_PELO_SERVIDOR) return false;
+  await portaDaFilaDe(item.entity_name).storage.atualizarNaFila(item.id, { quarentena: null, tentativas_com_erro: 0 });
+  emitirMudancaDeFila();
+  return true;
+};
+
+/**
+ * D-PROD-328 — "Excluir" qualquer item da fila antiga desta sessão (a pessoa decidiu que ele não vai ao sistema).
+ * Excluir uma CRIAÇÃO leva junto o que vinha atrás dela para o mesmo registro (sem ela, não teriam o que alterar)
+ * e tira o registro do aparelho. Devolve quantos itens saíram. @param {number|string} id
+ */
+export const excluirDaFilaDeEntidades = async (id) => {
+  const fila = await filaDaSessao();
+  const item = fila.find((i) => i.id === id);
+  if (!item) return 0;
+  const { storage, tenantScoped } = portaDaFilaDe(item.entity_name);
+  const juntos =
+    item.operation === "create" && item.record_id != null
+      ? fila.filter((o) => o.entity_name === item.entity_name && (o.id === item.id || o.record_id === item.record_id))
+      : [item];
+  for (const o of juntos) await storage.removerDaFila(o.id);
+  if (item.operation === "create" && item.record_id != null) {
+    await atualizarCache(
+      storage,
+      item.entity_name,
+      item.empresa_id,
+      (items) => items.filter((entry) => entry.id !== item.record_id),
+      tenantScoped ? (item.cliente_id ?? null) : undefined
+    ).catch(() => undefined);
+  }
+  emitirMudancaDeFila();
+  return juntos.length;
 };
 
 /** Volta o item recusado para a fila (a pessoa corrigiu o que faltava). @param {number|string} id */
