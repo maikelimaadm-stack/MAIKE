@@ -445,57 +445,52 @@ describe("Diário da máquina — Resumo do dia", () => {
   });
 });
 
-describe("Diário das atividades — entrada: Abrir serviço (D-PROD-325)", () => {
-  it("sem serviço aberto hoje, a primeira tela é Abrir serviço: máquina, responsável, implemento e hora (padrão = agora)", async () => {
+describe("Diário das atividades — entrada: Abrir serviço (D-PROD-325, fluxo corrigido)", () => {
+  it("pasto SEM atividade em andamento: a primeira tela é Abrir serviço (operação, máquina, responsável, implemento e hora = agora)", async () => {
     vi.mocked(diario.lancamentosDoDia).mockResolvedValue([]);
-    renderizar({ props: { atividade: { ...ATIVIDADE, bem_id: null, bem: null } } });
+    renderizar({ props: { atividade: null, tipos: [{ id: "t9", nome_tipo: "Aplicação" }] } });
     expect(await screen.findByTestId("diario-abrir")).toBeTruthy();
     expect(screen.queryByTestId("diario-passo-1-botao")).toBeNull();
+    expect(screen.getByRole("combobox", { name: "Operação" })).toBeTruthy();
     expect(screen.getByRole("combobox", { name: "Máquina" })).toBeTruthy();
     expect(screen.getByRole("combobox", { name: "Responsável" })).toBeTruthy();
     expect(screen.getByRole("combobox", { name: "Implemento" })).toBeTruthy();
     expect(screen.getByTestId("diario-abrir-hora").value).toMatch(/^\d{2}:\d{2}$/);
-    // Com atividade em andamento no pasto, não pede a operação (a atividade já existe).
-    expect(screen.queryByRole("combobox", { name: "Operação" })).toBeNull();
   });
 
-  it("a máquina da atividade e o responsável de hoje já vêm escolhidos (não são perguntados de novo)", async () => {
-    vi.mocked(diario.lancamentosDoDia).mockResolvedValue([{ ...LANCAMENTO_COM_SERVICO, observacao: "Sem serviço aberto aqui", operador_usuario_id: "op1" }]);
-    renderizar();
-    expect(await screen.findByTestId("diario-abrir")).toBeTruthy();
-    expect(screen.getByRole("combobox", { name: "Máquina" })).toHaveTextContent("Trator 12");
-    expect(screen.getByRole("combobox", { name: "Responsável" })).toHaveTextContent("Ana");
-  });
-
-  it("não grava sem máquina e sem responsável: mostra os dois erros e não envia nada", async () => {
+  it("sem atividade, o formulário não traz máquina nem responsável de outro lugar (nada é chutado)", async () => {
     vi.mocked(diario.lancamentosDoDia).mockResolvedValue([]);
-    renderizar({ props: { atividade: { ...ATIVIDADE, bem_id: null, bem: null } } });
+    renderizar({ props: { atividade: null, tipos: [{ id: "t9", nome_tipo: "Aplicação" }] } });
+    expect(await screen.findByTestId("diario-abrir")).toBeTruthy();
+    expect(screen.getByRole("combobox", { name: "Máquina" })).not.toHaveTextContent("Trator 12");
+    expect(screen.getByRole("combobox", { name: "Responsável" })).not.toHaveTextContent("Ana");
+  });
+
+  it("não grava sem máquina e sem responsável: mostra os erros e não envia nada", async () => {
+    vi.mocked(diario.lancamentosDoDia).mockResolvedValue([]);
+    renderizar({ props: { atividade: null, tipos: [{ id: "t9", nome_tipo: "Aplicação" }] } });
     fireEvent.click(await screen.findByTestId("diario-abrir-gravar"));
     expect(await screen.findByText("Escolha a máquina.")).toBeTruthy();
     expect(screen.getByText("Escolha o responsável.")).toBeTruthy();
+    expect(screen.getByText("Escolha a operação.")).toBeTruthy();
     expect(atividadeService.registrarCampo).not.toHaveBeenCalled();
   });
 
-  it("com atividade no pasto: o serviço entra no lançamento de hoje (registrar com a operação da atividade) e a tela vai ao cabeçalho", async () => {
-    vi.mocked(diario.lancamentosDoDia).mockResolvedValueOnce([]).mockResolvedValue([LANCAMENTO_COM_SERVICO]);
+  it("atividade EM ANDAMENTO sem serviço aberto hoje: NÃO abre o formulário; vai às ações do dia com um aviso discreto", async () => {
+    vi.mocked(diario.lancamentosDoDia).mockResolvedValue([]);
     renderizar({ props: { atividade: { ...ATIVIDADE, bem_id: "bem-1", bem: { id: "bem-1", nome: "Trator 12" } } } });
-    await escolher("Responsável", "Ana");
-    fireEvent.click(screen.getByTestId("diario-abrir-gravar"));
-    await waitFor(() => expect(atividadeService.registrarCampo).toHaveBeenCalledTimes(1));
-    expect(atividadeService.registrarCampo).toHaveBeenCalledWith(
-      expect.objectContaining({
-        area_id: "area-1",
-        tipo_atividade_id: "t1",
-        data_operacional: "2026-11-26",
-        operador_usuario_id: "op1",
-        observacao: expect.stringMatching(/^\[diario-servico inicio=\d{2}:\d{2} bem=bem-1\]$/),
-      }),
-    );
-    expect(await screen.findByTestId("diario-cabecalho")).toBeTruthy();
+    expect(await screen.findByTestId("diario-sem-servico")).toBeTruthy();
+    expect(screen.queryByTestId("diario-abrir")).toBeNull();
+    expect(screen.getByTestId("diario-passo-1-botao")).toBeTruthy();
+    expect(screen.getByTestId("diario-mais-botao")).toBeTruthy();
+    // Sem serviço, não há hora de fim a gravar: o Encerrar não aparece.
+    expect(screen.queryByTestId("diario-encerrar-botao")).toBeNull();
+    expect(atividadeService.registrarCampo).not.toHaveBeenCalled();
   });
 
-  it("sem atividade no pasto: pede a operação e cria a atividade com o registrar (o mesmo do Registrar)", async () => {
+  it("sem atividade no pasto: cria a atividade e o serviço JUNTOS (um só passo) e depois vai às ações do dia, sem o formulário de novo", async () => {
     vi.mocked(diario.lancamentosDoDia).mockResolvedValue([]);
+    vi.mocked(atividadeService.obterAtividade).mockResolvedValue(/** @type {any} */ (ATIVIDADE));
     renderizar({ props: { atividade: null, tipos: [{ id: "t9", nome_tipo: "Aplicação" }] } });
     await escolher("Operação", "Aplicação");
     await escolher("Máquina", "Trator 12");
@@ -506,6 +501,10 @@ describe("Diário das atividades — entrada: Abrir serviço (D-PROD-325)", () =
     expect(atividadeService.registrarCampo).toHaveBeenCalledWith(
       expect.objectContaining({ area_id: "area-1", tipo_atividade_id: "t9", operador_usuario_id: "op1", observacao: "[diario-servico inicio=06:45 bem=bem-1]" }),
     );
+    // A atividade criada entra no diário: o formulário sai da tela e não volta.
+    await waitFor(() => expect(atividadeService.obterAtividade).toHaveBeenCalledWith("atv-1"));
+    expect(await screen.findByTestId("diario-passo-1-botao")).toBeTruthy();
+    expect(screen.queryByTestId("diario-abrir")).toBeNull();
   });
 
   it("com o serviço aberto, o cabeçalho é máquina · responsável · implemento · desde HH:MM e as ações do dia aparecem", async () => {
@@ -546,13 +545,15 @@ describe("Diário das atividades — entrada: Abrir serviço (D-PROD-325)", () =
     expect(await screen.findByTestId("diario-resumo")).toBeTruthy();
   });
 
-  it("serviço já encerrado: o cabeçalho diz 'encerrado às HH:MM', some o Encerrar e deixa abrir outro serviço", async () => {
+  it("serviço já encerrado: o cabeçalho diz 'encerrado às HH:MM', some o Encerrar e NÃO há 'Abrir outro serviço' (a atividade segue aberta; sem formulário)", async () => {
     vi.mocked(diario.lancamentosDoDia).mockResolvedValue([{ ...LANCAMENTO_COM_SERVICO, observacao: "[diario-servico inicio=07:30 bem=bem-1 impl=imp1 fim=17:05]" }]);
     renderizar();
     const cabecalho = await screen.findByTestId("diario-cabecalho");
     await waitFor(() => expect(cabecalho).toHaveTextContent("encerrado às 17:05"));
     expect(screen.queryByTestId("diario-encerrar-botao")).toBeNull();
-    fireEvent.click(screen.getByTestId("diario-abrir-outro-botao"));
-    expect(await screen.findByTestId("diario-abrir")).toBeTruthy();
+    expect(screen.queryByTestId("diario-abrir-outro-botao")).toBeNull();
+    expect(screen.queryByTestId("diario-abrir")).toBeNull();
+    // As ações do dia seguem (ex.: lançar o que faltou); o botão de abrir não reaparece.
+    expect(screen.getByTestId("diario-passo-1-botao")).toBeTruthy();
   });
 });

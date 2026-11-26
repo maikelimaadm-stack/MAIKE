@@ -62,17 +62,20 @@ import {
  * O DIÁRIO DAS ATIVIDADES (D-PROD-314, fases 3 a 7; D-PROD-325 para a entrada): UMA janela Base1 (680px; tela cheia no
  * celular) que troca de CONTEÚDO por seção, sem abrir janela sobre janela.
  *
- * ENTRADA (D-PROD-325): com o pasto sem serviço aberto hoje, a primeira tela é "Abrir serviço" (máquina, responsável,
- * implemento e a hora de início; a operação só quando o pasto não tem atividade em andamento). O serviço é da ATIVIDADE e
- * do dia: o lançamento de hoje é reaproveitado (ou um novo é criado, sem apagar nada). Com o serviço aberto, a tela mostra
- * o cabeçalho (máquina · responsável · implemento · desde HH:MM) e as ações do dia: Lançar produto/mistura, Aplicar,
- * Abastecer, Trocar pasto, Encerrar e Mais (serviços, mão de obra, outros custos). Encerrar grava a hora de fim e leva ao
- * resumo do dia.
+ * ENTRADA (D-PROD-325, corrigida): o "Abrir serviço" acontece AO INICIAR uma atividade nova, não dentro de uma já em
+ * andamento. Pasto SEM atividade em andamento: a primeira tela é o formulário ÚNICO "Abrir serviço" (operação, máquina,
+ * responsável, implemento e hora de início); confirmar CRIA a atividade e abre o serviço no mesmo passo. Pasto COM
+ * atividade em andamento: a tela vai direto às ações do dia, com ou sem serviço aberto hoje; nunca reabre o formulário.
+ * O serviço é da ATIVIDADE e do dia: o lançamento de hoje é reaproveitado (ou um novo é criado, sem apagar nada). Com o
+ * serviço aberto, a tela mostra o cabeçalho (máquina · responsável · implemento · desde HH:MM) e as ações do dia:
+ * Lançar produto/mistura, Aplicar, Abastecer, Trocar pasto, Encerrar e Mais (serviços, mão de obra, outros custos).
+ * Encerrar grava a hora de fim e leva ao resumo do dia. Não há "abrir outro serviço": com a atividade ainda aberta, o
+ * servidor junta o registro nela (só cria outra se a atual estiver concluída ou parada há mais de 30 dias); ver o relatório.
  *
  * O serviço aberto fica na OBSERVAÇÃO do lançamento do dia (`lib/diarioServicoRegras`), sem coluna nova.
  *
  * DEGRADAÇÃO: sem as rotas novas no servidor (`diarioDisponivel`), o cabeçalho mostra o aviso e o "Lançamento de hoje" — o
- * fluxo que já existe. O "Abrir serviço" só usa rotas que já existem.
+ * fluxo que já existe. O "Abrir serviço" só usa rotas que já existem (`POST …/apontamentos` via `registrar`).
  *
  * Permissão: quem abre esta janela já passou pela regra de lançar. Sem permissão de lançar, a janela recusa.
  *
@@ -190,11 +193,11 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
   /** O nome do pasto pelo id da área do mapa (para o resumo). @param {unknown} id */
   const nomeDaArea = (id) => nomeDaAreaNaAtividade(atv, id);
 
-  // Abrir serviço sem atividade: o formulário pede a operação. Com atividade em andamento, o tipo é o dela.
+  // O formulário "Abrir serviço" é a entrada de uma atividade NOVA: só existe quando o pasto não tem atividade em andamento
+  // (então ele pede a operação e cria a atividade junto com o serviço). Atividade em andamento, com ou sem serviço hoje,
+  // nunca cai nele: entra nas ações do dia (D-PROD-325, correção do fluxo).
   const pedirOperacao = !atividadeId;
-  // O "Abrir serviço" aparece quando não há serviço hoje (ou não há atividade ainda), e também quando a pessoa escolhe
-  // abrir outro depois de encerrar.
-  const emAbrir = secao === "abrir" || (secao === "diario" && (!atividadeId || (doDiaQ.isSuccess && !servico)));
+  const emAbrir = !atividadeId;
 
   // ─── Escritas ───────────────────────────────────────────────────────────
 
@@ -502,8 +505,8 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
         }}
         pedirOperacao={pedirOperacao}
         operacoes={tipos}
-        voltarRotulo={servico ? "Voltar ao diário" : "Fechar"}
-        onVoltar={() => (servico ? setSecao("diario") : onFechar())}
+        voltarRotulo="Fechar"
+        onVoltar={onFechar}
         onAbrir={gravarAbrirServico}
         enviando={enviando}
       />
@@ -563,6 +566,13 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
             </div>
           ) : null}
         </div>
+        {/* Caso residual (atividade em andamento sem serviço aberto hoje, p.ex. atividade antiga ou serviço apagado da
+            observação): sem o formulário; as ações seguem e o aviso diz o que falta. Não reabre "Abrir serviço". */}
+        {doDiaQ.isSuccess && !servico ? (
+          <AvisoGestao testId="diario-sem-servico" tone="blue">
+            Sem serviço aberto hoje nesta atividade. As ações abaixo seguem; o cabeçalho fica sem máquina e responsável.
+          </AvisoGestao>
+        ) : null}
         <div className="flex flex-col gap-2">
           <button type="button" className={`${BOTAO_PRIMARIO} w-full`} onClick={() => setSecao("passo1")} data-testid="diario-passo-1-botao">
             Lançar produto / mistura
@@ -578,22 +588,18 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
           <button type="button" className={`${BOTAO_SECUNDARIO} w-full`} onClick={() => setSecao("trocar")} data-testid="diario-trocar-botao">
             Trocar pasto (horímetro)
           </button>
-          {encerrado ? null : (
+          {/* Encerrar só com o serviço aberto: sem ele não há hora de fim a gravar. */}
+          {aberto ? (
             <button type="button" className={`${BOTAO_SECUNDARIO} w-full`} onClick={() => setSecao("encerrar")} data-testid="diario-encerrar-botao">
               Encerrar serviço
             </button>
-          )}
+          ) : null}
           <button type="button" className={`${BOTAO_SECUNDARIO} w-full`} onClick={() => setSecao("mais")} data-testid="diario-mais-botao">
             Mais (serviços, mão de obra, outros custos)
           </button>
           <button type="button" className={`${BOTAO_SECUNDARIO} w-full`} onClick={() => setSecao("resumo")} data-testid="diario-resumo-botao">
             Resumo do dia
           </button>
-          {encerrado ? (
-            <button type="button" className={`${BOTAO_SECUNDARIO} w-full`} onClick={() => setSecao("abrir")} data-testid="diario-abrir-outro-botao">
-              Abrir outro serviço hoje
-            </button>
-          ) : null}
         </div>
       </div>
     );

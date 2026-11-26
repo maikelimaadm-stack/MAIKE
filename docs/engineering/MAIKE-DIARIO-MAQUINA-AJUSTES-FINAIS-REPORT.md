@@ -45,19 +45,23 @@ sobre popup (B1Janela 680px; tela cheia no celular; rodapé embaixo). Decisão: 
 1. **Entrada única no pasto.** Mapa > detalhes da área > aba Manejos. "Iniciar atividade" saiu. Fica **"Diário das atividades"**
    (`data-testid` `area-diario-maquina`). O mesmo rótulo vale para o item do menu da linha e o da lista de atividades.
    O botão aparece com permissão de lançar e fuso da fazenda, com ou sem atividade em andamento no pasto.
-2. **Abrir serviço (primeiro passo, dentro da mesma janela).** Se não há serviço aberto hoje, a primeira tela é o formulário
-   com SÓ estes campos:
+2. **Abrir serviço: só para uma atividade NOVA (correção do fluxo).** O formulário aparece quando o pasto NÃO tem atividade em
+   andamento; confirmar CRIA a atividade e abre o serviço no mesmo passo (um só `registrar`). Ele NÃO aparece dentro de uma
+   atividade já em andamento. Os campos do formulário:
    - **Máquina** (obrigatória). Vem pré-selecionada a máquina da atividade.
    - **Responsável** (obrigatório). Vem pré-selecionado o de algum lançamento de hoje da atividade.
    - **Implemento** (opcional). Vem pré-selecionado o da última mistura.
    - **Hora de início**, padrão = agora no fuso da fazenda, editável.
    - **Operação**: só aparece quando o pasto NÃO tem atividade em andamento (sem ela não há atividade a abrir).
-3. **O que "abrir" faz.** Grava a linha do serviço na observação do lançamento de hoje (ver "Onde o serviço fica"):
-   - Com atividade em andamento: entra nela. Se quem usa pode editar apontamento e há lançamento de hoje no pasto, atualiza
-     esse lançamento (texto preservado). Senão, cria um lançamento de hoje só com a linha (`POST /atividades/registrar`).
-   - Sem atividade: o mesmo `registrar` cria a atividade (com a operação escolhida) e o lançamento de hoje.
-4. **Serviço já aberto hoje.** Entra direto nele, sem pedir de novo. O serviço vale para a ATIVIDADE no dia (todas as áreas
-   dela): trocar de pasto não pede máquina, responsável nem implemento outra vez.
+3. **O que "abrir" faz.** Grava a linha do serviço na observação do lançamento de hoje (ver "Onde o serviço fica"). Sem
+   atividade: o mesmo `registrar` cria a atividade (com a operação escolhida) e o lançamento de hoje, num passo só. Depois
+   disso a tela vai às ações do dia (o formulário não volta).
+4. **Atividade em andamento: direto nas ações do dia, sem formulário.**
+   - Com serviço aberto hoje: entra direto nele, sem pedir de novo. O serviço vale para a ATIVIDADE no dia (todas as áreas
+     dela): trocar de pasto não pede máquina, responsável nem implemento outra vez.
+   - Sem serviço aberto hoje (caso residual: atividade antiga, serviço apagado da observação, dia seguinte): também vai às
+     ações do dia, com o aviso discreto "Sem serviço aberto hoje nesta atividade". Não reabre o formulário e não recria a
+     atividade. O "Encerrar" só aparece com o serviço aberto.
 5. **Cabeçalho do diário:** `máquina · responsável · implemento · desde HH:MM`, tudo do serviço aberto.
 6. **Ações do dia**, sobre o serviço aberto:
    - **Lançar produto/mistura** (Passo 1): usa o implemento do serviço, sem perguntar de novo; a mistura já sai com ele.
@@ -68,7 +72,11 @@ sobre popup (B1Janela 680px; tela cheia no celular; rodapé embaixo). Decisão: 
      conclusão da atividade, como antes.
    - **Mais**: Serviços, Mão de obra e Outros custos (este último abre o lançamento de hoje). Ficam para depois do serviço aberto.
    - **Resumo do dia**.
-7. **Serviço encerrado:** o cabeçalho mostra `encerrado às HH:MM`, o "Encerrar" some, e "Abrir outro serviço hoje" abre o formulário de novo.
+7. **Serviço encerrado:** o cabeçalho mostra `encerrado às HH:MM` e o "Encerrar" some. **"Abrir outro serviço hoje" saiu.** Motivo:
+   com a atividade ainda ABERTA na área, o `registrar` do servidor junta o registro nela (`buscarAtividadeAberta`: operação e
+   área em PLANEJADA ou EM_ANDAMENTO). Uma atividade nova só nasce se a atual estiver concluída ou PARADA há mais de 30 dias,
+   e aí o `nova_atividade: true` CONCLUI as áreas da antiga. O diário não toma essa decisão sozinho. "Reabrir o mesmo serviço"
+   sobrescreveria a hora de fim gravada, então também não foi feito. Não há botão no lugar.
 
 ### Onde o serviço fica (sem migration)
 
@@ -97,7 +105,12 @@ serve para registrar a abertura sem uso; a atividade tem `bem_id`, mas é a máq
 4. **Listas de máquinas, responsáveis e implementos** são a primeira página das opções do servidor. O formulário não busca.
 5. **Sem a rota nova**, o diário não mostra o cabeçalho do serviço (fica no aviso de degradação), mas o serviço já aberto
    continua gravado.
-6. **Solução que resolve 1 e 2:** uma migration EXPAND com uma tabela de serviço do diário (`cliente_id`, `empresa_id`,
+6. **Atividade em andamento sem serviço hoje (correção do fluxo).** O diário não abre o serviço do dia nessa atividade: vai às
+   ações com o aviso, e o cabeçalho fica sem máquina e responsável naquele dia. Isso é a consequência de não reabrir o
+   formulário ali, como pediu o dono. Uma entrada própria de "início de serviço" dentro da atividade aberta resolveria; fica
+   para decisão própria.
+7. **Sem "abrir outro serviço":** um segundo serviço no mesmo dia, na mesma atividade, não tem entrada própria.
+8. **Solução que resolve 1, 2 e 6:** uma migration EXPAND com uma tabela de serviço do diário (`cliente_id`, `empresa_id`,
    `apontamento_id`, máquina, implemento, hora de início e de fim). Não foi feita: é o último caso, e o pedido era sem migration.
 
 ### Correção de tipo (achado no gate de tipos)
@@ -107,9 +120,11 @@ local em `src/apis/_core/nativeHttpClient.js`. Sem mudança de comportamento.
 
 ### Testes desta missão
 
-- `tests/smoke/diarioMaquina.test.jsx`: 27/27 (10 novos: abrir com e sem atividade, validação de máquina e responsável,
-  máquina e responsável já escolhidos, cabeçalho com máquina · responsável · implemento · desde, Passo 1 com o implemento do
-  serviço, Mais, Encerrar com hora de fim, serviço encerrado). A base de mocks agora tem um serviço aberto no dia; o teste de
+- `tests/smoke/diarioMaquina.test.jsx`: 27/27. Correção do fluxo: reescritos os testes que descreviam o fluxo antigo
+  (formulário com atividade em andamento; "Abrir outro serviço"). Agora cobrem: formulário só sem atividade (com operação);
+  validação dos erros; sem chute de máquina e responsável; atividade em andamento sem serviço vai às ações, sem formulário,
+  com o aviso `diario-sem-servico`; criar atividade e serviço num passo, e o formulário sai da tela; serviço encerrado sem
+  "Abrir outro"; Passo 1, Mais, Encerrar e cabeçalho inalterados. A base de mocks agora tem um serviço aberto no dia; o teste de
   abastecer reaproveita o lançamento de hoje (não chama `garantirDiaDoDiario`).
 - `tests/smoke/diarioFase2.test.jsx`: a entrada única "Diário das atividades", com e sem atividade em andamento, e a
   ausência de "Iniciar atividade". O diário é trocado por um stub nesse arquivo.
