@@ -74,6 +74,14 @@ Dois defeitos em produção, uma correção (sem migration, sem mudar o backend)
 
 **Testes:** `tests/smoke/diarioDasAtividades.test.jsx` (f2 e f3; 1; 3) e `tests/smoke/lancamentoAtividades.test.jsx` (LA-PORTA-BEM).
 
+### Escolher atividade em andamento (mesma D-PROD-335)
+
+Com atividades abertas no pasto, o Diário abre na lista "Em andamento neste pasto" (uma linha por atividade não concluída do resumo da área: nome, início, "Com abertura" ou "Sem abertura") com "Nova atividade". Tocar numa linha lê a atividade: com abertura, vai ao cabeçalho; sem ela, cai no formulário do defeito 1. Sem atividade aberta, o Diário abre no tipo, como antes. Do tipo, o Voltar volta à lista. O tipo com atividade aberta no pasto mostra "Já existe <nome> em andamento neste pasto: iniciar entra nela." (aviso).
+
+**Limite:** o servidor reaproveita a atividade aberta do mesmo tipo e área, então "Nova atividade" do mesmo tipo não cria uma segunda. Uma segunda do mesmo tipo no pasto exige mudança de backend (decisão futura). Uma aberta parada há mais de 30 dias responde 409 `ATIVIDADE_SERVICO_PARADO`; o Diário só mostra a frase e não grava (a escolha fica na Nova realização).
+
+**Arquivos da emenda:** `src/components/lancamento-atividades/DiarioDasAtividades.jsx` (o passo `escolher`, a linha `ItemAtividadeAberta`), `src/components/mapa/detalhes-area/AbaDetalhesDaArea.jsx` (abre sem ler; passa `atividadesAbertas` e `lerAtividade`), `src/styles/cadastro-base1.css` (duas regras: `.b1-aberto-opcoes--lista` e `.b1-aberto-chip--neutro`; sem seletor `.b1-realizacao`). **Testes:** `tests/smoke/diarioEmAndamentoNoPasto.test.jsx` e `tests/smoke/diarioFase2.test.jsx`.
+
 ## Fora desta parte
 
 Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia; o "Diário da máquina" continua sendo o caminho do diário antigo (com o pasto, pela linha de ação).
