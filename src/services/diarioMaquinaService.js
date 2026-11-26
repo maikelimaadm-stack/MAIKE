@@ -154,6 +154,16 @@ export const apontamentoDoDia = async (atividadeId, areaAtividadeId, dia) => {
   return confirmadosDoDia(daArea, dia)[0] ?? null;
 };
 
+/**
+ * Os lançamentos CONFIRMADOS do dia da atividade, de TODAS as áreas, do mais novo para o mais antigo (D-PROD-324). O
+ * serviço aberto vale para a atividade (não para o pasto): trocar de pasto não pede de novo.
+ * @param {string} atividadeId @param {string} dia
+ */
+export const lancamentosDoDia = async (atividadeId, dia) => {
+  const resposta = await listarApontamentos(String(atividadeId));
+  return confirmadosDoDia(itensDaLista(resposta), dia);
+};
+
 /** O resumo do dia por pasto (o servidor manda o R$ só quando calcula). @param {string} atividadeId @param {string} dia */
 export const lerResumoDoDia = (atividadeId, dia) => {
   const empresaId = exigirEmpresa(fazendaDaTelaAtual(), 'lerResumoDoDia', RECURSO);

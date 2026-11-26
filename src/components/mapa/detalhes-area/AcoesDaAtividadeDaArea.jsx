@@ -111,7 +111,7 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
           { key: "lancar-dia", label: "+ Lançamento", icon: <Plus size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "dia") },
           // Diário da máquina (D-PROD-314): só numa atividade em andamento NESTA área.
           ...(emAndamentoNaArea
-            ? [{ key: "diario", label: "Diário da máquina", icon: <Tractor size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "diario") }]
+            ? [{ key: "diario", label: "Diário das atividades", icon: <Tractor size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "diario") }]
             : []),
           ...(emAndamentoNaArea
             ? lancamentosPermitidos(flagsDoTipoDaAtividade(linha, tipos))

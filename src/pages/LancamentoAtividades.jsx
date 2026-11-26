@@ -800,7 +800,7 @@ function LancamentoAtividadesTela() {
       ? [
           {
             key: "diario",
-            label: "Diário da máquina",
+            label: "Diário das atividades",
             icon: <Tractor size={16} strokeWidth={1.75} />,
             onSelect: () => void abrirDiario(a, pastoEmAndamento),
           },

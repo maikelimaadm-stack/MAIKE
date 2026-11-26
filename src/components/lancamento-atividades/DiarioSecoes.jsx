@@ -6,6 +6,7 @@ import { EscolhaSegmentada } from "@/components/financeiroGestao/CamposLancament
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import { normalizarPaginaDeOpcoes } from "@/lib/atividadeApontamentoRegras";
+import { validarAbrirServico } from "@/lib/diarioServicoRegras";
 import { formatarMoedaAtividade, medidorDaResposta } from "@/lib/atividadeLinhasRegras";
 import {
   formularioVazio,
@@ -153,8 +154,12 @@ function LinhaDeProduto({ atividadeId, empresaId, linha, erros, onChange, onRemo
  * Passo 1 · Mistura no implemento: o implemento (com a capacidade do bem) e os produtos com a quantidade por implemento
  * cheio, pré-preenchida com a quantidade padrão do produto (editável). Não baixa estoque: só o que for aplicado baixa.
  */
-export function SecaoPasso1({ atividadeId, empresaId, implementos, ultimaImplementoId, onVoltar, onGravar, enviando }) {
-  const [implementoId, setImplementoId] = useState(ultimaImplementoId ? String(ultimaImplementoId) : "");
+/**
+ * Passo 1 · Lançar produto / mistura. Com `implementoFixo` (o implemento do serviço aberto), o implemento não é perguntado
+ * de novo: aparece como texto e é o da mistura. Sem ele, escolhe-se (o último usado vem pré-selecionado).
+ */
+export function SecaoPasso1({ atividadeId, empresaId, implementos, ultimaImplementoId, implementoFixo = null, onVoltar, onGravar, enviando }) {
+  const [implementoId, setImplementoId] = useState(implementoFixo ? String(implementoFixo.id) : ultimaImplementoId ? String(ultimaImplementoId) : "");
   const [linhas, setLinhas] = useState(() => [{ produto: null, local_estoque_id: "", quantidade: "" }]);
   const [erros, setErros] = useState(/** @type {any} */ ({ linhas: [] }));
   // Sem implemento escolhido, o primeiro com capacidade cadastrada.
@@ -183,16 +188,22 @@ export function SecaoPasso1({ atividadeId, empresaId, implementos, ultimaImpleme
     <div className="flex flex-col gap-3" data-testid="diario-passo-1">
       <div className="grid grid-cols-12 gap-3">
         <div className="col-span-12">
-          <CampoSelect
-            label="Implemento"
-            value={implementoId}
-            onChange={(v) => setImplementoId(v || "")}
-            options={implementos.map((i) => ({ value: String(i.id), label: String(i.nome ?? "") }))}
-            placeholder="— Escolha o implemento —"
-            required
-            span={12}
-            error={erros.implemento}
-          />
+          {implementoFixo ? (
+            <p className="text-[13px] text-[#73726c]" data-testid="diario-passo-1-implemento">
+              Implemento: <b className="text-[#141413]">{implementoFixo.nome || "—"}</b> <span>(do serviço aberto)</span>
+            </p>
+          ) : (
+            <CampoSelect
+              label="Implemento"
+              value={implementoId}
+              onChange={(v) => setImplementoId(v || "")}
+              options={implementos.map((i) => ({ value: String(i.id), label: String(i.nome ?? "") }))}
+              placeholder="— Escolha o implemento —"
+              required
+              span={12}
+              error={erros.implemento}
+            />
+          )}
           {implemento ? (
             <p className="mt-1 text-[12.5px] text-[var(--mg-text-2,#475569)]" data-testid="diario-capacidade">
               Capacidade: {formatarVolume(implemento.capacidade, unidadeImplemento)}
@@ -487,17 +498,118 @@ export function SecaoAbastecer({ empresaId, bem, hoje, onVoltar, onGravar, envia
 }
 
 /** Mais: abastecer e mão de obra (as janelas que já existem, no lugar desta). */
-export function SecaoMais({ onAbastecer, onMaoObra, onVoltar }) {
+/**
+ * Mais (D-PROD-324): serviços, mão de obra e outros custos do serviço aberto. Lançados depois, não no primeiro passo.
+ * "Outros custos" abre o lançamento de hoje (todas as linhas).
+ */
+export function SecaoMais({ onServicos, onMaoObra, onOutrosCustos, onVoltar }) {
   return (
     <div className="flex flex-col gap-2" data-testid="diario-mais">
-      <BotaoSeco onClick={onAbastecer} testId="diario-abastecer">
-        Abastecer
+      <BotaoSeco onClick={onServicos} testId="diario-servicos">
+        Serviços
       </BotaoSeco>
       <BotaoSeco onClick={onMaoObra} testId="diario-mao-de-obra">
         Mão de obra
       </BotaoSeco>
+      <BotaoSeco onClick={onOutrosCustos} testId="diario-outros-custos">
+        Outros custos
+      </BotaoSeco>
       <Rodape>
         <BotaoVoltar onClick={onVoltar} />
+      </Rodape>
+    </div>
+  );
+}
+
+/**
+ * Abrir serviço (D-PROD-324): o primeiro passo do dia no pasto. SÓ estes campos: máquina, responsável, implemento e a hora
+ * de início (padrão = agora, no fuso da fazenda). A operação aparece só quando o pasto não tem atividade em andamento (sem
+ * ela não há atividade a abrir). Quem chama passa as listas e os padrões; esta seção não busca nada.
+ */
+export function SecaoAbrirServico({ maquinas, responsaveis, implementos, padroes, pedirOperacao, operacoes = [], voltarRotulo = "Voltar", onVoltar, onAbrir, enviando }) {
+  const [bemId, setBemId] = useState(padroes.bemId ? String(padroes.bemId) : "");
+  const [responsavelId, setResponsavelId] = useState(padroes.responsavelId ? String(padroes.responsavelId) : "");
+  const [implementoId, setImplementoId] = useState(padroes.implementoId ? String(padroes.implementoId) : "");
+  const [inicio, setInicio] = useState(padroes.inicio ?? "");
+  const [tipoId, setTipoId] = useState("");
+  const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
+
+  const enviar = () => {
+    const e = validarAbrirServico({ bemId, responsavelId, inicio, tipoId, pedirOperacao });
+    setErros(e);
+    if (Object.keys(e).length) return;
+    onAbrir({ bemId, responsavelId, implementoId: implementoId || null, inicio, tipoId: tipoId || null });
+  };
+
+  return (
+    <div className="flex flex-col gap-3" data-testid="diario-abrir">
+      <div className="grid grid-cols-12 gap-3">
+        {pedirOperacao ? (
+          <div className="col-span-12">
+            <CampoSelect
+              label="Operação"
+              value={tipoId}
+              onChange={(v) => setTipoId(v || "")}
+              options={operacoes.map((t) => ({ value: String(t.id), label: String(t.nome_tipo ?? t.nome ?? "") }))}
+              placeholder="— Escolha a operação —"
+              required
+              span={12}
+              error={erros.tipo}
+            />
+          </div>
+        ) : null}
+        <div className="col-span-12">
+          <CampoSelect
+            label="Máquina"
+            value={bemId}
+            onChange={(v) => setBemId(v || "")}
+            options={maquinas.map((m) => ({ value: String(m.id), label: String(m.nome ?? "") }))}
+            placeholder="— Escolha a máquina —"
+            required
+            span={12}
+            error={erros.bem}
+          />
+        </div>
+        <div className="col-span-12">
+          <CampoSelect
+            label="Responsável"
+            value={responsavelId}
+            onChange={(v) => setResponsavelId(v || "")}
+            options={responsaveis.map((r) => ({ value: String(r.id), label: String(r.nome ?? r.rotulo ?? "") }))}
+            placeholder="— Escolha quem está operando —"
+            required
+            span={12}
+            error={erros.responsavel}
+          />
+        </div>
+        <div className="col-span-12">
+          <CampoSelect
+            label="Implemento"
+            value={implementoId}
+            onChange={(v) => setImplementoId(v || "")}
+            options={implementos.map((i) => ({ value: String(i.id), label: String(i.nome ?? "") }))}
+            placeholder="— Sem implemento —"
+            span={12}
+          />
+        </div>
+        <div className="col-span-12">
+          <B1Field label="Hora de início" span={12} hasValue={Boolean(inicio)} error={erros.inicio} required>
+            <input
+              type="time"
+              value={inicio}
+              onChange={(e) => setInicio(e.target.value)}
+              className={B1_FIELD_CTL_CLS}
+              aria-label="Hora de início"
+              data-testid="diario-abrir-hora"
+            />
+          </B1Field>
+        </div>
+      </div>
+      <Rodape>
+        <BotaoVoltar onClick={onVoltar} children={voltarRotulo} testId="diario-abrir-voltar" />
+        <BotaoAcao onClick={enviar} disabled={enviando} testId="diario-abrir-gravar">
+          {enviando ? "Abrindo…" : "Abrir serviço"}
+        </BotaoAcao>
       </Rodape>
     </div>
   );
@@ -651,7 +763,7 @@ export function SecaoEncerrar({ mistura, onVoltar, onEncerrar, onLancarHorimetro
       <Rodape>
         <BotaoVoltar onClick={onVoltar} />
         <BotaoAcao onClick={enviar} disabled={enviando} testId="diario-encerrar-dia">
-          {enviando ? "Salvando…" : "Encerrar o dia"}
+          {enviando ? "Salvando…" : "Encerrar serviço"}
         </BotaoAcao>
       </Rodape>
     </div>
