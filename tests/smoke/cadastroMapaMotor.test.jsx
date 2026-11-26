@@ -7,6 +7,7 @@
  *  - a junção dos pontos com suplementação e bebedouro segue a regra da tabela antiga.
  */
 import React from "react";
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, within, act, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -46,7 +47,7 @@ const montar = async () => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
-      <MapaCadastro />
+      <MemoryRouter><MapaCadastro /></MemoryRouter>
     </QueryClientProvider>,
   );
   await screen.findByText("PIQUETE 01");
