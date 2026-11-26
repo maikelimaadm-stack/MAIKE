@@ -54,9 +54,10 @@ const descrever = (t, prioridadeDe, hoje) => {
  *   hoje?: string,
  *   titulo?: string,
  *   sub?: string,
+ *   anim?: "empurrar" | "voltar" | null,
  * }} props
  */
-export default function ResumoTarefasMapa({ tarefas, onAbrir, onNova = null, prioridadeDe, hoje, titulo = "Tarefas", sub = "" }) {
+export default function ResumoTarefasMapa({ tarefas, onAbrir, onNova = null, prioridadeDe, hoje, titulo = "Tarefas", sub = "", anim = null }) {
   const [aba, setAba] = React.useState("abertas");
   const diaDeHoje = hoje || hojeNoAparelho();
   const todas = React.useMemo(
@@ -114,6 +115,8 @@ export default function ResumoTarefasMapa({ tarefas, onAbrir, onNova = null, pri
       sub={sub}
       rodape={rodape}
       className="mk-dp-tarefas"
+      // D-PROD-325: de volta dos detalhes, a lista entra deslizando como nas telas do lote.
+      anim={anim}
       cabecalhoDoCorpo={<Abas abas={abas} ativa={aba} onMudar={setAba} rotulo="Tarefas" />}
     >
       <Kpis colunas={kpis.length} itens={kpis} />

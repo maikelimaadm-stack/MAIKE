@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { listarTarefasDaEmpresa, criarTarefa, atualizarTarefa, enviarAnexo } from "@/services/tarefasMapaService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import { toast } from "sonner";
 import { API_ERROR_CODES, getApiErrorMessage, hasApiErrorCode } from "@/apis/_core/ApiError";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
@@ -10,13 +9,54 @@ import { guardarFotosDaTarefa } from "@/services/fotosDeTarefaAguardandoService"
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 /**
+ * @typedef {{ tarefa: any | null, voltarParaLista: boolean }} FormularioDaTarefa
+ * `tarefa` nula = tarefa nova; `voltarParaLista` = ao sair, volta para a lista (senão fecha a janela: `onClose`).
+ */
+
+/**
  * D-PROD-321 — Tarefas, parte 2: o painel mostra o resumo em cartões (`ResumoTarefasMapa`, estilo dos detalhes do
  * lote) no lugar da grade de cadastro; tocar numa tarefa abre os detalhes (`onAbrirTarefa`); "Nova tarefa" usa
  * `onNovaTarefa` (o mapa descobre onde a pessoa está) ou, sem ele, abre o formulário com o local do painel.
+ *
+ * D-PROD-325: uma janela só. O formulário (nova ou editar) aparece NO LUGAR da lista, dentro da mesma janela do
+ * mapa — sem uma segunda janela por cima e a lista aparecendo atrás. Quem tem a janela guarda o formulário aberto
+ * (`formulario` + `onFormularioChange`): o cabeçalho troca para ✕ · ✓ no mesmo instante, e o painel pode ser
+ * remontado sem perder a tela. Sem `formulario` (uso solto), o painel guarda sozinho (`openCreateOnMount`).
+ *
+ * @param {{
+ *   areaId?: string, areaNome?: string, loteId?: string, loteNome?: string, pontoSuplId?: string,
+ *   onClose?: () => void, initialCoordinates?: any, openCreateOnMount?: boolean, initialDraft?: any,
+ *   onRequestSelectLocation?: (draft: any) => void, onAbrirTarefa?: ((t: any) => void) | null,
+ *   onNovaTarefa?: (() => void) | null, hoje?: string,
+ *   formulario?: FormularioDaTarefa | null, onFormularioChange?: (f: FormularioDaTarefa | null) => void,
+ *   anim?: "empurrar" | "voltar" | null,
+ * }} props
  */
-export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, pontoSuplId, onClose, initialCoordinates, openCreateOnMount = false, initialDraft = null, onRequestSelectLocation, onAbrirTarefa = null, onNovaTarefa = null, hoje = undefined }) {
-  const [showForm, setShowForm] = useState(false);
-  const [editingTarefa, setEditingTarefa] = useState(null);
+export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, pontoSuplId, onClose, initialCoordinates, openCreateOnMount = false, initialDraft = null, onRequestSelectLocation, onAbrirTarefa = null, onNovaTarefa = null, hoje = undefined, formulario = undefined, onFormularioChange = undefined, anim = null }) {
+  const controlado = formulario !== undefined;
+  const [interno, setInterno] = useState(/** @returns {FormularioDaTarefa | null} */ () => (openCreateOnMount ? { tarefa: initialDraft?.id ? initialDraft : null, voltarParaLista: false } : null));
+  useEffect(() => {
+    if (!controlado && openCreateOnMount) setInterno({ tarefa: initialDraft?.id ? initialDraft : null, voltarParaLista: false });
+  }, [controlado, openCreateOnMount, initialCoordinates, initialDraft]);
+  const form = controlado ? formulario : interno;
+  const showForm = Boolean(form);
+  const editingTarefa = form?.tarefa || null;
+  /** @param {FormularioDaTarefa | null} f */
+  const mudarFormulario = (f) => {
+    if (controlado) onFormularioChange?.(f);
+    else setInterno(f);
+  };
+
+  /** Sai do formulário: de volta à lista, ou fecha tudo se ele abriu direto pelo mapa. */
+  const fecharFormulario = () => {
+    if (form?.voltarParaLista) {
+      mudarFormulario(null);
+      return;
+    }
+    // A janela some com o formulário ainda nela (sem mostrar a lista no caminho).
+    if (!controlado) setInterno(null);
+    onClose?.();
+  };
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = useEmpresaSelecionadaId();
@@ -36,13 +76,6 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     // na primeira vez (D-PROD-218). O padrão `= []` cobre o carregamento.
     staleTime: 60 * 1000,
   });
-
-  useEffect(() => {
-    if (openCreateOnMount) {
-      setEditingTarefa(initialDraft?.id ? initialDraft : null);
-      setShowForm(true);
-    }
-  }, [openCreateOnMount, initialCoordinates, initialDraft]);
 
   const uploadImages = async (pendingImageFiles = []) => {
     const uploadedUrls = [];
@@ -78,8 +111,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       // D-PROD-319: sem internet a tarefa entra na fila de envio (com o id do aparelho) e sobe sozinha.
       toast.success(criada?._isOffline ? `Tarefa salva no aparelho${criada?._fotosGuardadas ? ' com as fotos' : ''} — vai ao servidor quando a internet voltar.` : 'Tarefa criada!');
-      setShowForm(false);
-      setEditingTarefa(null);
+      fecharFormulario();
     },
     onError: (err) => {
       if (hasApiErrorCode(err, API_ERROR_CODES.MAPA_PARTIAL_OPERATION)) {
@@ -88,8 +120,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
         window.dispatchEvent(new CustomEvent('atualizar-mapa'));
         toast.warning(getApiErrorMessage(err));
-        setShowForm(false);
-        setEditingTarefa(null);
+        fecharFormulario();
         return;
       }
       toast.error(`Erro ao salvar tarefa: ${getApiErrorMessage(err, 'Tente novamente')}`);
@@ -120,8 +151,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
       window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       toast.success(atualizada?._isOffline ? `Alteração salva no aparelho${atualizada?._fotosGuardadas ? ' com as fotos' : ''} — vai ao servidor quando a internet voltar.` : 'Tarefa atualizada!');
-      setShowForm(false);
-      setEditingTarefa(null);
+      fecharFormulario();
     },
     onError: (err) => {
       toast.error(`Erro ao atualizar tarefa: ${err?.message || 'Tente novamente'}`);
@@ -135,81 +165,71 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       onNovaTarefa();
       return;
     }
-    setEditingTarefa(null);
-    setShowForm(true);
+    mudarFormulario({ tarefa: null, voltarParaLista: true });
   };
 
-  return (
-    <>
-      {loadingTarefas ? (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
-          <div className="animate-spin w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
-          <span className="text-xs font-medium text-slate-700">Carregando tarefas...</span>
-        </div>
-      ) : (
-        <ResumoTarefasMapa
-          tarefas={tarefas}
-          titulo="Tarefas"
-          sub={panelSubtitulo}
-          hoje={hoje}
-          prioridadeDe={normalizeTaskPriority}
-          onAbrir={(tarefa) => {
-            if (typeof onAbrirTarefa === "function") onAbrirTarefa(tarefa);
-            else {
-              setEditingTarefa(tarefa);
-              setShowForm(true);
-            }
-          }}
-          onNova={abrirNova}
-        />
-      )}
+  if (showForm) {
+    return (
+      <FormularioTarefaMapa
+        key={`${editingTarefa?.id || 'nova'}-${initialDraft?.id || 'sem-rascunho'}-${initialCoordinates?.lat || 'sem-lat'}-${initialCoordinates?.lng || 'sem-lng'}`}
+        tarefa={editingTarefa}
+        areaId={areaId}
+        areaNome={areaNome}
+        loteId={loteId}
+        loteNome={loteNome}
+        pontoSuplId={pontoSuplId}
+        initialCoordinates={initialCoordinates}
+        initialDraft={initialDraft}
+        onRequestSelectLocation={onRequestSelectLocation}
+        externalSubmitting={createMutation.isPending || updateMutation.isPending}
+        onSubmit={(data, pendingImageFiles = []) => {
+          // Evitar dupla submissão se mutation já está em andamento
+          if (createMutation.isPending || updateMutation.isPending) return;
 
-      <LancLoteDialogo
-        open={showForm}
-        onOpenChange={(open) => {
-          setShowForm(open);
-          if (!open) setEditingTarefa(null);
+          const payload = {
+            ...data,
+            prioridade: normalizeTaskPriority(data.prioridade),
+            area_id: data.area_id || areaId,
+            area_nome: data.area_nome || areaNome,
+            lote_id: data.lote_id || loteId,
+            lote_nome: data.lote_nome || loteNome,
+            ponto_suplementacao_id: data.ponto_suplementacao_id || pontoSuplId,
+            coordenadas: data.coordenadas,
+          };
+          // D-PROD-324: sem internet, a tarefa vai pela fila e as fotos novas ficam guardadas (sobem depois).
+          if (editingTarefa || data.id) {
+            updateMutation.mutate({ id: editingTarefa?.id || data.id, data: payload, previous: editingTarefa || data, pendingImageFiles });
+          } else {
+            createMutation.mutate({ data: { ...payload, empresa_id: empresaSelecionadaId }, pendingImageFiles });
+          }
         }}
-        titulo={editingTarefa ? 'Editar tarefa' : 'Nova tarefa'}
-        lotes={panelSubtitulo ? [{ nome: panelSubtitulo }] : []}
-        largo
-      >
-            <FormularioTarefaMapa
-            key={`${editingTarefa?.id || 'nova'}-${initialDraft?.id || 'sem-rascunho'}-${initialCoordinates?.lat || 'sem-lat'}-${initialCoordinates?.lng || 'sem-lng'}`}
-            tarefa={editingTarefa}
-            areaId={areaId}
-            areaNome={areaNome}
-            loteId={loteId}
-            loteNome={loteNome}
-            pontoSuplId={pontoSuplId}
-            initialCoordinates={initialCoordinates}
-            initialDraft={initialDraft}
-            onRequestSelectLocation={onRequestSelectLocation}
-            externalSubmitting={createMutation.isPending || updateMutation.isPending}
-            onSubmit={(data, pendingImageFiles = []) => {
-              // Evitar dupla submissão se mutation já está em andamento
-              if (createMutation.isPending || updateMutation.isPending) return;
+        onCancel={fecharFormulario}
+      />
+    );
+  }
 
-              const payload = {
-                ...data,
-                prioridade: normalizeTaskPriority(data.prioridade),
-                area_id: data.area_id || areaId,
-                area_nome: data.area_nome || areaNome,
-                lote_id: data.lote_id || loteId,
-                lote_nome: data.lote_nome || loteNome,
-                ponto_suplementacao_id: data.ponto_suplementacao_id || pontoSuplId,
-                coordenadas: data.coordenadas,
-              };
-              // D-PROD-324: sem internet, a tarefa vai pela fila e as fotos novas ficam guardadas (sobem depois).
-              if (editingTarefa || data.id) {
-                updateMutation.mutate({ id: editingTarefa?.id || data.id, data: payload, previous: editingTarefa || data, pendingImageFiles });
-              } else {
-                createMutation.mutate({ data: { ...payload, empresa_id: empresaSelecionadaId }, pendingImageFiles });
-              }
-            }}
-            onCancel={() => { setShowForm(false); setEditingTarefa(null); }}
-          />
-      </LancLoteDialogo>
-    </>
+  if (loadingTarefas) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
+        <div className="animate-spin w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
+        <span className="text-xs font-medium text-slate-700">Carregando tarefas...</span>
+      </div>
+    );
+  }
+
+  return (
+    <ResumoTarefasMapa
+      tarefas={tarefas}
+      titulo="Tarefas"
+      sub={panelSubtitulo}
+      hoje={hoje}
+      anim={anim}
+      prioridadeDe={normalizeTaskPriority}
+      onAbrir={(tarefa) => {
+        if (typeof onAbrirTarefa === "function") onAbrirTarefa(tarefa);
+        else mudarFormulario({ tarefa, voltarParaLista: true });
+      }}
+      onNova={abrirNova}
+    />
   );
 }

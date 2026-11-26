@@ -10051,4 +10051,18 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
     - O APK já tem a permissão de câmera e o `FileProvider`, então não precisa de APK novo: a mudança chega pela atualização automática.
 - **Fora:** a tarefa recusada pelo servidor: a foto dela fica guardada até a tarefa ser corrigida ou descartada.
 
-<!-- Próxima decisão: D-PROD-325 -->
+## D-PROD-325 — Tarefa numa janela só: lista, detalhes e formulário sem tela atrás
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("quando clico para abrir tarefa já me aparece uma tela de fundo junto também, isso é ruim… fica aparecendo toda hora") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFA-JANELA-UNICA-D325-REPORT.md`](./TAREFA-JANELA-UNICA-D325-REPORT.md)
+
+**Problema.** Tocar numa tarefa da lista abria os detalhes numa segunda janela por cima da lista; "Nova tarefa" abria o formulário numa janela por cima da lista. Cada janela tem a sua sombra e a sua entrada, então a tela de trás aparecia toda vez (e ficava aberta ao fechar a de cima).
+
+**Decisão.**
+- No Mapa Geral, lista, detalhes e formulário da tarefa são **uma janela só** (`LancLoteDialogo` aberto com `showTarefas || showDetalhesTarefa`); o conteúdo troca dentro dela. Ao fechar, a janela some com a última tela (sem mostrar a lista no caminho).
+- Pela lista: os detalhes entram no lugar dela, deslizando (`anim` "empurrar"), com **‹ Voltar** no cabeçalho, que volta para a lista ("voltar"). Pelo alfinete no mapa: só os detalhes, sem ‹; ao fechar, volta para o mapa.
+- O formulário (nova/editar) aparece **no lugar da lista** (`TarefasMapaPanel` não abre mais um diálogo próprio). Quem tem a janela guarda o formulário aberto (`formulario` + `onFormularioChange`, `{ tarefa, voltarParaLista }`), e o cabeçalho troca para ✕ · ✓ no mesmo instante. "Nova tarefa" pela lista volta para a lista ao sair, mantendo o recorte dela; pelo botão verde do mapa (ou pelo ponto marcado no mapa) o formulário abre sozinho e ao sair fecha tudo.
+- Fora do escopo: os diálogos de dentro dos detalhes (Editar, Registrar evento, Histórico) seguem como as ações dos detalhes do lote.
+
+> **Numeração:** a `main` (`3cbab18d5`) indica `Próxima decisão: D-PROD-325`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-326. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-326 -->
