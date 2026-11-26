@@ -115,7 +115,9 @@ function CampoEscolha({ label, value, onChange, options, required = false, error
  *
  * Abrir o serviço é um envio só: `registrarCampo` acha/abre a atividade do tipo na área e cria o apontamento do dia, com a
  * abertura na observação (`marcadorDaAbertura`, sem migration). Sem `atividade`, a janela começa no tipo; com uma atividade EM
- * ANDAMENTO do pasto, começa direto no cabeçalho (a abertura dela é lida da observação do apontamento mais recente).
+ * ANDAMENTO do pasto, lê a abertura dela (da observação do apontamento mais recente) enquanto mostra "Carregando…": com abertura,
+ * começa no cabeçalho; SEM abertura (o serviço do fluxo antigo, D-PROD-335), vai ao passo `abrir` com o tipo e a operação dela
+ * já escolhidos (o servidor reaproveita a atividade aberta). Se a leitura falhar, começa no cabeçalho como antes.
  *
  * @param {{
  *   area: any,
@@ -166,6 +168,8 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const enviandoRef = useRef(false);
   /** A abertura que acabou de ser gravada nesta janela (o cabeçalho usa ela; sem ela, a da consulta). */
   const [aberturaSalva, setAberturaSalva] = useState(/** @type {ReturnType<typeof aberturaDosApontamentos>} */ (null));
+  /** D-PROD-335: o nome do serviço que já está aberto no pasto sem abertura (a linha de ajuda do formulário; "" = não é o caso). */
+  const [nomeServicoExistente, setNomeServicoExistente] = useState("");
 
   // ─── Opções (só no passo da abertura) ───────────────────────────────
   // D-PROD-332 (emenda): as opções vêm TODAS as páginas (`lerTodasAsPaginas`), não só a 1ª de 50.
@@ -229,7 +233,22 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const lancadosHoje = useMemo(() => lancamentosDoDia(apontamentosDaAtividade, hoje, fuso), [apontamentosDaAtividade, hoje, fuso]);
   // A abertura que acabou de ser gravada tem prioridade; sem ela, a da consulta.
   const abertura = aberturaSalva ?? aberturaLida;
-  const semAbertura = passo === "iniciado" && !abertura && (Boolean(aberturaSalva) || apontamentosLidos.isSuccess);
+  // D-PROD-335: serviço existente SEM abertura gravada (o do fluxo antigo): a leitura terminou sem abertura → o formulário de
+  // abertura, com o tipo e a operação do serviço já escolhidos (o servidor acha a atividade aberta do mesmo tipo e área e
+  // grava a abertura nela). Sem operação conhecida para o serviço, o passo do tipo. Com a leitura falhando, nada muda.
+  useEffect(() => {
+    if (passo !== "iniciado" || aberturaSalva || !apontamentosLidos.isSuccess || aberturaLida) return;
+    if (!operacaoDaAtividade) {
+      setPasso("tipo");
+      return;
+    }
+    setOperacaoEscolhidaId(String(operacaoDaAtividade.id));
+    setNomeServicoExistente(String(operacaoDaAtividade.nome_tipo ?? rotuloTipo));
+    setErros({});
+    setPasso("abrir");
+  }, [passo, aberturaSalva, apontamentosLidos.isSuccess, aberturaLida, operacaoDaAtividade, rotuloTipo]);
+  /** Enquanto a abertura do serviço aberto é lida (ou a leitura acabou sem abertura e o passo ainda vai mudar): "Carregando…", sem o cabeçalho nem o menu. */
+  const aguardandoAbertura = passo === "iniciado" && !aberturaSalva && (apontamentosLidos.isLoading || (apontamentosLidos.isSuccess && !aberturaLida));
   /** O painel "Em breve" da tela 05: o título da opção tocada (ou "Encerrar serviço"); null = o serviço aberto. */
   const [emBreve, setEmBreve] = useState(/** @type {string | null} */ (null));
 
@@ -259,6 +278,7 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const voltarAoTipo = () => {
     if (enviando) return;
     setErros({});
+    setNomeServicoExistente("");
     setPasso("tipo");
   };
   /** Máquina escolhida: a leitura dela entra no horímetro (a pessoa pode mexer). @param {string} valor */
@@ -516,7 +536,6 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
           Horímetro inicial {abertura ? formatarHorimetro(abertura.horimetro) || "—" : "—"}
         </div>
       </section>
-      {semAbertura ? <p className="b1-realizacao__ajuda">Abertura não registrada neste serviço.</p> : null}
       {emBreve !== null ? (
         <section className="b1-aberto-painel" aria-label={emBreve} data-testid="servico-em-breve">
           <strong className="b1-aberto-painel__titulo">{emBreve}</strong>
@@ -626,7 +645,7 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
       className={`b1-realizacao b1-aberto-janela${celular ? " b1-janela--tela-cheia" : ""}`}
       contentProps={{ "data-permissao-explicita": "", "data-celular": celular ? "" : undefined, "data-passo": passo, className: celular ? "b1-janela__camada--tela-cheia" : undefined }}
       fora={<div ref={setAlvoFolha} className="contents" />}
-      rodape={rodape}
+      rodape={aguardandoAbertura ? null : rodape}
     >
       <MobileSheetPortalCtx.Provider value={alvoFolha}>
         {passo !== "iniciado" && avisoStatus ? <AvisoGestao testId="diario-atividades-aviso">{avisoStatus}</AvisoGestao> : null}
@@ -634,10 +653,25 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
         {passo === "abrir" ? (
           <>
             {semOperacaoAviso}
+            {nomeServicoExistente ? (
+              <p className="b1-realizacao__ajuda" data-testid="abertura-servico-existente">
+                {`Este pasto já tem o serviço ${nomeServicoExistente} em andamento, sem abertura. Preencha para iniciar.`}
+              </p>
+            ) : null}
             {formulario}
           </>
         ) : null}
-        {passo === "iniciado" ? iniciado : null}
+        {passo === "iniciado" ? (
+          aguardandoAbertura ? (
+            <div className="b1-realizacao__passo" data-testid="abertura-carregando">
+              <p role="status" className="b1-realizacao__ajuda">
+                Carregando…
+              </p>
+            </div>
+          ) : (
+            iniciado
+          )
+        ) : null}
       </MobileSheetPortalCtx.Provider>
     </B1Janela>
   );

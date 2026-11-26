@@ -5,7 +5,10 @@
  *  (c) escolher a máquina preenche o horímetro com a leitura dela (editável);
  *  (d) confirmar vazio mostra os erros e não envia;
  *  (e) confirmar envia `registrarCampo` uma vez, com a abertura na observação, e mostra o cabeçalho "Aberto";
- *  (f) aberto com uma atividade existente, começa direto no cabeçalho (lido dos apontamentos);
+ *  (f) aberto com uma atividade existente COM abertura, começa no cabeçalho (lido dos apontamentos);
+ *  (f2)/(f3) D-PROD-335: a atividade existente SEM abertura (o fluxo antigo) vai ao formulário de abertura, com o tipo e a
+ *      operação dela já definidos; "Iniciar serviço" leva o `tipo_atividade_id` da atividade existente;
+ *  (1) enquanto a abertura carrega, só "Carregando…" (sem cabeçalho nem menu); (3) falha na leitura: cabeçalho como antes;
  *  (g) com duas operações do tipo, a Operação vem primeiro e é obrigatória;
  *  (h) D-PROD-332 emenda (tela 05): 7 opções com títulos; "Nada lançado ainda"; "Lançado hoje" com as linhas de hoje
  *      na ordem do horário e sem R$; tocar uma opção ou "Encerrar serviço" mostra o painel "Em breve" e "Voltar" volta.
@@ -66,6 +69,13 @@ const BENS = { itens: [{ id: "bem-7", nome: "Trator 12" }, { id: "bem-8", nome: 
 const IMPLEMENTOS = { itens: [{ id: "imp-2", nome: "Pulverizador 2.000 L" }], has_more: false, next_cursor: null };
 const OPERADORES = { itens: [{ id: "usr-3", nome: "João Pereira" }], has_more: false, next_cursor: null };
 const MEDIDOR_TRATOR_12 = { medidor_tipo: "HORIMETRO", medidor_unidade: "h", leitura_vigente: { leitura: "1245.0", data: "2026-11-20", origem: "ATIVIDADE" } };
+/** Um apontamento CONFIRMADO de hoje com a abertura na observação (a atividade já tem o serviço aberto). */
+const APONTAMENTO_COM_ABERTURA = {
+  id: "ap-1",
+  data_operacional: "2026-11-26",
+  status: "CONFIRMADO",
+  observacao: marcadorDaAbertura({ bemId: "bem-7", implementoId: "imp-2", horimetro: "1245.0", responsavelId: "usr-3", bemNome: "Trator 12", implementoNome: "Pulverizador 2.000 L", responsavelNome: "João Pereira" }),
+};
 
 /** Escolhe uma opção de um campo de escolha Base1 (o botão combobox abre a lista; a opção é clicada). */
 const escolher = async (combobox, rotulo) => {
@@ -101,7 +111,7 @@ beforeEach(() => {
   servico.obterMedidorDoBem.mockResolvedValue(MEDIDOR_TRATOR_12);
   servico.registrarCampo.mockResolvedValue({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" }, apontamento: { id: "ap-1" } });
   servico.obterAtividade.mockResolvedValue({ id: "atv-9", tipo_atividade_id: "op-1" });
-  servico.listarApontamentos.mockResolvedValue({ items: [] });
+  servico.listarApontamentos.mockResolvedValue({ items: [APONTAMENTO_COM_ABERTURA] });
   culturas.listarCulturas.mockResolvedValue(CAPINS);
 });
 
@@ -223,10 +233,62 @@ describe("Diário das atividades — abertura", () => {
     expect(screen.getByTestId("servico-encerrar")).toBeInTheDocument();
   });
 
-  it("(f2) sem abertura gravada na atividade, o cabeçalho diz que não foi registrada", async () => {
-    servico.listarApontamentos.mockResolvedValue({ items: [{ id: "ap-1", data_operacional: "2026-11-26", observacao: "Só texto" }] });
+  it("(f2) D-PROD-335: serviço aberto SEM abertura gravada → formulário de abertura, com o tipo e a operação dele já definidos", async () => {
+    servico.listarApontamentos.mockResolvedValue({ items: [{ id: "ap-1", data_operacional: "2026-11-26", status: "CONFIRMADO", observacao: "Só texto" }] });
     renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
-    expect(await screen.findByText("Abertura não registrada neste serviço.")).toBeInTheDocument();
+    await screen.findByTestId("abertura-form");
+    expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Nova atividade de Aplicação");
+    expect(screen.getByTestId("abertura-servico-existente")).toHaveTextContent("Este pasto já tem o serviço Aplicação de defensivo em andamento, sem abertura. Preencha para iniciar.");
+    // Sem a tela de tipo, sem o cabeçalho e sem o menu do serviço; a operação é só uma, então não aparece o campo.
+    expect(screen.queryByTestId("diario-atividades-tipos")).toBeNull();
+    expect(screen.queryByTestId("abertura-iniciado")).toBeNull();
+    expect(screen.queryByTestId("abertura-operacao")).toBeNull();
+    expect(screen.queryByText("Abertura não registrada neste serviço.")).toBeNull();
+
+    await escolher(screen.getByRole("combobox", { name: "Máquina" }), "Trator 12");
+    await escolher(screen.getByRole("combobox", { name: "Responsável" }), "João Pereira");
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
+    await screen.findByTestId("abertura-iniciado");
+    // O servidor reaproveita a atividade aberta do mesmo tipo: o envio leva o tipo_atividade_id dela.
+    expect(servico.registrarCampo).toHaveBeenCalledTimes(1);
+    const [dados] = servico.registrarCampo.mock.calls[0];
+    expect(dados).toMatchObject({ area_id: "area-A", tipo_atividade_id: "op-1", bem_id: "bem-7", operador_usuario_id: "usr-3" });
+    expect(lerAbertura(dados.observacao)).toMatchObject({ bemId: "bem-7", responsavelId: "usr-3", horimetro: "1245.0" });
+  });
+
+  it("(f3) D-PROD-335: com duas operações do tipo, a Operação já vem com a do serviço aberto (e o envio leva o id dela)", async () => {
+    servico.listarApontamentos.mockResolvedValue({ items: [{ id: "ap-1", data_operacional: "2026-11-26", status: "CONFIRMADO", observacao: "Só texto" }] });
+    renderizar({ tipos: [OPERACAO_APLICACAO, OPERACAO_APLICACAO_2], atividade: { id: "atv-9", tipo_atividade_id: "op-2" } });
+    await screen.findByTestId("abertura-form");
+    expect(screen.getByTestId("abertura-operacao")).toBeInTheDocument();
+    expect(screen.getByTestId("abertura-servico-existente")).toHaveTextContent("Aplicação de adubo foliar");
+    await escolher(screen.getByRole("combobox", { name: "Máquina" }), "Trator 12");
+    await escolher(screen.getByRole("combobox", { name: "Responsável" }), "João Pereira");
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
+    await screen.findByTestId("abertura-iniciado");
+    expect(servico.registrarCampo.mock.calls[0][0].tipo_atividade_id).toBe("op-2");
+    expect(screen.queryByText("Escolha a operação.")).toBeNull();
+  });
+
+  it("(1) enquanto a abertura carrega, não mostra o cabeçalho nem o menu do serviço, só \"Carregando…\"", async () => {
+    servico.listarApontamentos.mockReturnValue(new Promise(() => {}));
+    renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+    expect(await screen.findByTestId("abertura-carregando")).toHaveTextContent("Carregando…");
+    expect(screen.queryByTestId("abertura-iniciado")).toBeNull();
+    expect(screen.queryByTestId("servico-encerrar")).toBeNull();
+    expect(screen.queryByTestId("abertura-form")).toBeNull();
+    expect(screen.queryByTestId("diario-atividades-tipos")).toBeNull();
+    expect(screen.queryByText("Abertura não registrada neste serviço.")).toBeNull();
+  });
+
+  it("(3) se a leitura da abertura falha, o cabeçalho aparece como antes (sem levar ao formulário)", async () => {
+    servico.listarApontamentos.mockRejectedValue(new Error("sem rede"));
+    renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+    await screen.findByTestId("abertura-iniciado");
+    expect(screen.queryByTestId("abertura-carregando")).toBeNull();
+    expect(screen.queryByTestId("abertura-form")).toBeNull();
+    expect(screen.queryByTestId("abertura-servico-existente")).toBeNull();
+    expect(screen.getByTestId("servico-encerrar")).toBeInTheDocument();
   });
 
   it("(g) com duas operações do tipo, a Operação vem primeiro e é obrigatória", async () => {
