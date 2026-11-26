@@ -245,7 +245,7 @@ export const lerFilaDeEnvio = async () => {
 };
 
 /** "Enviar agora". */
-export const enviarAgora = () => sincronizarTudo();
+export const enviarAgora = () => sincronizarTudo({ jaEmVoltaDaRede: true });
 
 /** "Tentar de novo" em qualquer item da fila única. @param {string} id */
 export const tentarEnviarDeNovo = async (id) => {
@@ -264,7 +264,19 @@ export const tentarEnviarDeNovo = async (id) => {
 /** "Excluir" qualquer item da fila única (a pessoa decidiu que ele não vai ao sistema). @param {string} id */
 export const descartarRegistroNaoEnviado = async (id) => {
   const cadastro = semPrefixo(id, PREFIXO_CADASTRO);
-  if (cadastro !== null) return (await excluirDaFilaDeEntidades(comoIdDaFila(cadastro))) > 0;
+  if (cadastro !== null) {
+    const item = (await listarItensDaFilaDeEntidades()).find((i) => String(i.id) === String(comoIdDaFila(cadastro)));
+    const excluidos = await excluirDaFilaDeEntidades(comoIdDaFila(cadastro));
+    if (item?.entidade === 'LancamentoTarefa') {
+      // D-PROD-337: a tarefa criada no aparelho que a pessoa excluiu da fila leva junto as fotos guardadas dela (antes
+      // ficavam no celular, falhavam e iam para "precisa de atenção"), e o mapa tira o pino na hora.
+      if (item.operacao === 'create' && item.registroId) {
+        for (const f of (await listarFotosAguardandoEnvio()).filter((x) => x.tarefaId === item.registroId)) await excluirFotoGuardada(f.chave);
+      }
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['tarefas'] } }));
+    }
+    return excluidos > 0;
+  }
   const foto = semPrefixo(id, PREFIXO_FOTO);
   if (foto !== null) {
     for (const f of (await listarFotosAguardandoEnvio()).filter((x) => x.tarefaId === foto)) await excluirFotoGuardada(f.chave);

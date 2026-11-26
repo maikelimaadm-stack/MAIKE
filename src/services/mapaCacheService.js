@@ -202,7 +202,10 @@ const tarefaAbertaNoMapa = (t) => Boolean(t?.coordenadas) && (t.status === 'Pend
  * @param {any[]} itens @param {string|null} empresaId
  */
 const comTarefasDaFila = async (itens, empresaId) => {
-  const fila = (await listarItensDaFilaDeEntidades()).filter((f) => f.entidade === 'LancamentoTarefa' && f.situacao === 'aguardando');
+  // D-PROD-337: só a fila desta fazenda. A edição de uma tarefa não leva `empresa_id` nos dados: antes, a tarefa da
+  // fazenda A editada sem internet aparecia no mapa da fazenda B.
+  const daFazenda = (/** @type {any} */ f) => !empresaId || !f.empresaId || f.empresaId === empresaId;
+  const fila = (await listarItensDaFilaDeEntidades()).filter((f) => f.entidade === 'LancamentoTarefa' && f.situacao === 'aguardando' && daFazenda(f));
   if (!fila.length) return itens;
   /** @type {Map<string, any>} */
   const porId = new Map(itens.map((t) => [String(t?.id), t]));

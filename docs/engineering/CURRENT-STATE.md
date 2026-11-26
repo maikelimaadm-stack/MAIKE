@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-26 (missão ativa D-PROD-335; antes D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-26 (missão ativa D-PROD-337; antes D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-26) — MAIKE-SEM-INTERNET-GRUPO1: nada se perde, nada duplica, nenhuma foto se apaga (D-PROD-335)
+## Missão ativa (2026-11-26) — MAIKE-SEM-INTERNET-GRUPO2: sem travas escondidas e sem aviso que engana (D-PROD-337)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-337**: a espera de rede acaba quando a rede volta; "Tudo sincronizado" só sem nada na fila; a leitura do cocho parada não trava o cocho; o valor recusado não aparece como salvo; cada fazenda vê só a sua fila no mapa; "Excluir" a tarefa leva as fotos; a sessão vencida diz o motivo |
+| Banco | sem migration; backend sem mudança |
+| Relatório | [`SEM-INTERNET-GRUPO2-D337-REPORT.md`](./SEM-INTERNET-GRUPO2-D337-REPORT.md) |
+| Próximas | Grupo 3 (limites) e os dois itens que pedem mudança no servidor; GPS |
+
+## Missão anterior (2026-11-26) — MAIKE-SEM-INTERNET-GRUPO1: nada se perde, nada duplica, nenhuma foto se apaga (D-PROD-335)
 
 | Item | Estado |
 |---|---|
