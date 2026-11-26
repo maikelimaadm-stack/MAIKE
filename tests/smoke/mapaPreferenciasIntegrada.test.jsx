@@ -310,15 +310,17 @@ describe('PREF-04 — controles só com a permissão que os faz funcionar', () =
     expect(salvo?.showUserLocation).toBe(false);
   });
 
-  it('operador com mover_lotes e a tela de Tarefas: Mover alterna e grava; chave Tarefas aparece', async () => {
+  it('operador com mover_lotes e a tela de Tarefas: Mover alterna e grava; aba Tarefas aparece', async () => {
     sessao.permissoes = linha({ mover_lotes: true }, [TELA_TAREFAS]);
     await abrir();
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Ativar arrasto' })); });
     expect(lotesDesenhados().arrastaveis).toBe(true);
     expect(ler(chave('emp-1'))?.dragLotesEnabled).toBe(true);
     expect(screen.getByRole('button', { name: 'Minha localização' })).toBeInTheDocument();
+    // D-PROD-326: as tarefas não são mais uma chave do painel — têm a aba Tarefas na barra.
+    expect(screen.getByRole('button', { name: 'Tarefas' })).toBeInTheDocument();
     const filtros = await abrirFiltros();
-    expect(filtros.getByRole('checkbox', { name: 'Tarefas' })).toBeInTheDocument();
+    expect(filtros.queryByRole('checkbox', { name: 'Tarefas' })).toBeNull();
   });
 
   it('administrador da fazenda vê os três', async () => {
@@ -326,8 +328,10 @@ describe('PREF-04 — controles só com a permissão que os faz funcionar', () =
     await abrir();
     expect(screen.getByRole('button', { name: 'Ativar arrasto' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Minha localização' })).toBeInTheDocument();
+    // D-PROD-326: as tarefas não são mais uma chave do painel — têm a aba Tarefas na barra.
+    expect(screen.getByRole('button', { name: 'Tarefas' })).toBeInTheDocument();
     const filtros = await abrirFiltros();
-    expect(filtros.getByRole('checkbox', { name: 'Tarefas' })).toBeInTheDocument();
+    expect(filtros.queryByRole('checkbox', { name: 'Tarefas' })).toBeNull();
   });
 });
 

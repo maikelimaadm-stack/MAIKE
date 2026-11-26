@@ -2,6 +2,9 @@
  * GUIA DE EDIÇÃO — REGRAS VISUAIS DO MAPA: resolução dos ícones, fontesRotuloPorZoom, cores de fallback e pintura de camadas.
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
+
+import { urlIconeTarefa } from "@/assets/icones/tarefas";
+import { CORES_PRIORIDADE_TAREFA, normalizarPrioridadeTarefa } from "@/lib/tarefas/prioridade";
 import { urlIconeDeposito } from "@/assets/icones/deposito-sal";
 /**
  * Mapa Geral sobre MapLibre — helpers puros (D-PROD-65).
@@ -430,11 +433,10 @@ export function resolverIconeLote(lotesNaArea, categoriasManejo = []) {
   return { iconUrl: urlMarcadorLote(icone), chave: icone.chave, nivel: icone.nivel, rotulo: icone.rotulo };
 }
 
-const CORES_PRIORIDADE = { Baixa: "#94a3b8", Normal: "#3b82f6", Alta: "#f59e0b", Urgente: "#ef4444" };
-
 export function resolverIconeTarefa(tarefa, iconesConfig = []) {
-  const cfg = iconesConfig.find((ic) => ic.tipo_entidade === "Prioridade Tarefa" && normAcento(ic.categoria) === normAcento(tarefa.prioridade));
-  return { iconUrl: cfg?.icone_url || null, cor: CORES_PRIORIDADE[tarefa.prioridade] || "#3b82f6" };
+  const prioridade = normalizarPrioridadeTarefa(tarefa.prioridade);
+  const cfg = iconesConfig.find((ic) => ic.tipo_entidade === "Prioridade Tarefa" && (normAcento(ic.categoria) === normAcento(prioridade) || (prioridade === "Média" && normAcento(ic.categoria) === "NORMAL")));
+  return { iconUrl: cfg?.icone_url || urlIconeTarefa(prioridade), cor: CORES_PRIORIDADE_TAREFA[prioridade] };
 }
 
 /**

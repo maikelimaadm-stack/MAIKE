@@ -3,6 +3,9 @@
  * Ícone do lote (D-PROD-191): o desenho, a largura (LARGURA_MARCADOR_PX) e a altura do número de cabeças (CONTAGEM_TOPO_PCT) vêm do código, em src/assets/icones/lotes.
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
+
+import { aplicarIndicadorTarefa } from "@/lib/tarefas/marcador";
+import { normalizarPrioridadeTarefa } from "@/lib/tarefas/prioridade";
 import { useRef, useCallback } from "react";
 import { CONTAGEM_TOPO_PCT, LARGURA_MARCADOR_PX } from "@/assets/icones/lotes";
 import { maplibregl, setSourceData } from "@/lib/maplibre/lifecycle.js";
@@ -841,7 +844,7 @@ export default function useMapRenderer(mapInstanceRef) {
   }, [mapInstanceRef]);
 
   // ─── Tarefas ───
-  const syncTarefas = useCallback((tarefasMapa, areas, iconesConfig, onClickTarefa) => {
+  const syncTarefas = useCallback((tarefasMapa, areas, iconesConfig, onClickTarefa, hoje) => {
     const prefix = "tarefa_";
     const itens = [];
     for (const t of tarefasMapa) {
@@ -854,23 +857,25 @@ export default function useMapRenderer(mapInstanceRef) {
       const { iconUrl, cor } = resolverIconeTarefa(t, iconesConfig);
       const key = prefix + t.id;
       const ref = { tarefa: t };
-      const urgente = t.prioridade === "Urgente";
+      const urgente = normalizarPrioridadeTarefa(t.prioridade) === "Urgente";
       itens.push({
         key,
         lngLat: [pos.lng, pos.lat],
-        estado: JSON.stringify([pos.lat, pos.lng, t.titulo, t.prioridade, iconUrl]),
+        estado: JSON.stringify([pos.lat, pos.lng, t.titulo, t.prioridade, t.status, t.data_prevista, hoje, iconUrl]),
         ref,
         criar: () => {
-          const entry = criarMarcadorClicavel({ iconUrl, baseSize: 28, cor, titulo: t.titulo, forma: iconUrl ? "circulo" : "pin" }, () => {
+          const entry = criarMarcadorClicavel({ iconUrl, baseSize: 40, cor, titulo: t.titulo }, () => {
             onClickTarefa?.(markersRef.current.get(key)?.ultimo?.ref?.tarefa || t);
           });
+          aplicarIndicadorTarefa(entry.el, t, hoje);
           entry.marker.getElement().style.zIndex = urgente ? "3000" : "2500";
           return entry;
         },
         atualizar: (entry) => {
           entry.el.title = String(t.titulo || "");
           entry.marker.getElement().style.zIndex = urgente ? "3000" : "2500";
-          aplicarCorpo(entry.el, { iconUrl, baseSize: 28, cor, forma: iconUrl ? "circulo" : "pin" });
+          aplicarCorpo(entry.el, { iconUrl, baseSize: 40, cor });
+          aplicarIndicadorTarefa(entry.el, t, hoje);
         },
       });
     }

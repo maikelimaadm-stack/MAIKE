@@ -19,6 +19,7 @@ import {
 import { listPermissoes, listUsuarios } from '@/apis/session';
 import { listIcones as listIconesApi } from '@/apis/mapa';
 import { uploadArquivo } from '@/apis/arquivos';
+import { reduzirFoto } from '@/lib/imagens/reduzirFoto';
 
 /**
  * @param {any[]} items
@@ -72,5 +73,7 @@ export const excluirHistorico = (id) => deleteHistorico(id);
  * @param {{ file: File|Blob }} payload
  * @returns {Promise<{ file_url: string }>}
  */
-export const enviarAnexo = (payload) =>
-  /** @type {Promise<{ file_url: string }>} */ (uploadArquivo(payload));
+// D-PROD-327: a foto é reduzida no celular antes de subir (a da câmera passava do limite do servidor e a tarefa
+// com foto não salvava). Vale para todo envio de foto de tarefa: na hora, guardada sem internet e a da fila antiga.
+export const enviarAnexo = async (payload) =>
+  /** @type {Promise<{ file_url: string }>} */ (uploadArquivo({ ...payload, file: await reduzirFoto(payload?.file) }));

@@ -34,7 +34,7 @@ import {
 } from './historicoLancamentoTarefaRepository.js';
 
 const TIPOS_BASE = ['Manejo', 'Suplementação', 'Manutenção', 'Verificação', 'Sanitário', 'Outro'];
-const PRIORIDADES = ['Baixa', 'Média', 'Alta'];
+const PRIORIDADES = ['Baixa', 'Média', 'Alta', 'Urgente'];
 const STATUS = ['Pendente', 'Em Andamento', 'Concluída', 'Cancelada'];
 const EVENTOS = [
   'Criação',

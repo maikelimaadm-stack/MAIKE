@@ -131,6 +131,22 @@ describe('D-PROD-320 — lançamento simples (só o título)', () => {
   const criarSo = (token, titulo, extra = {}) =>
     app.inject({ method: 'POST', url: '/lancamentos-tarefa', headers: auth(token), payload: { empresa_id: 'emp-1', titulo, ...extra } });
 
+  test('Urgente persiste na criação e na edição, sem virar Alta', async () => {
+    const { token } = await tenantAutenticado();
+    const criar = await criarSo(token, 'CERCA ROMPIDA', { prioridade: 'Urgente' });
+    assert.equal(criar.statusCode, 201, criar.body);
+    assert.equal(criar.json().prioridade, 'Urgente');
+    const id = criar.json().id;
+    const editar = await app.inject({ method: 'PATCH', url: `/lancamentos-tarefa/${id}`, headers: auth(token), payload: { prioridade: 'Alta' } });
+    assert.equal(editar.statusCode, 200, editar.body);
+    const urgente = await app.inject({ method: 'PATCH', url: `/lancamentos-tarefa/${id}`, headers: auth(token), payload: { prioridade: 'Urgente' } });
+    assert.equal(urgente.statusCode, 200, urgente.body);
+    assert.equal(urgente.json().prioridade, 'Urgente');
+    const listar = await app.inject({ method: 'GET', url: '/lancamentos-tarefa', headers: auth(token) });
+    assert.equal(listar.statusCode, 200, listar.body);
+    assert.equal(listar.json().find((t) => t.id === id).prioridade, 'Urgente');
+  });
+
   test('LS-01 só o título: tipo "SEM TIPO" no grupo GERAL, tipo base Outro, pedido hoje, quem pediu = quem lançou', async () => {
     const { token } = await tenantAutenticado();
     const r = await criarSo(token, 'ARRUMAR CERCA');

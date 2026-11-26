@@ -10051,6 +10051,98 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
     - O APK já tem a permissão de câmera e o `FileProvider`, então não precisa de APK novo: a mudança chega pela atualização automática.
 - **Fora:** a tarefa recusada pelo servidor: a foto dela fica guardada até a tarefa ser corrigida ou descartada.
 
+## D-PROD-325 — Tarefa numa janela só: lista, detalhes e formulário sem tela atrás
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("quando clico para abrir tarefa já me aparece uma tela de fundo junto também, isso é ruim… fica aparecendo toda hora") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFA-JANELA-UNICA-D325-REPORT.md`](./TAREFA-JANELA-UNICA-D325-REPORT.md)
+
+**Problema.** Tocar numa tarefa da lista abria os detalhes numa segunda janela por cima da lista; "Nova tarefa" abria o formulário numa janela por cima da lista. Cada janela tem a sua sombra e a sua entrada, então a tela de trás aparecia toda vez (e ficava aberta ao fechar a de cima).
+
+**Decisão.**
+- No Mapa Geral, lista, detalhes e formulário da tarefa são **uma janela só** (`LancLoteDialogo` aberto com `showTarefas || showDetalhesTarefa`); o conteúdo troca dentro dela. Ao fechar, a janela some com a última tela (sem mostrar a lista no caminho).
+- Pela lista: os detalhes entram no lugar dela, deslizando (`anim` "empurrar"), com **‹ Voltar** no cabeçalho, que volta para a lista ("voltar"). Pelo alfinete no mapa: só os detalhes, sem ‹; ao fechar, volta para o mapa.
+- O formulário (nova/editar) aparece **no lugar da lista** (`TarefasMapaPanel` não abre mais um diálogo próprio). Quem tem a janela guarda o formulário aberto (`formulario` + `onFormularioChange`, `{ tarefa, voltarParaLista }`), e o cabeçalho troca para ✕ · ✓ no mesmo instante. "Nova tarefa" pela lista volta para a lista ao sair, mantendo o recorte dela; pelo botão verde do mapa (ou pelo ponto marcado no mapa) o formulário abre sozinho e ao sair fecha tudo.
+- Fora do escopo: os diálogos de dentro dos detalhes (Editar, Registrar evento, Histórico) seguem como as ações dos detalhes do lote.
+
+> **Numeração:** a `main` (`3cbab18d5`) indica `Próxima decisão: D-PROD-325`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-326. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-326 — Mapa Geral: cada aba com as suas camadas e os seus filtros (Lotes · Pontos · Tarefas)
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("nos filtros e camadas … vai de acordo onde eu tiver, se é em lotes, ou pontos ou tarefas, eles não vão se misturar … cada um com suas coisas e seus filtros") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`MAPA-FILTROS-POR-ABA-D326-REPORT.md`](./MAPA-FILTROS-POR-ABA-D326-REPORT.md)
+
+**Decisão.**
+- O painel de filtro (⚙) mostra só o que é da aba (`painelDoFoco` em `src/lib/mapaFoco.js`):
+
+  | Aba | Mostrar no mapa | Filtros |
+  |---|---|---|
+  | Lotes | áreas, detalhes, hectares, pontos de referência, linhas, lotes, alertas, localização | áreas (setor, cultura, pastagem) e categorias de manejo |
+  | Pontos | áreas, detalhes, hectares, pontos de referência, linhas, cochos, depósitos, localização | áreas (setor, cultura, pastagem) |
+  | Tarefas | áreas, detalhes, pontos de referência, linhas, localização | tarefas: setor, situação (pendente / em andamento), prioridade, responsável, prazo ("só atrasadas") |
+
+- O mapa segue a mesma regra: a aba **Lotes deixa de desenhar cochos/depósitos e tarefas** (`camadasDoFoco('lotes')`). Cochos e depósitos ficam na aba Pontos e as tarefas na aba Tarefas. A chave "Tarefas" sai do painel, porque as tarefas têm a sua aba.
+- Um filtro que a aba não mostra também não vale nela: os filtros de lote só na aba Lotes (na aba Pontos o resumo de baixo conta todos os lotes das áreas filtradas); na aba Tarefas, das áreas só vale o setor; os filtros de tarefa só na aba Tarefas. O "limpar" do painel limpa só os filtros da aba.
+- Os filtros de tarefa são salvos com as outras preferências do mapa, por usuário (`filtroTarefaStatus`, `filtroTarefaPrioridade`, `filtroTarefaResponsavel`, `filtroTarefaPrazo`; multisseleção). Sem a permissão de filtros, valem o padrão (D-PROD-137). "Atrasada" é a mesma regra do resumo: o dia do prazo já passou.
+- A prioridade usa a regra e a lista da `main` (`src/lib/tarefas/prioridade.js`, PR #413: Baixa, Média, Alta, Urgente).
+
+> **Numeração:** a `main` indica `Próxima decisão: D-PROD-326` depois da D-PROD-325 (PR #414), que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-327. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-327 — Tarefa com foto salva: a foto é reduzida no celular e o servidor aceita a tarefa com fotos
+
+**Data:** 2026-11-26 · **Origem:** teste do proprietário ("tarefas sem imagens ela salva e com imagem não salva") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFA-FOTO-SALVA-D327-REPORT.md`](./TAREFA-FOTO-SALVA-D327-REPORT.md)
+
+**Causa.** A foto vai dentro da tarefa, como endereço `data:` devolvido por `/arquivos/upload`. A foto da câmera tem de 2 a 5 MB, e as rotas da tarefa (`POST` e `PATCH /lancamentos-tarefa`) usavam o limite padrão do Fastify, de 1 MB. Com isso, a tarefa com foto voltava 413 e não era gravada, e a foto grande passava também do limite do próprio upload. Sem internet, a mesma foto ficava tentando subir para sempre.
+
+**Decisão.**
+- O app reduz a foto antes de subir (`src/lib/imagens/reduzirFoto.js`):
+  - o lado maior passa a no máximo 1600 px, em JPEG com qualidade 0,75;
+  - foto já pequena (até 400 KB e dentro do tamanho) sobe como está;
+  - sem canvas, com imagem que o aparelho não abre ou quando a reduzida não fica menor, sobe a original (nunca piora).
+- A redução vale para todo envio de foto de tarefa (`enviarAnexo` em `tarefasMapaService`): na hora, a guardada sem internet (D-PROD-324) e a da fila antiga.
+- As rotas `POST` e `PATCH /lancamentos-tarefa` aceitam até 4 MB, abaixo do teto da função serverless (4,5 MB), como no upload (D-PROD-79). Com as fotos reduzidas, cabem cerca de 10 por tarefa.
+- No smoke, o jsdom passa a se comportar como aparelho sem canvas (`getContext` devolve `null`), sem o aviso "Not implemented".
+
+> **Numeração:** a `main` (`727a8ac61`) indica `Próxima decisão: D-PROD-327`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-328. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-328 — Fila única da sincronização: tudo que espera envio, com o que aconteceu, e nada preso sem saída
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("as filas de sincronização está confuso demais e outra tem uma fila que não sai de jeito algum … as filas eu tenho como ver o que aconteceu e excluir ele ou tentar repetir o lançamento") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`FILA-UNICA-SINCRONIZACAO-D328-REPORT.md`](./FILA-UNICA-SINCRONIZACAO-D328-REPORT.md)
+
+**Problema.** Havia três filas no aparelho, e a janela "Sincronização" mostrava só parte delas:
+- O motor (cochos, depósitos) aparecia.
+- Da fila antiga de cadastros, só os recusados apareciam; o resto era um número.
+- As tarefas e fotos guardadas não apareciam.
+
+Vários itens ficavam presos para sempre, sem botão:
+- foto ou tarefa recusada pelo servidor, que tentava de novo sem fim e sem aparecer;
+- registro do motor "confirmando" (tentou e o servidor não respondeu);
+- exclusão retida da fila antiga;
+- cadastro esperando, que só aparecia como número.
+
+**Decisão.**
+- Uma **fila única** (`lerFilaDeEnvio` em `sincronizacaoService`) junta as quatro origens:
+  - `motor`;
+  - `cadastro:<n>`, a fila antiga, agora **toda** ela, com `listarItensDaFilaDeEntidades`;
+  - `foto:<tarefa>`, as fotos de uma tarefa;
+  - `tarefa-antiga:<chave>`.
+
+  Cada item tem:
+  - rótulo com o nome do registro;
+  - "Feito em";
+  - situação: aguardando, confirmando, esperando outro registro ou precisa de atenção;
+  - motivo, em palavras simples;
+  - tentativas com erro e a última tentativa;
+  - o conteúdo em linhas simples (`detalhesDoConteudo`, sem campos internos nem fotos em `data:`).
+- Todo item tem **Ver detalhes**, **Excluir** (com confirmação e o aviso do que acontece) e **Tentar de novo**. O único caso sem "Tentar de novo" é o retido pela regra da entidade, como a exclusão que só pode ser feita com internet.
+  - Excluir uma **criação** da fila antiga leva junto as alterações do mesmo registro e tira o registro do aparelho.
+  - O registro do motor "confirmando" também pode sair (`descartarDaFila(id, { mesmoSemResposta: true })`), com o aviso de que pode já ter chegado ao sistema. O id do aparelho impede a duplicata.
+  - Continua a regra da D-PROD-311: com um registro posterior que depende deste, exclui-se primeiro o mais recente.
+- O **último erro** fica guardado no item:
+  - na fila antiga: `ultimo_erro`, também nos erros passageiros;
+  - nas fotos e nas tarefas antigas: `tentativas` e `ultimo_erro`.
+- Foto e tarefa antiga que falham **3 vezes** com resposta do servidor param de tentar sozinhas e pedem a pessoa. Falta de rede ou sessão vencida não conta.
+- Primeiro aparece o que precisa da pessoa, depois o resto, do mais antigo para o mais novo.
+
+> **Numeração:** depois da D-PROD-327 (PR #417), a `main` indica `Próxima decisão: D-PROD-328`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-329. Conferir de novo antes do merge (regra A5).
+
 ## D-PROD-329 — Diário das atividades, parte 1: abertura do serviço (tipo → máquina, implemento, horímetro e responsável), do zero
 
 **Data:** 2026-11-26 · **Origem:** pedido do proprietário (maquete v4 "Diário das atividades"): começar o serviço pelo pasto, com a máquina, o implemento, o horímetro inicial e o responsável · **Branch:** `feat/atividades-abertura` · **Migration:** nenhuma · **Relatório:** [`ATIVIDADES-ABERTURA-REPORT.md`](./ATIVIDADES-ABERTURA-REPORT.md)

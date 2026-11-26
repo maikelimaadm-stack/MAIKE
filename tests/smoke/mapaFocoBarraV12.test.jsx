@@ -78,6 +78,11 @@ vi.mock('@/components/mapa/TarefasMapaPanel', async () => {
   // D-PROD-321: guarda as props (o "Nova tarefa" passa o local pela posição do celular).
   return { default: (props) => { globalThis.__painelTarefas = props; return createElement('p', null, 'Lista de tarefas'); } };
 });
+// D-PROD-325: os detalhes da tarefa ficam de fora (guarda as props: o ‹ Voltar só existe vindo da lista).
+vi.mock('@/components/mapa/DetalhesTarefaMapa', async () => {
+  const { createElement } = await import('react');
+  return { default: (props) => { globalThis.__detalhesTarefa = props; return createElement('p', null, `Detalhes de ${props.tarefa?.titulo}`); } };
+});
 vi.mock('@/lib/maplibre/falhaWebGL', async (importOriginal) => ({
   ...(await importOriginal()),
   navegadorTemWebGL: () => true,
@@ -285,7 +290,8 @@ describe('BARRA-1 — regra pura do foco (src/lib/mapaFoco.js)', () => {
   });
 
   it('o que cada foco deixa no mapa (o mesmo objeto a cada chamada)', () => {
-    expect(camadasDoFoco('lotes')).toEqual({ lotes: true, suplementacao: true, tarefas: true, lotacaoNoRotulo: false });
+    // D-PROD-326: cada aba com as suas coisas — Lotes sem cochos/depósitos e sem tarefas.
+    expect(camadasDoFoco('lotes')).toEqual({ lotes: true, suplementacao: false, tarefas: false, lotacaoNoRotulo: false });
     expect(camadasDoFoco('pastos')).toEqual({ lotes: false, suplementacao: true, tarefas: false, lotacaoNoRotulo: true });
     expect(camadasDoFoco('tarefas')).toEqual({ lotes: false, suplementacao: false, tarefas: true, lotacaoNoRotulo: false });
     expect(camadasDoFoco('outro')).toBe(camadasDoFoco('lotes'));
@@ -374,7 +380,7 @@ describe('BARRA-3 — MapaGeral real: o que cada foco desenha', () => {
     await abrir();
     expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pontos', 'Tarefas', 'Visualização do mapa: Satélite']);
     expect(pressionado('Lotes')).toBe('true');
-    expect(noMapa()).toEqual({ lotes: true, lotesNaLista: 2, cochos: true, tarefas: 1, textoNoRotulo: false });
+    expect(noMapa()).toEqual({ lotes: true, lotesNaLista: 2, cochos: false, tarefas: 0, textoNoRotulo: false });
 
     await tocar('Pontos');
     expect(pressionado('Pontos')).toBe('true');
@@ -394,7 +400,7 @@ describe('BARRA-3 — MapaGeral real: o que cada foco desenha', () => {
 
     await tocar('Lotes');
     expect(pressionado('Lotes')).toBe('true');
-    expect(noMapa()).toEqual({ lotes: true, lotesNaLista: 2, cochos: true, tarefas: 1, textoNoRotulo: false });
+    expect(noMapa()).toEqual({ lotes: true, lotesNaLista: 2, cochos: false, tarefas: 0, textoNoRotulo: false });
   });
 
   it('o ⚙ abre o painel Filtro de sempre', async () => {
@@ -437,9 +443,11 @@ describe('BARRA-6 — D-PROD-321: "Nova tarefa" já sabe onde a pessoa está', (
     await abrir();
     await tocar('Tarefas');
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Nova tarefa' })); });
-    expect(screen.getByRole('dialog', { name: 'Tarefas' })).toBeInTheDocument();
     const p = /** @type {any} */ (globalThis).__painelTarefas;
-    expect(p).toMatchObject({ areaId: 'a1', areaNome: 'A1', openCreateOnMount: true, initialCoordinates: { lat: -15.005, lng: -47.005 } });
+    expect(p).toMatchObject({ areaId: 'a1', areaNome: 'A1', initialCoordinates: { lat: -15.005, lng: -47.005 } });
+    // D-PROD-325: o formulário abre na própria janela (pelo mapa: ao sair, fecha tudo).
+    expect(p.formulario).toEqual({ tarefa: null, voltarParaLista: false });
+    expect(screen.getByRole('dialog', { name: 'Nova tarefa' })).toBeInTheDocument();
     expect(typeof p.onNovaTarefa).toBe('function');
     expect(typeof p.onAbrirTarefa).toBe('function');
   });
@@ -450,7 +458,7 @@ describe('BARRA-6 — D-PROD-321: "Nova tarefa" já sabe onde a pessoa está', (
     await tocar('Tarefas');
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Nova tarefa' })); });
     const p = /** @type {any} */ (globalThis).__painelTarefas;
-    expect(p).toMatchObject({ openCreateOnMount: true, initialCoordinates: null });
+    expect(p).toMatchObject({ formulario: { tarefa: null, voltarParaLista: false }, initialCoordinates: null });
     expect(p.areaId).toBeUndefined();
   });
 });
@@ -516,7 +524,7 @@ describe('BARRA-5 — perdeu a permissão do foco atual: volta para Lotes', () =
     expect(screen.queryByRole('button', { name: 'Nova tarefa' })).toBeNull();
     expect(nomesDaBarra()).toEqual(['Filtros', 'Lotes', 'Pontos', 'Visualização do mapa: Satélite']);
     expect(pressionado('Lotes')).toBe('true');
-    expect(noMapa()).toMatchObject({ lotes: true, cochos: true, tarefas: 0 });
+    expect(noMapa()).toMatchObject({ lotes: true, cochos: false, tarefas: 0 });
   });
 
   it('sem filtros a barra mantém Visualização e só os segmentos autorizados', async () => {
@@ -528,5 +536,122 @@ describe('BARRA-5 — perdeu a permissão do foco atual: volta para Lotes', () =
 
     await trocarPermissao(linha({ visualizar_filtros_camadas: false }));
     expect(nomesDaBarra()).toEqual(['Lotes', 'Pontos', 'Visualização do mapa: Satélite']);
+  });
+});
+
+describe('BARRA-7 — D-PROD-325: a tarefa abre numa janela só', () => {
+  const janelas = () => screen.queryAllByRole('dialog');
+
+  it('da lista: os detalhes entram NO LUGAR da lista (uma janela) e o ‹ volta para ela', async () => {
+    await abrir();
+    await tocar('Tarefas');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resumo das tarefas' })); });
+    expect(janelas()).toHaveLength(1);
+    await act(async () => { /** @type {any} */ (globalThis).__painelTarefas.onAbrirTarefa({ id: 't-9', titulo: 'CERCA' }); });
+
+    expect(janelas(), 'sem a lista atrás').toHaveLength(1);
+    const detalhes = screen.getByRole('dialog');
+    expect(within(detalhes).getByText('Detalhes de CERCA')).toBeInTheDocument();
+    expect(screen.queryByText('Lista de tarefas')).toBeNull();
+    const props = /** @type {any} */ (globalThis).__detalhesTarefa;
+    expect(typeof props.onVoltar).toBe('function');
+    expect(props.anim).toBe('empurrar');
+
+    await act(async () => { props.onVoltar(); });
+    expect(janelas()).toHaveLength(1);
+    expect(within(screen.getByRole('dialog', { name: 'Tarefas' })).getByText('Lista de tarefas')).toBeInTheDocument();
+  });
+
+  it('o formulário entra na mesma janela, com o título certo e o ✓; ao sair volta a ser a lista', async () => {
+    await abrir();
+    await tocar('Tarefas');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resumo das tarefas' })); });
+    const painel = () => /** @type {any} */ (globalThis).__painelTarefas;
+    await act(async () => { painel().onFormularioChange({ tarefa: null, voltarParaLista: true }); });
+    expect(janelas()).toHaveLength(1);
+    const form = screen.getByRole('dialog', { name: 'Nova tarefa' });
+    expect(within(form).getByRole('button', { name: 'Salvar' })).toBeInTheDocument();
+
+    await act(async () => { painel().onFormularioChange({ tarefa: { id: 't-1' }, voltarParaLista: true }); });
+    expect(screen.getByRole('dialog', { name: 'Editar tarefa' })).toBeInTheDocument();
+    await act(async () => { painel().onFormularioChange(null); });
+    expect(screen.getByRole('dialog', { name: 'Tarefas' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull();
+  });
+
+  it('"Nova tarefa" pela lista volta para a lista ao sair; pelo mapa, fecha tudo', async () => {
+    Object.defineProperty(window.navigator, 'geolocation', { configurable: true, value: { getCurrentPosition: (_ok, falha) => falha({ code: 1 }) } });
+    await abrir();
+    await tocar('Tarefas');
+    const painel = () => /** @type {any} */ (globalThis).__painelTarefas;
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Nova tarefa' })); });
+    expect(painel().formulario).toEqual({ tarefa: null, voltarParaLista: false });
+    await act(async () => { painel().onClose(); });
+    expect(janelas()).toHaveLength(0);
+
+    // Abrir a lista de novo começa pela lista (o formulário de antes não volta).
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resumo das tarefas' })); });
+    expect(painel().formulario).toBeNull();
+    await act(async () => { painel().onNovaTarefa(); });
+    expect(painel().formulario).toEqual({ tarefa: null, voltarParaLista: true });
+    expect(janelas()).toHaveLength(1);
+    expect(screen.getByRole('dialog', { name: 'Nova tarefa' })).toBeInTheDocument();
+  });
+});
+
+describe('BARRA-8 — D-PROD-326: cada aba com as suas camadas e os seus filtros', () => {
+  const filtro = async () => {
+    await act(async () => { fireEvent.click(barra().getByRole('button', { name: 'Filtros' })); });
+    return within(screen.getByRole('dialog', { name: 'Filtro' }));
+  };
+  const caixas = (f) => f.queryAllByRole('checkbox').map((c) => c.getAttribute('aria-label'));
+  const fecharFiltro = async () => { await act(async () => { fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' }); }); };
+
+  it('o painel mostra só o que é da aba', async () => {
+    await abrir();
+    let f = await filtro();
+    expect(caixas(f)).toEqual(['Mapa de Áreas', 'Detalhes Áreas', 'Hectares', 'Pontos Referência', 'Lotes', 'Linhas (cercas, rios)', 'Alertas', 'Localização']);
+    expect(f.getByText('Filtros de Áreas')).toBeInTheDocument();
+    expect(f.getByText('Filtros de Categorias de Manejo')).toBeInTheDocument();
+    expect(f.queryByText('Filtros de Tarefas')).toBeNull();
+    await fecharFiltro();
+
+    await tocar('Pontos');
+    f = await filtro();
+    expect(caixas(f)).toEqual(['Mapa de Áreas', 'Detalhes Áreas', 'Hectares', 'Pontos Referência', 'Linhas (cercas, rios)', 'Cochos', 'Depósitos', 'Localização']);
+    expect(f.getByText('Filtros de Áreas')).toBeInTheDocument();
+    expect(f.queryByText('Filtros de Categorias de Manejo')).toBeNull();
+    await fecharFiltro();
+
+    await tocar('Tarefas');
+    f = await filtro();
+    expect(caixas(f)).toEqual(['Mapa de Áreas', 'Detalhes Áreas', 'Pontos Referência', 'Linhas (cercas, rios)', 'Localização']);
+    expect(f.getByText('Filtros de Tarefas')).toBeInTheDocument();
+    for (const campo of ['Setor', 'Situação', 'Prioridade', 'Responsável', 'Prazo']) expect(f.getByRole('combobox', { name: campo }), campo).toBeInTheDocument();
+    expect(f.queryByText('Filtros de Áreas')).toBeNull();
+    expect(f.queryByText('Filtros de Categorias de Manejo')).toBeNull();
+  });
+
+  it('o filtro de lote só vale na aba Lotes', async () => {
+    salvarFiltrosMapaGeral(ESCOPO, { filtroCategoria: ['VACA'] });
+    await abrir();
+    expect(noMapa().lotesNaLista).toBe(1);
+    await tocar('Pontos');
+    expect(noMapa().lotesNaLista, 'na aba Pontos o filtro de lote não vale').toBe(2);
+  });
+
+  it('na aba Tarefas valem os filtros de tarefa (e não a cultura/pastagem das áreas)', async () => {
+    salvarFiltrosMapaGeral(ESCOPO, { filtroTarefaPrioridade: ['Baixa'], filtroTipoCultura: ['Agricultura'] });
+    await abrir();
+    await tocar('Tarefas');
+    expect(noMapa().tarefas, 'prioridade Baixa: a tarefa Alta sai').toBe(0);
+    expect(screen.getByRole('button', { name: 'Resumo das tarefas' }).textContent).toContain('0tarefas abertas');
+  });
+
+  it('sem filtro de tarefa, a cultura escolhida na aba Lotes não esconde a tarefa', async () => {
+    salvarFiltrosMapaGeral(ESCOPO, { filtroTarefaPrioridade: ['Alta'], filtroTipoCultura: ['Agricultura'] });
+    await abrir();
+    await tocar('Tarefas');
+    expect(noMapa().tarefas).toBe(1);
   });
 });
