@@ -19,6 +19,8 @@ import { sincronizarTudo, iniciarSincronizacaoAutomatica } from '@/lib/offline/s
 import { TIPO_LANCAMENTO_COCHO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
 // D-PROD-319: as tarefas presas no armazenamento antigo do aparelho sobem nas passadas da sincronização.
 import '@/services/tarefasGuardadasNoAparelhoService';
+// D-PROD-324: as fotos de tarefa tiradas sem internet sobem nas passadas da sincronização.
+import '@/services/fotosDeTarefaAguardandoService';
 import {
   contarPendenciasDaFilaDeEntidades,
   getOfflineSyncEventName,

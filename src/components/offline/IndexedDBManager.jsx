@@ -492,6 +492,9 @@ export const deleteTarefaImageOffline = async (imgId) => {
   return deleteItem(STORES.PENDING_TAREFA_IMAGES, imgId);
 };
 
+/** D-PROD-324: regrava a foto guardada (o endereço já enviado, para não subir de novo). */
+export const putTarefaImageOffline = async (registro) => putItem(STORES.PENDING_TAREFA_IMAGES, registro);
+
 export const getAllPendingTarefaImages = async () => {
   return getAllItems(STORES.PENDING_TAREFA_IMAGES);
 };
