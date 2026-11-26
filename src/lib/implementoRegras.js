@@ -92,6 +92,15 @@ export const percentualNoImplemento = (saldo, capacidade) => {
  * Produto restante no implemento: `item × saldo ÷ capacidade` (o que sobra de cada produto na calda).
  * @param {{ quantidade: unknown }} item @param {number} saldo @param {number} capacidade @returns {number}
  */
+/**
+ * O nome e a unidade do produto de um item da mistura, na forma que o servidor manda (`produto_nome`, `produto_unidade`)
+ * ou no objeto aninhado (`produto.nome`, `produto.unidade`). Sem um nem outro, vazio.
+ * @param {any} it
+ */
+const nomeDoItem = (it) => String(it?.produto_nome ?? it?.produto?.nome ?? '');
+/** @param {any} it */
+const unidadeDoItem = (it) => it?.produto_unidade ?? it?.produto?.unidade ?? null;
+
 export const produtoRestante = (item, saldo, capacidade) => {
   const q = lerDecimal(item?.quantidade) ?? 0;
   if (!(capacidade > 0)) return 0;
@@ -120,8 +129,8 @@ export const resumoDoImplemento = (mistura) => {
   const unidade = unidadeDoEnvio(mistura.unidade);
   const produtos = (Array.isArray(mistura.itens) ? mistura.itens : []).map((it) => ({
     produto_id: String(it.produto_id ?? ''),
-    nome: String(it.produto?.nome ?? ''),
-    unidade: rotuloUnidade(it.produto?.unidade ?? unidade),
+    nome: nomeDoItem(it),
+    unidade: rotuloUnidade(unidadeDoItem(it) ?? unidade),
     restante: produtoRestante(it, saldo, capacidade),
   }));
   return { existe: true, saldo, capacidade, unidade, percentual: percentualNoImplemento(saldo, capacidade), produtos };
@@ -223,8 +232,8 @@ export const produtosDaAplicacao = (mistura, volume) => {
   const unidade = unidadeDoEnvio(mistura?.unidade);
   return (Array.isArray(mistura?.itens) ? mistura.itens : []).map((it) => ({
     produto_id: String(it.produto_id ?? ''),
-    nome: String(it.produto?.nome ?? ''),
-    unidade: rotuloUnidade(it.produto?.unidade ?? unidade),
+    nome: nomeDoItem(it),
+    unidade: rotuloUnidade(unidadeDoItem(it) ?? unidade),
     quantidade: capacidade > 0 ? arredondar((lerDecimal(it.quantidade) ?? 0) * volume / capacidade) : 0,
   }));
 };
@@ -268,6 +277,30 @@ export const corpoDaSobra = ({ empresaId, tipo, paraAreaId, apontamentoId, motiv
   if (hc !== null) corpo.horimetro_chegada = hc;
   return corpo;
 };
+
+// ─── Trajeto sem sobra e falha de rota (D-PROD-324) ──────────────────────
+
+/**
+ * Corpo do TRAJETO (só horímetros, sem sobra, sem estoque). Sem nenhum horímetro informado, `null`: a tela não manda nada.
+ * @param {{ empresaId: string, deAreaId: string, paraAreaId: string, horimetroSaida?: unknown, horimetroChegada?: unknown }} p
+ */
+export const corpoDoTrajeto = ({ empresaId, deAreaId, paraAreaId, horimetroSaida, horimetroChegada }) => {
+  const hs = textoDecimal(horimetroSaida);
+  const hc = textoDecimal(horimetroChegada);
+  if (hs === null && hc === null) return null;
+  /** @type {Record<string, unknown>} */
+  const corpo = { empresa_id: empresaId, de_area_id: deAreaId, para_area_id: paraAreaId };
+  if (hs !== null) corpo.horimetro_saida = hs;
+  if (hc !== null) corpo.horimetro_chegada = hc;
+  return corpo;
+};
+
+/**
+ * A falha é de ROTA (o servidor ainda não tem a rota nova), e não de negócio: a camada de API marca o erro
+ * (`rotaAusente`, nativeHttpClient). Quem chama cai no fluxo antigo. Um 404 de negócio traz `code` e não entra aqui.
+ * @param {any} erro
+ */
+export const ehFalhaDeRota = (erro) => erro?.rotaAusente === true;
 
 // ─── Textos de escolha ───────────────────────────────────────────────────
 

@@ -330,7 +330,7 @@ describe('D-PROD-323 — integração com PostgreSQL: mistura, aplicar, sobra, r
     const a = await s.abrir();
     const { m, ap } = await s.aplicadoComSobra500(a);
     const movs = await contaMovEstoque(s.c);
-    const r = await s.sobra(a, m, { tipo: 'DEVOLUCAO' });
+    const r = await s.sobra(a, m, { tipo: 'DEVOLUCAO', horimetro_saida: '50' });
     assert.equal(r.statusCode, 200, r.body);
     assert.deepEqual([r.json().mistura.status, r.json().mistura.saldo], ['DEVOLVIDA', '0.0000']);
     assert.equal(await contaMovEstoque(s.c), movs, 'devolver não mexe no estoque');
@@ -339,6 +339,8 @@ describe('D-PROD-323 — integração com PostgreSQL: mistura, aplicar, sobra, r
     assert.equal(ap.status, 'CONFIRMADO');
     const mov = await prisma().atividadeMisturaMovimento.findFirst({ where: { cliente_id: s.c, mistura_id: m.id, tipo: 'DEVOLUCAO' } });
     assert.equal(mov.volume.toFixed(4), '500.0000');
+    // O horímetro informado não cai em silêncio, mesmo sem transferência (D-PROD-324).
+    assert.equal(mov.horimetro_saida.toFixed(4), '50.0000');
   });
 
   test('4c. PERDA sem motivo (ou motivo curto) → 422 MISTURA_MOVIMENTO_INVALIDO; nada gravado', async () => {
@@ -377,7 +379,7 @@ describe('D-PROD-323 — integração com PostgreSQL: mistura, aplicar, sobra, r
     assert.equal(admin.custo_visivel, true);
     assert.equal(admin.areas.length, 1);
     const area = admin.areas[0];
-    assert.deepEqual([area.area_id, area.volume_aplicado, area.implementos_cheios, area.horas_maquina], [s.area1.id, '1500.0000', 1, '0.0000']);
+    assert.deepEqual([area.area_id, area.volumes_aplicados, area.implementos_cheios, area.horas_maquina], [s.area1.id, [{ unidade: 'L', volume: '1500.0000' }], 1, '0.0000']);
     assert.deepEqual(area.produtos.map((x) => [x.produto_nome, x.quantidade]).sort(), [['Adubo NPK (saco)', '7.5000'], ['Herbicida glifosato (L)', '3.0000']]);
     assert.deepEqual(area.sobra, [{ unidade: 'L', volume: '500.0000' }]);
     // custo pelo motor (custo médio do produto: (50 × 5,20 + 100 × 5,50) ÷ 150 = 5,40): herbicida 3 L × 5,40 + adubo 7,5 kg × 3,00
@@ -387,7 +389,7 @@ describe('D-PROD-323 — integração com PostgreSQL: mistura, aplicar, sobra, r
 
     const op = await H.ok(H.req('GET', url, s.operador.token));
     assert.equal(op.custo_visivel, false);
-    assert.equal(op.areas[0].volume_aplicado, '1500.0000');
+    assert.deepEqual(op.areas[0].volumes_aplicados, [{ unidade: 'L', volume: '1500.0000' }]);
     assert.equal(JSON.stringify(op).includes('custo_total'), false, 'nenhum valor de custo para quem não é administrador (só o sinal custo_visivel)');
     assert.equal('custo_total' in op.total, false);
   });
@@ -416,6 +418,110 @@ describe('D-PROD-323 — integração com PostgreSQL: mistura, aplicar, sobra, r
     assert.equal(numeroCriar.statusCode, 400, numeroCriar.body);
     const numeroEditar = await H.req('PATCH', `/produtos/${id}`, s.token, { empresa_id: s.e1.id, quantidade_padrao: 4 });
     assert.equal(numeroEditar.statusCode, 400, numeroEditar.body);
+  });
+
+  test('7. Passo 2 sem lançamento do dia: aplicar cria o lançamento de hoje da área, na mesma transação; sem ele, nada é gravado', async () => {
+    const s = await montar();
+    const a = await s.abrir();
+    const m = await s.criarMisturaOk(a);
+    assert.equal(await prisma().atividadeApontamento.count({ where: { cliente_id: s.c, atividade_id: a.id } }), 0, 'sem lançamento antes');
+
+    const r = await H.req('POST', `/atividades/${a.id}/misturas/${m.id}/aplicar`, s.token, { empresa_id: s.e1.id, esvaziou: true, operation_id: opId() });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.deepEqual([r.json().mistura.status, r.json().mistura.saldo, r.json().volume_aplicado], ['ACABOU', '0.0000', '2000.0000']);
+
+    const aps = await prisma().atividadeApontamento.findMany({ where: { cliente_id: s.c, atividade_id: a.id } });
+    assert.equal(aps.length, 1, 'um lançamento do dia');
+    assert.deepEqual([aps[0].status, aps[0].atividade_area_id], ['CONFIRMADO', (await s.ligacao(a, s.area1.id)).id]);
+    const linhas = await prisma().atividadeApontamentoProduto.findMany({ where: { cliente_id: s.c, mistura_id: m.id } });
+    assert.deepEqual(linhas.map((l) => [l.apontamento_id, l.quantidade.toFixed(4)]).sort(), [[aps[0].id, '4.0000'], [aps[0].id, '10.0000']].sort());
+    assert.equal(await estoque(s.herbicida.id), '146.0000');
+    assert.equal(await estoque(s.adubo.id), '190.0000');
+  });
+
+  test('8. idempotente: aplicar e perder no mesmo dia usam o mesmo lançamento; POST diario-dia devolve o que existe', async () => {
+    const s = await montar();
+    const a = await s.abrir();
+    const m = await s.criarMisturaOk(a);
+    const r1 = await H.req('POST', `/atividades/${a.id}/misturas/${m.id}/aplicar`, s.token, { empresa_id: s.e1.id, esvaziou: false, sobra: '500', operation_id: opId() });
+    assert.equal(r1.statusCode, 201, r1.body);
+    // A perda, sem apontamento informado, acha o lançamento de hoje (não cria outro).
+    const perda = await s.sobra(a, m, { tipo: 'PERDA', motivo: 'Vazamento no tanque' });
+    assert.equal(perda.statusCode, 200, perda.body);
+    assert.equal(await prisma().atividadeApontamento.count({ where: { cliente_id: s.c, atividade_id: a.id } }), 1, 'um só lançamento do dia');
+
+    const dia = await H.ok(H.req('POST', `/atividades/${a.id}/diario-dia`, s.token, { empresa_id: s.e1.id, area_id: s.area1.id }));
+    const aps = await prisma().atividadeApontamento.findMany({ where: { cliente_id: s.c, atividade_id: a.id } });
+    assert.equal(dia.apontamento.id, aps[0].id);
+    assert.equal(aps.length, 1);
+  });
+
+  test('9. trajeto sem sobra: só horímetros; sem estoque, sem trocar o pasto da mistura, sem custo', async () => {
+    const s = await montar();
+    const a = await s.abrir();
+    const m = await s.criarMisturaOk(a);
+    const antes = await contaMovEstoque(s.c);
+    const op = opId();
+    const r = await H.req('POST', `/atividades/${a.id}/trajetos`, s.token, {
+      empresa_id: s.e1.id, de_area_id: s.area1.id, para_area_id: s.pasto2.id, horimetro_saida: '120.5', horimetro_chegada: '123', operation_id: op,
+    });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.deepEqual([r.json().mistura.area_id, r.json().mistura.saldo, r.json().mistura.status], [s.area1.id, '2000.0000', 'ABERTA']);
+    const mov = await prisma().atividadeMisturaMovimento.findFirst({ where: { cliente_id: s.c, mistura_id: m.id, operation_id: op } });
+    assert.deepEqual(
+      [mov.tipo, mov.de_area_id, mov.para_area_id, mov.volume.toFixed(4), mov.horimetro_saida.toFixed(4), mov.horimetro_chegada.toFixed(4), mov.apontamento_id],
+      ['TRANSFERENCIA', s.area1.id, s.pasto2.id, '0.0000', '120.5000', '123.0000', null]
+    );
+    assert.equal(await contaMovEstoque(s.c), antes, 'nenhum movimento de estoque');
+    assert.equal(await estoque(s.herbicida.id), '150.0000');
+
+    const re = await H.req('POST', `/atividades/${a.id}/trajetos`, s.token, {
+      empresa_id: s.e1.id, de_area_id: s.area1.id, para_area_id: s.pasto2.id, horimetro_saida: '120.5', horimetro_chegada: '123', operation_id: op,
+    });
+    assert.equal(re.statusCode, 200, re.body);
+    assert.equal(re.json().replay, true);
+    assert.equal(await prisma().atividadeMisturaMovimento.count({ where: { cliente_id: s.c, mistura_id: m.id, tipo: 'TRANSFERENCIA' } }), 1);
+  });
+
+  test('9b. trajeto: sem horímetro é 422; chegada menor que a saída é 422; sem nenhuma mistura na atividade é 422 sem_mistura', async () => {
+    const s = await montar();
+    const a = await s.abrir();
+    const corpo = { empresa_id: s.e1.id, de_area_id: s.area1.id, para_area_id: s.pasto2.id };
+    const sem = await H.req('POST', `/atividades/${a.id}/trajetos`, s.token, { ...corpo, operation_id: opId() });
+    assert.deepEqual(erro(sem), [422, 'MISTURA_MOVIMENTO_INVALIDO', 'horimetro', 'obrigatorio'], sem.body);
+    const sem2 = await H.req('POST', `/atividades/${a.id}/trajetos`, s.token, { ...corpo, horimetro_saida: '10', horimetro_chegada: '9', operation_id: opId() });
+    assert.deepEqual(erro(sem2).slice(0, 4), [422, 'MISTURA_MOVIMENTO_INVALIDO', 'horimetro_chegada', 'menor_que_saida'], sem2.body);
+    const naoHa = await H.req('POST', `/atividades/${a.id}/trajetos`, s.token, { ...corpo, horimetro_saida: '10', operation_id: opId() });
+    assert.deepEqual(erro(naoHa), [422, 'MISTURA_MOVIMENTO_INVALIDO', 'mistura', 'sem_mistura'], naoHa.body);
+  });
+
+  test('10. resumo por unidade: L e kg em linhas separadas (nunca somados); a lista de misturas responde items', async () => {
+    const s = await montar();
+    const a = await s.abrir();
+    const { ap } = await s.aplicadoComSobra500(a);
+    // Segundo implemento, em kg (capacidade 1.000 kg): a mistura dele sai na MESMA área e no MESMO lançamento.
+    const implKg = await H.ok(H.req('POST', '/bens-patrimoniais', s.token, corpoImplemento(s, {
+      numero_serie: `IMPKG-${randomUUID().slice(0, 6)}`, usa_produto: true, forma_produto: 'JATO', capacidade: '1000', capacidade_unidade: 'KG',
+    })), 201);
+    const m2 = (await H.ok(H.req('POST', `/atividades/${a.id}/misturas`, s.token, {
+      empresa_id: s.e1.id, implemento_bem_id: implKg.id, area_id: s.area1.id,
+      itens: [{ produto_id: s.adubo.id, local_estoque_id: s.local.id, quantidade: '10' }], operation_id: opId(),
+    }), 201)).mistura;
+    const r = await s.aplicar(a, ap, m2, { esvaziou: true }, opId());
+    assert.equal(r.statusCode, 201, r.body);
+    assert.equal(r.json().mistura.unidade, 'KG');
+
+    const url = `/atividades/${a.id}/diario-resumo?empresa_id=${s.e1.id}&dia=${DIA}`;
+    const admin = await H.ok(H.req('GET', url, s.token));
+    const area = admin.areas[0];
+    assert.deepEqual(area.volumes_aplicados, [{ unidade: 'L', volume: '1500.0000' }, { unidade: 'KG', volume: '1000.0000' }]);
+    assert.equal(area.implementos_cheios, 2);
+    assert.deepEqual(admin.total.volumes_aplicados, [{ unidade: 'L', volume: '1500.0000' }, { unidade: 'KG', volume: '1000.0000' }]);
+    assert.equal('volume_aplicado' in area, false, 'o campo que somava L com kg saiu');
+
+    const lista = await H.ok(H.req('GET', `/atividades/${a.id}/misturas?empresa_id=${s.e1.id}`, s.token));
+    assert.ok(Array.isArray(lista.items) && lista.items.length === 2, 'a tela lê `items`');
+    assert.equal(lista.misturas, undefined);
   });
 });
 

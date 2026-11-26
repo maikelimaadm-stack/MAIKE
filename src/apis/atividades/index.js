@@ -50,4 +50,4 @@ export {
   cancelPlanejamento,
 } from './atividadesApi.js';
 // Diário da máquina (D-PROD-323): mistura do implemento, aplicação, sobra e resumo do dia.
-export { listMisturas, createMistura, aplicarMistura, registrarSobraMistura, getDiarioResumo } from './misturaPort.js';
+export { listMisturas, createMistura, aplicarMistura, aplicarMisturaNoDia, registrarSobraMistura, registrarTrajetoMistura, garantirDiaDoDiario, getDiarioResumo } from './misturaPort.js';

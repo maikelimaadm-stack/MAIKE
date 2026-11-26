@@ -7,7 +7,7 @@ import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/Dialog
 import DialogoConcluirServico from "@/components/lancamento-atividades/DialogoConcluirServico";
 import JanelaLancamentoPorTipo from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
 import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDeCampo";
-import { CHAVE_DIARIO, Nota, Rodape, SecaoEncerrar, SecaoMais, SecaoPasso1, SecaoPasso2, SecaoResumo, SecaoTrocar, BotaoAcao, BotaoVoltar } from "@/components/lancamento-atividades/DiarioSecoes";
+import { CHAVE_DIARIO, Nota, Rodape, SecaoAbastecer, SecaoEncerrar, SecaoMais, SecaoPasso1, SecaoPasso2, SecaoResumo, SecaoTrocar, BotaoAcao, BotaoVoltar } from "@/components/lancamento-atividades/DiarioSecoes";
 import { useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
@@ -17,15 +17,21 @@ import { LINHA_MAO_OBRA, LINHA_MAQUINA, flagsDoTipoDaAtividade } from "@/lib/ati
 import { mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { QUERY_ATIVIDADES_DA_AREA } from "@/lib/registroDeCampoRegras";
-import { corpoDaAplicacao, corpoDaMistura, corpoDaSobra, misturaAberta, resumoDoImplemento, textoDaBarra } from "@/lib/implementoRegras";
+import { corpoDaAplicacao, corpoDaMistura, corpoDaSobra, corpoDoTrajeto, ehFalhaDeRota, misturaAberta, resumoDoImplemento, TIPO_SOBRA, textoDaBarra } from "@/lib/implementoRegras";
+import { formatarQuantidade } from "@/lib/abastecimentoRegras";
+import { mensagemDoBloqueioAbastecimento } from "@/lib/patrimonioErros";
+import { avisarAbastecimentoGravado } from "@/hooks/useFluxoAbastecimento";
+import { confirmarAbastecimento, previaDoAbastecimento } from "@/services/abastecimentoService";
 import {
   aplicarMistura,
   apontamentoDoDia,
   criarMistura,
   diarioDisponivel,
+  garantirDiaDoDiario,
   listarMisturas,
   lerResumoDoDia,
   registrarSobra,
+  registrarTrajeto,
 } from "@/services/diarioMaquinaService";
 import { concluirAtividade, listarOpcoesImplementos } from "@/services/lancamentoAtividadesService";
 
@@ -33,11 +39,11 @@ import { concluirAtividade, listarOpcoesImplementos } from "@/services/lancament
  * O DIÁRIO DA MÁQUINA (D-PROD-314, fases 3 a 7; protótipo v5): UMA janela Base1 (680px; tela cheia no celular) que troca
  * de CONTEÚDO por seção, sem abrir janela sobre janela. As seções: o diário (pasto, máquina, implemento, a barra "no
  * implemento" e os botões), Passo 1 (mistura no implemento), Passo 2 (aplicar no pasto), Mais (abastecer e mão de obra),
- * Trocar pasto (com a sobra e os horímetros), Encerrar o dia e Resumo do dia.
+ * Abastecer (seção própria, D-PROD-324), Trocar pasto (com a sobra e os horímetros), Encerrar o dia e Resumo do dia.
  *
- * Abastecer, mão de obra e o horímetro final abrem a janela de lançamento que já existe (`JanelaLancamentoPorTipo`) NO
- * LUGAR deste diário; "Lançamento de hoje" abre a `JanelaRegistroDeCampo` do mesmo jeito. "Fez o pasto todo? Sim" abre
- * o `DialogoConcluirServico` depois de fechar o diário.
+ * Abastecer é a seção própria (litros e horímetro; grava pelo caminho da tela Abastecimentos). Mão de obra e o horímetro
+ * final abrem a janela de lançamento que já existe (`JanelaLancamentoPorTipo`) NO LUGAR deste diário; "Lançamento de hoje"
+ * abre a `JanelaRegistroDeCampo` do mesmo jeito. "Fez o pasto todo? Sim" abre o `DialogoConcluirServico` depois de fechar.
  *
  * DEGRADAÇÃO: sem as rotas novas no servidor (`diarioDisponivel`), a janela mostra o aviso e o "Lançamento de hoje" —
  * o fluxo que já existe, sem mudança.
@@ -160,12 +166,12 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
     }
   };
 
-  /** Passo 2: aplica a mistura neste pasto. @param {{ esvaziou: boolean, sobra: string }} p */
+  /** Passo 2: aplica a mistura neste pasto. Sem o lançamento de hoje, o servidor cria (D-PROD-324). @param {{ esvaziou: boolean, sobra: string }} p */
   const gravarAplicacao = async ({ esvaziou, sobra }) => {
-    if (!aberta || !dia) return;
+    if (!aberta) return;
     setEnviando(true);
     try {
-      await aplicarMistura(atividadeId, String(dia.id), String(aberta.id), corpoDaAplicacao({ empresaId: String(empresaId), esvaziou, sobra }));
+      await aplicarMistura(atividadeId, String(aberta.id), corpoDaAplicacao({ empresaId: String(empresaId), esvaziou, sobra }));
       reler();
       notifySuccess("Sucesso", esvaziou ? "Aplicação gravada. Implemento esvaziado." : "Aplicação gravada. Sobrou no implemento.");
       setSecao("diario");
@@ -176,10 +182,15 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
     }
   };
 
-  /** Trocar pasto: a sobra vai junto, volta ao depósito ou é perda; o pasto de chegada vira o atual. */
+  /**
+   * Trocar pasto: a sobra vai junto, volta ao depósito ou é perda; o pasto de chegada vira o atual. Os horímetros são
+   * gravados SEMPRE que informados (D-PROD-324): a transferência os leva no próprio movimento da sobra; sem transferência
+   * (sem sobra, ou sobra devolvida/perdida), vão num trajeto só com horímetros, sem mexer em estoque.
+   */
   const trocarPasto = async ({ proximo, sobra, horimetroSaida, horimetroChegada }) => {
     setEnviando(true);
     try {
+      const transferencia = Boolean(sobra && aberta && sobra.tipo === TIPO_SOBRA.TRANSFERENCIA);
       if (sobra && aberta) {
         await registrarSobra(
           atividadeId,
@@ -190,10 +201,14 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
             paraAreaId: proximo,
             apontamentoId: dia?.id ? String(dia.id) : undefined,
             motivo: sobra.motivo,
-            horimetroSaida,
-            horimetroChegada,
+            horimetroSaida: transferencia ? horimetroSaida : undefined,
+            horimetroChegada: transferencia ? horimetroChegada : undefined,
           }),
         );
+      }
+      if (!transferencia) {
+        const trajeto = corpoDoTrajeto({ empresaId: String(empresaId), deAreaId: pasto.id, paraAreaId: proximo, horimetroSaida, horimetroChegada });
+        if (trajeto) await registrarTrajeto(atividadeId, trajeto);
       }
       reler();
       setPasto({ id: proximo, nome: nomeDaArea(proximo) });
@@ -222,6 +237,45 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
       else onFechar();
     } catch (erro) {
       falhou(erro, "O dia não foi encerrado. Confira e tente de novo.");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  /**
+   * Abastecer (D-PROD-324, item 1): prévia e confirmação pelo MESMO caminho da tela Abastecimentos, ligado ao lançamento
+   * de hoje desta área (criado aqui se faltar). Se a rota não existir no servidor, cai no formulário antigo.
+   * @param {any} form
+   */
+  const gravarAbastecimento = async (form) => {
+    setEnviando(true);
+    try {
+      let apontamentoId = dia?.id ? String(dia.id) : "";
+      if (!apontamentoId) {
+        const ap = await garantirDiaDoDiario(atividadeId, pasto.id);
+        apontamentoId = String(ap?.id ?? "");
+        void queryClient.invalidateQueries({ queryKey: [CHAVE_DIARIO, "dia"] });
+      }
+      const comDia = { ...form, apontamento_id: apontamentoId };
+      const previa = await previaDoAbastecimento(String(empresaId), comDia);
+      const bloqueios = Array.isArray(previa?.bloqueios) ? previa.bloqueios : [];
+      if (bloqueios.length) {
+        notifyWarning("Não foi possível abastecer", bloqueios.map(mensagemDoBloqueioAbastecimento).join(" "));
+        return;
+      }
+      const registro = /** @type {any} */ (await confirmarAbastecimento(String(empresaId), comDia, previa.plano, { escopo }));
+      avisarAbastecimentoGravado(queryClient, registro, String(empresaId));
+      reler();
+      notifySuccess("Sucesso", `Abastecimento de ${formatarQuantidade(registro?.quantidade, registro?.unidade)} registrado.`);
+      setSecao("diario");
+    } catch (erro) {
+      if (ehFalhaDeRota(erro)) {
+        notifyWarning("Abastecimento", "Abastecer por aqui ainda não está ligado no servidor. Use o formulário de sempre.");
+        setSecao("diario");
+        setExterna({ tipo: LINHA_MAQUINA, voltar: "mais" });
+      } else {
+        falhou(erro, "O abastecimento não foi gravado. Confira e tente de novo.");
+      }
     } finally {
       setEnviando(false);
     }
@@ -282,6 +336,7 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
     diario: "Diário da máquina",
     passo1: "Passo 1 · Mistura no implemento",
     passo2: "Passo 2 · Aplicar no pasto",
+    abastecer: "Abastecer",
     mais: "Mais",
     trocar: "Trocar pasto",
     encerrar: "Encerrar o dia",
@@ -330,7 +385,6 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
       </div>
     );
   } else if (secao === "diario") {
-    const temMistura = Boolean(aberta);
     corpo = (
       <div className="flex flex-col gap-3" data-testid="diario-corpo">
         <p className="text-[13px] text-[#73726c]">
@@ -345,7 +399,6 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
             </div>
           ) : null}
         </div>
-        {temMistura && !dia ?<Nota testId="diario-sem-dia-hoje">Ainda não há lançamento de hoje nesta área. Para aplicar, lance o dia primeiro.</Nota> : null}
         <div className="flex flex-col gap-2">
           {aberta ? (
             <button type="button" className={`${BOTAO_PRIMARIO} w-full`} onClick={() => setSecao("passo2")} data-testid="diario-passo-2-botao">
@@ -390,21 +443,25 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
     );
   } else if (secao === "passo2") {
     corpo = (
-      <SecaoPasso2
-        mistura={aberta}
-        dia={dia}
-        onVoltar={() => setSecao("diario")}
-        onGravar={gravarAplicacao}
-        onLancarHoje={() => setSecao("lancamento")}
-        enviando={enviando}
-      />
+      <SecaoPasso2 mistura={aberta} onVoltar={() => setSecao("diario")} onGravar={gravarAplicacao} enviando={enviando} />
     );
   } else if (secao === "mais") {
     corpo = (
       <SecaoMais
-        onAbastecer={() => setExterna({ tipo: LINHA_MAQUINA, voltar: "mais" })}
+        onAbastecer={() => setSecao("abastecer")}
         onMaoObra={() => setExterna({ tipo: LINHA_MAO_OBRA, voltar: "mais" })}
         onVoltar={() => setSecao("diario")}
+      />
+    );
+  } else if (secao === "abastecer") {
+    corpo = (
+      <SecaoAbastecer
+        empresaId={String(empresaId)}
+        bem={{ id: atividade?.bem_id ?? atividade?.bem?.id ?? null, nome: maquina }}
+        hoje={hoje}
+        onVoltar={() => setSecao("mais")}
+        onGravar={gravarAbastecimento}
+        enviando={enviando}
       />
     );
   } else if (secao === "trocar") {

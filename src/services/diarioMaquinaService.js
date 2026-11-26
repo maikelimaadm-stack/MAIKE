@@ -10,7 +10,15 @@
  * resposta definitiva, "Repetir o mesmo envio" reaproveita a chave e o servidor não grava duas vezes.
  */
 
-import { listMisturas, createMistura, aplicarMistura as aplicarMisturaNaApi, registrarSobraMistura, getDiarioResumo } from '@/apis/atividades';
+import {
+  listMisturas,
+  createMistura,
+  aplicarMisturaNoDia,
+  garantirDiaDoDiario as garantirDiaDoDiarioApi,
+  registrarSobraMistura,
+  registrarTrajetoMistura,
+  getDiarioResumo,
+} from '@/apis/atividades';
 import { API_ERROR_CODES, isApiError } from '@/apis/_core/ApiError';
 import { confirmadosDoDia, itensDaLista } from '@/lib/atividadeApontamentoRegras';
 import { exigirEmpresa } from './gestaoCadastroComum.js';
@@ -75,19 +83,46 @@ export const criarMistura = (atividadeId, corpo) => {
 };
 
 /**
- * Passo 2: aplica a mistura neste pasto (baixa do estoque, pelo motor, o que saiu do implemento).
- * @param {string} atividadeId @param {string} apontamentoId @param {string} misturaId @param {{ esvaziou: boolean, sobra?: string }} dados
+ * Passo 2: aplica a mistura neste pasto (baixa do estoque, pelo motor, o que saiu do implemento). Não precisa do
+ * lançamento do dia: o servidor acha ou cria o de hoje da área, na mesma transação (D-PROD-324).
+ * @param {string} atividadeId @param {string} misturaId @param {{ esvaziou: boolean, sobra?: string }} dados
  */
-export const aplicarMistura = (atividadeId, apontamentoId, misturaId, dados) => {
+export const aplicarMistura = (atividadeId, misturaId, dados) => {
   const empresaId = exigirEmpresa(fazendaDaTelaAtual(), 'aplicarMistura', RECURSO);
   const corpo = { ...dados, empresa_id: empresaId };
   return enviarDiario({
     acao: 'aplicar',
     empresaId,
-    alvo: `aplicar:${apontamentoId}:${misturaId}`,
+    alvo: `aplicar:${misturaId}`,
     corpo,
-    enviar: (c) => aplicarMisturaNaApi(String(atividadeId), String(apontamentoId), String(misturaId), c),
+    enviar: (c) => aplicarMisturaNoDia(String(atividadeId), String(misturaId), c),
   });
+};
+
+/**
+ * Trajeto entre pastos SEM sobra (D-PROD-324): só os horímetros de saída e de chegada. Não mexe em estoque nem no custo.
+ * @param {string} atividadeId @param {Record<string, any>} dados `de_area_id`, `para_area_id` e os horímetros (texto decimal).
+ */
+export const registrarTrajeto = (atividadeId, dados) => {
+  const empresaId = exigirEmpresa(fazendaDaTelaAtual(), 'registrarTrajeto', RECURSO);
+  const corpo = { ...dados, empresa_id: empresaId };
+  return enviarDiario({
+    acao: 'trajeto',
+    empresaId,
+    alvo: `trajeto:${atividadeId}:${dados.de_area_id}:${dados.para_area_id}`,
+    corpo,
+    enviar: (c) => registrarTrajetoMistura(String(atividadeId), c),
+  });
+};
+
+/**
+ * O lançamento de HOJE da área (cria se faltar; idempotente no servidor). Usado antes de abastecer, que precisa dele.
+ * Sem pendência de envio: repetir a chamada não grava nada a mais. @param {string} atividadeId @param {string} areaId
+ */
+export const garantirDiaDoDiario = async (atividadeId, areaId) => {
+  const empresaId = exigirEmpresa(fazendaDaTelaAtual(), 'garantirDiaDoDiario', RECURSO);
+  const resposta = /** @type {any} */ (await garantirDiaDoDiarioApi(String(atividadeId), { empresa_id: empresaId, area_id: String(areaId) }));
+  return resposta?.apontamento ?? null;
 };
 
 /**

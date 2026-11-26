@@ -3,7 +3,10 @@
  *  - GET  /atividades/:id/misturas?empresa_id=
  *  - POST /atividades/:id/misturas
  *  - POST /atividades/:id/apontamentos/:apId/misturas/:misturaId/aplicar
+ *  - POST /atividades/:id/misturas/:misturaId/aplicar (sem lançamento do dia: o servidor cria o de hoje)
  *  - POST /atividades/:id/misturas/:misturaId/sobra
+ *  - POST /atividades/:id/trajetos (só horímetros entre pastos, sem sobra)
+ *  - POST /atividades/:id/diario-dia (garante o lançamento de hoje da área, idempotente)
  *  - GET  /atividades/:id/diario-resumo?empresa_id=&dia=
  *
  * Mesmas regras do `lancamentoAtividadePort.js`: o corpo passa por ALLOWLIST (o servidor recusa chave desconhecida com
@@ -23,6 +26,12 @@ export const CAMPOS_DA_MISTURA = Object.freeze(['empresa_id', 'implemento_bem_id
 export const CAMPOS_DO_ITEM_DA_MISTURA = Object.freeze(['produto_id', 'local_estoque_id', 'quantidade']);
 /** POST …/apontamentos/:apId/misturas/:misturaId/aplicar. */
 export const CAMPOS_DA_APLICACAO = Object.freeze(['empresa_id', 'esvaziou', 'sobra', 'operation_id']);
+/** POST /atividades/:id/misturas/:misturaId/aplicar (sem o apontamento na rota: o servidor acha ou cria o de hoje). */
+export const CAMPOS_DA_APLICACAO_NO_DIA = Object.freeze(['empresa_id', 'esvaziou', 'sobra', 'operation_id']);
+/** POST /atividades/:id/trajetos. */
+export const CAMPOS_DO_TRAJETO = Object.freeze(['empresa_id', 'de_area_id', 'para_area_id', 'horimetro_saida', 'horimetro_chegada', 'operation_id']);
+/** POST /atividades/:id/diario-dia. */
+export const CAMPOS_DO_DIA_DO_DIARIO = Object.freeze(['empresa_id', 'area_id']);
 /** POST /atividades/:id/misturas/:misturaId/sobra. */
 export const CAMPOS_DA_SOBRA = Object.freeze([
   'empresa_id',
@@ -73,6 +82,22 @@ export const misturaPort = Object.freeze({
     ),
 
   /** @param {string} atividadeId @param {string} misturaId @param {Record<string, any>} dados */
+  aplicarNoDia: (atividadeId, misturaId, dados) =>
+    nativeRequest(
+      `${daAtividade(atividadeId)}/misturas/${encodeURIComponent(misturaId)}/aplicar`,
+      { method: 'POST', body: corpoSemVazios(dados, CAMPOS_DA_APLICACAO_NO_DIA), autenticado: true },
+      ctx('aplicarMisturaNoDia', { atividadeId, misturaId }),
+    ),
+
+  /** @param {string} atividadeId @param {Record<string, any>} dados */
+  trajeto: (atividadeId, dados) =>
+    nativeRequest(`${daAtividade(atividadeId)}/trajetos`, { method: 'POST', body: corpoSemVazios(dados, CAMPOS_DO_TRAJETO), autenticado: true }, ctx('registrarTrajeto', { atividadeId })),
+
+  /** @param {string} atividadeId @param {Record<string, any>} dados */
+  diaDoDiario: (atividadeId, dados) =>
+    nativeRequest(`${daAtividade(atividadeId)}/diario-dia`, { method: 'POST', body: corpoSemVazios(dados, CAMPOS_DO_DIA_DO_DIARIO), autenticado: true }, ctx('garantirDiaDoDiario', { atividadeId })),
+
+  /** @param {string} atividadeId @param {string} misturaId @param {Record<string, any>} dados */
   sobra: (atividadeId, misturaId, dados) =>
     nativeRequest(
       `${daAtividade(atividadeId)}/misturas/${encodeURIComponent(misturaId)}/sobra`,
@@ -96,6 +121,12 @@ export const listMisturas = (atividadeId, empresaId) => misturaPort.listar(ativi
 export const createMistura = (atividadeId, dados) => misturaPort.criar(atividadeId, dados);
 /** @param {string} atividadeId @param {string} apontamentoId @param {string} misturaId @param {Record<string, any>} dados */
 export const aplicarMistura = (atividadeId, apontamentoId, misturaId, dados) => misturaPort.aplicar(atividadeId, apontamentoId, misturaId, dados);
+/** Passo 2 sem o lançamento do dia na tela: o servidor cria o de hoje (D-PROD-324). @param {string} atividadeId @param {string} misturaId @param {Record<string, any>} dados */
+export const aplicarMisturaNoDia = (atividadeId, misturaId, dados) => misturaPort.aplicarNoDia(atividadeId, misturaId, dados);
+/** Trajeto sem sobra: só os horímetros entre dois pastos (D-PROD-324). @param {string} atividadeId @param {Record<string, any>} dados */
+export const registrarTrajetoMistura = (atividadeId, dados) => misturaPort.trajeto(atividadeId, dados);
+/** O lançamento de hoje da área, criado se faltar (idempotente; o abastecimento precisa dele). @param {string} atividadeId @param {Record<string, any>} dados */
+export const garantirDiaDoDiario = (atividadeId, dados) => misturaPort.diaDoDiario(atividadeId, dados);
 /** @param {string} atividadeId @param {string} misturaId @param {Record<string, any>} dados */
 export const registrarSobraMistura = (atividadeId, misturaId, dados) => misturaPort.sobra(atividadeId, misturaId, dados);
 /** @param {string} atividadeId @param {string} empresaId @param {string} dia */

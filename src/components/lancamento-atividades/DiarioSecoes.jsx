@@ -6,7 +6,16 @@ import { EscolhaSegmentada } from "@/components/financeiroGestao/CamposLancament
 import SeletorPaginadoGestao from "@/components/financeiroGestao/SeletorPaginadoGestao";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import { normalizarPaginaDeOpcoes } from "@/lib/atividadeApontamentoRegras";
-import { formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
+import { formatarMoedaAtividade, medidorDaResposta } from "@/lib/atividadeLinhasRegras";
+import {
+  formularioVazio,
+  formatarLitrosCurto,
+  opcaoNoFormulario,
+  ROTULO_LEITURA,
+  tanqueDoFormulario,
+  unidadeDoFormulario,
+  validarFormulario,
+} from "@/lib/abastecimentoRegras";
 import {
   OPCOES_SOBRA_TROCAR,
   TIPO_SOBRA,
@@ -21,7 +30,8 @@ import {
   validarSobra,
   volumeAplicado,
 } from "@/lib/implementoRegras";
-import { listarLocaisDoProduto, listarOpcoesProdutos } from "@/services/lancamentoAtividadesService";
+import { listarProdutosDoBem } from "@/services/abastecimentoService";
+import { listarLocaisDoProduto, listarOpcoesProdutos, obterMedidorDoBem } from "@/services/lancamentoAtividadesService";
 
 /** A chave das consultas do diário no react-query (o prefixo que a tela invalida depois de gravar). */
 export const CHAVE_DIARIO = "diario-maquina";
@@ -221,9 +231,9 @@ export function SecaoPasso1({ atividadeId, empresaId, implementos, ultimaImpleme
 
 /**
  * Passo 2 · Aplicar no pasto: esvaziou o implemento neste pasto? Se não, quanto sobrou (a sobra fica no implemento).
- * Mostra quanto de cada produto foi para o pasto. Precisa do lançamento do dia nesta área.
+ * Mostra quanto de cada produto foi para o pasto. Não precisa do lançamento do dia: o servidor cria o de hoje (D-PROD-324).
  */
-export function SecaoPasso2({ mistura, dia, onVoltar, onGravar, onLancarHoje, enviando }) {
+export function SecaoPasso2({ mistura, onVoltar, onGravar, enviando }) {
   const [esvaziou, setEsvaziou] = useState(true);
   const [sobra, setSobra] = useState("");
   const [erro, setErro] = useState(/** @type {string|null} */ (null));
@@ -242,20 +252,6 @@ export function SecaoPasso2({ mistura, dia, onVoltar, onGravar, onLancarHoje, en
       </div>
     );
   }
-  if (!dia) {
-    return (
-      <div className="flex flex-col gap-3" data-testid="diario-passo-2">
-        <AvisoGestao testId="diario-sem-dia">Ainda não há lançamento de hoje nesta área. Lance o dia primeiro.</AvisoGestao>
-        <Rodape>
-          <BotaoVoltar onClick={onVoltar} />
-          <BotaoAcao onClick={onLancarHoje} testId="diario-lancamento-de-hoje">
-            Lançamento de hoje
-          </BotaoAcao>
-        </Rodape>
-      </div>
-    );
-  }
-
   const enviar = () => {
     const msg = validarAplicacao({ esvaziou, sobra, saldo, unidade });
     setErro(msg);
@@ -322,6 +318,174 @@ const BotaoSeco = ({ onClick, children, testId }) => (
   </button>
 );
 
+/** Rótulo do tanque na escolha, como no formulário de abastecimento: "Tanque principal (180 L)". @param {any} t */
+const rotuloDoTanque = (t) => {
+  const nome = String(t?.identificador ?? "");
+  return t?.capacidade_litros ? `${nome} (${formatarLitrosCurto(t.capacidade_litros)} L)` : nome;
+};
+
+/**
+ * Abastecer (D-PROD-324, item 1): a MÁQUINA já vem do contexto; a pessoa informa os litros (ou kg) e o horímetro. Produto,
+ * tanque e local vêm das opções do servidor e só aparecem quando há mais de uma escolha. Grava pelo caminho da tela
+ * Abastecimentos (prévia e confirmação, `abastecimentoService`), ligado ao lançamento de hoje da área, sem abrir janela nova.
+ * @param {{ empresaId: string, bem: { id?: unknown, nome?: string }|null, hoje: string, onVoltar: () => void,
+ *   onGravar: (form: any) => void, enviando: boolean }} props
+ */
+export function SecaoAbastecer({ empresaId, bem, hoje, onVoltar, onGravar, enviando }) {
+  const bemId = bem?.id ? String(bem.id) : "";
+  const [produtoId, setProdutoId] = useState("");
+  const [tanqueId, setTanqueId] = useState("");
+  const [localId, setLocalId] = useState("");
+  const [litros, setLitros] = useState("");
+  const [leitura, setLeitura] = useState("");
+  const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
+
+  const produtosQ = useQuery({
+    queryKey: [CHAVE_DIARIO, "abastecer-produtos", empresaId, bemId],
+    queryFn: () => listarProdutosDoBem(String(empresaId), bemId, { limit: 100 }),
+    enabled: Boolean(empresaId && bemId),
+  });
+  const opcoes = Array.isArray(produtosQ.data?.itens) ? produtosQ.data.itens : [];
+  // Com um Produto só, ele já vem escolhido.
+  useEffect(() => {
+    if (!produtoId && opcoes.length === 1) setProdutoId(String(opcoes[0].produto?.id ?? ""));
+  }, [opcoes.length, produtoId]);
+  const opcao = opcoes.find((o) => String(o.produto?.id ?? "") === produtoId) ?? null;
+  const tanques = Array.isArray(opcao?.tanques) ? opcao.tanques : [];
+  const unidade = unidadeDoFormulario({ produto: opcao?.produto ?? null }) ?? "L";
+
+  const locaisQ = useQuery({
+    queryKey: [CHAVE_DIARIO, "abastecer-locais", produtoId],
+    queryFn: async () => (await listarLocaisDoProduto(produtoId))?.itens ?? [],
+    enabled: Boolean(produtoId),
+    staleTime: 15 * 1000,
+  });
+  const locais = Array.isArray(locaisQ.data) ? locaisQ.data : [];
+
+  // O medidor do bem (tipo e leitura vigente): define se pede horímetro e sugere a última leitura, até a pessoa mexer.
+  const medidorQ = useQuery({
+    queryKey: [CHAVE_DIARIO, "abastecer-medidor", empresaId, bemId, hoje],
+    queryFn: () => obterMedidorDoBem(bemId, hoje),
+    enabled: Boolean(empresaId && bemId && hoje),
+    staleTime: 15 * 1000,
+  });
+  const medidor = medidorQ.data ? medidorDaResposta(medidorQ.data) : null;
+  const vigente = medidor?.vigente?.leitura ?? null;
+  useEffect(() => {
+    if (vigente && !leitura) setLeitura(String(Number(vigente)).replace(".", ","));
+  }, [vigente]);
+
+  if (!bemId) {
+    return (
+      <div className="flex flex-col gap-3" data-testid="diario-abastecer">
+        <AvisoGestao testId="diario-abastecer-sem-maquina">Esta atividade não tem máquina. Não há o que abastecer aqui.</AvisoGestao>
+        <Rodape>
+          <BotaoVoltar onClick={onVoltar} />
+        </Rodape>
+      </div>
+    );
+  }
+
+  const enviar = () => {
+    const localEscolhido = localId || (locais.length === 1 ? String(locais[0].local_estoque_id) : "");
+    const base = {
+      ...formularioVazio(hoje),
+      bem: { id: bemId, nome: bem?.nome ?? "", medidor: { tipo: medidor?.tipo ?? "SEM_MEDIDOR" } },
+      data_operacional: hoje,
+      quantidade: litros,
+      medidor_leitura: leitura,
+    };
+    let form = opcao ? opcaoNoFormulario(base, opcao) : { ...base, produto: null };
+    if (opcao && tanques.length > 1) form = { ...form, tanque_id: tanqueId };
+    form = { ...form, local_estoque_id: localEscolhido || null };
+    const v = validarFormulario(form, { hoje, capacidadeLitros: tanqueDoFormulario(form)?.capacidade_litros ?? null, unidade: unidadeDoFormulario(form) });
+    setErros(v.erros);
+    if (Object.keys(v.erros).length) return;
+    onGravar(form);
+  };
+
+  return (
+    <div className="flex flex-col gap-3" data-testid="diario-abastecer">
+      <div className="grid grid-cols-12 gap-3">
+        <p className="col-span-12 text-[13px] text-[#73726c]">
+          Máquina: <b className="text-[#141413]">{bem?.nome || "—"}</b>
+        </p>
+        <div className="col-span-12">
+          <CampoSelect
+            label="Produto"
+            value={produtoId}
+            onChange={(v) => {
+              setProdutoId(v || "");
+              setTanqueId("");
+              setLocalId("");
+            }}
+            options={opcoes.map((o) => ({ value: String(o.produto?.id ?? ""), label: String(o.produto?.nome ?? "") }))}
+            placeholder="— Escolha o produto —"
+            required
+            span={12}
+            error={erros.produto}
+          />
+        </div>
+        {tanques.length > 1 ? (
+          <div className="col-span-12">
+            <CampoSelect
+              label="Qual tanque será abastecido?"
+              value={tanqueId}
+              onChange={(v) => setTanqueId(v || "")}
+              options={tanques.map((t) => ({ value: String(t.id), label: rotuloDoTanque(t) }))}
+              placeholder="— Escolha o tanque —"
+              required
+              span={12}
+              error={erros.tanque_id}
+            />
+          </div>
+        ) : null}
+        {produtoId ? (
+          <div className="col-span-12">
+            <CampoSelect
+              label="Local do estoque"
+              value={localId || (locais.length === 1 ? String(locais[0].local_estoque_id) : "")}
+              onChange={(v) => setLocalId(v || "")}
+              options={locais.map((l) => ({
+                value: String(l.local_estoque_id),
+                label: `${String(l.local_nome ?? "")} (disponível ${formatarVolume(l.disponivel, rotuloUnidade(unidade))})`,
+              }))}
+              placeholder="— Escolha o local —"
+              required
+              span={12}
+              error={erros.local_estoque_id}
+            />
+          </div>
+        ) : null}
+        <div className="col-span-6 min-w-0">
+          <CampoDeTexto label={unidade === "KG" ? "Quantidade (kg)" : "Litros (L)"} value={litros} onChange={setLitros} testId="diario-abastecer-litros" error={erros.quantidade} span={12} />
+        </div>
+        {medidor?.contador ? (
+          <div className="col-span-6 min-w-0">
+            <CampoDeTexto
+              label={ROTULO_LEITURA[medidor.tipo] ?? "Leitura do medidor"}
+              value={leitura}
+              onChange={setLeitura}
+              testId="diario-abastecer-horimetro"
+              error={erros.medidor_leitura}
+              span={12}
+            />
+          </div>
+        ) : medidorQ.isSuccess ? (
+          <Nota testId="diario-abastecer-sem-medidor">Esta máquina não tem medidor: não há horímetro para informar.</Nota>
+        ) : null}
+        {erros.bem ? <AvisoGestao testId="diario-abastecer-erro">{erros.bem}</AvisoGestao> : null}
+      </div>
+      <Rodape>
+        <BotaoVoltar onClick={onVoltar} />
+        <BotaoAcao onClick={enviar} disabled={enviando || medidorQ.isPending} testId="diario-abastecer-gravar">
+          {enviando ? "Salvando…" : "Abastecer"}
+        </BotaoAcao>
+      </Rodape>
+    </div>
+  );
+}
+
 /** Mais: abastecer e mão de obra (as janelas que já existem, no lugar desta). */
 export function SecaoMais({ onAbastecer, onMaoObra, onVoltar }) {
   return (
@@ -341,7 +505,7 @@ export function SecaoMais({ onAbastecer, onMaoObra, onVoltar }) {
 
 /**
  * Trocar pasto: o próximo pasto (as áreas da atividade) e o que sobrou no implemento (vai junto, volta ao depósito ou
- * perda com motivo). Horímetro de saída e de chegada são opcionais e vão junto com a sobra (o trajeto não tem custo).
+ * perda com motivo). Horímetro de saída e de chegada são opcionais e valem com ou sem sobra (o trajeto não tem custo).
  */
 export function SecaoTrocar({ opcoesDePasto, mistura, onVoltar, onTrocar, enviando }) {
   const [proximo, setProximo] = useState(opcoesDePasto[0]?.value ?? "");
@@ -398,7 +562,7 @@ export function SecaoTrocar({ opcoesDePasto, mistura, onVoltar, onTrocar, envian
         <CampoDeTexto label="Horímetro de saída" value={horimetroSaida} onChange={setHorimetroSaida} testId="diario-horimetro-saida" />
         <CampoDeTexto label="Horímetro de chegada" value={horimetroChegada} onChange={setHorimetroChegada} testId="diario-horimetro-chegada" />
         {comSobra ? null : (
-          <Nota testId="diario-trajeto-sem-sobra">Os horímetros são guardados junto com a sobra. Sem mistura no implemento, o trajeto não é guardado.</Nota>
+          <Nota testId="diario-trajeto-sem-sobra">Os horímetros são guardados mesmo sem sobra. Sem nenhuma mistura nesta atividade, não há onde guardá-los.</Nota>
         )}
         {!comSobra && erro ? <AvisoGestao testId="diario-erro-trocar">{erro}</AvisoGestao> : null}
       </div>
@@ -494,10 +658,13 @@ export function SecaoEncerrar({ mistura, onVoltar, onEncerrar, onLancarHorimetro
   );
 }
 
+/** Os volumes de uma área na unidade de cada um (L e kg à parte, nunca somados): "1.500 L · 1.000 kg". @param {unknown} lista */
+const volumesDoResumo = (lista) =>
+  (Array.isArray(lista) ? lista : []).map((v) => formatarVolume(v?.volume, rotuloUnidade(v?.unidade))).join(" · ");
+
 /** Resumo do dia: por pasto, implementos cheios, volume, produtos e horas. R$ só para quem pode ver custo e só se o servidor mandar. */
 export function SecaoResumo({ dados, carregando, erro, verCusto, onVoltar, nomeDaArea }) {
   const areas = Array.isArray(dados?.areas) ? dados.areas : [];
-  const sobra = dados?.sobra ?? null;
   return (
     <div className="flex flex-col gap-3" data-testid="diario-resumo">
       {carregando ? <Nota>Carregando o resumo…</Nota> : null}
@@ -507,21 +674,21 @@ export function SecaoResumo({ dados, carregando, erro, verCusto, onVoltar, nomeD
         <div key={String(a.area_id)} className="rounded-[10px] border border-[#ecebe6] bg-white p-3 text-[13px]" data-testid={`diario-resumo-area-${a.area_id}`}>
           <p className="text-[14px] font-semibold text-[#15803d]">{a.area_nome ?? nomeDaArea(a.area_id)}</p>
           <p>Implementos cheios: {a.implementos_cheios ?? 0}</p>
-          <p>Volume aplicado: {formatarVolume(a.volume_aplicado, "L")}</p>
+          <p data-testid={`diario-resumo-volume-${a.area_id}`}>Volume aplicado: {volumesDoResumo(a.volumes_aplicados) || "—"}</p>
           {(Array.isArray(a.produtos) ? a.produtos : []).map((p) => (
-            <p key={p.nome} className="text-[#373733]">
-              {p.nome}: {formatarVolume(p.quantidade, rotuloUnidade(p.unidade))}
+            <p key={`${p.produto_id}-${p.unidade}`} className="text-[#373733]">
+              {p.produto_nome ?? p.nome}: {formatarVolume(p.quantidade, rotuloUnidade(p.unidade))}
             </p>
           ))}
           <p>Horas de máquina: {formatarVolume(a.horas_maquina)} h</p>
+          {Array.isArray(a.sobra) && a.sobra.length ? (
+            <p className="text-[#373733]" data-testid={`diario-resumo-sobra-${a.area_id}`}>
+              Sobra no implemento: {volumesDoResumo(a.sobra)} · fica no pasto
+            </p>
+          ) : null}
           {verCusto && a.custo_total != null ? <p data-testid="diario-resumo-custo">Custo: {formatarMoedaAtividade(a.custo_total)}</p> : null}
         </div>
       ))}
-      {sobra ? (
-        <p className="text-[13px] text-[#373733]" data-testid="diario-resumo-sobra">
-          Sobra no implemento: {formatarVolume(sobra.volume, "L")} · {nomeDaArea(sobra.area_id)}
-        </p>
-      ) : null}
       {verCusto && dados?.custo_total != null ? <p className="text-[14px] font-semibold">Custo total: {formatarMoedaAtividade(dados.custo_total)}</p> : null}
       <Rodape>
         <BotaoVoltar onClick={onVoltar} />

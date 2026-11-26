@@ -4,7 +4,10 @@
  *  - Passo 1: a quantidade vem pré-preenchida com a quantidade padrão do produto e o corpo vai certo;
  *  - Passo 2 parcial: manda a sobra (e o que foi ao pasto aparece antes de gravar);
  *  - Trocar pasto com perda: exige o motivo; com o motivo, grava a sobra como PERDA;
- *  - Resumo: sem R$ para o operador; com R$ para o administrador (só quando o servidor manda custo).
+ *  - Trocar pasto sem sobra: os horímetros vão no trajeto (sem sobra e sem estoque) — D-PROD-324;
+ *  - Resumo: sem R$ para o operador; com R$ para o administrador (só quando o servidor manda custo); volume em L e kg à parte;
+ *  - Abastecer (seção própria, D-PROD-324): máquina do contexto, litros e horímetro; grava pelo caminho da tela Abastecimentos;
+ *    rota ausente no servidor cai no formulário antigo.
  *
  * A busca paginada de produto (SeletorPaginadoGestao) é trocada por um botão de teste: o que se testa aqui é a janela.
  */
@@ -50,6 +53,8 @@ vi.mock("@/services/diarioMaquinaService", () => ({
   criarMistura: vi.fn(),
   aplicarMistura: vi.fn(),
   registrarSobra: vi.fn(),
+  registrarTrajeto: vi.fn(),
+  garantirDiaDoDiario: vi.fn(),
   apontamentoDoDia: vi.fn(),
   lerResumoDoDia: vi.fn(),
 }));
@@ -58,18 +63,30 @@ vi.mock("@/services/lancamentoAtividadesService", async (importOriginal) => ({
   listarOpcoesImplementos: vi.fn(),
   listarLocaisDoProduto: vi.fn(),
   listarOpcoesProdutos: vi.fn(),
+  obterMedidorDoBem: vi.fn(),
   concluirAtividade: vi.fn(),
+}));
+vi.mock("@/services/abastecimentoService", async (importOriginal) => ({
+  ...(await importOriginal()),
+  listarProdutosDoBem: vi.fn(),
+  previaDoAbastecimento: vi.fn(),
+  confirmarAbastecimento: vi.fn(),
+}));
+vi.mock("@/components/lancamento-atividades/JanelaLancamentoPorTipo", () => ({
+  default: () => <div data-testid="janela-antiga-stub">Formulário antigo</div>,
 }));
 
 import DiarioDaMaquina from "@/components/lancamento-atividades/DiarioDaMaquina";
 import { VerCustoContext } from "@/components/lancamento-atividades/VerCusto";
 import * as diario from "@/services/diarioMaquinaService";
 import * as atividadeService from "@/services/lancamentoAtividadesService";
+import * as abastecimento from "@/services/abastecimentoService";
 
 const ATIVIDADE = {
   id: "atv-1",
   versao: 3,
   tipo_atividade_id: "t1",
+  bem_id: "bem-1",
   bem: { nome: "Trator 12" },
   areas: [
     { id: "aa-1", area_id: "area-1", ordem: 1, status: "EM_ANDAMENTO", area: { id: "area-1", nome: "Pasto 01", numero_area: "01" } },
@@ -84,14 +101,21 @@ const RESUMO = {
       area_id: "area-1",
       area_nome: "Pasto 01",
       implementos_cheios: 2,
-      volume_aplicado: "4000",
-      produtos: [{ nome: "Herbicida glifosato", quantidade: "8", unidade: "L" }],
+      volumes_aplicados: [{ unidade: "L", volume: "4000" }],
+      produtos: [{ produto_id: "p1", produto_nome: "Herbicida glifosato", quantidade: "8", unidade: "L" }],
       horas_maquina: "3.5",
+      sobra: [],
       custo_total: "1234.5",
     },
   ],
-  sobra: null,
   custo_total: "1234.5",
+};
+
+/** Um Produto do bem (diesel, em L) com um tanque. */
+const OPCAO_DIESEL = {
+  produto: { id: "d1", nome: "Diesel S10", unidade_principal_estoque: "L" },
+  tanques: [{ id: "t1", identificador: "Tanque principal", capacidade_litros: "180" }],
+  pronto: true,
 };
 
 /** Uma mistura ABERTA com saldo: 2.000 L de capacidade, 2.000 L no implemento, herbicida 4 L por implemento. */
@@ -104,7 +128,8 @@ const MISTURA_ABERTA = {
   unidade: "L",
   saldo: "2000",
   status: "ABERTA",
-  itens: [{ produto_id: "p1", produto: { nome: "Herbicida glifosato", unidade: "L" }, local_estoque_id: "l1", quantidade: "4" }],
+  // A forma que o servidor manda (comoMisturaPublica): o nome e a unidade do produto vêm planos.
+  itens: [{ produto_id: "p1", produto_nome: "Herbicida glifosato", produto_unidade: "L", local_estoque_id: "l1", local_nome: "Depósito", quantidade: "4" }],
 };
 
 const renderizar = ({ admin = false, props = {} } = {}) => {
@@ -129,8 +154,14 @@ beforeEach(() => {
   vi.mocked(diario.aplicarMistura).mockResolvedValue({});
   vi.mocked(diario.registrarSobra).mockResolvedValue({});
   vi.mocked(diario.lerResumoDoDia).mockResolvedValue(RESUMO);
+  vi.mocked(diario.registrarTrajeto).mockResolvedValue({});
+  vi.mocked(diario.garantirDiaDoDiario).mockResolvedValue({ id: "ap-9" });
   vi.mocked(atividadeService.listarOpcoesImplementos).mockResolvedValue({ itens: [IMPLEMENTO] });
   vi.mocked(atividadeService.listarLocaisDoProduto).mockResolvedValue({ itens: [LOCAL] });
+  vi.mocked(atividadeService.obterMedidorDoBem).mockResolvedValue({ medidor_tipo: "HORIMETRO", leitura_vigente: "1250.5000" });
+  vi.mocked(abastecimento.listarProdutosDoBem).mockResolvedValue({ itens: [OPCAO_DIESEL], has_more: false, next_cursor: null });
+  vi.mocked(abastecimento.previaDoAbastecimento).mockResolvedValue({ plano: { ok: true }, bloqueios: [] });
+  vi.mocked(abastecimento.confirmarAbastecimento).mockResolvedValue({ numero: 1, quantidade: "80", unidade: "L" });
 });
 
 afterEach(() => {
@@ -197,10 +228,20 @@ describe("Diário da máquina — Passo 2 (aplicar no pasto)", () => {
     fireEvent.change(screen.getByTestId("diario-sobra"), { target: { value: "500" } });
 
     expect(screen.getByText("Vai para o pasto: 1.500 L")).toBeTruthy();
+    expect(screen.getByText("Herbicida glifosato: 3 L")).toBeTruthy();
     fireEvent.click(screen.getByTestId("diario-gravar-aplicacao"));
 
     await waitFor(() => expect(diario.aplicarMistura).toHaveBeenCalledTimes(1));
-    expect(diario.aplicarMistura).toHaveBeenCalledWith("atv-1", "ap-1", "m1", { empresa_id: "emp-1", esvaziou: false, sobra: "500" });
+    expect(diario.aplicarMistura).toHaveBeenCalledWith("atv-1", "m1", { empresa_id: "emp-1", esvaziou: false, sobra: "500" });
+  });
+
+  it("sem lançamento do dia: aplica do mesmo jeito (o servidor cria o lançamento de hoje)", async () => {
+    vi.mocked(diario.listarMisturas).mockResolvedValue([MISTURA_ABERTA]);
+    renderizar();
+    fireEvent.click(await screen.findByTestId("diario-passo-2-botao"));
+    expect(screen.queryByText(/Lance o dia primeiro/)).toBeNull();
+    fireEvent.click(screen.getByTestId("diario-gravar-aplicacao"));
+    await waitFor(() => expect(diario.aplicarMistura).toHaveBeenCalledWith("atv-1", "m1", { empresa_id: "emp-1", esvaziou: true }));
   });
 
   it("esvaziou: não manda sobra", async () => {
@@ -210,7 +251,7 @@ describe("Diário da máquina — Passo 2 (aplicar no pasto)", () => {
     fireEvent.click(await screen.findByTestId("diario-passo-2-botao"));
     fireEvent.click(screen.getByTestId("diario-gravar-aplicacao"));
     await waitFor(() => expect(diario.aplicarMistura).toHaveBeenCalledTimes(1));
-    expect(diario.aplicarMistura.mock.calls[0][3]).toEqual({ empresa_id: "emp-1", esvaziou: true });
+    expect(diario.aplicarMistura.mock.calls[0][2]).toEqual({ empresa_id: "emp-1", esvaziou: true });
   });
 });
 
@@ -250,7 +291,111 @@ describe("Diário da máquina — Trocar pasto", () => {
   });
 });
 
+describe("Diário da máquina — Trocar pasto sem sobra (horímetro sempre que informado)", () => {
+  it("sem mistura com sobra: manda só o trajeto com os horímetros, sem sobra e sem estoque", async () => {
+    vi.mocked(diario.listarMisturas).mockResolvedValue([]);
+    renderizar();
+    fireEvent.click(await screen.findByTestId("diario-trocar-botao"));
+    fireEvent.change(screen.getByLabelText("Horímetro de saída"), { target: { value: "120,5" } });
+    fireEvent.change(screen.getByLabelText("Horímetro de chegada"), { target: { value: "123" } });
+    fireEvent.click(screen.getByTestId("diario-ir-para-pasto"));
+
+    await waitFor(() => expect(diario.registrarTrajeto).toHaveBeenCalledTimes(1));
+    expect(diario.registrarTrajeto).toHaveBeenCalledWith("atv-1", {
+      empresa_id: "emp-1", de_area_id: "area-1", para_area_id: "area-2", horimetro_saida: "120.5", horimetro_chegada: "123",
+    });
+    expect(diario.registrarSobra).not.toHaveBeenCalled();
+  });
+
+  it("sobra devolvida com horímetro: grava a sobra (sem horímetro) e depois o trajeto", async () => {
+    vi.mocked(diario.listarMisturas).mockResolvedValue([MISTURA_ABERTA]);
+    renderizar();
+    fireEvent.click(await screen.findByTestId("diario-trocar-botao"));
+    fireEvent.click(screen.getByRole("radio", { name: "Volta ao depósito" }));
+    fireEvent.change(screen.getByLabelText("Horímetro de saída"), { target: { value: "10" } });
+    fireEvent.click(screen.getByTestId("diario-ir-para-pasto"));
+
+    await waitFor(() => expect(diario.registrarTrajeto).toHaveBeenCalledTimes(1));
+    const sobra = vi.mocked(diario.registrarSobra).mock.calls[0][2];
+    expect(sobra).toMatchObject({ tipo: "DEVOLUCAO" });
+    expect(sobra).not.toHaveProperty("horimetro_saida");
+    expect(diario.registrarTrajeto.mock.calls[0][1]).toMatchObject({ de_area_id: "area-1", para_area_id: "area-2", horimetro_saida: "10" });
+  });
+});
+
+describe("Diário da máquina — Abastecer (seção própria, D-PROD-324)", () => {
+  /** Abre o Abastecer pelo "Mais" do diário. */
+  const abrirAbastecer = async () => {
+    fireEvent.click(await screen.findByTestId("diario-mais-botao"));
+    fireEvent.click(screen.getByTestId("diario-abastecer"));
+    return screen.findByTestId("diario-abastecer");
+  };
+
+  it("máquina do contexto, litros e horímetro (sugerido pela leitura vigente); grava pelo caminho da tela Abastecimentos", async () => {
+    renderizar();
+    const secao = await abrirAbastecer();
+    expect(within(secao).getByText(/Trator 12/)).toBeTruthy();
+
+    // Um Produto e um tanque só: já vêm escolhidos. O horímetro vem com a última leitura.
+    await waitFor(() => expect(screen.getByTestId("diario-abastecer-horimetro").value).toBe("1250,5"));
+    fireEvent.change(screen.getByTestId("diario-abastecer-litros"), { target: { value: "80" } });
+    fireEvent.click(screen.getByTestId("diario-abastecer-gravar"));
+
+    await waitFor(() => expect(abastecimento.confirmarAbastecimento).toHaveBeenCalledTimes(1));
+    // O lançamento de hoje da área é garantido antes (o abastecimento fica ligado à atividade).
+    expect(diario.garantirDiaDoDiario).toHaveBeenCalledWith("atv-1", "area-1");
+    const [empresa, form] = vi.mocked(abastecimento.previaDoAbastecimento).mock.calls[0];
+    expect(empresa).toBe("emp-1");
+    expect(form).toMatchObject({
+      bem: { id: "bem-1", medidor: { tipo: "HORIMETRO" } },
+      produto: { id: "d1" },
+      tanque_id: "t1",
+      local_estoque_id: "l1",
+      quantidade: "80",
+      medidor_leitura: "1250,5",
+      apontamento_id: "ap-9",
+    });
+    expect(abastecimento.confirmarAbastecimento.mock.calls[0][0]).toBe("emp-1");
+    expect(abastecimento.confirmarAbastecimento.mock.calls[0][3]).toMatchObject({ escopo: expect.any(String) });
+  });
+
+  it("sem litros, não envia e mostra o erro da quantidade", async () => {
+    renderizar();
+    await abrirAbastecer();
+    await waitFor(() => expect(screen.getByTestId("diario-abastecer-horimetro").value).toBe("1250,5"));
+    fireEvent.click(screen.getByTestId("diario-abastecer-gravar"));
+    expect(await screen.findByText("Informe a quantidade abastecida.")).toBeTruthy();
+    expect(abastecimento.previaDoAbastecimento).not.toHaveBeenCalled();
+  });
+
+  it("rota ausente no servidor: cai no formulário antigo (a janela de sempre, no lugar deste diário)", async () => {
+    vi.mocked(abastecimento.previaDoAbastecimento).mockRejectedValue(Object.assign(new Error("Route POST not found"), { rotaAusente: true }));
+    renderizar();
+    await abrirAbastecer();
+    await waitFor(() => expect(screen.getByTestId("diario-abastecer-horimetro").value).toBe("1250,5"));
+    fireEvent.change(screen.getByTestId("diario-abastecer-litros"), { target: { value: "80" } });
+    fireEvent.click(screen.getByTestId("diario-abastecer-gravar"));
+    expect(await screen.findByTestId("janela-antiga-stub")).toBeTruthy();
+  });
+
+  it("atividade sem máquina: avisa e não abre o formulário", async () => {
+    renderizar({ props: { atividade: { ...ATIVIDADE, bem_id: null, bem: null } } });
+    await abrirAbastecer();
+    expect(await screen.findByText(/não tem máquina/)).toBeTruthy();
+  });
+});
+
 describe("Diário da máquina — Resumo do dia", () => {
+  it("volume em L e kg em linhas separadas (nunca somados)", async () => {
+    vi.mocked(diario.lerResumoDoDia).mockResolvedValue({
+      areas: [{ area_id: "area-1", area_nome: "Pasto 01", implementos_cheios: 2, volumes_aplicados: [{ unidade: "L", volume: "1500" }, { unidade: "KG", volume: "1000" }], produtos: [], horas_maquina: "0", sobra: [{ unidade: "L", volume: "500" }] }],
+    });
+    renderizar();
+    fireEvent.click(await screen.findByTestId("diario-resumo-botao"));
+    expect((await screen.findByTestId("diario-resumo-volume-area-1")).textContent).toBe("Volume aplicado: 1.500 L · 1.000 kg");
+    expect(screen.getByTestId("diario-resumo-sobra-area-1").textContent).toContain("Sobra no implemento: 500 L");
+  });
+
   it("sem R$ para o operador, mesmo com o custo vindo do servidor", async () => {
     renderizar({ admin: false });
     fireEvent.click(await screen.findByTestId("diario-resumo-botao"));

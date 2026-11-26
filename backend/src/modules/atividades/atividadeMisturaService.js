@@ -26,8 +26,9 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import { CASAS_QUANTIDADE, LIMITE_ESTOQUE, ZERO, arredondar, dec } from '../financeiro/decimalFinanceiro.js';
 import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
 import { unidadeEfetivaDoEstoque } from '../patrimonio/patrimonioDominio.js';
-import { PADRAO_DECIMAL, exigirLinhaGravavel, operationIdDoCorpo, travarAtividade } from './atividadeComum.js';
+import { PADRAO_DECIMAL, exigirLinhaGravavel, operationIdDoCorpo, tempoDaFazenda, travarAtividade } from './atividadeComum.js';
 import { aceiteDeCombustivelQueVale, criarLinhasProduto, exigirPermiteProduto } from './atividadeApontamentoProdutoService.js';
+import { VAZIO, lancarNaTransacao, origemDoCorpo } from './atividadeApontamentoService.js';
 import { exigirAreaDoApontamentoEmAndamento } from './atividadeAreaService.js';
 
 export const ENTIDADE_MISTURA = 'AtividadeMistura';
@@ -187,6 +188,58 @@ const exigirMesmaAreaDoLancamento = async (tx, clienteId, empresaId, atividadeId
       details: { area_mistura_id: m.area_id, area_lancamento_id: area },
     });
   }
+};
+
+const APONTAMENTO_DO_DIA = Object.freeze({
+  id: true, empresa_id: true, atividade_id: true, data_operacional: true, status: true, versao: true, area_executada_dia: true, atividade_area_id: true,
+});
+/** Nenhuma linha: o lançamento do dia criado só para a aplicação ou a perda (as linhas vêm depois, na mesma transação). */
+const LINHAS_VAZIAS = Object.freeze({ maquinas: [], produtos: [], maoObra: [], servicos: [], operationId: null });
+
+/**
+ * O lançamento CONFIRMADO de HOJE da área (D-PROD-324): o mais antigo do dia, se já existe; senão cria-o pelo mesmo caminho
+ * do `POST …/apontamentos` (`lancarNaTransacao`, sem linhas), com o operador de quem está gravando. Idempotente: quem chama
+ * já segura a trava da atividade (FOR UPDATE), então dois envios não criam dois lançamentos do dia.
+ * @param {any} tx @param {any} contexto @param {{ cli: string, empresaId: string, atividadeId: string, areaId: string }} p `areaId` é o
+ *   AreaPastagem da mistura (ou do pasto); a ligação com a atividade é achada aqui.
+ */
+const garantirApontamentoDoDia = async (tx, contexto, { cli, empresaId, atividadeId, areaId }) => {
+  const ligacao = await tx.atividadeArea.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, atividade_id: atividadeId, area_id: areaId }, select: { id: true } });
+  if (!ligacao) throw new AppError('MISTURA_AREA_DIFERENTE', 'a área não é mais desta atividade; nada foi gravado', { details: { area_id: areaId } });
+  const tempo = await tempoDaFazenda(tx, cli, empresaId);
+  const onde = {
+    cliente_id: cli, empresa_id: empresaId, atividade_id: atividadeId, atividade_area_id: ligacao.id,
+    data_operacional: new Date(`${tempo.hoje}T00:00:00.000Z`), status: 'CONFIRMADO',
+  };
+  const existente = await tx.atividadeApontamento.findFirst({ where: onde, orderBy: { sequencia: /** @type {const} */ ('asc') }, select: APONTAMENTO_DO_DIA });
+  if (existente) return existente;
+  const usuarioId = exigirAuthContext(contexto?.auth).usuarioId ?? null;
+  const criado = await lancarNaTransacao(tx, contexto, {
+    clienteId: cli,
+    empresaId,
+    tempo,
+    atividadeId,
+    estado: { ...VAZIO, data_operacional: tempo.hoje, atividade_area_id: ligacao.id, operador_usuario_id: usuarioId },
+    origem: origemDoCorpo(undefined),
+    linhas: LINHAS_VAZIAS,
+  });
+  return tx.atividadeApontamento.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, id: criado.apontamento.id }, select: APONTAMENTO_DO_DIA });
+};
+
+/**
+ * `POST /atividades/:id/diario-dia` (D-PROD-324): garante o lançamento do dia da área (o do abastecimento, que precisa dele).
+ * Idempotente; não grava estoque. Sem `operation_id`: a trava da atividade e a checagem do dia já a tornam segura.
+ * @param {any} contexto @param {string} atividadeId @param {Record<string, any>} corpo
+ */
+export const garantirDiaDoDiario = async (contexto, atividadeId, corpo) => {
+  const cli = exigirAuthContext(contexto?.auth).clienteId;
+  return emTransacao(TRANSACAO_CURTA, async (tx) => {
+    const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
+    const atividade = await travarAtividadeDaMistura(tx, cli, empresaId, atividadeId);
+    exigirAtividadeAberta(atividade, 'lancar_apontamento');
+    const ap = await garantirApontamentoDoDia(tx, contexto, { cli, empresaId, atividadeId, areaId: corpo.area_id });
+    return { apontamento: { id: ap.id, status: ap.status, atividade_area_id: ap.atividade_area_id } };
+  });
 };
 
 /** Itens da mistura com o produto conferido de novo (ativo, da fazenda, unidade aceita, sem combustível). */
@@ -390,35 +443,75 @@ export const aplicarMistura = async (contexto, atividadeId, apontamentoId, mistu
       const m = await lerMistura(tx, cli, empresaId, atividadeId, misturaId);
       exigirAberta(m, 'aplicar_mistura');
       await exigirMesmaAreaDoLancamento(tx, cli, empresaId, atividadeId, m, ap);
-
-      const saldo = dec(m.saldo);
-      const capacidade = dec(m.capacidade);
-      const volume = volumeDaAplicacao({ esvaziou: corpo.esvaziou, sobra: corpo.sobra ?? null, saldo });
-      const itens = await itensDaMistura(tx, m);
-      const linhas = linhasDoPasso2(itens, { capacidade, volume, misturaId: m.id, numero: m.numero });
-      for (const [i, l] of linhas.entries()) {
-        if (!dec(l.quantidade).gt(0)) throw recusaMistura(`itens[${i}].quantidade`, 'quantidade_zero_no_volume', { volume: texto(volume) });
-      }
-
-      const ids = await criarLinhasProduto(tx, contexto, {
-        apontamento: { id: ap.id, empresa_id: ap.empresa_id, data_operacional: ap.data_operacional, area_executada_dia: ap.area_executada_dia },
-        atividade: { id: atividade.id, numero: atividade.numero, tipo_atividade_id: atividade.tipo_atividade_id },
-        linhas,
-        operationId,
-      });
-      const novoSaldo = saldo.minus(volume);
-      await tx.atividadeMistura.update({
-        where: { id: m.id },
-        data: { saldo: texto(novoSaldo), status: novoSaldo.lte(0) ? 'ACABOU' : 'ABERTA' },
-      });
-      await gravarMovimento(tx, contexto, m, { operation_id: operationId, tipo: 'APLICACAO', apontamento_id: ap.id, volume: texto(volume) });
-      await registrarEvento(contexto, {
-        acao: 'APLICAR_MISTURA', entidade: ENTIDADE_MISTURA, entidadeId: m.id,
-        dadosNovos: { apontamento_id: ap.id, volume: texto(volume), saldo: texto(novoSaldo), linhas: ids },
-      }, tx);
-      return { httpStatus: 201, body: { mistura: await publicarMistura(tx, cli, m.id), volume_aplicado: texto(volume), linhas_ids: ids } };
+      return executarAplicacao(tx, contexto, { cli, atividade, ap, m, corpo, operationId });
     },
   });
+};
+
+/**
+ * Passo 2 sem lançamento do dia (D-PROD-324) — `POST /atividades/:id/misturas/:misturaId/aplicar`. Se a área da mistura
+ * ainda não tem lançamento CONFIRMADO de hoje, cria-o (`garantirApontamentoDoDia`) na mesma transação; senão usa o que
+ * existe. Mesma baixa e mesma resposta de `aplicarMistura`.
+ * @param {any} contexto @param {string} atividadeId @param {string} misturaId @param {Record<string, any>} corpo
+ */
+export const aplicarMisturaNoDia = async (contexto, atividadeId, misturaId, corpo) => {
+  const cli = exigirAuthContext(contexto?.auth).clienteId;
+  const operationId = operationIdDoCorpo(corpo.operation_id);
+  const fingerprint = fingerprintDePayload({
+    v: 1, op: 'mistura_aplicar_dia', atividade_id: atividadeId, mistura_id: misturaId,
+    empresa_id: corpo.empresa_id, esvaziou: corpo.esvaziou, sobra: corpo.sobra ?? null,
+  });
+  return comRecibo(contexto, {
+    operationId,
+    tipoOperacao: 'MISTURA_APLICAR_DIA',
+    fingerprint,
+    executar: async (tx) => {
+      const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
+      const atividade = await travarAtividadeDaMistura(tx, cli, empresaId, atividadeId);
+      exigirAtividadeAberta(atividade, 'lancar_linha');
+      const m = await lerMistura(tx, cli, empresaId, atividadeId, misturaId);
+      exigirAberta(m, 'aplicar_mistura');
+      const ap = await garantirApontamentoDoDia(tx, contexto, { cli, empresaId, atividadeId, areaId: m.area_id });
+      exigirLinhaGravavel(atividade, ap, 'lancar_linha');
+      await exigirAreaDoApontamentoEmAndamento(tx, cli, empresaId, atividadeId, ap.id);
+      await exigirMesmaAreaDoLancamento(tx, cli, empresaId, atividadeId, m, ap);
+      return executarAplicacao(tx, contexto, { cli, atividade, ap, m, corpo, operationId });
+    },
+  });
+};
+
+/**
+ * A baixa do Passo 2 (o miolo de `aplicarMistura` e `aplicarMisturaNoDia`, já com as travas conferidas): o volume sai pelas
+ * linhas de produto da atividade (o motor de estoque confere e baixa), o saldo desce e o movimento APLICACAO fica.
+ * @param {any} tx @param {any} contexto @param {{ cli: string, atividade: any, ap: any, m: any, corpo: Record<string, any>, operationId: string }} a
+ */
+const executarAplicacao = async (tx, contexto, { cli, atividade, ap, m, corpo, operationId }) => {
+  const saldo = dec(m.saldo);
+  const capacidade = dec(m.capacidade);
+  const volume = volumeDaAplicacao({ esvaziou: corpo.esvaziou, sobra: corpo.sobra ?? null, saldo });
+  const itens = await itensDaMistura(tx, m);
+  const linhas = linhasDoPasso2(itens, { capacidade, volume, misturaId: m.id, numero: m.numero });
+  for (const [i, l] of linhas.entries()) {
+    if (!dec(l.quantidade).gt(0)) throw recusaMistura(`itens[${i}].quantidade`, 'quantidade_zero_no_volume', { volume: texto(volume) });
+  }
+
+  const ids = await criarLinhasProduto(tx, contexto, {
+    apontamento: { id: ap.id, empresa_id: ap.empresa_id, data_operacional: ap.data_operacional, area_executada_dia: ap.area_executada_dia },
+    atividade: { id: atividade.id, numero: atividade.numero, tipo_atividade_id: atividade.tipo_atividade_id },
+    linhas,
+    operationId,
+  });
+  const novoSaldo = saldo.minus(volume);
+  await tx.atividadeMistura.update({
+    where: { id: m.id },
+    data: { saldo: texto(novoSaldo), status: novoSaldo.lte(0) ? 'ACABOU' : 'ABERTA' },
+  });
+  await gravarMovimento(tx, contexto, m, { operation_id: operationId, tipo: 'APLICACAO', apontamento_id: ap.id, volume: texto(volume) });
+  await registrarEvento(contexto, {
+    acao: 'APLICAR_MISTURA', entidade: ENTIDADE_MISTURA, entidadeId: m.id,
+    dadosNovos: { apontamento_id: ap.id, volume: texto(volume), saldo: texto(novoSaldo), linhas: ids },
+  }, tx);
+  return { httpStatus: 201, body: { mistura: await publicarMistura(tx, cli, m.id), volume_aplicado: texto(volume), linhas_ids: ids } };
 };
 
 /**
@@ -451,30 +544,31 @@ export const registrarSobra = async (contexto, atividadeId, misturaId, corpo) =>
         apontamentoId = ap.id;
       }
 
+      // Os horímetros de saída e de chegada são guardados em QUALQUER tipo de sobra que os traga (D-PROD-324): nada cai em silêncio.
+      const saida = corpo.horimetro_saida !== undefined && corpo.horimetro_saida !== null ? decimalNaoNegativo(corpo.horimetro_saida, 'horimetro_saida') : null;
+      const chegada = corpo.horimetro_chegada !== undefined && corpo.horimetro_chegada !== null ? decimalNaoNegativo(corpo.horimetro_chegada, 'horimetro_chegada') : null;
+      const horimetros = { horimetro_saida: saida ? texto(saida) : null, horimetro_chegada: chegada ? texto(chegada) : null };
       if (tipo === 'TRANSFERENCIA') {
         const paraArea = corpo.para_area_id;
         if (!paraArea) throw recusaMovimento('para_area_id', 'obrigatorio');
         if (paraArea === m.area_id) throw recusaMovimento('para_area_id', 'mesma_area');
         const ligacao = await tx.atividadeArea.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, atividade_id: atividadeId, area_id: paraArea }, select: { id: true } });
         if (!ligacao) throw recusaMovimento('para_area_id', 'fora_da_atividade');
-        const saida = corpo.horimetro_saida !== undefined && corpo.horimetro_saida !== null ? decimalNaoNegativo(corpo.horimetro_saida, 'horimetro_saida') : null;
-        const chegada = corpo.horimetro_chegada !== undefined && corpo.horimetro_chegada !== null ? decimalNaoNegativo(corpo.horimetro_chegada, 'horimetro_chegada') : null;
         if (saida && chegada && chegada.lt(saida)) throw recusaMovimento('horimetro_chegada', 'menor_que_saida');
         await tx.atividadeMistura.update({ where: { id: m.id }, data: { area_id: paraArea } });
-        await gravarMovimento(tx, contexto, m, {
-          ...base, apontamento_id: apontamentoId, de_area_id: m.area_id, para_area_id: paraArea,
-          horimetro_saida: saida ? texto(saida) : null, horimetro_chegada: chegada ? texto(chegada) : null,
-        });
+        await gravarMovimento(tx, contexto, m, { ...base, apontamento_id: apontamentoId, de_area_id: m.area_id, para_area_id: paraArea, ...horimetros });
       } else if (tipo === 'DEVOLUCAO') {
         // O não aplicado nunca saiu do depósito: devolver não mexe no estoque.
         await tx.atividadeMistura.update({ where: { id: m.id }, data: { saldo: texto(ZERO), status: 'DEVOLVIDA' } });
-        await gravarMovimento(tx, contexto, m, { ...base, apontamento_id: apontamentoId, motivo: textoOpcional(corpo.motivo) });
+        await gravarMovimento(tx, contexto, m, { ...base, apontamento_id: apontamentoId, motivo: textoOpcional(corpo.motivo), ...horimetros });
       } else {
         // PERDA: motivo e lançamento obrigatórios; baixa proporcional ao saldo pelo motor, na linha da atividade.
         const motivo = textoOpcional(corpo.motivo);
         if (!motivo || motivo.length < MOTIVO_MIN) throw recusaMovimento('motivo', 'obrigatorio');
-        if (!corpo.apontamento_id) throw recusaMovimento('apontamento_id', 'obrigatorio');
-        const ap = await lerApontamentoDaMistura(tx, cli, empresaId, atividadeId, corpo.apontamento_id);
+        // Sem lançamento informado, usa (ou cria) o lançamento de hoje da área da mistura (D-PROD-324).
+        const ap = corpo.apontamento_id
+          ? await lerApontamentoDaMistura(tx, cli, empresaId, atividadeId, corpo.apontamento_id)
+          : await garantirApontamentoDoDia(tx, contexto, { cli, empresaId, atividadeId, areaId: m.area_id });
         exigirLinhaGravavel(atividade, ap, 'lancar_linha');
         await exigirAreaDoApontamentoEmAndamento(tx, cli, empresaId, atividadeId, ap.id);
         await exigirMesmaAreaDoLancamento(tx, cli, empresaId, atividadeId, m, ap);
@@ -493,11 +587,65 @@ export const registrarSobra = async (contexto, atividadeId, misturaId, corpo) =>
           operationId,
         });
         await tx.atividadeMistura.update({ where: { id: m.id }, data: { saldo: texto(ZERO), status: 'PERDA' } });
-        await gravarMovimento(tx, contexto, m, { ...base, apontamento_id: ap.id, motivo });
+        await gravarMovimento(tx, contexto, m, { ...base, apontamento_id: ap.id, motivo, ...horimetros });
       }
 
       await registrarEvento(contexto, { acao: 'SOBRA_MISTURA', entidade: ENTIDADE_MISTURA, entidadeId: m.id, dadosNovos: { tipo, volume: texto(saldo), linhas: ids } }, tx);
       return { httpStatus: 200, body: { mistura: await publicarMistura(tx, cli, m.id), linhas_ids: ids } };
+    },
+  });
+};
+
+/**
+ * Trajeto entre pastos SEM sobra (D-PROD-324) — `POST /atividades/:id/trajetos`: guarda só os horímetros de saída e de
+ * chegada do pasto que sai e do que chega. Não muda estoque, não muda o pasto da mistura e não tem custo: é um
+ * movimento TRANSFERENCIA de volume zero, ancorado na mistura ABERTA da atividade (ou, sem ela, na mais recente). Sem
+ * nenhuma mistura na atividade não há onde gravar (o movimento pede uma mistura): 422 `sem_mistura`.
+ * @param {any} contexto @param {string} atividadeId @param {Record<string, any>} corpo
+ */
+export const registrarTrajeto = async (contexto, atividadeId, corpo) => {
+  const cli = exigirAuthContext(contexto?.auth).clienteId;
+  const operationId = operationIdDoCorpo(corpo.operation_id);
+  const fingerprint = fingerprintDePayload({ v: 1, op: 'mistura_trajeto', atividade_id: atividadeId, corpo: { ...corpo, operation_id: undefined } });
+  return comRecibo(contexto, {
+    operationId,
+    tipoOperacao: 'MISTURA_TRAJETO',
+    fingerprint,
+    executar: async (tx) => {
+      const empresaId = await exigirEmpresaDoTenant(tx, cli, corpo.empresa_id);
+      const atividade = await travarAtividadeDaMistura(tx, cli, empresaId, atividadeId);
+      exigirAtividadeAberta(atividade, 'registrar_trajeto');
+      const saida = corpo.horimetro_saida !== undefined && corpo.horimetro_saida !== null ? decimalNaoNegativo(corpo.horimetro_saida, 'horimetro_saida') : null;
+      const chegada = corpo.horimetro_chegada !== undefined && corpo.horimetro_chegada !== null ? decimalNaoNegativo(corpo.horimetro_chegada, 'horimetro_chegada') : null;
+      if (!saida && !chegada) throw recusaMovimento('horimetro', 'obrigatorio');
+      if (saida && chegada && chegada.lt(saida)) throw recusaMovimento('horimetro_chegada', 'menor_que_saida');
+      const de = corpo.de_area_id;
+      const para = corpo.para_area_id;
+      if (!de) throw recusaMovimento('de_area_id', 'obrigatorio');
+      if (!para) throw recusaMovimento('para_area_id', 'obrigatorio');
+      if (de === para) throw recusaMovimento('para_area_id', 'mesma_area');
+      const ligadas = await tx.atividadeArea.findMany({
+        where: { cliente_id: cli, empresa_id: empresaId, atividade_id: atividadeId, area_id: { in: [de, para] } },
+        select: { area_id: true },
+      });
+      if (!ligadas.some((l) => l.area_id === de)) throw recusaMovimento('de_area_id', 'fora_da_atividade');
+      if (!ligadas.some((l) => l.area_id === para)) throw recusaMovimento('para_area_id', 'fora_da_atividade');
+
+      const onde = { cliente_id: cli, empresa_id: empresaId, atividade_id: atividadeId };
+      const m =
+        (await tx.atividadeMistura.findFirst({ where: { ...onde, status: 'ABERTA' }, orderBy: { numero: /** @type {const} */ ('desc') } })) ??
+        (await tx.atividadeMistura.findFirst({ where: onde, orderBy: { numero: /** @type {const} */ ('desc') } }));
+      if (!m) throw recusaMovimento('mistura', 'sem_mistura');
+
+      await gravarMovimento(tx, contexto, m, {
+        operation_id: operationId, tipo: 'TRANSFERENCIA', volume: texto(ZERO), de_area_id: de, para_area_id: para,
+        horimetro_saida: saida ? texto(saida) : null, horimetro_chegada: chegada ? texto(chegada) : null,
+      });
+      await registrarEvento(contexto, {
+        acao: 'TRAJETO_MISTURA', entidade: ENTIDADE_MISTURA, entidadeId: m.id,
+        dadosNovos: { de_area_id: de, para_area_id: para, horimetro_saida: saida ? texto(saida) : null, horimetro_chegada: chegada ? texto(chegada) : null },
+      }, tx);
+      return { httpStatus: 201, body: { mistura: await publicarMistura(tx, cli, m.id) } };
     },
   });
 };
@@ -521,8 +669,13 @@ export const listarMisturas = async (contexto, atividadeId, consulta) => {
     orderBy: { numero: /** @type {const} */ ('desc') },
   });
   const ordenada = [...lista.filter((m) => m.status === 'ABERTA'), ...lista.filter((m) => m.status !== 'ABERTA')];
-  return { misturas: ordenada.map(comoMisturaPublica) };
+  // `items` (a convenção das listas da API): a porta e a tela leem esta chave.
+  return { items: ordenada.map(comoMisturaPublica) };
 };
+
+/** Volumes por unidade (L e kg à parte), em texto, na ordem L, KG. @param {Map<string, any>} mapa */
+const volumesDoMapa = (mapa) =>
+  [...mapa.entries()].sort(([a], [b]) => (a === b ? 0 : a === 'L' ? -1 : b === 'L' ? 1 : a.localeCompare(b))).map(([unidade, volume]) => ({ unidade, volume: texto(volume) }));
 
 /**
  * Resumo do dia por área. Volume aplicado e implementos cheios vêm dos movimentos de APLICACAO do dia; produtos e horas
@@ -564,7 +717,7 @@ export const resumoDoDia = async (contexto, atividadeId, consulta) => {
         db.atividadeApontamentoServico.findMany({ where: filtroAp, select: { apontamento_id: true, valor_total: true } }),
         db.atividadeMisturaMovimento.findMany({
           where: { cliente_id: cli, tipo: 'APLICACAO', apontamento_id: { in: idsAp }, mistura: { atividade_id: atividadeId } },
-          select: { mistura_id: true, apontamento_id: true, volume: true },
+          select: { mistura_id: true, apontamento_id: true, volume: true, mistura: { select: { unidade: true } } },
         }),
       ])
     : [[], [], [], [], []];
@@ -575,12 +728,14 @@ export const resumoDoDia = async (contexto, atividadeId, consulta) => {
   /** @type {Map<string|null, any>} */
   const porArea = new Map();
   const bloco = (area) => {
-    if (!porArea.has(area)) porArea.set(area, { area_id: area, area_nome: area ? nomesAreas.get(area) ?? null : null, volume: ZERO, implementos: new Set(), produtos: new Map(), horas: ZERO, custo: ZERO, sobra: new Map(), sobra_misturas: [] });
+    if (!porArea.has(area)) porArea.set(area, { area_id: area, area_nome: area ? nomesAreas.get(area) ?? null : null, volumes: new Map(), implementos: new Set(), produtos: new Map(), horas: ZERO, custo: ZERO, sobra: new Map(), sobra_misturas: [] });
     return porArea.get(area);
   };
+  // Volume na unidade da MISTURA (L ou kg): nunca se somam litros com quilos (D-PROD-324).
   for (const a of aplicacoes) {
     const b = bloco(areaDoApontamento.get(a.apontamento_id) ?? null);
-    b.volume = b.volume.plus(dec(a.volume));
+    const unidade = a.mistura?.unidade ?? 'L';
+    b.volumes.set(unidade, (b.volumes.get(unidade) ?? ZERO).plus(dec(a.volume)));
     b.implementos.add(a.mistura_id);
   }
   for (const l of linhasProduto) {
@@ -614,7 +769,7 @@ export const resumoDoDia = async (contexto, atividadeId, consulta) => {
     const base = {
       area_id: b.area_id,
       area_nome: b.area_nome,
-      volume_aplicado: texto(b.volume),
+      volumes_aplicados: volumesDoMapa(b.volumes),
       implementos_cheios: b.implementos.size,
       produtos: [...b.produtos.values()].map((p) => ({ produto_id: p.produto_id, produto_nome: p.produto_nome, unidade: p.unidade, quantidade: texto(p.quantidade) })),
       horas_maquina: texto(b.horas),
@@ -624,8 +779,11 @@ export const resumoDoDia = async (contexto, atividadeId, consulta) => {
     return admin ? { ...base, custo_total: texto(b.custo) } : base;
   });
   const soma = (f) => areas.reduce((t, a) => t.plus(dec(f(a))), ZERO);
+  /** @type {Map<string, any>} */
+  const volumesDoDia = new Map();
+  for (const a of areas) for (const v of a.volumes_aplicados) volumesDoDia.set(v.unidade, (volumesDoDia.get(v.unidade) ?? ZERO).plus(dec(v.volume)));
   const total = {
-    volume_aplicado: texto(soma((a) => a.volume_aplicado)),
+    volumes_aplicados: volumesDoMapa(volumesDoDia),
     implementos_cheios: areas.reduce((t, a) => t + a.implementos_cheios, 0),
     horas_maquina: texto(soma((a) => a.horas_maquina)),
     ...(admin ? { custo_total: texto(soma((a) => a.custo_total)) } : {}),

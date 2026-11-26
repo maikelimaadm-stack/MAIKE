@@ -24,6 +24,8 @@ import {
   validarMistura,
   validarSobra,
   volumeAplicado,
+  corpoDoTrajeto,
+  ehFalhaDeRota,
 } from "@/lib/implementoRegras";
 
 const mistura = (extra = {}) => ({
@@ -184,5 +186,21 @@ describe("implementoRegras — quantidade padrão do produto", () => {
     expect(quantidadePadraoDoProduto({ quantidade_padrao: "4.0000", quantidade_padrao_unidade: "L" })).toEqual({ quantidade: "4.0000", unidade: "L" });
     expect(quantidadePadraoDoProduto({ unidade_principal_estoque: "KG" })).toEqual({ quantidade: "", unidade: "KG" });
     expect(quantidadePadraoDoProduto({ unidade_principal_estoque: "L" })).toEqual({ quantidade: "", unidade: "L" });
+  });
+});
+
+describe("Diário da máquina — trajeto sem sobra e falha de rota (D-PROD-324)", () => {
+  it("o trajeto leva só os horímetros informados (texto decimal); sem nenhum, não há corpo", () => {
+    expect(corpoDoTrajeto({ empresaId: "emp-1", deAreaId: "a1", paraAreaId: "a2", horimetroSaida: "120,5", horimetroChegada: "" })).toEqual({
+      empresa_id: "emp-1", de_area_id: "a1", para_area_id: "a2", horimetro_saida: "120.5",
+    });
+    expect(corpoDoTrajeto({ empresaId: "emp-1", deAreaId: "a1", paraAreaId: "a2", horimetroSaida: "", horimetroChegada: "  " })).toBeNull();
+  });
+
+  it("falha de ROTA (marcada pela camada de API) cai no caminho antigo; erro de negócio e de rede não", () => {
+    expect(ehFalhaDeRota(Object.assign(new Error("Route not found"), { rotaAusente: true }))).toBe(true);
+    expect(ehFalhaDeRota(Object.assign(new Error("ATIVIDADE_NOT_FOUND"), { code: "ATIVIDADE_NOT_FOUND" }))).toBe(false);
+    expect(ehFalhaDeRota(new Error("rede"))).toBe(false);
+    expect(ehFalhaDeRota(null)).toBe(false);
   });
 });

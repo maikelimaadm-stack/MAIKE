@@ -4,7 +4,12 @@
  *  - `GET   /atividades/:id/misturas?empresa_id=` (ver) — as misturas (a ABERTA primeiro), com itens e saldo
  *  - `POST  /atividades/:id/misturas` (`lancar_apontamento`) — Passo 1 "Implemento cheio"; 201; sem baixa de estoque
  *  - `POST  /atividades/:id/apontamentos/:apontamentoId/misturas/:misturaId/aplicar` (`lancar_apontamento`) — Passo 2; 201
+ *  - `POST  /atividades/:id/misturas/:misturaId/aplicar` (`lancar_apontamento`) — Passo 2 SEM lançamento do dia: cria o
+ *    lançamento de hoje da área se faltar (D-PROD-324); 201
  *  - `POST  /atividades/:id/misturas/:misturaId/sobra` (`lancar_apontamento`) — TRANSFERENCIA | DEVOLUCAO | PERDA; 200
+ *  - `POST  /atividades/:id/trajetos` (`lancar_apontamento`) — só horímetros de saída/chegada entre pastos, sem sobra e
+ *    sem estoque (D-PROD-324); 201
+ *  - `POST  /atividades/:id/diario-dia` (`lancar_apontamento`) — garante o lançamento de hoje da área (idempotente); 200
  *  - `GET   /atividades/:id/diario-resumo?empresa_id=&dia=YYYY-MM-DD` (ver) — por área; `custo_total` só para o
  *    administrador da fazenda
  *
@@ -15,7 +20,17 @@
 
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 import { PADRAO_OPERATION_ID, recusarCoercao } from './atividadeComum.js';
-import { aplicarMistura, criarMistura, listarMisturas, registrarSobra, resumoDoDia, TIPOS_SOBRA } from './atividadeMisturaService.js';
+import {
+  aplicarMistura,
+  aplicarMisturaNoDia,
+  criarMistura,
+  garantirDiaDoDiario,
+  listarMisturas,
+  registrarSobra,
+  registrarTrajeto,
+  resumoDoDia,
+  TIPOS_SOBRA,
+} from './atividadeMisturaService.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
 const ID_OPCIONAL = { type: ['string', 'null'], minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$' };
@@ -89,6 +104,46 @@ const SOBRA = {
   },
 };
 
+/** Passo 2 sem lançamento do dia (D-PROD-324): a mesma aplicação, sem o `apontamento_id` na rota. */
+const APLICAR_NO_DIA = {
+  params: PARAMS_MISTURA,
+  body: {
+    type: 'object',
+    required: ['empresa_id', 'esvaziou', 'operation_id'],
+    additionalProperties: false,
+    properties: { empresa_id: ID, esvaziou: { type: 'boolean' }, sobra: DECIMAL_OPCIONAL, operation_id: OPERATION_ID },
+  },
+};
+
+/** Trajeto sem sobra (D-PROD-324): só os horímetros do pasto que sai e do que chega (pelo menos um). */
+const TRAJETO = {
+  params: PARAMS_ATIVIDADE,
+  body: {
+    type: 'object',
+    required: ['empresa_id', 'de_area_id', 'para_area_id', 'operation_id'],
+    additionalProperties: false,
+    properties: {
+      empresa_id: ID,
+      de_area_id: ID,
+      para_area_id: ID,
+      horimetro_saida: DECIMAL_OPCIONAL,
+      horimetro_chegada: DECIMAL_OPCIONAL,
+      operation_id: OPERATION_ID,
+    },
+  },
+};
+
+/** Lançamento do dia da área (D-PROD-324): o abastecimento o pede antes de gravar. */
+const DIA_DO_DIARIO = {
+  params: PARAMS_ATIVIDADE,
+  body: {
+    type: 'object',
+    required: ['empresa_id', 'area_id'],
+    additionalProperties: false,
+    properties: { empresa_id: ID, area_id: ID },
+  },
+};
+
 const LISTAR = {
   params: PARAMS_ATIVIDADE,
   querystring: { type: 'object', required: ['empresa_id'], additionalProperties: false, properties: { empresa_id: ID } },
@@ -135,6 +190,20 @@ export const registrarAtividadeMisturaRoutes = async (app) => {
     const r = await aplicarMistura(request.contexto, p.id, /** @type {string} */ (p.apontamentoId), /** @type {string} */ (p.misturaId), corpo(request));
     return reply.status(r.status).send(r.body);
   });
+
+  app.post('/atividades/:id/misturas/:misturaId/aplicar', { ...autenticado, preHandler: [g.criar], schema: APLICAR_NO_DIA }, async (request, reply) => {
+    const p = params(request);
+    const r = await aplicarMisturaNoDia(request.contexto, p.id, /** @type {string} */ (p.misturaId), corpo(request));
+    return reply.status(r.status).send(r.body);
+  });
+
+  app.post('/atividades/:id/trajetos', { ...autenticado, preHandler: [g.criar], schema: TRAJETO }, async (request, reply) => {
+    const r = await registrarTrajeto(request.contexto, params(request).id, corpo(request));
+    return reply.status(r.status).send(r.body);
+  });
+
+  app.post('/atividades/:id/diario-dia', { ...autenticado, preHandler: [g.criar], schema: DIA_DO_DIARIO }, async (request) =>
+    garantirDiaDoDiario(request.contexto, params(request).id, corpo(request)));
 
   app.post('/atividades/:id/misturas/:misturaId/sobra', { ...autenticado, preHandler: [g.criar], schema: SOBRA }, async (request, reply) => {
     const p = params(request);
