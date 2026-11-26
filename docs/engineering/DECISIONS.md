@@ -10212,9 +10212,40 @@ Vários itens ficavam presos para sempre, sem botão:
 
 > **Numeração:** depois da D-PROD-330 (PR #421), a `main` indica `Próxima decisão: D-PROD-331`, que é esta; o marcador passa a D-PROD-332. Conferir de novo antes do merge (regra A5).
 
-## D-PROD-332 — O cadastro do mapa no celular: igual ao Mapa Geral, "+" na aba Pontos e "Usar minha localização"
+## D-PROD-332 — Diário das atividades, parte 1: abertura do serviço (tipo → máquina, implemento, horímetro e responsável), do zero
 
-**Data:** 2026-11-26 · **Origem:** pedido do proprietário, com as imagens aprovadas ("Pode implementar por favor") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`CADASTRO-MAPA-CELULAR-D332-REPORT.md`](./CADASTRO-MAPA-CELULAR-D332-REPORT.md)
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário (maquete v4 "Diário das atividades"): começar o serviço pelo pasto, com a máquina, o implemento, o horímetro inicial e o responsável · **Branch:** `feat/atividades-abertura` · **Migration:** nenhuma · **Relatório:** [`ATIVIDADES-ABERTURA-REPORT.md`](./ATIVIDADES-ABERTURA-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`0df374b61`, com as D-PROD-325 a 331) indica D-PROD-332, que é esta; o marcador passa a D-PROD-333. Conferir de novo antes do merge (regra A5).
+
+- **Problema:** o "Iniciar atividade" e o "Diário da máquina" eram duas janelas separadas, e o começo do serviço pedia a Nova realização inteira (áreas, insumos, equipe) antes de a máquina ser registrada.
+- **Decisão — um botão, um diário do zero:** a área (Detalhes, Manejos) tem um botão só, "Diário das atividades". O diário novo (`DiarioDasAtividades`) faz só a **abertura** nesta parte:
+  1. **Tipo:** os 7 tipos fixos em cartões (como a Nova realização);
+  2. **Abrir:** Máquina \*, Implemento (opcional), Horímetro inicial \* e Responsável \*; com mais de uma operação do tipo, a **Operação** \* vem antes (com uma só, ela é usada sozinha; com nenhuma, aviso e o botão não envia);
+  3. **Serviço iniciado:** o cabeçalho do serviço (tipo, máquina, implemento, responsável, pasto e horímetro inicial). Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia **não** estão aqui: chegam nas próximas etapas.
+- **Decisão — a abertura acontece ao INICIAR um serviço:** com uma atividade em andamento no pasto, o botão abre direto no cabeçalho dela; sem ela, abre no tipo.
+- **Decisão — horímetro:** o campo é pt-BR (ponto = milhar, vírgula = decimal). Na troca de máquina, vem preenchido com a última leitura até hoje (`obterMedidorDoBem`); a pessoa pode mudar. Digitando, a leitura não sobrescreve mais, salvo ao trocar de máquina. Não há "hora de início".
+- **Decisão — guardar sem migration:** a abertura vai como PRIMEIRA LINHA da observação do apontamento do dia, no formato `[abertura-servico bem=… impl=… hor=… resp=… bemn=… impln=… respn=…]` (`src/lib/aberturaServicoRegras.js`). Os nomes vão `encodeURIComponent`; campo vazio sai da linha; o texto depois da linha é da pessoa e é preservado.
+  - **Limite:** é texto. Editar a linha à mão pode apagá-la, e a tela então mostra "Abertura não registrada neste serviço". Os números reais do horímetro (inicial e final, por máquina) chegam com o "Encerrar o dia", em tabela própria, numa etapa futura.
+- **Decisão — envio:** um só, `registrarCampo` (`POST /atividades/registrar`), com `area_id`, `tipo_atividade_id`, `data_operacional` (hoje na fazenda), `operador_usuario_id` (o responsável) e a observação com a linha. O servidor acha ou abre a atividade e cria o apontamento do dia. Sem id de volta, a tela avisa e não avança.
+- **Permissão:** só com `lancarApontamento` e fuso configurado; senão, o mesmo aviso da Nova realização.
+- **Fora:** a Nova realização (`RegistroDeCampo`) e o "Diário da máquina" (`DiarioDaMaquina`) continuam no código, sem a entrada no pasto. O "Diário da máquina" da linha de ação (`AcoesDaAtividadeDaArea`) não mudou.
+- **Emenda — tela do serviço aberto (maquete 05):** o passo "Serviço iniciado" deixa de ser um cabeçalho com "em breve" e vira a tela 05 da maquete v4 (`05-servico-aberto-menu-*`). Continua o cabeçalho verde (tipo e "● Aberto", máquina, implemento, responsável, pasto e horímetro inicial). Abaixo:
+  1. **Sete opções em cartões**, duas colunas no celular e no desktop (a última, "Outros custos", ocupa a linha): Insumo, Máquina, Abastecimento, Trocar pasto, Mão de obra, Serviço de terceiro e Outros custos, cada uma com ícone (lucide), título e linha de apoio da maquete. No desktop, aparece a seta. São `<button>` com `data-testid` `servico-opcao-<chave>`.
+  2. **"Lançado hoje"**: as LINHAS CONFIRMADAS de hoje (produto, máquina, mão de obra e serviço de terceiro), na ordem do horário no fuso da fazenda, com a quantidade e a unidade ("1.000 L", "8 h"). Vêm das rotas que já existem: `listarApontamentos` (a lista já traz `produtos`, `maquinas`, `mao_obra` e `servicos`), filtrada por `confirmadosDoDia`; a regra é `lancamentosDoDia` (`src/lib/aberturaServicoRegras.js`). Sem apontamento de hoje, "Nada lançado ainda". O "Abastecimento" ainda não aparece na lista: o apontamento não traz os abastecimentos (vêm de outro cadastro).
+  3. **Sem R$ nem custo** em tela nenhuma desta parte: a tela de campo não mostra valor.
+  4. **Opções e "Encerrar serviço" são "Em breve" por enquanto:** tocar numa opção (ou em "Encerrar serviço") troca o corpo da janela por um painel com o título e o texto "Em breve: esta parte ainda vai ser feita.", e o rodapé mostra só "Voltar ao serviço". Não há pop-up nem rota nova. O "Encerrar serviço" da tela 05 é o botão do rodapé; o "Fechar" antigo saiu (o ✕ fecha a janela).
+  5. Depois de "Iniciar serviço", o apontamento novo entra na lista (invalidação da consulta). A abertura gravada continua sendo a fonte do cabeçalho; sem ela, o cabeçalho lê a da consulta.
+
+- **Emenda — correções da abertura (review Codex):** três correções de P2 na abertura, sem migration e sem mudar a numeração:
+  1. **Plantio pede o capim:** no Plantio de pastagem, a tela 02 mostra "Capim" (`abertura-capim`), depois do Responsável, obrigatório ("Escolha o capim."). As opções são as culturas ATIVAS de pastagem/capineira do cadastro (`listarCulturas` + `capinsDoCadastro`). O envio leva `plantio: { cultura_id }` e só isso (forma, cobertura e consórcio ficam de fora). Nos outros tipos o campo não aparece nem vai no envio. O capim não entra na observação nem no cabeçalho. Trocar de tipo limpa o capim.
+  2. **Máquina no contrato, sem linha de uso:** `POST /atividades/registrar` aceita `bem_id` opcional. Ele vira o `bem_id` da atividade CRIADA (ordem: `bem_id`, depois a 1ª linha de `maquinas[]`, depois nulo) e NÃO cria linha de uso; a tela de abertura não envia `maquinas`. Vale a validação do `abrirNa` (inexistente, inativo ou de outra fazenda → 422, como sempre). O `bem_id` entra no fingerprint só quando vem (sem ele, o fingerprint é o de antes, byte a byte; sem bump de versão). **Fallback:** o front tenta com `bem_id`; se o servidor recusar o campo desconhecido (`REQUEST_VALIDATION_FAILED`, `unknown_field`, campo `bem_id`, lido por `ehCampoDesconhecido` com `lerErroGestao`), repete UMA vez sem `bem_id` (`enviarAbertura`, dentro da tela, não no `registrarCampo` compartilhado). A máquina continua na observação. Limite: sem o backend novo, a atividade nasce sem `bem_id`, e tipo com `exige_maquina` continua recusado (422) até o deploy.
+  3. **Todas as páginas das opções:** máquinas, implementos e operadores são lidos com `lerTodasAsPaginas` (segue `next_cursor` enquanto `has_more`, até 40 páginas), não só a 1ª de 50 itens.
+  - **Migration:** nenhuma (`Atividade.bem_id` já existe). **Testes:** `tests/smoke/aberturaServicoRegras.test.js` (`validarAbertura` com capim, `lerTodasAsPaginas`, `ehCampoDesconhecido`), `tests/smoke/diarioDasAtividades.test.jsx` (capim, plantio, `bem_id` sem `maquinas`, páginas, fallback) e `backend/tests/atividadeRegistro.test.mjs` (`bem_id` sem linha de uso, `bem_id` com `maquinas[]`, `bem_id` inexistente → 422). Os de backend pedem `DATABASE_URL` (CI).
+
+## D-PROD-333 — O cadastro do mapa no celular: igual ao Mapa Geral, "+" na aba Pontos e "Usar minha localização"
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário, com as imagens aprovadas ("Pode implementar por favor") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`CADASTRO-MAPA-CELULAR-D333-REPORT.md`](./CADASTRO-MAPA-CELULAR-D333-REPORT.md)
 
 **Decisão.**
 1. **O mapa do cadastro (áreas, pontos e linhas) fica igual ao Mapa Geral.**
@@ -10234,6 +10265,6 @@ Vários itens ficavam presos para sempre, sem botão:
    - A pessoa pode arrastar o ponto, tocar de novo e desfazer.
    - O botão de baixo passa a se chamar "Continuar" e é ele que abre o formulário. Antes, o toque abria o formulário na hora.
 
-> **Numeração:** depois da D-PROD-331 (PR #422), a `main` indica `Próxima decisão: D-PROD-332`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-333. Conferir de novo antes do merge (regra A5).
+> **Numeração:** nasceu D-PROD-332 (a `main` `0df374b61` indicava `Próxima decisão: D-PROD-332`). Antes do merge, a `main` deu a D-PROD-332 ao diário das atividades, parte 1 (PR #420, `2361f850f`) e passou a indicar `Próxima decisão: D-PROD-333`, que é esta (`node scripts/dev/proxima-decisao.mjs`, regra A5); o marcador passa a D-PROD-334.
 
-<!-- Próxima decisão: D-PROD-333 -->
+<!-- Próxima decisão: D-PROD-334 -->

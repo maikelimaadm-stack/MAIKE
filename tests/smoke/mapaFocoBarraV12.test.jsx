@@ -208,7 +208,7 @@ const TAREFAS = [
 const assentar = () => act(async () => { await new Promise((r) => setTimeout(r, 120)); });
 
 let client;
-/** Onde o roteador está (D-PROD-332: o "+" de Pontos leva ao cadastro). */
+/** Onde o roteador está (D-PROD-333: o "+" de Pontos leva ao cadastro). */
 const rota = { atual: '' };
 function SondaDeRota() {
   const l = useLocation();
@@ -663,7 +663,7 @@ describe('BARRA-8 — D-PROD-326: cada aba com as suas camadas e os seus filtros
   });
 });
 
-describe('BARRA-9 — D-PROD-332: botão redondo "Novo ponto" na aba Pontos', () => {
+describe('BARRA-9 — D-PROD-333: botão redondo "Novo ponto" na aba Pontos', () => {
   const novoPonto = () => screen.queryByRole('button', { name: 'Novo ponto' });
 
   it('só aparece na aba Pontos e leva direto ao cadastro de ponto', async () => {

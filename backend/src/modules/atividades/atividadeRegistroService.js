@@ -683,6 +683,8 @@ const situacaoDoParado = async (tx, { clienteId, empresaId, atividadeId, areaIds
 // ─── o registro ─────────────────────────────────────────────────────────────
 
 /**
+ * D-PROD-332 (emenda): `bem_id` (opcional) é a MÁQUINA do serviço na abertura: vira o `bem_id` da atividade criada e NÃO
+ * cria linha de uso (a linha vem só de `maquinas[]`). Sem ele, o bem é o da 1ª linha de máquina, como antes.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {Record<string, any>} corpo
  */
@@ -709,6 +711,9 @@ export const registrarCampo = async (contexto, corpo) => {
   const receituario = receituarioDoCorpo(corpo.numero_receituario);
   const unidadeFeita = unidadeFeitaDoCorpo(corpo.unidade_producao_sigla);
   const plantio = corpo.plantio === undefined || corpo.plantio === null ? null : plantioDoCorpo(corpo.plantio);
+  // D-PROD-332 (emenda): a máquina do serviço NA ABERTURA (`bem_id`). É o `bem_id` da atividade CRIADA e NÃO cria linha de
+  // uso (a linha vem só de `maquinas[]`). Validada no `abrirNa` como sempre (inexistente/inativo/outra fazenda → 422).
+  const bemDaAbertura = idOuNulo(corpo.bem_id, 'bem_id');
   if (local && !semArea) throw invalido('local só vale sem área: com área, o lugar do serviço é a própria área', { field: 'local', reason: 'com_area' });
   // D-PROD-276: a reforma de que a realização faz parte (só com área).
   const planejamentoId = idOuNulo(corpo.planejamento_id, 'planejamento_id') ?? null;
@@ -750,6 +755,8 @@ export const registrarCampo = async (contexto, corpo) => {
     ...(unidadeFeita ? { unidade_producao_sigla: unidadeFeita } : {}),
     // D-PROD-276: a reforma ("Faz parte de"), só quando vem.
     ...(planejamentoId ? { planejamento_id: planejamentoId } : {}),
+    // D-PROD-332 (emenda): a máquina da abertura, só quando vem (sem ela, o fingerprint de antes, byte a byte).
+    ...(bemDaAbertura ? { bem_id: bemDaAbertura } : {}),
   };
   const origem = origemDoCorpo(corpo.origem);
   const linhas = linhasDoCorpo(corpo);
@@ -914,11 +921,12 @@ export const registrarCampo = async (contexto, corpo) => {
         }
       } else {
         criada = true;
-        const bemDaPrimeiraMaquina = Array.isArray(corpo.maquinas) && corpo.maquinas[0]?.bem_id ? String(corpo.maquinas[0].bem_id) : null;
+        // D-PROD-332 (emenda): o bem da atividade é o `bem_id` da abertura; sem ele, a 1ª linha de máquina (como sempre).
+        const bemDaAtividade = bemDaAbertura ?? (Array.isArray(corpo.maquinas) && corpo.maquinas[0]?.bem_id ? String(corpo.maquinas[0].bem_id) : null);
         // D-PROD-274: a SAFRA automática (o ano agrícola do dia) quando o corpo não a traz — Plantio, Fertilização e as
         // operações com `exige_safra`. Calculada aqui, DEPOIS do fingerprint (que segue com o `safra_ciclo` do corpo).
         const safraDaAtividade = safra ?? (TIPOS_COM_SAFRA.includes(tipoFixo) || tipo.exige_safra ? safraDoDia(dia) : null);
-        const comum = { data_inicio: dia, safra_ciclo: safraDaAtividade, bem_id: bemDaPrimeiraMaquina };
+        const comum = { data_inicio: dia, safra_ciclo: safraDaAtividade, bem_id: bemDaAtividade };
         const nome = semArea ? nomeDoRegistro(tipo.nome_tipo, /** @type {string} */ (local), dia) : nomeDoRegistro(tipo.nome_tipo, nomes.get(alvos[0].area_id) ?? '', dia, alvos.length - 1);
         const aberta = await abrirNa(tx, contexto, {
           clienteId: cli,

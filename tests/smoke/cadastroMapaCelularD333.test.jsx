@@ -1,5 +1,5 @@
 /**
- * D-PROD-332 — cadastro do mapa no celular:
+ * D-PROD-333 — cadastro do mapa no celular:
  *  - "+" da aba Pontos abre o cadastro direto no ponto (`/mapacadastro?novo=ponto`);
  *  - "Usar minha localização" põe o ponto onde a pessoa está; "Continuar" abre o formulário com ele;
  *  - as listas do formulário lateral abrem DENTRO dele (tocar na lista não fecha o formulário).
@@ -101,7 +101,7 @@ const abrirDesenhoDePonto = async () => {
   await carregarMapa();
 };
 
-describe('D-PROD-332 — "+" da aba Pontos abre o cadastro direto no ponto', () => {
+describe('D-PROD-333 — "+" da aba Pontos abre o cadastro direto no ponto', () => {
   it('/mapacadastro?novo=ponto abre o editor de ponto (com "Usar minha localização") e limpa o endereço', async () => {
     const { default: MapaCadastro } = await import('@/pages/MapaCadastro.jsx');
     await act(async () => {
@@ -133,7 +133,7 @@ describe('D-PROD-332 — "+" da aba Pontos abre o cadastro direto no ponto', () 
   });
 });
 
-describe('D-PROD-332 — "Usar minha localização" no cadastro de ponto', () => {
+describe('D-PROD-333 — "Usar minha localização" no cadastro de ponto', () => {
   it('põe o ponto na posição do GPS; "Continuar" abre o formulário com ela', async () => {
     await abrirDesenhoDePonto();
     const continuar = screen.getByRole('button', { name: 'Continuar' });
@@ -159,7 +159,7 @@ describe('D-PROD-332 — "Usar minha localização" no cadastro de ponto', () =>
   });
 });
 
-describe('D-PROD-332 — a lista do formulário abre dentro do formulário lateral', () => {
+describe('D-PROD-333 — a lista do formulário abre dentro do formulário lateral', () => {
   it('as listas do formulário de ponto têm como destino um lugar DENTRO do painel', async () => {
     await abrirDesenhoDePonto();
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Usar minha localização' })); });

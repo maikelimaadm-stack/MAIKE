@@ -1,6 +1,6 @@
-# Relatório — o cadastro do mapa no celular (D-PROD-332)
+# Relatório — o cadastro do mapa no celular (D-PROD-333)
 
-**Data:** 2026-11-26 · **Branch:** `claude/nifty-feynman-rh0kdn` · **Decisão:** [D-PROD-332](./DECISIONS.md)
+**Data:** 2026-11-26 · **Branch:** `claude/nifty-feynman-rh0kdn` · **Decisão:** [D-PROD-333](./DECISIONS.md)
 
 ## Pedido
 
@@ -29,7 +29,7 @@ O painel de filtros do Mapa Geral já tinha resolvido isso com `MobileSheetPorta
 
 ## Verificação
 
-- `tests/smoke/cadastroMapaCelularD332.test.jsx` (8 testes):
+- `tests/smoke/cadastroMapaCelularD333.test.jsx` (8 testes):
   - `?novo=ponto` abre o editor de ponto e limpa o endereço.
   - Fechar o editor volta ao Mapa Geral.
   - Sem o pedido, o cadastro abre na lista.

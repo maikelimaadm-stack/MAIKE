@@ -386,7 +386,7 @@ describe("Cadastro do Mapa — 'Importar áreas' na aba Áreas", () => {
     }));
     vi.resetModules();
     const { default: MapaCadastro } = await import("@/pages/MapaCadastro");
-    // Depois do resetModules: o roteador vem da mesma cópia que o MapaCadastro usa (D-PROD-332).
+    // Depois do resetModules: o roteador vem da mesma cópia que o MapaCadastro usa (D-PROD-333).
     const { MemoryRouter } = await import("react-router-dom");
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(

@@ -268,7 +268,7 @@ export default function MapaGeral({ ativo = true } = {}) {
     [acessoTotalTelas, permissaoAtual]
   );
 
-  // D-PROD-332: o "+" da aba Pontos abre o cadastro de pontos — só para quem pode cadastrar no Cadastro do Mapa.
+  // D-PROD-333: o "+" da aba Pontos abre o cadastro de pontos — só para quem pode cadastrar no Cadastro do Mapa.
   const podeCadastrarPonto = acessoTotalTelas || canPerformAction(permissaoAtual, 'pec-mapa-cadastro', 'mapa', 'novo');
 
   const podeUsarTarefasMapa = useMemo(() => {
@@ -1530,7 +1530,7 @@ export default function MapaGeral({ ativo = true } = {}) {
           </button>
         </> :
         <>
-        {/* D-PROD-332: na aba Pontos, o "+" redondo abre direto a marcação de um ponto novo no Cadastro do Mapa. */}
+        {/* D-PROD-333: na aba Pontos, o "+" redondo abre direto a marcação de um ponto novo no Cadastro do Mapa. */}
         {focoAtivo === 'pastos' && podeCadastrarPonto &&
         <button type="button" className="mk-mapa-novo-ponto" aria-label="Novo ponto" title="Novo ponto" data-mk-novo-ponto=""
           onClick={() => navigate(`${createPageUrl('MapaCadastro')}?novo=ponto`)}>

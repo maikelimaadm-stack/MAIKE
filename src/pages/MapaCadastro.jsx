@@ -89,7 +89,7 @@ export default function MapaCadastro() {
   const empresaAnteriorRef = useRef(empresaSelecionadaId);
   const navigate = useNavigate();
   const [parametros, setParametros] = useSearchParams();
-  // D-PROD-332: aberto pelo botão "+" do Mapa Geral (aba Pontos): ao terminar ou cancelar, volta para o mapa.
+  // D-PROD-333: aberto pelo botão "+" do Mapa Geral (aba Pontos): ao terminar ou cancelar, volta para o mapa.
   const voltarAoMapaGeralRef = useRef(false);
 
   useEffect(() => {
@@ -201,7 +201,7 @@ export default function MapaCadastro() {
     }
   };
 
-  // D-PROD-332: `?novo=ponto` (o botão "+" da aba Pontos do Mapa Geral) abre direto a marcação de um ponto novo.
+  // D-PROD-333: `?novo=ponto` (o botão "+" da aba Pontos do Mapa Geral) abre direto a marcação de um ponto novo.
   useEffect(() => {
     if (parametros.get("novo") !== "ponto") return;
     voltarAoMapaGeralRef.current = true;

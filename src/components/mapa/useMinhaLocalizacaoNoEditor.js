@@ -4,7 +4,7 @@ import { buildAccuracyCircleCollection } from "@/lib/maplibre/gpsCapture.js";
 import { useLocalizacaoNoMapa } from "./useLocalizacaoNoMapa";
 
 /**
- * D-PROD-332 — o ponto azul da localização no mapa do CADASTRO (áreas, pontos e linhas), igual ao Mapa Geral:
+ * D-PROD-333 — o ponto azul da localização no mapa do CADASTRO (áreas, pontos e linhas), igual ao Mapa Geral:
  * o mesmo GPS (`useLocalizacaoNoMapa`, alta precisão, o ponto anda junto) e o círculo da precisão real. Antes o
  * cadastro não mostrava onde a pessoa está; o botão só centralizava a tela uma vez.
  *

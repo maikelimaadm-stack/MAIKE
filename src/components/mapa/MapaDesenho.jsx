@@ -643,7 +643,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       if (r.ima) toast.success("Encaixado!", { duration: 600 });
 
       if (tipoDesenho === "ponto") {
-        // D-PROD-332: o toque só marca (dá para arrastar ou usar a localização); "Continuar" abre o formulário.
+        // D-PROD-333: o toque só marca (dá para arrastar ou usar a localização); "Continuar" abre o formulário.
         undoStackRef.current.push(currentMarkerRef.current ? [{ ...currentMarkerRef.current }] : []);
         redoStackRef.current = [];
         syncHistoryUi();
@@ -1199,11 +1199,11 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     return () => window.removeEventListener("keydown", onKey);
   }, [verticeSelecionado, removerVerticeSelecionado, emPrevia]);
 
-  // D-PROD-332: o ponto azul da localização, como no Mapa Geral (GPS sempre ligado com o editor aberto).
+  // D-PROD-333: o ponto azul da localização, como no Mapa Geral (GPS sempre ligado com o editor aberto).
   const minhaLocalizacao = useMinhaLocalizacaoNoEditor({ mapInstanceRef, mapReady, aoErro: (m) => toast.error(m) });
 
   const basemapMap = mapReady ? mapInstanceRef.current : null;
-  // D-PROD-332: abre no satélite, como o Mapa Geral (antes abria no mapa de ruas).
+  // D-PROD-333: abre no satélite, como o Mapa Geral (antes abria no mapa de ruas).
   const basemap = useBasemap(basemapMap, {
     inicial: BASEMAP_IDS.SATELITE,
     reaplicarCamadas: () => {
@@ -1217,7 +1217,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   });
 
   /**
-   * D-PROD-332 — "Usar minha localização": o ponto vai para onde a pessoa está (a leitura mais recente do GPS;
+   * D-PROD-333 — "Usar minha localização": o ponto vai para onde a pessoa está (a leitura mais recente do GPS;
    * sem ela, pede uma agora) e o mapa centraliza nele. Dá para arrastar depois e desfazer.
    */
   const usarMinhaLocalizacao = () => {
