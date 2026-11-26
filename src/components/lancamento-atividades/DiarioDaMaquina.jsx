@@ -59,10 +59,10 @@ import {
 } from "@/services/lancamentoAtividadesService";
 
 /**
- * O DIÁRIO DAS ATIVIDADES (D-PROD-314, fases 3 a 7; D-PROD-324 para a entrada): UMA janela Base1 (680px; tela cheia no
+ * O DIÁRIO DAS ATIVIDADES (D-PROD-314, fases 3 a 7; D-PROD-325 para a entrada): UMA janela Base1 (680px; tela cheia no
  * celular) que troca de CONTEÚDO por seção, sem abrir janela sobre janela.
  *
- * ENTRADA (D-PROD-324): com o pasto sem serviço aberto hoje, a primeira tela é "Abrir serviço" (máquina, responsável,
+ * ENTRADA (D-PROD-325): com o pasto sem serviço aberto hoje, a primeira tela é "Abrir serviço" (máquina, responsável,
  * implemento e a hora de início; a operação só quando o pasto não tem atividade em andamento). O serviço é da ATIVIDADE e
  * do dia: o lançamento de hoje é reaproveitado (ou um novo é criado, sem apagar nada). Com o serviço aberto, a tela mostra
  * o cabeçalho (máquina · responsável · implemento · desde HH:MM) e as ações do dia: Lançar produto/mistura, Aplicar,
@@ -214,7 +214,7 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
   /**
    * Grava o serviço (a linha do marcador). Com o lançamento do pasto de hoje e a permissão de editar, ele é ATUALIZADO (o
    * texto que já estava nele fica). Sem isso, cria um lançamento de hoje SEM linhas, só com a linha do serviço (quem só
-   * lança não edita, D-PROD-324). @param {{ servico: any, responsavelId: string|null, ap: any, tipoId: string }} p
+   * lança não edita, D-PROD-325). @param {{ servico: any, responsavelId: string|null, ap: any, tipoId: string }} p
    */
   const gravarMarcadorDoServico = async ({ servico: s, responsavelId, ap, tipoId }) => {
     const operador = responsavelId || ap?.operador_usuario_id || null;
@@ -255,7 +255,7 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
     }
   };
 
-  /** Passo 2: aplica a mistura neste pasto. Sem o lançamento de hoje, o servidor cria (D-PROD-324). @param {{ esvaziou: boolean, sobra: string }} p */
+  /** Passo 2: aplica a mistura neste pasto. Sem o lançamento de hoje, o servidor cria (D-PROD-325). @param {{ esvaziou: boolean, sobra: string }} p */
   const gravarAplicacao = async ({ esvaziou, sobra }) => {
     if (!aberta) return;
     setEnviando(true);
@@ -272,7 +272,7 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
   };
 
   /**
-   * Abrir serviço (D-PROD-324): a máquina, o responsável, o implemento e a hora de início vão na linha do serviço. Se o
+   * Abrir serviço (D-PROD-325): a máquina, o responsável, o implemento e a hora de início vão na linha do serviço. Se o
    * pasto não tem atividade, o servidor abre uma com a operação escolhida (o mesmo "Registrar" da tela de atividades).
    * @param {{ bemId: string, responsavelId: string, implementoId: string|null, inicio: string, tipoId: string|null }} f
    */
@@ -304,7 +304,7 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
 
   /**
    * Trocar pasto: a sobra vai junto, volta ao depósito ou é perda; o pasto de chegada vira o atual. Os horímetros são
-   * gravados SEMPRE que informados (D-PROD-324): a transferência os leva no próprio movimento da sobra; sem transferência
+   * gravados SEMPRE que informados (D-PROD-325): a transferência os leva no próprio movimento da sobra; sem transferência
    * (sem sobra, ou sobra devolvida/perdida), vão num trajeto só com horímetros, sem mexer em estoque.
    */
   const trocarPasto = async ({ proximo, sobra, horimetroSaida, horimetroChegada }) => {
@@ -342,7 +342,7 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
   };
 
   /**
-   * Encerrar serviço (D-PROD-324): grava a hora de fim (no fuso da fazenda) e o destino da sobra (se houver). "Fez o pasto
+   * Encerrar serviço (D-PROD-325): grava a hora de fim (no fuso da fazenda) e o destino da sobra (se houver). "Fez o pasto
    * todo" abre a conclusão, depois de fechar o diário; senão, leva ao resumo do dia.
    */
   const encerrar = async ({ sobra, fezTodo }) => {
@@ -374,7 +374,7 @@ export default function DiarioDaMaquina({ atividade, areaId, areaNome = "", tipo
   };
 
   /**
-   * Abastecer (D-PROD-324, item 1): prévia e confirmação pelo MESMO caminho da tela Abastecimentos, ligado ao lançamento
+   * Abastecer (D-PROD-325, item 1): prévia e confirmação pelo MESMO caminho da tela Abastecimentos, ligado ao lançamento
    * de hoje desta área (criado aqui se faltar). Se a rota não existir no servidor, cai no formulário antigo.
    * @param {any} form
    */

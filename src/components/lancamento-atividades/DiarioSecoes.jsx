@@ -242,7 +242,7 @@ export function SecaoPasso1({ atividadeId, empresaId, implementos, ultimaImpleme
 
 /**
  * Passo 2 · Aplicar no pasto: esvaziou o implemento neste pasto? Se não, quanto sobrou (a sobra fica no implemento).
- * Mostra quanto de cada produto foi para o pasto. Não precisa do lançamento do dia: o servidor cria o de hoje (D-PROD-324).
+ * Mostra quanto de cada produto foi para o pasto. Não precisa do lançamento do dia: o servidor cria o de hoje (D-PROD-325).
  */
 export function SecaoPasso2({ mistura, onVoltar, onGravar, enviando }) {
   const [esvaziou, setEsvaziou] = useState(true);
@@ -336,7 +336,7 @@ const rotuloDoTanque = (t) => {
 };
 
 /**
- * Abastecer (D-PROD-324, item 1): a MÁQUINA já vem do contexto; a pessoa informa os litros (ou kg) e o horímetro. Produto,
+ * Abastecer (D-PROD-325, item 1): a MÁQUINA já vem do contexto; a pessoa informa os litros (ou kg) e o horímetro. Produto,
  * tanque e local vêm das opções do servidor e só aparecem quando há mais de uma escolha. Grava pelo caminho da tela
  * Abastecimentos (prévia e confirmação, `abastecimentoService`), ligado ao lançamento de hoje da área, sem abrir janela nova.
  * @param {{ empresaId: string, bem: { id?: unknown, nome?: string }|null, hoje: string, onVoltar: () => void,
@@ -499,7 +499,7 @@ export function SecaoAbastecer({ empresaId, bem, hoje, onVoltar, onGravar, envia
 
 /** Mais: abastecer e mão de obra (as janelas que já existem, no lugar desta). */
 /**
- * Mais (D-PROD-324): serviços, mão de obra e outros custos do serviço aberto. Lançados depois, não no primeiro passo.
+ * Mais (D-PROD-325): serviços, mão de obra e outros custos do serviço aberto. Lançados depois, não no primeiro passo.
  * "Outros custos" abre o lançamento de hoje (todas as linhas).
  */
 export function SecaoMais({ onServicos, onMaoObra, onOutrosCustos, onVoltar }) {
@@ -522,7 +522,7 @@ export function SecaoMais({ onServicos, onMaoObra, onOutrosCustos, onVoltar }) {
 }
 
 /**
- * Abrir serviço (D-PROD-324): o primeiro passo do dia no pasto. SÓ estes campos: máquina, responsável, implemento e a hora
+ * Abrir serviço (D-PROD-325): o primeiro passo do dia no pasto. SÓ estes campos: máquina, responsável, implemento e a hora
  * de início (padrão = agora, no fuso da fazenda). A operação aparece só quando o pasto não tem atividade em andamento (sem
  * ela não há atividade a abrir). Quem chama passa as listas e os padrões; esta seção não busca nada.
  */

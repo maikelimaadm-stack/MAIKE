@@ -10021,7 +10021,39 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Testes:** `backend/tests/diarioMaquina.test.mjs` 24/24 contra PostgreSQL LOCAL de teste (15 regras puras + 9 de integração: mistura sem baixa, 409, aplicar com sobra e baixa proporcional pelo motor, replay, transferência, devolução sem movimento, perda com motivo, resumo com/sem custo, quantidade padrão do produto); `test:gates` 1097/1097; smoke `diarioMaquina`, `diarioMaquinaService`, `implementoRegras`; smoke completo 4435/4435.
 - **Release:** `SCHEMA_APPLIED_PROD: SIM`: aplicada em produção em 2026-11-26, antes do merge, pelo caminho B com o GO do proprietário ("Sim, pode criar as tabelas no banco e fazer o merge"); 83 concluídas, 0 ruins, 3 tabelas com RLS, 4 colunas (ver o registro no runbook).
 
-## D-PROD-324 — Diário da máquina, ajustes finais e entrada "Abrir serviço": abastecer dentro do diário, horímetro sempre salvo, Passo 2 sem lançamento do dia, resumo por unidade e um só ponto de entrada no pasto
+## D-PROD-324 — Tarefas, parte 3: tarefas sem internet, com as fotos guardadas no aparelho
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário (tarefas funcionando sem internet), com a escolha dele: "Guardar e subir depois" as fotos tiradas sem internet · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFAS-SEM-INTERNET-D324-REPORT.md`](./TAREFAS-SEM-INTERNET-D324-REPORT.md)
+
+> **Numeração:** a `main` (`4e55caa43`) indica `Próxima decisão: D-PROD-324`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-325. Conferir de novo antes do merge (regra A5).
+
+- **Problema:** a tarefa já ia pela fila sem internet, com o id do aparelho (D-PROD-319). As fotos não: a tela pedia para salvar sem elas e anexá-las depois.
+- **Decisão — fotos guardadas (`fotosDeTarefaAguardandoService`):**
+  - Sem internet, a tarefa (criação ou edição) vai pela fila sem as fotos novas. As fotos ficam no IndexedDB do aparelho, ligadas ao id da tarefa (`pending_tarefa_images`, `tarefa_offline_id = "tarefa:<id>"`).
+  - A cada passada da sincronização com internet (`registrarPassadaExtra`):
+    1. a foto espera a **criação** da tarefa chegar ao servidor;
+    2. sobe **uma vez**, e o endereço fica gravado na própria foto;
+    3. entra nas fotos que a tarefa já tem, gravada pela porta de sempre, com um evento "Edição" no histórico;
+    4. só então sai do aparelho.
+  - A tarefa que falha não impede as outras.
+- **Decisão — telas:**
+  - O painel (nova ou editar) e os detalhes (editar) usam isso no lugar do aviso de recusa. A mensagem diz "salva no aparelho com as fotos".
+  - Os detalhes mostram "N fotos aguardando envio".
+  - O resumo marca a tarefa feita sem internet e ainda não enviada com "aguardando envio".
+- **Decisão — a foto guardada se vê e se mexe** (pedido do proprietário: "o certo era a foto aparecer e eu poder… excluir a foto e tirar de novo… clicar nela e abrir"):
+  - Nos detalhes (galeria) e na edição (formulário), a foto guardada aparece em miniatura com o selo "Aguardando envio".
+  - Toda foto abre em **tela cheia** ao tocar: a enviada, a guardada e a nova do formulário. É o `VisualizadorDeFotos`, separado da galeria.
+  - O ✕ exclui a foto guardada do celular depois de confirmar. Para tirar de novo, é só adicionar outra.
+  - O ✕ fica sempre visível; no celular não há "passar o mouse".
+  - **Duas opções para pôr foto** (pedido do proprietário: "tem que ter opções de tirar e subir"):
+    - **Tirar foto** abre a câmera direto (`<input capture="environment">`);
+    - **Galeria** escolhe as fotos já tiradas, várias de uma vez.
+    - O APK já tem a permissão de câmera e o `FileProvider`, então não precisa de APK novo: a mudança chega pela atualização automática.
+- **Fora:** a tarefa recusada pelo servidor: a foto dela fica guardada até a tarefa ser corrigida ou descartada.
+
+## D-PROD-325 — Diário da máquina, ajustes finais e entrada "Abrir serviço": abastecer dentro do diário, horímetro sempre salvo, Passo 2 sem lançamento do dia, resumo por unidade e um só ponto de entrada no pasto
+
+> **Numeração:** nasceu D-PROD-324; a `main` (`3cbab18d5`, PR #411) levou a D-PROD-324 (Tarefas, parte 3) e esta passou a D-PROD-325 (regra A5); o marcador passa a D-PROD-326.
 
 **Data:** 2026-11-26 · **Origem:** ajustes finais pedidos pelo proprietário sobre o Diário da máquina já na `main` (D-PROD-322 e D-PROD-323) · **Branch:** `feat/diario-ajustes-finais`
 
@@ -10038,7 +10070,7 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
   - **Cabeçalho e ações do dia:** o cabeçalho mostra `máquina · responsável · implemento · desde HH:MM` (ou `encerrado às HH:MM`). Ações: **Lançar produto/mistura** (Passo 1, com o implemento do serviço, sem perguntar de novo), **Aplicar no pasto** (Passo 2, com a mistura aberta e a quantidade sugerida), **Abastecer** (no próprio diário), **Trocar pasto (horímetro)**, **Encerrar serviço** (grava a hora de fim e leva ao resumo do dia; "fez o pasto todo" abre a conclusão), **Mais** (Serviços, Mão de obra e Outros custos, lançados depois do serviço aberto) e **Resumo do dia**.
   - **O serviço vale para a atividade no dia, não para o pasto:** trocar de pasto não pede de novo a máquina, o responsável e o implemento. Os lançamentos de hoje de todas as áreas da atividade são lidos; o mais novo com a linha é o serviço.
   - **Degradação:** o "Abrir serviço" usa só rotas que já existem (`GET …/apontamentos`, `POST …/apontamentos` via `registrar`, `PATCH` do apontamento), então abre também no servidor de produção. Passo 1, Passo 2, trocar pasto e abastecer seguem a degradação de sempre (aviso "Diário da máquina ainda não está ligado no servidor" e "Lançamento de hoje").
-  - **Correção de tipo:** o erro de rota ausente (`rotaAusente`, D-PROD-324 item 1) não tipava no typecheck e fazia o gate de tipos falhar; o erro passa a ser tipado como `ApiError` com `rotaAusente` (sem mudar o comportamento).
+  - **Correção de tipo:** o erro de rota ausente (`rotaAusente`, D-PROD-325 item 1) não tipava no typecheck e fazia o gate de tipos falhar; o erro passa a ser tipado como `ApiError` com `rotaAusente` (sem mudar o comportamento).
 - **Migration:** nenhuma. Nenhuma coluna ou tabela nova; o `AtividadeMisturaMovimento` já existente guarda o trajeto. **Não se aplica nada em banco remoto.**
 - **Erros novos:** nenhum código novo; os motivos reaproveitam `MISTURA_MOVIMENTO_INVALIDO` (`horimetro`, `sem_mistura`, `fora_da_atividade`) e `MISTURA_AREA_DIFERENTE`.
 - **Constituição:** sem mudança.
@@ -10047,4 +10079,4 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Testes (entrada "Abrir serviço", ajuste final):** `tests/smoke/diarioMaquina.test.jsx` 27/27 (novos: abrir com e sem atividade, validação, máquina e responsável já escolhidos, cabeçalho, Passo 1 com o implemento do serviço, Mais, Encerrar com a hora de fim, serviço encerrado); `tests/smoke/diarioFase2.test.jsx` (a entrada única "Diário das atividades", com e sem atividade); `tests/smoke/diarioServicoRegras.test.js` (a linha, a observação preservada, a hora no fuso, a validação); `tests/smoke/mapaAtividadeAcoes.test.jsx` (rótulo do menu). Typecheck: sem erro novo (370 nos dois lados, HEAD e a branch); `gate:types` PASSOU; lint limpo nos arquivos alterados. Backend não mudou nesta entrega.
 - **Testes (anteriores):** `backend/tests/diarioMaquina.test.mjs` 29/29 contra PostgreSQL local (novos: Passo 2 sem lançamento, idempotência, perda sem lançamento, trajeto com replay e as três recusas, resumo L e kg, lista com `items`); `tests/smoke/diarioMaquina.test.jsx` (trajeto sem sobra, abastecer: caminho, validação, rota ausente e sem máquina; resumo L e kg); `tests/smoke/implementoRegras.test.js` (trajeto e falha de rota); `tests/smoke/rotaAusente.test.js` (a marcação no cliente HTTP); gates 1097/1097; typecheck do backend limpo; lint nos arquivos alterados limpo.
 
-<!-- Próxima decisão: D-PROD-325 -->
+<!-- Próxima decisão: D-PROD-326 -->

@@ -1,7 +1,7 @@
-# MAIKE — Diário das atividades: ajustes finais e entrada "Abrir serviço" (relatório, D-PROD-324)
+# MAIKE — Diário das atividades: ajustes finais e entrada "Abrir serviço" (relatório, D-PROD-325)
 
 **Branch:** `feat/diario-ajustes-finais` (a partir da `main`, com o Diário da máquina da PR #406 já integrado).
-**Decisão:** [D-PROD-324](./DECISIONS.md). **Migration:** nenhuma. **Banco remoto:** nada aplicado. **Commit/push:** não feitos.
+**Decisão:** [D-PROD-325](./DECISIONS.md). **Migration:** nenhuma. **Banco remoto:** nada aplicado. **Commit/push:** não feitos.
 
 ## 1. O que mudou, por item
 
@@ -38,7 +38,7 @@ Os três abaixo já estavam na `main` (PR #406). Os smoke antigos não pegavam p
 ## 5. Entrada "Abrir serviço" e o fluxo do dia (missão de entrada, mesma PR)
 
 Pedido: o fluxo de lançar com implemento estava confuso. Redesenho da ENTRADA e do fluxo do diário, sem wizard e sem popup
-sobre popup (B1Janela 680px; tela cheia no celular; rodapé embaixo). Decisão: D-PROD-324 (`DECISIONS.md`).
+sobre popup (B1Janela 680px; tela cheia no celular; rodapé embaixo). Decisão: D-PROD-325 (`DECISIONS.md`).
 
 ### O fluxo, passo a passo
 

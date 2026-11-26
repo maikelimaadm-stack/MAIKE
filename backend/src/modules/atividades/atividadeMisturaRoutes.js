@@ -5,10 +5,10 @@
  *  - `POST  /atividades/:id/misturas` (`lancar_apontamento`) — Passo 1 "Implemento cheio"; 201; sem baixa de estoque
  *  - `POST  /atividades/:id/apontamentos/:apontamentoId/misturas/:misturaId/aplicar` (`lancar_apontamento`) — Passo 2; 201
  *  - `POST  /atividades/:id/misturas/:misturaId/aplicar` (`lancar_apontamento`) — Passo 2 SEM lançamento do dia: cria o
- *    lançamento de hoje da área se faltar (D-PROD-324); 201
+ *    lançamento de hoje da área se faltar (D-PROD-325); 201
  *  - `POST  /atividades/:id/misturas/:misturaId/sobra` (`lancar_apontamento`) — TRANSFERENCIA | DEVOLUCAO | PERDA; 200
  *  - `POST  /atividades/:id/trajetos` (`lancar_apontamento`) — só horímetros de saída/chegada entre pastos, sem sobra e
- *    sem estoque (D-PROD-324); 201
+ *    sem estoque (D-PROD-325); 201
  *  - `POST  /atividades/:id/diario-dia` (`lancar_apontamento`) — garante o lançamento de hoje da área (idempotente); 200
  *  - `GET   /atividades/:id/diario-resumo?empresa_id=&dia=YYYY-MM-DD` (ver) — por área; `custo_total` só para o
  *    administrador da fazenda
@@ -104,7 +104,7 @@ const SOBRA = {
   },
 };
 
-/** Passo 2 sem lançamento do dia (D-PROD-324): a mesma aplicação, sem o `apontamento_id` na rota. */
+/** Passo 2 sem lançamento do dia (D-PROD-325): a mesma aplicação, sem o `apontamento_id` na rota. */
 const APLICAR_NO_DIA = {
   params: PARAMS_MISTURA,
   body: {
@@ -115,7 +115,7 @@ const APLICAR_NO_DIA = {
   },
 };
 
-/** Trajeto sem sobra (D-PROD-324): só os horímetros do pasto que sai e do que chega (pelo menos um). */
+/** Trajeto sem sobra (D-PROD-325): só os horímetros do pasto que sai e do que chega (pelo menos um). */
 const TRAJETO = {
   params: PARAMS_ATIVIDADE,
   body: {
@@ -133,7 +133,7 @@ const TRAJETO = {
   },
 };
 
-/** Lançamento do dia da área (D-PROD-324): o abastecimento o pede antes de gravar. */
+/** Lançamento do dia da área (D-PROD-325): o abastecimento o pede antes de gravar. */
 const DIA_DO_DIARIO = {
   params: PARAMS_ATIVIDADE,
   body: {

@@ -101,7 +101,7 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
   const queryClient = useQueryClient();
   const acoesTela = useAcoesTelaAtividades();
   const { fusoOk } = useFusoDaFazenda(empresaId);
-  // "Diário das atividades" (D-PROD-324): o ÚNICO ponto de entrada de lançamento no pasto. Abre o diário com a atividade
+  // "Diário das atividades" (D-PROD-325): o ÚNICO ponto de entrada de lançamento no pasto. Abre o diário com a atividade
   // em andamento (se houver) ou sem atividade: o primeiro passo é "Abrir serviço" (ele cria a atividade, se preciso).
   const [abrindoDiario, setAbrindoDiario] = useState(false);
   const [diarioAberto, setDiarioAberto] = useState(/** @type {{ atividade: any | null, chave: number } | null} */ (null));
@@ -175,7 +175,7 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
     <Vazio icone={Sprout}>Nenhuma atividade nesta área agora.</Vazio>
   );
 
-  // Diário das atividades (D-PROD-324): com permissão de lançar. A atividade em andamento (se houver) entra no diário; sem
+  // Diário das atividades (D-PROD-325): com permissão de lançar. A atividade em andamento (se houver) entra no diário; sem
   // ela, o diário abre sem atividade e o "Abrir serviço" cria a atividade do pasto.
   const atividadeEmAndamento = atividades.find((a) => a.area_status === STATUS_AREA.EM_ANDAMENTO) ?? null;
   const podeDiario = Boolean(empresaId) && fusoOk && acoesTela.lancarApontamento === true;

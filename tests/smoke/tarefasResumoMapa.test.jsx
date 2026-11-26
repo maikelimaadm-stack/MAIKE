@@ -6,6 +6,7 @@
  * RS-02 aba Concluídas: as concluídas e as canceladas
  * RS-03 tocar numa tarefa abre os detalhes; "Nova tarefa" no rodapé
  * RS-04 sem tarefas: aviso, sem lista
+ * RS-05 D-PROD-324: a tarefa feita sem internet e ainda não enviada mostra "aguardando envio"
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -69,5 +70,10 @@ describe('D-PROD-321 — resumo das tarefas', () => {
     montar({ tarefas: [] });
     expect(screen.queryByRole('list')).toBeNull();
     expect(screen.getByText('Nenhuma tarefa aberta.')).toBeTruthy();
+  });
+
+  it('RS-05 a tarefa feita sem internet mostra "aguardando envio"', () => {
+    montar({ tarefas: [{ id: 'n', titulo: 'Nova no campo', status: 'Pendente', prioridade: 'Média', area_nome: 'PASTO 2', _isOffline: true }] });
+    expect(itens()[0].textContent).toContain('Pendente · aguardando envio');
   });
 });

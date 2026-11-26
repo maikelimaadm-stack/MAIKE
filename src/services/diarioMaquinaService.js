@@ -84,7 +84,7 @@ export const criarMistura = (atividadeId, corpo) => {
 
 /**
  * Passo 2: aplica a mistura neste pasto (baixa do estoque, pelo motor, o que saiu do implemento). Não precisa do
- * lançamento do dia: o servidor acha ou cria o de hoje da área, na mesma transação (D-PROD-324).
+ * lançamento do dia: o servidor acha ou cria o de hoje da área, na mesma transação (D-PROD-325).
  * @param {string} atividadeId @param {string} misturaId @param {{ esvaziou: boolean, sobra?: string }} dados
  */
 export const aplicarMistura = (atividadeId, misturaId, dados) => {
@@ -100,7 +100,7 @@ export const aplicarMistura = (atividadeId, misturaId, dados) => {
 };
 
 /**
- * Trajeto entre pastos SEM sobra (D-PROD-324): só os horímetros de saída e de chegada. Não mexe em estoque nem no custo.
+ * Trajeto entre pastos SEM sobra (D-PROD-325): só os horímetros de saída e de chegada. Não mexe em estoque nem no custo.
  * @param {string} atividadeId @param {Record<string, any>} dados `de_area_id`, `para_area_id` e os horímetros (texto decimal).
  */
 export const registrarTrajeto = (atividadeId, dados) => {
@@ -155,7 +155,7 @@ export const apontamentoDoDia = async (atividadeId, areaAtividadeId, dia) => {
 };
 
 /**
- * Os lançamentos CONFIRMADOS do dia da atividade, de TODAS as áreas, do mais novo para o mais antigo (D-PROD-324). O
+ * Os lançamentos CONFIRMADOS do dia da atividade, de TODAS as áreas, do mais novo para o mais antigo (D-PROD-325). O
  * serviço aberto vale para a atividade (não para o pasto): trocar de pasto não pede de novo.
  * @param {string} atividadeId @param {string} dia
  */

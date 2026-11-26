@@ -50,6 +50,11 @@ export const listarPermissoes = () => listPermissoes();
 /** @param {unknown} [_opcoes] legado — a lista nativa ignora filtros do provider. */
 export const listarUsuarios = (_opcoes) => listUsuarios();
 
+/** D-PROD-324: todas as tarefas do tenant (a cópia do aparelho sem internet), para achar uma pelo id. */
+export const listarTodasAsTarefas = async () => {
+  const lista = await listLancamentos();
+  return Array.isArray(lista) ? lista : [];
+};
 export const criarTarefa = (dados) => createLancamento(dados);
 export const atualizarTarefa = (id, dados) => updateLancamento(id, dados);
 export const excluirTarefa = (id) => deleteLancamento(id);

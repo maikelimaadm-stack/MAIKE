@@ -1,5 +1,5 @@
 /**
- * D-PROD-324 — a camada de API marca a RECUSA de rota que o servidor não tem (404/405/501 sem o `code` de uma regra), para o
+ * D-PROD-325 — a camada de API marca a RECUSA de rota que o servidor não tem (404/405/501 sem o `code` de uma regra), para o
  * Diário da máquina cair no fluxo antigo. Um 404 de negócio (com `code`) NÃO é marcado. A regra de quem usa só lê a marca.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -8,7 +8,7 @@ import { nativeRequest } from '@/apis/_core/nativeHttpClient';
 const respostaJson = (status, corpo) =>
   new Response(JSON.stringify(corpo), { status, headers: { 'Content-Type': 'application/json' } });
 
-describe('nativeRequest — rota ausente no servidor (D-PROD-324)', () => {
+describe('nativeRequest — rota ausente no servidor (D-PROD-325)', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });

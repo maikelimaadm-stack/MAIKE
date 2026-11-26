@@ -4,9 +4,9 @@
  *  - Passo 1: a quantidade vem pré-preenchida com a quantidade padrão do produto e o corpo vai certo;
  *  - Passo 2 parcial: manda a sobra (e o que foi ao pasto aparece antes de gravar);
  *  - Trocar pasto com perda: exige o motivo; com o motivo, grava a sobra como PERDA;
- *  - Trocar pasto sem sobra: os horímetros vão no trajeto (sem sobra e sem estoque) — D-PROD-324;
+ *  - Trocar pasto sem sobra: os horímetros vão no trajeto (sem sobra e sem estoque) — D-PROD-325;
  *  - Resumo: sem R$ para o operador; com R$ para o administrador (só quando o servidor manda custo); volume em L e kg à parte;
- *  - Abastecer (seção própria, D-PROD-324): máquina do contexto, litros e horímetro; grava pelo caminho da tela Abastecimentos;
+ *  - Abastecer (seção própria, D-PROD-325): máquina do contexto, litros e horímetro; grava pelo caminho da tela Abastecimentos;
  *    rota ausente no servidor cai no formulário antigo.
  *
  * A busca paginada de produto (SeletorPaginadoGestao) é trocada por um botão de teste: o que se testa aqui é a janela.
@@ -103,7 +103,7 @@ const IMPLEMENTO = { id: "imp1", nome: "Pulverizador 2.000 L", capacidade: "2000
 const LOCAL = { local_estoque_id: "l1", local_nome: "Depósito", disponivel: "500" };
 const BEM = { id: "bem-1", nome: "Trator 12" };
 const OPERADOR = { id: "op1", nome: "Ana" };
-/** O lançamento de hoje COM o serviço aberto (D-PROD-324): máquina, implemento e a hora de início na observação. */
+/** O lançamento de hoje COM o serviço aberto (D-PROD-325): máquina, implemento e a hora de início na observação. */
 const LANCAMENTO_COM_SERVICO = {
   id: "ap-1",
   atividade_area_id: "aa-1",
@@ -353,8 +353,8 @@ describe("Diário da máquina — Trocar pasto sem sobra (horímetro sempre que 
   });
 });
 
-describe("Diário da máquina — Abastecer (seção própria, D-PROD-324)", () => {
-  /** Abre o Abastecer (botão do próprio diário, D-PROD-324: não fica mais dentro do "Mais"). */
+describe("Diário da máquina — Abastecer (seção própria, D-PROD-325)", () => {
+  /** Abre o Abastecer (botão do próprio diário, D-PROD-325: não fica mais dentro do "Mais"). */
   const abrirAbastecer = async () => {
     fireEvent.click(await screen.findByTestId("diario-abastecer-botao"));
     return screen.findByTestId("diario-abastecer");
@@ -371,7 +371,7 @@ describe("Diário da máquina — Abastecer (seção própria, D-PROD-324)", () 
     fireEvent.click(screen.getByTestId("diario-abastecer-gravar"));
 
     await waitFor(() => expect(abastecimento.confirmarAbastecimento).toHaveBeenCalledTimes(1));
-    // O lançamento de hoje da área já existe (o do serviço aberto): é reaproveitado, sem criar outro (D-PROD-324).
+    // O lançamento de hoje da área já existe (o do serviço aberto): é reaproveitado, sem criar outro (D-PROD-325).
     expect(diario.garantirDiaDoDiario).not.toHaveBeenCalled();
     const [empresa, form] = vi.mocked(abastecimento.previaDoAbastecimento).mock.calls[0];
     expect(empresa).toBe("emp-1");
@@ -445,7 +445,7 @@ describe("Diário da máquina — Resumo do dia", () => {
   });
 });
 
-describe("Diário das atividades — entrada: Abrir serviço (D-PROD-324)", () => {
+describe("Diário das atividades — entrada: Abrir serviço (D-PROD-325)", () => {
   it("sem serviço aberto hoje, a primeira tela é Abrir serviço: máquina, responsável, implemento e hora (padrão = agora)", async () => {
     vi.mocked(diario.lancamentosDoDia).mockResolvedValue([]);
     renderizar({ props: { atividade: { ...ATIVIDADE, bem_id: null, bem: null } } });

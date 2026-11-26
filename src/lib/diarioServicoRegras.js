@@ -1,5 +1,5 @@
 /**
- * O SERVIÇO ABERTO do Diário das atividades (D-PROD-324, entrada e fluxo).
+ * O SERVIÇO ABERTO do Diário das atividades (D-PROD-325, entrada e fluxo).
  *
  * Sem coluna nova (sem migration): a máquina, o implemento e as horas do serviço vão numa linha estruturada no INÍCIO da
  * OBSERVAÇÃO do lançamento do dia, no formato `[diario-servico inicio=07:30 bem=<id> impl=<id> fim=17:05]`. O texto que

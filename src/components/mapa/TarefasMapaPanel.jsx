@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { API_ERROR_CODES, getApiErrorMessage, hasApiErrorCode } from "@/apis/_core/ApiError";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import ResumoTarefasMapa from "@/components/tarefas/ResumoTarefasMapa";
+import { guardarFotosDaTarefa } from "@/services/fotosDeTarefaAguardandoService";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 /**
@@ -52,16 +53,23 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     return uploadedUrls;
   };
 
+  // D-PROD-324: sem internet as fotos novas ficam guardadas no aparelho e sobem sozinhas quando a internet voltar
+  // (`fotosDeTarefaAguardandoService`); a tarefa vai pela fila como sempre.
+  const semInternet = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+
   const createMutation = useMutation({
     mutationFn: async ({ data, pendingImageFiles = [] }) => {
-      const uploadedUrls = await uploadImages(pendingImageFiles);
+      const guardar = semInternet() && pendingImageFiles.length > 0;
+      const uploadedUrls = guardar ? [] : await uploadImages(pendingImageFiles);
       const payload = uploadedUrls.length > 0 ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] } : data;
-      return criarTarefa({
+      const criada = await criarTarefa({
         ...payload,
         historico_evento: 'Criação',
         historico_descricao: 'Tarefa criada pelo mapa.',
         historico_data_evento: new Date().toISOString(),
       });
+      const fotosGuardadas = guardar ? await guardarFotosDaTarefa(criada.id, pendingImageFiles) : 0;
+      return { ...criada, _fotosGuardadas: fotosGuardadas };
     },
     onSuccess: (criada) => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
@@ -69,7 +77,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
       window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       // D-PROD-319: sem internet a tarefa entra na fila de envio (com o id do aparelho) e sobe sozinha.
-      toast.success(criada?._isOffline ? 'Tarefa salva no aparelho — vai ao servidor quando a internet voltar.' : 'Tarefa criada!');
+      toast.success(criada?._isOffline ? `Tarefa salva no aparelho${criada?._fotosGuardadas ? ' com as fotos' : ''} — vai ao servidor quando a internet voltar.` : 'Tarefa criada!');
       setShowForm(false);
       setEditingTarefa(null);
     },
@@ -90,25 +98,28 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data, previous, pendingImageFiles = [] }) => {
-      const uploadedUrls = await uploadImages(pendingImageFiles);
+      const guardar = semInternet() && pendingImageFiles.length > 0;
+      const uploadedUrls = guardar ? [] : await uploadImages(pendingImageFiles);
       const payload = uploadedUrls.length > 0 ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] } : data;
       const mudouLocal = data.coordenadas?.lat !== previous?.coordenadas?.lat || data.coordenadas?.lng !== previous?.coordenadas?.lng;
       const mudouStatus = data.status && data.status !== previous?.status;
       const evento = mudouLocal ? 'Mudança de Local' : payload.status === 'Concluída' && mudouStatus ? 'Conclusão' : payload.status === 'Cancelada' && mudouStatus ? 'Cancelamento' : mudouStatus ? 'Mudança de Status' : 'Edição';
       const descricao = mudouLocal ? 'Local da tarefa alterado pelo mapa.' : payload.status === 'Concluída' && mudouStatus ? 'Tarefa concluída pelo mapa.' : payload.status === 'Cancelada' && mudouStatus ? 'Tarefa cancelada pelo mapa.' : mudouStatus ? `Status alterado para ${payload.status}.` : 'Tarefa atualizada pelo mapa.';
-      return atualizarTarefa(id, {
+      const atualizada = await atualizarTarefa(id, {
         ...payload,
         historico_evento: evento,
         historico_descricao: descricao,
         historico_data_evento: new Date().toISOString(),
       });
+      const fotosGuardadas = guardar ? await guardarFotosDaTarefa(id, pendingImageFiles) : 0;
+      return { ...atualizada, _fotosGuardadas: fotosGuardadas };
     },
     onSuccess: (atualizada) => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
       queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
       window.dispatchEvent(new CustomEvent('atualizar-mapa'));
-      toast.success(atualizada?._isOffline ? 'Alteração salva no aparelho — vai ao servidor quando a internet voltar.' : 'Tarefa atualizada!');
+      toast.success(atualizada?._isOffline ? `Alteração salva no aparelho${atualizada?._fotosGuardadas ? ' com as fotos' : ''} — vai ao servidor quando a internet voltar.` : 'Tarefa atualizada!');
       setShowForm(false);
       setEditingTarefa(null);
     },
@@ -189,12 +200,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
                 ponto_suplementacao_id: data.ponto_suplementacao_id || pontoSuplId,
                 coordenadas: data.coordenadas,
               };
-              // D-PROD-319: sem internet, a tarefa vai para a fila de envio como os outros registros (o
-              // armazenamento antigo não era mais enviado). As fotos precisam de internet para subir.
-              if (!navigator.onLine && pendingImageFiles.length > 0) {
-                toast.error('Sem internet as fotos não sobem. Remova as fotos novas e salve a tarefa; anexe as fotos quando a internet voltar.');
-                return;
-              }
+              // D-PROD-324: sem internet, a tarefa vai pela fila e as fotos novas ficam guardadas (sobem depois).
               if (editingTarefa || data.id) {
                 updateMutation.mutate({ id: editingTarefa?.id || data.id, data: payload, previous: editingTarefa || data, pendingImageFiles });
               } else {

@@ -339,7 +339,7 @@ describe('D-PROD-323 — integração com PostgreSQL: mistura, aplicar, sobra, r
     assert.equal(ap.status, 'CONFIRMADO');
     const mov = await prisma().atividadeMisturaMovimento.findFirst({ where: { cliente_id: s.c, mistura_id: m.id, tipo: 'DEVOLUCAO' } });
     assert.equal(mov.volume.toFixed(4), '500.0000');
-    // O horímetro informado não cai em silêncio, mesmo sem transferência (D-PROD-324).
+    // O horímetro informado não cai em silêncio, mesmo sem transferência (D-PROD-325).
     assert.equal(mov.horimetro_saida.toFixed(4), '50.0000');
   });
 

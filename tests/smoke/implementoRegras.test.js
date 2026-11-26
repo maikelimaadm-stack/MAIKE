@@ -189,7 +189,7 @@ describe("implementoRegras — quantidade padrão do produto", () => {
   });
 });
 
-describe("Diário da máquina — trajeto sem sobra e falha de rota (D-PROD-324)", () => {
+describe("Diário da máquina — trajeto sem sobra e falha de rota (D-PROD-325)", () => {
   it("o trajeto leva só os horímetros informados (texto decimal); sem nenhum, não há corpo", () => {
     expect(corpoDoTrajeto({ empresaId: "emp-1", deAreaId: "a1", paraAreaId: "a2", horimetroSaida: "120,5", horimetroChegada: "" })).toEqual({
       empresa_id: "emp-1", de_area_id: "a1", para_area_id: "a2", horimetro_saida: "120.5",

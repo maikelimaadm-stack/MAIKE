@@ -197,7 +197,7 @@ const APONTAMENTO_DO_DIA = Object.freeze({
 const LINHAS_VAZIAS = Object.freeze({ maquinas: [], produtos: [], maoObra: [], servicos: [], operationId: null });
 
 /**
- * O lançamento CONFIRMADO de HOJE da área (D-PROD-324): o mais antigo do dia, se já existe; senão cria-o pelo mesmo caminho
+ * O lançamento CONFIRMADO de HOJE da área (D-PROD-325): o mais antigo do dia, se já existe; senão cria-o pelo mesmo caminho
  * do `POST …/apontamentos` (`lancarNaTransacao`, sem linhas), com o operador de quem está gravando. Idempotente: quem chama
  * já segura a trava da atividade (FOR UPDATE), então dois envios não criam dois lançamentos do dia.
  * @param {any} tx @param {any} contexto @param {{ cli: string, empresaId: string, atividadeId: string, areaId: string }} p `areaId` é o
@@ -227,7 +227,7 @@ const garantirApontamentoDoDia = async (tx, contexto, { cli, empresaId, atividad
 };
 
 /**
- * `POST /atividades/:id/diario-dia` (D-PROD-324): garante o lançamento do dia da área (o do abastecimento, que precisa dele).
+ * `POST /atividades/:id/diario-dia` (D-PROD-325): garante o lançamento do dia da área (o do abastecimento, que precisa dele).
  * Idempotente; não grava estoque. Sem `operation_id`: a trava da atividade e a checagem do dia já a tornam segura.
  * @param {any} contexto @param {string} atividadeId @param {Record<string, any>} corpo
  */
@@ -449,7 +449,7 @@ export const aplicarMistura = async (contexto, atividadeId, apontamentoId, mistu
 };
 
 /**
- * Passo 2 sem lançamento do dia (D-PROD-324) — `POST /atividades/:id/misturas/:misturaId/aplicar`. Se a área da mistura
+ * Passo 2 sem lançamento do dia (D-PROD-325) — `POST /atividades/:id/misturas/:misturaId/aplicar`. Se a área da mistura
  * ainda não tem lançamento CONFIRMADO de hoje, cria-o (`garantirApontamentoDoDia`) na mesma transação; senão usa o que
  * existe. Mesma baixa e mesma resposta de `aplicarMistura`.
  * @param {any} contexto @param {string} atividadeId @param {string} misturaId @param {Record<string, any>} corpo
@@ -544,7 +544,7 @@ export const registrarSobra = async (contexto, atividadeId, misturaId, corpo) =>
         apontamentoId = ap.id;
       }
 
-      // Os horímetros de saída e de chegada são guardados em QUALQUER tipo de sobra que os traga (D-PROD-324): nada cai em silêncio.
+      // Os horímetros de saída e de chegada são guardados em QUALQUER tipo de sobra que os traga (D-PROD-325): nada cai em silêncio.
       const saida = corpo.horimetro_saida !== undefined && corpo.horimetro_saida !== null ? decimalNaoNegativo(corpo.horimetro_saida, 'horimetro_saida') : null;
       const chegada = corpo.horimetro_chegada !== undefined && corpo.horimetro_chegada !== null ? decimalNaoNegativo(corpo.horimetro_chegada, 'horimetro_chegada') : null;
       const horimetros = { horimetro_saida: saida ? texto(saida) : null, horimetro_chegada: chegada ? texto(chegada) : null };
@@ -565,7 +565,7 @@ export const registrarSobra = async (contexto, atividadeId, misturaId, corpo) =>
         // PERDA: motivo e lançamento obrigatórios; baixa proporcional ao saldo pelo motor, na linha da atividade.
         const motivo = textoOpcional(corpo.motivo);
         if (!motivo || motivo.length < MOTIVO_MIN) throw recusaMovimento('motivo', 'obrigatorio');
-        // Sem lançamento informado, usa (ou cria) o lançamento de hoje da área da mistura (D-PROD-324).
+        // Sem lançamento informado, usa (ou cria) o lançamento de hoje da área da mistura (D-PROD-325).
         const ap = corpo.apontamento_id
           ? await lerApontamentoDaMistura(tx, cli, empresaId, atividadeId, corpo.apontamento_id)
           : await garantirApontamentoDoDia(tx, contexto, { cli, empresaId, atividadeId, areaId: m.area_id });
@@ -597,7 +597,7 @@ export const registrarSobra = async (contexto, atividadeId, misturaId, corpo) =>
 };
 
 /**
- * Trajeto entre pastos SEM sobra (D-PROD-324) — `POST /atividades/:id/trajetos`: guarda só os horímetros de saída e de
+ * Trajeto entre pastos SEM sobra (D-PROD-325) — `POST /atividades/:id/trajetos`: guarda só os horímetros de saída e de
  * chegada do pasto que sai e do que chega. Não muda estoque, não muda o pasto da mistura e não tem custo: é um
  * movimento TRANSFERENCIA de volume zero, ancorado na mistura ABERTA da atividade (ou, sem ela, na mais recente). Sem
  * nenhuma mistura na atividade não há onde gravar (o movimento pede uma mistura): 422 `sem_mistura`.
@@ -731,7 +731,7 @@ export const resumoDoDia = async (contexto, atividadeId, consulta) => {
     if (!porArea.has(area)) porArea.set(area, { area_id: area, area_nome: area ? nomesAreas.get(area) ?? null : null, volumes: new Map(), implementos: new Set(), produtos: new Map(), horas: ZERO, custo: ZERO, sobra: new Map(), sobra_misturas: [] });
     return porArea.get(area);
   };
-  // Volume na unidade da MISTURA (L ou kg): nunca se somam litros com quilos (D-PROD-324).
+  // Volume na unidade da MISTURA (L ou kg): nunca se somam litros com quilos (D-PROD-325).
   for (const a of aplicacoes) {
     const b = bloco(areaDoApontamento.get(a.apontamento_id) ?? null);
     const unidade = a.mistura?.unidade ?? 'L';

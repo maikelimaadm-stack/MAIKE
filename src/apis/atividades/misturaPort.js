@@ -121,9 +121,9 @@ export const listMisturas = (atividadeId, empresaId) => misturaPort.listar(ativi
 export const createMistura = (atividadeId, dados) => misturaPort.criar(atividadeId, dados);
 /** @param {string} atividadeId @param {string} apontamentoId @param {string} misturaId @param {Record<string, any>} dados */
 export const aplicarMistura = (atividadeId, apontamentoId, misturaId, dados) => misturaPort.aplicar(atividadeId, apontamentoId, misturaId, dados);
-/** Passo 2 sem o lançamento do dia na tela: o servidor cria o de hoje (D-PROD-324). @param {string} atividadeId @param {string} misturaId @param {Record<string, any>} dados */
+/** Passo 2 sem o lançamento do dia na tela: o servidor cria o de hoje (D-PROD-325). @param {string} atividadeId @param {string} misturaId @param {Record<string, any>} dados */
 export const aplicarMisturaNoDia = (atividadeId, misturaId, dados) => misturaPort.aplicarNoDia(atividadeId, misturaId, dados);
-/** Trajeto sem sobra: só os horímetros entre dois pastos (D-PROD-324). @param {string} atividadeId @param {Record<string, any>} dados */
+/** Trajeto sem sobra: só os horímetros entre dois pastos (D-PROD-325). @param {string} atividadeId @param {Record<string, any>} dados */
 export const registrarTrajetoMistura = (atividadeId, dados) => misturaPort.trajeto(atividadeId, dados);
 /** O lançamento de hoje da área, criado se faltar (idempotente; o abastecimento precisa dele). @param {string} atividadeId @param {Record<string, any>} dados */
 export const garantirDiaDoDiario = (atividadeId, dados) => misturaPort.diaDoDiario(atividadeId, dados);

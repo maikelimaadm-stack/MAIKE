@@ -357,7 +357,7 @@ const requisitarNaRede = async (caminho, opcoes, contexto) => {
     // enumerável — some de `JSON.stringify`, inclusive a `message` do servidor.
     cause: corpo,
   }));
-  // D-PROD-324: rota que o servidor ainda não tem (404/405/501 SEM o `code` de uma regra). Quem chama pode cair no
+  // D-PROD-325: rota que o servidor ainda não tem (404/405/501 SEM o `code` de uma regra). Quem chama pode cair no
   // fluxo antigo, sem ler o formato do servidor. Um 404 de negócio sempre traz `code` e não entra aqui.
   if ([404, 405, 501].includes(resposta.status) && !(ehObjeto(corpo) && corpo.code)) erro.rotaAusente = true;
   throw erro;

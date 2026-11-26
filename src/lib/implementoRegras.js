@@ -278,7 +278,7 @@ export const corpoDaSobra = ({ empresaId, tipo, paraAreaId, apontamentoId, motiv
   return corpo;
 };
 
-// ─── Trajeto sem sobra e falha de rota (D-PROD-324) ──────────────────────
+// ─── Trajeto sem sobra e falha de rota (D-PROD-325) ──────────────────────
 
 /**
  * Corpo do TRAJETO (só horímetros, sem sobra, sem estoque). Sem nenhum horímetro informado, `null`: a tela não manda nada.

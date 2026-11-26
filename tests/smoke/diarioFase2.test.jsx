@@ -2,7 +2,7 @@
  * Diário da máquina, Fase 2 (só tela, sem banco):
  *  - `podeVerCusto(permissao)`: R$ só com a permissão efetiva de administrador da fazenda (`is_admin === true`);
  *  - as telas de lançamento do operador escondem os valores em R$ (o envio e o custo gravado não mudam);
- *  - "Diário das atividades" na aba Manejos do pasto (Detalhes da área do Mapa): o único ponto de entrada (D-PROD-324),
+ *  - "Diário das atividades" na aba Manejos do pasto (Detalhes da área do Mapa): o único ponto de entrada (D-PROD-325),
  *    com ou sem atividade em andamento; só com permissão de lançar e fuso da fazenda.
  */
 import React from "react";
