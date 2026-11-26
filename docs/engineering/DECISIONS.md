@@ -10171,4 +10171,29 @@ Vários itens ficavam presos para sempre, sem botão:
 
 > **Numeração:** depois da D-PROD-328 (PR #418), a `main` indica `Próxima decisão: D-PROD-329`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-330. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-330 -->
+## D-PROD-330 — Tarefa sem internet: aparece no mapa, e a foto não derruba a tarefa com o sinal fraco
+
+**Data:** 2026-11-26 · **Origem:** teste do proprietário, sem internet: "a parte da imagem ainda de tarefa não funciona … quando eu lanço a tarefa aparece na listagem mas não no mapa" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFA-SEM-INTERNET-MAPA-FOTO-D330-REPORT.md`](./TAREFA-SEM-INTERNET-MAPA-FOTO-D330-REPORT.md)
+
+**Causas.**
+- **Mapa.** O mapa lê as tarefas da cópia do servidor (`mapaCacheService`, chave `tarefas`), sem a fila de cadastros. A tarefa criada sem internet fica na fila, por isso aparecia só na lista, que lê a porta da entidade com a fila.
+- **Foto.** O app só guardava a foto quando `navigator.onLine` dizia "sem internet". No campo, com sinal fraco ou Wi-Fi sem dados, o celular "acha" que tem internet: o envio da foto falhava sem resposta e a tarefa inteira dava erro, antes mesmo de chegar à fila.
+
+**Decisão.**
+- **Mapa.** A leitura da chave `tarefas` passa a aplicar a fila de cadastros por cima da cópia do servidor (`comTarefasDaFila`, a mesma "visão do que espera envio" da D-PROD-296):
+  - a criação entra com "Pendente" e `_isOffline`;
+  - a alteração se mistura à tarefa;
+  - a exclusão tira a tarefa;
+  - o recusado pelo servidor não entra.
+
+  O cruzamento é pelo id do aparelho, sem buraco nem duplicata. Continua valendo o filtro de sempre: só tarefas com ponto, abertas e desta fazenda.
+- **Foto.** `enviarOuSepararFotos` (em `fotosDeTarefaAguardandoService`):
+  - sem internet, todas as fotos ficam guardadas;
+  - com internet, tenta subir uma por uma; se uma falha por falta de rede (`classificarFalhaDeEnvio` = "rede"), ela e as seguintes ficam guardadas no aparelho e sobem sozinhas depois (D-PROD-324), e a tarefa salva do mesmo jeito;
+  - a recusa do servidor continua sendo erro.
+
+  Vale para a criação e a edição no painel e para a edição pelos detalhes.
+
+> **Numeração:** a `main` (`08eb45f91`) indica `Próxima decisão: D-PROD-330`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-331. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-331 -->

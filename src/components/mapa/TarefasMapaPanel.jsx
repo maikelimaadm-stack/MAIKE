@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { listarTarefasDaEmpresa, criarTarefa, atualizarTarefa, enviarAnexo } from "@/services/tarefasMapaService";
+import { listarTarefasDaEmpresa, criarTarefa, atualizarTarefa } from "@/services/tarefasMapaService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { API_ERROR_CODES, getApiErrorMessage, hasApiErrorCode } from "@/apis/_core/ApiError";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import ResumoTarefasMapa from "@/components/tarefas/ResumoTarefasMapa";
-import { guardarFotosDaTarefa } from "@/services/fotosDeTarefaAguardandoService";
+import { guardarFotosDaTarefa, enviarOuSepararFotos } from "@/services/fotosDeTarefaAguardandoService";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 /**
@@ -77,23 +77,12 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     staleTime: 60 * 1000,
   });
 
-  const uploadImages = async (pendingImageFiles = []) => {
-    const uploadedUrls = [];
-    for (const file of pendingImageFiles) {
-      const { file_url } = await enviarAnexo({ file });
-      uploadedUrls.push(file_url);
-    }
-    return uploadedUrls;
-  };
-
-  // D-PROD-324: sem internet as fotos novas ficam guardadas no aparelho e sobem sozinhas quando a internet voltar
-  // (`fotosDeTarefaAguardandoService`); a tarefa vai pela fila como sempre.
-  const semInternet = () => typeof navigator !== 'undefined' && navigator.onLine === false;
-
+  // D-PROD-324 / D-PROD-330: sem internet — ou com o sinal fraco, quando o envio da foto falha por falta de rede —
+  // as fotos ficam guardadas no aparelho e sobem sozinhas depois (`fotosDeTarefaAguardandoService`); a tarefa salva
+  // do mesmo jeito (vai pela fila quando não há resposta).
   const createMutation = useMutation({
     mutationFn: async ({ data, pendingImageFiles = [] }) => {
-      const guardar = semInternet() && pendingImageFiles.length > 0;
-      const uploadedUrls = guardar ? [] : await uploadImages(pendingImageFiles);
+      const { urls: uploadedUrls, paraGuardar } = await enviarOuSepararFotos(pendingImageFiles);
       const payload = uploadedUrls.length > 0 ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] } : data;
       const criada = await criarTarefa({
         ...payload,
@@ -101,7 +90,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         historico_descricao: 'Tarefa criada pelo mapa.',
         historico_data_evento: new Date().toISOString(),
       });
-      const fotosGuardadas = guardar ? await guardarFotosDaTarefa(criada.id, pendingImageFiles) : 0;
+      const fotosGuardadas = paraGuardar.length ? await guardarFotosDaTarefa(criada.id, paraGuardar) : 0;
       return { ...criada, _fotosGuardadas: fotosGuardadas };
     },
     onSuccess: (criada) => {
@@ -110,7 +99,13 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
       window.dispatchEvent(new CustomEvent('atualizar-mapa'));
       // D-PROD-319: sem internet a tarefa entra na fila de envio (com o id do aparelho) e sobe sozinha.
-      toast.success(criada?._isOffline ? `Tarefa salva no aparelho${criada?._fotosGuardadas ? ' com as fotos' : ''} — vai ao servidor quando a internet voltar.` : 'Tarefa criada!');
+      toast.success(
+        criada?._isOffline
+          ? `Tarefa salva no aparelho${criada?._fotosGuardadas ? ' com as fotos' : ''} — vai ao servidor quando a internet voltar.`
+          : criada?._fotosGuardadas
+            ? 'Tarefa criada! As fotos ficaram no celular e sobem quando a internet firmar.'
+            : 'Tarefa criada!'
+      );
       fecharFormulario();
     },
     onError: (err) => {
@@ -129,8 +124,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data, previous, pendingImageFiles = [] }) => {
-      const guardar = semInternet() && pendingImageFiles.length > 0;
-      const uploadedUrls = guardar ? [] : await uploadImages(pendingImageFiles);
+      const { urls: uploadedUrls, paraGuardar } = await enviarOuSepararFotos(pendingImageFiles);
       const payload = uploadedUrls.length > 0 ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] } : data;
       const mudouLocal = data.coordenadas?.lat !== previous?.coordenadas?.lat || data.coordenadas?.lng !== previous?.coordenadas?.lng;
       const mudouStatus = data.status && data.status !== previous?.status;
@@ -142,7 +136,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         historico_descricao: descricao,
         historico_data_evento: new Date().toISOString(),
       });
-      const fotosGuardadas = guardar ? await guardarFotosDaTarefa(id, pendingImageFiles) : 0;
+      const fotosGuardadas = paraGuardar.length ? await guardarFotosDaTarefa(id, paraGuardar) : 0;
       return { ...atualizada, _fotosGuardadas: fotosGuardadas };
     },
     onSuccess: (atualizada) => {
@@ -150,7 +144,13 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
       queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
       window.dispatchEvent(new CustomEvent('atualizar-mapa'));
-      toast.success(atualizada?._isOffline ? `Alteração salva no aparelho${atualizada?._fotosGuardadas ? ' com as fotos' : ''} — vai ao servidor quando a internet voltar.` : 'Tarefa atualizada!');
+      toast.success(
+        atualizada?._isOffline
+          ? `Alteração salva no aparelho${atualizada?._fotosGuardadas ? ' com as fotos' : ''} — vai ao servidor quando a internet voltar.`
+          : atualizada?._fotosGuardadas
+            ? 'Tarefa atualizada! As fotos ficaram no celular e sobem quando a internet firmar.'
+            : 'Tarefa atualizada!'
+      );
       fecharFormulario();
     },
     onError: (err) => {
