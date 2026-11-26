@@ -1,5 +1,5 @@
 /**
- * D-PROD-330 — regras puras da abertura de serviço (marcador na observação, horímetro pt-BR, validação).
+ * D-PROD-332 — regras puras da abertura de serviço (marcador na observação, horímetro pt-BR, validação).
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -162,7 +162,7 @@ describe("aberturaDosApontamentos", () => {
   });
 });
 
-describe("lancamentosDoDia — \"Lançado hoje\" do serviço aberto (D-PROD-330, tela 05)", () => {
+describe("lancamentosDoDia — \"Lançado hoje\" do serviço aberto (D-PROD-332, tela 05)", () => {
   const HOJE = "2026-11-26";
   const FUSO = "America/Sao_Paulo";
   // 07:45 de São Paulo (UTC-3) = 10:45Z.

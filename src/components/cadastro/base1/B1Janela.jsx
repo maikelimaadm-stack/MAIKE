@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
  *   contentProps?: Record<string, any>,
  *   acoesDoTitulo?: React.ReactNode,
  *   antesDoTitulo?: React.ReactNode,
- * }} props `antesDoTitulo` (D-PROD-330): um botão antes do título (a seta "Voltar" do Diário das atividades). `podeFechar` falso trava o ✕ e ignora o pedido de fechar (ex.: enviando); `aoPedirFechar` devolve falso
+ * }} props `antesDoTitulo` (D-PROD-332): um botão antes do título (a seta "Voltar" do Diário das atividades). `podeFechar` falso trava o ✕ e ignora o pedido de fechar (ex.: enviando); `aoPedirFechar` devolve falso
  *   para ignorar um pedido (ex.: a folha do celular aberta dentro da janela fecha primeiro); `fora` fica dentro da
  *   camada, fora do cartão (alvo das folhas do celular); `acoesDoTitulo` fica logo depois do título, antes do ✕ (ex.: o
  *   "Trocar tipo" da Nova realização, D-PROD-265).

@@ -1,5 +1,5 @@
 /**
- * D-PROD-330 — o "Diário das atividades" (só a abertura) com o service mockado:
+ * D-PROD-332 — o "Diário das atividades" (só a abertura) com o service mockado:
  *  (a) 7 cartões; "Continuar" só com um tipo escolhido;
  *  (b) Aplicação → campos na ordem Máquina, Implemento, Horímetro inicial, Responsável; sem "Hora de início";
  *  (c) escolher a máquina preenche o horímetro com a leitura dela (editável);
@@ -7,7 +7,7 @@
  *  (e) confirmar envia `registrarCampo` uma vez, com a abertura na observação, e mostra o cabeçalho "Aberto";
  *  (f) aberto com uma atividade existente, começa direto no cabeçalho (lido dos apontamentos);
  *  (g) com duas operações do tipo, a Operação vem primeiro e é obrigatória;
- *  (h) D-PROD-330 emenda (tela 05): 7 opções com títulos; "Nada lançado ainda"; "Lançado hoje" com as linhas de hoje
+ *  (h) D-PROD-332 emenda (tela 05): 7 opções com títulos; "Nada lançado ainda"; "Lançado hoje" com as linhas de hoje
  *      na ordem do horário e sem R$; tocar uma opção ou "Encerrar serviço" mostra o painel "Em breve" e "Voltar" volta.
  */
 import React from "react";

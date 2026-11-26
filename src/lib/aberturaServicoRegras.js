@@ -1,5 +1,5 @@
 /**
- * D-PROD-330 — a ABERTURA de um serviço no "Diário das atividades" (só a abertura: tipo → máquina, implemento, horímetro
+ * D-PROD-332 — a ABERTURA de um serviço no "Diário das atividades" (só a abertura: tipo → máquina, implemento, horímetro
  * inicial e responsável → serviço iniciado).
  *
  * Sem migration: a abertura é guardada como PRIMEIRA LINHA da observação do apontamento do dia (o que o servidor já
@@ -156,7 +156,7 @@ export const aberturaDosApontamentos = (itens) => {
   return null;
 };
 
-// ─── Serviço aberto: "Lançado hoje" (D-PROD-330, emenda da tela 05) ─────
+// ─── Serviço aberto: "Lançado hoje" (D-PROD-332, emenda da tela 05) ─────
 
 /** Unidade de quem é medido por tempo (a linha de mão de obra): "8 h", "1 diária", "2 tarefas". */
 const UNIDADE_DA_MEDIDA = Object.freeze({ HORA: "h", DIARIA: "diária", TAREFA: "tarefa" });

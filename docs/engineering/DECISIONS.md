@@ -10171,11 +10171,52 @@ Vários itens ficavam presos para sempre, sem botão:
 
 > **Numeração:** depois da D-PROD-328 (PR #418), a `main` indica `Próxima decisão: D-PROD-329`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-330. Conferir de novo antes do merge (regra A5).
 
-## D-PROD-330 — Diário das atividades, parte 1: abertura do serviço (tipo → máquina, implemento, horímetro e responsável), do zero
+## D-PROD-330 — Tarefa sem internet: aparece no mapa, e a foto não derruba a tarefa com o sinal fraco
+
+**Data:** 2026-11-26 · **Origem:** teste do proprietário, sem internet: "a parte da imagem ainda de tarefa não funciona … quando eu lanço a tarefa aparece na listagem mas não no mapa" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFA-SEM-INTERNET-MAPA-FOTO-D330-REPORT.md`](./TAREFA-SEM-INTERNET-MAPA-FOTO-D330-REPORT.md)
+
+**Causas.**
+- **Mapa.** O mapa lê as tarefas da cópia do servidor (`mapaCacheService`, chave `tarefas`), sem a fila de cadastros. A tarefa criada sem internet fica na fila, por isso aparecia só na lista, que lê a porta da entidade com a fila.
+- **Foto.** O app só guardava a foto quando `navigator.onLine` dizia "sem internet". No campo, com sinal fraco ou Wi-Fi sem dados, o celular "acha" que tem internet: o envio da foto falhava sem resposta e a tarefa inteira dava erro, antes mesmo de chegar à fila.
+
+**Decisão.**
+- **Mapa.** A leitura da chave `tarefas` passa a aplicar a fila de cadastros por cima da cópia do servidor (`comTarefasDaFila`, a mesma "visão do que espera envio" da D-PROD-296):
+  - a criação entra com "Pendente" e `_isOffline`;
+  - a alteração se mistura à tarefa;
+  - a exclusão tira a tarefa;
+  - o recusado pelo servidor não entra.
+
+  O cruzamento é pelo id do aparelho, sem buraco nem duplicata. Continua valendo o filtro de sempre: só tarefas com ponto, abertas e desta fazenda.
+- **Foto.** `enviarOuSepararFotos` (em `fotosDeTarefaAguardandoService`):
+  - sem internet, todas as fotos ficam guardadas;
+  - com internet, tenta subir uma por uma; se uma falha por falta de rede (`classificarFalhaDeEnvio` = "rede"), ela e as seguintes ficam guardadas no aparelho e sobem sozinhas depois (D-PROD-324), e a tarefa salva do mesmo jeito;
+  - a recusa do servidor continua sendo erro.
+
+  Vale para a criação e a edição no painel e para a edição pelos detalhes.
+
+> **Numeração:** a `main` (`08eb45f91`) indica `Próxima decisão: D-PROD-330`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-331. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-331 — A sincronização num cartão no meio da tela (o app continua livre)
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("a sincronização tem que aparecer no meio da tela"); escolha dele: "Cartão no meio, app livre" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-NO-MEIO-D331-REPORT.md`](./SINCRONIZACAO-NO-MEIO-D331-REPORT.md)
+
+**Decisão.** O círculo pequeno do canto (D-PROD-329) vira um **cartão no meio da tela**, ainda no componente `CirculoDeSincronizacao`.
+- O cartão traz:
+  - o círculo grande com a porcentagem;
+  - o título "Sincronizando";
+  - a etapa ("Enviando o que foi feito no celular", "Baixando: Cadastros"…).
+- Não há fundo escuro: a pessoa continua mexendo no app em volta.
+- Tocar no cartão abre a janela "Sincronização".
+- No fim, o cartão mostra ✓ e "Tudo sincronizado" (ou ! e "Sincronizado em parte") e some sozinho.
+- O resto da D-PROD-329 (quando sincroniza, a ordem envio → baixa, a porcentagem) não muda.
+
+> **Numeração:** depois da D-PROD-330 (PR #421), a `main` indica `Próxima decisão: D-PROD-331`, que é esta; o marcador passa a D-PROD-332. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-332 — Diário das atividades, parte 1: abertura do serviço (tipo → máquina, implemento, horímetro e responsável), do zero
 
 **Data:** 2026-11-26 · **Origem:** pedido do proprietário (maquete v4 "Diário das atividades"): começar o serviço pelo pasto, com a máquina, o implemento, o horímetro inicial e o responsável · **Branch:** `feat/atividades-abertura` · **Migration:** nenhuma · **Relatório:** [`ATIVIDADES-ABERTURA-REPORT.md`](./ATIVIDADES-ABERTURA-REPORT.md)
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`08eb45f91`, com as D-PROD-325 a 329) indica D-PROD-330, que é esta; o marcador passa a D-PROD-331. Conferir de novo antes do merge (regra A5).
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`0df374b61`, com as D-PROD-325 a 331) indica D-PROD-332, que é esta; o marcador passa a D-PROD-333. Conferir de novo antes do merge (regra A5).
 
 - **Problema:** o "Iniciar atividade" e o "Diário da máquina" eram duas janelas separadas, e o começo do serviço pedia a Nova realização inteira (áreas, insumos, equipe) antes de a máquina ser registrada.
 - **Decisão — um botão, um diário do zero:** a área (Detalhes, Manejos) tem um botão só, "Diário das atividades". O diário novo (`DiarioDasAtividades`) faz só a **abertura** nesta parte:
@@ -10196,4 +10237,4 @@ Vários itens ficavam presos para sempre, sem botão:
   4. **Opções e "Encerrar serviço" são "Em breve" por enquanto:** tocar numa opção (ou em "Encerrar serviço") troca o corpo da janela por um painel com o título e o texto "Em breve: esta parte ainda vai ser feita.", e o rodapé mostra só "Voltar ao serviço". Não há pop-up nem rota nova. O "Encerrar serviço" da tela 05 é o botão do rodapé; o "Fechar" antigo saiu (o ✕ fecha a janela).
   5. Depois de "Iniciar serviço", o apontamento novo entra na lista (invalidação da consulta). A abertura gravada continua sendo a fonte do cabeçalho; sem ela, o cabeçalho lê a da consulta.
 
-<!-- Próxima decisão: D-PROD-331 -->
+<!-- Próxima decisão: D-PROD-333 -->
