@@ -1,3 +1,7 @@
+import { resolverIconeTarefa } from "@/lib/maplibre/mapaGeralRender";
+import { aplicarIndicadorTarefa } from "@/lib/tarefas/marcador";
+import { useDiaCivil } from "@/hooks/useDiaCivil";
+import { listEmpresas } from "@/services/empresaService";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { listarTarefasDaEmpresa, listarIconesPorTipo } from "@/services/tarefasMapaService";
 import { useQuery } from "@tanstack/react-query";
@@ -14,14 +18,12 @@ import {
 } from "@/lib/maplibre/basemap.js";
 import { createEditorMap, maplibregl, setSourceData } from "@/lib/maplibre/lifecycle.js";
 import {
-  PRIORIDADE_CORES,
   TASK_PICKER_LAYER_IDS,
   TASK_PICKER_SOURCE_IDS,
   buildSelectedPointCollection,
   buildTaskPickerAreasCollection,
   ensureTaskPickerLayers,
   findContainingArea,
-  normalizarPrioridade,
   parsePickerCoordinate,
   safeCentroid,
 } from "@/lib/maplibre/taskLocationPicker.js";
@@ -96,6 +98,13 @@ export default function TaskLocationPickerDialog({
   }, []);
 
   const empresaSelecionadaId = useEmpresaSelecionadaId();
+  const { data: empresas = [] } = useQuery({
+    queryKey: ['empresas'], queryFn: () => listEmpresas(),
+    enabled: Boolean(empresaSelecionadaId) && open, staleTime: 5 * 60 * 1000,
+  });
+  const fuso = empresas.find((e) => String(e.id) === String(empresaSelecionadaId))?.fuso_horario || null;
+  const hoje = useDiaCivil(fuso);
+
 
   const { data: tarefasPendentes = [] } = useQuery({
     queryKey: ["tarefas-picker-pendentes", empresaSelecionadaId],
@@ -395,41 +404,17 @@ export default function TaskLocationPickerDialog({
       }
       if (!position) continue;
 
-      const cor = PRIORIDADE_CORES[t.prioridade] || "#3b82f6";
-      const cfg = (iconesConfig || []).find(
-        (ic) =>
-          ic.tipo_entidade === "Prioridade Tarefa" &&
-          normalizarPrioridade(ic.categoria) === normalizarPrioridade(t.prioridade)
-      );
-
+      const { iconUrl } = resolverIconeTarefa(t, iconesConfig);
       const el = document.createElement("button");
       el.type = "button";
-      el.title = t.titulo || "";
-      el.setAttribute("aria-label", t.titulo || "Tarefa");
-      el.style.cssText =
-        "border:0;background:transparent;padding:0;cursor:default;pointer-events:none;width:28px;height:28px;display:flex;align-items:center;justify-content:center;";
-
-      if (cfg?.icone_url) {
-        const img = document.createElement("img");
-        img.src = String(cfg.icone_url);
-        img.alt = "";
-        img.width = 28;
-        img.height = 28;
-        img.draggable = false;
-        img.style.cssText = "width:28px;height:28px;object-fit:contain;display:block;";
-        el.appendChild(img);
-      } else {
-        const pin = document.createElement("div");
-        pin.style.cssText = [
-          "width:14px",
-          "height:14px",
-          "border-radius:9999px",
-          `background:${cor}`,
-          "border:2px solid #fff",
-          "box-shadow:0 1px 3px rgba(0,0,0,.35)",
-        ].join(";");
-        el.appendChild(pin);
-      }
+      el.style.cssText = "border:0;background:transparent;padding:0;cursor:default;pointer-events:none;width:40px;height:44px;display:flex;align-items:center;justify-content:center;";
+      const img = document.createElement("img");
+      img.src = iconUrl;
+      img.alt = "";
+      img.draggable = false;
+      img.style.cssText = "width:40px;height:44px;object-fit:contain;display:block;";
+      el.appendChild(img);
+      aplicarIndicadorTarefa(el, t, hoje);
 
       const marker = new maplibregl.Marker({ element: el, anchor: "center" })
         .setLngLat([position.lng, position.lat])
@@ -470,7 +455,7 @@ export default function TaskLocationPickerDialog({
     } catch {
       /* ignore */
     }
-  }, [open, mapReady, areas, tarefasPendentes, iconesConfig, clearOverlayMarkers]);
+  }, [open, mapReady, areas, tarefasPendentes, iconesConfig, clearOverlayMarkers, hoje]);
 
   const retryMap = () => {
     disposeMap();

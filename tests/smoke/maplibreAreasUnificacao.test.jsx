@@ -565,8 +565,20 @@ describe("V03 — renderer MapLibre preserva o contrato do Mapa Geral", () => {
     cocho.el.click();
     expect(onSupl).toHaveBeenCalled();
 
-    r.syncTarefas([{ id: "t1", titulo: "Cerca", prioridade: "Urgente", area_id: "a1" }], [area("a1")], [], vi.fn());
-    expect(marcadores.some((m) => m.el.title === "Cerca")).toBe(true);
+    const tarefa = { id: "t1", titulo: "Cerca", prioridade: "Urgente", area_id: "a1", status: "Pendente", data_prevista: "2026-11-29" };
+    const onTarefa = vi.fn();
+    r.syncTarefas([tarefa], [area("a1")], [], onTarefa, "2026-11-26");
+    const tarefaMarker = marcadores.find((m) => m.el.title.startsWith("Cerca —"));
+    expect(tarefaMarker.el.querySelector('[data-indicador-tarefa]').textContent).toBe('3d');
+    expect(tarefaMarker.el.style.zIndex).toBe('3000');
+    const tarefaEmAndamento = { ...tarefa, status: "Em Andamento" };
+    r.syncTarefas([tarefaEmAndamento], [area("a1")], [], onTarefa, "2026-11-30");
+    expect(marcadores.filter((m) => m.el.title.startsWith("Cerca —"))).toHaveLength(1);
+    expect(tarefaMarker.el.querySelectorAll('[data-indicador-tarefa]')).toHaveLength(1);
+    expect(tarefaMarker.el.querySelector('[data-indicador-tarefa]').textContent).toBe('1d');
+    expect(tarefaMarker.el.title).toContain('Em andamento, 1 dia(s) de atraso');
+    tarefaMarker.el.click();
+    expect(onTarefa).toHaveBeenLastCalledWith(tarefaEmAndamento);
     r.syncUserLocation({ lat: 0, lng: 0 }, true);
     expect(map.data.get("mg-user").features).toHaveLength(1);
 
