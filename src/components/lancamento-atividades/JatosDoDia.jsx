@@ -27,7 +27,7 @@ export default function JatosDoDia({ tanque, produtos, jatoAberto, secaoAberta, 
   if (jatoAberto !== null) {
     return (
       <>
-        <SecaoForm titulo={`Jato ${jatoAberto} · o que foi no tanque${tanqueTexto ? ` (${tanqueTexto})` : ""}`} />
+        <SecaoForm titulo={`Implemento ${jatoAberto} · o que foi no implemento${tanqueTexto ? ` (${tanqueTexto})` : ""}`} />
         {secaoAberta}
         <div className="col-span-12 min-w-0">
           <button type="button" className={BOTAO_PRIMARIO} onClick={onPronto} disabled={bloqueado} data-testid="jatos-pronto">
@@ -41,10 +41,10 @@ export default function JatosDoDia({ tanque, produtos, jatoAberto, secaoAberta, 
   const totais = totaisDosJatos(produtos);
   return (
     <>
-      <SecaoForm titulo="Jatos de hoje" />
+      <SecaoForm titulo="Implementos cheios de hoje" />
       {jatos.length ? null : (
         <p className="col-span-12 min-w-0 text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="jatos-vazio">
-          Nenhum jato ainda. Tanque de {tanqueTexto}.
+          Nenhum implemento cheio ainda. Tanque de {tanqueTexto}.
         </p>
       )}
       {jatos.map((j, k) => {
@@ -52,7 +52,7 @@ export default function JatosDoDia({ tanque, produtos, jatoAberto, secaoAberta, 
         return (
           <div key={j.numero} className="col-span-12 min-w-0 b1-jato" data-testid={`jato-${j.numero}`}>
             <div className="b1-jato__topo">
-              <strong>{igual ? `Jato ${j.numero} · igual ao jato ${jatos[k - 1].numero}` : `Jato ${j.numero} · ${tanqueTexto}`}</strong>
+              <strong>{igual ? `Implemento ${j.numero} · igual ao implemento ${jatos[k - 1].numero}` : `Implemento ${j.numero} · ${tanqueTexto}`}</strong>
               <button type="button" className={BOTAO_SECUNDARIO} onClick={() => onEditar(j.numero)} disabled={bloqueado} data-testid={`jato-${j.numero}-editar`}>
                 Editar
               </button>
@@ -71,16 +71,16 @@ export default function JatosDoDia({ tanque, produtos, jatoAberto, secaoAberta, 
       <div className="col-span-12 min-w-0 b1-jato__botoes">
         {jatos.length ? (
           <button type="button" className={BOTAO_PRIMARIO} onClick={onRepetir} disabled={bloqueado} data-testid="jatos-repetir">
-            + Repetir o jato anterior
+            + Repetir o implemento cheio anterior
           </button>
         ) : null}
         <button type="button" className={jatos.length ? BOTAO_SECUNDARIO : BOTAO_PRIMARIO} onClick={onNovo} disabled={bloqueado} data-testid="jatos-novo">
-          {jatos.length ? "+ Jato diferente" : "+ Jato"}
+          {jatos.length ? "+ Implemento diferente" : "+ Implemento cheio"}
         </button>
       </div>
       {totais.length ? (
         <p className="col-span-12 min-w-0 b1-jato__total" data-testid="jatos-total">
-          Hoje: {jatos.length === 1 ? "1 jato" : `${jatos.length} jatos`} · {totais.map((t) => `${t.rotulo.toLowerCase()} ${t.texto}`).join(" · ")}
+          Hoje: {jatos.length === 1 ? "1 implemento cheio" : `${jatos.length} implementos cheios`} · {totais.map((t) => `${t.rotulo.toLowerCase()} ${t.texto}`).join(" · ")}
         </p>
       ) : null}
       <p className="col-span-12 min-w-0 text-[12px] text-[var(--mg-text-2,#475569)]">Os hectares só são perguntados quando terminar a área.</p>

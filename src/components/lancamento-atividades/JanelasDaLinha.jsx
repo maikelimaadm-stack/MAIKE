@@ -1328,7 +1328,7 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
       />
       {tanque || Number.isInteger(form.jato) ? (
         <CampoTexto
-          label="Jato nº"
+          label="Implemento nº"
           value={Number.isInteger(form.jato) ? String(form.jato) : ""}
           onChange={(v) => {
             const n = Number(String(v).replace(/\D/g, "").slice(0, 3));
@@ -1339,7 +1339,7 @@ export function JanelaLinhaProduto({ atividade, apontamento, linha = null, escop
           inputMode="numeric"
           maxLength={3}
           keepCase
-          dica={<p className="mt-1 px-1 text-[12px] text-[var(--mg-text-2,#475569)]">o jato do dia em que este produto foi (em branco: sem jato)</p>}
+          dica={<p className="mt-1 px-1 text-[12px] text-[var(--mg-text-2,#475569)]">o implemento cheio do dia em que este produto foi (em branco: nenhum)</p>}
           testId="linha-produto-jato"
         />
       ) : null}

@@ -9791,4 +9791,18 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 - **Migration:** nenhuma. **Constituição:** sem mudança.
 - **Testes:** `tests/smoke/saidaLoteUnidadeConvertida.test.js` (4 casos; 3 vermelhos no código da `main`): multiplica (3 SC = 75 kg e a soma confere), divide (10 CX ÷ 4 = 2,5 L), SACO do cadastro antes do legado, e os casos de sempre.
 
-<!-- Próxima decisão: D-PROD-313 -->
+## D-PROD-313 — Textos visíveis: "jato" passa a "implemento" (só a tela)
+
+**Data:** 2026-11-26 · **Origem:** fase 1 do Diário da máquina, aprovada pelo proprietário ("perfeito vamos fazer com o claude ok") · **Branch:** `feat/diario-implemento-textos`
+
+> **Numeração:** a `main` indicava `Próxima decisão: D-PROD-313` (`node scripts/dev/proxima-decisao.mjs`). O plano da fase citava D-PROD-314 por engano (o marcador já era 313). Nenhuma PR aberta reivindicava o 313. O marcador passa a D-PROD-314. Conferir de novo antes do merge (regra A5).
+
+- **Contexto:** no lançamento de atividades e no cadastro do implemento, a tela chamava de "jato" o tanque/implemento cheio (número do dia, cartões, totais, resumo ao finalizar a área). O termo não é o que a operação usa no campo. A troca é só de texto visível, primeira fase do Diário da máquina; o comportamento e o contrato não mudam.
+- **Decisão:**
+  - Nas strings da tela, "jato"/"Jato"/"jatos" passam a "implemento" com plural e concordância naturais: "Implementos cheios de hoje", "Implemento N", "igual ao implemento M", "+ Implemento cheio" / "+ Implemento diferente", "1 implemento cheio" / "N implementos cheios", "Implemento nº", "o implemento cheio do dia… (em branco: nenhum)", e no bem: "contado por implemento cheio (tanque cheio)".
+  - Não mudam coluna, campo Prisma, chave de API, enum `forma_produto` `'JATO'`, nomes de variável/função/arquivo, classes CSS (`b1-jato*`), `data-testid` nem migrations.
+- **Migration:** nenhuma. **Constituição:** sem mudança.
+- **Testes:** `tests/smoke/jatosDoDia.test.jsx`, `fechamentoArea.test.jsx`, `servicoVariosDias.test.jsx` (asserções de texto da UI). Os demais smoke do fluxo (`registroDeCampoVariasLinhas`, `estoqueLoteAtividade`, `bensPatrimoniais`) não assertam essas strings.
+
+<!-- Próxima decisão: D-PROD-314 -->
+

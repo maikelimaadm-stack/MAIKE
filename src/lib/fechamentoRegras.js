@@ -94,7 +94,7 @@ const rotuloUnidade = (u) => (u === 'KG' ? 'kg' : u === 'L' ? 'L' : u ? String(u
 export const linhasDoResumo = (r, hectares) => {
   const ha = hectares !== null && hectares > 0 ? hectares : null;
   return {
-    jatos: r.jatos ? `${r.jatos} ${r.jatos === 1 ? 'jato' : 'jatos'}${r.diasComJato > 1 ? ` em ${r.diasComJato} dias` : ''}` : null,
+    jatos: r.jatos ? `${r.jatos} ${r.jatos === 1 ? 'implemento cheio' : 'implementos cheios'}${r.diasComJato > 1 ? ` em ${r.diasComJato} dias` : ''}` : null,
     horas: r.horasMaquina !== null ? `${numeroBr(r.horasMaquina, 1)} ${r.horasMaquina === 1 ? 'hora' : 'horas'}` : null,
     porHectare: r.produtos.map((p) => {
       const u = rotuloUnidade(p.unidade);

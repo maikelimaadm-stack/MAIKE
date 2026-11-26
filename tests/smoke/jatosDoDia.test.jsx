@@ -71,8 +71,8 @@ describe("D-PROD-292: o dia já salvo com jatos", () => {
       { status: "CANCELADO", jato: 4, produto_id: "p1", produto: { nome: "HERBICIDA FOLHA LARGA" }, quantidade: "99.0000", unidade: "L" },
     ];
     const maquinas = [{ implemento: { id: "i1", jato: { capacidade: "2000", unidade: "L" } } }];
-    expect(textoDosJatosSalvos(linhas, maquinas)).toBe("3 jatos de 2.000 L · herbicida folha larga 34 L · adubo foliar 8 kg");
-    expect(textoDosJatosSalvos(linhas, [])).toBe("3 jatos · herbicida folha larga 34 L · adubo foliar 8 kg");
+    expect(textoDosJatosSalvos(linhas, maquinas)).toBe("3 implementos cheios de 2.000 L · herbicida folha larga 34 L · adubo foliar 8 kg");
+    expect(textoDosJatosSalvos(linhas, [])).toBe("3 implementos cheios · herbicida folha larga 34 L · adubo foliar 8 kg");
     expect(textoDosJatosSalvos([{ status: "CONFIRMADO", produto_id: "p1", quantidade: "1" }], maquinas)).toBeNull();
   });
 });
@@ -109,22 +109,22 @@ describe("bloco Jatos de hoje", () => {
   it("com jatos: cartões, 'igual ao jato', Editar, Repetir, Jato diferente e o total", () => {
     const p = props({ produtos: [item("a", HERB, "10", 1), item("b", HERB, "10", 2), item("c", HERB, "14", 3)] });
     render(<JatosDoDia {...p} />);
-    expect(screen.getByTestId("jato-1").textContent).toContain("Jato 1 · 2.000 L");
+    expect(screen.getByTestId("jato-1").textContent).toContain("Implemento 1 · 2.000 L");
     expect(screen.getByTestId("jato-1").textContent).toContain("10 L");
-    expect(screen.getByTestId("jato-2").textContent).toContain("Jato 2 · igual ao jato 1");
+    expect(screen.getByTestId("jato-2").textContent).toContain("Implemento 2 · igual ao implemento 1");
     expect(screen.getByTestId("jato-3").textContent).toContain("14 L");
-    expect(screen.getByTestId("jatos-total").textContent).toBe("Hoje: 3 jatos · herbicida folha larga 34 L");
+    expect(screen.getByTestId("jatos-total").textContent).toBe("Hoje: 3 implementos cheios · herbicida folha larga 34 L");
     fireEvent.click(screen.getByTestId("jato-2-editar"));
     expect(p.onEditar).toHaveBeenCalledWith(2);
     fireEvent.click(screen.getByTestId("jatos-repetir"));
     expect(p.onRepetir).toHaveBeenCalled();
-    expect(screen.getByTestId("jatos-novo").textContent).toBe("+ Jato diferente");
+    expect(screen.getByTestId("jatos-novo").textContent).toBe("+ Implemento diferente");
   });
 
   it("com um jato aberto: o título dele, a seção e Pronto", () => {
     const p = props({ jatoAberto: 4, secaoAberta: <div className="col-span-12" data-testid="secao-do-jato" /> });
     render(<JatosDoDia {...p} />);
-    expect(screen.getByText("Jato 4 · o que foi no tanque (2.000 L)")).toBeTruthy();
+    expect(screen.getByText("Implemento 4 · o que foi no implemento (2.000 L)")).toBeTruthy();
     expect(screen.getByTestId("secao-do-jato")).toBeTruthy();
     fireEvent.click(screen.getByTestId("jatos-pronto"));
     expect(p.onPronto).toHaveBeenCalled();

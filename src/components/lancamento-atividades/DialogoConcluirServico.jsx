@@ -240,7 +240,7 @@ export default function DialogoConcluirServico({ item, hoje, onFechar, onConclui
               <div className="col-span-12 min-w-0 b1-jato" data-testid="dialogo-concluir-resumo-uso">
                 {linhas.jatos ? (
                   <div className="b1-jato__linha">
-                    <span>Jatos</span>
+                    <span>Implementos cheios</span>
                     <b>{linhas.jatos}</b>
                   </div>
                 ) : null}

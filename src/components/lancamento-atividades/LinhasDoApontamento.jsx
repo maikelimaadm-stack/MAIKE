@@ -333,7 +333,7 @@ export default function LinhasDoApontamento({
     const comAcoes = !cancelada && (editar || cancelar);
     return (
       <li key={id} className={cancelada ? LINHA_CANCELADA : LINHA_CONFIRMADA} data-testid={`linha-produto-${id}`} data-status={statusDaLinha(l)}>
-        {Number.isInteger(l.jato) && l.jato > 0 ? <span data-testid={`linha-produto-${id}-jato`}>Jato {l.jato} ·</span> : null}
+        {Number.isInteger(l.jato) && l.jato > 0 ? <span data-testid={`linha-produto-${id}-jato`}>Implemento {l.jato} ·</span> : null}
         <span className={cancelada ? "line-through" : "font-medium"} data-testid={`linha-produto-${id}-nome`}>
           {rotuloDoProdutoDaLinha(l) || "Produto"}
         </span>

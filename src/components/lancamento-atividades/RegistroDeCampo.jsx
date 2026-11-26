@@ -1006,7 +1006,7 @@ export default function JanelaRegistroDeCampo({
         />
         {hectaresNoFim ? (
           <p className={`col-span-12 min-w-0 ${NOTA_DO_CAMPO}`} data-testid="registro-de-campo-area-hectares-no-fim">
-            Com jato, os hectares não contam hoje: são perguntados quando finalizar a área.
+            Com implemento cheio, os hectares não contam hoje: são perguntados quando finalizar a área.
           </p>
         ) : null}
         {/* D-PROD-274: Manutenção e Outros sem área — o Local (obrigatório sem área). */}
