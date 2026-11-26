@@ -2,7 +2,7 @@
  * Diário da máquina, Fase 2 (só tela, sem banco):
  *  - `podeVerCusto(permissao)`: R$ só com a permissão efetiva de administrador da fazenda (`is_admin === true`);
  *  - as telas de lançamento do operador escondem os valores em R$ (o envio e o custo gravado não mudam);
- *  - "Iniciar atividade" na janela do pasto (Detalhes da área do Mapa): abre a Nova realização já com ESTE pasto,
+ *  - "Diário das atividades" na janela do pasto (Detalhes da área do Mapa, D-PROD-325): abre já com ESTE pasto,
  *    só com permissão de lançar e fuso da fazenda.
  */
 import React from "react";
@@ -42,9 +42,6 @@ vi.mock("@/services/lancamentoAtividadesService", async (importOriginal) => ({
   listarAtividades: vi.fn(async () => ({ items: [] })),
 }));
 vi.mock("@/components/mapa/HistoricoAbateCurral", () => ({ default: () => null }));
-vi.mock("@/components/lancamento-atividades/RegistroDeCampo", () => ({
-  default: ({ area }) => <div data-testid="janela-registro" data-area={area?.id ?? ""} />,
-}));
 
 const TUDO = { ver: true, criar: true, editar: true, cancelar: true, reabrir: true, lancarApontamento: true, editarApontamento: true, cancelarApontamento: true };
 const ADMIN = { is_admin: true, modulos_permitidos: [], permissoes_telas: [] };
@@ -138,7 +135,7 @@ describe("R$ escondido para o operador", () => {
   });
 });
 
-describe("Iniciar atividade no pasto (Detalhes da área)", () => {
+describe("Diário das atividades no pasto (Detalhes da área, D-PROD-325)", () => {
   const PASTO = { id: "area-A", nome: "PASTO A", tipo_cultura: "Pastagem", tamanho_hectares: "22.0000" };
   const RESUMO_VAZIO = { area_id: "area-A", mes: "2026-11", atividades: [], custos: null, planejamentos: [] };
   const RESUMO_COM_CUSTO = {
@@ -157,14 +154,16 @@ describe("Iniciar atividade no pasto (Detalhes da área)", () => {
     );
   };
 
-  it("com permissão de lançar e fuso ok, o botão abre a Nova realização com este pasto", async () => {
+  it("com permissão de lançar e fuso ok, o botão abre o Diário das atividades deste pasto (no tipo)", async () => {
     await montar("manejos");
-    const botao = await screen.findByTestId("area-iniciar-atividade");
+    const botao = await screen.findByTestId("area-diario-atividades");
     expect(botao).toHaveClass("tb-btn", "tb-btn-green");
-    expect(botao).toHaveTextContent("Iniciar atividade");
-    expect(screen.queryByTestId("janela-registro")).toBeNull();
+    expect(botao).toHaveTextContent("Diário das atividades");
+    expect(screen.queryByTestId("diario-atividades")).toBeNull();
     fireEvent.click(botao);
-    expect(screen.getByTestId("janela-registro")).toHaveAttribute("data-area", "area-A");
+    expect(await screen.findByTestId("diario-atividades")).toBeInTheDocument();
+    expect(screen.getByTestId("diario-atividades-tipos")).toBeInTheDocument();
+    expect(screen.queryByTestId("area-diario-maquina")).toBeNull();
   });
 
   it("sem permissão de lançar, o botão não aparece", async () => {
@@ -172,14 +171,14 @@ describe("Iniciar atividade no pasto (Detalhes da área)", () => {
     await montar("manejos");
     await waitFor(() => expect(sessao.resumo).toHaveBeenCalled());
     await screen.findByText("Nenhuma atividade nesta área agora.");
-    expect(screen.queryByTestId("area-iniciar-atividade")).toBeNull();
+    expect(screen.queryByTestId("area-diario-atividades")).toBeNull();
   });
 
   it("sem fuso da fazenda, o botão não aparece", async () => {
     sessao.fusoOk = false;
     await montar("manejos");
     await screen.findByText("Nenhuma atividade nesta área agora.");
-    expect(screen.queryByTestId("area-iniciar-atividade")).toBeNull();
+    expect(screen.queryByTestId("area-diario-atividades")).toBeNull();
   });
 
   it("operador não vê a seção de custos (R$); o administrador vê", async () => {

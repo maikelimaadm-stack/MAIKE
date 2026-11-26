@@ -10051,4 +10051,23 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
     - O APK já tem a permissão de câmera e o `FileProvider`, então não precisa de APK novo: a mudança chega pela atualização automática.
 - **Fora:** a tarefa recusada pelo servidor: a foto dela fica guardada até a tarefa ser corrigida ou descartada.
 
-<!-- Próxima decisão: D-PROD-325 -->
+## D-PROD-325 — Diário das atividades, parte 1: abertura do serviço (tipo → máquina, implemento, horímetro e responsável), do zero
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário (maquete v4 "Diário das atividades"): começar o serviço pelo pasto, com a máquina, o implemento, o horímetro inicial e o responsável · **Branch:** `feat/atividades-abertura` · **Migration:** nenhuma · **Relatório:** [`ATIVIDADES-ABERTURA-REPORT.md`](./ATIVIDADES-ABERTURA-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indica D-PROD-325 (a `main` ainda tem o marcador em D-PROD-325). O marcador passa a D-PROD-326. Conferir de novo antes do merge (regra A5).
+
+- **Problema:** o "Iniciar atividade" e o "Diário da máquina" eram duas janelas separadas, e o começo do serviço pedia a Nova realização inteira (áreas, insumos, equipe) antes de a máquina ser registrada.
+- **Decisão — um botão, um diário do zero:** a área (Detalhes, Manejos) tem um botão só, "Diário das atividades". O diário novo (`DiarioDasAtividades`) faz só a **abertura** nesta parte:
+  1. **Tipo:** os 7 tipos fixos em cartões (como a Nova realização);
+  2. **Abrir:** Máquina \*, Implemento (opcional), Horímetro inicial \* e Responsável \*; com mais de uma operação do tipo, a **Operação** \* vem antes (com uma só, ela é usada sozinha; com nenhuma, aviso e o botão não envia);
+  3. **Serviço iniciado:** o cabeçalho do serviço (tipo, máquina, implemento, responsável, pasto e horímetro inicial). Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia **não** estão aqui: chegam nas próximas etapas.
+- **Decisão — a abertura acontece ao INICIAR um serviço:** com uma atividade em andamento no pasto, o botão abre direto no cabeçalho dela; sem ela, abre no tipo.
+- **Decisão — horímetro:** o campo é pt-BR (ponto = milhar, vírgula = decimal). Na troca de máquina, vem preenchido com a última leitura até hoje (`obterMedidorDoBem`); a pessoa pode mudar. Digitando, a leitura não sobrescreve mais, salvo ao trocar de máquina. Não há "hora de início".
+- **Decisão — guardar sem migration:** a abertura vai como PRIMEIRA LINHA da observação do apontamento do dia, no formato `[abertura-servico bem=… impl=… hor=… resp=… bemn=… impln=… respn=…]` (`src/lib/aberturaServicoRegras.js`). Os nomes vão `encodeURIComponent`; campo vazio sai da linha; o texto depois da linha é da pessoa e é preservado.
+  - **Limite:** é texto. Editar a linha à mão pode apagá-la, e a tela então mostra "Abertura não registrada neste serviço". Os números reais do horímetro (inicial e final, por máquina) chegam com o "Encerrar o dia", em tabela própria, numa etapa futura.
+- **Decisão — envio:** um só, `registrarCampo` (`POST /atividades/registrar`), com `area_id`, `tipo_atividade_id`, `data_operacional` (hoje na fazenda), `operador_usuario_id` (o responsável) e a observação com a linha. O servidor acha ou abre a atividade e cria o apontamento do dia. Sem id de volta, a tela avisa e não avança.
+- **Permissão:** só com `lancarApontamento` e fuso configurado; senão, o mesmo aviso da Nova realização.
+- **Fora:** a Nova realização (`RegistroDeCampo`) e o "Diário da máquina" (`DiarioDaMaquina`) continuam no código, sem a entrada no pasto. O "Diário da máquina" da linha de ação (`AcoesDaAtividadeDaArea`) não mudou.
+
+<!-- Próxima decisão: D-PROD-326 -->
