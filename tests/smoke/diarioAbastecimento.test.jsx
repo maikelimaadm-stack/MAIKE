@@ -186,7 +186,12 @@ const ATIVIDADE_APLICACAO = {
   area_status: "EM_ANDAMENTO",
   data_inicio: "2026-11-02",
 };
-const DETALHE = { "at-1": { id: "at-1", tipo_atividade_id: "op-1", tipo_atividade_nome: "Aplicação de defensivo", nome: "Aplicação · nov/26", data_inicio: "2026-11-02", versao: 7 } };
+const DETALHE = {
+  "at-1": { id: "at-1", tipo_atividade_id: "op-1", tipo_atividade_nome: "Aplicação de defensivo", nome: "Aplicação · nov/26", data_inicio: "2026-11-02", versao: 7 },
+  "at-2": { id: "at-2", tipo_atividade_id: "op-1", tipo_atividade_nome: "Aplicação de defensivo", nome: "Aplicação · nov/26 B", data_inicio: "2026-11-02", versao: 7 },
+};
+/** A 2ª atividade aberta do mesmo pasto (D-PROD-365: a regressão do registro do dia entre atividades). */
+const ATIVIDADE_APLICACAO_B = { ...ATIVIDADE_APLICACAO, atividade_id: "at-2", numero: 11, nome: "Aplicação · nov/26 B" };
 
 /** A abertura da frente Trator 12 + Pulverizador (o registro de abertura, com a linha na observação). */
 const TRATOR_12 = marcadorDaAbertura({ bemId: "bem-7", bemNome: "Trator 12", implementoId: "imp-2", implementoNome: "Pulverizador 2.000 L", horimetro: "1000.0", responsavelId: "usr-3", responsavelNome: "João Pereira" });
@@ -453,3 +458,45 @@ describe("D-PROD-359 — permissão e frente encerrada (g, h)", () => {
     expect(frente).toHaveTextContent("● Encerrado");
   });
 });
+
+describe("D-PROD-359 — o registro do dia não é reaproveitado de uma atividade para outra (regressão)", () => {
+  it("(i) abastece na atividade A; volta e abre a atividade B com a MESMA máquina e implemento: o registro do dia de B é criado de novo e a confirmação leva o id dele", async () => {
+    // Nenhuma das duas tem registro de HOJE para a frente: cada atividade cria o seu. A frente Trator 12 existe nas duas.
+    store["at-1"] = store["at-1"].filter((a) => a.id !== "ap-1h");
+    store["at-2"] = [ap("ap-b1", "2026-11-02", TRATOR_12)];
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO, ATIVIDADE_APLICACAO_B] });
+    await abrirFrente();
+    await abrirAbastecimento();
+    await screen.findByTestId("abastecimento-frente-produto");
+    preencherEstoque();
+    fireEvent.click(screen.getByTestId("abastecimento-salvar"));
+    await waitFor(() => expect(servidor.confirmacoes).toHaveLength(1));
+    await screen.findByTestId("abertura-iniciado");
+
+    // Volta à lista do pasto e abre a B (mesma máquina e implemento).
+    fireEvent.click(screen.getByTestId("servico-voltar-atividade"));
+    await screen.findByTestId("atividade-passo");
+    fireEvent.click(screen.getByTestId("atividade-voltar"));
+    fireEvent.click(await screen.findByTestId("diario-atividade-aberta-at-2"));
+    await screen.findByTestId("atividade-passo");
+    await irAoServicoDaFrenteB();
+    await abrirAbastecimento();
+    await screen.findByTestId("abastecimento-frente-produto");
+    preencherEstoque();
+    fireEvent.click(screen.getByTestId("abastecimento-salvar"));
+    await waitFor(() => expect(servidor.confirmacoes).toHaveLength(2));
+
+    // O registro do dia da B foi criado (um a mais), na atividade B; a confirmação leva esse id, não o de A.
+    expect(servico.criarApontamento).toHaveBeenCalledTimes(2);
+    expect(servico.criarApontamento.mock.calls[0][0]).toBe("at-1");
+    expect(servico.criarApontamento.mock.calls[1][0]).toBe("at-2");
+    expect(servidor.confirmacoes[0].apontamento_id).toBe("ap-dia-1");
+    expect(servidor.confirmacoes[1].apontamento_id).toBe("ap-dia-2");
+  });
+});
+
+/** Abre o serviço da frente Trator 12 da atividade B (at-2). */
+const irAoServicoDaFrenteB = async () => {
+  fireEvent.click(await screen.findByTestId(`frente-at-2-${encodeURIComponent("bem-7|imp-2")}`));
+  return screen.findByTestId("abertura-iniciado");
+};
