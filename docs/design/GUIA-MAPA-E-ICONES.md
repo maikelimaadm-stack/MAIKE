@@ -17,8 +17,9 @@ Este documento é um índice dos arquivos reais do sistema. As tabelas indicam *
 | Número de cabeças: tamanho da letra | `src/lib/maplibre/contagemLote.js` → `FONTE_CONTAGEM_PX` |
 | Número de cabeças: posição e cor | Altura: centro da faixa reservada à contagem, `CONTAGEM_TOPO_PCT` (`src/assets/icones/lotes/index.js`, calculado de `CARD_FRAC` e `FAIXA_CONTAGEM`). Cor (`#6b7280`), halo e centro na horizontal: `desenharImagemLote` em `src/lib/maplibre/lotesNoMapa.js` (a contagem é escrita na imagem do lote, D-PROD-349) |
 | Avisos dos bois no canto superior direito | `src/lib/maplibre/lotesNoMapa.js` → `desenharImagemIdent`, `DIAMETRO_IDENT_PX`, `DESLOC_IDENT_PX`; piscar: `PISCAR_MS`, `OPACIDADE_PISCAR` |
-| Nomes dos pastos e hectares: tamanho | `src/lib/maplibre/mapaGeralRender.js` → `fontesRotuloPorZoom` |
-| Nomes dos pastos: aparência e posição | `useMapRenderer.jsx` → `syncLabels` e atualização dos rótulos |
+| Nomes dos pastos e hectares: tamanho | `src/lib/maplibre/nomesNoMapa.js` → `fontesRotuloPorZoom` (letra 10 → 12 px por zoom) e `escalaRotulo` (encaixe no pasto, mínimo 60%); viram o `icon-size` da camada (`tamanhosPorZoom`, `expressaoTamanhoNome`) — D-PROD-354: desenhados pelo próprio mapa |
+| Nomes dos pastos: letra, cores e posição | `src/lib/maplibre/nomesNoMapa.js` → `FAMILIA_NOME`, `COR_NOME`, `OPACIDADE_HA`, `COR_EXTRA`, `ALTURA_LINHA`, `estiloDaLinha`, `desenharImagemNome`; com lote, `DESLOC_NOME_COM_LOTE_PX` ([0, 10]); camadas em `camadasNomes` |
+| Nomes dos pastos: nível (nome + ha, só o nome, sigla) | `useMapRenderer.jsx` → `arrumarNomes` (com `escolherModoRotulos` e `siglaDaArea` de `mapaGeralRender.js`) |
 | Cores e linhas das áreas/cercas | `src/lib/maplibre/estiloAreas.js` e funções `paint*` em `mapaGeralRender.js` |
 | Posição da barra do topo, dos botões e do resumo do mapa | `src/styles/mapa-geral.css` → `.mk-mapa-barra` (barra ⚙ · Lotes · Pastos · Tarefas), `.mk-mapa-dir`, `.mk-mapa-resumo` |
 | Estilo final dos botões e painéis | `src/styles/mk-mapa-superficie.css` (sobrescreve parte dos estilos anteriores) |
@@ -82,7 +83,7 @@ As imagens publicadas são assets com URLs versionadas. Para trocar a imagem ofi
 
 ## 3. Tamanhos e posições dos marcadores
 
-Arquivo: `src/components/mapa/useMapRenderer.jsx`; os lotes (desenhados pelo próprio mapa desde a D-PROD-349), em `src/lib/maplibre/lotesNoMapa.js`; cochos, depósitos, pontos de referência e tarefas (desenhados pelo próprio mapa desde a D-PROD-353), em `src/lib/maplibre/pontosNoMapa.js`.
+Arquivo: `src/components/mapa/useMapRenderer.jsx`; os lotes (desenhados pelo próprio mapa desde a D-PROD-349), em `src/lib/maplibre/lotesNoMapa.js`; cochos, depósitos, pontos de referência e tarefas (desenhados pelo próprio mapa desde a D-PROD-353), em `src/lib/maplibre/pontosNoMapa.js`; os nomes dos pastos (desenhados pelo próprio mapa desde a D-PROD-354), em `src/lib/maplibre/nomesNoMapa.js`.
 
 | Elemento | Referência no código |
 | --- | --- |
@@ -90,7 +91,7 @@ Arquivo: `src/components/mapa/useMapRenderer.jsx`; os lotes (desenhados pelo pr�
 | Cochos e depósitos | `TAMANHO_SUPL_PX` (36), em `pontosNoMapa.js` (usado por `syncPontosSuplementacao`) |
 | Pontos de referência | `TAMANHO_PONTO_PX` (40), em `pontosNoMapa.js` (usado por `syncPontos`) |
 | Tarefas | `TAMANHO_TAREFA_PX` (40), em `pontosNoMapa.js` (usado por `syncTarefas`); indicador de 22 px (`INDICADOR_TAREFA`) independente do desenho |
-| Ordem entre eles | `ORDEM_CLICAVEIS` em `pontosNoMapa.js` e `ensureMgLayers` em `mapaGeralRender.js`: cocho < ponto < lote < tarefa (Urgente por cima pelo `symbol-sort-key`) |
+| Ordem entre eles | `ORDEM_CLICAVEIS` em `pontosNoMapa.js` e `ensureMgLayers` em `mapaGeralRender.js`: cocho < ponto < lote < tarefa (Urgente por cima pelo `symbol-sort-key`) < nomes dos pastos (D-PROD-354, sem clique) |
 | Deslocamento do gado em relação ao ponto | `OFFSET_LOTE_PX = [0, -26]`; com o nome do pasto embaixo, `OFFSET_LOTE_COM_NOME_PX = [0, -14]` (`lotesNoMapa.js`, `icon-offset` da camada `mg-lotes`) |
 | Contagem dentro do ícone do gado | no meio da largura, a `CONTAGEM_TOPO_PCT` da altura (centro da faixa reservada, ≈ 73,46%), escrita no canvas em `desenharImagemLote` |
 | Avisos no alto à direita do gado | `DESLOC_IDENT_PX = [22, -24]` a partir do centro do ícone (camada `mg-lotes-ident`) |
@@ -110,9 +111,9 @@ O gado tem moldura própria: o "quadradinho" branco com ponteira, em `src/assets
 
 - Cabeças: `FONTE_CONTAGEM_PX = 9.5` em `src/lib/maplibre/contagemLote.js`. A formatação dos milhares também está nesse arquivo.
 - Cor, peso, família e halo da contagem: `desenharImagemLote` em `src/lib/maplibre/lotesNoMapa.js` (não há `text-field` do mapa: o estilo sem internet não tem fonte de letras).
-- Tamanho de nomes/hectares por zoom: `fontesRotuloPorZoom` em `mapaGeralRender.js`. O código interpola o tamanho conforme o zoom; os hectares ficam menores.
-- Cor, sombra e família dos rótulos de áreas: criação dos elementos em `useMapRenderer.jsx`.
-- Organização/escala dos rótulos: `escalaRotulo` e regras de espaço disponível em `mapaGeralRender.js`/`useMapRenderer.jsx`.
+- Tamanho de nomes/hectares por zoom: `fontesRotuloPorZoom` em `nomesNoMapa.js` (também exportada por `mapaGeralRender.js`). A imagem do nome é desenhada em 12 px; o mapa reduz pelo `icon-size` (paradas `s8`…`s22` de cada pasto na fonte `mg-nomes`); os hectares ficam 1 px menores.
+- Cor, peso e família dos nomes das áreas (sem sombra): `estiloDaLinha` e `desenharImagemNome` em `nomesNoMapa.js` (não há `text-field`: o estilo sem internet não tem fonte de letras; a Inter é esperada com `document.fonts.load`, sem ela Arial).
+- Organização/escala dos nomes: `escalaRotulo` (encaixe no pasto) em `nomesNoMapa.js`; nível único para todos em `arrumarNomes` (`useMapRenderer.jsx`) com `escolherModoRotulos` (`mapaGeralRender.js`).
 - Texto do painel de detalhes: `src/styles/mk-mapa-superficie.css` e classes `.mk-map-details`; os componentes `DetalhesLote.jsx`, `DetalhesPontoSuplementacao.jsx` e `DetalhesDepositoSuplementacao.jsx` organizam o conteúdo.
 - Fonte do sistema: `index.html`, `src/index.css` e os estilos compartilhados do motor. Os marcadores DOM podem declarar sua própria `font-family`, como Inter/Arial; mudar a fonte global não necessariamente muda esses marcadores.
 
