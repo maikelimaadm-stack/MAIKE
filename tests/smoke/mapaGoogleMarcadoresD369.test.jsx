@@ -211,6 +211,8 @@ describe("G369-2 — camada de marcadores", () => {
     expect(img.style.transform).toBe("translate(0px, -5px)");
     expect(img.style.width).toBe("40px");
     expect(img.style.zIndex).toBe("500");
+    // no celular, o dedo em cima do ícone não dá zoom na página: o gesto é do mapa
+    expect(img.style.touchAction).toBe("none");
     expect(img.title).toBe("Cocho 1");
     img.click();
     expect(clique).toHaveBeenCalledTimes(1);
