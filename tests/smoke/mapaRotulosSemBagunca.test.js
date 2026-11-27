@@ -152,7 +152,14 @@ describe("nome do pasto acompanha o zoom (D-PROD-129)", () => {
     const r = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
     expect(r).toMatch(/map\.on\("zoom", h\)/);
     expect(r).not.toMatch(/map\.on\("zoomend"/);
-    expect(r).toMatch(/aplicarFonte\(entry\);\s*escalarNome\(entry, z\);/);
+    // D-PROD-351: a cada quadro só a escala (a fonte acompanha pela razão fontesRotuloPorZoom(z)/fonte0);
+    // o tamanho real da letra é aplicado no fim do zoom (arrumarRotulos completo) e ao criar o nome
+    expect(r).toMatch(/const h = \(\) => \{\s*const z = map\.getZoom\(\);\s*labelsRef\.current\.forEach\(\(entry\) => \{\s*escalarNome\(entry, z\);\s*\}\);/);
+    expect(r).toMatch(/const fr = entry\.fonte0 \? fontesRotuloPorZoom\(zoom\)\.nome \/ entry\.fonte0 : 1;/);
+    expect(r).toMatch(/if \(!alvo\) aplicarFonteRotulo\(entry, zoomAgora\);/);
+    // a colisão durante o zoom mede a caixa ampliada como aparece (revisão Codex no #439)
+    expect(r).toMatch(/const fr = alvo && entry\.fonte0 \? fontesRotuloPorZoom\(zoomAgora\)\.nome \/ entry\.fonte0 : 1;/);
+    expect(r).toMatch(/rotulos\.set\(id, \{ x: c\.x - \(w - c\.w\) \/ 2, y: doTopo \? c\.y : c\.y - \(h - c\.h\) \/ 2, w, h \}\);/);
     expect(r).toMatch(/arrumarDuranteZoom\(\);/);
     expect(r).toMatch(/if \(agora - ultimoArrumarRef\.current < 120\) return;/);
     // ícone do lote: posição fixa do D-PROD-128, sem escala por zoom (camada sem icon-size nem expressão de zoom)
@@ -162,7 +169,8 @@ describe("nome do pasto acompanha o zoom (D-PROD-129)", () => {
     }
     // só o nome escala (D-PROD-130); o ícone do lote nunca
     expect((r.match(/scale\(/g) || []).length).toBe(1);
-    expect(r).toMatch(/entry\.corpo\.style\.transform = s < 1 \? `\$\{entry\.base \|\| ""\} scale\(\$\{s\}\)`/);
+    expect(r).toMatch(/const s = fr \* escalaRotulo\(entry\.tam\.w \* fr, entry\.tam\.h \* fr, raio\);/);
+    expect(r).toMatch(/entry\.corpo\.style\.transform = Math\.abs\(s - 1\) > 0\.001 \? `\$\{entry\.base \|\| ""\} scale\(\$\{s\}\)`/);
   });
 });
 

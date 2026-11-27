@@ -38,3 +38,13 @@ Perfil (CPU) do zoom antes: 28,5 s em `getBoundingClientRect` dentro de `arrumar
 ## O que fica para as próximas etapas
 
 O arrastar continua em ≈ 9 quadros/s: o custo é o recálculo de estilo de ~400 marcadores HTML (nomes, lotes e cochos) reposicionados a cada quadro (`estilo_s` ≈ 9 s no gesto). A próxima etapa desenha pontos e lotes pelo próprio mapa (camadas `symbol` com as mesmas imagens). Riscos levantados: contagem do lote sem fonte de letras no mapa sem internet (vira parte da imagem), arrastar o lote (refazer com os eventos do mapa), ordem dos desenhos (o que for pintado no mapa fica abaixo do que continuar HTML).
+
+## D-PROD-351 — zoom: ampliar o nome em vez de refazer o texto
+
+Pedido depois do teste do proprietário num tablet fraco (o arrastar ficou bom; o zoom ainda trava). Perfil do zoom: a troca do tamanho da letra dos 200 nomes a cada quadro refazia o texto de todos. Agora, durante o zoom, o nome é ampliado na razão da fonte, e o tamanho real é aplicado no fim do zoom.
+
+| Cenário (200 pastos, CPU 4×) | Antes | Depois |
+|---|---|---|
+| Zoom, quadros/s | 4,1–5,6 | 6,1–6,4 |
+| Zoom, recálculo de estilo | 18–22 s | 14 s |
+| Arrastar, quadros/s | 7,2–8,7 | 10,8–10,9 |
