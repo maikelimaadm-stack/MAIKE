@@ -10681,6 +10681,20 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - o clique entrega o objeto novo na hora, mesmo com a imagem nova pendente;
   - o toque na margem transparente da imagem é da área por baixo (meia largura/altura do ícone visível na fonte); a área de toque volta a ser a de antes.
 
+## D-PROD-355 — O código do aparelho também em área, ponto de referência, linha e setor: com o sinal fraco, nada em dobro
+
+**Data:** 2026-11-27 · **Origem:** pendência da sincronização (auditoria do servidor, D2), pedida pelo proprietário ("consegue ir resolvendo todos esses bugs sem parar?") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`ID-DO-APARELHO-CADASTROS-D355-REPORT.md`](./ID-DO-APARELHO-CADASTROS-D355-REPORT.md)
+
+**Decisão.**
+1. **A criação de área, ponto de referência, linha e setor aceita o id gerado no aparelho** (UUID, `criarComIdDoAparelho`, como o lote e o cocho na D-PROD-308):
+   - a mesma criação repetida devolve o registro já criado, com o mesmo número;
+   - o mesmo id em outra conta dá 409 `ID_DO_APARELHO_EM_USO`, sem dizer de quem;
+   - criado e depois excluído dá 409 `ID_DO_APARELHO_EXCLUIDO` e não recria;
+   - sem id, o servidor gera o id, como antes.
+2. **No app, as quatro portas pedem o id do aparelho** (`idDoAparelho: true`) e o mandam na criação. Antes, com o sinal fraco, a resposta da criação se perdia, o app mandava de novo e o servidor gravava um segundo registro.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`bafa269b2`) indicou D-PROD-353. A D-PROD-353 (mapa leve, etapa 3, PR #441) entrou antes e a D-PROD-354 está reservada pela PR #443 (mapa leve, etapa 4); esta passou a D-PROD-355. O marcador passa a D-PROD-356. Conferir antes do merge (regra A5).
+
 ## D-PROD-356 — Caminho único do Diário: "+ Lançamento" em toda a Lançamento de Atividades, e Insumo só com `permite_produto`
 
 **Data:** 2026-11-27 · **Origem:** acerto do caminho único do Diário das atividades (fecha os limites da D-PROD-352)
