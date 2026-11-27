@@ -10515,4 +10515,17 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** depois da D-PROD-344 (Fase 2). O marcador passa a D-PROD-346. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-346 -->
+## D-PROD-347 — Mapa leve, etapa 1: medir e tirar a trava do zoom nos nomes das áreas
+
+**Data:** 2026-11-27 · **Origem:** proprietário: deixar o Mapa Geral tão rápido quanto o do AgriWebb sem trocar o mapa; autorizou fazer tudo sozinho, "sempre tentando ao máximo deixar igual o atual" · **Relatório:** [`MAPA-LEVE-D347-REPORT.md`](./MAPA-LEVE-D347-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` deu D-PROD-347 (a D-PROD-346 está reservada pela PR #434). O marcador passa a D-PROD-348.
+
+- **Medição (nova):** `tests/e2e/harness/run-perf.cjs` abre o harness com uma fazenda grande (`?grande=200`: 200 pastos, 200 lotes, 50 cochos), num celular emulado com CPU 4× mais lenta, e mede abertura, arrastar e zoom (quadros, layout, estilo). O harness voltou a abrir o Mapa Geral (stub de `AuthContext`).
+- **Causa da trava no zoom:** no fim de `arrumarRotulos`, cada nome era lido (`getBoundingClientRect`) e logo escalado, um por um — cada leitura depois de uma escrita recalculava a página inteira. 200 nomes = 200 recálculos por revisão, e a revisão roda a cada 120 ms durante o zoom (D-PROD-129).
+- **Decisão (comportamento igual):**
+  - a última passada lê todos os nomes e só depois escala todos (duas passadas);
+  - durante o zoom, a revisão mexe só nos pastos que estão na tela (com folga de ¼); o `moveend` revê todos, como antes.
+- **Resultado (200 pastos, CPU 4×):** zoom de 2,5 → 8,5 quadros/s; layout no gesto de 36 s → 0,05 s; quadro mais lento de 1,2 s → 0,22 s. Arrastar sem mudança (≈ 9 quadros/s): o custo que resta são os ~400 marcadores HTML reposicionados a cada quadro — próximas etapas (pontos e lotes desenhados pelo próprio mapa).
+
+<!-- Próxima decisão: D-PROD-348 -->
