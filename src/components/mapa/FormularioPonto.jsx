@@ -63,7 +63,7 @@ const FL = LancField;
  * D-PROD-178: `capacidade_cocho_kg` (cocho e depósito) é o LIMITE — o máximo recomendado pelo proprietário, que pode
  * ser menor que a capacidade física (esta não é armazenada). `estoque_minimo_kg` (depósito) é o gatilho de reposição.
  *
- * D-PROD-369: o cadastro de ponto ficou simples, como o proprietário pediu: sem textos de instrução embaixo dos
+ * D-PROD-370: o cadastro de ponto ficou simples, como o proprietário pediu: sem textos de instrução embaixo dos
  * campos, sem caixas de aviso, sem Observações e, no cocho, sem os campos de alerta (dias de reposição e sem
  * lançamento). Os valores desses campos continuam indo como estavam (padrão 3 e 10 dias no cocho novo; o que já
  * estava gravado no cocho editado), então nada muda no que o mapa calcula.

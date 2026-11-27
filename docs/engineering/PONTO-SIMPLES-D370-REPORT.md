@@ -1,6 +1,6 @@
-# Relatório: cadastro de ponto simples (D-PROD-369)
+# Relatório: cadastro de ponto simples (D-PROD-370)
 
-**Data:** 2026-11-27 · **Branch:** `claude/nifty-feynman-rh0kdn` · **Decisão:** [D-PROD-369](./DECISIONS.md)
+**Data:** 2026-11-27 · **Branch:** `claude/nifty-feynman-rh0kdn` · **Decisão:** [D-PROD-370](./DECISIONS.md)
 
 ## Pedido
 

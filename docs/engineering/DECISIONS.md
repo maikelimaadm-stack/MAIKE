@@ -10911,9 +10911,34 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-367 (363 e 364 são as etapas 3 e 4, PRs #451 e #452; 365 e 366 estão reservados pelas PRs #453 e #454). O marcador passa a D-PROD-368. Conferir antes do merge (regra A5).
 
-## D-PROD-369 — Cadastro de ponto simples: cocho e depósito sem instruções, avisos nem Observações
+## D-PROD-365 — A opção "Máquina" da frente: as horas do dia na mesma janela do serviço
 
-**Data:** 2026-11-27 · **Origem:** o proprietário: "no cadastro de novo ponto seja cocho ou depósito precisa ser algo simples e correto… não preciso de instruções de campos, não preciso de alertas… não preciso de campo de observações" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`PONTO-SIMPLES-D369-REPORT.md`](./PONTO-SIMPLES-D369-REPORT.md)
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário (depois da D-PROD-359 e da D-PROD-363): a opção "Máquina" do serviço abria "Em breve"; o mockup aprovado é "Horas do dia" (`a-maquina-horas-do-dia`) · **Branch:** `feat/diario-maquina` · **Migration:** nenhuma · **APK:** a conferir (só front-end)
+
+**Decisão.** A opção "Máquina" do serviço de uma frente abre a tela de HORAS DO DIA na MESMA janela do serviço, como a Carga de insumo (D-PROD-334) e o Abastecimento (D-PROD-359): sem wizard e sem popup sobre popup. Esta etapa é só "Horas do dia": sem abas, sem "Parada", sem trocar implemento e sem corrigir horímetro (essas continuam fora desta tela). Grava a linha de máquina que já existe (`AtividadeApontamentoMaquina`) pelo fluxo que já existe. Nenhuma rota, tabela, migration ou serviço de gravação novo.
+
+**O que muda.**
+- **A tela** (`MaquinaDaFrente.jsx`). Cabeçalho "Máquina" com "Lançar as horas do <máquina da frente>". "Horímetro inicial do dia" só para leitura, com a linha "Último horímetro lido: … (abertura do serviço | último lançamento | encerramento anterior | leitura do medidor)". O inicial é o MAIOR entre a leitura vigente do medidor do bem na data e o último horímetro lido pela frente (`ultimoHorimetroLidoDaFrente`). "Horímetro final do dia" obrigatório. "Horas trabalhadas: 4,5 h (3.131,5 - 3.127,0)", calculada. "Responsável" só para leitura (o da frente). Botão do rodapé "Salvar horas".
+- **Gravação.** Com o apontamento CONFIRMADO de hoje da frente, `adicionarLinha(LINHA_MAQUINA)` com a `versao` dele; sem ele, um `criarApontamento` com `maquinas[]` (o dia e a linha nascem juntos, atômico, como a carga faz com `produtos`). A observação leva a abertura da frente. O corpo sai de `formularioMaquinaVazio`, `validarLinhaMaquina` e `corpoDaLinhaMaquina`, com bem = máquina da frente e implemento = o da frente. Idempotência como a carga: `operation_id` persistente, "Repetir o mesmo envio" e "Consultar".
+- **Máquina sem contador** (ou sem medidor): em vez das duas leituras, um campo "Horas trabalhadas" (uso maior que zero) com `sem_medidor: true`.
+- **Salto.** Passou do teto do tipo (`passaDoTeto`) ou o servidor recusa com `ATIVIDADE_SALTO_MEDIDOR`: o campo "Justificativa do salto" aparece e o envio repete com `justificativa_salto`. As recusas do servidor aparecem na própria janela (`mensagemDeErroLinha`), sem popup.
+- **"Lançado hoje" e "Hoje".** A linha de máquina com as duas leituras mostra "3.127,0 → 3.131,5" no lugar do nome do bem (sem leituras, o nome segue). O "Hoje" do cartão da frente já somava (final − inicial) dessas linhas (`horasDaFrenteNoDia`); a nova linha entra nele sem mudança de cálculo.
+- **Base do horímetro.** A lógica de "base" que `horasDaFrenteNoDia` já tinha foi movida para `baseDoHorimetroDaFrente` (exportada, sem mudar o resultado). O último horímetro lido soma também as leituras da frente já confirmadas HOJE, para a 2ª linha do dia não contar a 1ª de novo.
+- **Permissão e estado.** A opção só aparece com a permissão de lançar apontamento e com a frente aberta (não encerrada). Remove o "Em breve" da Máquina; as demais opções seguem "Em breve". O sub da opção vira "Horas trabalhadas e horímetro do dia".
+
+**Custo de máquina (achado).** O servidor calcula `custo_total = quantidade_uso × custo_unitario_uso` em cada linha de máquina (snapshot do bem; nulo se o bem não tem custo de uso), conferido em `atividadeApontamentoMaquinaService.js`. O `/totais` da atividade soma as linhas CONFIRMADAS. Logo, as horas lançadas por esta tela PASSAM A GERAR CUSTO DE MÁQUINA para o bem que tiver custo de uso cadastrado. O encerramento da frente (a tag com o horímetro) NÃO gera linha de máquina, então não conta em dobro. **Limite conhecido:** as horas entre a leitura final da última linha e o horímetro do encerramento, no mesmo dia, não geram custo (não há linha para elas).
+
+**O que NÃO muda.** Backend, banco, rotas e migrations. O cálculo do custo é o do servidor, como sempre. A linha de máquina que o Lançamento de Atividades já criava segue como estava.
+
+**Riscos e limites.** "Parada", troca de implemento e correção de horímetro continuam fora desta tela. O campo "Horímetro quebrado?" do formulário antigo não está aqui: a máquina sem contador usa o campo "Horas trabalhadas". O inicial é só leitura: para corrigir uma leitura errada, o caminho continua sendo o Lançamento de Atividades. O rótulo do contador é o nome sem a unidade ("Horímetro", "Odômetro", "Ciclos"), como no Abastecimento da frente.
+
+**Testes.** `diarioMaquina.test.jsx` (a tela; sem apontamento de hoje, `criarApontamento` com `maquinas[0]`; com apontamento de hoje, `adicionarLinha` com a versão dele; final menor que a inicial; salto com justificativa; "Lançado hoje" com "3.127,0 → 3.131,5" e "4,5 h" e o "Hoje" do cartão; permissão; máquina sem medidor). `diarioAbastecimento.test.jsx` (regressão do registro do dia entre atividades: abastece na A e na B com a mesma máquina e implemento; cada uma cria o seu registro; a confirmação leva o id certo). `aberturaServicoRegras.test.js` (último horímetro lido, a 2ª linha do dia e o "Lançado hoje" com as leituras). `diarioDasAtividades.test.jsx` (a opção Máquina sem "Em breve").
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-364, mas a PR #452 (mapa, etapa 4) já a reservou; esta ficou com D-PROD-365 e o marcador passa a D-PROD-366. Conferir antes do merge (regra A5).
+
+## D-PROD-370 — Cadastro de ponto simples: cocho e depósito sem instruções, avisos nem Observações
+
+**Data:** 2026-11-27 · **Origem:** o proprietário: "no cadastro de novo ponto seja cocho ou depósito precisa ser algo simples e correto… não preciso de instruções de campos, não preciso de alertas… não preciso de campo de observações" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`PONTO-SIMPLES-D370-REPORT.md`](./PONTO-SIMPLES-D370-REPORT.md)
 
 **Decisão.** O formulário do ponto (`FormularioPonto`) passa a mostrar só o necessário.
 1. **Saíram da tela:**
@@ -10932,6 +10957,6 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
    - "Pastos vinculados" → **Pastos do bebedouro**;
    - "Depósito vinculado" → **Depósito de onde sai o produto**.
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369 (365, 366 e 368 reservados pelas PRs #453, #454 e #456). O marcador passa a D-PROD-370. Conferir antes do merge (regra A5).
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369; a 369 foi reservada pela PR #457 (e 366 e 368 pelas #454 e #456), e esta ficou com D-PROD-370. O marcador passa a D-PROD-371. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-370 -->
+<!-- Próxima decisão: D-PROD-371 -->

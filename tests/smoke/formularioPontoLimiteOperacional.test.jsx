@@ -4,7 +4,7 @@
  * ser menor que a capacidade física). Mesmo campo e mesmo payload; só mudam
  * rótulo, texto de ajuda e mensagens de validação.
  *
- *  D-PROD-369 (cadastro simples, pedido do proprietário): os rótulos passam a "Limite do cocho/depósito (kg)", sem
+ *  D-PROD-370 (cadastro simples, pedido do proprietário): os rótulos passam a "Limite do cocho/depósito (kg)", sem
  *  texto de ajuda embaixo do campo e sem o aviso do mínimo ≥ limite.
  *  FP-1. cocho: "Limite do cocho (kg)", sem ajuda e sem os campos de alerta; validação "Informe o limite do cocho em kg.";
  *  FP-2. depósito: "Limite do depósito (kg)" e "Estoque mínimo (kg)"; validações; o payload grava os MESMOS
@@ -99,7 +99,7 @@ const enviar = async () => {
   });
 };
 
-describe('FormularioPonto — limite (D-PROD-178; D-PROD-369: sem textos de ajuda nem aviso)', () => {
+describe('FormularioPonto — limite (D-PROD-178; D-PROD-370: sem textos de ajuda nem aviso)', () => {
   it('FP-1 — cocho: "Limite do cocho (kg)", sem texto de ajuda, sem os campos de alerta; validação com o nome novo', async () => {
     await montar({ id: 'p1', nome: 'COCHO 1', tipo: 'COCHO', setor_id: 's1', area_vinculada_ids: ['a1'], area_vinculada_id: 'a1', deposito_origem_id: 'dep1' });
     await waitFor(() => expect(screen.getByText('Dados do Cocho')).toBeTruthy());
@@ -147,7 +147,7 @@ describe('FormularioPonto — limite (D-PROD-178; D-PROD-369: sem textos de ajud
     expect(Object.keys(svc.criarPontoSuplementacao.mock.calls[0][0]).some((chave) => /limite_operacional/.test(chave))).toBe(false);
   });
 
-  it('FP-3 — depósito: estoque mínimo ≥ limite não mostra aviso (D-PROD-369) e salva como antes', async () => {
+  it('FP-3 — depósito: estoque mínimo ≥ limite não mostra aviso (D-PROD-370) e salva como antes', async () => {
     await montar({ id: 'p3', nome: 'DEPÓSITO 2', tipo: 'DEPÓSITO', setor_id: 's1' });
     await waitFor(() => expect(screen.getByText('Depósito de Suplementação')).toBeTruthy());
     const limite = campo('Limite do depósito (kg)');
@@ -183,7 +183,7 @@ it('oferece Cocho e Depósito sem ícones cadastrados e abre os respectivos camp
   expect(screen.queryByText('Dados do Cocho')).toBeNull();
 });
 
-describe('D-PROD-369 — cadastro de ponto simples (sem instruções, sem avisos, sem Observações)', () => {
+describe('D-PROD-370 — cadastro de ponto simples (sem instruções, sem avisos, sem Observações)', () => {
   const textosQueSairam = [
     /Observações/,
     /Área detectada/,
