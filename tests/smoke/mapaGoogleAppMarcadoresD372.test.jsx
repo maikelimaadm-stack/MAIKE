@@ -130,6 +130,19 @@ describe("G372-2 — camada de imagens", () => {
     expect(noCocho).toHaveBeenCalledTimes(1);
     // longe de tudo: ninguém
     expect(camada.tocar(10, 10)).toBe(false);
+    // duas tarefas no mesmo ponto com o mesmo z-index: a de cima na tela (a posta depois) recebe
+    const t1 = vi.fn();
+    const t2 = vi.fn();
+    camada.definir("tarefas", [
+      { id: "t1", lat: 0, lng: 0, url: "data:t", w: 40, h: 40, z: 2500, onClick: t1 },
+      { id: "t2", lat: 0, lng: 0, url: "data:t", w: 40, h: 40, z: 2500, onClick: t2 },
+    ]);
+    const imgs = [...div.querySelectorAll("img")];
+    expect(imgs.indexOf(/** @type {any} */ (div.querySelector('[data-marcador="tarefas|t2"]')))).toBeGreaterThan(imgs.indexOf(/** @type {any} */ (div.querySelector('[data-marcador="tarefas|t1"]'))));
+    expect(camada.tocar(100, 50)).toBe(true);
+    expect(t2).toHaveBeenCalledTimes(1);
+    expect(t1).not.toHaveBeenCalled();
+    camada.definir("tarefas", []);
     camada.posicionarTodos(() => ({ x: 0, y: 0 }));
     expect(cocho.style.transform).toBe("translate(-18px, -18px)");
     camada.definir("lotes", []);

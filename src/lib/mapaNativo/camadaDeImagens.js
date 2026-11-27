@@ -93,7 +93,8 @@ export function criarCamadaDeImagens(div) {
         const c = canto(m);
         if (!c) continue;
         const dentro = x >= c.x - folga && x <= c.x + m.w + folga && y >= c.y - folga && y <= c.y + m.h + folga;
-        if (dentro && (!achado || (m.z ?? 0) > (achado.z ?? 0))) achado = m;
+        // empate de z-index: o de cima é o posto depois (a ordem do Map é a das imagens no div)
+        if (dentro && (!achado || (m.z ?? 0) >= (achado.z ?? 0))) achado = m;
       }
       if (!achado) return false;
       achado.onClick?.();

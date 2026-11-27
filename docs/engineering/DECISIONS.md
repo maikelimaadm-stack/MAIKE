@@ -11098,7 +11098,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
     - No app, o `MapaGoogleNativo` ouve o evento pelo plugin (`pluginDoMapaGoogle`) e reposiciona os ícones a cada quadro.
     - No APK 1.0.6 (sem o evento), os ícones continuam sumindo durante o movimento e voltando quando o mapa para. Por isso o `nativoMinimo` segue 5.
   - **Todo toque é do mapa:** as imagens têm `pointer-events: none` e a pinça e o arrasto em cima de um ícone mexem o mapa.
-    - O toque rápido chega pelo clique do mapa (`onMapClick`). O ícone de cima no ponto, com folga de 4 px, abre o detalhe dele (`camada.tocar`). Sem ícone, a área que contém o ponto abre o detalhe da área (`areaNoPonto`).
+    - O toque rápido chega pelo clique do mapa (`onMapClick`). O ícone de cima no ponto, com folga de 4 px, abre o detalhe dele (`camada.tocar`). Com o mesmo z-index, ganha o posto depois, que é o que aparece por cima. Sem ícone, a área que contém o ponto abre o detalhe da área (`areaNoPonto`).
     - No app, os polígonos não são clicáveis, para o clique do mapa sempre chegar. No site nada muda.
 - **Testes:**
   - `mapaGoogleCameraD373.test.js` (4): plugin instalado remendado, idempotência, plugin mudado, postinstall e versão do APK.

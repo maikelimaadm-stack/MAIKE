@@ -29,7 +29,7 @@ No app, o `MapaGoogleNativo` ouve o evento pelo plugin (`pluginDoMapaGoogle`) e 
 
 - As imagens dos ícones têm `pointer-events: none`: a pinça e o arrasto em cima de um ícone mexem o mapa.
 - O toque rápido chega pelo clique do mapa (`onMapClick`) e é decidido no JavaScript:
-  - **Ícone:** o ícone de cima no ponto, com folga de 4 px para o dedo, abre o detalhe dele (`camada.tocar`).
+  - **Ícone:** o ícone de cima no ponto, com folga de 4 px para o dedo, abre o detalhe dele (`camada.tocar`). Com o mesmo z-index (duas tarefas no centro do mesmo pasto), ganha o posto depois, que é o que aparece por cima. Isso foi achado da revisão automática.
   - **Área:** sem ícone, a área que contém o ponto abre o detalhe da área (`areaNoPonto`, ponto no polígono).
 - No app, os polígonos não são clicáveis, para o clique do mapa sempre chegar. No site nada muda.
 
