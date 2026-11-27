@@ -33,7 +33,7 @@
  * LocalEstoque FOR KEY SHARE → Produto (`travarProdutosEstoque`) → camadas → movimentos → sequências.
  */
 import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueFisico/movimentoPosterior.js';
-import { SELECT_CONVERSOES, listarConversoesPublicas } from '../produtos/produtoUnidadesConversao.js';
+import { SELECT_CONVERSOES, listarConversoesPublicas, unidadeEstoqueEfetiva } from '../produtos/produtoUnidadesConversao.js';
 import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -101,7 +101,7 @@ const comoItem = (i) => ({
   quantidade: d4(i.quantidade),
   fator_kg: d4(i.fator_kg),
   quantidade_estoque: d4(i.quantidade_estoque),
-  unidade_estoque: i.produto?.unidade_principal_estoque === 'L' ? 'L' : 'KG',
+  unidade_estoque: unidadeEstoqueEfetiva(i.produto),
   custo_unitario: c4(i.custo_unitario),
   custo_kg: c4(i.custo_kg),
   valor_total: c4(i.valor_total),
@@ -211,7 +211,7 @@ export const opcoesProdutos = async (contexto, query = {}) => {
     cursor,
     mapear: (linhas) => linhas.map((p) => ({
       id: p.id, nome: p.nome_produto, codigo: p.codigo_interno ?? null,
-      unidade_estoque: p.unidade_principal_estoque === 'L' ? 'L' : 'KG', peso_por_saco_kg: p.peso_por_saco_kg === null ? null : d4(p.peso_por_saco_kg),
+      unidade_estoque: unidadeEstoqueEfetiva(p), peso_por_saco_kg: p.peso_por_saco_kg === null ? null : d4(p.peso_por_saco_kg),
       // D-PROD-282: a tela exige lote/validade na entrada e oferece a escolha de lote na saída.
       controla_lote: p.controla_lote === true, controla_validade: p.controla_validade === true,
       // D-PROD-288: as unidades de conversão ATIVAS do produto, com a equivalência ("1 SACO = 25 KG").

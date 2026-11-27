@@ -32,13 +32,27 @@ const TIPOS_USO = [
   "Produção Animal",
 ];
 
-/** D-PROD-162: rótulo da unidade principal de estoque (L = litros; o resto, como antes). D-PROD-288: SACO é legado (guarda kg). */
-const ROTULO_UNIDADE_ESTOQUE = Object.freeze({ KG: "QUILOGRAMAS (KG)", SACO: "SACOS (LEGADO, EM KG)", L: "LITROS (L)" });
-const rotuloUnidadeEstoque = (u) => (u === "SACO" || u === "L" ? ROTULO_UNIDADE_ESTOQUE[u] : ROTULO_UNIDADE_ESTOQUE.KG);
+/** Sigla aparada e em maiúsculas. @param {unknown} v */
+const sigla = (v) => String(v ?? "").trim().toUpperCase();
 
-/** Sigla ou descrição de unidade de medida que é de litros (L, LT, LTS, LITRO, LITROS...). */
-const ehUnidadeDeLitros = (sigla, descricao) =>
-  /^(L|LT|LTS|LITROS?)$/i.test(String(sigla ?? "").trim()) || /LITRO/i.test(String(descricao ?? ""));
+/**
+ * D-PROD-369 — a Unidade de Medida é a unidade de estoque do produto (um campo só). O que vai em
+ * `unidade_principal_estoque`: no produto novo, ou quando a pessoa troca a Unidade de Medida, a sigla escolhida; sem
+ * troca, a que o produto já tem (o produto antigo pode ter estoque noutra unidade, ou no SACO legado, que guarda kg).
+ * @param {Record<string, any>} formData @param {Record<string, any>|null|undefined} initialData
+ */
+export const unidadePrincipalDoFormulario = (formData, initialData) => {
+  const escolhida = sigla(formData?.unidade_medida);
+  const gravada = initialData?.id ? String(initialData.unidade_principal_estoque || "KG") : null;
+  if (gravada !== null && escolhida === sigla(initialData?.unidade_medida)) return gravada;
+  return escolhida || gravada || "KG";
+};
+
+/** A unidade de estoque efetiva (o SACO legado e o vazio são KG). @param {unknown} u */
+const unidadeEfetiva = (u) => {
+  const s = sigla(u);
+  return !s || s === "SACO" ? "KG" : s;
+};
 
 /**
  * Leitura ÚNICA dos campos com máscara (D-PROD-161): o MESMO número serve para
@@ -214,14 +228,6 @@ export default function FormularioProduto({
 
   const marcasItems = useMemo(() => marcas.map((m) => ({ id: m.nome, nome: m.nome })), [marcas]);
 
-  // D-PROD-162 (achado D5): estoque em LITROS com uma unidade de medida que não é de
-  // litros pede conferência (aviso, não bloqueia).
-  const unidadeMedidaEscolhida = unidadesItems.find((u) => u.id === formData.unidade_medida);
-  const avisoLitros =
-    formData.unidade_principal_estoque === "L" &&
-    Boolean(String(formData.unidade_medida ?? "").trim()) &&
-    !ehUnidadeDeLitros(formData.unidade_medida, unidadeMedidaEscolhida?.descricao);
-
   const handleChange = (field, value) => {
     // Diário da máquina (Fase 3): mexer na quantidade padrão marca o campo como alterado (é o que vai ao servidor).
     const marcaAlteracao = field === "quantidade_padrao" || field === "quantidade_padrao_unidade" ? { quantidade_padrao_alterada: true } : {};
@@ -230,7 +236,12 @@ export default function FormularioProduto({
   };
 
   const estoqueMinNum = useMemo(() => parseNumero(formData.estoque_minimo), [formData.estoque_minimo]);
-  const unidadeEstoque = formData.unidade_principal_estoque === "L" ? "L" : "KG";
+  // D-PROD-369: a unidade de estoque sai da Unidade de Medida (KG, L, SC, UN...).
+  const unidadePrincipal = unidadePrincipalDoFormulario(formData, initialData);
+  const unidadeEstoque = unidadeEfetiva(unidadePrincipal);
+  const rotuloEstoqueAtual = unidadeEstoque === "KG" ? "kg" : unidadeEstoque;
+  // Produto antigo cuja unidade de estoque não é a Unidade de Medida mostrada (cadastro de antes da D-PROD-369).
+  const estoqueEmOutraUnidade = isExistingRecord && Boolean(sigla(formData.unidade_medida)) && unidadeEstoque !== sigla(formData.unidade_medida);
 
   const findItemId = (items, value) => {
     if (!value) return "";
@@ -271,7 +282,7 @@ export default function FormularioProduto({
 
     // Envia o número EXIBIDO de cada campo com máscara (mesma leitura da tela).
     const exibidos = Object.fromEntries(CAMPOS_MASCARADOS.map((campo) => [campo, parseNumero(formData[campo])]));
-    onSubmit(normalizarProduto({ ...formData, ...exibidos, unidades_conversao: conversoes }, { isEditing }));
+    onSubmit(normalizarProduto({ ...formData, ...exibidos, unidade_principal_estoque: unidadePrincipal, unidades_conversao: conversoes }, { isEditing }));
   };
 
   const acCls = `${B1_FIELD_CTL_CLS} w-full min-w-0`;
@@ -279,7 +290,7 @@ export default function FormularioProduto({
   const abasProduto = useMemo(
     () => [
       { id: "principal", label: "Principal" },
-      { id: "estoque", label: "Unidade de Estoque" },
+      { id: "estoque", label: "Estoque" },
       { id: "unidades", label: "Conversão de unidades" },
     ],
     [],
@@ -318,37 +329,9 @@ export default function FormularioProduto({
           if (panelId === "estoque") {
             return (
               <div className="mg-b1-form-grid w-full min-h-0">
-                <B1Field
-                  label="Unidade principal de estoque"
-                  span={6}
-                  hasValue={Boolean(formData.unidade_principal_estoque)}
-                  locked={readOnly}
-                  disabled={locked}
-                >
-                  {readOnly ? (
-                    <input
-                      type="text"
-                      readOnly
-                      value={rotuloUnidadeEstoque(formData.unidade_principal_estoque)}
-                      className={B1_FIELD_CTL_CLS}
-                    />
-                  ) : (
-                    <B1Select
-                      value={formData.unidade_principal_estoque || "KG"}
-                      onChange={(e) => handleChange("unidade_principal_estoque", e.target.value)}
-                      className={B1_FIELD_CTL_CLS}
-                    >
-                      <option value="KG">{ROTULO_UNIDADE_ESTOQUE.KG}</option>
-                      {/* D-PROD-288: SACO só aparece no produto legado; o saco agora é uma unidade de conversão. */}
-                      {initialData?.unidade_principal_estoque === "SACO" ? <option value="SACO">{ROTULO_UNIDADE_ESTOQUE.SACO}</option> : null}
-                      <option value="L">{ROTULO_UNIDADE_ESTOQUE.L}</option>
-                    </B1Select>
-                  )}
-                </B1Field>
-
-                {avisoLitros ? (
-                  <p className="col-span-12 text-[11px] text-amber-800 bg-amber-50 rounded px-2 py-1" role="status" data-testid="aviso-unidade-litros">
-                    A unidade de medida do cadastro não é de litros; confira.
+                {estoqueEmOutraUnidade ? (
+                  <p className="col-span-12 text-[11px] text-amber-800 bg-amber-50 rounded px-2 py-1" role="status" data-testid="aviso-estoque-outra-unidade">
+                    O estoque deste produto está em {unidadeEstoque}. Trocar a Unidade de Medida troca a unidade de estoque, o que só é possível sem estoque, lotes, movimentos ou lançamentos.
                   </p>
                 ) : null}
 
@@ -357,7 +340,7 @@ export default function FormularioProduto({
                   <input
                     type="text"
                     readOnly
-                    value={`${Number(initialData?.estoque_atual ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 4 })} ${unidadeEstoque === "L" ? "L" : "kg"}`}
+                    value={`${Number(initialData?.estoque_atual ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 4 })} ${rotuloEstoqueAtual}`}
                     className={`${B1_FIELD_CTL_CLS} text-right tabular-nums`}
                     data-testid="produto-estoque-atual"
                   />
@@ -571,6 +554,7 @@ export default function FormularioProduto({
         locked={readOnly}
         disabled={locked}
         error={invalidFields.includes("unidade_medida") ? "Obrigatório" : undefined}
+        dica={<p className="mt-1 px-1 text-[12px] text-[var(--mg-text-2,#475569)]">é a unidade do estoque: saldo e custo ficam nela</p>}
       >
         <AutocompleteGenerico
           items={unidadesItems}

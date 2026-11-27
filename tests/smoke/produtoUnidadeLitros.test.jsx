@@ -1,10 +1,10 @@
 /**
  * D-PROD-162 (F4, §5.3) — Produto em LITROS na tela Produtos.
  *
- *  PL-1. formulário: a unidade principal de estoque oferece "LITROS (L)"
- *        (KG e SACOS como antes); em leitura, "LITROS (L)"; escolher L com
- *        uma unidade de medida que não é de litros mostra o aviso (não
- *        bloqueia); com "L"/"LT"/"LITRO" não há aviso;
+ *  PL-1. formulário (D-PROD-369): a Unidade de Medida é a unidade de estoque;
+ *        o seletor "Unidade principal de estoque" e o aviso de litros saíram;
+ *        o produto antigo (estoque noutra unidade, ou o SACO legado) manda a
+ *        unidade gravada enquanto a Unidade de Medida não muda;
  *  PL-2. ficha: Produto em L mostra o estoque com "L"; KG e SACO mostram a
  *        unidade de medida, como antes;
  *  PL-3. mensagens do service (nativeHttpClient real, mock só do `fetch`; os
@@ -31,6 +31,7 @@ vi.mock('@/apis/unidades-medida', () => ({
     { sigla: 'KG', descricao: 'QUILOGRAMA', ativo: true },
     { sigla: 'LT', descricao: 'LITRO', ativo: true },
     { sigla: 'UN', descricao: 'UNIDADE', ativo: true },
+    { sigla: 'SC', descricao: 'SACA', ativo: true },
   ]),
 }));
 vi.mock('@/apis/estoque', () => ({ listLocais: vi.fn(async () => []) }));
@@ -48,53 +49,61 @@ const comConsulta = (ui) => {
 };
 
 // ─── PL-1 ────────────────────────────────────────────────────────────────────
-describe('PL-1 — formulário do Produto', () => {
-  const PRODUTO = { id: 'p1', nome_produto: 'DIESEL S10', codigo_interno: 'DS10', unidade_medida: 'KG', categoria: 'COMBUSTIVEL', local_estoque: 'TANQUE', unidade_principal_estoque: 'KG', ativo: true };
+// D-PROD-369: a Unidade de Medida é a unidade de estoque (um campo só). O seletor "Unidade principal de estoque" e o
+// aviso de litros saíram; a guia se chama "Estoque".
+describe('PL-1 — formulário do Produto (D-PROD-369: um campo só)', () => {
+  const PRODUTO = { id: 'p1', nome_produto: 'DIESEL S10', codigo_interno: 'DS10', unidade_medida: 'KG', categoria: 'COMBUSTIVEL', local_estoque: 'TANQUE', unidade_principal_estoque: 'KG', estoque_atual: 12.5, ativo: true };
   const renderizar = async (props) => {
     const { default: FormularioProduto } = await import('@/components/produtos/FormularioProduto');
     return comConsulta(<FormularioProduto onSubmit={vi.fn()} onCancel={vi.fn()} isEditing {...props} />);
   };
-  const seletorUnidadePrincipal = () => screen.getAllByRole('combobox').find((b) => /QUILOGRAMAS|SACOS|LITROS/.test(b.textContent));
-  // Desde a #339 a unidade principal de estoque vive na guia "Unidade de Estoque" (só a guia ativa é visível).
-  const abrirGuiaEstoque = () => fireEvent.click(screen.getByRole('tab', { name: 'Unidade de Estoque' }));
+  const abrirGuiaEstoque = () => fireEvent.click(screen.getByRole('tab', { name: 'Estoque' }));
+  const escolherUnidade = async (nome) => {
+    fireEvent.click(screen.getByPlaceholderText('BUSCAR UNIDADE...'));
+    fireEvent.click(await screen.findByRole('option', { name: nome }));
+  };
 
-  it('oferece KG, SACOS e LITROS (L); escolher L com unidade de medida KG mostra o aviso, que não bloqueia', async () => {
+  it('sem seletor separado nem aviso de litros; trocar a Unidade de Medida manda a mesma sigla como unidade de estoque', async () => {
     const onSubmit = vi.fn();
     await renderizar({ initialData: PRODUTO, onSubmit });
+    expect(screen.queryByRole('tab', { name: 'Unidade de Estoque' })).toBeNull();
     abrirGuiaEstoque();
-    const seletor = seletorUnidadePrincipal();
-    expect(seletor.textContent).toContain('QUILOGRAMAS (KG)');
+    expect(screen.queryByText('Unidade principal de estoque')).toBeNull();
+    expect(screen.getAllByRole('combobox').some((b) => /QUILOGRAMAS|SACOS|LITROS/.test(b.textContent))).toBe(false);
     expect(screen.queryByTestId('aviso-unidade-litros')).toBeNull();
-    fireEvent.click(seletor);
-    expect(screen.getAllByRole('option').map((o) => o.textContent.trim())).toEqual(['QUILOGRAMAS (KG)', 'LITROS (L)']); // D-PROD-288: SACO só no produto legado (o saco é unidade de conversão)
-    fireEvent.click(screen.getByRole('option', { name: 'LITROS (L)' }));
-    await waitFor(() => expect(seletorUnidadePrincipal().textContent).toContain('LITROS (L)'));
-    expect(screen.getByTestId('aviso-unidade-litros')).toHaveTextContent('A unidade de medida do cadastro não é de litros; confira.');
-    // Aviso não bloqueia: salvar manda a unidade L.
+    expect(screen.getByTestId('produto-estoque-atual').value).toBe('12,5 kg');
+    fireEvent.click(screen.getByRole('tab', { name: 'Principal' }));
+    await escolherUnidade('LT - LITRO');
     fireEvent.submit(screen.getByTestId('b1-form-produto'));
     expect(onSubmit).toHaveBeenCalledTimes(1);
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ unidade_principal_estoque: 'L', unidade_medida: 'KG' });
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ unidade_medida: 'LT', unidade_principal_estoque: 'LT' });
     expect(onSubmit.mock.calls[0][0].peso_por_saco_kg).toBeUndefined();
   });
 
-  it('com unidade de medida de litros (LT, L, LITROS) não há aviso; em leitura mostra "LITROS (L)"', async () => {
-    for (const unidade of ['LT', 'L', 'LITROS']) {
-      const r = await renderizar({ initialData: { ...PRODUTO, unidade_medida: unidade, unidade_principal_estoque: 'L' } });
-      abrirGuiaEstoque();
-      expect(seletorUnidadePrincipal().textContent).toContain('LITROS (L)');
-      expect(screen.queryByTestId('aviso-unidade-litros')).toBeNull();
-      r.unmount();
-    }
-    await renderizar({ initialData: { ...PRODUTO, unidade_principal_estoque: 'L' }, readOnly: true });
-    expect(screen.getByDisplayValue('LITROS (L)')).toBeTruthy();
+  it('produto antigo em L com Unidade de Medida KG: sem trocar, manda L; o estoque atual em L e o aviso de que o estoque está noutra unidade', async () => {
+    const onSubmit = vi.fn();
+    await renderizar({ initialData: { ...PRODUTO, unidade_principal_estoque: 'L' }, onSubmit });
+    abrirGuiaEstoque();
+    expect(screen.getByTestId('produto-estoque-atual').value).toBe('12,5 L');
+    expect(screen.getByTestId('aviso-estoque-outra-unidade')).toHaveTextContent('O estoque deste produto está em L.');
+    fireEvent.submit(screen.getByTestId('b1-form-produto'));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ unidade_medida: 'KG', unidade_principal_estoque: 'L' });
   });
 
-  it('KG e SACO: leitura e opção como antes', async () => {
-    const r = await renderizar({ initialData: PRODUTO, readOnly: true });
-    expect(screen.getByDisplayValue('QUILOGRAMAS (KG)')).toBeTruthy();
+  it('SACO legado: sem trocar, continua SACO (estoque em kg); trocando para SC, manda SC; produto novo em SC mostra o estoque em SC', async () => {
+    const onSubmit = vi.fn();
+    const r = await renderizar({ initialData: { ...PRODUTO, unidade_medida: 'SC', unidade_principal_estoque: 'SACO', peso_por_saco_kg: 30 }, onSubmit });
+    abrirGuiaEstoque();
+    expect(screen.getByTestId('produto-estoque-atual').value).toBe('12,5 kg');
+    fireEvent.submit(screen.getByTestId('b1-form-produto'));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ unidade_medida: 'SC', unidade_principal_estoque: 'SACO' });
     r.unmount();
-    await renderizar({ initialData: { ...PRODUTO, unidade_principal_estoque: 'SACO', peso_por_saco_kg: 30 }, readOnly: true });
-    expect(screen.getByDisplayValue('SACOS (LEGADO, EM KG)')).toBeTruthy();
+    const onNovo = vi.fn();
+    await renderizar({ initialData: null, isEditing: false, onSubmit: onNovo });
+    fireEvent.change(screen.getByPlaceholderText('NOME DO PRODUTO'), { target: { value: 'Milho em saca' } });
+    await escolherUnidade('SC - SACA');
+    abrirGuiaEstoque();
+    expect(screen.getByTestId('produto-estoque-atual').value).toBe('0 SC');
   });
 });
 
@@ -173,12 +182,13 @@ describe('PL-3 — mensagens do service', () => {
 
   it('mudar a unidade de estoque: frase por reason (P-10) e aceito em tanque', async () => {
     const svc = await import('@/services/produtoService');
-    const NOVO = 'a unidade de estoque não muda de ou para litros. Cadastre um Produto novo em litros, ex.: “Diesel S10 (L)”. Nada foi gravado.';
+    // D-PROD-369: qualquer troca da unidade de estoque (não só de ou para litros) exige produto sem histórico.
+    const NOVO = 'a unidade de estoque só muda em produto sem estoque, lotes, movimentos ou lançamentos. Cadastre um Produto novo em litros, ex.: “Diesel S10 (L)”. Nada foi gravado.';
     for (const [reason, inicio] of [
       ['estoque', 'Este produto tem estoque'],
       ['lotes', 'Este produto tem lotes de estoque'],
       ['movimentos', 'Este produto tem movimentações de estoque'],
-      ['lancamentos', 'Este produto está em lançamentos financeiros'],
+      ['lancamentos', 'Este produto está em lançamentos'],
     ]) {
       const erro = await falhaAoSalvar({ code: 'PRODUTO_UNIDADE_EM_USO', field: 'unidade_principal_estoque', reason, details: { id: 'p1', de: 'KG', para: 'L' } });
       expect(svc.mensagemErroSalvarProduto(erro)).toBe(`${inicio}: ${NOVO}`);
@@ -186,7 +196,12 @@ describe('PL-3 — mensagens do service', () => {
     // Saindo de litros (L → KG/SACO): a sugestão é cadastrar o Produto novo na unidade de destino, não em litros.
     const saindoDeLitros = await falhaAoSalvar({ code: 'PRODUTO_UNIDADE_EM_USO', field: 'unidade_principal_estoque', reason: 'estoque', details: { id: 'p1', de: 'L', para: 'KG' } });
     expect(svc.mensagemErroSalvarProduto(saindoDeLitros)).toBe(
-      'Este produto tem estoque: a unidade de estoque não muda de ou para litros. Cadastre um Produto novo em quilos (KG). Nada foi gravado.',
+      'Este produto tem estoque: a unidade de estoque só muda em produto sem estoque, lotes, movimentos ou lançamentos. Cadastre um Produto novo em quilos (KG). Nada foi gravado.',
+    );
+    // D-PROD-369: para uma unidade do cadastro (SC), o Produto novo nessa unidade.
+    const paraSc = await falhaAoSalvar({ code: 'PRODUTO_UNIDADE_EM_USO', field: 'unidade_principal_estoque', reason: 'movimentos', details: { id: 'p1', de: 'KG', para: 'SC' } });
+    expect(svc.mensagemErroSalvarProduto(paraSc)).toBe(
+      'Este produto tem movimentações de estoque: a unidade de estoque só muda em produto sem estoque, lotes, movimentos ou lançamentos. Cadastre um Produto novo na unidade SC. Nada foi gravado.',
     );
     const paraSaco = await falhaAoSalvar({ code: 'PRODUTO_UNIDADE_EM_USO', field: 'unidade_principal_estoque', reason: 'lotes', details: { id: 'p1', de: 'L', para: 'SACO' } });
     expect(svc.mensagemErroSalvarProduto(paraSaco)).toMatch(/Cadastre um Produto novo em sacos \(SACO\)\./);

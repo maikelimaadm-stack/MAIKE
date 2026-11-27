@@ -116,6 +116,8 @@ test('AB-05 runner: conferência reprovada → NÃO migra; aprovada → migra; r
       { migration_name: '20261124200000_estoque_controle_lote', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
       // D-PROD-288: a décima oitava CONTRACT (as unidades de conversão do produto), B30 em migrations.test.mjs.
       { migration_name: '20261125200000_produto_unidades_conversao', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
+      // D-PROD-369: a décima nona CONTRACT (o estoque na unidade do cadastro do produto), B31 em migrations.test.mjs.
+      { migration_name: '20261127200000_estoque_unidade_cadastro', checksum: 'x', finished_at: new Date(), rolled_back_at: null },
     ],
     log: () => {},
     erro: () => {},

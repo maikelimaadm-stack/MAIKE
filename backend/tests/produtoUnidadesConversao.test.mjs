@@ -110,12 +110,13 @@ describe('D-PROD-288 — cadastro: unidades de conversão dentro do POST/PATCH d
     assert.deepEqual([r.json().codigo_interno, r.json().preco_custo], [p.numero_produto, null]);
   });
 
-  test('recusas: unidade igual à de estoque, reservada, repetida, operação, fator ≤ 0, divide > 10000, sem uso — nada gravado', async () => {
+  test('recusas: unidade igual à de estoque, KG ↔ L, repetida, operação, fator ≤ 0, divide > 10000, sem uso — nada gravado', async () => {
     const x = await cenario();
+    // D-PROD-369: KG, L e UN deixaram de ser reservadas; só KG ↔ L continua proibido (`conversao_kg_l`). UN vale como
+    // conversão (ver o teste do estoque na unidade do cadastro, estoqueUnidadeCadastro.test.mjs).
     const casos = [
       [{ sigla: 'KG', operacao: 'MULTIPLICA', fator: 1 }, 'sigla_igual_principal'],
-      [{ sigla: 'UN', operacao: 'MULTIPLICA', fator: 1 }, 'sigla_reservada'],
-      [{ sigla: 'L', operacao: 'MULTIPLICA', fator: 1 }, 'sigla_reservada'],
+      [{ sigla: 'L', operacao: 'MULTIPLICA', fator: 1 }, 'conversao_kg_l'],
       [{ sigla: 'X', operacao: 'MULTIPLICA', fator: 0 }, 'fator_invalido'],
       [{ sigla: 'X', operacao: 'DIVIDE', fator: 20000 }, 'fator_divide_alto'],
       [{ sigla: 'X', operacao: 'MULTIPLICA', fator: 2, uso_compra: false, uso_venda: false }, 'sem_uso'],

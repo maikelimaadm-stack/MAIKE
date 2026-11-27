@@ -3,9 +3,10 @@
  * estoque {KG, SACO, L} (contrato §5 C1). PostgreSQL real, HTTP autenticado;
  * a prova de "nada gravado" é a fotografia das linhas do tenant.
  *
- *  D1. cadastro: KG, SACO e L criam (com espaços aparados); ausente → KG
- *      (como antes); 'UN', 'Litro', 'kg', 'Kg', 'CX' → 400
- *      REQUEST_VALIDATION_FAILED `unidade_invalida` (field
+ *  D1. cadastro: KG e L criam (com espaços aparados); ausente → KG
+ *      (como antes); D-PROD-369: uma sigla ATIVA do cadastro de Unidades
+ *      também cria; SACO novo, 'UN' e 'CX' fora do cadastro, 'Litro', 'kg',
+ *      'Kg' → 400 REQUEST_VALIDATION_FAILED `unidade_invalida` (field
  *      `unidade_principal_estoque`, `permitidos`), sem número reservado nem
  *      auditoria;
  *  D2. produto LEGADO (unidade fora do domínio gravada direto no banco)
@@ -59,11 +60,12 @@ const produtoNoBanco = (s, unidade, extra = {}) => {
   });
 };
 
-describe('D1 — cadastro do Produto: só KG, SACO ou L', () => {
-  test('KG, SACO e L criam; espaços aparados; ausente → KG; UN/Litro/kg/Kg/CX → 400 unidade_invalida sem gravar nada (nem número, nem auditoria)', async () => {
+describe('D1 — cadastro do Produto: KG, L ou uma unidade do cadastro (D-PROD-369)', () => {
+  test('KG, L e a sigla ativa do cadastro criam; espaços aparados; ausente → KG; SACO novo/UN e CX fora do cadastro/Litro/kg/Kg → 400 unidade_invalida sem gravar nada (nem número, nem auditoria)', async () => {
     const s = await montarTenant(app);
-    assert.deepEqual([...UNIDADES_ESTOQUE], ['KG', 'SACO', 'L']);
-    for (const [informado, gravado] of [['KG', 'KG'], ['SACO', 'SACO'], ['L', 'L'], [' L ', 'L'], ['KG ', 'KG']]) {
+    assert.deepEqual([...UNIDADES_ESTOQUE], ['KG', 'L']);
+    await prisma().unidadeMedida.create({ data: { cliente_id: s.c, numero_unidade: '77', sigla: 'SC', descricao: 'SACA' } });
+    for (const [informado, gravado] of [['KG', 'KG'], ['SC', 'SC'], ['L', 'L'], [' L ', 'L'], ['KG ', 'KG'], [' SC', 'SC']]) {
       const r = await A.req('POST', '/produtos', s.token, { empresa_id: s.e1.id, nome_produto: `PRODUTO ${informado.trim()} ${seq++}`, unidade_principal_estoque: informado });
       assert.equal(r.statusCode, 201, `${JSON.stringify(informado)}: ${r.body}`);
       assert.equal(await unidadeGravada(r.json().id), gravado);
@@ -72,12 +74,12 @@ describe('D1 — cadastro do Produto: só KG, SACO ou L', () => {
     assert.equal(semUnidade.statusCode, 201, semUnidade.body);
     assert.equal(await unidadeGravada(semUnidade.json().id), 'KG', 'ausente continua virando KG (como antes)');
 
-    for (const ruim of ['UN', 'Litro', 'kg', 'Kg', 'CX', 'LITROS', 'L L']) {
+    for (const ruim of ['UN', 'Litro', 'kg', 'Kg', 'CX', 'LITROS', 'L L', 'SACO', 'sc']) {
       const antes = await foto(s.c);
       const r = await A.req('POST', '/produtos', s.token, { empresa_id: s.e1.id, nome_produto: `PRODUTO RUIM ${ruim}`, unidade_principal_estoque: ruim });
       assert.deepEqual(erro(r), [400, 'REQUEST_VALIDATION_FAILED', 'unidade_principal_estoque', 'unidade_invalida'], `${ruim}: ${r.body}`);
       const det = r.json().details ?? {};
-      assert.deepEqual([det.informado, det.permitidos], [ruim, ['KG', 'SACO', 'L']], `${ruim}: details`);
+      assert.deepEqual([det.informado, det.permitidos, det.cadastro], [ruim, ['KG', 'L'], 'unidades_medida'], `${ruim}: details`);
       assert.equal(await foto(s.c), antes, `${ruim}: nada gravado (produto, sequência, auditoria)`);
     }
   });

@@ -220,6 +220,15 @@ Violação exige **rollback**, não flexibilização da regra.
 > quantidade do movimento noutra unidade que não a de estoque; recalcular o lançamento já gravado pelo fator novo do
 > cadastro (editar e reenviar mantêm o fator gravado); converter entre KG e L.
 
+> **Nota (D-PROD-369, emenda aprovada pelo proprietário em 2026-11-27):** o estoque fica na Unidade de Medida do
+> cadastro do produto (KG, L, SC, UN, CX...). Continua proibido:
+> - trocar a unidade de estoque de produto que já tem lote, movimento ou item de lançamento;
+> - converter entre KG e L;
+> - abastecer produto cuja unidade de estoque não seja L nem KG;
+> - pôr no cocho, ou somar no nível do depósito, produto sem "kg por unidade de estoque" (sem conversão KG no
+>   cadastro);
+> - rotular movimento, saldo ou lote com unidade diferente da unidade de estoque do produto.
+
 > **Nota (D-PROD-207):** os cadastros mínimos de **Funcionário** e de **Serviço**, por fazenda, e as linhas de mão de
 > obra e de serviço do Lançamento de Atividades existem só como **custo da atividade** (snapshot na linha); o parceiro
 > prestador é só uma referência na linha de serviço. Continua **fora**: folha de pagamento (D-PROD-02), salário,

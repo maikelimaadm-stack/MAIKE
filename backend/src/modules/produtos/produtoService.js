@@ -111,7 +111,8 @@ export const comoProdutoPublico = (registro) => ({
   controla_lote: registro.controla_lote === true,
   controla_validade: registro.controla_validade === true,
   observacoes: registro.observacoes ?? null,
-  // D-PROD-288: unidade de estoque efetiva (KG ou L) e as unidades de conversão vigentes ("1 SACO = 25 KG").
+  // D-PROD-288 / D-PROD-369: unidade de estoque efetiva (a sigla do cadastro; KG para o SACO legado) e as unidades de
+  // conversão vigentes ("1 SACO = 25 KG").
   unidade_estoque: unidadeEstoqueEfetiva(registro),
   unidades_conversao: listarConversoesPublicas(registro),
   ativo: registro.ativo,
@@ -222,17 +223,18 @@ const camposDe = (entrada) => {
 const UNIDADES_DO_TANQUE = Object.freeze(['L', 'KG', 'SACO']);
 
 /**
- * D-PROD-177 (Estoque P1-02, contrato §5 C1): domínio FECHADO da unidade de
- * estoque do Produto. Unidade física-base: kg para KG e SACO (o SACO vira kg
- * pelo `peso_por_saco_kg`), L para L. Nada de conversão L ↔ KG. `UN` e
- * qualquer outro texto não geram movimento físico.
- *  - criação: ausente → 'KG' (como antes); fora do domínio → 400;
- *  - edição: só a unidade NOVA (diferente da gravada) é conferida. O produto
- *    legado com unidade fora do domínio continua editável nos outros campos
- *    reenviando a MESMA unidade; a migração desses dados depende de GO.
+ * D-PROD-177 (Estoque P1-02, contrato §5 C1) e D-PROD-369 (emenda aprovada pelo proprietário): a unidade de estoque do
+ * Produto é a sua Unidade de Medida. Vale KG, L ou uma sigla ATIVA do cadastro de Unidades do próprio tenant (até 8
+ * caracteres, em maiúsculas: SC, UN, CX...). O SACO é só legado (guarda kg): o produto que já o tem continua com ele,
+ * mas nenhum produto passa a SACO. Nada de conversão L ↔ KG.
+ *  - criação: ausente → 'KG' (como antes), ou a sigla da `unidade_medida` quando só ela vem; fora disso → 400;
+ *  - edição: só a unidade NOVA (diferente da gravada) é conferida. O produto legado com unidade fora do domínio
+ *    continua editável nos outros campos reenviando a MESMA unidade.
  * Comparação exata, depois de aparar espaços (`camposDe`): 'kg' não é 'KG'.
  */
-export const UNIDADES_ESTOQUE = Object.freeze(['KG', 'SACO', 'L']);
+export const UNIDADES_ESTOQUE = Object.freeze(['KG', 'L']);
+/** D-PROD-369: a sigla da unidade de estoque tem até 8 caracteres (as colunas de unidade dos itens são VARCHAR(8)). */
+export const UNIDADE_ESTOQUE_MAX = 8;
 
 /** D-PROD-282: "Controla validade" só com "Controla lote" (o CHECK do banco; aqui vira 422 antes de gravar). */
 const exigirValidadeSoComLote = (lote, validade) => {
@@ -262,12 +264,40 @@ const exigirSaldoZeroParaTrocarLote = async (tx, clienteId, produto) => {
   }
 };
 
-/** Recusa a unidade fora do domínio ANTES de qualquer escrita (nada foi gravado). @param {unknown} unidade */
-const exigirUnidadeDoDominio = (unidade) => {
-  if (UNIDADES_ESTOQUE.includes(/** @type {string} */ (unidade))) return;
-  throw new AppError('REQUEST_VALIDATION_FAILED', 'unidade de estoque inválida: use KG, SACO ou L; nada foi gravado', {
-    details: { field: 'unidade_principal_estoque', reason: 'unidade_invalida', informado: unidade, permitidos: [...UNIDADES_ESTOQUE] },
+/**
+ * Recusa a unidade fora do domínio ANTES de qualquer escrita (nada foi gravado). D-PROD-369: KG, L ou uma sigla ATIVA
+ * do cadastro de Unidades do tenant (`clienteId` do auth_context), em maiúsculas e com até 8 caracteres; SACO nunca
+ * como unidade nova (é o legado em kg).
+ * @param {any} cliente  prisma ou tx @param {string} clienteId @param {unknown} unidade
+ */
+const exigirUnidadeDoDominio = async (cliente, clienteId, unidade) => {
+  const u = typeof unidade === 'string' ? unidade : '';
+  if (UNIDADES_ESTOQUE.includes(u)) return;
+  const formatoOk = u.length > 0 && u.length <= UNIDADE_ESTOQUE_MAX && u === u.trim().toUpperCase() && u !== 'SACO';
+  const cadastrada = formatoOk
+    ? await cliente.unidadeMedida.findFirst({ where: { cliente_id: clienteId, sigla: u, ativo: true }, select: { id: true } })
+    : null;
+  if (cadastrada) return;
+  const mensagem = u === 'SACO'
+    ? 'a unidade SACO é só do produto antigo (guarda kg); escolha KG ou uma unidade do cadastro de Unidades (ex.: SC) e cadastre a conversão; nada foi gravado'
+    : 'unidade de estoque inválida: use KG, L ou uma unidade ativa do cadastro de Unidades (sigla em maiúsculas, até 8 caracteres); nada foi gravado';
+  throw new AppError('REQUEST_VALIDATION_FAILED', mensagem, {
+    details: { field: 'unidade_principal_estoque', reason: 'unidade_invalida', informado: unidade, permitidos: [...UNIDADES_ESTOQUE], cadastro: 'unidades_medida' },
   });
+};
+
+/**
+ * D-PROD-369: um campo só na tela. O corpo que traz `unidade_medida` e NÃO traz `unidade_principal_estoque` grava a
+ * mesma sigla (aparada, em maiúsculas) nas duas colunas — na criação sempre; na edição só quando a Unidade de Medida
+ * muda (reenviar a mesma não mexe no estoque do produto antigo, cuja unidade de estoque pode ser outra).
+ * @param {Record<string, unknown>} campos  já tratados por `camposDe` (mutado) @param {any} [gravado]  o produto, na edição
+ */
+const unidadeDeEstoqueDaMedida = (campos, gravado = null) => {
+  if (campos.unidade_principal_estoque !== undefined || typeof campos.unidade_medida !== 'string') return;
+  const sigla = campos.unidade_medida.trim().toUpperCase();
+  if (gravado && sigla === String(gravado.unidade_medida ?? '').trim().toUpperCase()) return;
+  campos.unidade_medida = sigla;
+  campos.unidade_principal_estoque = sigla;
 };
 
 /**
@@ -293,15 +323,15 @@ const tanquesQueAceitam = async (tx, clienteId, produtoId) => {
 const unidadeEmUso = (id, de, para, reason, extra = {}) =>
   new AppError('PRODUTO_UNIDADE_EM_USO', reason === 'aceito_em_tanque'
     ? 'produto aceito em tanque de bem patrimonial só usa estoque em L, KG ou SACO; tire-o dos “Produtos aceitos” do tanque no cadastro de Bens antes; nada foi gravado'
-    : 'a unidade de estoque não muda de ou para litros (L) num produto com estoque, lotes, movimentos ou lançamentos; cadastre um Produto novo em litros, ex.: “Diesel S10 (L)”; nada foi gravado', {
+    : `a unidade de estoque não muda (de ${de} para ${para}) num produto que já tem estoque, lotes, movimentos ou lançamentos; cadastre um Produto novo na unidade ${para}; nada foi gravado`, {
     details: { field: 'unidade_principal_estoque', reason, id, de, para, ...extra },
   });
 
 /**
  * D-PROD-162 (§4.6, padrões P-08 e P-10) — a troca da unidade de estoque.
- *  - envolvendo `L` (de L ou para L): só sem histórico — `estoque` (≠ 0) →
- *    `lotes` (algum, mesmo esgotado) → `movimentos` → `lancamentos` (item da
- *    Gestão P3, rascunho inclusive), nessa ordem;
+ *  - D-PROD-369: QUALQUER troca da unidade efetiva (antes, só envolvendo `L`): só sem histórico — `estoque` (≠ 0) →
+ *    `lotes` (algum, mesmo esgotado) → `movimentos` → `lancamentos` (item da Gestão P3, rascunho inclusive, e item de
+ *    entrada, saída, ajuste ou linha de produto da atividade), nessa ordem;
  *  - unidade nova fora de {L, KG, SACO} com aceite que vale → `aceito_em_tanque`
  *    (D-PROD-169: SACO entrou; KG ↔ SACO de Produto aceito em tanque passa —
  *    a unidade EFETIVA do estoque continua kg). D-PROD-177 (P1-02): `atualizar`
@@ -313,12 +343,20 @@ const unidadeEmUso = (id, de, para, reason, extra = {}) =>
 const conferirTrocaDeUnidade = async (tx, clienteId, anterior, para) => {
   const de = anterior.unidade_principal_estoque ?? 'KG';
   const id = anterior.id;
-  if (de === 'L' || para === 'L') {
+  // KG ↔ SACO (o legado guarda kg) e a mesma sigla com outra grafia não mudam a unidade EFETIVA: o saldo é o mesmo.
+  if (unidadeEstoqueEfetiva({ unidade_principal_estoque: de }) !== unidadeEstoqueEfetiva({ unidade_principal_estoque: para })) {
     if (!dec(anterior.estoque_atual ?? 0).isZero()) throw unidadeEmUso(id, de, para, 'estoque');
     const onde = { cliente_id: clienteId, produto_id: id };
     if ((await tx.estoqueLoteNota.count({ where: onde })) > 0) throw unidadeEmUso(id, de, para, 'lotes');
     if ((await contarMovimentacoesPorProduto(tx, clienteId, id)) > 0) throw unidadeEmUso(id, de, para, 'movimentos');
-    if ((await tx.operacaoFinanceiraItem.count({ where: onde })) > 0) throw unidadeEmUso(id, de, para, 'lancamentos');
+    const itens = await Promise.all([
+      tx.operacaoFinanceiraItem.count({ where: onde }),
+      tx.entradaEstoqueItem.count({ where: onde }),
+      tx.saidaEstoqueItem.count({ where: onde }),
+      tx.ajusteEstoqueItem.count({ where: onde }),
+      tx.atividadeApontamentoProduto.count({ where: onde }),
+    ]);
+    if (itens.some((n) => n > 0)) throw unidadeEmUso(id, de, para, 'lancamentos');
   }
   if (!UNIDADES_DO_TANQUE.includes(para)) {
     const tanques = await tanquesQueAceitam(tx, clienteId, id);
@@ -459,8 +497,10 @@ export const criar = async (contexto, entrada) => {
   exigirEstoqueZeroNaCriacao(entrada);
   const prisma = getPrismaClient();
   const campos = camposDe(entrada);
-  // D-PROD-177 (P1-02): ausente → 'KG' (abaixo, como antes); informada, só KG, SACO ou L.
-  if (campos.unidade_principal_estoque !== undefined) exigirUnidadeDoDominio(campos.unidade_principal_estoque);
+  // D-PROD-369: só a Unidade de Medida no corpo → ela é a unidade de estoque.
+  unidadeDeEstoqueDaMedida(campos);
+  // D-PROD-177 (P1-02): ausente → 'KG' (abaixo, como antes); informada, KG, L ou uma unidade ativa do cadastro.
+  if (campos.unidade_principal_estoque !== undefined) await exigirUnidadeDoDominio(prisma, auth.clienteId, campos.unidade_principal_estoque);
   exigirValidadeSoComLote(campos.controla_lote === true, campos.controla_validade === true);
   const conversoesPedidas = entrada?.unidades_conversao === undefined ? null
     : normalizarConversoes(entrada.unidades_conversao, { unidade_principal_estoque: campos.unidade_principal_estoque ?? 'KG' });
@@ -514,6 +554,12 @@ export const atualizar = async (contexto, id, entrada) => {
   // valores absolutos: repetir depois do 409 leva ao mesmo estado.
   return emTransacao(TRANSACAO_CURTA, async (tx) => {
     const campos = camposDe(entrada);
+    // D-PROD-369: só a Unidade de Medida no corpo, e diferente da gravada → ela é a unidade de estoque nova.
+    if (campos.unidade_principal_estoque === undefined && typeof campos.unidade_medida === 'string') {
+      const gravado = await buscarProduto(auth.clienteId, id, tx);
+      if (!gravado) throw produtoNotFound();
+      unidadeDeEstoqueDaMedida(campos, gravado);
+    }
     // D-PROD-162 (§4.6): trocar a unidade de estoque toma a MESMA trava dos
     // escritores de estoque (advisory `estoque:produto:*` → FOR UPDATE, nesta
     // ordem: sem deadlock com confirmação/cancelamento/abastecimento) ANTES de
@@ -529,11 +575,11 @@ export const atualizar = async (contexto, id, entrada) => {
     const trocaLote = Boolean(lida) && (loteNovo !== (lida.controla_lote === true) || validadeNova !== (lida.controla_validade === true));
     if (pedeLote) exigirValidadeSoComLote(loteNovo, validadeNova);
     if (trocaLote && !trocaUnidade) await travarProdutosEstoque(tx, auth.clienteId, lida.empresa_id, [id]);
-    // D-PROD-177 (P1-02): a unidade NOVA tem de ser KG, SACO ou L — antes de
+    // D-PROD-177 (P1-02) / D-PROD-369: a unidade NOVA tem de ser KG, L ou do cadastro de Unidades — antes de
     // travar e de qualquer escrita. Reenviar a MESMA unidade legada (fora do
     // domínio) não é troca e passa: o produto legado segue editável nos outros
     // campos. Se a unidade mudou entre esta leitura e a trava, o 409 abaixo sai.
-    if (trocaUnidade) exigirUnidadeDoDominio(campos.unidade_principal_estoque);
+    if (trocaUnidade) await exigirUnidadeDoDominio(tx, auth.clienteId, campos.unidade_principal_estoque);
     if (trocaUnidade) await travarProdutosEstoque(tx, auth.clienteId, lida.empresa_id, [id]);
     // D-PROD-157 (R2) / D-PROD-162: o aceite ATIVO do Produto num tanque do
     // Patrimônio exige que ele continue na MESMA empresa (invariante do serviço:

@@ -10,9 +10,11 @@ import { parseDecimalPtBR } from "@/domain/numeroPtBR";
  * Cada linha: unidade (sigla), Multiplica/Divide, fator, uso em compra e em saída, e a prévia em linguagem simples
  * ("1 SACO = 25 KG"). O servidor confere de novo (sigla, fator > 0, divide ≤ 10000, nunca a unidade de estoque);
  * unidade já usada em lançamento, tirada da lista, fica desativada em vez de apagada.
+ * D-PROD-369: a unidade de estoque é a do cadastro (KG, L, SC, UN...). KG, L e UN podem ser conversão; só KG ↔ L não.
  */
 
-export const SIGLAS_RESERVADAS = Object.freeze(["KG", "L", "UN"]);
+/** KG ↔ L nunca (o mesmo motivo `conversao_kg_l` do servidor). @param {string} sigla @param {string} unidadeEstoque */
+const cruzaKgL = (sigla, unidadeEstoque) => (sigla === "KG" && unidadeEstoque === "L") || (sigla === "L" && unidadeEstoque === "KG");
 const FATOR_DIVIDE_MAXIMO = 10000;
 
 /** @param {any} produto */
@@ -56,7 +58,7 @@ export const errosDasConversoes = (linhas, unidadeEstoque) => {
     if (!sigla) erros[`${i}.sigla`] = "Informe a unidade";
     else if (sigla.length > 8) erros[`${i}.sigla`] = "No máximo 8 caracteres";
     else if (sigla === unidadeEstoque) erros[`${i}.sigla`] = `Não pode ser a unidade de estoque (${unidadeEstoque})`;
-    else if (SIGLAS_RESERVADAS.includes(sigla)) erros[`${i}.sigla`] = "KG, L e UN não são unidade de conversão";
+    else if (cruzaKgL(sigla, unidadeEstoque)) erros[`${i}.sigla`] = "Conversão entre KG e L não é permitida";
     else if (vistas.has(sigla)) erros[`${i}.sigla`] = "Unidade repetida";
     vistas.add(sigla);
     const fator = lerFator(l?.fator);
@@ -79,7 +81,7 @@ export default function UnidadesConversaoProduto({ linhas, onChange, unidadeEsto
     <section className="col-span-12 min-w-0" data-testid="produto-unidades-conversao" aria-label="Conversão de unidades">
       <p className="mb-2 text-[12px] text-[var(--mg-text-2,#475569)]">
         Saldo e custo ficam sempre em <strong>{unidadeEstoque}</strong>. Aqui você cadastra as outras unidades usadas nos lançamentos, por
-        exemplo SACO que multiplica 25 (1 SACO = 25 KG) ou G que divide 1000 (1 G = 0,001 KG).
+        exemplo SACO que multiplica 25 (1 SACO = 25 KG) num produto em KG, ou KG que divide 25 (1 KG = 0,04 SC) num produto em SC.
       </p>
       {linhas.length === 0 ? (
         <p className="mb-2 text-[12px] text-slate-600" data-testid="produto-unidades-vazio">Nenhuma unidade de conversão.</p>

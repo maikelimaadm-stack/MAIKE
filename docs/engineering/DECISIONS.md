@@ -10925,4 +10925,23 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 - **Migration:** nenhuma. **Constituição:** sem mudança.
 - **Testes:** `tests/smoke/produtoUnidadesConversao.test.jsx` com o nome novo da aba; os testes do cadastro de produtos passam (7 arquivos, 49 testes); capturas em 1280 e 390 px sem rolagem lateral.
 
-<!-- Próxima decisão: D-PROD-369 -->
+## D-PROD-369 — Estoque na unidade do cadastro do produto (UE-1)
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário ("a unidade de estoque para a conversão tem que ser a unidade do cadastro principal"; escolha "Estoque na unidade que eu escolher"; "Aprovo a emenda"; cocho e depósito: "Usar a conversão para KG") · **Branch:** `claude/estoque-unidade-cadastro` · **Migration:** `20261127200000_estoque_unidade_cadastro` (CONTRACT condicionado, **não aplicada em produção**) · **SPEC:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md) · **Relatório:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-UE1-REPORT.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-UE1-REPORT.md) · **Runbook:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-RUNBOOK-RELEASE.md)
+
+- **Emenda da Constituição** aprovada pelo proprietário (texto em `00-CONSTITUICAO.md` e `07-DO-NOT-DO.md`): a unidade de estoque do produto é a sua Unidade de Medida, uma sigla ativa do cadastro de Unidades. Vale no lugar do "estoque em KG ou L" da D-PROD-162, da D-PROD-184 (M3) e da D-PROD-288.
+- **Decisão (UE-1, esta PR):**
+  1. **Domínio.** A unidade de estoque é KG, L ou uma sigla ATIVA do cadastro de Unidades do próprio tenant (maiúsculas, até 8 caracteres). O tenant vem do `auth_context`. SACO é só legado: o produto que o tem continua com ele (guarda kg), e nenhum produto passa a SACO. Fora disso, 400 `unidade_invalida`.
+  2. **Um campo só.** Na tela, a "Unidade de Medida" é a unidade de estoque. O seletor "Unidade principal de estoque" e o aviso de litros saíram, e a guia passa a se chamar "Estoque". O corpo que traz só `unidade_medida` grava a mesma sigla em `unidade_principal_estoque`: na criação sempre, na edição só quando a Unidade de Medida muda. O produto antigo (estoque noutra unidade, ou SACO) continua com a unidade gravada até a pessoa trocar a Unidade de Medida.
+  3. **Troca da unidade de estoque.** Qualquer troca da unidade efetiva (antes, só com L) exige produto sem histórico: `estoque` → `lotes` → `movimentos` → `lancamentos` (409 `PRODUTO_UNIDADE_EM_USO`, nessa ordem). Os lançamentos são o item do financeiro (rascunho inclusive) e o item de entrada, saída, ajuste ou linha de produto da atividade. KG ↔ SACO legado passa, porque o saldo é o mesmo. O tanque continua aceitando só L, KG e SACO.
+  4. **Conversões.** Valem a partir da unidade de estoque. KG, L e UN podem ser conversão. KG ↔ L continua proibido nos dois sentidos (`conversao_kg_l`). O lançamento na própria unidade tem fator 1. Um produto em SC lança em KG pela conversão KG ("1 KG = 0,04 SC").
+  5. **Rótulos.** O movimento grava a sigla real em `unidade_medida`, e não mais "KG" fixo. A entrada, a saída, o ajuste, a consulta do saldo e o desfazer da transferência mostram a unidade real. O motor não muda a conta.
+  6. **Trava até a UE-3.** O cocho recusa produto com estoque fora de KG (422 `UNIDADE_LANCAMENTO_INVALIDA`, `unidade_sem_peso`; o L segue como antes). O nível do depósito deixa esse produto fora do saldo em kg, com aviso.
+- **Banco:** os 6 CHECKs de unidade são recriados mais largos, com o mesmo nome. São eles `ProdutoUnidadeConversao_sigla_check`, `EntradaEstoqueItem/SaidaEstoqueItem/AjusteEstoqueItem_unidade_check`, `OperacaoFinanceiraItem_forma_check` (o serviço continua em UN) e `AtividadeApontamentoProduto_valores_check`. Nenhuma coluna, tabela ou dado muda. A entrada fica em `MIGRATIONS_CONTRACT_APROVADAS` com a decisão D-PROD-369.
+- **Fica para a UE-2:** financeiro (`exigirUnidadeCompativel` e as opções), linha de produto da atividade e opções, transferência e telas do estoque com o rótulo real. Até lá, eles continuam recusando produto fora de KG/L, o que é seguro.
+- **Fica para a UE-3:** cocho, depósito e formulação pelo "kg por unidade de estoque", tirando a trava.
+- **Sem mudança:** abastecimento (só L ou KG) e mistura do implemento (L ou KG).
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369 (a D-PROD-368 é a da PR #456, base desta branch; a PR #458 reserva a D-PROD-370). O marcador passa a D-PROD-370. O número não está no `migration.sql`, então renumerar não muda o checksum. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-370 -->

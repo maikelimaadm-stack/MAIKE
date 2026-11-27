@@ -279,7 +279,7 @@ const MOTIVO_UNIDADE_EM_USO = Object.freeze({
   estoque: 'Este produto tem estoque',
   lotes: 'Este produto tem lotes de estoque',
   movimentos: 'Este produto tem movimentações de estoque',
-  lancamentos: 'Este produto está em lançamentos financeiros',
+  lancamentos: 'Este produto está em lançamentos',
 });
 
 /**
@@ -302,18 +302,16 @@ export const mensagemExclusaoProdutoBloqueada = (erro) => {
 };
 
 /**
- * Sugestão do 409 PRODUTO_UNIDADE_EM_USO pela direção da troca: entrando em
- * litros, um Produto novo em litros; saindo de litros, um Produto novo na
- * unidade de destino.
+ * Sugestão do 409 PRODUTO_UNIDADE_EM_USO: um Produto novo na unidade de destino (D-PROD-369: qualquer troca da unidade
+ * de estoque, não só de ou para litros).
  * @param {Record<string, any>} details
  */
 export const sugestaoProdutoNovo = (details) => {
-  const de = typeof details?.de === 'string' ? details.de : null;
   const para = typeof details?.para === 'string' ? details.para : null;
-  if (de === 'L' && para && para !== 'L') {
-    return para === 'SACO' ? 'Cadastre um Produto novo em sacos (SACO).' : `Cadastre um Produto novo em quilos (${para === 'KG' ? 'KG' : para}).`;
-  }
-  return 'Cadastre um Produto novo em litros, ex.: “Diesel S10 (L)”.';
+  if (!para || para === 'L') return 'Cadastre um Produto novo em litros, ex.: “Diesel S10 (L)”.';
+  if (para === 'KG') return 'Cadastre um Produto novo em quilos (KG).';
+  if (para === 'SACO') return 'Cadastre um Produto novo em sacos (SACO).';
+  return `Cadastre um Produto novo na unidade ${para}.`;
 };
 
 /**
@@ -339,7 +337,7 @@ export const mensagemErroSalvarProduto = (erro) => {
       return 'Este produto está nos Produtos aceitos de um tanque de bem patrimonial, que usa estoque em litros (L), quilos (KG) ou sacos (SACO). Tire-o dos Produtos aceitos do tanque antes de mudar a unidade. Nada foi gravado.';
     }
     const motivo = MOTIVO_UNIDADE_EM_USO[/** @type {keyof typeof MOTIVO_UNIDADE_EM_USO} */ (reason)] ?? 'Este produto tem estoque, lotes ou movimentos';
-    return `${motivo}: a unidade de estoque não muda de ou para litros. ${sugestaoProdutoNovo(details)} Nada foi gravado.`;
+    return `${motivo}: a unidade de estoque só muda em produto sem estoque, lotes, movimentos ou lançamentos. ${sugestaoProdutoNovo(details)} Nada foi gravado.`;
   }
   // D-PROD-161 (Estoque P0): o saldo do produto é do motor físico.
   if (code === 'PRODUTO_COM_ESTOQUE_NAO_MUDA_EMPRESA') {

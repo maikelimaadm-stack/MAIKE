@@ -66,6 +66,8 @@ const NOME_UNIDADE_CONVERTIDA = '20261126200000_unidade_convertida_lancamentos';
 const NOME_SINC_INDICES = '20261126300000_sincronizacao_incremental_indices';
 /** D-PROD-323: a EXPAND da mistura no implemento, também posterior (fora da partida). */
 const NOME_DM = '20261127100000_diario_maquina';
+/** D-PROD-369: a CONTRACT do estoque na unidade do cadastro, também posterior (fora da partida). */
+const NOME_EUC = '20261127200000_estoque_unidade_cadastro';
 const BANCO = 'maike_eem_teste';
 const PAPEL_BACKEND = 'maike_vercel';
 
@@ -154,8 +156,8 @@ after(async () => {
 describe('D-PROD-259 — migration CONTRACT dos motivos das Entradas (PostgreSQL real)', () => {
   test('EEM-01 partida: todas as pastas anteriores a esta concluídas (as 69 de produção no dia dela); a tabela dos motivos, as colunas novas e a saída manual (D-PROD-264, posterior) não existem', async () => {
     const h = await historico();
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_SAIDAS, NOME_DATA_TERMINO, NOME_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_CONTROLE_LOTE, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM], 'D-PROD-264, D-PROD-265, D-PROD-272, D-PROD-274, D-PROD-276, D-PROD-282 e D-PROD-288: as pastas posteriores a esta são a saída manual do Estoque, a data de término do apontamento, o ajuste de inventário, os campos por tipo a reforma, o produto do implemento o controle de lote, o insumo por jato e as unidades de conversão');
-    assert.equal(PARTIDA.length, PASTAS.length - 14);
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_SAIDAS, NOME_DATA_TERMINO, NOME_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_CONTROLE_LOTE, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM, NOME_EUC], 'D-PROD-264, D-PROD-265, D-PROD-272, D-PROD-274, D-PROD-276, D-PROD-282 e D-PROD-288: as pastas posteriores a esta são a saída manual do Estoque, a data de término do apontamento, o ajuste de inventário, os campos por tipo a reforma, o produto do implemento o controle de lote, o insumo por jato e as unidades de conversão');
+    assert.equal(PARTIDA.length, PASTAS.length - 15);
     assert.equal(PARTIDA.length, 69);
     assert.equal(h.concluidas, PARTIDA.length);
     assert.equal(h.esta, 0);

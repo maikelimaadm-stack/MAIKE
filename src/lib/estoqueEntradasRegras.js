@@ -90,8 +90,8 @@ export const ehImplantacao = (form) => form?.motivo?.natureza === MOTIVO_IMPLANT
  */
 export const unidadesDoProduto = (produto, uso = null) => {
   if (!produto) return [];
-  const estoque = produto.unidade_estoque === 'L' ? 'L' : 'KG';
-  const unidades = [estoque === 'L' ? { value: 'L', label: 'Litros (L)' } : { value: 'KG', label: 'Quilos (kg)' }];
+  const estoque = unidadeEstoqueDe(produto);
+  const unidades = [estoque === 'L' ? { value: 'L', label: 'Litros (L)' } : estoque === 'KG' ? { value: 'KG', label: 'Quilos (kg)' } : { value: estoque, label: estoque }];
   for (const c of conversoesDoProduto(produto)) {
     if (uso === 'compra' && c.uso_compra === false) continue;
     if (uso === 'venda' && c.uso_venda === false) continue;
@@ -102,6 +102,20 @@ export const unidadesDoProduto = (produto, uso = null) => {
   }
   return unidades;
 };
+
+/**
+ * D-PROD-369: a unidade de estoque do produto (`unidade_estoque` do servidor): a sigla real, em maiúsculas (KG, L, SC,
+ * UN...); KG para o SACO legado e para o vazio.
+ * @param {any} produto @returns {string}
+ */
+export const unidadeEstoqueDe = (produto) => siglaDeEstoque(produto?.unidade_estoque);
+/** @param {unknown} u @returns {string} */
+const siglaDeEstoque = (u) => {
+  const s = String(u ?? '').trim().toUpperCase();
+  return !s || s === 'SACO' ? 'KG' : s;
+};
+/** "kg", "L" ou a sigla (a unidade de estoque na frase). @param {string} estoque */
+const rotuloEstoque = (estoque) => (estoque === 'KG' ? 'kg' : estoque);
 
 /** D-PROD-288: as conversões ativas do produto (o servidor manda só as ativas nas opções). @param {any} produto */
 export const conversoesDoProduto = (produto) => (Array.isArray(produto?.unidades_conversao) ? produto.unidades_conversao.filter((c) => c && c.ativa !== false) : []);
@@ -121,7 +135,7 @@ export const equivalenciaDaConversao = (c, estoque) => {
  */
 export const emUnidadeDeEstoque = (produto, unidade, quantidadeCanonica) => {
   if (!produto || !unidade || !quantidadeCanonica) return null;
-  const estoque = produto.unidade_estoque === 'L' ? 'L' : 'KG';
+  const estoque = unidadeEstoqueDe(produto);
   try {
     if (unidade === estoque) return multiplicarArredondar(quantidadeCanonica, '1', 4);
     const c = conversoesDoProduto(produto).find((x) => x.sigla === unidade);
@@ -136,12 +150,12 @@ export const emUnidadeDeEstoque = (produto, unidade, quantidadeCanonica) => {
 /** D-PROD-288: "10 SACO = 250 kg" (vazio quando a unidade já é a de estoque ou falta dado). @param {any} linha */
 export const equivalenciaDaLinha = (linha) => {
   const q = lerDecimal(linha?.quantidade ?? linha?.contado ?? '');
-  const estoque = linha?.produto?.unidade_estoque === 'L' ? 'L' : 'KG';
+  const estoque = unidadeEstoqueDe(linha?.produto);
   if (!q.ok || !q.valor || !linha?.unidade || linha.unidade === estoque) return '';
   const total = emUnidadeDeEstoque(linha.produto, linha.unidade, q.valor);
   if (total == null) return '';
   const fmt = (/** @type {string} */ v) => Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 4 });
-  return `${fmt(q.valor)} ${linha.unidade} = ${fmt(total)} ${estoque === 'L' ? 'L' : 'kg'}`;
+  return `${fmt(q.valor)} ${linha.unidade} = ${fmt(total)} ${rotuloEstoque(estoque)}`;
 };
 
 /** Ao escolher o produto, a unidade vira a de estoque dele (a única, ou o quilo). @param {any} linha @param {any} produto */
@@ -262,6 +276,24 @@ export const montarCorpoEntrada = (empresaId, form, operationId) => {
 
 // ─── edição completa (D-PROD-271) ──────────────────────────────────────────
 
+/**
+ * O produto de uma linha GRAVADA (entrada ou saída), para a edição: a unidade de estoque real (D-PROD-369) e, quando a
+ * linha foi lançada noutra unidade, essa unidade com o fator GRAVADO (o SACO legado de produto em kg vira o peso do
+ * saco, como antes). @param {any} i
+ */
+export const produtoDaLinhaGravada = (i) => {
+  const estoque = siglaDeEstoque(i?.unidade_estoque);
+  const unidade = String(i?.unidade ?? '');
+  const sacoLegado = unidade === 'SACO' && estoque === 'KG';
+  return {
+    id: String(i.produto_id),
+    rotulo: String(i.produto_nome ?? ''),
+    unidade_estoque: estoque,
+    peso_por_saco_kg: sacoLegado ? (i.fator_kg ?? null) : null,
+    unidades_conversao: unidade && unidade !== estoque && !sacoLegado && i.fator_kg ? [{ sigla: unidade, operacao: 'MULTIPLICA', fator: String(i.fator_kg), ativa: true }] : [],
+  };
+};
+
 /** @param {any} id @param {any} nome */
 const opcaoOuNada = (id, nome) => (id ? { id: String(id), rotulo: String(nome ?? '') } : null);
 
@@ -274,7 +306,7 @@ const opcaoOuNada = (id, nome) => (id ? { id: String(id), rotulo: String(nome ??
 export const formularioDaEntrada = (e) => {
   const itens = (Array.isArray(e?.itens) ? e.itens : []).map((/** @type {any} */ i) => ({
     ...linhaVaziaEntrada(),
-    produto: { id: String(i.produto_id), rotulo: String(i.produto_nome ?? ''), unidade_estoque: i.unidade_estoque === 'L' ? 'L' : 'KG', peso_por_saco_kg: i.unidade === 'SACO' ? (i.fator_kg ?? null) : null, unidades_conversao: !['KG', 'L', 'SACO'].includes(String(i.unidade)) && i.fator_kg ? [{ sigla: String(i.unidade), operacao: 'MULTIPLICA', fator: String(i.fator_kg), ativa: true }] : [] },
+    produto: produtoDaLinhaGravada(i),
     deposito: { id: String(i.local_estoque_id), rotulo: String(i.local_estoque_nome ?? '') },
     unidade: String(i.unidade ?? ''),
     quantidade: i.quantidade != null ? paraCampo(i.quantidade) : '',
@@ -337,7 +369,7 @@ export const formularioVazioTransferencia = (hoje) => ({
  */
 export const quantidadeDaTransferencia = (form) => {
   const q = lerDecimal(form?.quantidade ?? '');
-  const estoque = form?.produto?.unidade_estoque === 'L' ? 'L' : 'KG';
+  const estoque = unidadeEstoqueDe(form?.produto);
   const unidade = form?.unidade && form.unidade !== estoque && unidadesDoProduto(form?.produto).some((u) => u.value === form.unidade) ? String(form.unidade) : null;
   if (!q.ok || !q.valor) return { quantidade: null, unidade, digitada: null };
   return { quantidade: unidade ? emUnidadeDeEstoque(form.produto, unidade, q.valor) : q.valor, unidade, digitada: q.valor };
@@ -359,7 +391,7 @@ export const validarTransferencia = (form, hoje) => {
   else {
     // D-PROD-310: numa unidade de conversão, a conta para a unidade de estoque tem de dar mais que zero.
     const t = quantidadeDaTransferencia(form);
-    if (t.unidade && (t.quantidade == null || ehZeroCanonico(t.quantidade))) erros.quantidade = `A quantidade em ${form.produto?.unidade_estoque === 'L' ? 'litros' : 'kg'} (4 casas) dá zero.`;
+    if (t.unidade && (t.quantidade == null || ehZeroCanonico(t.quantidade))) erros.quantidade = `A quantidade em ${unidadeEstoqueDe(form.produto) === 'L' ? 'litros' : rotuloEstoque(unidadeEstoqueDe(form.produto))} (4 casas) dá zero.`;
   }
   // D-PROD-282: produto com lote — a escolha tem de fechar e o lote vencido, ser confirmado.
   if (form.produto?.controla_lote && form.erroLote) erros.lotes = form.erroLote;

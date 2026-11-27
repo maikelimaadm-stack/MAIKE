@@ -240,6 +240,11 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // (Produto.quantidade_padrao e quantidade_padrao_unidade; AtividadeApontamentoProduto.mistura_id e volume_aplicado).
   // Sem DROP, sem ALTER COLUMN, sem DML; a baixa de estoque não está aqui (passa pelo estoqueFisicoMotor).
   '20261127100000_diario_maquina': 'b1896a7c2d350fe31a313563f97192bd961db4c9b905b235bbecced90bfc0aeb',
+  // MAIKE-ESTOQUE-UNIDADE-CADASTRO (D-PROD-369): CONTRACT condicionado, formato de sempre (sem DROP TABLE, sem resto e
+  // sem DML) — os 6 CHECKs de unidade recriados mais largos, com o mesmo nome: a sigla da conversão pode ser KG, L ou UN;
+  // as linhas de entrada, saída, ajuste, item do financeiro (mercadoria) e linha de produto da atividade aceitam qualquer
+  // unidade não vazia (a unidade de estoque é a do cadastro de Unidades). O serviço do financeiro continua só em UN.
+  '20261127200000_estoque_unidade_cadastro': 'f9719220fd738d6a522fa0c0967c77dcde0dd6fa498d9ef31744b2387878a77f',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -783,6 +788,32 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
     conversao: Object.freeze([
       'INSERT INTO "ProdutoUnidadeConversao" ("id", "cliente_id", "produto_id", "sigla", "operacao", "fator", "uso_compra", "uso_venda", "ativa", "ordem", "createdAt", "updatedAt") SELECT \'puc_\' || p."id", p."cliente_id", p."id", \'SACO\', \'MULTIPLICA\', p."peso_por_saco_kg", true, true, true, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM "Produto" AS p WHERE p."peso_por_saco_kg" IS NOT NULL AND p."peso_por_saco_kg" > 0 AND p."unidade_principal_estoque" <> \'L\'',
       'UPDATE "CADFORMULACAO" AS f SET "consumo_minimo_pv" = p."consumo_minimo_pv", "consumo_maximo_pv" = p."consumo_maximo_pv" FROM "Produto" AS p WHERE p."cliente_id" = f."cliente_id" AND p."id" = f."produto_id" AND (p."consumo_minimo_pv" IS NOT NULL OR p."consumo_maximo_pv" IS NOT NULL)',
+    ]),
+  }),
+  // D-PROD-369: o estoque na unidade do cadastro do produto. Formato de sempre, sem DROP TABLE e sem resto (como a
+  // D-PROD-209): depois da guarda (hash pinado; confere que as 6 tabelas existem e que os 6 CHECKs estão no formato
+  // anterior — com UN, ou com KG na linha de produto da atividade —, e trava as 6 tabelas em ACCESS EXCLUSIVE),
+  // EXATAMENTE as 12 instruções abaixo, nesta ordem (texto pinado): cada CHECK apagado e recriado mais largo, com o mesmo
+  // nome (o descritor os declara em `constraints_alargadas`). Nenhuma coluna, tabela ou dado muda. A guarda só cita as 6
+  // tabelas e os literais UN e KG.
+  '20261127200000_estoque_unidade_cadastro': Object.freeze({
+    decisao: 'D-PROD-369',
+    guarda_sha256: '8d78338bcd424a644f78ea2a2bc2e506a71af7c57b23c87cf60271224b7a9af7',
+    drop: Object.freeze([]),
+    literais_guarda: Object.freeze(['ProdutoUnidadeConversao', 'EntradaEstoqueItem', 'SaidaEstoqueItem', 'AjusteEstoqueItem', 'OperacaoFinanceiraItem', 'AtividadeApontamentoProduto', 'UN', 'KG']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "ProdutoUnidadeConversao" DROP CONSTRAINT "ProdutoUnidadeConversao_sigla_check"',
+      'ALTER TABLE "ProdutoUnidadeConversao" ADD CONSTRAINT "ProdutoUnidadeConversao_sigla_check" CHECK (char_length("sigla") > 0 AND "sigla" = upper(btrim("sigla")))',
+      'ALTER TABLE "EntradaEstoqueItem" DROP CONSTRAINT "EntradaEstoqueItem_unidade_check"',
+      'ALTER TABLE "EntradaEstoqueItem" ADD CONSTRAINT "EntradaEstoqueItem_unidade_check" CHECK (char_length(btrim("unidade")) > 0)',
+      'ALTER TABLE "SaidaEstoqueItem" DROP CONSTRAINT "SaidaEstoqueItem_unidade_check"',
+      'ALTER TABLE "SaidaEstoqueItem" ADD CONSTRAINT "SaidaEstoqueItem_unidade_check" CHECK (char_length(btrim("unidade")) > 0)',
+      'ALTER TABLE "AjusteEstoqueItem" DROP CONSTRAINT "AjusteEstoqueItem_unidade_check"',
+      'ALTER TABLE "AjusteEstoqueItem" ADD CONSTRAINT "AjusteEstoqueItem_unidade_check" CHECK (char_length(btrim("unidade")) > 0)',
+      'ALTER TABLE "OperacaoFinanceiraItem" DROP CONSTRAINT "OperacaoFinanceiraItem_forma_check"',
+      'ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_forma_check" CHECK (("tipo_item" = \'MERCADORIA\' AND "produto_id" IS NOT NULL AND "local_estoque_id" IS NOT NULL AND "fator_kg" IS NOT NULL AND "fator_kg" > 0 AND "quantidade_estoque" IS NOT NULL AND "quantidade_estoque" > 0) OR ("tipo_item" = \'SERVICO\' AND "produto_id" IS NULL AND "local_estoque_id" IS NULL AND "descricao" IS NOT NULL AND "unidade" = \'UN\' AND "fator_kg" IS NULL AND "quantidade_estoque" IS NULL AND "movimentacao_estoque_id" IS NULL AND "estoque_lote_nota_id" IS NULL AND "movimentacao_estorno_id" IS NULL))',
+      'ALTER TABLE "AtividadeApontamentoProduto" DROP CONSTRAINT "AtividadeApontamentoProduto_valores_check"',
+      'ALTER TABLE "AtividadeApontamentoProduto" ADD CONSTRAINT "AtividadeApontamentoProduto_valores_check" CHECK ("quantidade" > 0 AND "custo_unitario" >= 0 AND "custo_total" >= 0 AND ("dose_ha" IS NULL OR "dose_ha" >= 0) AND "ordem" >= 1 AND char_length(btrim("unidade")) > 0)',
     ]),
   }),
 });

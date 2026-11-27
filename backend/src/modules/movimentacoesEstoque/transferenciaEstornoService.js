@@ -39,6 +39,7 @@ import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idem
 import { TRANSACAO_LONGA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEventosEmLote } from '../auditoria/auditService.js';
 import { CASAS_QUANTIDADE, dec } from '../financeiro/decimalFinanceiro.js';
+import { unidadeEstoqueEfetiva } from '../produtos/produtoUnidadesConversao.js';
 import {
   descobrirParDeTransferencia,
   estornarTransferenciaEstoque,
@@ -99,7 +100,8 @@ const efeitosDoPar = (s, r, locais = {}) => ({
   produto_id: s.produto_id,
   produto_nome: s.produto_nome ?? null,
   quantidade: kg(s.quantidade),
-  unidade: s.unidade_medida === 'L' ? 'L' : 'KG',
+  // D-PROD-369: o rótulo real do movimento (a unidade de estoque do produto); o SACO legado e o vazio são KG.
+  unidade: unidadeEstoqueEfetiva({ unidade_principal_estoque: s.unidade_medida }),
   valor_total: s.valor_total === null || s.valor_total === undefined ? null : dec(s.valor_total).toFixed(2),
   origem: { id: s.local_estoque_origem, nome: locais.origem?.nome ?? s.local_origem ?? null },
   destino: { id: s.local_estoque_destino, nome: locais.destino?.nome ?? s.local_destino ?? r.local_destino ?? null },

@@ -197,9 +197,10 @@ describe('D-PROD-162 — a baixa é a quantidade digitada, na unidade do Produto
     assert.deepEqual(erro(await A.cancelar(s.contaCancelar.token, k.id, cancelarCorpo(s.e1.id))), [409, 'ABASTECIMENTO_CANCELAMENTO_BLOQUEADO', 'abastecimento', 'unidade_mudou']);
     assert.equal(await fotoAbastecimento(s.c), antes);
     await prisma().$executeRaw`UPDATE "Produto" SET unidade_principal_estoque = 'KG' WHERE id = ${s.dieselKg.id}`;
-    // KG → SACO pela API, depois de tirar o aceite: a unidade efetiva continua kg → o estorno exato passa
+    // KG → SACO, depois de tirar o aceite: a unidade efetiva continua kg → o estorno exato passa. D-PROD-369: a API não
+    // põe mais produto em SACO (só legado); o SACO entra por fora, como nos produtos antigos.
     await A.ok(s.patchAceites(s.trator, [[s.diesel.id]]));
-    await A.ok(A.req('PATCH', `/produtos/${s.dieselKg.id}`, s.token, { unidade_principal_estoque: 'SACO', peso_por_saco_kg: 50 }));
+    await prisma().$executeRaw`UPDATE "Produto" SET unidade_principal_estoque = 'SACO', peso_por_saco_kg = 50 WHERE id = ${s.dieselKg.id}`;
     const xk = await A.ok(A.cancelar(s.contaCancelar.token, k.id, cancelarCorpo(s.e1.id)));
     assert.deepEqual([xk.status, xk.estorno.quantidade], ['CANCELADO', '80.0000']);
     assert.deepEqual([await saldoLote(s.lotes.dieselKg.id), await estoqueAtual(s.dieselKg)], [['300.0000', 'Disponivel'], '300.0000']);
