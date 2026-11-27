@@ -11,6 +11,7 @@ import {
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
 import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
+import { ordemPorAtualizacao, registrarListaIncremental } from '@/lib/offline/sincronizacaoIncremental';
 import { eIdDoAparelho } from '@/lib/offline/idDoAparelho';
 
 const RESOURCE = 'LancamentoTarefa';
@@ -98,7 +99,8 @@ export const operacoesNativas = Object.freeze({
   update: (id, dados) =>
     nativeRequest(
       `${CAMINHO}/${encodeURIComponent(id)}`,
-      { method: 'PATCH', body: corpoDeEnvio(dados, CAMPOS_DE_ATUALIZACAO), autenticado: true },
+      // D-PROD-344: a versão que a pessoa viu vai junto; o servidor confere na edição de campos.
+      { method: 'PATCH', body: corpoDeEnvio(dados, [...CAMPOS_DE_ATUALIZACAO, 'versao_esperada']), autenticado: true },
       ctx('updateLancamento')
     ),
 
@@ -123,3 +125,7 @@ export const lancamentoTarefaPort = createOfflineEntityAdapter({
 registrarLeiturasOffline([
   '/lancamentos-tarefa',
 ]);
+
+// D-PROD-345: a lista inteira (sem filtros) sincroniza só o que mudou desde a última vez. Antes vinha inteira a cada
+// baixa, com as fotos dentro de cada tarefa.
+registrarListaIncremental(CAMINHO, { mudancas: `${CAMINHO}/mudancas`, ordem: ordemPorAtualizacao });

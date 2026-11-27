@@ -7,7 +7,7 @@
  *  (5) tocar a aberta SEM abertura: formulário de abertura com o tipo e a operação dela já definidos;
  *  (6) falha ao ler: aviso (notifyWarning) e fica na lista;
  *  (7) tipo com atividade aberta no pasto: "Já existe … entra nela como mais uma frente." (só aviso); outro tipo, sem o aviso.
- * D-PROD-341 (emenda, frentes) e D-PROD-342 (modelo de frentes): a lista tem UM cartão por atividade (máquinas em campo); (b) tocar
+ * D-PROD-341 (emenda, frentes) e D-PROD-346 (modelo de frentes): a lista tem UM cartão por atividade (máquinas em campo); (b) tocar
  *  a atividade mostra um cartão por frente (máquina, implemento, operador, horímetro inicial), em ordem de início; (c) tocar uma
  *  frente abre só ela; (e) Nova atividade do mesmo tipo com outra máquina envia; (f)/(f2) mesma máquina+implemento não envia (ou
  *  envia, com outro implemento); (g)/(g2) continuar com duas abertas do mesmo tipo não envia (P1), com uma só envia. A atividade
@@ -130,9 +130,9 @@ describe("Diário das atividades — Em andamento neste pasto (D-PROD-341)", () 
     expect(screen.getByTestId("diario-atividades-escolher")).toBeInTheDocument();
     expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Em andamento neste pasto");
     expect(screen.queryByTestId("diario-atividades-tipos")).toBeNull();
-    // D-PROD-342: um cartão por ATIVIDADE. A com frente mostra as máquinas em campo; a planejada, "Sem máquina em campo".
+    // D-PROD-346: um cartão por ATIVIDADE. A com frente mostra as máquinas em campo; a planejada, "Sem máquina em campo".
     const primeira = await screen.findByTestId("diario-atividade-aberta-at-1");
-    // D-PROD-342 (item 3): o título é o TIPO da atividade e o mês de início.
+    // D-PROD-346 (item 3): o título é o TIPO da atividade e o mês de início.
     expect(primeira).toHaveTextContent("Aplicação de defensivo · nov/26");
     expect(primeira).toHaveTextContent("Início 02/11");
     expect(within(primeira).getByTestId("diario-atividade-aberta-etiqueta-at-1")).toHaveTextContent("Em andamento");
@@ -168,7 +168,7 @@ describe("Diário das atividades — Em andamento neste pasto (D-PROD-341)", () 
     const { lerAtividade } = renderizar({ atividadesAbertas: [ABERTA_COM_ABERTURA, ABERTA_SEM_ABERTURA] });
     fireEvent.click(screen.getByTestId("diario-atividade-aberta-at-1"));
     expect(lerAtividade).toHaveBeenCalledWith("at-1");
-    // D-PROD-342: tocar a atividade vai às frentes dela; a frente (máquina sem implemento: "bem-7|") leva ao serviço.
+    // D-PROD-346: tocar a atividade vai às frentes dela; a frente (máquina sem implemento: "bem-7|") leva ao serviço.
     fireEvent.click(await screen.findByTestId("frente-at-1-bem-7%7C"));
     expect(await screen.findByTestId("abertura-iniciado")).toBeInTheDocument();
     expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Diário das atividades");

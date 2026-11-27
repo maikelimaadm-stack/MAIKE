@@ -176,6 +176,9 @@ export const operacoesNativas = Object.freeze({
   update: async (id, dados) => {
     const corpo = corpoDeEnvio(dados, CAMPOS_DE_ATUALIZACAO);
     if (Object.keys(corpo).length === 0) return { id };
+    // D-PROD-344: a versão que a pessoa viu vai junto (só com algo a gravar); o servidor confere e responde 409 se
+    // outra pessoa mudou a área depois.
+    if (typeof dados?.versao_esperada === 'string' && dados.versao_esperada) corpo.versao_esperada = dados.versao_esperada;
     return nativeRequest(
       `${CAMINHO}/${encodeURIComponent(id)}`,
       { method: 'PATCH', body: corpo, autenticado: true },

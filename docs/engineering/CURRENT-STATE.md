@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-27 (missão ativa D-PROD-340; antes D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-27 (missão ativa D-PROD-345; antes D-PROD-344, D-PROD-343, D-PROD-342, D-PROD-341 (diário, PR #426), D-PROD-340, D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,43 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-27) — MAIKE-CADASTRO-MAPA-FECHAR: fechar o cadastro do mapa não derruba o app (D-PROD-340)
+## Missão ativa (2026-11-27) — MAIKE-SINCRONIZACAO-FASE3: baixar só o que mudou em pontos, linhas e tarefas (D-PROD-345)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-345**: `/pontos-referencia/mudancas`, `/linhas-geograficas/mudancas`, `/lancamentos-tarefa/mudancas` (contrato da D-PROD-309) e o app usando as três; a área fica de fora (ocupação muda sem mudar a área) |
+| Banco | sem migration; índice `(cliente_id, updatedAt)` em PontoReferencia e LinhaGeografica anotado para quando crescer |
+| Relatório | [`SINCRONIZACAO-FASE3-D345-REPORT.md`](./SINCRONIZACAO-FASE3-D345-REPORT.md) |
+| Próximas | Fase 4 (sincronização com o app fechado, APK novo) — só com decisão do proprietário |
+
+## Missão anterior (2026-11-27) — MAIKE-SINCRONIZACAO-FASE2: versão em área, ponto, linha e tarefa (D-PROD-344)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-344**: o servidor confere `versao_esperada` (sob trava) na edição de área, ponto de referência, linha e tarefa (só campos); o app manda a versão nos formulários de área, ponto e linha |
+| Banco | sem migration |
+| Relatório | [`SINCRONIZACAO-FASE2-D344-REPORT.md`](./SINCRONIZACAO-FASE2-D344-REPORT.md) |
+| Próximas | a tela da tarefa mandar a versão; Fase 3 (baixar só o que mudou) |
+
+## Missão anterior (2026-11-27) — MAIKE-SINCRONIZACAO-FASE1: proteção da sincronização (D-PROD-343)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-343**: cocho/área/ponto/linha feitos sem internet aparecem no mapa; a volta da internet só baixa de novo depois de 3 min; a baixa toma a vez por parte; a baixa das telas conta erro do servidor como falha, tira o que não existe mais e para depois de 6 faltas de rede seguidas; a resposta mais antiga não apaga a mais nova; as telas abertas se atualizam no fim; armazenamento protegido |
+| Banco | sem migration, sem mudança no servidor |
+| Relatório | [`SINCRONIZACAO-FASE1-D343-REPORT.md`](./SINCRONIZACAO-FASE1-D343-REPORT.md) |
+| Próximas | Fase 2 (versão em todos os cadastros), Fase 3 (baixar só o que mudou) |
+
+## Missão anterior (2026-11-27) — MAIKE-SINAL-FRACO: edição na fila, servidor reconhece a repetição, transferência não some (D-PROD-342)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-342**: a edição de cadastro sem resposta vai para a fila; o servidor aceita a MESMA edição repetida com a versão antiga (`pedidoJaAplicado`, lote e cocho/depósito, comparando pelo tipo gravado) e não duplica o histórico da tarefa; nada é juntado a um envio sem resposta (`ja_tentado`); a exclusão que recebe "não existe" conta como feita; a transferência que tentou subir é confirmada na hora |
+| Banco | sem migration. Backend: `pedidoJaAplicado` em `versaoDoRegistro.js`; `lancamentoTarefaService.atualizar` |
+| Relatório | [`SINAL-FRACO-D342-REPORT.md`](./SINAL-FRACO-D342-REPORT.md) |
+| Próximas | Fases 1–3 da sincronização (proteção, versão em tudo, baixar só o que mudou) |
+
+## Missão anterior (2026-11-27) — MAIKE-CADASTRO-MAPA-FECHAR: fechar o cadastro do mapa não derruba o app (D-PROD-340)
 
 | Item | Estado |
 |---|---|

@@ -16,7 +16,7 @@ import { lerErroGestao } from "./gestaoErros.js";
 import { rotuloDaUnidade } from "./abastecimentoRegras.js";
 
 /**
- * D-PROD-342: o início da linha de marcador (abertura OU encerramento de serviço), com o fechamento `]` e a quebra de
+ * D-PROD-346: o início da linha de marcador (abertura OU encerramento de serviço), com o fechamento `]` e a quebra de
  * linha (ou o fim do texto). Os dois prefixos são diferentes, então uma linha nunca é lida como a outra.
  */
 const LINHA_DO_MARCADOR = /^\[(?:abertura|encerramento)-servico[^\]\n]*\](?:\r?\n|$)/;
@@ -24,7 +24,7 @@ const LINHA_DO_MARCADOR = /^\[(?:abertura|encerramento)-servico[^\]\n]*\](?:\r?\
 const LINHA_DA_ABERTURA = /^\[abertura-servico[^\]\n]*\](?:\r?\n|$)/;
 /** A linha inteira, com os pares `chave=valor` (só a 1ª linha conta). */
 const CONTEUDO_DA_LINHA = /^\[abertura-servico((?: [a-z]+=[^\s\]]*)*)\](?:\r?\n|$)/;
-/** D-PROD-342: a linha inteira do encerramento de serviço (só a 1ª linha conta). */
+/** D-PROD-346: a linha inteira do encerramento de serviço (só a 1ª linha conta). */
 const CONTEUDO_DO_ENCERRAMENTO = /^\[encerramento-servico((?: [a-z]+=[^\s\]]*)*)\](?:\r?\n|$)/;
 
 /**
@@ -106,7 +106,7 @@ export const lerAbertura = (observacao) => {
 
 /**
  * O texto da pessoa numa observação: tudo menos a primeira linha de marcador, abertura ou encerramento (sem ela, a
- * observação inteira). D-PROD-342: a linha de encerramento também sai.
+ * observação inteira). D-PROD-346: a linha de encerramento também sai.
  * @param {unknown} observacao
  */
 export const textoDaObservacao = (observacao) => {
@@ -126,10 +126,10 @@ export const observacaoComAbertura = (observacao, abertura) => {
   return resto.trim() ? `${marca}\n${resto}` : marca;
 };
 
-// ─── Encerramento de uma frente (D-PROD-342) ─────
+// ─── Encerramento de uma frente (D-PROD-346) ─────
 
 /**
- * D-PROD-342: a linha de encerramento de uma frente, no mesmo formato da abertura (sem responsável):
+ * D-PROD-346: a linha de encerramento de uma frente, no mesmo formato da abertura (sem responsável):
  * `[encerramento-servico bem=<id> impl=<id> hor=<decimal> bemn=<enc> impln=<enc>]`. A ordem é fixa (bem, impl, hor,
  * bemn, impln) e campo vazio não entra. O horímetro é o canônico (`parseHorimetroPtBr`), como na abertura.
  * @param {{ bemId?: unknown, implementoId?: unknown, horimetro?: unknown, bemNome?: unknown, implementoNome?: unknown }} e
@@ -151,7 +151,7 @@ export const marcadorDoEncerramento = (e) => {
 };
 
 /**
- * D-PROD-342: o encerramento gravado numa observação, ou `null` quando não há linha ou ela está incompleta (sem máquina
+ * D-PROD-346: o encerramento gravado numa observação, ou `null` quando não há linha ou ela está incompleta (sem máquina
  * ou com horímetro que não é decimal canônico). Só a 1ª linha conta e uma linha de abertura nunca vale aqui. O implemento
  * é opcional.
  * @param {unknown} observacao
@@ -174,7 +174,7 @@ export const lerEncerramento = (observacao) => {
 };
 
 /**
- * D-PROD-342: a observação com o encerramento na primeira linha e o texto da pessoa depois. Troca a linha de marcador
+ * D-PROD-346: a observação com o encerramento na primeira linha e o texto da pessoa depois. Troca a linha de marcador
  * que já estiver lá (abertura ou encerramento), como `observacaoComAbertura`.
  * @param {unknown} observacao
  * @param {Parameters<typeof marcadorDoEncerramento>[0]} encerramento
@@ -293,7 +293,7 @@ const naoCancelados = (itens) => (Array.isArray(itens) ? itens : []).filter((a) 
  * de cada um. Cada frente sai uma vez, com a `abertura` mais recente dela (a do dia mais novo; no mesmo dia, o 1º da lista)
  * e o `inicio` (o menor `data_operacional` com a chave). Ordem: o início, depois a chave. Sem abertura nenhuma, `[]`.
  *
- * D-PROD-342: cada frente também diz se foi encerrada: `encerrada` (boolean), `horimetroFinal` (canônico, "" se aberta)
+ * D-PROD-346: cada frente também diz se foi encerrada: `encerrada` (boolean), `horimetroFinal` (canônico, "" se aberta)
  * e `fim` (o dia do encerramento, "" se aberta). Conta o encerramento NÃO cancelado com a MESMA chave cujo dia é o da
  * abertura mais recente da frente ou posterior. A comparação usa essa abertura e não o `inicio`: a mesma máquina com o
  * mesmo implemento pode ser aberta de novo depois de um encerramento, e o encerramento antigo não pode fechar a nova
@@ -349,7 +349,7 @@ export const apontamentosDaFrente = (itens, chave) =>
   });
 
 /**
- * D-PROD-342: os erros do encerramento por campo (vazio = válido). O horímetro final é o TEXTO do campo (pt-BR) e não
+ * D-PROD-346: os erros do encerramento por campo (vazio = válido). O horímetro final é o TEXTO do campo (pt-BR) e não
  * pode ser menor que o inicial da frente. O inicial pode vir canônico (a abertura guarda assim) ou, se não for, a
  * comparação é pulada. Igual ao inicial é válido.
  * @param {{ horimetroFinal?: unknown, horimetroInicial?: unknown }} p
@@ -371,7 +371,7 @@ export const validarEncerramento = ({ horimetroFinal, horimetroInicial } = {}) =
 };
 
 /**
- * D-PROD-342: quantas frentes estão abertas e quantas foram encerradas, e o total. Recebe a lista de `frentesDosApontamentos`.
+ * D-PROD-346: quantas frentes estão abertas e quantas foram encerradas, e o total. Recebe a lista de `frentesDosApontamentos`.
  * @param {unknown} frentes
  * @returns {{ abertas: number, encerradas: number, total: number }}
  */
@@ -382,7 +382,7 @@ export const resumoDasFrentes = (frentes) => {
 };
 
 /**
- * D-PROD-342: o texto do cabeçalho com a quantidade de frentes abertas (`abertas` é o número, de `resumoDasFrentes`).
+ * D-PROD-346: o texto do cabeçalho com a quantidade de frentes abertas (`abertas` é o número, de `resumoDasFrentes`).
  * @param {number} abertas
  * @returns {string}
  */

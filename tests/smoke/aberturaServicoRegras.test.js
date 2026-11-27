@@ -371,9 +371,9 @@ describe("frentes: uma abertura por máquina + implemento (D-PROD-341)", () => {
   });
 });
 
-// ─── Encerramento de uma frente (D-PROD-342) ─────
+// ─── Encerramento de uma frente (D-PROD-346) ─────
 
-describe("marcadorDoEncerramento / lerEncerramento (D-PROD-342)", () => {
+describe("marcadorDoEncerramento / lerEncerramento (D-PROD-346)", () => {
   const ENC = { bemId: "bem-7", implementoId: "imp-2", horimetro: "1290.5", bemNome: "Trator 12", implementoNome: "Pulverizador 2.000 L" };
 
   it("grava a linha com os campos na ordem, sem responsável, e os nomes codificados", () => {
@@ -441,7 +441,7 @@ describe("marcadorDoEncerramento / lerEncerramento (D-PROD-342)", () => {
   });
 });
 
-describe("validarEncerramento (D-PROD-342)", () => {
+describe("validarEncerramento (D-PROD-346)", () => {
   it("horímetro final vazio ou inválido: \"Informe o horímetro final.\"", () => {
     expect(validarEncerramento({ horimetroFinal: "", horimetroInicial: "1245.0" })).toEqual({ horimetroFinal: "Informe o horímetro final." });
     expect(validarEncerramento({ horimetroFinal: "-3", horimetroInicial: "1245.0" })).toEqual({ horimetroFinal: "Informe o horímetro final." });
@@ -473,7 +473,7 @@ describe("validarEncerramento (D-PROD-342)", () => {
   });
 });
 
-describe("resumoDasFrentes / textoDasMaquinasEmCampo (D-PROD-342)", () => {
+describe("resumoDasFrentes / textoDasMaquinasEmCampo (D-PROD-346)", () => {
   it("conta abertas, encerradas e o total", () => {
     expect(resumoDasFrentes([{ encerrada: false }, { encerrada: true }, { encerrada: false }])).toEqual({ abertas: 2, encerradas: 1, total: 3 });
     expect(resumoDasFrentes([])).toEqual({ abertas: 0, encerradas: 0, total: 0 });
@@ -488,7 +488,7 @@ describe("resumoDasFrentes / textoDasMaquinasEmCampo (D-PROD-342)", () => {
   });
 });
 
-describe("frentes com encerramento (D-PROD-342)", () => {
+describe("frentes com encerramento (D-PROD-346)", () => {
   const abre = (dia, bemId, bemNome, implementoId = "", horimetro = "1000.0", id = `ab-${dia}-${bemId}`) => ({
     id,
     data_operacional: dia,

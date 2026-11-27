@@ -2,10 +2,13 @@
  * Rotas de LancamentoTarefa e histórico (P5.3, D-PROD-49).
  */
 
+import { schemaMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
+import { SCHEMA_VERSAO_ESPERADA } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { SCHEMA_ID_DO_APARELHO } from '../../shared/idempotency/idDoAparelho.js';
 import {
   listar,
+  mudancas,
   criar,
   atualizar,
   excluir,
@@ -84,7 +87,8 @@ const ATUALIZAR_LANCAMENTO_SCHEMA = {
     type: 'object',
     minProperties: 1,
     additionalProperties: false,
-    properties: { ...CAMPOS_LANCAMENTO_ATUALIZACAO },
+    // D-PROD-344: a versão da tarefa que a pessoa viu; diferente da atual → 409, nada gravado (só na edição de campos).
+    properties: { ...CAMPOS_LANCAMENTO_ATUALIZACAO, versao_esperada: SCHEMA_VERSAO_ESPERADA },
   },
 };
 
@@ -151,6 +155,12 @@ export const registrarLancamentoTarefaRoutes = async (app) => {
   app.get('/lancamentos-tarefa', { onRequest: [app.autenticar] }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     return listar(request.contexto);
+  });
+
+  // D-PROD-345: o que mudou desde a última sincronização (mesma permissão da listagem).
+  app.get('/lancamentos-tarefa/mudancas', { onRequest: [app.autenticar], schema: schemaMudancas() }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    return mudancas(request.contexto, /** @type {any} */ (request.query ?? {}));
   });
 
   app.post(

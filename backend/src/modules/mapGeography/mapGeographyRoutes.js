@@ -3,6 +3,8 @@
  * PontoReferencia e LinhaGeografica.
  */
 
+import { SCHEMA_VERSAO_ESPERADA } from '../../shared/sincronizacao/versaoDoRegistro.js';
+import { schemaMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import {
   listar as listarIcones,
@@ -11,12 +13,14 @@ import {
 } from './configuracaoIconeService.js';
 import {
   listar as listarPontos,
+  mudancas as mudancasDosPontos,
   criar as criarPonto,
   atualizar as atualizarPonto,
   excluir as excluirPonto,
 } from './pontoReferenciaService.js';
 import {
   listar as listarLinhas,
+  mudancas as mudancasDasLinhas,
   criar as criarLinha,
   atualizar as atualizarLinha,
 } from './linhaGeograficaService.js';
@@ -202,7 +206,8 @@ const ATUALIZAR_PONTO_SCHEMA = {
     type: 'object',
     minProperties: 1,
     additionalProperties: false,
-    properties: { ...CAMPOS_PONTO_EDIT },
+    // D-PROD-344: a versão que a pessoa viu; diferente da atual → 409, nada gravado.
+    properties: { ...CAMPOS_PONTO_EDIT, versao_esperada: SCHEMA_VERSAO_ESPERADA },
   },
 };
 
@@ -237,7 +242,8 @@ const ATUALIZAR_LINHA_SCHEMA = {
     type: 'object',
     minProperties: 1,
     additionalProperties: false,
-    properties: { ...CAMPOS_LINHA_EDIT },
+    // D-PROD-344: a versão que a pessoa viu; diferente da atual → 409, nada gravado.
+    properties: { ...CAMPOS_LINHA_EDIT, versao_esperada: SCHEMA_VERSAO_ESPERADA },
   },
 };
 
@@ -271,6 +277,12 @@ export const registrarMapGeographyRoutes = async (app) => {
   app.get('/pontos-referencia', { onRequest: [app.autenticar] }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     return listarPontos(request.contexto);
+  });
+
+  // D-PROD-345: o que mudou desde a última sincronização (mesma permissão da listagem).
+  app.get('/pontos-referencia/mudancas', { onRequest: [app.autenticar], schema: schemaMudancas() }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    return mudancasDosPontos(request.contexto, /** @type {any} */ (request.query ?? {}));
   });
 
   app.post(
@@ -307,6 +319,12 @@ export const registrarMapGeographyRoutes = async (app) => {
   app.get('/linhas-geograficas', { onRequest: [app.autenticar] }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     return listarLinhas(request.contexto);
+  });
+
+  // D-PROD-345: o que mudou desde a última sincronização (mesma permissão da listagem).
+  app.get('/linhas-geograficas/mudancas', { onRequest: [app.autenticar], schema: schemaMudancas() }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    return mudancasDasLinhas(request.contexto, /** @type {any} */ (request.query ?? {}));
   });
 
   app.post(

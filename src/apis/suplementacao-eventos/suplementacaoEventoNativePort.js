@@ -81,6 +81,8 @@ const portaBase = offlineStorageDisponivel()
       enabled: true,
       tenantScoped: true,
       idDoAparelho: true,
+      // D-PROD-342: o motor grava esta entidade em passos (lançamento do cocho); sem resposta, ele tenta tudo de novo.
+      edicaoSemResposta: 'erro',
     })
   : operacoesNativas;
 

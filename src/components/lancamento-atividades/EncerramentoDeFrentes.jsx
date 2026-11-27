@@ -6,7 +6,7 @@ import { formatarHorimetro } from "@/lib/aberturaServicoRegras";
 import { tituloDaFrente } from "@/components/lancamento-atividades/AtividadeComFrentes";
 
 /**
- * D-PROD-342 — os painéis de encerramento do Diário das atividades, no próprio passo (como o painel "Em breve"):
+ * D-PROD-346 — os painéis de encerramento do Diário das atividades, no próprio passo (como o painel "Em breve"):
  *  - `PainelEncerrarFrente`: o serviço de UMA frente (passo `iniciado`), com o horímetro final;
  *  - `PainelEncerrarAtividade`: a atividade (passo `atividade`), com o horímetro final de cada frente ABERTA, ou só a
  *    confirmação quando não há frente aberta.

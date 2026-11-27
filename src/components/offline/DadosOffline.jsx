@@ -127,7 +127,7 @@ export default function DadosOffline() {
   }, []);
 
   // Sincronização automática (D-PROD-294, D-PROD-329), já preparado e com internet: envia e baixa
-  //  - quando a internet VOLTA: sempre;
+  //  - quando a internet VOLTA: se a última baixa tem mais de 3 min (D-PROD-343; o envio sempre);
   //  - ao abrir ou voltar ao app: se a última baixa tem mais de 10 min;
   //  - com o app aberto: a cada 6 h.
   // A PRIMEIRA baixa é da tela de preparo (`PreparoDoApp`), antes de o sistema abrir.

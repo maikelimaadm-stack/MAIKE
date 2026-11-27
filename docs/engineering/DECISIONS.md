@@ -10437,7 +10437,85 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`471ad9c9d`) indicou D-PROD-334. A PR #424 (Insumo) reservou o 334, então esta correção é a D-PROD-341, e o marcador passa a D-PROD-342. A PR #428 (offline, Grupo 3) mergeou antes com a D-PROD-338 e a #429 com a D-PROD-340, por isso esta passou de 338 a 341.
 
-## D-PROD-342 — Diário das atividades: o modelo de frentes (uma atividade por pasto e tipo, máquinas dentro)
+## D-PROD-342 — Sinal fraco: a edição vai para a fila, o servidor reconhece a mesma edição repetida e a transferência não some do histórico
+
+**Data:** 2026-11-27 · **Origem:** os dois itens "com mudança no servidor" das D-PROD-337/338, liberados pelo proprietário ("pode continuar com os itens do servidor") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINAL-FRACO-D342-REPORT.md`](./SINAL-FRACO-D342-REPORT.md)
+
+**Decisão.**
+1. **A edição de cadastro sem resposta vai para a fila.** Sinal fraco, Wi-Fi sem dados ou sessão vencida deixam o `adapter.update` sem resposta. A edição entra na fila de cadastros com a versão que a pessoa viu, como a criação já entrava (D-PROD-308), e a tela mostra o valor editado. Antes dava erro e a pessoa refazia. A recusa do servidor, quando ele responde, continua voltando para a tela.
+2. **A mesma edição repetida não é conflito.** O servidor ganhou `pedidoJaAplicado` em `versaoDoRegistro.js`, usado no lote e no cocho/depósito. Uma edição com `versao_esperada` antiga, mas cujos campos já estão exatamente como no registro, é aceita: é a mesma edição chegando de novo depois que a resposta se perdeu. Uma edição diferente com versão antiga continua 409. O pedido vazio nunca conta como aplicado. A comparação segue o tipo do que está gravado:
+   - texto como texto exato ("01" ≠ "1"; a chave de 44 dígitos nunca vira número);
+   - Decimal arredondado às 4 casas da coluna;
+   - data como instante;
+   - objeto (jsonb) com as chaves em ordem.
+3. **A tarefa repetida não duplica o histórico.** A mesma edição da tarefa chegando de novo, por exemplo a "Conclusão" ou a foto que subiu sem resposta, não grava outra linha no histórico. O registro só de histórico, sem campos (como "Registro"), continua gravando a cada envio.
+4. **A transferência do depósito e a baixa do cocho que tentaram subir são confirmadas na hora.** Ao ler o histórico com internet, a confirmação é pedida logo (`sincronizarTudo`, no máximo uma vez a cada 20 s). O servidor deduplica pelo código da operação, e o lançamento volta com os ids reais em segundos. Antes ficava fora até a passada seguinte. Ela continua sem aparecer como "aguardando" enquanto confirma, porque a lista do servidor pode já tê-la e sem como casar apareceria duas vezes. Sem internet, aparece como aguardando.
+5. **A fila não junta nada a um envio que ficou sem resposta.** O item que foi ao servidor e não teve resposta passa a contar como já tentado (`ja_tentado`), seja a edição com internet, seja o envio da fila. O que a pessoa fizer depois entra na fila como item próprio:
+   - a correção de uma edição já tentada vai depois dela e sem versão. Juntar as duas faria a repetição levar a versão velha com valores novos, e a edição daria conflito consigo mesma;
+   - a edição de uma criação já tentada vai depois da criação. O servidor devolve o que já tem para o mesmo id, e a edição somada à criação se perderia.
+6. **A exclusão que recebe "não existe" conta como feita.** Ela chegou numa tentativa sem resposta, ou outra pessoa excluiu. Antes ficava em "precisa de atenção".
+7. **O fechamento do período do cocho não entra na fila de cadastros.** As portas de `SuplementacaoEvento` e `SuplementacaoLote` pedem `edicaoSemResposta: 'erro'`, porque o motor de sincronização repete o lançamento inteiro. Na fila antiga, o fechamento iria fora de ordem.
+
+> **Numeração:** nasceu D-PROD-341. A PR #426 (diário, outra sessão) levou a D-PROD-341 para a `main` (`6aa675672`), que passou a indicar `Próxima decisão: D-PROD-342`, que é esta (`node scripts/dev/proxima-decisao.mjs`). O marcador passa a D-PROD-343. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-343 — Sincronização, Fase 1 (proteção): o feito sem internet aparece no mapa, a baixa não segura o envio e não engana
+
+**Data:** 2026-11-27 · **Origem:** plano de sincronização aprovado pelo proprietário ("fazer as implementações para melhorar"), a partir da auditoria do lado da baixa · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-FASE1-D343-REPORT.md`](./SINCRONIZACAO-FASE1-D343-REPORT.md)
+
+**Decisão.**
+1. **O cocho, o depósito, a área, o ponto e a linha feitos sem internet aparecem no mapa já.** A fila de cadastros é aplicada na leitura da cópia do mapa (`comFilaDaEntidade`), como já era com as tarefas (D-PROD-330). Antes eles só apareciam no cadastro: no pasto, o cocho novo não podia ser tocado para lançar a leitura. Valem as mesmas regras das tarefas: só a fila da fazenda; o recusado não entra; o excluído sai.
+2. **A volta da internet só baixa de novo se a última baixa tem mais de 3 min.** Com o sinal piscando, cada volta baixava tudo de novo: dezenas de listas inteiras a cada vez. O envio não espera, porque a volta da rede sempre envia (`gatilhosDeSincronizacao`).
+3. **A baixa toma a vez da sincronia por parte (mapa, cadastros, telas), não pela baixa inteira.** O envio pedido no meio passa entre uma parte e outra. Antes, a baixa (minutos, no sinal fraco) segurava a vez, e o que se fazia nesse tempo não subia.
+4. **A baixa das telas não engana e não demora à toa.**
+   - O erro do servidor (5xx) e a sessão recusada contam como falha: antes a parte aparecia como "baixada".
+   - Quando o servidor diz que algo não existe mais (404), a cópia sai do aparelho: antes o lote excluído abria sem internet.
+   - Depois de 6 faltas de rede seguidas a baixa para, e o que faltou conta como falha. Antes, cada caminho esperava 20 s.
+   - Sem permissão (403) continua não sendo falha.
+5. **A resposta do pedido mais antigo não apaga a do mais novo.** Ao guardar uma leitura, fica a do pedido mais recente (`pedido_em`, na mesma transação). Antes, a leitura lenta da sincronização chegava depois da releitura feita ao salvar e apagava o registro novo da cópia.
+6. **As telas abertas se atualizam ao terminar a sincronização.** O mapa relê a cópia nova sem pedir de novo ao servidor (`atualizar-mapa` com `jaBuscado`), e as outras telas abertas releem.
+7. **O armazenamento do app fica protegido.** O app pede `navigator.storage.persist()` ao abrir, para que o sistema não apague o que espera envio quando o celular fica sem espaço. Se o sistema negar, tudo segue como antes.
+
+**Ficou de fora, de propósito:**
+- **Dono por pessoa na fila de cadastros.** Pular os itens de outra pessoa faria o registro dela esperar até ela entrar de novo, talvez nunca. Hoje eles sobem com a conta de quem está no celular. Fica para decidir com o proprietário.
+- **O servidor recusar um app desatualizado.** Exige o app mandar a versão em todo pedido; vai junto da Fase 4 (APK novo).
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` indica a D-PROD-342 enquanto a PR da D-PROD-342 não entra; esta é a seguinte. O marcador passa a D-PROD-344. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-344 — Sincronização, Fase 2: a versão do registro também em área, ponto de referência, linha e tarefa
+
+**Data:** 2026-11-27 · **Origem:** plano de sincronização aprovado pelo proprietário; auditoria do servidor (D8: só lote e cocho conferiam a versão) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-FASE2-D344-REPORT.md`](./SINCRONIZACAO-FASE2-D344-REPORT.md)
+
+**Decisão.**
+1. **O servidor confere a versão (`versao_esperada`) na edição de área, ponto de referência, linha e tarefa**, como no lote e no cocho (D-PROD-316). A conferência é feita sob a trava da linha. Com a versão velha e outra edição, a resposta é 409 `REGISTRO_VERSAO_CONFLITO` e nada é gravado. A mesma edição repetida não é conflito (D-PROD-342). Sem versão, grava como antes, o que mantém compatível o app antigo e a cascata interna.
+2. **Na tarefa, só a edição de campos confere a versão.** Somar fotos e registrar no histórico não apagam o que outra pessoa fez, então não conferem.
+3. **A repetição compara o valor já tratado pelo servidor.** A altura digitada "30,5" repetida conta como a mesma edição. As colunas Decimal com outra escala informam as próprias casas (`escalas`).
+4. **O app manda a versão nos formulários de área, ponto e linha** (o `updated_date` do registro aberto). As portas repassam o campo. A fila sem internet segue as regras da D-PROD-316: vale a versão da primeira edição, e a continuação vai sem versão.
+5. **A tela da tarefa ainda não manda a versão.** As fotos tiradas sem internet sobem sozinhas depois de salvar e mudam a versão; com a versão, a edição seguinte na mesma tela daria um falso "alterado por outra pessoa". O servidor já aceita a versão; o app passa a mandá-la quando a tela reler a tarefa depois das fotos.
+
+> **Numeração:** depois da D-PROD-343 (Fase 1). O marcador passa a D-PROD-345. Conferir antes do merge (regra A5).
+
+## D-PROD-345 — Sincronização, Fase 3: pontos de referência, linhas e tarefas baixam só o que mudou
+
+**Data:** 2026-11-27 · **Origem:** plano de sincronização aprovado pelo proprietário; auditoria da baixa (H1: quase tudo vinha inteiro a cada sincronização) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-FASE3-D345-REPORT.md`](./SINCRONIZACAO-FASE3-D345-REPORT.md)
+
+**Decisão.**
+1. **`GET /pontos-referencia/mudancas`, `/linhas-geograficas/mudancas` e `/lancamentos-tarefa/mudancas`** seguem o mesmo contrato da D-PROD-309 (`consultarMudancas`):
+   - `desde`, cursor e páginas;
+   - a mesma forma pública da listagem;
+   - as exclusões vêm da auditoria;
+   - a mesma permissão da listagem;
+   - o tenant vem do auth_context.
+   A linha não é excluída: sai com `ativo: false`, que volta como item alterado.
+2. **O app registra as três listas como incrementais**, cada uma com a ordem da listagem do servidor:
+   - pontos e linhas: criação crescente;
+   - tarefas: alteração decrescente.
+   `nativeRequest` junta pelo id com a cópia do aparelho, e quem chama não percebe diferença. Nas tarefas, que trazem as fotos dentro e cresciam a cada baixa, é o ganho maior.
+3. **A área fica de fora de propósito.** A listagem da área traz a ocupação (o gado dentro), que muda com as movimentações sem mudar a área. Uma lista "só o que mudou" mostraria a ocupação velha.
+4. **Índice:** `PontoReferencia` e `LinhaGeografica` não têm `(cliente_id, updatedAt)`, e a consulta usa `(cliente_id, …)` e ordena. Com poucos registros por cliente, a diferença é pequena. Se crescer, uma migration futura cria os dois índices; esta missão não cria. `LancamentoTarefa` já tem o índice.
+
+> **Numeração:** depois da D-PROD-344 (Fase 2). O marcador passa a D-PROD-346. Conferir antes do merge (regra A5).
+
+## D-PROD-346 — Diário das atividades: o modelo de frentes (uma atividade por pasto e tipo, máquinas dentro)
 
 **Decisão.** No pasto, cada tipo de atividade é UMA atividade (a atividade do pasto). As máquinas em campo são as FRENTES dela (máquina + implemento): cada frente tem a sua abertura, o horímetro inicial e final, o seu operador e os seus lançamentos. A frente continua sendo lida dos apontamentos (D-PROD-341, emenda); o que muda é que o encerramento também é um apontamento.
 
@@ -10461,6 +10539,6 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 **Correção no caminho.** O formulário de "Adicionar máquina" mostrava "já tem serviço aberto" também para a frente encerrada. Agora a frente encerrada tem a sua frase (`MSG_FRENTE_ENCERRADA`), no mesmo ponto em que a trava já decidia.
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-342 na `main` (`6aa675672`). Esta entrada ficou com o D-PROD-342 e o marcador passa a D-PROD-343. Conferir de novo antes do merge (regra A5).
+> **Numeração:** nasceu D-PROD-342 (`node scripts/dev/proxima-decisao.mjs` na `main` `6aa675672`). Antes do merge, a `main` levou as D-PROD-342 a D-PROD-345 (sem internet e sincronização, PRs #430 a #433); esta passou a D-PROD-346 e o marcador a D-PROD-347.
 
-<!-- Próxima decisão: D-PROD-343 -->
+<!-- Próxima decisão: D-PROD-347 -->

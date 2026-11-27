@@ -109,7 +109,7 @@ const irAbertura = async (tipo = "APLICACAO") => {
 };
 
 /**
- * D-PROD-342: no passo `atividade` (a atividade com as frentes), toca a frente da chave dada (`bemId|implementoId`) e espera o
+ * D-PROD-346: no passo `atividade` (a atividade com as frentes), toca a frente da chave dada (`bemId|implementoId`) e espera o
  * serviço dela (`abertura-iniciado`). O padrão é a frente do Trator 12 com o Pulverizador (os apontamentos de `APONTAMENTO_COM_ABERTURA`).
  */
 const irAoServicoDaFrente = async (chave = "bem-7|imp-2", atividadeId = "atv-9") => {
@@ -118,7 +118,7 @@ const irAoServicoDaFrente = async (chave = "bem-7|imp-2", atividadeId = "atv-9")
 };
 
 /**
- * D-PROD-342: o servidor "guarda" o envio da abertura: a próxima leitura dos apontamentos da atividade traz a linha enviada
+ * D-PROD-346: o servidor "guarda" o envio da abertura: a próxima leitura dos apontamentos da atividade traz a linha enviada
  * (com o horímetro e o responsável digitados), então a frente aparece no passo `atividade` como foi gravada.
  */
 const servidorGuardaAbertura = () => {
@@ -207,7 +207,7 @@ describe("Diário das atividades — abertura", () => {
     await escolher(screen.getByRole("combobox", { name: "Responsável" }), "João Pereira");
     fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
 
-    // D-PROD-342: depois de abrir, volta ao passo `atividade` com a frente nova; tocar nela abre o serviço.
+    // D-PROD-346: depois de abrir, volta ao passo `atividade` com a frente nova; tocar nela abre o serviço.
     const cabecalho = await irAoServicoDaFrente();
     expect(servico.registrarCampo).toHaveBeenCalledTimes(1);
     const [dados] = servico.registrarCampo.mock.calls[0];
@@ -263,7 +263,7 @@ describe("Diário das atividades — abertura", () => {
   it("(f2) D-PROD-341: serviço aberto SEM abertura gravada → formulário de abertura, com o tipo e a operação dele já definidos", async () => {
     servico.listarApontamentos.mockResolvedValue({ items: [{ id: "ap-1", data_operacional: "2026-11-26", status: "CONFIRMADO", observacao: "Só texto" }] });
     renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
-    // D-PROD-342: a atividade sem frente mostra o aviso e "Adicionar máquina" (que abre o formulário com o tipo já escolhido).
+    // D-PROD-346: a atividade sem frente mostra o aviso e "Adicionar máquina" (que abre o formulário com o tipo já escolhido).
     expect(await screen.findByTestId("atividade-sem-maquina")).toHaveTextContent("Esta atividade não tem máquina em campo.");
     fireEvent.click(screen.getByTestId("atividade-adicionar-maquina"));
     await screen.findByTestId("abertura-form");
@@ -288,7 +288,7 @@ describe("Diário das atividades — abertura", () => {
     expect(lerAbertura(dados.observacao)).toMatchObject({ bemId: "bem-7", responsavelId: "usr-3", horimetro: "1245.0" });
   });
 
-  it("(f3) D-PROD-342: \"Adicionar máquina\" com duas operações do tipo NÃO mostra o campo Operação; o envio leva o tipo da atividade", async () => {
+  it("(f3) D-PROD-346: \"Adicionar máquina\" com duas operações do tipo NÃO mostra o campo Operação; o envio leva o tipo da atividade", async () => {
     servico.listarApontamentos.mockResolvedValue({ items: [{ id: "ap-1", data_operacional: "2026-11-26", status: "CONFIRMADO", observacao: "Só texto" }] });
     renderizar({ tipos: [OPERACAO_APLICACAO, OPERACAO_APLICACAO_2], atividade: { id: "atv-9", tipo_atividade_id: "op-2" } });
     fireEvent.click(await screen.findByTestId("atividade-adicionar-maquina"));

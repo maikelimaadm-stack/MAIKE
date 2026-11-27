@@ -1,5 +1,5 @@
 /**
- * D-PROD-342 — o Diário das atividades no modelo de FRENTES (uma atividade por pasto e tipo, máquinas dentro), com o service
+ * D-PROD-346 — o Diário das atividades no modelo de FRENTES (uma atividade por pasto e tipo, máquinas dentro), com o service
  * mockado e um "servidor" em memória (`store`): o envio grava na atividade e a leitura devolve o que foi gravado.
  *  (a) "Em andamento neste pasto": um cartão por ATIVIDADE, com "2 máquinas em campo";
  *  (b) o passo `atividade`: um cartão por frente (implemento, operador, horímetro inicial) e "Adicionar máquina";
@@ -202,7 +202,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("D-PROD-342 — o passo \"Em andamento neste pasto\" (a) e o passo da atividade (b)", () => {
+describe("D-PROD-346 — o passo \"Em andamento neste pasto\" (a) e o passo da atividade (b)", () => {
   it("(a) um cartão por ATIVIDADE, com \"2 máquinas em campo\" (e nenhum cartão por máquina)", async () => {
     renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
     expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Em andamento neste pasto");
@@ -236,13 +236,13 @@ describe("D-PROD-342 — o passo \"Em andamento neste pasto\" (a) e o passo da a
   });
 });
 
-describe("D-PROD-342 — Adicionar máquina e a trava de frente duplicada (c)", () => {
+describe("D-PROD-346 — Adicionar máquina e a trava de frente duplicada (c)", () => {
   it("(c1) título \"Adicionar máquina\"; o POST leva bem_id e a tag da abertura; volta ao passo e a máquina nova vira frente", async () => {
     renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
     await abrirAtividade();
     await adicionarMaquina();
     expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Adicionar máquina");
-    // D-PROD-342 (item 1): a operação é a da atividade — sem o campo "Operação" e sem a frase "Já existe …" (só vale no tipo).
+    // D-PROD-346 (item 1): a operação é a da atividade — sem o campo "Operação" e sem a frase "Já existe …" (só vale no tipo).
     expect(screen.queryByTestId("abertura-operacao")).toBeNull();
     expect(screen.queryByTestId("abertura-ja-existe")).toBeNull();
     await escolherOpcao(screen.getByRole("combobox", { name: "Máquina" }), "Trator 10");
@@ -292,7 +292,7 @@ describe("D-PROD-342 — Adicionar máquina e a trava de frente duplicada (c)", 
   });
 });
 
-describe("D-PROD-342 — o serviço de uma frente (d) e o encerramento dela (e)", () => {
+describe("D-PROD-346 — o serviço de uma frente (d) e o encerramento dela (e)", () => {
   it("(d) tocar numa frente abre só o serviço dela: o cabeçalho e o \"Lançado hoje\" são os dela", async () => {
     renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
     await abrirAtividade();
@@ -348,7 +348,7 @@ describe("D-PROD-342 — o serviço de uma frente (d) e o encerramento dela (e)"
   });
 });
 
-describe("D-PROD-342 — Encerrar atividade (f) e a atividade sem frente (g)", () => {
+describe("D-PROD-346 — Encerrar atividade (f) e a atividade sem frente (g)", () => {
   it("(f1) com duas frentes abertas: exige os dois horímetros, grava um encerramento por frente e conclui com versao e data_conclusao de hoje", async () => {
     const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
     await abrirAtividade();
@@ -422,7 +422,7 @@ describe("D-PROD-342 — Encerrar atividade (f) e a atividade sem frente (g)", (
   });
 });
 
-describe("D-PROD-342 — duplo clique (h)", () => {
+describe("D-PROD-346 — duplo clique (h)", () => {
   it("(h) duplo clique em \"Encerrar serviço\" envia UM só encerramento", async () => {
     /** @type {() => void} */
     let liberar = () => {};
@@ -447,7 +447,7 @@ describe("D-PROD-342 — duplo clique (h)", () => {
   });
 });
 
-describe("D-PROD-342 — acertos de rótulo, cartão e encerramento (itens 2, 3 e 5)", () => {
+describe("D-PROD-346 — acertos de rótulo, cartão e encerramento (itens 2, 3 e 5)", () => {
   it("(r1) o cabeçalho do serviço e o \"Encerrar serviço\" usam o NOME DO TIPO da atividade (Gradeação), não o tipo fixo (Preparo do solo)", async () => {
     renderizar({ atividade: { id: "at-1", tipo_atividade_id: "op-g", tipo_atividade_nome: "Gradeação", nome: "Gradeação · nov/26", data_inicio: "2026-11-20", versao: 7 } });
     expect(await screen.findByTestId("atividade-passo")).toBeInTheDocument();

@@ -127,9 +127,9 @@ Vários tratores e implementos trabalham no mesmo pasto, no mesmo tipo, ao mesmo
 
 **Testes:** `tests/smoke/aberturaServicoRegras.test.js` (frentes), `tests/smoke/diarioEmAndamentoNoPasto.test.jsx` (b, c, e, f, f2, g, g2), `tests/smoke/diarioDasAtividades.test.jsx` (carga por frente, d1 e d2).
 
-## Frentes (D-PROD-342)
+## Frentes (D-PROD-346)
 
-**Decisão:** [D-PROD-342](./DECISIONS.md). Uma atividade por pasto e tipo; as máquinas em campo são as frentes dela (máquina + implemento), cada uma com a sua abertura, horímetro inicial e final, operador e lançamentos. Sem backend e sem migration.
+**Decisão:** [D-PROD-346](./DECISIONS.md). Uma atividade por pasto e tipo; as máquinas em campo são as frentes dela (máquina + implemento), cada uma com a sua abertura, horímetro inicial e final, operador e lançamentos. Sem backend e sem migration.
 
 **Como a pessoa vê (o que mudou no Diário):**
 
