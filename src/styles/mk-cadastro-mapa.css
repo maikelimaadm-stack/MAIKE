@@ -1,3 +1,20 @@
 /* D-PROD-333 — formulário lateral do cadastro do mapa (área, ponto, linha): a lista do celular (B1Select →
    MobileSheet) abre DENTRO do formulário e recebe o toque (o Radix Dialog tira o toque do resto da página). */
 .mk-form-mapa-host .mk-sheet-root { pointer-events: auto; }
+
+/* D-PROD-361 — editor do mapa no dedo: botões com alvo de 44px (os de 28px faziam errar o toque). Só em tela de
+   toque; no mouse o desenho continua o da referência. */
+@media (pointer: coarse) {
+  .mk-editor-mapa .mk-editor-fechar { width: 44px; height: 44px; }
+  .mk-editor-mapa .mk-editor-barra button { min-height: 44px; min-width: 44px; }
+  .mk-editor-mapa .mk-editor-modos { top: max(3.75rem, env(safe-area-inset-top)) !important; }
+}
+
+/* D-PROD-361 — a barra de baixo (Reiniciar · Remover ponto · Desfazer · Refazer · Salvar) passava da tela no
+   celular: presa em left:50%, ela só tinha meia tela de largura e "Reiniciar"/"Salvar" ficavam cortados. Agora ocupa
+   até a tela inteira e quebra em duas linhas quando não cabe. */
+.mk-editor-mapa .mk-editor-rodape { width: max-content; max-width: calc(100vw - 16px); }
+.mk-editor-mapa .mk-editor-barra-baixo { flex-wrap: wrap; justify-content: center; }
+@media (max-width: 520px) {
+  .mk-editor-mapa .mk-editor-barra-baixo { border-radius: 16px; }
+}

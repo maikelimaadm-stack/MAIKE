@@ -10784,4 +10784,19 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-359 (a 354 é de uma PR aberta; 355, 357 e 358 já estão na `main`). Esta ficou com D-PROD-359, e o marcador passa a D-PROD-360.
 
-<!-- Próxima decisão: D-PROD-360 -->
+## D-PROD-361 — Cadastrar no mapa como no AgriWebb, etapa 1: "+" com pasto, ponto e linha e editor no dedo
+
+**Data:** 2026-11-27 · **Origem:** o proprietário pediu cadastrar pastos, pontos e linhas no mapa como no AgriWebb, também sem internet · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`MAPA-CADASTRO-ETAPA1-D361-REPORT.md`](./MAPA-CADASTRO-ETAPA1-D361-REPORT.md)
+
+**Contexto.** O editor do Cadastro do Mapa já desenha pasto e linha por toque, arrasta vértice e ponto, insere no meio, remove, desfaz, tem ímã nas divisas, "minha localização" e grava sem internet (fila com `versao_esperada`, D-PROD-344/358). Faltava chegar a ele pelo Mapa Geral e usá-lo bem no dedo. As outras lacunas frente ao AgriWebb (mira no centro, caminhar gravando o contorno, régua, excluir sem internet, KMZ, dividir/juntar pastos) ficam para as etapas seguintes.
+
+**Decisão.**
+1. **O "+" da aba Pontos do Mapa Geral abre a escolha Novo pasto · Novo ponto · Nova linha** (`NovoCadastroMapaBotao`). Cada opção vai a `MapaCadastro?novo=area|ponto|linha`, que abre direto o editor certo e, ao fechar, volta ao Mapa Geral (como o ponto na D-PROD-333/340). Um valor desconhecido abre a lista, como antes. A permissão é a mesma: `novo` em `pec-mapa-cadastro`.
+2. **No dedo, o alvo do vértice e do meio passa de 14 para 22 px** (`EDITOR_VISUAL.acerto.toque`). O toque é reconhecido também pelo pointer `touch`/`pen` do WebView (`eToque`), não só pelo `touchstart`. No modo Mover, a linha fina pega a 16 px no dedo (6 px no mouse).
+3. **Botões do editor com alvo de 44 px em tela de toque** (`@media (pointer: coarse)`): fechar, barra de cima (Mapa · Satélite · minha localização · ímã · régua) e barra de baixo. No mouse o desenho segue a referência.
+4. **A barra de baixo não passa mais da tela.** Presa em `left: 50%`, ela tinha meia tela de largura e "Reiniciar"/"Salvar" ficavam cortados no celular. Agora ocupa até a tela inteira e quebra em duas linhas.
+5. **Na linha, o botão Mover diz "Mover linha inteira"** (antes "Mover área inteira").
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-361 (359 na `main`, 360 reservado pela PR #448). O marcador passa a D-PROD-362. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-362 -->
