@@ -1,0 +1,220 @@
+import React, { useEffect, useRef, useState } from "react";
+import { GoogleMap } from "@capacitor/google-maps";
+
+import { getGoogleMapsApiKey, getGoogleMapsIosKey } from "@/config/runtimeConfig";
+import { lerVisaoSalva } from "@/lib/maplibre/mapaGeralRender.js";
+import {
+  caixaDosPoligonos,
+  chaveDaVistaSalva,
+  configDoMapaGoogle,
+  ehMapaGoogleNativo,
+  escalaDoMapaGoogle,
+  limparMapaGoogleOrfao,
+  novoIdDoMapaGoogle,
+  poligonosDasAreas,
+  registrarMapaGoogleAberto,
+  tipoDoMapaGoogle,
+  zoomDoGoogle,
+  zoomDoMapLibre,
+} from "@/lib/mapaNativo/mapaGoogleNativo.js";
+
+const CENTRO_PADRAO = { lat: -15.78, lng: -47.93 };
+/** Margem em volta da fazenda ao enquadrar (px da página). */
+const MARGEM_ENQUADRAR = 40;
+
+/**
+ * O mapa nativo fica ATRÁS da página (o plugin deixa a WebView transparente): todo elemento entre o mapa e a raiz
+ * precisa estar sem fundo, senão ele cobre o mapa. Guarda o fundo de cada um e devolve ao fechar.
+ * @param {HTMLElement | null} el
+ */
+function abrirJanelaParaOMapa(el) {
+  /** @type {Array<[HTMLElement, string]>} */
+  const antes = [];
+  for (let n = el?.parentElement; n; n = n.parentElement) {
+    antes.push([n, n.style.background]);
+    n.style.background = "transparent";
+  }
+  return () => {
+    for (const [n, fundo] of antes) n.style.background = fundo;
+  };
+}
+
+/**
+ * Mapa Geral no Google Maps (D-PROD-366, etapa 1): nativo no app Android/iOS, Maps JavaScript API no site. Satélite do
+ * Google, áreas com as cores e o estilo do Mapa Geral, toque na área abre o mesmo detalhe. A vista (centro e zoom)
+ * usa a mesma chave do MapLibre.
+ *
+ * @param {{
+ *   areas: any[],
+ *   areasDaFazenda?: any[],
+ *   areasCarregadas?: boolean,
+ *   mostrarAreas: boolean,
+ *   corDaArea: (area: any) => string | null | undefined,
+ *   estiloPasto?: string,
+ *   tipoMapa: string,
+ *   empresaId?: string | null,
+ *   ativo?: boolean,
+ *   onClickArea?: (area: any) => void,
+ *   onFalha?: (erro: unknown) => void,
+ * }} props
+ */
+export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregadas = true, mostrarAreas, corDaArea, estiloPasto, tipoMapa, empresaId, ativo = true, onClickArea, onFalha }) {
+  const elRef = useRef(/** @type {HTMLElement | null} */ (null));
+  const mapaRef = useRef(/** @type {GoogleMap | null} */ (null));
+  const idsRef = useRef(/** @type {string[]} */ ([]));
+  // as trocas de polígonos rodam uma de cada vez: a seguinte sempre tira o que a anterior pôs
+  const filaRef = useRef(/** @type {Promise<void>} */ (Promise.resolve()));
+  const areasPorIdRef = useRef(new Map());
+  const cliqueRef = useRef(onClickArea);
+  cliqueRef.current = onClickArea;
+  const falhaRef = useRef(onFalha);
+  falhaRef.current = onFalha;
+  const enquadrouRef = useRef(false);
+  const tipoMapaInicialRef = useRef(tipoMapa);
+  const [pronto, setPronto] = useState(false);
+
+  // cria o mapa uma vez por fazenda
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return undefined;
+    let cancelado = false;
+    const nativo = ehMapaGoogleNativo();
+    /** @type {any} */
+    let vista = null;
+    try {
+      vista = lerVisaoSalva(localStorage.getItem(chaveDaVistaSalva(empresaId)));
+    } catch {
+      vista = null;
+    }
+    enquadrouRef.current = !!vista;
+    idsRef.current = [];
+    filaRef.current = Promise.resolve();
+    (async () => {
+      try {
+        // um mapa nativo que ficou vivo de uma recarga no meio sai antes: o id novo apaga a única referência a ele
+        await limparMapaGoogleOrfao();
+        if (cancelado) return;
+        const mapa = await GoogleMap.create({
+          id: novoIdDoMapaGoogle(),
+          element: el,
+          // Android lê a chave do AndroidManifest (segredo do build do APK); o iOS e o site recebem aqui.
+          apiKey: (nativo ? getGoogleMapsIosKey() : null) || getGoogleMapsApiKey() || "",
+          forceCreate: true,
+          config: /** @type {any} */ (
+            configDoMapaGoogle(
+              { center: vista?.center || CENTRO_PADRAO, zoom: zoomDoGoogle(vista?.zoom ?? 14) },
+              tipoMapaInicialRef.current
+            )
+          ),
+        });
+        if (cancelado) {
+          await mapa.destroy().catch(() => {});
+          return;
+        }
+        mapaRef.current = mapa;
+        registrarMapaGoogleAberto(mapa);
+        await mapa.setOnPolygonClickListener((e) => {
+          const area = areasPorIdRef.current.get(String(e?.tag));
+          if (area) cliqueRef.current?.(area);
+        });
+        await mapa.setOnCameraIdleListener((e) => {
+          if (!enquadrouRef.current || !Number.isFinite(e?.latitude)) return;
+          try {
+            localStorage.setItem(
+              chaveDaVistaSalva(empresaId),
+              JSON.stringify({ center: { lat: e.latitude, lng: e.longitude }, zoom: zoomDoMapLibre(e.zoom) })
+            );
+          } catch {
+            /* armazenamento indisponível */
+          }
+        });
+        if (!cancelado) setPronto(true);
+      } catch (erro) {
+        if (!cancelado) falhaRef.current?.(erro);
+      }
+    })();
+    return () => {
+      cancelado = true;
+      setPronto(false);
+      idsRef.current = [];
+      const mapa = mapaRef.current;
+      mapaRef.current = null;
+      registrarMapaGoogleAberto(null);
+      mapa?.destroy().catch(() => {});
+    };
+  }, [empresaId]);
+
+  // App: com o Mapa Geral à vista, a página fica transparente em volta do mapa e o mapa recebe o toque; fora dela
+  // (D-PROD-305: o Mapa Geral fica montado e escondido) o fundo volta e o mapa para de pegar os toques das outras telas.
+  useEffect(() => {
+    if (!pronto || !ehMapaGoogleNativo()) return undefined;
+    const mapa = mapaRef.current;
+    if (!ativo) {
+      mapa?.disableTouch().catch(() => {});
+      return undefined;
+    }
+    const fechar = abrirJanelaParaOMapa(elRef.current);
+    mapa?.enableTouch().catch(() => {});
+    return fechar;
+  }, [pronto, ativo]);
+
+  // satélite ou mapa
+  useEffect(() => {
+    const mapa = mapaRef.current;
+    if (!pronto || !mapa) return;
+    mapa.setMapType(/** @type {any} */ (tipoDoMapaGoogle(tipoMapa))).catch(() => {});
+  }, [pronto, tipoMapa]);
+
+  // áreas: refeitas quando mudam as áreas, as cores (coloração) ou o estilo dos pastos
+  useEffect(() => {
+    const mapa = mapaRef.current;
+    if (!pronto || !mapa) return undefined;
+    let superada = false;
+    const lista = mostrarAreas ? areas || [] : [];
+    const escala = escalaDoMapaGoogle();
+    const poligonos = poligonosDasAreas(lista, corDaArea, estiloPasto, escala);
+    filaRef.current = filaRef.current.then(async () => {
+      if (mapaRef.current !== mapa) return;
+      try {
+        const velhos = idsRef.current;
+        idsRef.current = [];
+        if (velhos.length) await mapa.removePolygons(velhos);
+        // uma troca mais nova já está na fila: ela põe os polígonos dela
+        if (superada || mapaRef.current !== mapa) return;
+        areasPorIdRef.current = new Map(lista.map((a) => [String(a.id), a]));
+        if (poligonos.length) idsRef.current = await mapa.addPolygons(/** @type {any} */ (poligonos));
+      } catch (erro) {
+        if (!superada && mapaRef.current === mapa) falhaRef.current?.(erro);
+      }
+    });
+    return () => {
+      superada = true;
+    };
+  }, [pronto, areas, mostrarAreas, corDaArea, estiloPasto]);
+
+  // primeira abertura sem vista salva: enquadra todas as áreas da fazenda (como o MapLibre, sem filtro nem camada).
+  // Enquanto a consulta das áreas não termina, fica pendente e a vista não é gravada; fazenda sem áreas de fato:
+  // a vista passa a ser gravada como está.
+  const paraEnquadrar = areasDaFazenda ?? areas;
+  useEffect(() => {
+    const mapa = mapaRef.current;
+    if (!pronto || !mapa || enquadrouRef.current) return;
+    const escala = escalaDoMapaGoogle();
+    const caixa = caixaDosPoligonos(poligonosDasAreas(paraEnquadrar || [], () => null, undefined, escala));
+    if (!caixa && !areasCarregadas) return;
+    enquadrouRef.current = true;
+    if (!caixa) return;
+    filaRef.current = filaRef.current.then(async () => {
+      if (mapaRef.current !== mapa) return;
+      await mapa.fitBounds(/** @type {any} */ (caixa), MARGEM_ENQUADRAR * escala).catch(() => {});
+    });
+  }, [pronto, paraEnquadrar, areasCarregadas]);
+
+  return (
+    <capacitor-google-map
+      ref={elRef}
+      data-testid="mapa-geral-google"
+      style={{ display: "block", width: "100%", height: "100%" }}
+    />
+  );
+}

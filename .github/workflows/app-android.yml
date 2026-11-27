@@ -16,6 +16,9 @@ name: app-android
 #   MAKGESTAO_KEYSTORE_PASSWORD  a senha da chave
 #   VITE_GOOGLE_MAPS_API_KEY     a chave do Google Maps do site (satélite)
 #   VITE_MAPTILER_KEY            (opcional) satélite do app MapTiler, em cache para usar sem internet
+#   GOOGLE_MAPS_ANDROID_KEY      (D-PROD-366, opcional) chave do Google Maps SDK for Android, para o mapa nativo do
+#                                Google (restrita ao pacote com.makgestao.app e à impressão SHA-1 que este build
+#                                mostra). Sem ela vai a VITE_GOOGLE_MAPS_API_KEY, que serve se não for restrita a sites.
 # A chave e a senha nunca entram no repositório nem no log.
 
 on:
@@ -75,11 +78,15 @@ jobs:
           KS: ${{ secrets.MAKGESTAO_KEYSTORE_BASE64 }}
           KP: ${{ secrets.MAKGESTAO_KEYSTORE_PASSWORD }}
           MAPS: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          MAPA_NATIVO: ${{ secrets.GOOGLE_MAPS_ANDROID_KEY }}
         run: |
           falta=0
           [ -n "$KS" ] || { echo "::error::Falta o segredo MAKGESTAO_KEYSTORE_BASE64"; falta=1; }
           [ -n "$KP" ] || { echo "::error::Falta o segredo MAKGESTAO_KEYSTORE_PASSWORD"; falta=1; }
           [ -n "$MAPS" ] || { echo "::error::Falta o segredo VITE_GOOGLE_MAPS_API_KEY"; falta=1; }
+          # D-PROD-366: sem a chave própria do Android, o mapa nativo usa a do site (serve se ela não for restrita a
+          # sites; restrita, o mapa do Google fica cinza e a pessoa volta ao mapa de sempre).
+          [ -n "$MAPA_NATIVO" ] || echo "::notice::Sem GOOGLE_MAPS_ANDROID_KEY: o mapa nativo do Google usa a VITE_GOOGLE_MAPS_API_KEY."
           exit $falta
 
       - uses: actions/setup-node@v4
@@ -117,6 +124,7 @@ jobs:
         env:
           MAKGESTAO_KEYSTORE: ${{ runner.temp }}/makgestao-release.jks
           MAKGESTAO_KEYSTORE_PASSWORD: ${{ secrets.MAKGESTAO_KEYSTORE_PASSWORD }}
+          GOOGLE_MAPS_ANDROID_KEY: ${{ secrets.GOOGLE_MAPS_ANDROID_KEY || secrets.VITE_GOOGLE_MAPS_API_KEY }}
         run: ./gradlew assembleRelease --no-daemon
 
       - name: Conferir assinatura
@@ -127,6 +135,10 @@ jobs:
           apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
           "$apksigner" verify --print-certs "$origem" > certs.txt
           digital=$(grep -m1 'certificate SHA-256 digest' certs.txt | awk '{print $NF}')
+          # D-PROD-366: impressão SHA-1 (pública) para restringir a chave do mapa nativo no Google Cloud.
+          sha1=$(grep -m1 'certificate SHA-1 digest' certs.txt | awk '{print $NF}' | sed 's/../&:/g; s/:$//' | tr 'a-f' 'A-F')
+          echo "Impressão SHA-1 do certificado (restrição da chave do Google Maps): $sha1"
+          echo "Impressão SHA-1 do certificado (restrição da chave do Google Maps): \`$sha1\`" >> "$GITHUB_STEP_SUMMARY"
           if [ "$digital" != "$CERTIFICADO_SHA256" ]; then
             echo "::error::O APK não está assinado com a chave fixa do app."
             exit 1
