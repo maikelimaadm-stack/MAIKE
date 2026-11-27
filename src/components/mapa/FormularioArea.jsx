@@ -147,6 +147,8 @@ export default function FormularioArea({
       if (item) {
         return atualizarArea(item.id, {
           ...data,
+          // D-PROD-344: a versão da área que a pessoa abriu; o servidor só grava se ela ainda está nela.
+          ...(item.updated_date ? { versao_esperada: item.updated_date } : {}),
           coordenadas: {
             coords: toPersistedCoords(coordenadasGPS || coordenadas || item.coordenadas?.coords),
             cor: data.cor,

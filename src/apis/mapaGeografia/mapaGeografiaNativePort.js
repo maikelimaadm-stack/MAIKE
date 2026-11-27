@@ -126,7 +126,8 @@ const operacoesPonto = Object.freeze({
       `/pontos-referencia/${encodeURIComponent(id)}`,
       {
         method: 'PATCH',
-        body: corpoDeEnvio(dados, CAMPOS_PONTO_ATUALIZACAO),
+        // D-PROD-344: a versão que a pessoa viu vai junto; o servidor confere.
+        body: corpoDeEnvio(dados, [...CAMPOS_PONTO_ATUALIZACAO, 'versao_esperada']),
         autenticado: true,
       },
       { operation: 'updatePonto', resource: 'PontoReferencia' }
@@ -187,7 +188,8 @@ const operacoesLinha = Object.freeze({
       `/linhas-geograficas/${encodeURIComponent(id)}`,
       {
         method: 'PATCH',
-        body: corpoDeEnvio(dados, CAMPOS_LINHA_ATUALIZACAO),
+        // D-PROD-344: a versão que a pessoa viu vai junto; o servidor confere.
+        body: corpoDeEnvio(dados, [...CAMPOS_LINHA_ATUALIZACAO, 'versao_esperada']),
         autenticado: true,
       },
       { operation: 'updateLinha', resource: 'LinhaGeografica' }

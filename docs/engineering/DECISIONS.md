@@ -10481,4 +10481,17 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` indica a D-PROD-342 enquanto a PR da D-PROD-342 não entra; esta é a seguinte. O marcador passa a D-PROD-344. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-344 -->
+## D-PROD-344 — Sincronização, Fase 2: a versão do registro também em área, ponto de referência, linha e tarefa
+
+**Data:** 2026-11-27 · **Origem:** plano de sincronização aprovado pelo proprietário; auditoria do servidor (D8: só lote e cocho conferiam a versão) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-FASE2-D344-REPORT.md`](./SINCRONIZACAO-FASE2-D344-REPORT.md)
+
+**Decisão.**
+1. **O servidor confere a versão (`versao_esperada`) na edição de área, ponto de referência, linha e tarefa**, como no lote e no cocho (D-PROD-316). A conferência é feita sob a trava da linha. Com a versão velha e outra edição, a resposta é 409 `REGISTRO_VERSAO_CONFLITO` e nada é gravado. A mesma edição repetida não é conflito (D-PROD-342). Sem versão, grava como antes, o que mantém compatível o app antigo e a cascata interna.
+2. **Na tarefa, só a edição de campos confere a versão.** Somar fotos e registrar no histórico não apagam o que outra pessoa fez, então não conferem.
+3. **A repetição compara o valor já tratado pelo servidor.** A altura digitada "30,5" repetida conta como a mesma edição. As colunas Decimal com outra escala informam as próprias casas (`escalas`).
+4. **O app manda a versão nos formulários de área, ponto e linha** (o `updated_date` do registro aberto). As portas repassam o campo. A fila sem internet segue as regras da D-PROD-316: vale a versão da primeira edição, e a continuação vai sem versão.
+5. **A tela da tarefa ainda não manda a versão.** As fotos tiradas sem internet sobem sozinhas depois de salvar e mudam a versão; com a versão, a edição seguinte na mesma tela daria um falso "alterado por outra pessoa". O servidor já aceita a versão; o app passa a mandá-la quando a tela reler a tarefa depois das fotos.
+
+> **Numeração:** depois da D-PROD-343 (Fase 1). O marcador passa a D-PROD-345. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-345 -->

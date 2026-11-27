@@ -1,4 +1,5 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { exigirVersaoEsperada, separarVersaoEsperada } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
@@ -110,8 +111,12 @@ export const atualizar = async (contexto, id, entrada) => {
   const prisma = getPrismaClient();
 
   return prisma.$transaction(async (tx) => {
+    const { versaoEsperada } = separarVersaoEsperada(entrada);
+    // D-PROD-344: versão conferida sob a trava da linha (como no lote, D-PROD-316).
+    if (versaoEsperada) await tx.$queryRaw`SELECT id FROM "LinhaGeografica" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR NO KEY UPDATE`;
     const anterior = await buscarLinha(auth.clienteId, id, tx);
     if (!anterior) throw linhaGeograficaNotFound();
+    await exigirVersaoEsperada(tx, { clienteId: auth.clienteId, entidade: 'LinhaGeografica', registro: anterior, versaoEsperada, rotulo: 'A linha', pedido: camposDe(entrada) });
 
     const campos = camposDe(entrada);
     const registro = Object.keys(campos).length

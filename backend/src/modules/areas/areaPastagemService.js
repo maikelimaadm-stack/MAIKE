@@ -49,6 +49,7 @@
  * setor da área.
  */
 
+import { exigirVersaoEsperada, separarVersaoEsperada } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
@@ -438,8 +439,21 @@ export const atualizar = async (contexto, id, entrada) => {
  */
 export const atualizarNaTransacao = async (contexto, tx, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
+  const { versaoEsperada } = separarVersaoEsperada(entrada);
+  // D-PROD-344: com a versão que a pessoa viu, a linha fica travada e a versão é conferida (como no lote, D-PROD-316):
+  // duas pessoas editando a mesma área sem internet não apagam mais a edição uma da outra em silêncio.
+  if (versaoEsperada) await tx.$queryRaw`SELECT id FROM "AreaPastagem" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR NO KEY UPDATE`;
   const anterior = await buscarArea(auth.clienteId, id, tx);
   if (!anterior) throw areaNotFound();
+  await exigirVersaoEsperada(tx, {
+    clienteId: auth.clienteId,
+    entidade: 'AreaPastagem',
+    registro: anterior,
+    versaoEsperada,
+    rotulo: 'A área',
+    pedido: camposDe(entrada),
+    escalas: { altura_entrada_cm: 1, altura_saida_cm: 1 },
+  });
 
   const campos = camposDe(entrada);
   // D-PROD-223: com as duas alturas próprias (a nova ou a gravada), a de saída é menor.

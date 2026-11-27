@@ -3,6 +3,7 @@
  * PontoReferencia e LinhaGeografica.
  */
 
+import { SCHEMA_VERSAO_ESPERADA } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import {
   listar as listarIcones,
@@ -202,7 +203,8 @@ const ATUALIZAR_PONTO_SCHEMA = {
     type: 'object',
     minProperties: 1,
     additionalProperties: false,
-    properties: { ...CAMPOS_PONTO_EDIT },
+    // D-PROD-344: a versão que a pessoa viu; diferente da atual → 409, nada gravado.
+    properties: { ...CAMPOS_PONTO_EDIT, versao_esperada: SCHEMA_VERSAO_ESPERADA },
   },
 };
 
@@ -237,7 +239,8 @@ const ATUALIZAR_LINHA_SCHEMA = {
     type: 'object',
     minProperties: 1,
     additionalProperties: false,
-    properties: { ...CAMPOS_LINHA_EDIT },
+    // D-PROD-344: a versão que a pessoa viu; diferente da atual → 409, nada gravado.
+    properties: { ...CAMPOS_LINHA_EDIT, versao_esperada: SCHEMA_VERSAO_ESPERADA },
   },
 };
 
