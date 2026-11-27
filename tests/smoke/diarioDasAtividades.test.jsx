@@ -108,6 +108,28 @@ const irAbertura = async (tipo = "APLICACAO") => {
   await screen.findByTestId("abertura-form");
 };
 
+/**
+ * D-PROD-348: no passo `atividade` (a atividade com as frentes), toca a frente da chave dada (`bemId|implementoId`) e espera o
+ * serviço dela (`abertura-iniciado`). O padrão é a frente do Trator 12 com o Pulverizador (os apontamentos de `APONTAMENTO_COM_ABERTURA`).
+ */
+const irAoServicoDaFrente = async (chave = "bem-7|imp-2", atividadeId = "atv-9") => {
+  fireEvent.click(await screen.findByTestId(`frente-${atividadeId}-${encodeURIComponent(chave)}`));
+  return screen.findByTestId("abertura-iniciado");
+};
+
+/**
+ * D-PROD-348: o servidor "guarda" o envio da abertura: a próxima leitura dos apontamentos da atividade traz a linha enviada
+ * (com o horímetro e o responsável digitados), então a frente aparece no passo `atividade` como foi gravada.
+ */
+const servidorGuardaAbertura = () => {
+  servico.registrarCampo.mockImplementation(async (corpo) => {
+    servico.listarApontamentos.mockResolvedValue({
+      items: [{ id: "ap-1", data_operacional: corpo.data_operacional, status: "CONFIRMADO", versao: 1, observacao: corpo.observacao, produtos: [], maquinas: [], mao_obra: [], servicos: [] }],
+    });
+    return { atividade: { id: "atv-9", tipo_atividade_id: corpo.tipo_atividade_id }, apontamento: { id: "ap-1" } };
+  });
+};
+
 beforeEach(() => {
   servico.listarOpcoesBens.mockResolvedValue(BENS);
   servico.listarOpcoesImplementos.mockResolvedValue(IMPLEMENTOS);
@@ -178,13 +200,15 @@ describe("Diário das atividades — abertura", () => {
   it("(e) confirmar envia registrarCampo uma vez com a abertura na observação e mostra o cabeçalho", async () => {
     const { onGravou } = renderizar();
     await irAbertura();
+    servidorGuardaAbertura();
     await escolher(screen.getByRole("combobox", { name: "Máquina" }), "Trator 12");
     await escolher(screen.getByRole("combobox", { name: "Implemento" }), "Pulverizador 2.000 L");
     fireEvent.change(screen.getByTestId("abertura-horimetro"), { target: { value: "1.250,5" } });
     await escolher(screen.getByRole("combobox", { name: "Responsável" }), "João Pereira");
     fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
 
-    await screen.findByTestId("abertura-iniciado");
+    // D-PROD-348: depois de abrir, volta ao passo `atividade` com a frente nova; tocar nela abre o serviço.
+    const cabecalho = await irAoServicoDaFrente();
     expect(servico.registrarCampo).toHaveBeenCalledTimes(1);
     const [dados] = servico.registrarCampo.mock.calls[0];
     expect(dados).toMatchObject({
@@ -208,7 +232,6 @@ describe("Diário das atividades — abertura", () => {
     expect(dados.plantio).toBeUndefined();
     expect(onGravou).toHaveBeenCalledTimes(1);
 
-    const cabecalho = screen.getByTestId("abertura-iniciado");
     expect(within(cabecalho).getByText("Trator 12")).toBeInTheDocument();
     expect(within(cabecalho).getByText("Pulverizador 2.000 L")).toBeInTheDocument();
     expect(within(cabecalho).getByText("João Pereira")).toBeInTheDocument();
@@ -227,7 +250,7 @@ describe("Diário das atividades — abertura", () => {
       items: [{ id: "ap-1", data_operacional: "2026-11-26", status: "CONFIRMADO", observacao: marcadorDaAbertura({ bemId: "bem-7", implementoId: "imp-2", horimetro: "1245.0", responsavelId: "usr-3", bemNome: "Trator 12", implementoNome: "Pulverizador 2.000 L", responsavelNome: "João Pereira" }) }],
     });
     renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
-    const cabecalho = await screen.findByTestId("abertura-iniciado");
+    const cabecalho = await irAoServicoDaFrente();
     expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Diário das atividades");
     expect(within(cabecalho).getByText("Aplicação")).toBeInTheDocument();
     // A abertura vem da consulta dos apontamentos: espera o valor chegar.
@@ -240,8 +263,11 @@ describe("Diário das atividades — abertura", () => {
   it("(f2) D-PROD-341: serviço aberto SEM abertura gravada → formulário de abertura, com o tipo e a operação dele já definidos", async () => {
     servico.listarApontamentos.mockResolvedValue({ items: [{ id: "ap-1", data_operacional: "2026-11-26", status: "CONFIRMADO", observacao: "Só texto" }] });
     renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+    // D-PROD-348: a atividade sem frente mostra o aviso e "Adicionar máquina" (que abre o formulário com o tipo já escolhido).
+    expect(await screen.findByTestId("atividade-sem-maquina")).toHaveTextContent("Esta atividade não tem máquina em campo.");
+    fireEvent.click(screen.getByTestId("atividade-adicionar-maquina"));
     await screen.findByTestId("abertura-form");
-    expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Nova atividade de Aplicação");
+    expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Adicionar máquina");
     expect(screen.getByTestId("abertura-servico-existente")).toHaveTextContent("Este pasto já tem o serviço Aplicação de defensivo em andamento, sem abertura. Preencha para iniciar.");
     // Sem a tela de tipo, sem o cabeçalho e sem o menu do serviço; a operação é só uma, então não aparece o campo.
     expect(screen.queryByTestId("diario-atividades-tipos")).toBeNull();
@@ -249,10 +275,12 @@ describe("Diário das atividades — abertura", () => {
     expect(screen.queryByTestId("abertura-operacao")).toBeNull();
     expect(screen.queryByText("Abertura não registrada neste serviço.")).toBeNull();
 
+    servidorGuardaAbertura();
     await escolher(screen.getByRole("combobox", { name: "Máquina" }), "Trator 12");
     await escolher(screen.getByRole("combobox", { name: "Responsável" }), "João Pereira");
     fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
-    await screen.findByTestId("abertura-iniciado");
+    // Sem implemento, a frente é "bem-7|" (a máquina sozinha).
+    await irAoServicoDaFrente("bem-7|");
     // O servidor reaproveita a atividade aberta do mesmo tipo: o envio leva o tipo_atividade_id dela.
     expect(servico.registrarCampo).toHaveBeenCalledTimes(1);
     const [dados] = servico.registrarCampo.mock.calls[0];
@@ -260,39 +288,45 @@ describe("Diário das atividades — abertura", () => {
     expect(lerAbertura(dados.observacao)).toMatchObject({ bemId: "bem-7", responsavelId: "usr-3", horimetro: "1245.0" });
   });
 
-  it("(f3) D-PROD-341: com duas operações do tipo, a Operação já vem com a do serviço aberto (e o envio leva o id dela)", async () => {
+  it("(f3) D-PROD-348: \"Adicionar máquina\" com duas operações do tipo NÃO mostra o campo Operação; o envio leva o tipo da atividade", async () => {
     servico.listarApontamentos.mockResolvedValue({ items: [{ id: "ap-1", data_operacional: "2026-11-26", status: "CONFIRMADO", observacao: "Só texto" }] });
     renderizar({ tipos: [OPERACAO_APLICACAO, OPERACAO_APLICACAO_2], atividade: { id: "atv-9", tipo_atividade_id: "op-2" } });
+    fireEvent.click(await screen.findByTestId("atividade-adicionar-maquina"));
     await screen.findByTestId("abertura-form");
-    expect(screen.getByTestId("abertura-operacao")).toBeInTheDocument();
+    // A operação é a da atividade: sem o campo "Operação" e sem a frase "Já existe …".
+    expect(screen.queryByTestId("abertura-operacao")).toBeNull();
+    expect(screen.queryByTestId("abertura-ja-existe")).toBeNull();
     expect(screen.getByTestId("abertura-servico-existente")).toHaveTextContent("Aplicação de adubo foliar");
     await escolher(screen.getByRole("combobox", { name: "Máquina" }), "Trator 12");
     await escolher(screen.getByRole("combobox", { name: "Responsável" }), "João Pereira");
     fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
-    await screen.findByTestId("abertura-iniciado");
+    await screen.findByTestId("atividade-passo");
     expect(servico.registrarCampo.mock.calls[0][0].tipo_atividade_id).toBe("op-2");
     expect(screen.queryByText("Escolha a operação.")).toBeNull();
   });
 
-  it("(1) enquanto a abertura carrega, não mostra o cabeçalho nem o menu do serviço, só \"Carregando…\"", async () => {
+  it("(1) enquanto a atividade carrega, não mostra as frentes nem o serviço, só \"Carregando…\"", async () => {
     servico.listarApontamentos.mockReturnValue(new Promise(() => {}));
     renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
-    expect(await screen.findByTestId("abertura-carregando")).toHaveTextContent("Carregando…");
+    expect(await screen.findByTestId("atividade-carregando")).toHaveTextContent("Carregando…");
+    expect(screen.getByTestId("atividade-topo")).toHaveTextContent(/Máquinas\s*—/);
     expect(screen.queryByTestId("abertura-iniciado")).toBeNull();
     expect(screen.queryByTestId("servico-encerrar")).toBeNull();
     expect(screen.queryByTestId("abertura-form")).toBeNull();
     expect(screen.queryByTestId("diario-atividades-tipos")).toBeNull();
+    expect(screen.queryByTestId(/^frente-/)).toBeNull();
     expect(screen.queryByText("Abertura não registrada neste serviço.")).toBeNull();
   });
 
-  it("(3) se a leitura da abertura falha, o cabeçalho aparece como antes (sem levar ao formulário)", async () => {
+  it("(3) se a leitura da atividade falha, o passo mostra o aviso (sem levar ao formulário nem ao serviço)", async () => {
     servico.listarApontamentos.mockRejectedValue(new Error("sem rede"));
     renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
-    await screen.findByTestId("abertura-iniciado");
-    expect(screen.queryByTestId("abertura-carregando")).toBeNull();
+    expect(await screen.findByTestId("atividade-erro-leitura")).toHaveTextContent("Não foi possível ler as máquinas desta atividade.");
+    expect(screen.queryByTestId("atividade-carregando")).toBeNull();
     expect(screen.queryByTestId("abertura-form")).toBeNull();
     expect(screen.queryByTestId("abertura-servico-existente")).toBeNull();
-    expect(screen.getByTestId("servico-encerrar")).toBeInTheDocument();
+    expect(screen.queryByTestId("abertura-iniciado")).toBeNull();
+    expect(screen.getByTestId("atividade-adicionar-maquina")).toBeInTheDocument();
   });
 
   it("(g) com duas operações do tipo, a Operação vem primeiro e é obrigatória", async () => {
@@ -308,7 +342,7 @@ describe("Diário das atividades — abertura", () => {
 
   it("(h1) a tela 05 mostra as 7 opções, cada uma com o título e a linha de apoio da maquete", async () => {
     renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
-    await screen.findByTestId("abertura-iniciado");
+    await irAoServicoDaFrente();
     const esperado = [
       ["insumo", "Insumo", "Produto ou mistura no implemento, por carga"],
       ["maquina", "Máquina", "Trocar implemento, problema ou parada, corrigir horímetro"],
@@ -352,6 +386,7 @@ describe("Diário das atividades — abertura", () => {
       ],
     });
     renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+    await irAoServicoDaFrente();
     const linhas = await screen.findAllByTestId("servico-lancado-item");
     expect(linhas).toHaveLength(2);
     expect(linhas[0]).toHaveTextContent("07:45");
@@ -368,7 +403,7 @@ describe("Diário das atividades — abertura", () => {
 
   it("(h3) tocar uma opção mostra o painel \"Em breve\" na mesma janela; Voltar ao serviço volta", async () => {
     renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
-    await screen.findByTestId("abertura-iniciado");
+    await irAoServicoDaFrente();
     fireEvent.click(screen.getByTestId("servico-opcao-maquina"));
     const painel = screen.getByTestId("servico-em-breve");
     expect(within(painel).getByText("Máquina")).toBeInTheDocument();
@@ -383,14 +418,18 @@ describe("Diário das atividades — abertura", () => {
     expect(screen.getByTestId("servico-encerrar")).toBeInTheDocument();
   });
 
-  it("(h4) Encerrar serviço mostra o painel \"Em breve\" com o título dele", async () => {
+  it("(h4) Encerrar serviço abre o painel com o Horímetro final (não é mais \"Em breve\"); Voltar ao serviço fecha só o painel", async () => {
     renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
-    await screen.findByTestId("abertura-iniciado");
+    await irAoServicoDaFrente();
     fireEvent.click(screen.getByTestId("servico-encerrar"));
-    const painel = screen.getByTestId("servico-em-breve");
+    const painel = screen.getByTestId("servico-encerrar-painel");
     expect(within(painel).getByText("Encerrar serviço")).toBeInTheDocument();
-    expect(within(painel).getByText("Em breve: esta parte ainda vai ser feita.")).toBeInTheDocument();
-    expect(screen.getByTestId("servico-voltar")).toBeInTheDocument();
+    expect(within(painel).getByTestId("encerrar-horimetro")).toBeInTheDocument();
+    expect(screen.queryByTestId("servico-em-breve")).toBeNull();
+    expect(screen.getByTestId("servico-encerrar-voltar")).toHaveTextContent("Voltar ao serviço");
+    fireEvent.click(screen.getByTestId("servico-encerrar-voltar"));
+    expect(screen.queryByTestId("servico-encerrar-painel")).toBeNull();
+    expect(screen.getByTestId("servico-opcao-maquina")).toBeInTheDocument();
   });
 
   it("(i1) Plantio de pastagem mostra \"Capim\" depois do Responsável; Aplicação não mostra", async () => {
@@ -426,7 +465,7 @@ describe("Diário das atividades — abertura", () => {
     await escolher(screen.getByRole("combobox", { name: "Responsável" }), "João Pereira");
     await escolher(await screen.findByRole("combobox", { name: "Capim" }), "Brachiaria Marandu");
     fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
-    await screen.findByTestId("abertura-iniciado");
+    await screen.findByTestId("atividade-passo");
     expect(servico.registrarCampo).toHaveBeenCalledTimes(1);
     const [dados] = servico.registrarCampo.mock.calls[0];
     expect(dados.plantio).toEqual({ cultura_id: "cul-1" });
@@ -443,7 +482,7 @@ describe("Diário das atividades — abertura", () => {
     await escolher(screen.getByRole("combobox", { name: "Máquina" }), "Trator 12");
     await escolher(screen.getByRole("combobox", { name: "Responsável" }), "João Pereira");
     fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
-    await screen.findByTestId("abertura-iniciado");
+    await screen.findByTestId("atividade-passo");
     const [dados] = servico.registrarCampo.mock.calls[0];
     expect(dados.plantio).toBeUndefined();
     expect(dados.bem_id).toBe("bem-7");
@@ -466,7 +505,7 @@ describe("Diário das atividades — abertura", () => {
     await escolher(screen.getByRole("combobox", { name: "Responsável" }), "João Pereira");
     fireEvent.change(screen.getByTestId("abertura-horimetro"), { target: { value: "10,0" } });
     fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
-    await screen.findByTestId("abertura-iniciado");
+    await screen.findByTestId("atividade-passo");
     expect(servico.registrarCampo.mock.calls[0][0].bem_id).toBe("bem-9");
   });
 
@@ -474,10 +513,12 @@ describe("Diário das atividades — abertura", () => {
     servico.registrarCampo.mockRejectedValueOnce({ name: "ApiError", code: "REQUEST_VALIDATION_FAILED", details: { field: "bem_id", reason: "unknown_field" } });
     renderizar();
     await irAbertura();
+    servidorGuardaAbertura();
     await escolher(screen.getByRole("combobox", { name: "Máquina" }), "Trator 12");
     await escolher(screen.getByRole("combobox", { name: "Responsável" }), "João Pereira");
     fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
-    await screen.findByTestId("abertura-iniciado");
+    // Sem implemento, a frente é "bem-7|" (a máquina sozinha).
+    await irAoServicoDaFrente("bem-7|");
     expect(servico.registrarCampo).toHaveBeenCalledTimes(2);
     const [primeira] = servico.registrarCampo.mock.calls[0];
     const [segunda] = servico.registrarCampo.mock.calls[1];
@@ -544,7 +585,7 @@ const apontamentoDeHoje = (produtos = []) => ({
 const abrirInsumo = async (apontamentos = [apontamentoDeHoje()]) => {
   servico.listarApontamentos.mockResolvedValue({ items: apontamentos });
   renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
-  await screen.findByTestId("abertura-iniciado");
+  await irAoServicoDaFrente();
   fireEvent.click(screen.getByTestId("servico-opcao-insumo"));
   await screen.findByTestId("carga-form");
 };
@@ -601,7 +642,7 @@ describe("Diário das atividades — Insumo (carga, D-PROD-334)", () => {
       return { apontamento: { id: "ap-1", versao: 4 }, atividade: null, alertas: [] };
     });
     const { onGravou } = renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
-    await screen.findByTestId("abertura-iniciado");
+    await irAoServicoDaFrente();
     fireEvent.click(screen.getByTestId("servico-opcao-insumo"));
     await screen.findByTestId("carga-form");
     await escolherProduto(0, "Glifosato");
@@ -701,7 +742,7 @@ describe("Diário das atividades — Insumo (carga, D-PROD-334)", () => {
     servico.criarApontamento.mockResolvedValue({ apontamento: { id: "ap-9", versao: 1 }, atividade: null, alertas: [] });
     const atividade = { id: "atv-9", tipo_atividade_id: "op-1", areas: [{ id: "aa-1", ordem: 1, area_id: "area-B" }, { id: "aa-2", ordem: 2, area_id: "area-A" }] };
     renderizar({ atividade });
-    await screen.findByTestId("abertura-iniciado");
+    await irAoServicoDaFrente();
     fireEvent.click(screen.getByTestId("servico-opcao-insumo"));
     await screen.findByTestId("carga-form");
     await escolherProduto(0, "Glifosato");
@@ -776,8 +817,7 @@ const FRENTE_TRATOR_08_ONTEM = { ...FRENTE_TRATOR_08_HOJE, id: "ap-B0", data_ope
 const abrirCargaDaFrenteTrator08 = async (apontamentos) => {
   servico.listarApontamentos.mockResolvedValue({ items: apontamentos });
   renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
-  fireEvent.click(await screen.findByTestId("diario-frente-atv-9-bem-8%7C"));
-  await screen.findByTestId("abertura-iniciado");
+  await irAoServicoDaFrente("bem-8|");
   fireEvent.click(screen.getByTestId("servico-opcao-insumo"));
   await screen.findByTestId("carga-form");
 };

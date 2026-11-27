@@ -10,15 +10,39 @@
  *
  * Horímetro: o campo é pt-BR (ponto = milhar, vírgula = decimal); o valor guardado é canônico ("1245.0").
  */
-import { ehCanonico, formatarNumero, lerNumeroLocal } from "./dinheiroDecimal.js";
+import { comparar, ehCanonico, formatarNumero, lerNumeroLocal } from "./dinheiroDecimal.js";
 import { confirmadosDoDia, normalizarPaginaDeOpcoes } from "./atividadeApontamentoRegras.js";
 import { lerErroGestao } from "./gestaoErros.js";
 import { rotuloDaUnidade } from "./abastecimentoRegras.js";
 
+/**
+ * D-PROD-348: o início da linha de marcador (abertura OU encerramento de serviço), com o fechamento `]` e a quebra de
+ * linha (ou o fim do texto). Os dois prefixos são diferentes, então uma linha nunca é lida como a outra.
+ */
+const LINHA_DO_MARCADOR = /^\[(?:abertura|encerramento)-servico[^\]\n]*\](?:\r?\n|$)/;
 /** O início da linha de abertura, com o fechamento `]` e a quebra de linha (ou o fim do texto). */
 const LINHA_DA_ABERTURA = /^\[abertura-servico[^\]\n]*\](?:\r?\n|$)/;
 /** A linha inteira, com os pares `chave=valor` (só a 1ª linha conta). */
 const CONTEUDO_DA_LINHA = /^\[abertura-servico((?: [a-z]+=[^\s\]]*)*)\](?:\r?\n|$)/;
+/** D-PROD-348: a linha inteira do encerramento de serviço (só a 1ª linha conta). */
+const CONTEUDO_DO_ENCERRAMENTO = /^\[encerramento-servico((?: [a-z]+=[^\s\]]*)*)\](?:\r?\n|$)/;
+
+/**
+ * Os pares `chave=valor` de uma linha de marcador, já decodificados. Valor corrompido vira vazio (ver `decodificar`).
+ * @param {string} conteudo a parte entre o nome do marcador e o `]`, com o espaço inicial de cada par
+ * @returns {Record<string, string>}
+ */
+const paresDaLinha = (conteudo) =>
+  Object.fromEntries(
+    conteudo
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((p) => {
+        const i = p.indexOf("=");
+        return [p.slice(0, i), p.slice(i + 1)];
+      }),
+  );
 
 /** @param {unknown} v */
 const texto = (v) => (typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim());
@@ -64,16 +88,7 @@ export const marcadorDaAbertura = (a) => {
 export const lerAbertura = (observacao) => {
   const m = CONTEUDO_DA_LINHA.exec(String(observacao ?? ""));
   if (!m) return null;
-  const pares = Object.fromEntries(
-    m[1]
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((p) => {
-        const i = p.indexOf("=");
-        return [p.slice(0, i), p.slice(i + 1)];
-      }),
-  );
+  const pares = paresDaLinha(m[1]);
   const bemId = decodificar(pares.bem);
   const horimetro = decodificar(pares.hor);
   const responsavelId = decodificar(pares.resp);
@@ -90,12 +105,13 @@ export const lerAbertura = (observacao) => {
 };
 
 /**
- * O texto da pessoa numa observação: tudo menos a primeira linha de abertura (sem ela, a observação inteira).
+ * O texto da pessoa numa observação: tudo menos a primeira linha de marcador, abertura ou encerramento (sem ela, a
+ * observação inteira). D-PROD-348: a linha de encerramento também sai.
  * @param {unknown} observacao
  */
 export const textoDaObservacao = (observacao) => {
   const s = String(observacao ?? "");
-  const m = LINHA_DA_ABERTURA.exec(s);
+  const m = LINHA_DO_MARCADOR.exec(s);
   return m ? s.slice(m[0].length) : s;
 };
 
@@ -106,6 +122,65 @@ export const textoDaObservacao = (observacao) => {
  */
 export const observacaoComAbertura = (observacao, abertura) => {
   const marca = marcadorDaAbertura(abertura);
+  const resto = textoDaObservacao(observacao);
+  return resto.trim() ? `${marca}\n${resto}` : marca;
+};
+
+// ─── Encerramento de uma frente (D-PROD-348) ─────
+
+/**
+ * D-PROD-348: a linha de encerramento de uma frente, no mesmo formato da abertura (sem responsável):
+ * `[encerramento-servico bem=<id> impl=<id> hor=<decimal> bemn=<enc> impln=<enc>]`. A ordem é fixa (bem, impl, hor,
+ * bemn, impln) e campo vazio não entra. O horímetro é o canônico (`parseHorimetroPtBr`), como na abertura.
+ * @param {{ bemId?: unknown, implementoId?: unknown, horimetro?: unknown, bemNome?: unknown, implementoNome?: unknown }} e
+ * @returns {string}
+ */
+export const marcadorDoEncerramento = (e) => {
+  const pares = [
+    ["bem", e?.bemId],
+    ["impl", e?.implementoId],
+    ["hor", e?.horimetro],
+    ["bemn", e?.bemNome],
+    ["impln", e?.implementoNome],
+  ];
+  const partes = pares
+    .map(([chave, valor]) => [chave, texto(valor)])
+    .filter(([, valor]) => valor !== "")
+    .map(([chave, valor]) => `${chave}=${encodeURIComponent(/** @type {string} */ (valor))}`);
+  return `[encerramento-servico${partes.map((p) => ` ${p}`).join("")}]`;
+};
+
+/**
+ * D-PROD-348: o encerramento gravado numa observação, ou `null` quando não há linha ou ela está incompleta (sem máquina
+ * ou com horímetro que não é decimal canônico). Só a 1ª linha conta e uma linha de abertura nunca vale aqui. O implemento
+ * é opcional.
+ * @param {unknown} observacao
+ * @returns {{ bemId: string, implementoId: string, horimetro: string, bemNome: string, implementoNome: string } | null}
+ */
+export const lerEncerramento = (observacao) => {
+  const m = CONTEUDO_DO_ENCERRAMENTO.exec(String(observacao ?? ""));
+  if (!m) return null;
+  const pares = paresDaLinha(m[1]);
+  const bemId = decodificar(pares.bem);
+  const horimetro = decodificar(pares.hor);
+  if (!bemId || !ehCanonico(horimetro)) return null;
+  return {
+    bemId,
+    implementoId: decodificar(pares.impl),
+    horimetro,
+    bemNome: decodificar(pares.bemn),
+    implementoNome: decodificar(pares.impln),
+  };
+};
+
+/**
+ * D-PROD-348: a observação com o encerramento na primeira linha e o texto da pessoa depois. Troca a linha de marcador
+ * que já estiver lá (abertura ou encerramento), como `observacaoComAbertura`.
+ * @param {unknown} observacao
+ * @param {Parameters<typeof marcadorDoEncerramento>[0]} encerramento
+ */
+export const observacaoComEncerramento = (observacao, encerramento) => {
+  const marca = marcadorDoEncerramento(encerramento);
   const resto = textoDaObservacao(observacao);
   return resto.trim() ? `${marca}\n${resto}` : marca;
 };
@@ -217,27 +292,47 @@ const naoCancelados = (itens) => (Array.isArray(itens) ? itens : []).filter((a) 
  * As frentes de uma atividade: os apontamentos não cancelados agrupados pela chave (`chaveDaFrente`) da abertura da linha
  * de cada um. Cada frente sai uma vez, com a `abertura` mais recente dela (a do dia mais novo; no mesmo dia, o 1º da lista)
  * e o `inicio` (o menor `data_operacional` com a chave). Ordem: o início, depois a chave. Sem abertura nenhuma, `[]`.
+ *
+ * D-PROD-348: cada frente também diz se foi encerrada: `encerrada` (boolean), `horimetroFinal` (canônico, "" se aberta)
+ * e `fim` (o dia do encerramento, "" se aberta). Conta o encerramento NÃO cancelado com a MESMA chave cujo dia é o da
+ * abertura mais recente da frente ou posterior. A comparação usa essa abertura e não o `inicio`: a mesma máquina com o
+ * mesmo implemento pode ser aberta de novo depois de um encerramento, e o encerramento antigo não pode fechar a nova
+ * frente. Encerramento sem abertura com a mesma chave é ignorado (não cria frente). No mesmo dia, o 1º da lista.
  * @param {unknown} itens a lista de apontamentos da atividade (qualquer ordem)
- * @returns {Array<{ chave: string, abertura: NonNullable<ReturnType<typeof lerAbertura>>, inicio: string }>}
+ * @returns {Array<{ chave: string, abertura: NonNullable<ReturnType<typeof lerAbertura>>, inicio: string, encerrada: boolean, horimetroFinal: string, fim: string }>}
  */
 export const frentesDosApontamentos = (itens) => {
   const diaDe = (/** @type {any} */ a) => String(a?.data_operacional ?? "");
   const maisRecentePrimeiro = [...naoCancelados(itens)].sort((a, b) => diaDe(b).localeCompare(diaDe(a)));
-  /** @type {Map<string, { chave: string, abertura: any, inicio: string }>} */
+  /** @type {Map<string, { chave: string, abertura: any, inicio: string, diaDaAbertura: string }>} */
   const porChave = new Map();
+  /** @type {Map<string, { horimetro: string, dia: string }>} o encerramento mais recente de cada chave */
+  const encerramentoPorChave = new Map();
   for (const ap of maisRecentePrimeiro) {
+    const dia = diaDe(ap);
+    const encerramento = lerEncerramento(ap.observacao);
+    if (encerramento) {
+      const chaveEnc = chaveDaFrente(encerramento);
+      if (!encerramentoPorChave.has(chaveEnc)) encerramentoPorChave.set(chaveEnc, { horimetro: encerramento.horimetro, dia });
+      continue;
+    }
     const abertura = lerAbertura(ap.observacao);
     if (!abertura) continue;
     const chave = chaveDaFrente(abertura);
-    const dia = diaDe(ap);
     const atual = porChave.get(chave);
     if (!atual) {
-      porChave.set(chave, { chave, abertura, inicio: dia });
+      porChave.set(chave, { chave, abertura, inicio: dia, diaDaAbertura: dia });
     } else if (dia && (!atual.inicio || dia < atual.inicio)) {
       atual.inicio = dia;
     }
   }
-  return [...porChave.values()].sort((a, b) => a.inicio.localeCompare(b.inicio) || a.chave.localeCompare(b.chave));
+  return [...porChave.values()]
+    .map(({ chave, abertura, inicio, diaDaAbertura }) => {
+      const enc = encerramentoPorChave.get(chave);
+      const encerrada = enc !== undefined && enc.dia.localeCompare(diaDaAbertura) >= 0;
+      return { chave, abertura, inicio, encerrada, horimetroFinal: encerrada ? enc.horimetro : "", fim: encerrada ? enc.dia : "" };
+    })
+    .sort((a, b) => a.inicio.localeCompare(b.inicio) || a.chave.localeCompare(b.chave));
 };
 
 /**
@@ -252,6 +347,51 @@ export const apontamentosDaFrente = (itens, chave) =>
     const abertura = lerAbertura(ap.observacao);
     return abertura !== null && chaveDaFrente(abertura) === chave;
   });
+
+/**
+ * D-PROD-348: os erros do encerramento por campo (vazio = válido). O horímetro final é o TEXTO do campo (pt-BR) e não
+ * pode ser menor que o inicial da frente. O inicial pode vir canônico (a abertura guarda assim) ou, se não for, a
+ * comparação é pulada. Igual ao inicial é válido.
+ * @param {{ horimetroFinal?: unknown, horimetroInicial?: unknown }} p
+ * @returns {{ horimetroFinal?: string }}
+ */
+export const validarEncerramento = ({ horimetroFinal, horimetroInicial } = {}) => {
+  /** @type {{ horimetroFinal?: string }} */
+  const erros = {};
+  const final = parseHorimetroPtBr(horimetroFinal);
+  if (final === null) {
+    erros.horimetroFinal = "Informe o horímetro final.";
+    return erros;
+  }
+  const inicial = ehCanonico(horimetroInicial) ? /** @type {string} */ (horimetroInicial) : null;
+  if (inicial !== null && comparar(final, inicial) < 0) {
+    erros.horimetroFinal = `O horímetro final não pode ser menor que o inicial (${formatarHorimetro(inicial)}).`;
+  }
+  return erros;
+};
+
+/**
+ * D-PROD-348: quantas frentes estão abertas e quantas foram encerradas, e o total. Recebe a lista de `frentesDosApontamentos`.
+ * @param {unknown} frentes
+ * @returns {{ abertas: number, encerradas: number, total: number }}
+ */
+export const resumoDasFrentes = (frentes) => {
+  const lista = Array.isArray(frentes) ? frentes : [];
+  const encerradas = lista.filter((f) => f && f.encerrada === true).length;
+  return { abertas: lista.length - encerradas, encerradas, total: lista.length };
+};
+
+/**
+ * D-PROD-348: o texto do cabeçalho com a quantidade de frentes abertas (`abertas` é o número, de `resumoDasFrentes`).
+ * @param {number} abertas
+ * @returns {string}
+ */
+export const textoDasMaquinasEmCampo = (abertas) => {
+  const n = Number.isFinite(Number(abertas)) ? Math.max(0, Math.trunc(Number(abertas))) : 0;
+  if (n === 0) return "Sem máquina em campo";
+  if (n === 1) return "1 máquina em campo";
+  return `${n} máquinas em campo`;
+};
 
 // ─── Serviço aberto: "Lançado hoje" (D-PROD-332, emenda da tela 05) ─────
 
