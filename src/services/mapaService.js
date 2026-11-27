@@ -92,6 +92,9 @@ export const atualizarPontoSuplementacao = (id, dados) => updatePontoSuplementac
 
 // ── Exclusão de área ──────────────────────────────────────────────────────
 
+/** O aparelho sabe que está sem internet (`navigator.onLine === false`). */
+const semInternet = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+
 /**
  * Carrega os registros das entidades de que a regra depende.
  *
@@ -125,6 +128,15 @@ const CARREGADORES_DE_DEPENDENCIA = {
  * @throws {ApiError} `MAPA_DELETE_BLOCKED` quando há registro vinculado
  */
 export const excluirArea = async (id, empresaId) => {
+  // D-PROD-367: sem internet não dá para conferir o histórico da área (as movimentações antigas só o servidor tem; o
+  // servidor não confere de novo na desativação). Nada é feito nem guardado; a mensagem diz que precisa de conexão.
+  if (semInternet()) {
+    throw new ApiError(API_ERROR_CODES.OFFLINE_DELETE_FORBIDDEN, {
+      operation: 'excluirArea',
+      resource: 'AreaPastagem',
+      details: { id },
+    });
+  }
   const areas = await listAreas();
   const areaAtual = areas.find((item) => item.id === id) || null;
   const escopo = { id, empresaId: areaAtual?.empresa_id ?? empresaId ?? null };
@@ -220,6 +232,15 @@ export const excluirPontoComCascata = async (pontoId, empresaId, pontoConhecido 
   }
   const suplementacao = ligacao.registro;
   const bebedouros = bebedourosDoPonto({ id: pontoId }, todosBebedouros);
+  // D-PROD-367: ponto ligado a cocho/depósito/bebedouro ativo precisa do servidor para conferir o histórico deles.
+  // Sem internet, nada é feito; o ponto simples segue para a fila, como antes.
+  if (semInternet() && (suplementacao || bebedouros.some((b) => b.ativo !== false))) {
+    throw new ApiError(API_ERROR_CODES.OFFLINE_DELETE_FORBIDDEN, {
+      operation: 'excluirPontoComCascata',
+      resource: 'PontoReferencia',
+      details: { id: pontoId, motivo: 'ligado_a_suplementacao_ou_bebedouro' },
+    });
+  }
 
   const bloqueios = [];
   if (suplementacao) {
