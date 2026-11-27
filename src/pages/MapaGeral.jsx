@@ -1,5 +1,5 @@
 import { filtroInclui, filtroSemRestricao } from '@/lib/mapaFiltroSelecao';
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { EVENTO_PERMISSOES_ATUALIZADAS, carregarPermissaoEfetiva, ehAdministrador, getCurrentUser } from "@/services/sessionService";
@@ -21,6 +21,10 @@ import { acaoDoCliqueNaArea, acaoDoCliqueNoLote, deveComecarToqueLongo } from "@
 import { LancLoteDialogo } from "../components/lotes/LancamentoLoteUi";
 import MapaControlesMobile from "../components/mapa/MapaControlesMobile";
 import NovoCadastroMapaBotao from "@/components/mapa/NovoCadastroMapaBotao";
+import { Ruler } from "lucide-react";
+// D-PROD-364: a régua abre o editor do mapa só para medir; carregado quando a pessoa toca em Medir (o Mapa Geral
+// continua leve).
+const MapaDesenho = lazy(() => import("@/components/mapa/MapaDesenho"));
 import MapaFiltrosAvancados, {
   CORES_TIPO_CULTURA, CORES_APROVEITAMENTO, CORES_OCUPACAO, CORES_CATEGORIA_GADO,
   CORES_UA_HA, CORES_SITUACAO_PASTO } from
@@ -275,6 +279,8 @@ export default function MapaGeral({ ativo = true } = {}) {
 
   // D-PROD-333: o "+" da aba Pontos abre o cadastro de pontos — só para quem pode cadastrar no Cadastro do Mapa.
   const podeCadastrarPonto = acessoTotalTelas || canPerformAction(permissaoAtual, 'pec-mapa-cadastro', 'mapa', 'novo');
+  // D-PROD-364: a régua aberta ('linha' = distância, 'area' = área) ou fechada.
+  const [medindo, setMedindo] = useState(/** @type {'linha'|'area'|null} */ (null));
 
   const podeUsarTarefasMapa = useMemo(() => {
     if (acessoTotalTelas) return mapaGeralPermissions.visualizar_tarefas;
@@ -1500,9 +1506,16 @@ export default function MapaGeral({ ativo = true } = {}) {
              direto ao editor no Cadastro do Mapa.
              Fica DENTRO da coluna da direita, logo acima de Atualizar/Localizar/Mover: solto no mapa, ele ficava
              por baixo dessa coluna (só uma faixa de 14 px pegava o toque; o resto caía em "Atualizar mapa"). */
-          acimaDaPilha={focoAtivo === 'pastos' && podeCadastrarPonto ?
-          <NovoCadastroMapaBotao onEscolher={(tipo) => navigate(`${createPageUrl('MapaCadastro')}?novo=${tipo}`)} /> :
-          null}
+          acimaDaPilha={<>
+            {/* D-PROD-364: régua — medir distância ou área sem gravar nada, em qualquer aba. */}
+            <button type="button" className="mk-mapa-regua" aria-label="Medir no mapa" title="Medir distância ou área" data-mk-regua=""
+              onClick={() => setMedindo('linha')}>
+              <Ruler size={22} aria-hidden />
+            </button>
+            {focoAtivo === 'pastos' && podeCadastrarPonto ?
+            <NovoCadastroMapaBotao onEscolher={(tipo) => navigate(`${createPageUrl('MapaCadastro')}?novo=${tipo}`)} /> :
+            null}
+          </>}
           onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return;setShowFiltros(true);}}
           painel={
           <MapaVisualizacao
@@ -1513,6 +1526,11 @@ export default function MapaGeral({ ativo = true } = {}) {
           } />
 
       <div className="mk-mapa-area relative min-h-0 w-full flex-1">
+        {medindo &&
+        <Suspense fallback={null}>
+            <MapaDesenho key={medindo} tipoDesenho={medindo} soMedir onTrocarMedida={setMedindo} onCancelar={() => setMedindo(null)} />
+          </Suspense>
+        }
         {/* `isolation: isolate` confina o z-index dos marcadores (até 10000) ao
             mapa: sem isso eles atravessavam janelas e pop-ups abertos por cima. */}
         <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: 'var(--mk-sup-fundo)', touchAction: 'none', isolation: 'isolate', visibility: aguardandoEnquadrar ? 'hidden' : 'visible' }} />

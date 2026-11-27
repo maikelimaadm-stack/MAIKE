@@ -10875,6 +10875,42 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-363 (362 é a etapa 2, PR #450). O marcador passa a D-PROD-364. Conferir antes do merge (regra A5).
 
+## D-PROD-364 — Cadastrar no mapa como no AgriWebb, etapa 4: régua para medir distância e área sem gravar
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário (o mapa como no AgriWebb) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`MAPA-CADASTRO-ETAPA4-D364-REPORT.md`](./MAPA-CADASTRO-ETAPA4-D364-REPORT.md)
+
+**Decisão.**
+1. **Botão "Medir no mapa"** (régua) na coluna da direita do Mapa Geral, em qualquer aba e sem permissão especial, porque só mede e não grava. Ele abre o editor do mapa no modo `soMedir`, carregado só quando a pessoa toca (`React.lazy`), para o Mapa Geral continuar leve.
+2. **Modo `soMedir` do editor** (`MapaDesenho`).
+   - Escolha **Distância · Área**.
+   - Mede ao vivo: o comprimento na distância; a área e o perímetro na área, já com ela aberta.
+   - Usa as mesmas ferramentas do cadastro: toque, mira (D-PROD-362), ímã, Editar e Mover.
+   - Sem Terminar/Salvar e sem formulário. Na área, só "Fechar área" para ajustar a forma fechada.
+   - Fechar a régua nunca pergunta, porque não há nada a perder. Fora da régua, o editor continua perguntando ao sair com desenho.
+3. **Sem internet:** funciona igual, porque só usa o mapa e o GPS do aparelho.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-364 (362 etapa 2, PR #450; 363 etapa 3, ainda local). O marcador passa a D-PROD-365. Conferir antes do merge (regra A5).
+
+## D-PROD-367 — Cadastrar no mapa como no AgriWebb, etapa 5: KMZ e exclusão sem internet que não fica pela metade
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário (o mapa como no AgriWebb, também sem internet) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`MAPA-CADASTRO-ETAPA5-D367-REPORT.md`](./MAPA-CADASTRO-ETAPA5-D367-REPORT.md)
+
+**Decisão.**
+1. **A importação de áreas aceita KMZ**, o KML compactado que o Google Earth e o AgriWebb exportam.
+   - `kmlDoKmz` (`src/lib/geografia/kmz.js`, com `fflate`, que já era dependência) abre o ZIP no aparelho e lê o `doc.kml` (ou o KML da raiz) como o `.kml` solto.
+   - Só arquivos `.kml` são abertos, e o KML aberto não passa do limite de 10 MB da importação, o que protege de um ZIP pequeno escondendo um arquivo enorme.
+   - KMZ sem KML ou danificado dá mensagem clara.
+2. **Excluir pasto sem internet avisa que precisa de conexão** (`OFFLINE_DELETE_FORBIDDEN`: "Exclusão só com conexão: nada foi enviado nem guardado para depois").
+   - O motivo: a regra de exclusão confere as movimentações antigas da área, que só o servidor tem, e o servidor não confere de novo na desativação.
+   - Antes, sem internet, a consulta do histórico falhava com um erro genérico.
+   - Ponto ligado a cocho, depósito ou bebedouro ativo segue a mesma regra (a elegibilidade deles é consultada no servidor).
+   - **Ponto simples e linha continuam excluídos sem internet**, pela fila.
+3. **Fica para depois, com decisão do proprietário:**
+   - a conferência dos vínculos no servidor ao desativar a área, que permitiria guardar a exclusão do pasto para depois;
+   - dividir e juntar pastos, que mexe no gado de dentro e no histórico.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-367 (363 e 364 são as etapas 3 e 4, PRs #451 e #452; 365 e 366 estão reservados pelas PRs #453 e #454). O marcador passa a D-PROD-368. Conferir antes do merge (regra A5).
+
 ## D-PROD-365 — A opção "Máquina" da frente: as horas do dia na mesma janela do serviço
 
 **Data:** 2026-11-27 · **Origem:** pedido do proprietário (depois da D-PROD-359 e da D-PROD-363): a opção "Máquina" do serviço abria "Em breve"; o mockup aprovado é "Horas do dia" (`a-maquina-horas-do-dia`) · **Branch:** `feat/diario-maquina` · **Migration:** nenhuma · **APK:** a conferir (só front-end)
@@ -10900,4 +10936,4 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-364, mas a PR #452 (mapa, etapa 4) já a reservou; esta ficou com D-PROD-365 e o marcador passa a D-PROD-366. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-366 -->
+<!-- Próxima decisão: D-PROD-368 -->

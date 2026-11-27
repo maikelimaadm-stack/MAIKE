@@ -85,7 +85,19 @@ const meioDaAresta = (pts, i, reserva) => {
 /** @returns {GeoJSON.FeatureCollection} */
 const emptyFc = () => /** @type {GeoJSON.FeatureCollection} */ ({ type: "FeatureCollection", features: [] });
 
-export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando, onSalvar, onCancelar }) {
+/**
+ * @param {{
+ *   tipoDesenho: 'area'|'linha'|'ponto'|null,
+ *   usarGPS?: boolean,
+ *   itemEditando?: any,
+ *   onSalvar?: Function,
+ *   onCancelar?: Function,
+ *   soMedir?: boolean,
+ *   onTrocarMedida?: (tipo: 'area'|'linha') => void,
+ * }} props
+ * `soMedir` (D-PROD-364): a régua — desenha e mede (distância ou área), sem formulário e sem gravar nada.
+ */
+export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando, onSalvar, onCancelar, soMedir = false, onTrocarMedida }) {
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState(null);
   const [mapEpoch, setMapEpoch] = useState(0);
@@ -154,6 +166,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const corPreviaRef = useRef(corPrevia);
   corPreviaRef.current = corPrevia;
   /** Overlay do cursor (cruz/ímã/rumo) — atualizado sem re-render. */
+  const soMedirRef = useRef(soMedir);
+  soMedirRef.current = soMedir;
   const miraRef = useRef(miraAtiva);
   miraRef.current = miraAtiva;
   /** O "adicionar vértice" do toque (com ímã e fechamento), reaproveitado por "Marcar aqui". */
@@ -644,7 +658,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       if (r.ima?.tipo === "fechar") {
         setDrawingClosed(true);
         setModo(MODOS.EDITAR);
-        toast.success("Área fechada! Arraste os pontos, navegue ou clique Salvar.", { duration: 2000 });
+        toast.success(soMedirRef.current ? "Área fechada! Arraste os pontos para ajustar a medida." : "Área fechada! Arraste os pontos, navegue ou clique Salvar.", { duration: 2000 });
         return;
       }
 
@@ -1346,7 +1360,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   };
 
   const sair = () => {
-    if (temAlteracoes()) {
+    // D-PROD-364: a régua não grava nada; fechar nunca pergunta.
+    if (!soMedir && temAlteracoes()) {
       setConfirmarSaida(true);
       return;
     }
@@ -1362,7 +1377,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         if (currentPoints.length < 3) return;
         setDrawingClosed(true);
         setModo(MODOS.EDITAR);
-        toast.success("Área fechada! Arraste os pontos, navegue ou clique Salvar.", { duration: 2000 });
+        toast.success(soMedirRef.current ? "Área fechada! Arraste os pontos para ajustar a medida." : "Área fechada! Arraste os pontos, navegue ou clique Salvar.", { duration: 2000 });
         return;
       }
       const check = validatePolygonForSave(currentPoints);
@@ -1544,7 +1559,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
               <div className={`absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none ${miraAtiva ? "top-[24%]" : "top-1/2"}`}>
                 <div data-testid="medidas-area" className="bg-black/70 text-white px-3 py-1.5 rounded text-sm font-semibold text-center">
                   <div>Área: {formatHectaresPt(areaHectares(currentPoints))} ha</div>
-                  {fechadoParaMedir && (
+                  {(fechadoParaMedir || soMedir) && (
                     <div className="text-[11px] font-normal">Perímetro: {formatDistanciaPt(comprimentoMetros([...currentPoints, currentPoints[0]]))}</div>
                   )}
                 </div>
@@ -1612,6 +1627,22 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
             )}
 
             <div className="mk-editor-rodape absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-1">
+              {soMedir && (
+                <div role="radiogroup" aria-label="O que medir" className="mb-1 flex rounded-full border border-slate-300 bg-white p-1 shadow-lg">
+                  {[["linha", "Distância"], ["area", "Área"]].map(([t, rotulo]) => (
+                    <button
+                      key={t}
+                      type="button"
+                      role="radio"
+                      aria-checked={tipoDesenho === t}
+                      onClick={() => { if (tipoDesenho !== t) onTrocarMedida?.(/** @type {'area'|'linha'} */ (t)); }}
+                      className={`h-10 min-w-[96px] rounded-full px-4 text-sm font-bold ${tipoDesenho === t ? "bg-slate-900 text-white" : "text-slate-700"}`}
+                    >
+                      {rotulo}
+                    </button>
+                  ))}
+                </div>
+              )}
               {miraAtiva && (
                 <>
                   <button
@@ -1713,6 +1744,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                   Refazer
                 </Button>
 
+                {(!soMedir || (tipoDesenho === "area" && !drawingClosed)) && (
                 <Button
                   size="sm"
                   className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow rounded-md px-3 h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -1749,6 +1781,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                 >
                   {itemEditando || drawingClosed ? "Salvar" : tipoDesenho === "area" ? "Fechar área" : tipoDesenho === "ponto" ? "Continuar" : "Terminar"}
                 </Button>
+                )}
               </div>
             </div>
           </>
