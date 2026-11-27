@@ -17,7 +17,7 @@ export const PLUGIN_CAMADA = "CamadaDoMapa";
 /** A partir deste número de APK (`versionCode`) o app tem a camada nativa. APK 1.0.9 = código 10. */
 export const APK_CAMADA_NATIVA = 10;
 /**
- * D-PROD-377: a camada nativa está DESLIGADA. No teste do proprietário no APK 1.0.9, ícones e nomes "se moviam
+ * D-PROD-378: a camada nativa está DESLIGADA. No teste do proprietário no APK 1.0.9, ícones e nomes "se moviam
  * conforme o zoom": a camada é desenhada por cima do mapa, fora do desenho dele, e no zoom fica atrás do mapa. Os
  * marcadores do próprio mapa (D-PROD-374) ficam colados; o app volta a eles. O código fica para uma versão que desenhe
  * junto com o mapa.

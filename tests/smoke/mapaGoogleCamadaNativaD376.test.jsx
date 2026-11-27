@@ -5,7 +5,7 @@
  *          camada (ordem do site, toque só em quem tem clique, âncora).
  *  G376-2. `criarCamadaNativa`: liga (tentando de novo enquanto o mapa nasce), manda cada imagem uma vez, não manda de
  *          novo o que não mudou, o toque devolve o marcador mais novo, desligar; sem o mapa, null.
- *  G376-3. Componente no app: D-PROD-377 desligou a camada (no APK 1.0.9 os ícones e nomes se moviam no zoom); os
+ *  G376-3. Componente no app: D-PROD-378 desligou a camada (no APK 1.0.9 os ícones e nomes se moviam no zoom); os
  *          marcadores do mapa, sem a câmera a cada quadro. APK 1.0.8: os marcadores do mapa.
  *  G376-4. O lado Android: o plugin registrado, a mesma versão do mapa do plugin, o nome do plugin e a mesma conta da
  *          página (ladrilho de 256 dp, zoom do MapLibre = do Google − 1, folga do toque, 25 paradas).
@@ -133,7 +133,7 @@ describe("G376-1 — imagens, paradas e itens", () => {
     expect(itemDaCamada(/** @type {any} */ ({ id: "eu", lat: 0, lng: 0, url: "u", w: 24, h: 24, z: 10000, zNativo: 400, semToque: true }), "k3")).toMatchObject({ z: 10000, toque: false });
   });
 
-  it("D-PROD-377: a camada está desligada (ícones e nomes se moviam no zoom): nunca disponível; APK 1.0.9 = código 10", () => {
+  it("D-PROD-378: a camada está desligada (ícones e nomes se moviam no zoom): nunca disponível; APK 1.0.9 = código 10", () => {
     expect(APK_CAMADA_NATIVA).toBe(10);
     expect(CAMADA_NATIVA_LIGADA).toBe(false);
     expect(camadaNativaDisponivel()).toBe(false);
@@ -203,7 +203,7 @@ describe("G376-3 — o mapa do app com a camada nativa", () => {
   const quadrado = { id: "p1", nome: "Pasto 1", coordenadas: { coords: [[-14.99, -47.01], [-14.99, -46.99], [-15.01, -46.99], [-15.01, -47.01]] } };
   const props = (extra = {}) => ({ areas: [quadrado], areasCarregadas: true, mostrarAreas: true, corDaArea: () => "#22c55e", tipoMapa: "satellite", empresaId: "e1", ...extra });
 
-  it("D-PROD-377: no APK 1.0.9 a camada fica desligada; os marcadores do mapa (colados nele), sem câmera a cada quadro", async () => {
+  it("D-PROD-378: no APK 1.0.9 a camada fica desligada; os marcadores do mapa (colados nele), sem câmera a cada quadro", async () => {
     const onMapa = vi.fn();
     const { getByTestId } = render(<MapaGoogleNativo {...props({ onMapa })} />);
     await waitFor(() => expect(onMapa).toHaveBeenCalled());

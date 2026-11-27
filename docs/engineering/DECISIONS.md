@@ -11198,11 +11198,11 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - `mapaGoogleCameraD373.test.js`: os 7 remendos, o gancho e o APK 1.0.9.
   - O código Java foi compilado contra imitações das classes do Android, e o APK é compilado no CI ("apk assinado").
 
-## D-PROD-377 — Mapa do Google no app: a camada nativa da D-PROD-376 desligada; volta aos marcadores do mapa
+## D-PROD-378 — Mapa do Google no app: a camada nativa da D-PROD-376 desligada; volta aos marcadores do mapa
 
 **Data:** 2026-11-27 · **Origem:** teste do proprietário no APK 1.0.9: "ficou horrível, pior do que já estava; nomes e ícones, tudo se move conforme o zoom" e "volta a versão" · **Migration:** nenhuma · **APK:** nenhum novo (a página vai pela atualização automática; o APK 1.0.9 continua instalado)
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-377. O marcador passa a D-PROD-378.
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-378: a D-PROD-377 está reservada pela PR #468 (regra A5). O marcador passa a D-PROD-379.
 
 - **Problema:** a camada da D-PROD-376 é desenhada por cima do mapa do Google, fora do desenho dele. No zoom, ela fica atrás do mapa, e os ícones e nomes "nadam" em vez de ficar presos no chão.
 - **Decisão:** `CAMADA_NATIVA_LIGADA = false` em `camadaNativa.js`.
@@ -11211,4 +11211,4 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - O código da camada fica no app, desligado. Só volta numa forma que desenhe junto com o mapa.
 - **Testes:** `mapaGoogleCamadaNativaD376.test.jsx`: a camada desligada nunca está disponível. No APK 1.0.9, o app usa os marcadores do mapa, sem câmera a cada quadro.
 
-<!-- Próxima decisão: D-PROD-378 -->
+<!-- Próxima decisão: D-PROD-379 -->
