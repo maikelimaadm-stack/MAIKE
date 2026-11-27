@@ -10833,4 +10833,46 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-361 (359 na `main`, 360 reservado pela PR #448). O marcador passa a D-PROD-362. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-362 -->
+## D-PROD-362 — Cadastrar no mapa como no AgriWebb, etapa 2: mira no centro, seguir minha posição e seta de direção
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário (cadastrar no mapa como no AgriWebb, "movendo o ponto ou clicando para redirecionar na minha localização") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`MAPA-CADASTRO-ETAPA2-D362-REPORT.md`](./MAPA-CADASTRO-ETAPA2-D362-REPORT.md)
+
+**Decisão.**
+1. **Mira fixa no centro** (botão ⌖ "Mira no centro", na coluna da direita do editor).
+   - A pessoa move o mapa por baixo da mira e toca **"Marcar aqui"**, um botão verde grande acima da barra de baixo.
+   - No dedo é mais preciso que tocar no lugar, porque o dedo cobre o ponto.
+   - O que "Marcar aqui" faz vem de `acaoDaMira` (`src/lib/maplibre/miraDoEditor.js`):
+     - no ponto, marca (ou move) o ponto no centro;
+     - no pasto ou linha em desenho, põe o próximo vértice, com o mesmo ímã e o mesmo fechamento do toque;
+     - com um vértice escolhido (Editar → tocar no ponto), leva esse vértice para a mira ("Levar ponto N para a mira");
+     - pasto fechado sem vértice escolhido: o botão fica cinza, com a dica de como escolher.
+   - Tudo entra no desfazer.
+   - Com a mira ligada, o toque no mapa só move o mapa, para não criar ponto sem querer. As medidas sobem para não cobrir a mira.
+2. **Seguir minha posição** (botão ➤). Cada leitura nova do GPS recentra o mapa, sem mudar o zoom. Com a mira ligada, ela fica em cima de onde a pessoa está, e "Marcar aqui" marca o lugar onde ela pisa. Arrastar o mapa com o dedo para de seguir, como no AgriWebb. O Mapa Geral continua sem seguir: lá o proprietário quer só o ponto andando (D-PROD-302).
+3. **Seta de direção no ponto azul.** A seta mostra para onde o celular aponta (`useRumoDoAparelho`):
+   - vem da bússola, por `deviceorientationabsolute` no Android e `webkitCompassHeading` no iPhone;
+   - andando (≥ 0,7 m/s), o rumo do GPS vale mais (`rumo`/`velocidade` passam a vir em `PosicaoGps`);
+   - sem bússola nem rumo, a seta some.
+4. **Sem internet:** nada muda no caminho de gravar. A mira só escolhe o lugar, e o cadastro segue o mesmo caminho (cópia local + fila com `versao_esperada`).
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-362 (361 é a etapa 1, PR #449). O marcador passa a D-PROD-363. Conferir antes do merge (regra A5).
+
+## D-PROD-363 — Cadastrar no mapa como no AgriWebb, etapa 3: caminhar com o GPS gravando o contorno sozinho
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário (cadastrar pastos e linhas como no AgriWebb, também sem internet) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`MAPA-CADASTRO-ETAPA3-D363-REPORT.md`](./MAPA-CADASTRO-ETAPA3-D363-REPORT.md)
+
+**Decisão.**
+1. **Gravar caminhando** na captura por GPS de pasto e de linha (`CapturaGPSPoligono`), como o "walk the boundary" do AgriWebb.
+   - Gravando, cada leitura do GPS com precisão ≤ 25 m e a ≥ 5 m do último ponto vira ponto (`deveGravar`, `src/lib/maplibre/gravacaoCaminhando.js`).
+   - Leitura velha ou ruim não grava, e a tela avisa "Sinal do GPS fraco".
+   - **Pausar/Continuar**; **Canto** marca um canto exato no meio da gravação; **Terminar** enxuga a trilha.
+   - Antes, só dava para tocar "Marcar ponto N" em cada canto, e isso continua disponível.
+2. **Enxugar a trilha** (`simplificarTrilha`, Douglas-Peucker em metros, tolerância 1,5 m). Tira os pontos no meio das retas e mantém a primeira, a última e os cantos marcados à mão (`fixo`, que não vai ao servidor). Confirmar no meio da gravação termina e enxuga antes de salvar.
+3. **Tela acesa enquanto grava** (`navigator.wakeLock`): com a tela apagada, o celular para o GPS do app.
+4. **A captura abre no satélite** com o controle do editor (`useBasemap`). No app, o satélite fica guardado para usar sem internet (D-PROD-294). Antes ela abria nas ruas, e o satélite usava o provedor antigo ("Satélite não configurado"). Os **pastos e linhas já cadastrados** aparecem por baixo da trilha.
+5. **A captura abre no `body`** (portal). Ela é aberta de dentro do formulário lateral, e a janela com `transform` podia cortá-la.
+6. **Sem internet:** a gravação usa só o GPS do aparelho. O pasto ou a linha salvos seguem o caminho de sempre: cópia local + fila, com o id do aparelho (D-PROD-355).
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-363 (362 é a etapa 2, PR #450). O marcador passa a D-PROD-364. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-364 -->
