@@ -20,6 +20,7 @@ export default defineConfig({
       { find: /^@\/services\/loteManejoService(\.js)?$/, replacement: stub("loteManejoService.js") },
       { find: /^@\/services\/bebedouroDataService(\.js)?$/, replacement: stub("bebedouroDataService.js") },
       { find: /^@\/hooks\/useEmpresaSelecionadaId(\.js)?$/, replacement: stub("useEmpresaSelecionadaId.js") },
+      { find: /^@\/lib\/AuthContext(\.jsx)?$/, replacement: stub("AuthContext.jsx") },
       { find: "@", replacement: path.resolve(raiz, "src") },
     ],
   },
