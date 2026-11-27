@@ -45,6 +45,21 @@ O APK sai em `android/app/build/outputs/apk/release/app-release.apk` e instala p
 
 `npm run app:build` atualiza `ios/`. O build do iOS (IPA) só roda num Mac com Xcode: abrir `ios/App/App.xcworkspace`, escolher a equipe de assinatura e rodar no aparelho ou exportar.
 
+## Mapa nativo do Google (D-PROD-366)
+
+O app tem o mapa nativo do Google (Maps SDK for Android e iOS, pelo plugin oficial `@capacitor/google-maps`). É o mapa do AgriWebb: o Google não cobra pelo mapa nativo e o próprio SDK guarda no aparelho as imagens já vistas. O site continua no MapLibre, porque o Google Maps do navegador é cobrado.
+
+- **Etapa 1 (em teste):** satélite do Google com as áreas (cores e estilo do Mapa Geral), e o toque na área abre o detalhe.
+  - Liga em Mapa Geral → Visualização → "Mapa do Google (teste)", por aparelho. Trocar a escolha recarrega a página.
+  - A escolha só aparece com o plugin instalado, ou seja, no APK 1.0.6 em diante. APK antigo e site seguem no MapLibre, mesmo recebendo o pacote novo.
+  - Se o mapa do Google não abrir, o app avisa, desliga a escolha e volta ao mapa de sempre.
+- **Chave do Android:** segredo `GOOGLE_MAPS_ANDROID_KEY` do repositório.
+  - O `app/build.gradle` põe a chave no `AndroidManifest` (`com.google.android.geo.API_KEY`).
+  - No Google Cloud, ela fica restrita ao "Maps SDK for Android", ao pacote `com.makgestao.app` e à impressão **SHA-1** do certificado. O workflow `app-android` mostra essa impressão no resumo de cada build.
+  - Sem o segredo, o build da PR só avisa, e a publicação do APK para. Sem a chave, o mapa nativo fecharia o app ao abrir.
+- **Chave do iPhone:** `VITE_GOOGLE_MAPS_IOS_KEY`, restrita ao "Maps SDK for iOS" e ao bundle do app. Ela é passada pelo código, então precisa estar na Vercel (pacote da atualização automática) e no build do Mac.
+- **Sem internet:** o mapa do Google mostra o que já guardou. Ele não permite baixar uma área inteira.
+
 ## Permissões
 
 - Android (`AndroidManifest.xml`): internet, localização (GPS do mapa: ponto, área e "onde estou") e câmera (fotos dos formulários). O Android pergunta na primeira vez que a função é usada.

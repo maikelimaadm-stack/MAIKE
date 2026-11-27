@@ -53,6 +53,10 @@ import { useFiltroDoAssistente } from "@/hooks/useFiltroDoAssistente";
 import { casarNomes } from "@/domain/assistente/filtroTela";
 import { mensagemFalhaMapa, navegadorTemWebGL, MENSAGEM_WEBGL_DESLIGADO } from "@/lib/maplibre/falhaWebGL";
 import { componenteSobDemanda } from "@/lib/paginaSobDemanda.jsx";
+import { gravarPreferenciaMapaGoogle, temMapaGoogleNativo, usarMapaGoogleNativo } from "@/lib/mapaNativo/mapaGoogleNativo.js";
+
+/** D-PROD-366: o mapa nativo do Google só é carregado quando ligado (o site nunca baixa esse pedaço). */
+const MapaGoogleNativo = componenteSobDemanda(() => import("@/components/mapa/MapaGoogleNativo.jsx"));
 
 // D-PROD-304: as janelas de detalhe e os painéis só carregam quando abertos (o mapa abre mais leve).
 const DetalhesLote = componenteSobDemanda(() => import("../components/mapa/DetalhesLote"));
@@ -79,6 +83,9 @@ export default function MapaGeral({ ativo = true } = {}) {
   const [mapEpoch, setMapEpoch] = useState(0);
   const [mapInstance, setMapInstance] = useState(null);
   const [mapType, setMapTypeState] = useState('satellite');
+  // D-PROD-366: mapa nativo do Google no app (plugin no APK + escolha do aparelho). Decidido ao abrir a página:
+  // trocar a escolha recarrega a página.
+  const [mapaGoogle] = useState(() => usarMapaGoogleNativo());
   const [prefShowAreas, setShowAreas] = useState(true);
   const [prefShowPontos, setShowPontos] = useState(true);
   const [prefShowLinhas, setShowLinhas] = useState(true);
@@ -1081,6 +1088,18 @@ export default function MapaGeral({ ativo = true } = {}) {
     setShowDetalhesArea(true);
   }, [selecionandoLocalTarefa, handleSelectTaskLocation, mapaGeralPermissions]);
 
+  // D-PROD-366: ligar/desligar o mapa do Google (só aparece com o plugin no APK); a troca recarrega a página.
+  const alternarMapaGoogle = useCallback(() => {
+    gravarPreferenciaMapaGoogle(!mapaGoogle);
+    window.location.reload();
+  }, [mapaGoogle]);
+  // O mapa do Google não abriu (sem chave, sem Google Play Services…): volta ao mapa de sempre.
+  const falhaDoMapaGoogle = useCallback(() => {
+    gravarPreferenciaMapaGoogle(false);
+    toast.error('O mapa do Google não abriu neste aparelho. Voltando ao mapa de sempre.');
+    window.setTimeout(() => window.location.reload(), 1500);
+  }, []);
+
   const handleRightClickArea = useCallback((area, coords) => {
     if (selecionandoLocalTarefa) {
       handleSelectTaskLocation(coords, area);
@@ -1481,7 +1500,7 @@ export default function MapaGeral({ ativo = true } = {}) {
     <div className="mk-mapa mk-mapa--v13 relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-white" translate="no">
         {/* Controles Mobile */}
         <MapaControlesMobile
-          mapType={mapTypeEfetivo} setMapType={setMapType}
+          mapType={mapaGoogle ? mapType : mapTypeEfetivo} setMapType={setMapType}
           onRefresh={handleRefresh} onLocate={handleLocate}
           /* Mover e Localizar só com a permissão que os faz funcionar: sem ela o
              toque só mudaria uma preferência gravada que o usuário não vê (PREF-04). */
@@ -1506,16 +1525,28 @@ export default function MapaGeral({ ativo = true } = {}) {
           onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return;setShowFiltros(true);}}
           painel={
           <MapaVisualizacao
-            mapType={mapTypeEfetivo} setMapType={setMapType}
+            mapType={mapaGoogle ? mapType : mapTypeEfetivo} setMapType={setMapType}
             estiloPasto={estiloPasto} setEstiloPasto={setEstiloPasto}
             modoColoracao={modoColoracao} setModoColoracao={setModoColoracao}
-            podeColorir={podeColorir} />
+            podeColorir={podeColorir}
+            mapaGoogle={temMapaGoogleNativo() ? { ligado: mapaGoogle, alternar: alternarMapaGoogle } : null} />
           } />
 
       <div className="mk-mapa-area relative min-h-0 w-full flex-1">
         {/* `isolation: isolate` confina o z-index dos marcadores (até 10000) ao
             mapa: sem isso eles atravessavam janelas e pop-ups abertos por cima. */}
+        {mapaGoogle ?
+        <MapaGoogleNativo
+          areas={areasFiltradas}
+          mostrarAreas={mapaGeralPermissions.visualizar_areas && showAreas}
+          corDaArea={getAreaColor}
+          estiloPasto={estiloPasto}
+          tipoMapa={mapType}
+          empresaId={empresaSelecionadaId}
+          onClickArea={handleClickArea}
+          onFalha={falhaDoMapaGoogle} /> :
         <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: 'var(--mk-sup-fundo)', touchAction: 'none', isolation: 'isolate', visibility: aguardandoEnquadrar ? 'hidden' : 'visible' }} />
+        }
 
         <BasemapAtribuicao atribuicao={basemap.atribuicao} status={basemap.status} mensagem={basemap.mensagem} onRetry={basemap.retry} />
 

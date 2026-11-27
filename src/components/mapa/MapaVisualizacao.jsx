@@ -58,9 +58,10 @@ function MiniEstilo({ estilo }) {
  *   modoColoracao: string, setModoColoracao: (m: string) => void,
  *   podeColorir?: boolean,
  *   camadas?: Array<{ id: string, label: string, checked: boolean, onChange: () => void }>,
+ *   mapaGoogle?: { ligado: boolean, alternar: () => void } | null,
  * }} props
  */
-export default function MapaVisualizacao({ mapType, setMapType, estiloPasto, setEstiloPasto, modoColoracao, setModoColoracao, podeColorir = true, camadas = [] }) {
+export default function MapaVisualizacao({ mapType, setMapType, estiloPasto, setEstiloPasto, modoColoracao, setModoColoracao, podeColorir = true, camadas = [], mapaGoogle = null }) {
   return (
     <div className="mk-vis">
       <section className="mk-vis__secao" aria-label="Tipo de mapa">
@@ -72,6 +73,18 @@ export default function MapaVisualizacao({ mapType, setMapType, estiloPasto, set
             </button>
           ))}
         </div>
+        {mapaGoogle ? (
+          // D-PROD-366: mapa nativo do Google no app (etapa 1, em teste). Só aparece com o plugin instalado no APK.
+          <button
+            type="button"
+            role="switch"
+            aria-checked={mapaGoogle.ligado}
+            data-testid="mapa-google-nativo-alternar"
+            className="mk-vis__linha mk-check-row"
+            onClick={mapaGoogle.alternar}>
+            <span className="mk-vis__linha-txt">Mapa do Google (teste)</span>
+          </button>
+        ) : null}
       </section>
 
       {podeColorir ? (
