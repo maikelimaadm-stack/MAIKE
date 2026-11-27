@@ -8,10 +8,10 @@ import { ehCurral, podeMedirForragemNaArea, podeVerHistoricoDaArea } from "@/dom
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId } from "@/hooks/useLancamentoAtividadesSessao";
 import { QUERY_ATIVIDADES_DA_AREA } from "@/lib/registroDeCampoRegras";
 import { definirFazendaDaTela, listarTiposAtividade } from "@/services/lancamentoAtividadesService";
-import JanelaRegistroDeCampo from "../lancamento-atividades/RegistroDeCampo";
 import CascaDetalhe from "./detalhes-lote/CascaDetalhe";
 import AbaDetalhesDaArea from "./detalhes-area/AbaDetalhesDaArea";
 import AbaRegistrosDaArea from "./detalhes-area/AbaRegistrosDaArea";
+import DiarioDoPasto from "./detalhes-area/DiarioDoPasto";
 import PainelForragemArea from "@/components/pastagem/PainelForragemArea";
 import { Abas, RodapePilulas, SecaoDetalhe, idsDaAba } from "./detalhes-lote/blocos";
 
@@ -28,8 +28,10 @@ import { Abas, RodapePilulas, SecaoDetalhe, idsDaAba } from "./detalhes-lote/blo
  *   chave `medir_forragem`), Manejos (em andamento e planejado em cima; os REGISTROS de campo, "Já feito", embaixo —
  *   o antigo Histórico) e Custos. Sem permissão de ver atividades, Manejos e Custos não aparecem.
  * - Curral: a aba Abate de antes (`HistoricoAbateCurral`), à parte: são fatos de natureza diferente.
- * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre DIRETO a "Nova realização" — a mesma do Lançamento de
- *   Atividades (D-PROD-258, D-PROD-265), com a área já marcada e presa: a pessoa escolhe o tipo (cartões), depois a operação.
+ * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre o "Diário das atividades" do pasto (D-PROD-332, D-PROD-341,
+ *   `DiarioDoPasto`): com atividades abertas, a lista "Em andamento neste pasto"; sem nenhuma, vai direto ao tipo. É a
+ *   ÚNICA entrada de diário no Mapa (a ação de linha "Diário das atividades" abre o mesmo). A "Nova realização" continua
+ *   na página Lançamento de Atividades, só não é mais aberta por aqui.
  *   "Histórico completo" (com a permissão de histórico de
  *   movimentação) continua sendo o Histórico de Movimentação de hoje, com o "Excluir movimentação" do administrador
  *   (D-PROD-110), num diálogo por cima.
@@ -107,7 +109,7 @@ export default function DetalhesArea({ area, permissions, setorNome = "", ocupad
   ) : null;
 
   const janela = registrando ? (
-    <JanelaRegistroDeCampo tipos={tipos} area={area} onFechar={() => setRegistrando(false)} />
+    <DiarioDoPasto area={area} tipos={tipos} verAtividades={verAtividades} onFechar={() => setRegistrando(false)} />
   ) : null;
 
   const idBase = `area-${area.id}`;

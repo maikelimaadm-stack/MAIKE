@@ -200,6 +200,59 @@ export const aberturaDosApontamentos = (itens) => {
   return null;
 };
 
+// ─── Frentes: uma abertura por máquina + implemento (D-PROD-341, emenda) ─────
+
+/**
+ * A chave de uma frente: a máquina e o implemento da abertura (`bemId|implementoId`). Implemento vazio vale como chave
+ * própria (`bem-7|`), então a mesma máquina sem implemento e com um implemento são frentes diferentes.
+ * @param {{ bemId?: unknown, implementoId?: unknown }} abertura
+ * @returns {string}
+ */
+export const chaveDaFrente = (abertura) => `${texto(abertura?.bemId)}|${texto(abertura?.implementoId)}`;
+
+/** Os apontamentos que não foram cancelados (qualquer ordem de entrada). @param {unknown} itens @returns {any[]} */
+const naoCancelados = (itens) => (Array.isArray(itens) ? itens : []).filter((a) => a && typeof a === "object" && a.status !== "CANCELADO");
+
+/**
+ * As frentes de uma atividade: os apontamentos não cancelados agrupados pela chave (`chaveDaFrente`) da abertura da linha
+ * de cada um. Cada frente sai uma vez, com a `abertura` mais recente dela (a do dia mais novo; no mesmo dia, o 1º da lista)
+ * e o `inicio` (o menor `data_operacional` com a chave). Ordem: o início, depois a chave. Sem abertura nenhuma, `[]`.
+ * @param {unknown} itens a lista de apontamentos da atividade (qualquer ordem)
+ * @returns {Array<{ chave: string, abertura: NonNullable<ReturnType<typeof lerAbertura>>, inicio: string }>}
+ */
+export const frentesDosApontamentos = (itens) => {
+  const diaDe = (/** @type {any} */ a) => String(a?.data_operacional ?? "");
+  const maisRecentePrimeiro = [...naoCancelados(itens)].sort((a, b) => diaDe(b).localeCompare(diaDe(a)));
+  /** @type {Map<string, { chave: string, abertura: any, inicio: string }>} */
+  const porChave = new Map();
+  for (const ap of maisRecentePrimeiro) {
+    const abertura = lerAbertura(ap.observacao);
+    if (!abertura) continue;
+    const chave = chaveDaFrente(abertura);
+    const dia = diaDe(ap);
+    const atual = porChave.get(chave);
+    if (!atual) {
+      porChave.set(chave, { chave, abertura, inicio: dia });
+    } else if (dia && (!atual.inicio || dia < atual.inicio)) {
+      atual.inicio = dia;
+    }
+  }
+  return [...porChave.values()].sort((a, b) => a.inicio.localeCompare(b.inicio) || a.chave.localeCompare(b.chave));
+};
+
+/**
+ * Os apontamentos (não cancelados) cuja observação tem a abertura com a chave dada: só os desta frente. Sem chave que case,
+ * `[]`. A ordem é a da lista recebida (quem precisa ordenar, ordena).
+ * @param {unknown} itens
+ * @param {string | null} chave
+ * @returns {any[]}
+ */
+export const apontamentosDaFrente = (itens, chave) =>
+  naoCancelados(itens).filter((ap) => {
+    const abertura = lerAbertura(ap.observacao);
+    return abertura !== null && chaveDaFrente(abertura) === chave;
+  });
+
 // ─── Serviço aberto: "Lançado hoje" (D-PROD-332, emenda da tela 05) ─────
 
 /** Unidade de quem é medido por tempo (a linha de mão de obra): "8 h", "1 diária", "2 tarefas". */

@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CircleCheck, Plus, Tractor } from "lucide-react";
 import DialogoConcluirServico from "@/components/lancamento-atividades/DialogoConcluirServico";
-import DiarioDaMaquina from "@/components/lancamento-atividades/DiarioDaMaquina";
 import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDeCampo";
 import JanelaLancamentoPorTipo, { lancamentoDoTipo, lancamentosPermitidos } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
@@ -10,10 +9,15 @@ import { useAuth } from "@/lib/AuthContext";
 import { RAIZ_CONSULTAS_ATIVIDADES } from "@/lib/atividadeApontamentoRegras";
 import { STATUS_AREA, areasDaAtividade } from "@/lib/atividadeAreasRegras";
 import { LINHA_MAO_OBRA, LINHA_MAQUINA, LINHA_PRODUTO, LINHA_SERVICO, flagsDoTipoDaAtividade } from "@/lib/atividadeLinhasRegras";
-import { STATUS_ABERTA, acoesDaAtividade, mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
+import { acoesDaAtividade, mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { QUERY_ATIVIDADES_DA_AREA } from "@/lib/registroDeCampoRegras";
-import { concluirAtividade, listarAtividades, obterAtividade } from "@/services/lancamentoAtividadesService";
+import { concluirAtividade } from "@/services/lancamentoAtividadesService";
+import DiarioDoPasto from "./DiarioDoPasto";
+import { lerAtividadeParaAcoes } from "./lerAtividadeParaAcoes";
+
+// A leitura da atividade inteira mora em ./lerAtividadeParaAcoes (o DiarioDoPasto a usa sem importar este arquivo).
+export { lerAtividadeParaAcoes };
 
 /**
  * MAIKE-MAPA-ATIVIDADE-ACOES (D-PROD-278) — as ações rápidas de uma atividade em andamento, tocada nos Detalhes da área do
@@ -43,22 +47,6 @@ const SO_DO_TIPO = Object.freeze(
   }),
 );
 const ORDEM_DO_TIPO = [LINHA_MAQUINA, LINHA_MAO_OBRA, LINHA_PRODUTO, LINHA_SERVICO];
-
-/**
- * A atividade inteira para as janelas: o detalhe (versão, operação, áreas) com o `andamento` e o custo da linha da lista
- * (filtrada pela área e pelas abertas; sem ela, as janelas funcionam sem a prévia do andamento).
- * @param {string} atividadeId @param {string} areaId
- */
-export const lerAtividadeParaAcoes = async (atividadeId, areaId) => {
-  const [detalhe, pagina] = await Promise.all([
-    obterAtividade(atividadeId),
-    listarAtividades({ area_id: areaId, status: STATUS_ABERTA }).catch(() => null),
-  ]);
-  const itens = /** @type {any[]} */ (Array.isArray(/** @type {any} */ (pagina)?.items) ? /** @type {any} */ (pagina).items : []);
-  const daLista = itens.find((i) => String(i?.id) === atividadeId) ?? null;
-  const d = /** @type {any} */ (detalhe);
-  return { ...(daLista ?? {}), ...d, andamento: daLista?.andamento ?? d?.andamento ?? null, custo_total: daLista?.custo_total ?? d?.custo_total ?? null };
-};
 
 /**
  * @param {{ area: any, tipos: any[] }} p `tipos`: as operações ativas (as que os Detalhes da área já leem).
@@ -109,9 +97,10 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
     const lancar = ac.lancarApontamento
       ? [
           { key: "lancar-dia", label: "+ Lançamento", icon: <Plus size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "dia") },
-          // Diário da máquina (D-PROD-314): só numa atividade em andamento NESTA área.
+          // Diário das atividades (D-PROD-314, D-PROD-341): só numa atividade em andamento NESTA área. É a mesma entrada da
+          // pílula "Manejos" do rodapé (o DiarioDoPasto); o botão do topo da aba foi tirado.
           ...(emAndamentoNaArea
-            ? [{ key: "diario", label: "Diário da máquina", icon: <Tractor size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "diario") }]
+            ? [{ key: "diario", label: "Diário das atividades", icon: <Tractor size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "diario") }]
             : []),
           ...(emAndamentoNaArea
             ? lancamentosPermitidos(flagsDoTipoDaAtividade(linha, tipos))
@@ -167,17 +156,8 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
       />
     );
   } else if (aberta?.modo === "diario") {
-    janelas = (
-      <DiarioDaMaquina
-        key={`diario-${aberta.chave}`}
-        atividade={aberta.atividade}
-        areaId={areaId}
-        areaNome={area?.nome ?? ""}
-        tipos={tipos}
-        onFechar={fechar}
-        onGravou={reler}
-      />
-    );
+    // O mesmo diário da pílula "Manejos" (DiarioDoPasto); ele já relê o resumo da área depois de gravar.
+    janelas = <DiarioDoPasto key={`diario-${aberta.chave}`} area={area} tipos={tipos} atividade={aberta.atividade} onFechar={fechar} />;
   } else if (aberta?.modo === "concluir") {
     janelas = (
       <DialogoConcluirServico key={`concluir-${aberta.chave}`} item={aberta.atividade} hoje={hoje} onFechar={fechar} onConcluir={concluir} />

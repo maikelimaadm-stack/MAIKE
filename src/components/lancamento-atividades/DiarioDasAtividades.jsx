@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowLeftRight, ChevronRight, FileText, FlaskConical, Fuel, Loader2, Play, Square, Truck, User, Wrench } from "lucide-react";
 import B1Janela from "@/components/cadastro/base1/B1Janela";
 import B1Field, { B1_FIELD_CTL_CLS, DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
@@ -12,8 +12,11 @@ import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda }
 import { useAuth } from "@/lib/AuthContext";
 import {
   aberturaDosApontamentos,
+  apontamentosDaFrente,
+  chaveDaFrente,
   ehCampoDesconhecido,
   formatarHorimetro,
+  frentesDosApontamentos,
   lancamentosDoDia,
   lerTodasAsPaginas,
   marcadorDaAbertura,
@@ -40,6 +43,11 @@ import {
   registrarCampo,
 } from "@/services/lancamentoAtividadesService";
 import { listarCulturas } from "@/services/culturaCadastroService";
+
+/** D-PROD-341 (frentes): a mensagem da trava de duplicidade (mesma máquina + implemento já aberta no pasto). */
+const MSG_FRENTE_DUPLICADA = "Esta máquina com este implemento já tem serviço aberto neste pasto. Toque nele na lista para continuar.";
+/** D-PROD-341 (P1 da revisão do Codex): continuar a atividade sem abertura com mais de uma do mesmo tipo no pasto. */
+const MSG_TIPO_AMBIGUO = "Há mais de uma atividade deste tipo aberta neste pasto, e o servidor não deixa escolher qual recebe a abertura. Conclua uma delas e tente de novo.";
 
 /** D-PROD-332 — a linha de apoio embaixo do nome do cartão (só o tipo que precisa). */
 const SUB_DO_TIPO = Object.freeze({ PREPARO_SOLO: "Gradeação, calagem" });
@@ -105,29 +113,125 @@ function CampoEscolha({ label, value, onChange, options, required = false, error
   );
 }
 
+/** O título de um cartão de frente: a máquina, com " + " e o implemento quando há um. @param {any} abertura */
+const tituloDaFrente = (abertura) => {
+  const bem = abertura?.bemNome || "Máquina";
+  return abertura?.implementoNome ? `${bem} + ${abertura.implementoNome}` : bem;
+};
+
+/**
+ * D-PROD-341 (passo `escolher`) — uma atividade aberta do pasto vira UM CARTÃO POR FRENTE (cada máquina + implemento, com o
+ * responsável e o início), ou UM cartão "Sem abertura" quando nenhuma frente tem abertura gravada (o serviço do fluxo antigo).
+ * As frentes saem dos apontamentos da própria atividade (uma consulta por atividade; "…" enquanto lê). Se a leitura falhar,
+ * sai o cartão "Sem abertura" sem etiqueta e segue tocável. Devolve os itens da lista (`role="listitem"`).
+ * @param {{ atividade: any, empresaId: string | null | undefined, ocupado: boolean, onTocar: (atividade: any, chave: string | null) => void }} props
+ */
+function CartoesDaAtividadeAberta({ atividade, empresaId, ocupado, onTocar }) {
+  const id = String(atividade.atividade_id);
+  const apontamentos = useQuery({
+    queryKey: chaveApontamentos(empresaId, id),
+    queryFn: () => listarApontamentos(id),
+    enabled: Boolean(empresaId && id),
+    staleTime: 15 * 1000,
+  });
+  const frentes = useMemo(() => (apontamentos.isSuccess ? frentesDosApontamentos(itensDaLista(apontamentos.data)) : []), [apontamentos.isSuccess, apontamentos.data]);
+  const nome = atividade.nome || atividade.tipo_atividade_nome || "Atividade";
+  const Icone = iconeDoTipoAtividade({ nome_tipo: atividade.tipo_atividade_nome ?? atividade.nome });
+  const inicioDaAtividade = diaCurto(atividade.data_inicio);
+
+  if (frentes.length === 0) {
+    const etiqueta = apontamentos.isSuccess ? "Sem abertura" : apontamentos.isError ? "" : "…";
+    return (
+      <div role="listitem">
+        <button type="button" className="b1-aberto-opcao" onClick={() => onTocar(atividade, null)} disabled={ocupado} data-testid={`diario-atividade-aberta-${id}`}>
+          <span className="b1-aberto-opcao__icone" aria-hidden>
+            <Icone size={18} strokeWidth={1.75} />
+          </span>
+          <span className="b1-aberto-opcao__texto">
+            <strong className="b1-aberto-opcao__titulo">{nome}</strong>
+            {inicioDaAtividade ? <span className="b1-aberto-opcao__sub">{`Início ${inicioDaAtividade}`}</span> : null}
+          </span>
+          {etiqueta ? (
+            <span className="b1-aberto-chip b1-aberto-chip--neutro" data-testid={`diario-atividade-aberta-etiqueta-${id}`}>
+              {etiqueta}
+            </span>
+          ) : null}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <>
+      {frentes.map((f) => {
+        const inicio = diaCurto(f.inicio);
+        const responsavel = f.abertura.responsavelNome || "—";
+        return (
+          <div role="listitem" key={f.chave}>
+            <button
+              type="button"
+              className="b1-aberto-opcao"
+              onClick={() => onTocar(atividade, f.chave)}
+              disabled={ocupado}
+              data-testid={`diario-frente-${id}-${encodeURIComponent(f.chave)}`}
+            >
+              <span className="b1-aberto-opcao__icone" aria-hidden>
+                <Icone size={18} strokeWidth={1.75} />
+              </span>
+              <span className="b1-aberto-opcao__texto">
+                <strong className="b1-aberto-opcao__titulo">{tituloDaFrente(f.abertura)}</strong>
+                <span className="b1-aberto-opcao__sub">{[`Responsável: ${responsavel}`, inicio ? `Início ${inicio}` : ""].filter(Boolean).join(" · ")}</span>
+                <span className="b1-aberto-opcao__sub">{nome}</span>
+              </span>
+              <span className="b1-aberto-chip" data-testid={`diario-frente-etiqueta-${id}-${encodeURIComponent(f.chave)}`}>
+                Em andamento
+              </span>
+            </button>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 /**
  * D-PROD-332 — o "Diário das atividades", só a ABERTURA de um serviço (Mapa Geral → Detalhes da área → Manejos). Uma janela
  * Base1 com três passos:
- *  - `tipo` (tela 01): os 7 tipos fixos em cartões; "Continuar" leva ao passo seguinte;
+ *  - `escolher` (D-PROD-341, só com atividades abertas no pasto): "Em andamento neste pasto", um cartão por FRENTE (máquina +
+ *    implemento de cada serviço aberto; sem frente, um cartão "Sem abertura") e "Nova atividade";
+ *  - `tipo` (tela 01): os 7 tipos fixos em cartões; "Continuar" leva ao passo seguinte (com lista, o Voltar volta a ela);
  *  - `abrir` (tela 02): "Nova atividade de <Tipo>" — Máquina *, Implemento (opcional), Horímetro inicial *, Responsável *
  *    (e, no Plantio de pastagem, Capim *, depois do Responsável);
  *    com mais de uma operação do tipo, a Operação * vem antes (com uma só, ela é escolhida sozinha; com nenhuma, aviso);
  *  - `iniciado` (tela 05): o serviço aberto — o cabeçalho (tipo, máquina, implemento, responsável, pasto e horímetro),
  *    as 7 opções (cada uma abre um painel "Em breve") e "Lançado hoje" (as linhas de hoje, lidas dos apontamentos).
+ *    D-PROD-341 (frentes): o serviço é UMA frente da atividade (os apontamentos com a mesma chave máquina|implemento); a
+ *    carga e o "Lançado hoje" usam só os dela.
  *
  * Abrir o serviço é um envio só: `registrarCampo` acha/abre a atividade do tipo na área e cria o apontamento do dia, com a
  * abertura na observação (`marcadorDaAbertura`, sem migration). Sem `atividade`, a janela começa no tipo; com uma atividade EM
- * ANDAMENTO do pasto, começa direto no cabeçalho (a abertura dela é lida da observação do apontamento mais recente).
+ * ANDAMENTO do pasto, lê a abertura dela (da observação do apontamento mais recente) enquanto mostra "Carregando…": com abertura,
+ * começa no cabeçalho; SEM abertura (o serviço do fluxo antigo, D-PROD-341), vai ao passo `abrir` com o tipo e a operação dela
+ * já escolhidos (o servidor reaproveita a atividade aberta). Se a leitura falhar, começa no cabeçalho como antes.
  *
  * @param {{
  *   area: any,
  *   tipos?: any[],        // as operações (tipos de atividade) ativas
  *   atividade?: any | null, // a atividade em andamento do pasto, ou null
+ *   atividadesAbertas?: any[], // D-PROD-341: as atividades do pasto que não estão concluídas (o resumo da área)
+ *   lerAtividade?: (atividadeId: string) => Promise<any>, // D-PROD-341: lê a atividade inteira ao tocar numa linha
  *   onFechar: () => void,
  *   onGravou?: (resposta: any) => void,
  * }} props
  */
-export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], atividade = null, onFechar, onGravou = undefined }) {
+export default function DiarioDasAtividades({
+  area,
+  tipos: todosOsTipos = [],
+  atividade = null,
+  atividadesAbertas = [],
+  lerAtividade = obterAtividade,
+  onFechar,
+  onGravou = undefined,
+}) {
   const queryClient = useQueryClient();
   const tipos = useMemo(() => tiposRegistraveisNaArea(todosOsTipos), [todosOsTipos]);
   const empresaId = useEmpresaRealSelecionadaId();
@@ -142,9 +246,11 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const [alvoFolha, setAlvoFolha] = useState(/** @type {HTMLElement | null} */ (null));
 
   // ─── Passo e tipo ───────────────────────────────────────────────────
-  const [passo, setPasso] = useState(/** @type {"tipo" | "abrir" | "iniciado"} */ (atividade ? "iniciado" : "tipo"));
+  const [passo, setPasso] = useState(/** @type {"escolher" | "tipo" | "abrir" | "iniciado"} */ (atividade ? "iniciado" : atividadesAbertas.length ? "escolher" : "tipo"));
   const [atividadeAtual, setAtividadeAtual] = useState(atividade);
-  const operacaoDaAtividade = atividade ? tipos.find((t) => String(t.id) === String(atividade.tipo_atividade_id ?? "")) ?? null : null;
+  const operacaoDaAtividade = atividadeAtual ? tipos.find((t) => String(t.id) === String(atividadeAtual.tipo_atividade_id ?? "")) ?? null : null;
+  /** D-PROD-341: a atividade tocada no passo `escolher` está sendo lida (a linha fica travada). */
+  const [abrindoAtividade, setAbrindoAtividade] = useState(/** @type {string | null} */ (null));
   const [tipoFixo, setTipoFixo] = useState(/** @type {string} */ (operacaoDaAtividade ? tipoFixoDaOperacao(operacaoDaAtividade) : ""));
   const operacoes = useMemo(() => operacoesDoTipoFixo(tipos, tipoFixo), [tipos, tipoFixo]);
   const pedirOperacao = operacoes.length > 1;
@@ -152,7 +258,7 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const [operacaoEscolhidaId, setOperacaoEscolhidaId] = useState("");
   // Com uma operação só, ela é usada sem perguntar; com mais de uma, vale a escolhida.
   const operacaoId = operacoes.length === 1 ? String(operacoes[0].id) : operacaoEscolhidaId;
-  const rotuloTipo = tipoFixo ? rotuloDoTipoFixo(tipoFixo) : atividade?.tipo_atividade_nome ?? atividade?.nome ?? "";
+  const rotuloTipo = tipoFixo ? rotuloDoTipoFixo(tipoFixo) : atividadeAtual?.tipo_atividade_nome ?? atividadeAtual?.nome ?? "";
 
   // ─── Campos da abertura ─────────────────────────────────────────────
   const [bemId, setBemId] = useState("");
@@ -168,6 +274,10 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const enviandoRef = useRef(false);
   /** A abertura que acabou de ser gravada nesta janela (o cabeçalho usa ela; sem ela, a da consulta). */
   const [aberturaSalva, setAberturaSalva] = useState(/** @type {ReturnType<typeof aberturaDosApontamentos>} */ (null));
+  /** D-PROD-341: o nome do serviço que já está aberto no pasto sem abertura (a linha de ajuda do formulário; "" = não é o caso). */
+  const [nomeServicoExistente, setNomeServicoExistente] = useState("");
+  /** D-PROD-341 (frentes): a frente (máquina + implemento) do serviço aberto; `null` = ainda não escolhida (lista ou leitura). */
+  const [frenteChave, setFrenteChave] = useState(/** @type {string | null} */ (null));
 
   // ─── Opções (só no passo da abertura) ───────────────────────────────
   // D-PROD-332 (emenda): as opções vêm TODAS as páginas (`lerTodasAsPaginas`), não só a 1ª de 50.
@@ -226,12 +336,45 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
     staleTime: 15 * 1000,
   });
   const apontamentosDaAtividade = useMemo(() => itensDaLista(apontamentosLidos.data), [apontamentosLidos.data]);
+  /** D-PROD-341 (frentes): as frentes da atividade (uma por máquina + implemento), por início. */
+  const frentes = useMemo(() => (apontamentosLidos.isSuccess ? frentesDosApontamentos(apontamentosDaAtividade) : []), [apontamentosLidos.isSuccess, apontamentosDaAtividade]);
+  const frenteAtual = useMemo(() => (frenteChave ? (frentes.find((f) => f.chave === frenteChave) ?? null) : null), [frenteChave, frentes]);
+  /** A abertura mais recente da atividade (sem frente escolhida, só para o início da leitura). */
   const aberturaLida = useMemo(() => (apontamentosLidos.isSuccess ? aberturaDosApontamentos(apontamentosDaAtividade) : null), [apontamentosLidos.isSuccess, apontamentosDaAtividade]);
-  /** Os lançamentos de hoje (CONFIRMADO, por linha, sem R$), na ordem do horário. */
-  const lancadosHoje = useMemo(() => lancamentosDoDia(apontamentosDaAtividade, hoje, fuso), [apontamentosDaAtividade, hoje, fuso]);
-  // A abertura que acabou de ser gravada tem prioridade; sem ela, a da consulta.
-  const abertura = aberturaSalva ?? aberturaLida;
-  const semAbertura = passo === "iniciado" && !abertura && (Boolean(aberturaSalva) || apontamentosLidos.isSuccess);
+  /** Os apontamentos DESTE serviço: os da frente escolhida (sem frente, a atividade inteira). Cabeçalho, "Lançado hoje" e carga leem daqui. */
+  const apontamentosDoServico = useMemo(
+    () => (frenteChave ? apontamentosDaFrente(apontamentosDaAtividade, frenteChave) : apontamentosDaAtividade),
+    [frenteChave, apontamentosDaAtividade],
+  );
+  /** Os lançamentos de hoje do serviço (CONFIRMADO, por linha, sem R$), na ordem do horário. */
+  const lancadosHoje = useMemo(() => lancamentosDoDia(apontamentosDoServico, hoje, fuso), [apontamentosDoServico, hoje, fuso]);
+  // Com frente escolhida, a abertura DELA (a que acabou de ser gravada, se for a mesma); sem frente, a que acabou de ser gravada, ou a da consulta.
+  const abertura = frenteChave ? (frenteAtual?.abertura ?? aberturaSalva) : (aberturaSalva ?? aberturaLida);
+  // D-PROD-341 + frentes: o serviço aberto sem frente escolhida decide pela leitura. Uma frente → ela; mais de uma → a lista
+  // ("escolher"); nenhuma → serviço SEM abertura gravada (o fluxo antigo): o formulário de abertura, com o tipo e a operação
+  // dele já escolhidos (o servidor acha a atividade aberta do mesmo tipo e área e grava a abertura nela). Sem operação
+  // conhecida, o passo do tipo. Com a leitura falhando, nada muda (o cabeçalho, como antes).
+  useEffect(() => {
+    if (passo !== "iniciado" || aberturaSalva || frenteChave || !apontamentosLidos.isSuccess) return;
+    if (frentes.length > 1) {
+      setPasso("escolher");
+      return;
+    }
+    if (frentes.length === 1) {
+      setFrenteChave(frentes[0].chave);
+      return;
+    }
+    if (!operacaoDaAtividade) {
+      setPasso("tipo");
+      return;
+    }
+    setOperacaoEscolhidaId(String(operacaoDaAtividade.id));
+    setNomeServicoExistente(String(operacaoDaAtividade.nome_tipo ?? rotuloTipo));
+    setErros({});
+    setPasso("abrir");
+  }, [passo, aberturaSalva, frenteChave, apontamentosLidos.isSuccess, frentes, operacaoDaAtividade, rotuloTipo]);
+  /** Enquanto a frente do serviço aberto é lida (ou a leitura terminou e o passo ainda vai mudar): "Carregando…", sem o cabeçalho nem o menu. */
+  const aguardandoAbertura = passo === "iniciado" && !aberturaSalva && (apontamentosLidos.isLoading || (apontamentosLidos.isSuccess && !frenteChave));
   /** O painel "Em breve" da tela 05: o título da opção tocada (ou "Encerrar serviço"); null = o serviço aberto. */
   const [emBreve, setEmBreve] = useState(/** @type {string | null} */ (null));
   /** D-PROD-334: a "Carga de insumo" (opção Insumo) na mesma janela; o botão do rodapé fica no lugar que ela indica. */
@@ -271,8 +414,79 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const voltarAoTipo = () => {
     if (enviando) return;
     setErros({});
+    setNomeServicoExistente("");
     setPasso("tipo");
   };
+  // ─── D-PROD-341: o passo "escolher" (Em andamento neste pasto) ──────
+  const temAbertas = atividadesAbertas.length > 0;
+  /** Os ids das operações que o tipo escolhido cobre (a escolhida, se já há uma). */
+  const idsDaOperacao = operacaoId ? [operacaoId] : operacoes.map((o) => String(o.id));
+  /** A atividade aberta do pasto deste tipo: a linha de ajuda "Já existe …" (o servidor reaproveita essa atividade). */
+  const abertaDoTipo = tipoFixo ? atividadesAbertas.find((a) => idsDaOperacao.includes(String(a.tipo_atividade_id ?? ""))) ?? null : null;
+  /** D-PROD-341 (frentes): as atividades abertas do tipo no pasto, quando o formulário vai abrir uma frente (não na continuação). */
+  const abertasDoTipo = passo === "abrir" && !nomeServicoExistente && tipoFixo ? atividadesAbertas.filter((a) => idsDaOperacao.includes(String(a.tipo_atividade_id ?? ""))) : [];
+  /** As frentes já abertas nessas atividades (mesmas consultas da lista: cache compartilhado). Sem atividade do tipo, nenhuma. */
+  const consultasDoTipo = useQueries({
+    queries: abertasDoTipo.map((a) => ({
+      queryKey: chaveApontamentos(empresaId, String(a.atividade_id)),
+      queryFn: () => listarApontamentos(String(a.atividade_id)),
+      enabled: Boolean(empresaId),
+      staleTime: 15 * 1000,
+    })),
+  });
+  const chavesDoTipo = new Set(consultasDoTipo.flatMap((q) => frentesDosApontamentos(itensDaLista(q.data)).map((f) => f.chave)));
+  /** A máquina + implemento do formulário (a chave da frente que ele abriria); "" sem máquina. */
+  const chaveDoFormulario = bemId ? chaveDaFrente({ bemId, implementoId }) : "";
+  /** Esta máquina com este implemento já tem frente aberta no pasto (pelos dados carregados): não envia. */
+  const duplicada = chaveDoFormulario !== "" && chavesDoTipo.has(chaveDoFormulario);
+  /** Continuar a atividade SEM abertura com mais de uma do mesmo tipo no pasto: o servidor entra na mais recente (P1). */
+  const idDaAtividadeAtual = atividadeAtual?.id != null ? String(atividadeAtual.id) : null;
+  const doMesmoTipo = nomeServicoExistente && operacaoId ? atividadesAbertas.filter((a) => String(a.tipo_atividade_id ?? "") === operacaoId).length : 0;
+  // A escolhida conta mesmo que não esteja na lista do pasto.
+  const escolhidaFora = Boolean(nomeServicoExistente && operacaoId && idDaAtividadeAtual && !atividadesAbertas.some((a) => String(a.atividade_id) === idDaAtividadeAtual));
+  const ambiguo = doMesmoTipo + (escolhidaFora ? 1 : 0) > 1;
+  /** O motivo de não enviar agora (a trava), ou "" quando pode. Mostrado como ajuda e no envio. */
+  const motivoTrava = ambiguo ? MSG_TIPO_AMBIGUO : duplicada ? MSG_FRENTE_DUPLICADA : "";
+  const novaAtividade = () => {
+    if (enviando || abrindoAtividade !== null) return;
+    setErros({});
+    setPasso("tipo");
+  };
+  /** Do tipo, o Voltar leva à lista (só quando houve lista). */
+  const voltarDoTipo = () => {
+    if (enviando) return;
+    setErros({});
+    setPasso("escolher");
+  };
+  /**
+   * Tocar num cartão da lista: lê a atividade inteira. Um cartão de FRENTE (`chave`) abre só aquela frente ("iniciado" com a
+   * frente escolhida). O cartão "Sem abertura" (`chave` nula) segue o efeito do D-PROD-341: o formulário de abertura com o tipo
+   * e a operação dela. Falha na leitura: aviso, e fica na lista.
+   * @param {any} linha
+   * @param {string | null} chave a frente tocada (null = o serviço sem abertura)
+   */
+  const tocarAtividadeAberta = async (linha, chave = null) => {
+    if (abrindoAtividade !== null) return;
+    setAbrindoAtividade(String(linha.atividade_id));
+    try {
+      const detalhe = await lerAtividade(String(linha.atividade_id));
+      const operacao = tipos.find((t) => String(t.id) === String(detalhe?.tipo_atividade_id ?? "")) ?? null;
+      setAtividadeAtual(detalhe);
+      setTipoFixo(operacao ? tipoFixoDaOperacao(operacao) : "");
+      setOperacaoEscolhidaId("");
+      setAberturaSalva(null);
+      setFrenteChave(chave);
+      setNomeServicoExistente("");
+      setErros({});
+      setEmBreve(null);
+      setPasso("iniciado");
+    } catch (erro) {
+      notifyWarning("Não foi possível abrir o serviço", mensagemDeErroAtividade(erro, "Confira a conexão e tente de novo."));
+    } finally {
+      setAbrindoAtividade(null);
+    }
+  };
+
   /** Máquina escolhida: a leitura dela entra no horímetro (a pessoa pode mexer). @param {string} valor */
   const escolherMaquina = (valor) => {
     setBemId(valor);
@@ -306,6 +520,11 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   /** "Iniciar serviço": valida, grava (um envio só) e, com a atividade de volta, vai ao cabeçalho. */
   const iniciarServico = async () => {
     if (enviandoRef.current || !podeGravar || semOperacao) return;
+    // D-PROD-341 (frentes e P1): a trava é o motivo real de não enviar, então vem antes da validação dos campos.
+    if (motivoTrava) {
+      notifyWarning("Não foi possível iniciar o serviço", motivoTrava);
+      return;
+    }
     const plantio = tipoFixo === "PLANTIO";
     const novosErros = validarAbertura({ operacaoId, pedirOperacao, bemId, horimetro, responsavelId, pedirCapim: plantio, culturaId });
     setErros(novosErros);
@@ -322,6 +541,24 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
       implementoNome: implementos.find((i) => String(i.id) === implementoId)?.nome ?? "",
       responsavelNome: operadores.find((o) => String(o.id) === responsavelId)?.nome ?? operadores.find((o) => String(o.id) === responsavelId)?.rotulo ?? "",
     };
+    // D-PROD-341 (frentes): sem os dados carregados (a trava acima é pelos carregados), confere pela leitura das atividades
+    // abertas do tipo antes do envio (o cache serve quando há). Nada é enviado nesse caso.
+    if (abertasDoTipo.length) {
+      const chave = chaveDaFrente(abertura);
+      try {
+        for (const a of abertasDoTipo) {
+          const idDaAberta = String(a.atividade_id);
+          const lista = await queryClient.fetchQuery({ queryKey: chaveApontamentos(empresaId, idDaAberta), queryFn: () => listarApontamentos(idDaAberta), staleTime: 15 * 1000 });
+          if (frentesDosApontamentos(itensDaLista(lista)).some((f) => f.chave === chave)) {
+            notifyWarning("Não foi possível iniciar o serviço", MSG_FRENTE_DUPLICADA);
+            return;
+          }
+        }
+      } catch (erro) {
+        notifyWarning("Não foi possível iniciar o serviço", mensagemDeErroAtividade(erro, "Não foi possível conferir os serviços abertos deste pasto. Confira a conexão e tente de novo."));
+        return;
+      }
+    }
     enviandoRef.current = true;
     setEnviando(true);
     try {
@@ -347,6 +584,7 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
       void queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, String(id)) });
       setAtividadeAtual(detalhe ?? resposta?.atividade ?? { id });
       setAberturaSalva(abertura);
+      setFrenteChave(chaveDaFrente(abertura));
       onGravou?.(resposta);
       notifySuccess("Sucesso", "Serviço iniciado.");
       setPasso("iniciado");
@@ -362,7 +600,15 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const hectares = hectaresDaArea(area?.tamanho_hectares);
   const subDaArea = [area?.nome, hectares ? `${hectares} ha` : ""].filter(Boolean).join(" · ");
   const carga = passo === "iniciado" && insumoAberto;
-  const tituloTexto = carga ? "Insumo" : passo === "iniciado" ? "Diário das atividades" : passo === "abrir" ? `Nova atividade de ${rotuloTipo}` : "Nova atividade";
+  const tituloTexto = carga
+    ? "Insumo"
+    : passo === "iniciado"
+      ? "Diário das atividades"
+      : passo === "abrir"
+        ? `Nova atividade de ${rotuloTipo}`
+        : passo === "escolher"
+          ? "Em andamento neste pasto"
+          : "Nova atividade";
   const subTitulo = carga
     ? [rotuloTipo, abertura?.implementoNome].filter(Boolean).join(" · ")
     : passo === "iniciado" ? [rotuloTipo, "Hoje", diaCurto(hoje)].filter(Boolean).join(" · ") : subDaArea;
@@ -375,6 +621,10 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const voltar =
     passo === "abrir" ? (
       <button type="button" className="tb-btn tb-btn-icon tb-btn-sm b1-realizacao__voltar" aria-label="Voltar" title="Voltar" onClick={voltarAoTipo} disabled={enviando} data-testid="abertura-voltar">
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+      </button>
+    ) : passo === "tipo" && temAbertas ? (
+      <button type="button" className="tb-btn tb-btn-icon tb-btn-sm b1-realizacao__voltar" aria-label="Voltar" title="Voltar" onClick={voltarDoTipo} disabled={enviando} data-testid="diario-voltar-lista">
         <ArrowLeft className="h-4 w-4" aria-hidden />
       </button>
     ) : carga ? (
@@ -543,7 +793,6 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
           Horímetro inicial {abertura ? formatarHorimetro(abertura.horimetro) || "—" : "—"}
         </div>
       </section>
-      {semAbertura ? <p className="b1-realizacao__ajuda">Abertura não registrada neste serviço.</p> : null}
       {emBreve !== null ? (
         <section className="b1-aberto-painel" aria-label={emBreve} data-testid="servico-em-breve">
           <strong className="b1-aberto-painel__titulo">{emBreve}</strong>
@@ -603,6 +852,35 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
   const semOperacaoAviso = semOperacao ? (
     <AvisoGestao testId="abertura-sem-operacao">Não há operação cadastrada para este tipo. Cadastre em Tipos de Atividade.</AvisoGestao>
   ) : null;
+  /** D-PROD-341: o tipo já tem uma atividade aberta no pasto. Só aviso: o servidor reaproveita essa atividade. */
+  const avisoJaExiste =
+    abertaDoTipo && !nomeServicoExistente ? (
+      <p className="b1-realizacao__ajuda" data-testid="abertura-ja-existe">
+        {`Já existe ${abertaDoTipo.nome || abertaDoTipo.tipo_atividade_nome} aberta neste pasto: este serviço entra nela como mais uma frente (outra máquina ou implemento).`}
+      </p>
+    ) : null;
+  /** D-PROD-341 (passo `escolher`): as atividades abertas do pasto; tocar numa leva ao serviço ou à abertura dele. */
+  // A atividade recebida entra na lista se o pasto ainda não a listou (a lista nunca sai vazia por isso).
+  const listaDoPasto = useMemo(
+    () =>
+      !atividade || atividadesAbertas.some((a) => String(a.atividade_id) === String(atividade.id))
+        ? atividadesAbertas
+        : [
+            { atividade_id: String(atividade.id), nome: atividade.nome, tipo_atividade_id: atividade.tipo_atividade_id, tipo_atividade_nome: atividade.tipo_atividade_nome, data_inicio: atividade.data_inicio },
+            ...atividadesAbertas,
+          ],
+    [atividade, atividadesAbertas],
+  );
+  const listaEmAndamento = (
+    <div className="b1-realizacao__passo" data-testid="diario-atividades-escolher">
+      <p className="b1-realizacao__ajuda">Toque num serviço para continuar, ou comece uma nova atividade.</p>
+      <div className="b1-aberto-opcoes b1-aberto-opcoes--lista" role="list" aria-label="Atividades em andamento neste pasto">
+        {listaDoPasto.map((a) => (
+          <CartoesDaAtividadeAberta key={a.atividade_id} atividade={a} empresaId={empresaId} ocupado={abrindoAtividade !== null} onTocar={tocarAtividadeAberta} />
+        ))}
+      </div>
+    </div>
+  );
 
   const rodape =
     passo === "tipo" ? (
@@ -623,13 +901,17 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
           type="button"
           className={BOTAO_PRIMARIO}
           onClick={() => void iniciarServico()}
-          disabled={!podeGravar || semOperacao || enviando}
+          disabled={!podeGravar || semOperacao || enviando || motivoTrava !== ""}
           data-testid="abertura-iniciar"
         >
           {enviando ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
           {enviando ? "Iniciando…" : "Iniciar serviço"}
         </button>
       </>
+    ) : passo === "escolher" ? (
+      <button type="button" className={`${BOTAO_PRIMARIO} b1-aberto-rodape-unico`} onClick={novaAtividade} disabled={abrindoAtividade !== null} data-testid="diario-nova-atividade">
+        Nova atividade
+      </button>
     ) : carga ? (
       // D-PROD-334: o "Salvar carga" é desenhado pela própria CargaDeInsumo, neste lugar (portal).
       <div ref={setAlvoRodapeCarga} className="contents" />
@@ -656,24 +938,49 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
       className={`b1-realizacao b1-aberto-janela${celular ? " b1-janela--tela-cheia" : ""}`}
       contentProps={{ "data-permissao-explicita": "", "data-celular": celular ? "" : undefined, "data-passo": passo, className: celular ? "b1-janela__camada--tela-cheia" : undefined }}
       fora={<div ref={setAlvoFolha} className="contents" />}
-      rodape={rodape}
+      rodape={aguardandoAbertura ? null : rodape}
     >
       <MobileSheetPortalCtx.Provider value={alvoFolha}>
         {passo !== "iniciado" && avisoStatus ? <AvisoGestao testId="diario-atividades-aviso">{avisoStatus}</AvisoGestao> : null}
-        {passo === "tipo" ? cartoes : null}
+        {passo === "escolher" ? listaEmAndamento : null}
+        {passo === "tipo" ? (
+          <>
+            {cartoes}
+            {avisoJaExiste}
+          </>
+        ) : null}
         {passo === "abrir" ? (
           <>
             {semOperacaoAviso}
+            {nomeServicoExistente ? (
+              <p className="b1-realizacao__ajuda" data-testid="abertura-servico-existente">
+                {`Este pasto já tem o serviço ${nomeServicoExistente} em andamento, sem abertura. Preencha para iniciar.`}
+              </p>
+            ) : null}
+            {avisoJaExiste}
+            {motivoTrava ? (
+              <p className="b1-realizacao__ajuda" data-testid="abertura-trava">
+                {motivoTrava}
+              </p>
+            ) : null}
             {formulario}
           </>
         ) : null}
-        {passo === "iniciado" && carga ? (
+        {passo === "iniciado" && aguardandoAbertura ? (
+          <div className="b1-realizacao__passo" data-testid="abertura-carregando">
+            <p role="status" className="b1-realizacao__ajuda">
+              Carregando…
+            </p>
+          </div>
+        ) : null}
+        {passo === "iniciado" && !aguardandoAbertura && carga ? (
           <CargaDeInsumo
             atividadeId={String(atividadeId)}
             atividadeAreaId={atividadeAreaId}
             filtrarPorArea={areasDaAtividade(atividadeAtual).length > 1}
             onEnviando={setCargaEnviando}
-            apontamentos={apontamentosDaAtividade}
+            apontamentos={apontamentosDoServico}
+            observacaoDoApontamento={abertura ? marcadorDaAbertura(abertura) : null}
             hoje={hoje}
             implementoNome={abertura?.implementoNome ?? ""}
             podeGravar={podeGravar}
@@ -685,7 +992,7 @@ export default function DiarioDasAtividades({ area, tipos: todosOsTipos = [], at
             }}
           />
         ) : null}
-        {passo === "iniciado" && !carga ? iniciado : null}
+        {passo === "iniciado" && !aguardandoAbertura && !carga ? iniciado : null}
       </MobileSheetPortalCtx.Provider>
     </B1Janela>
   );
