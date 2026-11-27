@@ -55,6 +55,12 @@ export const areasDaAtividade = (atividade) =>
 /** A atividade tem áreas (várias áreas, D-PROD-249)? @param {any} atividade */
 export const temAreas = (atividade) => areasDaAtividade(atividade).length > 0;
 
+/** A ÚNICA área da atividade (a linha do vínculo, com `area_id`): com uma só, ela; com várias ou nenhuma, `null`. @param {any} atividade */
+export const areaUnicaDaAtividade = (atividade) => {
+  const areas = areasDaAtividade(atividade);
+  return areas.length === 1 ? areas[0] : null;
+};
+
 /** Só as áreas EM ANDAMENTO (as que recebem lançamento). @param {any} atividade */
 export const areasEmAndamento = (atividade) => areasDaAtividade(atividade).filter((a) => a.status === STATUS_AREA.EM_ANDAMENTO);
 

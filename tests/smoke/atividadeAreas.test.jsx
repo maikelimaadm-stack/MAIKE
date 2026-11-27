@@ -39,6 +39,7 @@ vi.mock("@/hooks/usePatrimonioSessao", () => ({ useAcoesTelaAbastecimento: () =>
 
 import {
   alternarAreaNaAbertura,
+  areaUnicaDaAtividade,
   contadoresDasAreas,
   corpoDasAreasDaAbertura,
   errosDasAreasDaAbertura,
@@ -100,6 +101,13 @@ afterEach(() => cleanup());
 const comConsulta = (ui) => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>);
 
 describe("AR-REGRAS — as regras puras das áreas", () => {
+  it("AR-REGRAS-0 — a área única da atividade (o \"+ Lançamento\" do card): uma área → ela; várias ou nenhuma → null", () => {
+    expect(areaUnicaDaAtividade({ areas: [area("p1", "PASTO 01", "EM_ANDAMENTO")] })?.id).toBe("p1");
+    expect(areaUnicaDaAtividade(ATIVIDADE)).toBeNull();
+    expect(areaUnicaDaAtividade({ areas: [] })).toBeNull();
+    expect(areaUnicaDaAtividade({})).toBeNull();
+  });
+
   it("AR-REGRAS-1 — a coluna Área: uma área mostra o nome; várias, \"2 de 5 em andamento\"; nenhuma em andamento, a situação; sem área, a do cabeçalho", () => {
     expect(textoDaColunaArea(ATIVIDADE)).toBe("2 de 5 em andamento");
     expect(textoDaColunaArea({ areas: [area("p1", "PASTO 01", "EM_ANDAMENTO")] })).toBe("P1 — PASTO 01");

@@ -31,8 +31,8 @@ import "@/styles/mk-dp-area-v13.css";
  * "Em reforma desde 10/09" (o início previsto; ainda no futuro, "Reforma prevista para 10/09") e o nome dela embaixo.
  *
  * MAIKE-MAPA-ATIVIDADE-ACOES (D-PROD-278): com permissão de lançar ou de concluir, a linha da atividade é tocável e abre o
- * menu das ações rápidas (o do ⚡ da lista: janela presa à linha no computador, folha de baixo no celular) — "+ Lançar
- * dia", "Só máquina / mão de obra / insumo / serviço de terceiro" (presos nesta área) e "Concluir"
+ * menu das ações rápidas (o do ⚡ da lista: janela presa à linha no computador, folha de baixo no celular) — "+ Lançamento"
+ * (o Diário das atividades do pasto, já na atividade), "Só máquina / mão de obra / serviço de terceiro" (presos nesta área) e "Concluir"
  * (`AcoesDaAtividadeDaArea`). Sem permissão, a linha fica como era (só leitura).
  *
  * MAIKE-AREA-V13 (D-PROD-289): a mesma aba agora serve três seções (`secao`), cada uma com um assunto só, no visual v13
