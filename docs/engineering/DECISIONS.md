@@ -10609,4 +10609,16 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - imagens que nenhum lote usa saem do mapa e do cache (não com os lotes escondidos pelo filtro);
   - devicePixelRatio relido no `resize`.
 
+## D-PROD-351 — Mapa leve: no zoom, o nome da área é ampliado, sem refazer o texto a cada quadro
+
+**Data:** 2026-11-27 · **Origem:** proprietário, testando num tablet fraco depois da D-PROD-349: "antes passar os dedos no mapa travava, agora não trava; o que pega ainda é apenas o zoom, que trava muito" · **Relatório:** [`MAPA-LEVE-D347-REPORT.md`](./MAPA-LEVE-D347-REPORT.md) (seção D-PROD-351)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `dcc7d46a6` deu D-PROD-351 (a D-PROD-350 está reservada pela PR #438). O marcador fica para quem fizer merge por último.
+
+- **Causa (perfil do zoom, 200 pastos):** a cada quadro do zoom, os 200 nomes mudavam o tamanho da letra (`fontesRotuloPorZoom`, D-PROD-129), e o navegador refazia o texto de todos. Também havia um `getBoundingClientRect` do canvas depois de escritas na revisão dos nomes.
+- **Decisão (visual igual no fim do zoom):** durante o zoom, `escalarNome` amplia o nome já pronto na razão `fontesRotuloPorZoom(z).nome / fonte0` e só então aplica o encaixe no pasto (D-PROD-130). O tamanho real da letra é aplicado no `arrumarRotulos` completo (fim do zoom) e ao criar o nome. O retângulo do canvas é lido antes de qualquer escrita.
+- **Resultado (harness, 200 pastos, CPU 4×):** zoom de ≈ 5 para ≈ 6,2 quadros/s; recálculo de estilo no zoom de ≈ 20 s para ≈ 14 s; arrastar de ≈ 8 para ≈ 10,8 quadros/s.
+- **Diferença visível:** durante o zoom o nome é uma ampliação do texto, não o texto refeito (diferença de no máximo ¼ px na letra); no fim do zoom fica idêntico ao de antes.
+- **Próximo:** os nomes desenhados pelo próprio mapa (camadas `symbol`), que tiram o custo restante do zoom.
+
 <!-- Próxima decisão: D-PROD-350 -->

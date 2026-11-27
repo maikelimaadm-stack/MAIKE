@@ -9,6 +9,15 @@ rollout pausado **D-PROD-41**)
 
 ---
 
+## Missão ativa (2026-11-27) — MAIKE-MAPA-LEVE: zoom sem refazer o texto dos nomes (D-PROD-351)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-351**: durante o zoom o nome é ampliado na razão da fonte; a letra real só no fim do zoom |
+| Banco | sem migration; backend sem mudança |
+| Relatório | [`MAPA-LEVE-D347-REPORT.md`](./MAPA-LEVE-D347-REPORT.md) (seção D-PROD-351) |
+| Próximas | etapa 3 (pontos pelo mapa, em andamento); nomes desenhados pelo mapa |
+
 ## Missão ativa (2026-11-27) — MAIKE-MAPA-LEVE: etapa 2, lotes desenhados pelo próprio mapa (D-PROD-349)
 
 | Item | Estado |
