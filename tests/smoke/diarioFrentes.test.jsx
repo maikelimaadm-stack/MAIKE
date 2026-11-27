@@ -11,18 +11,22 @@
  *  (f) "Encerrar atividade" com duas frentes abertas: exige os dois horímetros, grava um encerramento por frente e conclui com
  *      `versao` e `data_conclusao` de hoje (f1); falha no concluir: aviso, e tentar de novo não repete os encerramentos (f2);
  *  (g) atividade antiga sem nenhuma frente: aviso, "Adicionar máquina" e "Encerrar atividade" sem pedir horímetro;
- *  (h) duplo clique em "Encerrar serviço" envia um só POST.
+ *  (h) duplo clique em "Encerrar serviço" envia um só POST;
+ *  (a) "Encerrar atividade" exige EDITAR a atividade (o concluir do backend é `g.editar`): sem ela, desabilitado e sem POST;
+ *      "Encerrar serviço" segue com lançar apontamento. Os encerramentos não mandam `operador_usuario_id` (o operador é opcional).
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, fireEvent, waitFor, cleanup, within, act } from "@testing-library/react";
 
+/** A permissão da sessão: `editar` é a que o "Encerrar atividade" exige (o concluir do backend é `g.editar`). */
+const permissoes = vi.hoisted(() => ({ editar: true }));
 vi.mock("@/hooks/useLancamentoAtividadesSessao", async (importOriginal) => ({
   ...(await importOriginal()),
   useEmpresaRealSelecionadaId: () => "emp-1",
   useFusoDaFazenda: () => ({ hoje: "2026-11-26", fuso: "America/Sao_Paulo", semFuso: false, fusoOk: true }),
-  useAcoesTelaAtividades: () => ({ lancarApontamento: true, login: "operador", permissaoEfetiva: { is_admin: false } }),
+  useAcoesTelaAtividades: () => ({ lancarApontamento: true, editar: permissoes.editar, login: "operador", permissaoEfetiva: { is_admin: false } }),
 }));
 vi.mock("@/lib/AuthContext", async (importOriginal) => ({ ...(await importOriginal()), useAuth: () => ({ clienteId: "c1" }) }));
 vi.mock("@/lib/maikeNotify", async (importOriginal) => ({
@@ -175,6 +179,7 @@ const adicionarMaquina = async () => {
 };
 
 beforeEach(() => {
+  permissoes.editar = true;
   store = comecoDoServidor();
   servico.listarOpcoesBens.mockResolvedValue(BENS);
   servico.listarOpcoesImplementos.mockResolvedValue(IMPLEMENTOS);
@@ -333,7 +338,9 @@ describe("D-PROD-346 — o serviço de uma frente (d) e o encerramento dela (e)"
     expect(servico.criarApontamento).toHaveBeenCalledTimes(1);
     const [atividadeId, dados] = servico.criarApontamento.mock.calls[0];
     expect(atividadeId).toBe("at-1");
-    expect(dados).toMatchObject({ data_operacional: "2026-11-26", operador_usuario_id: "usr-3" });
+    expect(dados).toMatchObject({ data_operacional: "2026-11-26" });
+    // Sem operador no encerramento: o responsável da abertura pode estar desativado (o servidor recusaria).
+    expect(dados).not.toHaveProperty("operador_usuario_id");
     expect(dados.observacao).toMatch(/^\[encerramento-servico bem=bem-7 impl=imp-2 hor=1200\.5 /);
     const encerrada = await screen.findByTestId("frente-at-1-bem-7%7Cimp-2");
     expect(encerrada).toBeDisabled();
@@ -373,6 +380,8 @@ describe("D-PROD-346 — Encerrar atividade (f) e a atividade sem frente (g)", (
     expect(primeiro[0]).toBe("at-1");
     expect(primeiro[1].observacao).toMatch(/^\[encerramento-servico bem=bem-7 impl=imp-2 hor=1200\.5 /);
     expect(segundo[1].observacao).toMatch(/^\[encerramento-servico bem=bem-8 hor=950\.0 /);
+    expect(primeiro[1]).not.toHaveProperty("operador_usuario_id");
+    expect(segundo[1]).not.toHaveProperty("operador_usuario_id");
     expect(servico.concluirAtividade).toHaveBeenCalledTimes(1);
     expect(servico.concluirAtividade).toHaveBeenCalledWith("at-1", { versao: 7, data_conclusao: "2026-11-26" });
     expect(notifySuccess).toHaveBeenCalledWith("Sucesso", "Atividade encerrada.");
@@ -419,6 +428,47 @@ describe("D-PROD-346 — Encerrar atividade (f) e a atividade sem frente (g)", (
     await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
     expect(servico.criarApontamento).not.toHaveBeenCalled();
     expect(servico.concluirAtividade).toHaveBeenCalledWith("at-2", { versao: 3, data_conclusao: "2026-11-26" });
+  });
+});
+
+describe("D-PROD-346 — permissão de editar para Encerrar atividade (a)", () => {
+  it("(a1) sem EDITAR a atividade: \"Encerrar atividade\" fica desabilitado, com o aviso; clicar não abre o painel e nada é enviado", async () => {
+    permissoes.editar = false;
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await abrirAtividade();
+    await screen.findByTestId("frente-at-1-bem-8%7C");
+    const botao = screen.getByTestId("atividade-encerrar");
+    expect(botao).toBeDisabled();
+    expect(botao).toHaveAttribute("title", "Você não tem permissão para encerrar a atividade.");
+    expect(screen.getByTestId("atividade-encerrar-sem-permissao")).toHaveTextContent("Você não tem permissão para encerrar a atividade.");
+    fireEvent.click(botao);
+    expect(screen.queryByTestId("atividade-encerrar-painel")).toBeNull();
+    expect(servico.criarApontamento).not.toHaveBeenCalled();
+    expect(servico.concluirAtividade).not.toHaveBeenCalled();
+    expect(servico.obterAtividade).not.toHaveBeenCalled();
+  });
+
+  it("(a2) sem EDITAR, \"Encerrar serviço\" de uma frente segue liberado (só exige lançar apontamento) e grava o encerramento da frente", async () => {
+    permissoes.editar = false;
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await abrirAtividade();
+    await abrirFrente("bem-7|imp-2");
+    fireEvent.click(screen.getByTestId("servico-encerrar"));
+    fireEvent.change(screen.getByTestId("encerrar-horimetro"), { target: { value: "1.200,5" } });
+    expect(screen.getByTestId("servico-encerrar-confirmar")).toBeEnabled();
+    fireEvent.click(screen.getByTestId("servico-encerrar-confirmar"));
+    expect(await screen.findByTestId("atividade-passo")).toBeInTheDocument();
+    expect(servico.criarApontamento).toHaveBeenCalledTimes(1);
+    expect(servico.concluirAtividade).not.toHaveBeenCalled();
+  });
+
+  it("(a3) com EDITAR, o botão fica liberado e não há aviso de permissão", async () => {
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await abrirAtividade();
+    await screen.findByTestId("frente-at-1-bem-8%7C");
+    expect(screen.getByTestId("atividade-encerrar")).toBeEnabled();
+    expect(screen.getByTestId("atividade-encerrar")).not.toHaveAttribute("title");
+    expect(screen.queryByTestId("atividade-encerrar-sem-permissao")).toBeNull();
   });
 });
 

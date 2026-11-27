@@ -311,6 +311,13 @@ export default function DiarioDasAtividades({
 
   // ─── Permissão e fuso (como na Nova realização) ─────────────────────
   const podeGravar = acoes?.lancarApontamento === true && Boolean(empresaId) && Boolean(fuso) && fusoOk;
+  /**
+   * "Encerrar atividade" conclui a atividade, e o backend exige EDITAR a atividade (`POST /atividades/:id/concluir`, `g.editar`):
+   * sem isso, as frentes fechariam e a conclusão falharia. Mesma checagem do "Concluir" da Lançamento (`acoes.editar`).
+   * Quem só lança apontamento encerra o serviço (uma frente), mas não a atividade.
+   */
+  const podeEncerrarAtividade = acoes?.editar === true;
+  const avisoSemPermissaoEncerrar = !acoes?.carregando && !podeEncerrarAtividade;
   const avisoStatus = !acoes?.carregando && acoes?.lancarApontamento !== true
     ? "Sem permissão para registrar atividades."
     : empresaId && !fuso
@@ -602,7 +609,9 @@ export default function DiarioDasAtividades({
   // ─── D-PROD-346: encerrar uma frente e a atividade ──────────────────
   /**
    * Um apontamento do dia que encerra UMA frente: a linha `[encerramento-servico …]` na observação, com o horímetro final
-   * canônico e o responsável da frente como operador. Com várias áreas na atividade, a área do pasto (como a carga).
+   * canônico. Sem `operador_usuario_id`: o operador é opcional no apontamento, e o do responsável da abertura pode estar
+   * desativado (o servidor recusaria e a pessoa não encerraria). A abertura, com o responsável, segue na tag.
+   * Com várias áreas na atividade, a área do pasto (como a carga).
    * @param {any} abertura a abertura da frente @param {string} textoFinal o horímetro final digitado (pt-BR)
    */
   const gravarEncerramento = (abertura, textoFinal) =>
@@ -616,7 +625,6 @@ export default function DiarioDasAtividades({
         bemNome: abertura.bemNome,
         implementoNome: abertura.implementoNome,
       }),
-      operador_usuario_id: abertura.responsavelId,
     });
 
   const abrirEncerrarFrente = () => {
@@ -654,7 +662,7 @@ export default function DiarioDasAtividades({
   };
 
   const abrirEncerrarAtividade = () => {
-    if (enviando || apontamentosLidos.isPending) return;
+    if (enviando || apontamentosLidos.isPending || !podeEncerrarAtividade) return;
     setHorimetrosFim({});
     setErrosFim({});
     setEncerrandoAtividade(true);
@@ -665,7 +673,7 @@ export default function DiarioDasAtividades({
    * e a conclui. Se as máquinas já foram encerradas e a conclusão falha, avisa e deixa tentar de novo.
    */
   const encerrarAtividade = async () => {
-    if (enviandoRef.current || !podeGravar || !atividadeId) return;
+    if (enviandoRef.current || !podeGravar || !podeEncerrarAtividade || !atividadeId) return;
     const id = atividadeId;
     enviandoRef.current = true;
     setEnviando(true);
@@ -1101,16 +1109,30 @@ export default function DiarioDasAtividades({
           <button type="button" className={BOTAO_SECUNDARIO} onClick={() => setEncerrandoAtividade(false)} disabled={enviando} data-testid="atividade-encerrar-cancelar">
             Cancelar
           </button>
-          <button type="button" className={BOTAO_PRIMARIO} onClick={() => void encerrarAtividade()} disabled={!podeGravar || enviando || !frentesLidas} data-testid="atividade-encerrar-confirmar">
+          <button type="button" className={BOTAO_PRIMARIO} onClick={() => void encerrarAtividade()} disabled={!podeGravar || !podeEncerrarAtividade || enviando || !frentesLidas} data-testid="atividade-encerrar-confirmar">
             {enviando ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
             {enviando ? "Encerrando…" : "Encerrar atividade"}
           </button>
         </>
       ) : (
-        <button type="button" className={`${BOTAO_SECUNDARIO} b1-aberto-rodape-unico`} onClick={abrirEncerrarAtividade} disabled={enviando || apontamentosLidos.isPending} data-testid="atividade-encerrar">
-          <Square className="h-4 w-4" aria-hidden />
-          Encerrar atividade
-        </button>
+        <>
+          {avisoSemPermissaoEncerrar ? (
+            <p className="b1-realizacao__ajuda" role="note" data-testid="atividade-encerrar-sem-permissao">
+              Você não tem permissão para encerrar a atividade.
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className={`${BOTAO_SECUNDARIO} b1-aberto-rodape-unico`}
+            onClick={abrirEncerrarAtividade}
+            disabled={enviando || apontamentosLidos.isPending || !podeEncerrarAtividade}
+            title={avisoSemPermissaoEncerrar ? "Você não tem permissão para encerrar a atividade." : undefined}
+            data-testid="atividade-encerrar"
+          >
+            <Square className="h-4 w-4" aria-hidden />
+            Encerrar atividade
+          </button>
+        </>
       )
     ) : carga ? (
       // D-PROD-334: o "Salvar carga" é desenhado pela própria CargaDeInsumo, neste lugar (portal).
