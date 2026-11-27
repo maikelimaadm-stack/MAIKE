@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
-import { MapPin, Trash2, Check, X, Navigation, Crosshair, Satellite } from "lucide-react";
+import { MapPin, Trash2, Check, X, Navigation, Crosshair, Satellite, Footprints, Pause, Play, Square } from "lucide-react";
 import { toast } from "sonner";
 import {
   areaHectares,
@@ -11,23 +12,24 @@ import {
   validateLineForSave,
   validatePolygonForSave,
 } from "@/lib/geografia";
-import {
-  BASEMAP_IDS,
-  CENTRO_PADRAO,
-  getSatelliteProvider,
-  mensagemSateliteNaoConfigurado,
-  resolveBasemapProvider,
-} from "@/lib/maplibre/basemap.js";
+import { BASEMAP_IDS, CENTRO_PADRAO } from "@/lib/maplibre/basemap.js";
 import {
   buildDesenhoCollection,
   buildVerticesCollection,
 } from "@/lib/maplibre/geojsonBuilders.js";
 import {
-  applyBasemapStyle,
   createEditorMap,
+  ensureBusinessLayers,
   maplibregl,
   setSourceData,
 } from "@/lib/maplibre/lifecycle.js";
+import { useQuery } from "@tanstack/react-query";
+import { listarAreasAtivas, listarLinhasAtivas } from "@/services/mapaService";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import { SOURCE_IDS } from "@/lib/maplibre/estiloAreas.js";
+import { buildAreasCollection, buildLinhasCollection } from "@/lib/maplibre/geojsonBuilders.js";
+import { PREFIXOS_FONTES_NEGOCIO } from "@/lib/maplibre/basemapController.js";
+import useBasemap from "./useBasemap";
 import {
   GPS_SOURCE_IDS,
   PRECISAO_AVISO_METROS,
@@ -41,6 +43,7 @@ import {
   precisaoRuim,
 } from "@/lib/maplibre/gpsCapture.js";
 import { mensagemFalhaMapa } from "@/lib/maplibre/falhaWebGL";
+import { PASSO_PADRAO_M, PRECISAO_MAXIMA_M, deveGravar, simplificarTrilha } from "@/lib/maplibre/gravacaoCaminhando.js";
 
 const COR_AREA = "#10b981";
 const COR_LINHA = "#f59e0b";
@@ -164,15 +167,30 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
   const [mapError, setMapError] = useState(/** @type {string | null} */ (null));
   const [mapEpoch, setMapEpoch] = useState(0);
   const [seguirGps, setSeguirGps] = useState(true);
-  const [basemapId, setBasemapId] = useState(
-    /** @type {typeof BASEMAP_IDS.RUAS | typeof BASEMAP_IDS.SATELITE} */ (BASEMAP_IDS.RUAS)
-  );
-  const [satMsg, setSatMsg] = useState(/** @type {string | null} */ (null));
+  // D-PROD-363: caminhar gravando o contorno sozinho (cada leitura boa a ≥ 5 m da última vira ponto).
+  const [gravacao, setGravacao] = useState(/** @type {'parada'|'gravando'|'pausada'} */ ("parada"));
+
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
+  const { data: areas = [] } = useQuery({
+    queryKey: ["areas", empresaSelecionadaId],
+    queryFn: async () => listarAreasAtivas(empresaSelecionadaId),
+    enabled: !!empresaSelecionadaId,
+  });
+  const { data: linhas = [] } = useQuery({
+    queryKey: ["linhas", empresaSelecionadaId],
+    queryFn: async () => listarLinhasAtivas(empresaSelecionadaId),
+    enabled: !!empresaSelecionadaId,
+  });
+  const areasRef = useRef(areas);
+  areasRef.current = areas;
+  const linhasRef = useRef(linhas);
+  linhasRef.current = linhas;
+  const localizacaoRef = useRef(localizacaoAtual);
+  localizacaoRef.current = localizacaoAtual;
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const disposeRef = useRef(null);
-  const styleSwapCancelRef = useRef(null);
   const watchIdRef = useRef(null);
   const mountedRef = useRef(true);
   const followRef = useRef(true);
@@ -296,11 +314,12 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
     disposeRef.current = created.dispose;
     const map = created.map;
     userInteractedRef.current = false;
-    setBasemapId(BASEMAP_IDS.RUAS);
 
     const onLoad = () => {
       if (cancelled || created.getCancelled() || !mountedRef.current) return;
       try {
+        // D-PROD-363: os pastos e linhas já cadastrados por baixo da trilha (antes a tela só mostrava o GPS).
+        ensureBusinessLayers(map);
         ensureGpsCaptureLayers(map);
         setMapReady(true);
       } catch (err) {
@@ -343,8 +362,6 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
 
     return () => {
       cancelled = true;
-      styleSwapCancelRef.current?.cancel?.();
-      styleSwapCancelRef.current = null;
       map.off("load", onLoad);
       map.off("error", onError);
       map.off("dragstart", onDragStart);
@@ -381,6 +398,31 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
     }
   }, [localizacaoAtual, mapReady, seguirGps]);
 
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady) return;
+    setSourceData(map, SOURCE_IDS.AREAS, buildAreasCollection(areas));
+    setSourceData(map, SOURCE_IDS.LINHAS, buildLinhasCollection(linhas));
+  }, [areas, linhas, mapReady]);
+
+  // D-PROD-363: gravando, cada leitura boa do GPS longe o bastante da última vira ponto da trilha.
+  useEffect(() => {
+    if (gravacao !== "gravando" || !localizacaoAtual) return;
+    setPontos((prev) => {
+      if (!deveGravar(prev[prev.length - 1], localizacaoAtual)) return prev;
+      return [...prev, { lat: localizacaoAtual.lat, lng: localizacaoAtual.lng, accuracy: localizacaoAtual.accuracy, timestamp: localizacaoAtual.timestamp }];
+    });
+  }, [localizacaoAtual, gravacao]);
+
+  // Gravando, a tela não apaga (com a tela apagada o celular para o GPS do app).
+  useEffect(() => {
+    if (gravacao !== "gravando" || typeof navigator === "undefined" || !navigator.wakeLock?.request) return undefined;
+    let trava = null;
+    let solto = false;
+    navigator.wakeLock.request("screen").then((t) => { if (solto) t.release?.(); else trava = t; }).catch(() => {});
+    return () => { solto = true; trava?.release?.().catch?.(() => {}); };
+  }, [gravacao]);
+
   // Polígono/linha + vértices (GeoJSON) + marcadores numerados arrastáveis.
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -402,8 +444,6 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
   }, [pontos, modo, mapReady, limparVertexMarkers]);
 
   const retryMap = () => {
-    styleSwapCancelRef.current?.cancel?.();
-    styleSwapCancelRef.current = null;
     limparVertexMarkers();
     disposeRef.current?.();
     disposeRef.current = null;
@@ -413,56 +453,29 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
     setMapEpoch((n) => n + 1);
   };
 
-  const trocarBasemap = (id) => {
+  /** Refaz as camadas da captura (depois de um fundo que troca o estilo inteiro). */
+  const reaplicarCamadas = () => {
     const map = mapInstanceRef.current;
-    if (!map || !mapReady) return;
-
-    if (id === BASEMAP_IDS.SATELITE) {
-      const sat = getSatelliteProvider();
-      if (!sat.configured) {
-        setSatMsg(mensagemSateliteNaoConfigurado());
-        toast.message(mensagemSateliteNaoConfigurado());
-        return;
-      }
-    }
-
-    setSatMsg(null);
-    styleSwapCancelRef.current?.cancel?.();
-    styleSwapCancelRef.current = applyBasemapStyle(map, id, {
-      onReady: () => {
-        if (!mountedRef.current) return;
-        ensureGpsCaptureLayers(map);
-        setSourceData(map, GPS_SOURCE_IDS.USER, buildUserPointCollection(localizacaoAtual));
-        setSourceData(
-          map,
-          GPS_SOURCE_IDS.ACCURACY,
-          buildAccuracyCircleCollection(localizacaoAtual, localizacaoAtual?.accuracy)
-        );
-        setSourceData(map, GPS_SOURCE_IDS.DESENHO, buildGpsDesenhoCollection(pontosRef.current, modo));
-        setSourceData(map, GPS_SOURCE_IDS.VERTICES, buildGpsVerticesCollection(pontosRef.current, modo));
-        limparVertexMarkers();
-        vertexMarkersRef.current = createVertexMarkers(map, pontosRef.current, modo, (index, next) => {
-          setPontos((prev) => {
-            if (index < 0 || index >= prev.length) return prev;
-            const copy = [...prev];
-            copy[index] = next;
-            return copy;
-          });
-        });
-        /** @type {typeof BASEMAP_IDS.RUAS | typeof BASEMAP_IDS.SATELITE} */
-        const resolved =
-          resolveBasemapProvider(id).id === BASEMAP_IDS.SATELITE
-            ? BASEMAP_IDS.SATELITE
-            : BASEMAP_IDS.RUAS;
-        setBasemapId(resolved);
-        setMapError(null);
-      },
-      onError: (err) => {
-        if (!mountedRef.current) return;
-        setMapError(err?.message || "Falha ao trocar basemap");
-      },
-    });
+    if (!map) return;
+    ensureBusinessLayers(map);
+    ensureGpsCaptureLayers(map);
+    setSourceData(map, SOURCE_IDS.AREAS, buildAreasCollection(areasRef.current));
+    setSourceData(map, SOURCE_IDS.LINHAS, buildLinhasCollection(linhasRef.current));
+    setSourceData(map, GPS_SOURCE_IDS.USER, buildUserPointCollection(localizacaoRef.current));
+    setSourceData(map, GPS_SOURCE_IDS.ACCURACY, buildAccuracyCircleCollection(localizacaoRef.current, localizacaoRef.current?.accuracy));
+    setSourceData(map, GPS_SOURCE_IDS.DESENHO, buildGpsDesenhoCollection(pontosRef.current, modo));
+    setSourceData(map, GPS_SOURCE_IDS.VERTICES, buildGpsVerticesCollection(pontosRef.current, modo));
   };
+  // D-PROD-363: o mesmo controle de fundo do editor — abre no satélite (guardado para usar sem internet no app,
+  // D-PROD-294). Antes esta tela abria nas ruas e o satélite usava o provedor antigo ("Satélite não configurado").
+  const basemap = useBasemap(mapReady ? mapInstanceRef.current : null, {
+    inicial: BASEMAP_IDS.SATELITE,
+    reaplicarCamadas,
+    prefixosNegocio: [...PREFIXOS_FONTES_NEGOCIO, "m2a-"],
+  });
+  const basemapId = basemap.basemapId;
+  const satMsg = basemap.status === "erro" ? basemap.mensagem : null;
+  const trocarBasemap = (id) => basemap.setBasemap(id);
 
   const centralizarEmMim = () => {
     const map = mapInstanceRef.current;
@@ -496,6 +509,8 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
       lng: localizacaoAtual.lng,
       accuracy: localizacaoAtual.accuracy,
       timestamp: localizacaoAtual.timestamp,
+      // D-PROD-363: canto marcado à mão nunca sai quando a trilha gravada é enxugada.
+      fixo: true,
     };
 
     if (precisaoRuim(localizacaoAtual.accuracy)) {
@@ -506,6 +521,26 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
 
     setPontos((prev) => [...prev, novoPonto]);
     toast.success(`Ponto ${pontos.length + 1} marcado`);
+  };
+
+  const iniciarGravacao = () => {
+    if (gpsStatus === "erro") {
+      toast.error("Ligue o GPS para gravar caminhando");
+      return;
+    }
+    setGravacao("gravando");
+    setSeguirGps(true);
+    userInteractedRef.current = false;
+    toast.success(`Gravando: ande pela divisa. Um ponto a cada ${PASSO_PADRAO_M} m.`, { duration: 2500 });
+  };
+
+  const terminarGravacao = () => {
+    setGravacao("parada");
+    setPontos((prev) => {
+      const enxuta = simplificarTrilha(prev);
+      if (enxuta.length !== prev.length) toast.success(`Gravação terminada: ${enxuta.length} pontos (de ${prev.length})`, { duration: 2000 });
+      return enxuta;
+    });
   };
 
   const removerUltimoPonto = () => {
@@ -528,6 +563,9 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
 
   const handleSalvar = () => {
     if (salvandoRef.current) return;
+    // D-PROD-363: confirmar no meio da gravação termina a gravação (e enxuga a trilha) antes de salvar.
+    const pontos = gravacao === "parada" ? pontosRef.current : simplificarTrilha(pontosRef.current);
+    if (gravacao !== "parada") setGravacao("parada");
     const minimos = modo === "area" ? 3 : 2;
     if (pontos.length < minimos) {
       toast.error(`Marque pelo menos ${minimos} pontos`);
@@ -571,8 +609,8 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
           ? "GPS com erro"
           : "GPS inativo";
 
-  return (
-    <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+  const tela = (
+    <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col" style={{ paddingBottom: "env(safe-area-inset-bottom)" }} data-mk-captura-gps="">
       <div className="bg-white border-b border-slate-200 p-3 shadow-lg" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
@@ -580,7 +618,11 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
               {modo === "area" ? "Captura de Área" : "Captura de Linha"}
             </h3>
             <p className="text-xs text-slate-600 mt-0.5">
-              Ande e marque pontos em cada vértice
+              {gravacao === "gravando"
+                ? `Gravando: ande pela divisa (um ponto a cada ${PASSO_PADRAO_M} m)`
+                : gravacao === "pausada"
+                  ? "Gravação pausada"
+                  : "Grave caminhando ou marque cada canto"}
             </p>
           </div>
           <Button onClick={handleCancelar} variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Cancelar">
@@ -645,6 +687,15 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
                 <div className="text-xl font-bold text-slate-900">{pontos.length}</div>
                 <div className="text-xs text-slate-600">pontos</div>
               </div>
+              {gravacao !== "parada" && (
+                <>
+                  <div className="h-4 w-px bg-slate-300" />
+                  <div data-mk-gravando={gravacao} className={`flex items-center gap-1 text-xs font-bold ${gravacao === "gravando" ? "text-red-600" : "text-slate-500"}`}>
+                    <span className={`inline-block h-2.5 w-2.5 rounded-full ${gravacao === "gravando" ? "bg-red-600 animate-pulse" : "bg-slate-400"}`} />
+                    {gravacao === "gravando" ? "Gravando" : "Pausado"}
+                  </div>
+                </>
+              )}
               {medida && (
                 <>
                   <div className="h-4 w-px bg-slate-300" />
@@ -700,14 +751,59 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
           </Button>
         )}
 
-        <Button
-          onClick={adicionarPonto}
-          disabled={!localizacaoAtual}
-          className="w-full h-12 sm:h-14 text-base sm:text-lg font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
-        >
-          <MapPin className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
-          Marcar ponto {pontos.length + 1}
-        </Button>
+        {/* D-PROD-363: gravar caminhando (como no AgriWebb) ou marcar cada canto à mão; dá para misturar. */}
+        {gravacao === "parada" ? (
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              onClick={iniciarGravacao}
+              disabled={gpsStatus === "erro"}
+              className="h-12 sm:h-14 text-sm sm:text-base font-bold bg-red-600 hover:bg-red-700 disabled:opacity-50"
+            >
+              <Footprints className="w-5 h-5 mr-2" />
+              {pontos.length ? "Continuar gravando" : "Gravar caminhando"}
+            </Button>
+            <Button
+              onClick={adicionarPonto}
+              disabled={!localizacaoAtual}
+              className="h-12 sm:h-14 text-sm sm:text-base font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+            >
+              <MapPin className="w-5 h-5 mr-2" />
+              Marcar ponto {pontos.length + 1}
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              onClick={() => setGravacao(gravacao === "gravando" ? "pausada" : "gravando")}
+              variant="outline"
+              className="h-12 sm:h-14 text-sm font-bold"
+            >
+              {gravacao === "gravando" ? <Pause className="w-5 h-5 mr-1" /> : <Play className="w-5 h-5 mr-1" />}
+              {gravacao === "gravando" ? "Pausar" : "Continuar"}
+            </Button>
+            <Button
+              onClick={adicionarPonto}
+              disabled={!localizacaoAtual}
+              title="Marca um canto exato agora (nunca sai quando a trilha é enxugada)"
+              className="h-12 sm:h-14 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+            >
+              <MapPin className="w-5 h-5 mr-1" />
+              Canto
+            </Button>
+            <Button
+              onClick={terminarGravacao}
+              className="h-12 sm:h-14 text-sm font-bold bg-slate-800 hover:bg-slate-900"
+            >
+              <Square className="w-4 h-4 mr-1" />
+              Terminar
+            </Button>
+          </div>
+        )}
+        {gravacao === "gravando" && localizacaoAtual?.accuracy != null && localizacaoAtual.accuracy > PRECISAO_MAXIMA_M && (
+          <p className="text-xs font-semibold text-amber-700">
+            Sinal do GPS fraco (~{Math.round(localizacaoAtual.accuracy)} m): esperando melhorar para gravar.
+          </p>
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           <Button
@@ -732,4 +828,7 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
       </div>
     </div>
   );
+  // D-PROD-363: a captura abre de dentro do formulário lateral (uma janela com transform); no `body` ela sempre
+  // ocupa a tela inteira, sem ser cortada pela janela.
+  return typeof document !== "undefined" ? createPortal(tela, document.body) : tela;
 }
