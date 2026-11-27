@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { API_ERROR_CODES, getApiErrorMessage, hasApiErrorCode } from "@/apis/_core/ApiError";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import ResumoTarefasMapa from "@/components/tarefas/ResumoTarefasMapa";
-import { guardarFotosDaTarefa, enviarOuSepararFotos } from "@/services/fotosDeTarefaAguardandoService";
+import { guardarFotosDaTarefa, enviarOuSepararFotos, avisoDeFotosQueNaoCouberam } from "@/services/fotosDeTarefaAguardandoService";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 /**
@@ -91,7 +91,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         historico_data_evento: new Date().toISOString(),
       });
       const fotosGuardadas = paraGuardar.length ? await guardarFotosDaTarefa(criada.id, paraGuardar) : 0;
-      return { ...criada, _fotosGuardadas: fotosGuardadas };
+      return { ...criada, _fotosGuardadas: fotosGuardadas, _fotosPerdidas: paraGuardar.length - fotosGuardadas };
     },
     onSuccess: (criada) => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
@@ -106,6 +106,8 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
             ? 'Tarefa criada! As fotos ficaram no celular e sobem quando a internet firmar.'
             : 'Tarefa criada!'
       );
+      const perdidasNaCriacao = avisoDeFotosQueNaoCouberam(criada?._fotosPerdidas ?? 0);
+      if (perdidasNaCriacao) toast.warning(perdidasNaCriacao);
       fecharFormulario();
     },
     onError: (err) => {
@@ -142,7 +144,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         { fotosDaTela: previous?.fotos }
       );
       const fotosGuardadas = paraGuardar.length ? await guardarFotosDaTarefa(id, paraGuardar) : 0;
-      return { ...atualizada, _fotosGuardadas: fotosGuardadas };
+      return { ...atualizada, _fotosGuardadas: fotosGuardadas, _fotosPerdidas: paraGuardar.length - fotosGuardadas };
     },
     onSuccess: (atualizada) => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
@@ -156,6 +158,8 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
             ? 'Tarefa atualizada! As fotos ficaram no celular e sobem quando a internet firmar.'
             : 'Tarefa atualizada!'
       );
+      const perdidasNaEdicao = avisoDeFotosQueNaoCouberam(atualizada?._fotosPerdidas ?? 0);
+      if (perdidasNaEdicao) toast.warning(perdidasNaEdicao);
       fecharFormulario();
     },
     onError: (err) => {

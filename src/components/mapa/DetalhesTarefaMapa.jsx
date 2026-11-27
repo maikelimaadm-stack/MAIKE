@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Check, CircleX, ClipboardList, FileText, History, MapPin, MessageSquare, MessageSquarePlus, Plus, Repeat, SquarePen, Trash2 } from "lucide-react";
 import { atualizarTarefa, excluirTarefa } from "@/services/tarefasMapaService";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
-import { excluirFotoGuardada, guardarFotosDaTarefa, enviarOuSepararFotos, EVENTO_TAREFA_COM_FOTOS_ENVIADAS } from "@/services/fotosDeTarefaAguardandoService";
+import { excluirFotoGuardada, guardarFotosDaTarefa, enviarOuSepararFotos, EVENTO_TAREFA_COM_FOTOS_ENVIADAS, avisoDeFotosQueNaoCouberam } from "@/services/fotosDeTarefaAguardandoService";
 import useFotosGuardadasDaTarefa from "@/hooks/useFotosGuardadasDaTarefa";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -316,8 +316,9 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
         // D-PROD-335: a foto que subiu sozinha enquanto a tela estava aberta não é apagada.
         { fotosDaTela: currentTarefa?.fotos }
       );
-      if (paraGuardar.length) await guardarFotosDaTarefa(id, paraGuardar);
-      return atualizada;
+      // D-PROD-338: as fotos que não couberam no celular viram aviso (a tarefa já foi salva).
+      const guardadas = paraGuardar.length ? await guardarFotosDaTarefa(id, paraGuardar) : 0;
+      return { ...atualizada, _fotosPerdidas: paraGuardar.length - guardadas };
     },
     onSuccess: (updated) => {
       // Otimista no mapa e nas listas
@@ -329,9 +330,12 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
       queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
       queryClient.invalidateQueries({ queryKey: ["historico-tarefa-detalhe", updated.id] });
-      setCurrentTarefa(updated);
+      const { _fotosPerdidas: fotosPerdidas, ...semMarca } = updated ?? {};
+      setCurrentTarefa(semMarca);
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Tarefa atualizada.");
+      const avisoFotos = avisoDeFotosQueNaoCouberam(fotosPerdidas ?? 0);
+      if (avisoFotos) toast.warning(avisoFotos);
       setShowEdit(false);
       onSaved?.(updated);
     },

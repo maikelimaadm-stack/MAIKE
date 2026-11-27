@@ -10350,7 +10350,30 @@ Vários itens ficavam presos para sempre, sem botão:
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indica D-PROD-336, mas a D-PROD-335 está nas PRs #425 (Grupo 1) e #426 (diário), e uma delas vai passar a D-PROD-336. Esta é a D-PROD-337 e o marcador passa a D-PROD-338. Conferir de novo antes do merge (regra A5).
 
-## D-PROD-338 — Abertura do Diário das atividades: pasto com serviço antigo e máquina no envio
+## D-PROD-338 — Sem internet, Grupo 3: os limites (ordem, armazenamento, fotos, usuários, fazendas)
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário ("Vamos continuar nas partes de offline, de ajuste, de bug, correções de bug") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SEM-INTERNET-GRUPO3-D338-REPORT.md`](./SEM-INTERNET-GRUPO3-D338-REPORT.md)
+
+**Decisão.**
+1. **A fila de cadastros anda na ordem em que os itens entraram.** A ordem passa a ser a chave crescente do armazenamento, não a hora do celular. Antes, com o relógio corrigido para trás, o lote podia subir antes da área que ele cita.
+2. **Armazenamento cheio não finge que salvou.**
+   - Na criação sem internet, a fila é gravada antes da cópia.
+   - Na edição, a cópia volta ao valor de antes quando a fila não grava.
+   - Nos dois casos a tela recebe o erro. Antes o registro aparecia como salvo sem estar em fila nenhuma.
+3. **Guardar a foto no celular nunca derruba o salvar da tarefa.** `guardarFotosDaTarefa` não lança mais e devolve quantas fotos couberam. As que não couberam viram aviso. Antes a tela mostrava "Erro ao salvar tarefa", e salvar de novo criava outra tarefa.
+4. **A foto é conferida na hora da escolha.**
+   - A foto HEIC é recusada com uma explicação.
+   - A foto sem tipo ganha o tipo pela extensão.
+   - Arquivo que não é foto é recusado.
+   - A foto é reduzida já na escolha, então a guardada sem internet também fica pequena.
+   - A soma das fotos (salvas, guardadas no celular e novas) não passa de 3,5 MB. O servidor aceita 4 MB por tarefa.
+   - As miniaturas são liberadas ao sair do formulário.
+5. **As cópias de leitura são de quem entrou.** Quando outra pessoa entra no mesmo celular, as cópias de leitura e a cópia do mapa daquele cliente são apagadas antes de ela usar o app. Antes ficavam até alguém tocar em "Sair", e a pessoa seguinte via, sem internet, as listas da anterior, inclusive as que só um administrador vê.
+6. **Trocar de fazenda sem internet não mostra tudo vazio.** As listas do servidor são do cliente inteiro. Sem cópia própria da fazenda selecionada, a lista usa os registros dela (pelo `empresa_id`) que estão nas cópias das outras fazendas.
+
+> **Numeração:** a `main` (`0b482ce35`) indica `Próxima decisão: D-PROD-338`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-339. A D-PROD-336 continua com a PR #426. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-339 — Abertura do Diário das atividades: pasto com serviço antigo e máquina no envio
 
 **Causa (defeito 1).** Um pasto com uma atividade EM ANDAMENTO que não tem a linha `[abertura-servico ...]` na observação dos apontamentos (as criadas pelo fluxo antigo, como Gradagem e Combate à cigarrinha) abria o Diário direto no cabeçalho, com "Abertura não registrada neste serviço.". Não havia tela de tipo nem de abertura, então o usuário não conseguia iniciar nada.
 
@@ -10382,7 +10405,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 **Uma entrada só (pedido do dono).** Os Detalhes da área tinham três entradas de diário: a pílula "Manejos" do rodapé (abria a "Nova realização"), o botão verde "Diário das atividades" no topo da aba Manejos (D-PROD-332, PR #420) e a ação de linha "Diário da máquina" (a tela antiga `DiarioDaMaquina`). Agora a entrada é uma só, o "Diário das atividades" (`DiarioDoPasto`), aberto pela pílula "Manejos" do rodapé e pela ação de linha, que passa a se chamar "Diário das atividades". Religadas: a pílula "Manejos" (antes `JanelaRegistroDeCampo`) e a ação de linha (antes `DiarioDaMaquina`). Removida: o botão do topo da aba Manejos. Os arquivos `DiarioDaMaquina.jsx` e `RegistroDeCampo.jsx` continuam: a página Lançamento de Atividades segue usando os dois. Nos Detalhes da área, a "Nova realização" ainda abre pela ação de linha "+ Lançamento" (presa à atividade, D-PROD-278); só a pílula "Manejos" deixou de abri-la. Sem migration e sem backend. (Esta frase sobre a página foi superada pela "Organização das entradas" abaixo: a página deixou de usar a `DiarioDaMaquina`.)
 
-**Organização das entradas (pedido do dono, mesma D-PROD-338).** Lista final das entradas do diário:
+**Organização das entradas (pedido do dono, mesma D-PROD-339).** Lista final das entradas do diário:
 1. Pílula "Manejos" do rodapé da área (Detalhes da área): `DiarioDoPasto` sem atividade (lista "Em andamento neste pasto" ou, sem atividade aberta, o tipo).
 2. Ação de linha "Diário das atividades" da atividade em andamento na área (⚡ na aba Manejos): `DiarioDoPasto` com a atividade.
 3. Ação de linha "Diário das atividades" na página Lançamento de Atividades (⚡ de atividade ABERTA com pasto em andamento; abre no primeiro pasto em andamento): `DiarioDoPasto` com a atividade lida. A lista da página relê ao gravar (prop `aoGravar`).
@@ -10395,6 +10418,6 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 - Pílula "Manejos" e a ação de linha da área abrem o mesmo diário por caminhos diferentes (no rodapé, sem atividade escolhida; na linha, com ela). Ficam as duas porque a lista do dono as nomeia. Se o dono quiser uma só, a ação de linha de `AcoesDaAtividadeDaArea.jsx` sai numa linha: é decisão dele.
 - "Iniciar serviço" é o botão de dentro do diário, não uma entrada. "Iniciar atividade" não existe mais no código.
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`471ad9c9d`) indicou D-PROD-334. A PR #424 (Insumo) reservou o 334, então esta correção é a D-PROD-338, e o marcador passa a D-PROD-339. Conferir de novo antes do merge (regra A5).
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`471ad9c9d`) indicou D-PROD-334. A PR #424 (Insumo) reservou o 334, então esta correção é a D-PROD-339, e o marcador passa a D-PROD-340. A PR #428 (offline, Grupo 3) mergeou antes com a D-PROD-338, por isso esta passou de 338 a 339.
 
-<!-- Próxima decisão: D-PROD-339 -->
+<!-- Próxima decisão: D-PROD-340 -->

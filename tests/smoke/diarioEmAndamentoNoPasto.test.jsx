@@ -1,5 +1,5 @@
 /**
- * D-PROD-338 — o "Diário das atividades" com atividades abertas no pasto (service mockado):
+ * D-PROD-339 — o "Diário das atividades" com atividades abertas no pasto (service mockado):
  *  (1) com 2 abertas: a 1ª tela é "Em andamento neste pasto" com as 2 e "Nova atividade"; cada uma com a etiqueta da abertura;
  *  (2) sem nenhuma aberta: abre direto no tipo, sem "Voltar" para a lista;
  *  (3) "Nova atividade" leva ao tipo; do tipo, o Voltar volta à lista;
@@ -7,7 +7,7 @@
  *  (5) tocar a aberta SEM abertura: formulário de abertura com o tipo e a operação dela já definidos;
  *  (6) falha ao ler: aviso (notifyWarning) e fica na lista;
  *  (7) tipo com atividade aberta no pasto: "Já existe … entra nela como mais uma frente." (só aviso); outro tipo, sem o aviso.
- * D-PROD-338 (emenda, frentes): (b) um cartão por frente (máquina, implemento, responsável, início); (c) tocar uma frente abre só
+ * D-PROD-339 (emenda, frentes): (b) um cartão por frente (máquina, implemento, responsável, início); (c) tocar uma frente abre só
  *  ela; (e) Nova atividade do mesmo tipo com outra máquina envia; (f)/(f2) mesma máquina+implemento não envia (ou envia, com outro
  *  implemento); (g)/(g2) continuar com duas abertas do mesmo tipo não envia (P1), com uma só envia.
  */
@@ -122,7 +122,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("Diário das atividades — Em andamento neste pasto (D-PROD-338)", () => {
+describe("Diário das atividades — Em andamento neste pasto (D-PROD-339)", () => {
   it("(1) com 2 abertas, a 1ª tela é a lista delas, com a etiqueta de cada abertura e o botão Nova atividade", async () => {
     renderizar({ atividadesAbertas: [ABERTA_COM_ABERTURA, ABERTA_SEM_ABERTURA] });
     expect(screen.getByTestId("diario-atividades-escolher")).toBeInTheDocument();
@@ -204,7 +204,7 @@ describe("Diário das atividades — Em andamento neste pasto (D-PROD-338)", () 
   });
 });
 
-// ─── D-PROD-338 (emenda): uma abertura por máquina + implemento (frentes) ─────
+// ─── D-PROD-339 (emenda): uma abertura por máquina + implemento (frentes) ─────
 
 const MSG_FRENTE_DUPLICADA = "Esta máquina com este implemento já tem serviço aberto neste pasto. Toque nele na lista para continuar.";
 const MSG_TIPO_AMBIGUO = "Há mais de uma atividade deste tipo aberta neste pasto, e o servidor não deixa escolher qual recebe a abertura. Conclua uma delas e tente de novo.";
@@ -262,7 +262,7 @@ const novaAplicacao = async () => {
   await screen.findByTestId("abertura-form");
 };
 
-describe("Diário das atividades — frentes: uma abertura por máquina + implemento (D-PROD-338, emenda)", () => {
+describe("Diário das atividades — frentes: uma abertura por máquina + implemento (D-PROD-339, emenda)", () => {
   beforeEach(() => {
     servico.listarOpcoesBens.mockResolvedValue(BENS_TRES);
     servico.listarOpcoesOperadores.mockResolvedValue(OPERADORES_DUAS);

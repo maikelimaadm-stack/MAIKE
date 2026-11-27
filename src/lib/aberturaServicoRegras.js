@@ -200,7 +200,7 @@ export const aberturaDosApontamentos = (itens) => {
   return null;
 };
 
-// ─── Frentes: uma abertura por máquina + implemento (D-PROD-338, emenda) ─────
+// ─── Frentes: uma abertura por máquina + implemento (D-PROD-339, emenda) ─────
 
 /**
  * A chave de uma frente: a máquina e o implemento da abertura (`bemId|implementoId`). Implemento vazio vale como chave

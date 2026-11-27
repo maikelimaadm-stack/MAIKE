@@ -136,7 +136,7 @@ describe("R$ escondido para o operador", () => {
   });
 });
 
-describe("Diário das atividades no pasto (Detalhes da área, D-PROD-332, D-PROD-338)", () => {
+describe("Diário das atividades no pasto (Detalhes da área, D-PROD-332, D-PROD-339)", () => {
   const PASTO = { id: "area-A", nome: "PASTO A", tipo_cultura: "Pastagem", tamanho_hectares: "22.0000" };
   const RESUMO_VAZIO = { area_id: "area-A", mes: "2026-11", atividades: [], custos: null, planejamentos: [] };
   const RESUMO_COM_CUSTO = {
@@ -155,7 +155,7 @@ describe("Diário das atividades no pasto (Detalhes da área, D-PROD-332, D-PROD
     );
   };
 
-  it("D-PROD-338: a aba Manejos não tem mais o botão \"Diário das atividades\" (a entrada é a pílula Manejos do rodapé e a ação de linha)", async () => {
+  it("D-PROD-339: a aba Manejos não tem mais o botão \"Diário das atividades\" (a entrada é a pílula Manejos do rodapé e a ação de linha)", async () => {
     await montar("manejos");
     await screen.findByText("Nenhuma atividade nesta área agora.");
     expect(screen.queryByTestId("area-diario-atividades")).toBeNull();
@@ -176,7 +176,7 @@ describe("Diário das atividades no pasto (Detalhes da área, D-PROD-332, D-PROD
     expect(await within(admin.container).findByText("Custo total")).toBeTruthy();
   });
 
-  it("D-PROD-338: o diário do pasto (DiarioDoPasto, a pílula e a ação de linha) abre a lista das abertas sem ler nada no clique; tocar numa lê a atividade", async () => {
+  it("D-PROD-339: o diário do pasto (DiarioDoPasto, a pílula e a ação de linha) abre a lista das abertas sem ler nada no clique; tocar numa lê a atividade", async () => {
     const { obterAtividade } = await import("@/services/lancamentoAtividadesService");
     const DiarioDoPasto = (await import("@/components/mapa/detalhes-area/DiarioDoPasto")).default;
     const ABERTA = { atividade_id: "at-1", numero: 10, nome: "Aplicação · nov/26", tipo_atividade_id: "op-1", tipo_atividade_nome: "Aplicação", status: "ABERTA", area_status: "EM_ANDAMENTO", data_inicio: "2026-11-02" };

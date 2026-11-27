@@ -149,6 +149,12 @@ describe('D-PROD-204 — mapa de ids offline entre passadas do replay', () => {
     // exclusão só online: o delete na fila fica retido (quarentena) e não é enviado
     createOfflineEntityAdapter({ entityName: 'AreaPastagem', operations: opsArea, storage, exclusao: 'somente_online' });
     await storage.adicionarNaFila(criacaoDaArea());
+    // retido na própria passada 1 (antes da falha): não é enviado, mas também é reescrito.
+    // D-PROD-338: a fila anda na ordem em que os itens ENTRARAM (não pela hora gravada), então ele entra logo depois.
+    await storage.adicionarNaFila({
+      entity_name: 'AreaPastagem', empresa_id: 'emp-1', operation: 'delete', record_id: AREA_OFF,
+      created_at: '2026-11-01T00:00:00.500Z',
+    });
     await storage.adicionarNaFila({
       entity_name: 'OutraEntidade', empresa_id: 'emp-1', operation: 'update', record_id: 'x1',
       data: { nome: 'Y' }, created_at: '2026-11-01T00:00:01Z',
@@ -156,11 +162,6 @@ describe('D-PROD-204 — mapa de ids offline entre passadas do replay', () => {
     await storage.adicionarNaFila({
       entity_name: 'AreaPastagem', empresa_id: 'emp-1', operation: 'update', record_id: AREA_OFF,
       data: { id: AREA_OFF, nome: 'PIQUETE 1A' }, created_at: '2026-11-01T00:00:02Z',
-    });
-    // retido na própria passada 1 (antes da falha): não é enviado, mas também é reescrito
-    await storage.adicionarNaFila({
-      entity_name: 'AreaPastagem', empresa_id: 'emp-1', operation: 'delete', record_id: AREA_OFF,
-      created_at: '2026-11-01T00:00:00.500Z',
     });
     opsArea.create.mockImplementationOnce(async (d) => {
       // entra na fila DURANTE a passada 1 (depois de listada): também é reescrito

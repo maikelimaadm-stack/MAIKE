@@ -97,7 +97,7 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
     const lancar = ac.lancarApontamento
       ? [
           { key: "lancar-dia", label: "+ Lançamento", icon: <Plus size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "dia") },
-          // Diário das atividades (D-PROD-314, D-PROD-338): só numa atividade em andamento NESTA área. É a mesma entrada da
+          // Diário das atividades (D-PROD-314, D-PROD-339): só numa atividade em andamento NESTA área. É a mesma entrada da
           // pílula "Manejos" do rodapé (o DiarioDoPasto); o botão do topo da aba foi tirado.
           ...(emAndamentoNaArea
             ? [{ key: "diario", label: "Diário das atividades", icon: <Tractor size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "diario") }]

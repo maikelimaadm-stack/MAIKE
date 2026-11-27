@@ -130,7 +130,7 @@ export const CAMPOS_DO_REGISTRO_DE_CAMPO = Object.freeze([
   'maquinas',
   'mao_obra',
   'servicos',
-  // D-PROD-338: a máquina da abertura do serviço (o `bem_id` da atividade criada; não é linha de uso). Sem ele aqui, a
+  // D-PROD-339: a máquina da abertura do serviço (o `bem_id` da atividade criada; não é linha de uso). Sem ele aqui, a
   // porta descartava o campo em silêncio e a atividade ficava sem máquina.
   'bem_id',
 ]);
