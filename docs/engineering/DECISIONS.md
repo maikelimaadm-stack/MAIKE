@@ -10891,9 +10891,9 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-364 (362 etapa 2, PR #450; 363 etapa 3, ainda local). O marcador passa a D-PROD-365. Conferir antes do merge (regra A5).
 
-## D-PROD-365 — Cadastrar no mapa como no AgriWebb, etapa 5: KMZ e exclusão sem internet que não fica pela metade
+## D-PROD-367 — Cadastrar no mapa como no AgriWebb, etapa 5: KMZ e exclusão sem internet que não fica pela metade
 
-**Data:** 2026-11-27 · **Origem:** pedido do proprietário (o mapa como no AgriWebb, também sem internet) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`MAPA-CADASTRO-ETAPA5-D365-REPORT.md`](./MAPA-CADASTRO-ETAPA5-D365-REPORT.md)
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário (o mapa como no AgriWebb, também sem internet) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`MAPA-CADASTRO-ETAPA5-D367-REPORT.md`](./MAPA-CADASTRO-ETAPA5-D367-REPORT.md)
 
 **Decisão.**
 1. **A importação de áreas aceita KMZ**, o KML compactado que o Google Earth e o AgriWebb exportam.
@@ -10909,6 +10909,6 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
    - a conferência dos vínculos no servidor ao desativar a área, que permitiria guardar a exclusão do pasto para depois;
    - dividir e juntar pastos, que mexe no gado de dentro e no histórico.
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-365 (363 etapa 3, PR #451; 364 etapa 4, ainda local). O marcador passa a D-PROD-366. Conferir antes do merge (regra A5).
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-367 (363 e 364 são as etapas 3 e 4, PRs #451 e #452; 365 e 366 estão reservados pelas PRs #453 e #454). O marcador passa a D-PROD-368. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-366 -->
+<!-- Próxima decisão: D-PROD-368 -->

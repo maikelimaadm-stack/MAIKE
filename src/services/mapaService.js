@@ -128,7 +128,7 @@ const CARREGADORES_DE_DEPENDENCIA = {
  * @throws {ApiError} `MAPA_DELETE_BLOCKED` quando há registro vinculado
  */
 export const excluirArea = async (id, empresaId) => {
-  // D-PROD-365: sem internet não dá para conferir o histórico da área (as movimentações antigas só o servidor tem; o
+  // D-PROD-367: sem internet não dá para conferir o histórico da área (as movimentações antigas só o servidor tem; o
   // servidor não confere de novo na desativação). Nada é feito nem guardado; a mensagem diz que precisa de conexão.
   if (semInternet()) {
     throw new ApiError(API_ERROR_CODES.OFFLINE_DELETE_FORBIDDEN, {
@@ -232,7 +232,7 @@ export const excluirPontoComCascata = async (pontoId, empresaId, pontoConhecido 
   }
   const suplementacao = ligacao.registro;
   const bebedouros = bebedourosDoPonto({ id: pontoId }, todosBebedouros);
-  // D-PROD-365: ponto ligado a cocho/depósito/bebedouro ativo precisa do servidor para conferir o histórico deles.
+  // D-PROD-367: ponto ligado a cocho/depósito/bebedouro ativo precisa do servidor para conferir o histórico deles.
   // Sem internet, nada é feito; o ponto simples segue para a fila, como antes.
   if (semInternet() && (suplementacao || bebedouros.some((b) => b.ativo !== false))) {
     throw new ApiError(API_ERROR_CODES.OFFLINE_DELETE_FORBIDDEN, {

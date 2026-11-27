@@ -1,6 +1,6 @@
-# Relatório: cadastrar no mapa como no AgriWebb, etapa 5 — KMZ e exclusão sem internet (D-PROD-365)
+# Relatório: cadastrar no mapa como no AgriWebb, etapa 5 — KMZ e exclusão sem internet (D-PROD-367)
 
-**Data:** 2026-11-27 · **Branch:** `claude/nifty-feynman-rh0kdn` · **Decisão:** [D-PROD-365](./DECISIONS.md)
+**Data:** 2026-11-27 · **Branch:** `claude/nifty-feynman-rh0kdn` · **Decisão:** [D-PROD-367](./DECISIONS.md)
 
 ## Pedido
 
@@ -30,7 +30,7 @@ O proprietário pediu o mapa como no AgriWebb, "já confirma também offline". O
 
 ## Verificação
 
-- `tests/smoke/excluirSemInternetKmzD365.test.js`:
+- `tests/smoke/excluirSemInternetKmzD367.test.js`:
   - EK-03, EX-01 e EX-03 falham no código antigo;
   - EK-01 e EK-02 são do módulo novo;
   - EX-02 e EX-04 garantem que nada mudou com internet e no ponto simples sem internet.

@@ -267,7 +267,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
       return;
     }
     try {
-      // D-PROD-365: KMZ é um KML compactado — abre no aparelho e lê o KML de dentro.
+      // D-PROD-367: KMZ é um KML compactado — abre no aparelho e lê o KML de dentro.
       if (eKmz(file.name)) {
         const kmz = kmlDoKmz(new Uint8Array(await file.arrayBuffer()));
         if ("erro" in kmz) {

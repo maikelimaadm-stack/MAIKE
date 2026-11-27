@@ -1,5 +1,5 @@
 /**
- * D-PROD-365 — cadastrar no mapa como no AgriWebb, etapa 5:
+ * D-PROD-367 — cadastrar no mapa como no AgriWebb, etapa 5:
  *  - KMZ (KML compactado do Google Earth/AgriWebb) abre no aparelho e importa como o KML;
  *  - sem internet, excluir pasto (e ponto ligado a cocho/depósito/bebedouro) não faz nada pela metade: avisa que
  *    precisa de conexão (o histórico só o servidor tem); ponto simples e linha continuam indo para a fila.
@@ -59,7 +59,7 @@ afterEach(() => {
   else delete navigator.onLine;
 });
 
-describe('D-PROD-365 — KMZ', () => {
+describe('D-PROD-367 — KMZ', () => {
   it('EK-01: abre o doc.kml de dentro do KMZ (imagens ficam de fora) e a importação lê as áreas', async () => {
     const { kmlDoKmz, eKmz } = await import('@/lib/geografia/kmz.js');
     const { lerArquivoDeAreas } = await import('@/lib/geografia/importacaoAreas.js');
@@ -88,7 +88,7 @@ describe('D-PROD-365 — KMZ', () => {
   });
 });
 
-describe('D-PROD-365 — excluir sem internet', () => {
+describe('D-PROD-367 — excluir sem internet', () => {
   it('EX-01: pasto sem internet: avisa que precisa de conexão e não desativa nada', async () => {
     online = false;
     api.listAreas.mockResolvedValue([{ id: 'a1', empresa_id: E, nome: 'PASTO 1' }]);

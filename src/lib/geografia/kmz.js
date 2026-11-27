@@ -2,7 +2,7 @@ import { unzipSync, strFromU8 } from "fflate";
 import { LIMITES_ARQUIVO } from "./importacaoAreas.js";
 
 /**
- * D-PROD-365 — KMZ (o KML compactado que o Google Earth e o AgriWebb exportam). O KMZ é um ZIP com um `.kml` dentro
+ * D-PROD-367 — KMZ (o KML compactado que o Google Earth e o AgriWebb exportam). O KMZ é um ZIP com um `.kml` dentro
  * (normalmente `doc.kml`); a importação lê esse KML como já lia o `.kml` solto. Tudo no aparelho, sem servidor.
  *
  * Proteções: só arquivos `.kml` são abertos (imagens e ícones do KMZ ficam de fora) e o KML aberto não pode passar do
