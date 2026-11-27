@@ -19,11 +19,14 @@ import { resolverFiguraDoPasto, urlMarcadorLote } from "@/assets/icones/lotes";
 import { parseVertex, parseVertices, toGeoJsonLineString, toGeoJsonPolygon } from "@/lib/geografia/coords.js";
 import { corExibidaNoMapa, paintAreaDestaque, paintAreaDivisa, paintAreaFill } from "./estiloAreas.js";
 import { pointInPolygonRing, safeCentroid } from "./taskLocationPicker.js";
+import { LOTES_IDENT_LAYER_ID, LOTES_LAYER_ID, LOTES_SOURCE_ID, ensureLotesLayers } from "./lotesNoMapa.js";
 
 export const MG_SOURCE_IDS = Object.freeze({
   AREAS: "mg-areas",
   LINHAS: "mg-linhas",
   USER: "mg-user",
+  /** Lotes desenhados pelo mapa (D-PROD-348). */
+  LOTES: LOTES_SOURCE_ID,
 });
 
 export const MG_LAYER_IDS = Object.freeze({
@@ -33,6 +36,9 @@ export const MG_LAYER_IDS = Object.freeze({
   LINHAS: "mg-linhas",
   USER_FILL: "mg-user-fill",
   USER_LINE: "mg-user-line",
+  /** Ícone do lote com a contagem e, por cima, o identificador (D-PROD-348). */
+  LOTES: LOTES_LAYER_ID,
+  LOTES_IDENT: LOTES_IDENT_LAYER_ID,
 });
 
 const vazio = () => ({ type: "FeatureCollection", features: [] });
@@ -345,13 +351,8 @@ export function textoHectares(area) {
   return `ha ${ha.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** Ícone sem achatar (sem piso no eixo menor). */
-export function iconeSemAchatar(naturalWidth, naturalHeight, base) {
-  const w = naturalWidth > 0 ? naturalWidth : base;
-  const h = naturalHeight > 0 ? naturalHeight : base;
-  const r = w / h;
-  return r >= 1 ? { width: base, height: Math.max(1, Math.round(base / r)) } : { width: Math.max(1, Math.round(base * r)), height: base };
-}
+/** Ícone sem achatar (sem piso no eixo menor) — em `iconeSemAchatar.js`, também usado pelos lotes desenhados pelo mapa. */
+export { iconeSemAchatar } from "./iconeSemAchatar.js";
 
 const norm = (v) => String(v ?? "").toUpperCase().trim();
 const normAcento = (v) => String(v ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toUpperCase();
@@ -516,7 +517,7 @@ export function aplicarEstiloPasto(map, estilo) {
 
 /**
  * Sources/layers do Mapa Geral — idempotente (reaplicável após setStyle).
- * Ordem: áreas (fill, divisa, destaque) → linhas → localização.
+ * Ordem: áreas (fill, divisa, destaque) → linhas → localização → lotes (D-PROD-348, por cima de tudo).
  * @param {any} map
  */
 export function ensureMgLayers(map) {
@@ -541,4 +542,5 @@ export function ensureMgLayers(map) {
   });
   layer({ id: MG_LAYER_IDS.USER_FILL, type: "fill", source: MG_SOURCE_IDS.USER, paint: { "fill-color": "#4285F4", "fill-opacity": 0.15 } });
   layer({ id: MG_LAYER_IDS.USER_LINE, type: "line", source: MG_SOURCE_IDS.USER, paint: { "line-color": "#4285F4", "line-opacity": 0.3, "line-width": 1 } });
+  ensureLotesLayers(map);
 }

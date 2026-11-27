@@ -3,16 +3,19 @@
  *
  * O motor (src/assets/icones/lotes) tem os testes dele em iconesLoteMotor.test.js.
  * Aqui é a integração com o mapa: `resolverIconeLote` (mapaGeralRender) e o
- * marcador que `syncLotes` (useMapRenderer) põe no mapa, com MapLibre falso.
+ * lote que `syncLotes` (useMapRenderer) põe no mapa, com MapLibre e canvas falsos.
+ * Desde a D-PROD-348 o lote é desenhado pelo mapa: um ponto na fonte `mg-lotes`
+ * (com `desenho` = chave do motor) e uma imagem montada no canvas a partir da
+ * data URL do motor, com a contagem escrita dentro.
  *
  *  ILM-1. Nunca sai sem figura: `iconUrl` é sempre a data URL do SVG do marcador
  *         (lista vazia, posição sem categoria, categoria desconhecida, sexo "Misto").
  *  ILM-2. O resolver não lê ConfiguracaoIcone: ícones de Lote com `icone_url` não
  *         mudam nada; o Mapa Geral passa as Categorias de Manejo ao `syncLotes`.
- *  ILM-3. O marcador de `syncLotes`: <img> com a data URL, `data-icone-lote` igual à
+ *  ILM-3. O lote de `syncLotes`: imagem desenhada da data URL do motor, `desenho` igual à
  *         chave do motor, contagem a CONTAGEM_TOPO_PCT % e largura LARGURA_MARCADOR_PX.
  *  ILM-4. Troca de categoria (na posição ou na própria Categoria de Manejo) troca o
- *         desenho no MESMO marcador; a mesma figura não recria o <img>.
+ *         desenho no MESMO lote (mesmo id na fonte); a mesma figura não é redesenhada.
  */
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,7 +23,9 @@ import { renderHook } from "@testing-library/react";
 
 import { CONTAGEM_TOPO_PCT, LARGURA_MARCADOR_PX, resolverFiguraDoPasto, urlMarcadorLote } from "@/assets/icones/lotes";
 import { resolverIconeLote } from "@/lib/maplibre/mapaGeralRender.js";
+import { LOTES_SOURCE_ID, limparCacheImagensLotes } from "@/lib/maplibre/lotesNoMapa.js";
 import useMapRenderer from "@/components/mapa/useMapRenderer.jsx";
+import { instalarCanvasFalso } from "./helpers/canvasLotesFalso.js";
 
 // ─── MapLibre falso (mesmo padrão de maplibreAreasUnificacao.test.jsx) ───
 const marcadores = vi.hoisted(() => /** @type {any[]} */ ([]));
@@ -48,10 +53,6 @@ vi.mock("@/lib/maplibre/lifecycle.js", async (orig) => {
     getElement() {
       return this.el;
     }
-    setDraggable(v) {
-      this.draggable = v;
-      return this;
-    }
     setOffset(o) {
       this.offset = o;
       return this;
@@ -77,19 +78,23 @@ vi.mock("@/lib/maplibre/lifecycle.js", async (orig) => {
     }
     remove() {}
   }
-  return { ...real, maplibregl: { Marker, Popup, LngLatBounds: class {} }, setSourceData: (map, id, data) => map.data.set(id, data) };
+  return { ...real, maplibregl: { Marker, Popup, LngLatBounds: class {} }, setSourceData: (map, id, data) => map?.data?.set(id, data) };
 });
 
 const mkMap = () => {
   const handlers = [];
+  const images = new Map();
   return {
     container: document.createElement("div"),
     data: new Map(),
     handlers,
+    images,
     getSource: () => undefined,
     addSource: () => {},
     getLayer: () => undefined,
     addLayer: () => {},
+    addImage: (id, img, opts) => images.set(id, { img, opts }),
+    hasImage: (id) => images.has(id),
     on: (...a) => handlers.push(a),
     off: (...a) => {
       const i = handlers.findIndex((h) => h[0] === a[0] && h[h.length - 1] === a[a.length - 1]);
@@ -160,8 +165,8 @@ const doMotor = (posicoes, categorias) => {
   return { iconUrl: urlMarcadorLote(icone), chave: icone.chave, nivel: icone.nivel, rotulo: icone.rotulo };
 };
 
-/** Marcador de lote ainda no mapa (o que tem a contagem). */
-const marcadoresDeLote = () => marcadores.filter((m) => !m.removed && m.el.querySelector(".mg-lote-count"));
+/** Lotes na fonte do mapa (D-PROD-348). */
+const lotesNaFonte = (map) => map.data.get(LOTES_SOURCE_ID)?.features || [];
 
 /** Fonte sem comentários: comentário explicativo não é código. */
 const codigoDe = (rel) =>
@@ -170,9 +175,12 @@ const codigoDe = (rel) =>
     .replace(/^\s*\/\/.*$/gm, "");
 
 let renderer = null;
+let canvas;
 beforeEach(() => {
   marcadores.length = 0;
   renderer = null;
+  limparCacheImagensLotes();
+  canvas = instalarCanvasFalso();
 });
 afterEach(() => {
   // Cancela o quadro agendado para os rótulos e derruba os marcadores.
@@ -254,60 +262,54 @@ describe("ILM-2 — ConfiguracaoIcone não decide mais o ícone do lote", () => 
     expect(mapa).toMatch(/if \(icone\.tipo_entidade === 'Lote'\) return;/);
   });
 
-  it("syncLotes com ícones de upload no 4º argumento continua desenhando o ícone do código", () => {
-    const { r } = montar();
+  it("syncLotes com ícones de upload no 4º argumento continua desenhando o ícone do código", async () => {
+    const { map, r } = montar();
     renderer = r;
     const lotes = [pos("p1", null, 5, { categoria: "BOI" })];
-    r.syncLotes(lotes, [AREA], true, ICONES_LOTE_UPLOAD, vi.fn(), vi.fn(), true, false);
-    const [m] = marcadoresDeLote();
-    const src = m.el.querySelector("img").getAttribute("src");
-    expect(src).toMatch(DATA_SVG);
-    expect(src).not.toContain("exemplo.invalid");
-    expect(m.el.dataset.iconeLote).toBe(resolverFiguraDoPasto(lotes, []).chave);
+    await r.syncLotes(lotes, [AREA], true, ICONES_LOTE_UPLOAD, vi.fn(), vi.fn(), true, false);
+    const [f] = lotesNaFonte(map);
+    expect(f.properties.desenho).toBe(resolverFiguraDoPasto(lotes, []).chave);
+    // a figura desenhada na imagem é a data URL do motor, nunca o upload
+    expect(canvas.figurasCarregadas).toHaveLength(1);
+    expect(canvas.figurasCarregadas[0]).toMatch(DATA_SVG);
+    expect(canvas.figurasCarregadas[0]).not.toContain("exemplo.invalid");
+    expect(canvas.figurasCarregadas[0]).toBe(urlMarcadorLote(resolverFiguraDoPasto(lotes, [])));
   });
 });
 
-describe("ILM-3 — o marcador que syncLotes põe no mapa", () => {
-  it("<img> com a data URL, data-icone-lote, contagem no centro da faixa e largura do motor", () => {
+describe("ILM-3 — o lote que syncLotes põe no mapa (D-PROD-348: desenhado pelo mapa)", () => {
+  it("imagem da data URL do motor, `desenho` = chave do motor, contagem no centro da faixa e largura do motor", async () => {
     const { map, r } = montar();
     renderer = r;
     const lotes = [pos("p1", "cat-touro", 30), pos("p2", "cat-touro", 12)];
-    r.syncLotes(lotes, [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
+    await r.syncLotes(lotes, [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
 
-    const doLote = marcadoresDeLote();
+    const doLote = lotesNaFonte(map);
     expect(doLote).toHaveLength(1);
-    const m = doLote[0];
-    expect(map.container.contains(m.el)).toBe(true);
-
+    const f = doLote[0];
     const icone = resolverFiguraDoPasto(lotes, CATEGORIAS);
-    const img = m.el.querySelector("img");
-    const src = img.getAttribute("src");
-    expect(src).toMatch(DATA_SVG);
-    expect(src).toBe(urlMarcadorLote(icone));
-    expect(m.el.dataset.iconeLote).toBe(icone.chave);
-    expect(m.el.getAttribute("data-icone-lote")).toBe(icone.chave);
+    const src = urlMarcadorLote(icone);
+    expect(canvas.figurasCarregadas).toEqual([src]);
+    expect(f.properties.desenho).toBe(icone.chave);
     expect(svgDaUrl(src).getAttribute("data-icone-lote")).toBe(icone.chave);
+    expect(f.properties.contagem).toBe("42");
+    expect(map.images.has(f.properties.imagem)).toBe(true);
 
-    const contagem = m.el.querySelector(".mg-lote-count");
-    expect(contagem.textContent).toBe("42");
-    expect(contagem.style.top).toBe(`${CONTAGEM_TOPO_PCT}%`);
-    expect(contagem.style.left).toBe("50%");
-
-    // Antes de carregar: a caixa do motor; depois, a largura fica e a altura segue o desenho.
-    expect(img.style.width).toBe(`${LARGURA_MARCADOR_PX}px`);
-    expect(img.style.height).toBe(`${LARGURA_MARCADOR_PX}px`);
+    // a figura ocupa LARGURA_MARCADOR_PX de largura e a altura segue o desenho (sem achatar)
     const svg = svgDaUrl(src);
     const largura = Number(svg.getAttribute("width"));
     const altura = Number(svg.getAttribute("height"));
-    Object.defineProperty(img, "naturalWidth", { value: largura });
-    Object.defineProperty(img, "naturalHeight", { value: altura });
-    img.onload();
-    expect(img.style.width).toBe(`${LARGURA_MARCADOR_PX}px`);
-    expect(img.style.height).toBe(`${Math.round((LARGURA_MARCADOR_PX * altura) / largura)}px`);
+    const alturaPx = Math.round((LARGURA_MARCADOR_PX * altura) / largura);
+    const desenho = canvas.chamadas.find((c) => c.nome === "drawImage");
+    expect(desenho.args.slice(1)).toEqual([0, 0, LARGURA_MARCADOR_PX, alturaPx]);
+    // a contagem no centro da faixa (CONTAGEM_TOPO_PCT da altura) e no meio da largura
+    const texto = canvas.chamadas.filter((c) => c.nome === "fillText" && c.args[0] === "42").at(-1);
+    expect(texto.args[1]).toBe(LARGURA_MARCADOR_PX / 2);
+    expect(texto.args[2]).toBeCloseTo((alturaPx * CONTAGEM_TOPO_PCT) / 100, 5);
   });
 
-  it("um marcador por pasto, cada um com o desenho do seu rebanho", () => {
-    const { r } = montar();
+  it("um lote por pasto, cada um com o desenho do seu rebanho", async () => {
+    const { map, r } = montar();
     renderer = r;
     const area2 = { ...AREA, id: "a2", nome: "Pasto 2" };
     const lotes = [
@@ -315,8 +317,8 @@ describe("ILM-3 — o marcador que syncLotes põe no mapa", () => {
       { ...pos("p2", "cat-vaca", 15), area_atual_id: "a2" },
       { ...pos("p3", "cat-touro", 2), area_atual_id: "a2" },
     ];
-    r.syncLotes(lotes, [AREA, area2], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
-    const porPasto = Object.fromEntries(marcadoresDeLote().map((m) => [m.el.title, m.el.dataset.iconeLote]));
+    await r.syncLotes(lotes, [AREA, area2], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
+    const porPasto = Object.fromEntries(lotesNaFonte(map).map((f) => [f.properties.nome, f.properties.desenho]));
     expect(porPasto).toEqual({
       "Pasto 1": resolverFiguraDoPasto(lotes.filter((l) => l.area_atual_id === "a1"), CATEGORIAS).chave,
       "Pasto 2": resolverFiguraDoPasto(lotes.filter((l) => l.area_atual_id === "a2"), CATEGORIAS).chave,
@@ -325,68 +327,66 @@ describe("ILM-3 — o marcador que syncLotes põe no mapa", () => {
   });
 });
 
-describe("ILM-4 — troca de categoria atualiza o mesmo marcador", () => {
-  it("a posição muda de Categoria de Manejo: chave e <img> novos, marcador o mesmo", () => {
-    const { r } = montar();
+describe("ILM-4 — troca de categoria atualiza o mesmo lote", () => {
+  it("a posição muda de Categoria de Manejo: desenho e imagem novos, o lote é o mesmo (mesmo id na fonte)", async () => {
+    const { map, r } = montar();
     renderer = r;
     const antes = [pos("p1", "cat-bezerro", 30), pos("p2", "cat-bezerro", 12)];
-    r.syncLotes(antes, [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
-    const [m] = marcadoresDeLote();
-    const chaveAntes = m.el.dataset.iconeLote;
-    expect(chaveAntes).toBe(resolverFiguraDoPasto(antes, CATEGORIAS).chave);
+    await r.syncLotes(antes, [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
+    const [f0] = lotesNaFonte(map);
+    expect(f0.properties.desenho).toBe(resolverFiguraDoPasto(antes, CATEGORIAS).chave);
 
     // manejo "Mudar categoria": as posições passam a apontar para a Novilha
     const depois = antes.map((p) => ({ ...p, categoria_manejo_id: "cat-novilha" }));
-    r.syncLotes(depois, [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
-    expect(marcadoresDeLote()).toHaveLength(1);
-    expect(marcadoresDeLote()[0]).toBe(m);
+    await r.syncLotes(depois, [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
+    expect(lotesNaFonte(map)).toHaveLength(1);
+    const [f1] = lotesNaFonte(map);
+    expect(f1.id).toBe(f0.id);
     const icone = resolverFiguraDoPasto(depois, CATEGORIAS);
-    expect(m.el.dataset.iconeLote).toBe(icone.chave);
-    expect(m.el.dataset.iconeLote).not.toBe(chaveAntes);
-    expect(m.el.querySelector("img").getAttribute("src")).toBe(urlMarcadorLote(icone));
-    expect(m.el.querySelectorAll("img")).toHaveLength(1);
-    expect(m.el.querySelector(".mg-lote-count").textContent).toBe("42");
+    expect(f1.properties.desenho).toBe(icone.chave);
+    expect(f1.properties.desenho).not.toBe(f0.properties.desenho);
+    expect(f1.properties.imagem).not.toBe(f0.properties.imagem);
+    expect(canvas.figurasCarregadas.at(-1)).toBe(urlMarcadorLote(icone));
+    expect(f1.properties.contagem).toBe("42");
   });
 
-  it("a Categoria de Manejo muda de faixa, ou chega depois do cache: o desenho acompanha", () => {
-    const { r } = montar();
+  it("a Categoria de Manejo muda de faixa, ou chega depois do cache: o desenho acompanha", async () => {
+    const { map, r } = montar();
     renderer = r;
     const lotes = [pos("p1", "cat-novilha", 20)];
     // categorias ainda não carregadas (placeholder do useQuery)
-    r.syncLotes(lotes, [AREA], true, [], vi.fn(), vi.fn(), true, false);
-    const [m] = marcadoresDeLote();
-    expect(m.el.dataset.iconeLote).toBe(resolverFiguraDoPasto(lotes, []).chave);
+    await r.syncLotes(lotes, [AREA], true, [], vi.fn(), vi.fn(), true, false);
+    expect(lotesNaFonte(map)[0].properties.desenho).toBe(resolverFiguraDoPasto(lotes, []).chave);
 
-    r.syncLotes(lotes, [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
-    expect(m.el.dataset.iconeLote).toBe(resolverFiguraDoPasto(lotes, CATEGORIAS).chave);
+    await r.syncLotes(lotes, [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
+    expect(lotesNaFonte(map)[0].properties.desenho).toBe(resolverFiguraDoPasto(lotes, CATEGORIAS).chave);
 
     // a mesma categoria (mesmo id) editada para 25 a 36 meses
     const editadas = CATEGORIAS.map((c) => (c.id === "cat-novilha" ? { ...c, idade_minima_meses: 25, idade_maxima_meses: 36 } : c));
-    r.syncLotes(lotes, [AREA], true, editadas, vi.fn(), vi.fn(), true, false);
+    await r.syncLotes(lotes, [AREA], true, editadas, vi.fn(), vi.fn(), true, false);
     const icone = resolverFiguraDoPasto(lotes, editadas);
     expect(icone.chave).not.toBe(resolverFiguraDoPasto(lotes, CATEGORIAS).chave);
-    expect(m.el.dataset.iconeLote).toBe(icone.chave);
-    expect(m.el.querySelector("img").getAttribute("src")).toBe(urlMarcadorLote(icone));
-    expect(marcadoresDeLote()).toHaveLength(1);
-    expect(marcadoresDeLote()[0]).toBe(m);
+    expect(lotesNaFonte(map)[0].properties.desenho).toBe(icone.chave);
+    expect(canvas.figurasCarregadas.at(-1)).toBe(urlMarcadorLote(icone));
+    expect(lotesNaFonte(map)).toHaveLength(1);
   });
 
-  it("a mesma figura com listas novas (refetch) não recria o <img>; contagem nova mantém a chave", () => {
-    const { r } = montar();
+  it("a mesma figura com listas novas (refetch) não redesenha; contagem nova mantém o desenho e não recarrega a figura", async () => {
+    const { map, r } = montar();
     renderer = r;
     const lotes = [pos("p1", "cat-vaca", 15)];
-    r.syncLotes(lotes, [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
-    const [m] = marcadoresDeLote();
-    const img = m.el.querySelector("img");
+    await r.syncLotes(lotes, [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
+    const desenhos = canvas.desenhos();
 
-    r.syncLotes(lotes.map((p) => ({ ...p })), [AREA], true, CATEGORIAS.map((c) => ({ ...c })), vi.fn(), vi.fn(), true, false);
-    expect(m.el.querySelector("img")).toBe(img);
+    await r.syncLotes(lotes.map((p) => ({ ...p })), [AREA], true, CATEGORIAS.map((c) => ({ ...c })), vi.fn(), vi.fn(), true, false);
+    expect(canvas.desenhos()).toBe(desenhos);
 
-    r.syncLotes([pos("p1", "cat-vaca", 16)], [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
-    expect(m.el.querySelector(".mg-lote-count").textContent).toBe("16");
-    expect(m.el.dataset.iconeLote).toBe(resolverFiguraDoPasto(lotes, CATEGORIAS).chave);
-    expect(m.el.querySelector("img").getAttribute("src")).toMatch(DATA_SVG);
-    // só a contagem mudou: o <img> (URL de dezenas de kB) não é trocado
-    expect(m.el.querySelector("img")).toBe(img);
+    await r.syncLotes([pos("p1", "cat-vaca", 16)], [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
+    const [f] = lotesNaFonte(map);
+    expect(f.properties.contagem).toBe("16");
+    expect(f.properties.desenho).toBe(resolverFiguraDoPasto(lotes, CATEGORIAS).chave);
+    // só a contagem mudou: a figura (URL de dezenas de kB) não é carregada de novo
+    expect(canvas.figurasCarregadas).toHaveLength(1);
+    expect(canvas.desenhos()).toBe(desenhos + 1);
   });
 });

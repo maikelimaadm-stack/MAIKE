@@ -149,7 +149,10 @@ describe("V — visualização das áreas cadastradas", () => {
     const c = centroideArea(area("a"));
     expect(c.lat).toBeCloseTo(-0.005, 9);
     expect(c.lng).toBeCloseTo(0.005, 9);
-    expect(readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8")).toMatch(/offset: OFFSET_LOTE_PX/);
+    // D-PROD-348: o lote é desenhado pelo mapa; o deslocamento em px é o `icon-offset` da camada.
+    const lotesNoMapa = readFileSync("src/lib/maplibre/lotesNoMapa.js", "utf8");
+    expect(lotesNoMapa).toMatch(/export const OFFSET_LOTE_PX = \/\*\* @type \{\[number, number\]\} \*\/ \(\[0, -26\]\);/);
+    expect(lotesNoMapa).toMatch(/\["literal", soma\(OFFSET_LOTE_PX, desloc\)\]/);
     // Sem ConfiguracaoIcone: sempre há figura, a data URL do SVG montado no código.
     const dataSvg = /^data:image\/svg\+xml;base64,/;
     const semCategoria = resolverIconeLote([{ categoria: "boi" }]);
@@ -460,10 +463,6 @@ vi.mock("@/lib/maplibre/lifecycle.js", async (orig) => {
     getElement() {
       return this.el;
     }
-    setDraggable(v) {
-      this.draggable = v;
-      return this;
-    }
     on(ev, fn) {
       this.handlers[ev] = fn;
       return this;
@@ -512,10 +511,16 @@ describe("V03 — renderer MapLibre preserva o contrato do Mapa Geral", () => {
       getCanvas: () => ({ style: {} }),
       setFeatureState: vi.fn(),
       queryRenderedFeatures: () => [],
+      project: () => ({ x: 0, y: 0 }),
+      unproject: ([x, y]) => ({ lng: x, lat: y }),
+      addImage: vi.fn(),
+      hasImage: () => false,
     };
   };
 
   it("áreas/rótulos/lotes/pontos/tarefas/usuário; clique e arrasto; clearAll limpa tudo", async () => {
+    const { instalarCanvasFalso } = await import("./helpers/canvasLotesFalso.js");
+    instalarCanvasFalso();
     marcadores.length = 0;
     const { default: useMapRenderer } = await import("@/components/mapa/useMapRenderer.jsx");
     const map = mkMap();
@@ -545,18 +550,19 @@ describe("V03 — renderer MapLibre preserva o contrato do Mapa Geral", () => {
       { id: "l2", area_atual_id: "a1", quantidade_cabecas: 12, categoria: "BOI" },
     ];
     // 4º argumento: as Categorias de Manejo (D-PROD-191); vazio, o ícone sai mesmo assim.
-    r.syncLotes(lotes, [area("a1")], true, [], onLotes, onDrag, true, false);
-    const loteMarker = marcadores.find((m) => m.el.querySelector(".mg-lote-count"));
-    expect(loteMarker.el.querySelector("img").getAttribute("src")).toMatch(/^data:image\/svg\+xml;base64,/);
-    expect(loteMarker.el.querySelector(".mg-lote-count").textContent).toBe("42");
-    expect(loteMarker.el.querySelector(".mg-lote-ident").textContent).toBe("AB");
-    expect(loteMarker.opts.draggable).toBe(true);
-    loteMarker.el.click();
+    // D-PROD-348: o lote é um ponto na fonte `mg-lotes`, desenhado pela camada symbol (nenhum marcador HTML).
+    await r.syncLotes(lotes, [area("a1")], true, [], onLotes, onDrag, true, false);
+    expect(marcadores.find((m) => m.el.querySelector(".mg-lote-count"))).toBeUndefined();
+    const [loteF] = map.data.get("mg-lotes").features;
+    expect(loteF.properties).toMatchObject({ areaId: "a1", contagem: "42", ident: "mg-lote-ident|#f00|AB" });
+    const naCamada = (ev) => map.handlers.find((h) => h[0] === ev && h[1] === "mg-lotes")[2];
+    naCamada("click")({ features: [{ properties: { areaId: "a1" } }] });
     expect(onLotes).toHaveBeenCalledWith(lotes);
-    loteMarker.handlers.dragstart();
-    loteMarker.ll = { lat: -0.5, lng: 0.5 };
-    loteMarker.handlers.dragend();
-    expect(onDrag).toHaveBeenCalledWith({ lat: -0.5, lng: 0.5 }, lotes, "a1", [area("a1")]);
+    naCamada("mousedown")({ type: "mousedown", point: { x: 0, y: 0 }, features: [{ properties: { areaId: "a1" } }], preventDefault: vi.fn() });
+    const doMapa = (ev) => map.handlers.find((h) => h[0] === ev && typeof h[1] === "function")[1];
+    doMapa("mousemove")({ point: { x: 10, y: -5 } });
+    doMapa("mouseup")({ point: { x: 10, y: -5 } });
+    expect(onDrag).toHaveBeenCalledWith({ lat: -5, lng: 10 }, lotes, "a1", [area("a1")]);
 
     const onSupl = vi.fn();
     r.syncPontosSuplementacao([{ id: "c1", nome_ponto: "Cocho", coordenadas: { lat: 0, lng: 0 } }], true, [], onSupl);
@@ -585,10 +591,11 @@ describe("V03 — renderer MapLibre preserva o contrato do Mapa Geral", () => {
     // filtro esconde pontos: remove só o grupo
     r.syncPontosSuplementacao([], false, [], onSupl);
     expect(cocho.removed).toBe(true);
-    expect(loteMarker.removed).toBe(false);
+    expect(map.data.get("mg-lotes").features).toHaveLength(1);
 
     r.clearAll();
     expect(marcadores.every((m) => m.removed)).toBe(true);
+    expect(map.data.get("mg-lotes").features).toHaveLength(0);
     expect(map.handlers.filter((h) => typeof h[1] === "string")).toHaveLength(0);
   });
 

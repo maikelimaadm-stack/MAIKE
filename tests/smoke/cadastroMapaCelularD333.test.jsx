@@ -29,7 +29,7 @@ vi.mock('maplibre-gl', () => {
   });
   class LngLatBounds { extend() { return this; } }
   const Marker = vi.fn(function Marker() {
-    const m = { setLngLat: () => m, addTo: () => m, remove: vi.fn(), getElement: () => document.createElement('div'), on: vi.fn(), setDraggable: () => m };
+    const m = { setLngLat: () => m, addTo: () => m, remove: vi.fn(), getElement: () => document.createElement('div'), on: vi.fn() };
     return m;
   });
   return { default: { Map, NavigationControl: vi.fn(), Marker, LngLatBounds }, Map, NavigationControl: vi.fn(), Marker, LngLatBounds };

@@ -6,6 +6,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { centroideArea, escalaRotulo, escolherModoRotulos, fontesRotuloPorZoom, pontoEFolga, pontoMaisDentro, siglaDaArea } from "@/lib/maplibre/mapaGeralRender.js";
 import { pointInPolygonRing } from "@/lib/maplibre/taskLocationPicker.js";
+import { OFFSET_LOTE_COM_NOME_PX, OFFSET_LOTE_PX, camadasLotes } from "@/lib/maplibre/lotesNoMapa.js";
 
 const cx = (x, y, w, h) => ({ x, y, w, h });
 /** rótulo com caixa "tudo" (nome + ha) e "nome" (metade de cima) */
@@ -116,15 +117,21 @@ describe("pontoMaisDentro — nome e lote no miolo da área torta (D-PROD-127)",
     const r = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
     expect((r.match(/centroideArea\(area\)/g) || []).length).toBeGreaterThanOrEqual(3); // rótulo, lote e tarefa
     // D-PROD-128: par ícone + nome centrado no ponto com posições FIXAS — nada
-    // depende da altura do nome nem da imagem; sem lote, nome centrado por CSS
-    expect(r).toMatch(/lote\.marker\.setOffset\(PAR_LOTE\.icone\);\s*entry\.marker\.setOffset\(PAR_LOTE\.nome\);/);
+    // depende da altura do nome nem da imagem; sem lote, nome centrado por CSS.
+    // D-PROD-348: o ícone é desenhado pelo mapa; o par vale pelo `comRotulo` da fonte.
+    expect(r).toMatch(/if \(lotesRef\.current\.has\(id\)\) \{[^}]*entry\.marker\.setOffset\(PAR_LOTE\.nome\);/);
     expect(r).toMatch(/entry\.marker\.setOffset\(\[0, 0\]\);\s*entry\.base = "translateY\(-50%\)";/);
-    expect(r).toMatch(/icone: \/\*\* @type \{\[number, number\]\} \*\/ \(\[0, -14\]\)/);
+    expect(r).toMatch(/icone: OFFSET_LOTE_COM_NOME_PX,/);
+    expect(OFFSET_LOTE_COM_NOME_PX).toEqual([0, -14]);
     expect(r).toMatch(/nome: \/\*\* @type \{\[number, number\]\} \*\/ \(\[0, 10\]\)/);
     expect(r).not.toMatch(/offsetHeight/);
-    // nomes desligados: o lote volta à posição padrão (revisão Cursor no #194)
-    expect(r).toMatch(/!labelsRef\.current\.has\(key\.slice\("lote_area_"\.length\)\)\) entry\.marker\.setOffset\(OFFSET_LOTE_PX\)/);
-    expect(r.indexOf("entry.marker.setOffset(OFFSET_LOTE_PX)")).toBeLessThan(r.indexOf("if (!labelsRef.current.size) return;"));
+    // nomes desligados: o lote volta à posição padrão (revisão Cursor no #194) — `comRotulo` é ter rótulo, e a fonte é
+    // publicada antes do retorno "sem rótulos"
+    expect(OFFSET_LOTE_PX).toEqual([0, -26]);
+    expect(r).toMatch(/const comRotulo = labelsRef\.current\.has\(areaId\);/);
+    const arrumar = r.slice(r.indexOf("const arrumarRotulos = (opcoes) =>"));
+    expect(arrumar.indexOf("publicarLotes();")).toBeGreaterThan(-1);
+    expect(arrumar.indexOf("publicarLotes();")).toBeLessThan(arrumar.indexOf("if (!labelsRef.current.size) return;"));
   });
 });
 
@@ -148,8 +155,11 @@ describe("nome do pasto acompanha o zoom (D-PROD-129)", () => {
     expect(r).toMatch(/aplicarFonte\(entry\);\s*escalarNome\(entry, z\);/);
     expect(r).toMatch(/arrumarDuranteZoom\(\);/);
     expect(r).toMatch(/if \(agora - ultimoArrumarRef\.current < 120\) return;/);
-    // ícone do lote: posição fixa do D-PROD-128, sem escala por zoom
-    expect(r).toMatch(/lote\.marker\.setOffset\(PAR_LOTE\.icone\);/);
+    // ícone do lote: posição fixa do D-PROD-128, sem escala por zoom (camada sem icon-size nem expressão de zoom)
+    for (const camada of camadasLotes()) {
+      expect(camada.layout["icon-size"]).toBeUndefined();
+      expect(JSON.stringify(camada)).not.toMatch(/"zoom"/);
+    }
     // só o nome escala (D-PROD-130); o ícone do lote nunca
     expect((r.match(/scale\(/g) || []).length).toBe(1);
     expect(r).toMatch(/entry\.corpo\.style\.transform = s < 1 \? `\$\{entry\.base \|\| ""\} scale\(\$\{s\}\)`/);

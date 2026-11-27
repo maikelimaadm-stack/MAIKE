@@ -10,6 +10,9 @@
  *      node tests/e2e/harness/run-perf.cjs [N=200] [rotulo]
  * Saída: uma linha JSON por cenário (stdout). WebGL é SwiftShader (CPU): os números servem para COMPARAR antes × depois
  * na mesma máquina, não como tempo absoluto de um celular.
+ * Variáveis: E2E_URL (padrão http://localhost:5199/), PERF_CPU (padrão 4), PERF_DPR (densidade de tela; padrão a do
+ * Pixel 7, 2,625). D-PROD-348: com a densidade do Pixel 7 o SwiftShader gasta quase todo o quadro pintando o mapa
+ * na CPU, e o arrastar fica em ≈ 9 quadros/s mesmo sem nenhum marcador HTML; PERF_DPR=1 mostra o custo da página.
  */
 const { chromium, devices } = require("playwright");
 
@@ -17,6 +20,7 @@ const URL = process.env.E2E_URL || "http://localhost:5199/";
 const N = Number(process.argv[2] || 200);
 const ROTULO = process.argv[3] || "atual";
 const CPU = Number(process.env.PERF_CPU || 4);
+const DPR = process.env.PERF_DPR ? Number(process.env.PERF_DPR) : null;
 
 const resumo = (quadros) => {
   const v = [...quadros].sort((a, b) => a - b);
@@ -33,7 +37,7 @@ const resumo = (quadros) => {
 
 (async () => {
   const b = await chromium.launch({ args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
-  const ctx = await b.newContext({ ...devices["Pixel 7"] });
+  const ctx = await b.newContext({ ...devices["Pixel 7"], ...(DPR ? { deviceScaleFactor: DPR } : {}) });
   const p = await ctx.newPage();
   const cdp = await ctx.newCDPSession(p);
   await cdp.send("Performance.enable");
@@ -45,26 +49,30 @@ const resumo = (quadros) => {
   await p.goto(`${URL}?cena=geral&grande=${N}`);
   await p.waitForSelector(".maplibregl-canvas", { timeout: 120000 });
   const tCanvas = Date.now() - t0;
-  // Nomes e lotes: aceita HTML (.mg-area-label/.mg-lote-count) ou camadas do mapa (após a conversão).
-  await p.waitForFunction(
-    () => document.querySelectorAll(".mg-area-label").length > 0 || window.__mgPerf?.rotulos > 0,
-    null,
-    { timeout: 120000 },
-  );
+  // Lotes desenhados pelo mapa (D-PROD-348): contados pela fonte `mg-lotes` do mapa do harness (`window.__E2E_MAPS__`,
+  // só no harness), não por elemento HTML. Aceita também o marcador HTML antigo (.mg-lote-count), para medir o "antes".
+  const lotesNoMapa = () => {
+    const m = (window.__E2E_MAPS__ || []).at(-1);
+    const fonte = m?.getStyle?.() && m.getSource("mg-lotes");
+    const dados = fonte?.serialize?.().data;
+    return Array.isArray(dados?.features) ? dados.features.length : 0;
+  };
+  await p.waitForFunction(() => document.querySelectorAll(".mg-area-label").length > 0, null, { timeout: 120000 });
   const tRotulos = Date.now() - t0;
   await p.waitForFunction(
-    () => document.querySelectorAll(".mg-lote-count").length > 0 || window.__mgPerf?.lotes > 0,
+    `document.querySelectorAll(".mg-lote-count").length > 0 || (${lotesNoMapa})() > 0`,
     null,
     { timeout: 120000 },
   );
   const tLotes = Date.now() - t0;
   await p.waitForTimeout(3000);
-  const contagem = await p.evaluate(() => ({
+  const contagem = await p.evaluate(`({
     marcadores_html: document.querySelectorAll(".maplibregl-marker").length,
     rotulos_html: document.querySelectorAll(".mg-area-label").length,
     lotes_html: document.querySelectorAll(".mg-lote-count").length,
-  }));
-  console.log(JSON.stringify({ rotulo: ROTULO, n: N, cpu: CPU, cenario: "abertura", canvas_ms: tCanvas, rotulos_ms: tRotulos, lotes_ms: tLotes, ...contagem }));
+    lotes_no_mapa: (${lotesNoMapa})(),
+  })`);
+  console.log(JSON.stringify({ rotulo: ROTULO, n: N, cpu: CPU, dpr: DPR || devices["Pixel 7"].deviceScaleFactor, cenario: "abertura", canvas_ms: tCanvas, rotulos_ms: tRotulos, lotes_ms: tLotes, ...contagem }));
 
   const canvas = await p.$(".maplibregl-canvas");
   const box = await canvas.boundingBox();
@@ -100,6 +108,7 @@ const resumo = (quadros) => {
       rotulo: ROTULO,
       n: N,
       cpu: CPU,
+      dpr: DPR || devices["Pixel 7"].deviceScaleFactor,
       cenario: nome,
       ...resumo(quadros),
       script_s: +(met(m1, "ScriptDuration") - met(m0, "ScriptDuration")).toFixed(2),
