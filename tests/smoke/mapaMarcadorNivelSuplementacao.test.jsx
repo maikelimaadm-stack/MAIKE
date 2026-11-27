@@ -45,10 +45,6 @@ vi.mock('@/lib/maplibre/lifecycle.js', async (orig) => {
     getElement() {
       return this.el;
     }
-    setDraggable(v) {
-      this.draggable = v;
-      return this;
-    }
     setOffset() {
       return this;
     }

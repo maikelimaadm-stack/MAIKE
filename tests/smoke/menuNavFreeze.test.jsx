@@ -65,10 +65,12 @@ describe('NAV — Mapa Geral libera o MapLibre ao sair (teardown unmount)', () =
 });
 
 describe('NAV — renderer do mapa não deixa intervalos de blink', () => {
-  it('clearAll derruba blinkIntervals globais', () => {
+  it('clearAll para o piscar dos lotes (D-PROD-349: um intervalo só, da camada do identificador)', () => {
     const renderer = codigoDe('src/components/mapa/useMapRenderer.jsx');
-    expect(renderer).toContain('const clearBlinks');
-    expect(renderer).toMatch(/const clearAll = useCallback\(\(\) => \{\s*clearBlinks\(\);/);
+    expect(renderer).not.toContain('blinkIntervals');
+    expect(renderer).toMatch(/const clearAll = useCallback\(\(\) => \{\s*piscaRef\.current\?\.parar\(\);/);
+    const lotes = codigoDe('src/lib/maplibre/lotesNoMapa.js');
+    expect(lotes).toMatch(/const parar = \(\) => \{\s*if \(iv\) clearInterval\(iv\);/);
   });
 });
 

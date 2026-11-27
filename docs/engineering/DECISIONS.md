@@ -10572,4 +10572,41 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** nasceu D-PROD-342 (`node scripts/dev/proxima-decisao.mjs` na `main` `6aa675672`). Antes do merge, a `main` levou as D-PROD-342 a D-PROD-345 (sem internet e sincronização, PRs #430 a #433); esta passou a D-PROD-348 e o marcador a D-PROD-349 (a D-PROD-346 é da PR #435, ainda aberta, e a D-PROD-347 da PR #436, já mesclada).
 
-<!-- Próxima decisão: D-PROD-349 -->
+## D-PROD-349 — Mapa leve, etapa 2: lotes desenhados pelo próprio mapa
+
+**Data:** 2026-11-27 · **Origem:** proprietário, continuação da D-PROD-347: "sempre tentando ao máximo deixar igual o atual" · **Relatório:** [`MAPA-LEVE-D349-REPORT.md`](./MAPA-LEVE-D349-REPORT.md)
+
+> **Numeração:** nasceu D-PROD-348; a `main` deu a D-PROD-348 ao Diário das atividades (PR #434, `dcdea1947`) e passou a indicar `Próxima decisão: D-PROD-349`, que é esta (`node scripts/dev/proxima-decisao.mjs`, regra A5). O marcador passa a D-PROD-350.
+
+- **Problema:** depois da etapa 1, o arrastar continuava pesado. Com 200 pastos, cada quadro reposicionava ~400 marcadores HTML (lotes e nomes) e recalculava o estilo deles.
+- **Decisão:** o ícone do lote deixa de ser marcador HTML e passa a ser desenhado pelo mapa.
+  - Fonte GeoJSON `mg-lotes`, com a camada `symbol` `mg-lotes` (ícone) e, por cima, a `mg-lotes-ident` (identificador). Elas ficam acima das áreas e linhas, nunca somem por colisão e são recriadas com as outras camadas (`ensureMgLayers`).
+  - A imagem é a mesma figura do motor (D-PROD-191) com a contagem escrita dentro, num canvas no `devicePixelRatio`:
+    - mesma posição, cor, letra e halo;
+    - milhar com ponto;
+    - sem `text-field`: o estilo sem internet não tem fonte de letras.
+  - Cache por desenho + contagem: a mesma chave nunca é redesenhada. Na troca de estilo, as imagens voltam pelo `ensureLayers` e pelo `styleimagemissing`.
+  - Posição pelo atributo `comRotulo` da fonte: `[0,-26]` sozinho, `[0,-14]` com o nome embaixo. Para desviar do lote, os nomes usam caixas calculadas (ponto na tela + deslocamento + tamanho), sem medir elemento.
+  - Clique pela camada. O clique na área ou na linha por baixo é ignorado quando há lote no ponto, e o `hitArea` enxerga o lote.
+  - Arrastar pelos eventos da camada: o mapa não desliza, uma cópia HTML aparece só durante o arrasto, e `onDragLotes` recebe os mesmos argumentos de antes. Abaixo de 4 px é clique.
+  - Piscar do alerta: `icon-opacity` da camada do identificador, todos juntos.
+- **Fica em HTML nesta etapa:** nomes das áreas, pontos, cochos, tarefas e localização. Por isso o lote agora fica abaixo deles quando se encostam.
+- **Resultado (200 pastos, CPU 4×):**
+  - recálculo de estilo no arrastar: ≈ 9,5 s → ≈ 5 s;
+  - na densidade 1, o arrastar foi de 21 para 33 quadros/s;
+  - na densidade do Pixel 7, ≈ 9 → ≈ 10 quadros/s. Ali o harness é limitado pela pintura do mapa na CPU (SwiftShader), mesmo sem nenhum marcador HTML;
+  - o zoom quase não muda: o custo dele são os nomes.
+- **Riscos:**
+  - medir em celular de verdade;
+  - conferir no app (Android e iOS) que o canvas lê os pixels da figura SVG;
+  - imagens por contagem acumulam na sessão.
+
+- **Correções da revisão independente (antes do merge):**
+  - o piscar do alerta muda só o `feature-state` dos lotes que piscam (antes trocava a pintura da camada e o mapa refazia todos os lotes a cada 550 ms);
+  - arrasto com mouse encerra se o botão for solto fora do mapa (`buttons === 0`, `mouseup`/`blur` na janela);
+  - toque longo não começa em cima de um lote, e o clique que encerra um toque longo não abre os lotes (`deveComecarToqueLongo`, `acaoDoCliqueNoLote`, `hitLote`); `queryRenderedFeatures` recebe `[x, y]` (com `{x, y}` o MapLibre consultava a tela inteira);
+  - imagem que falha usa a reserva (círculo verde antigo, sem a contagem), avisa uma vez e tenta de novo até 3 vezes;
+  - imagens que nenhum lote usa saem do mapa e do cache (não com os lotes escondidos pelo filtro);
+  - devicePixelRatio relido no `resize`.
+
+<!-- Próxima decisão: D-PROD-350 -->

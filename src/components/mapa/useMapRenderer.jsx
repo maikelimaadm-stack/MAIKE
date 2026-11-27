@@ -1,5 +1,6 @@
 /*
- * GUIA DE EDIÇÃO — MARCADORES DO MAPA: tamanho (baseSize) de pontos, cochos e tarefas; posição do lote (OFFSET_LOTE_PX), cor da contagem e avisos em syncLotes; rótulos em syncLabels.
+ * GUIA DE EDIÇÃO — MARCADORES DO MAPA: tamanho (baseSize) de pontos, cochos e tarefas; lotes em syncLotes; rótulos em syncLabels.
+ * Lotes desenhados pelo mapa (D-PROD-349): posição, contagem, identificador, piscar e arrastar em src/lib/maplibre/lotesNoMapa.js.
  * Ícone do lote (D-PROD-191): o desenho, a largura (LARGURA_MARCADOR_PX) e a altura do número de cabeças (CONTAGEM_TOPO_PCT) vêm do código, em src/assets/icones/lotes.
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
@@ -7,7 +8,6 @@
 import { aplicarIndicadorTarefa } from "@/lib/tarefas/marcador";
 import { normalizarPrioridadeTarefa } from "@/lib/tarefas/prioridade";
 import { useRef, useCallback } from "react";
-import { CONTAGEM_TOPO_PCT, LARGURA_MARCADOR_PX } from "@/assets/icones/lotes";
 import { maplibregl, setSourceData } from "@/lib/maplibre/lifecycle.js";
 import { parseVertex, parseVertices } from "@/lib/geografia/coords.js";
 import { buildAccuracyCircleCollection } from "@/lib/maplibre/gpsCapture.js";
@@ -32,7 +32,24 @@ import {
   resolverIconeTarefa,
   textoHectares,
 } from "@/lib/maplibre/mapaGeralRender.js";
-import { FONTE_CONTAGEM_PX, formatarContagem } from "@/lib/maplibre/contagemLote.js";
+import {
+  OFFSET_LOTE_COM_NOME_PX,
+  TAMANHO_PADRAO_LOTE,
+  caixaDoLote,
+  colecaoLotes,
+  criarPiscaIdent,
+  garantirImagens,
+  haLoteNoPonto,
+  identificadoresDoLote,
+  imagemPronta,
+  ligarImagensFaltando,
+  ligarInteracaoLotes,
+  pedidoImagemIdent,
+  pedidoImagemLote,
+  pixelRatioDaTela,
+  podarImagens,
+  registrarImagens,
+} from "@/lib/maplibre/lotesNoMapa.js";
 
 /**
  * Renderizador incremental do Mapa Geral sobre MapLibre (D-PROD-65).
@@ -41,57 +58,26 @@ import { FONTE_CONTAGEM_PX, formatarContagem } from "@/lib/maplibre/contagemLote
  * `syncPontos`, `syncLinhas`, `syncPontosSuplementacao`, `syncLotes`,
  * `syncTarefas`, `syncUserLocation`, `clearAll`), para que `MapaGeral` mantenha
  * filtros, permissões, painéis e ações. Áreas/linhas viram GeoJSON (estilo SSOT
- * com o editor); marcadores continuam DOM (ícones/URLs/contagem preservados),
- * sempre com `textContent` e cleanup explícito.
+ * com o editor); pontos, cochos, tarefas e nomes continuam DOM, sempre com
+ * `textContent` e cleanup explícito.
  *
- * O ícone do lote vem do código (D-PROD-191): `resolverIconeLote` monta o
- * marcador pela Categoria de Manejo de cada posição do pasto e sempre devolve
- * figura. A `chave` do desenho entra no diff e fica em `data-icone-lote`.
+ * Lotes (D-PROD-349): desenhados pelo próprio mapa — fonte GeoJSON + camadas
+ * `symbol` com a imagem da figura e a contagem já escrita (`lotesNoMapa.js`).
+ * O ícone vem do código (D-PROD-191): `resolverIconeLote` monta a figura pela
+ * Categoria de Manejo de cada posição do pasto e sempre devolve figura; a
+ * `chave` do desenho vai na fonte (`desenho`) e na chave da imagem.
  */
 
-const blinkIntervals = new Map();
-/** Ícone de lotes acima do centroide (px, independe do zoom). */
-// Ícone do lote de LARGURA_MARCADOR_PX = 44 px (D-PROD-89): deslocamento proporcional, a ponta fica no mesmo lugar.
-const OFFSET_LOTE_PX = /** @type {[number, number]} */ ([0, -26]);
 /**
  * Par ícone do lote (44 px) + nome embaixo, centrado no ponto da área, com
  * alturas CONSTANTES (D-PROD-128): ícone 44 + 2 de espaço + nome reservado de
  * 26 px (nome + ha) = 72 px → ícone com o centro 14 px acima do ponto e o nome
  * começando 10 px abaixo. Não muda com o nível do rótulo nem com a imagem.
+ * O ícone é o `icon-offset` da camada dos lotes quando `comRotulo` (D-PROD-349).
  */
 const PAR_LOTE = {
-  icone: /** @type {[number, number]} */ ([0, -14]),
+  icone: OFFSET_LOTE_COM_NOME_PX,
   nome: /** @type {[number, number]} */ ([0, 10]),
-};
-
-const setBlink = (key, el, shouldBlink, dim = 0.35) => {
-  const existing = blinkIntervals.get(key);
-  if (!shouldBlink) {
-    if (existing) {
-      clearInterval(existing);
-      blinkIntervals.delete(key);
-    }
-    if (el) el.style.opacity = "1";
-    return;
-  }
-  if (existing) return;
-  let visible = true;
-  blinkIntervals.set(
-    key,
-    setInterval(() => {
-      visible = !visible;
-      if (el) el.style.opacity = visible ? "1" : String(dim);
-    }, 550)
-  );
-};
-
-const clearBlinks = (prefix = "") => {
-  blinkIntervals.forEach((iv, key) => {
-    if (!prefix || key.startsWith(prefix)) {
-      clearInterval(iv);
-      blinkIntervals.delete(key);
-    }
-  });
 };
 
 /** Elemento de marcador: ícone (sem achatar) ou círculo colorido. */
@@ -239,9 +225,26 @@ export default function useMapRenderer(mapInstanceRef) {
   const areasCallbacksRef = useRef({ onClick: null, onRightClick: null });
   const areasByIdRef = useRef(new Map());
   const linhasByIdRef = useRef(new Map());
-  const dataRef = useRef({ areas: null, linhas: null, user: null });
+  const dataRef = useRef(/** @type {{ areas: any, linhas: any, user: any, lotes: any }} */ ({ areas: null, linhas: null, user: null, lotes: null }));
   const labelZoomHandlerRef = useRef(/** @type {null | (() => void)} */ (null));
   const arrumarRef = useRef(/** @type {null | { handler: () => void, quadro: number }} */ (null));
+  /**
+   * Lotes no mapa (D-PROD-349), por pasto: o que vai na fonte (`item`), os lotes e as áreas para os callbacks e o
+   * tamanho do ícone (obstáculo dos nomes).
+   * @type {import('react').MutableRefObject<Map<string, { item: Omit<import('@/lib/maplibre/lotesNoMapa.js').ItemLote, 'comRotulo'>, lotesNaArea: any[], areas: any[], tamanho: { w: number, h: number } }>>}
+   */
+  const lotesRef = useRef(new Map());
+  const lotesCallbacksRef = useRef(/** @type {{ onClickLotes: any, onDragLotes: any, canDragLotes: boolean }} */ ({ onClickLotes: null, onDragLotes: null, canDragLotes: false }));
+  const lotesHandlersRef = useRef(/** @type {null | { off: () => void }} */ (null));
+  const lotesSeqRef = useRef(0);
+  const lotesConteudoRef = useRef("");
+  const lotesPublicadoRef = useRef("");
+  const pixelRatioRef = useRef(pixelRatioDaTela());
+  /** Últimos argumentos de `syncLotes`: refeitos quando a densidade da tela muda (outro monitor, zoom do navegador). */
+  const lotesArgsRef = useRef(/** @type {null | any[]} */ (null));
+  const syncLotesRef = useRef(/** @type {null | ((...a: any[]) => Promise<void>)} */ (null));
+  const piscaRef = useRef(/** @type {null | ReturnType<typeof criarPiscaIdent>} */ (null));
+  if (!piscaRef.current) piscaRef.current = criarPiscaIdent(() => mapInstanceRef.current);
 
   const estiloPastoRef = useRef("cheio");
 
@@ -254,19 +257,40 @@ export default function useMapRenderer(mapInstanceRef) {
     if (map) aplicarEstiloPasto(map, estiloPastoRef.current);
   }, [mapInstanceRef]);
 
+  /** Chaves das imagens em uso pelos lotes (ícone e identificador). */
+  const chavesImagensLotes = (lotes = lotesRef.current) => {
+    /** @type {string[]} */
+    const chaves = [];
+    lotes.forEach((l) => {
+      chaves.push(l.item.imagem);
+      if (l.item.ident) chaves.push(l.item.ident);
+    });
+    return chaves;
+  };
+
   const ensureLayers = useCallback(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
     ensureMgLayers(map);
     aplicarEstiloPasto(map, estiloPastoRef.current);
+    // Estilo novo (satélite ↔ mapa) vem sem as imagens dos lotes: repõe antes dos dados (D-PROD-349).
+    registrarImagens(map, chavesImagensLotes(), pixelRatioRef.current);
     const d = dataRef.current;
     if (d.areas) setSourceData(map, MG_SOURCE_IDS.AREAS, d.areas);
     if (d.linhas) setSourceData(map, MG_SOURCE_IDS.LINHAS, d.linhas);
     if (d.user) setSourceData(map, MG_SOURCE_IDS.USER, d.user);
+    if (d.lotes) setSourceData(map, MG_SOURCE_IDS.LOTES, d.lotes);
   }, [mapInstanceRef]);
 
   const clearAll = useCallback(() => {
-    clearBlinks();
+    piscaRef.current?.parar();
+    lotesHandlersRef.current?.off();
+    lotesHandlersRef.current = null;
+    lotesSeqRef.current += 1; // imagens que ainda chegam não publicam mais nada
+    lotesRef.current = new Map();
+    lotesConteudoRef.current = "";
+    lotesPublicadoRef.current = "";
+    setSourceData(/** @type {any} */ (mapInstanceRef.current), MG_SOURCE_IDS.LOTES, { type: "FeatureCollection", features: [] });
     markersRef.current.forEach(removerMarcador);
     markersRef.current.clear();
     labelsRef.current.forEach(removerMarcador);
@@ -296,7 +320,7 @@ export default function useMapRenderer(mapInstanceRef) {
     }
     areasByIdRef.current.clear();
     linhasByIdRef.current.clear();
-    dataRef.current = { areas: null, linhas: null, user: null };
+    dataRef.current = { areas: null, linhas: null, user: null, lotes: null };
   }, [mapInstanceRef]);
 
   // ─── Áreas (polígonos) ───
@@ -339,6 +363,8 @@ export default function useMapRenderer(mapInstanceRef) {
         map.getCanvas().style.cursor = "";
       };
       const onClick = (e) => {
+        // O clique no ícone do lote abre os lotes, não a área por baixo (D-PROD-349).
+        if (haLoteNoPonto(map, e.point)) return;
         const area = featureArea(e);
         if (!area) return;
         areasCallbacksRef.current.onClick?.(area, { lat: e.lngLat.lat, lng: e.lngLat.lng });
@@ -381,10 +407,9 @@ export default function useMapRenderer(mapInstanceRef) {
     if (!map) return;
     const soNaTela = opcoes?.soNaTela === true;
     // Lote de área sem rótulo (nomes desligados ou área sem nome): volta à
-    // posição padrão, sem o espaço do nome embaixo (D-PROD-127).
-    markersRef.current.forEach((entry, key) => {
-      if (key.startsWith("lote_area_") && !labelsRef.current.has(key.slice("lote_area_".length))) entry.marker.setOffset(OFFSET_LOTE_PX);
-    });
+    // posição padrão, sem o espaço do nome embaixo (D-PROD-127). Com rótulo, o
+    // par ícone + nome. Vai na fonte dos lotes como `comRotulo` (D-PROD-349).
+    publicarLotes();
     if (!labelsRef.current.size) return;
     const caixa = (/** @type {Element} */ el) => {
       const r = el.getBoundingClientRect();
@@ -407,9 +432,8 @@ export default function useMapRenderer(mapInstanceRef) {
         // ponto, mas calculado com alturas constantes — nada sobe nem desce ao
         // trocar sigla/nome/ha, no zoom, ao redimensionar ou quando a figura do
         // boi termina de carregar. Sem lote, o nome é centrado por CSS.
-        const lote = markersRef.current.get(`lote_area_${id}`);
-        if (lote?.el) {
-          lote.marker.setOffset(PAR_LOTE.icone);
+        if (lotesRef.current.has(id)) {
+          // o ícone já está em PAR_LOTE.icone (`comRotulo` na fonte dos lotes)
           entry.marker.setOffset(PAR_LOTE.nome);
           entry.base = "";
           entry.corpo.style.transformOrigin = "50% 0";
@@ -427,13 +451,7 @@ export default function useMapRenderer(mapInstanceRef) {
       labelsRef.current.forEach((entry, id) => {
         if (!alvo || alvo.has(id)) rotulos.set(id, caixa(entry.corpo));
       });
-      const obstaculos = [];
-      markersRef.current.forEach((entry, key) => {
-        if (alvo && key.startsWith("lote_area_") && !alvo.has(key.slice("lote_area_".length))) return;
-        // `dono`: o ícone do lote da própria área não conta contra o nome dela
-        if (key.startsWith("lote_") && entry.el) obstaculos.push({ ...caixa(entry.el), dono: key.startsWith("lote_area_") ? key.slice("lote_area_".length) : undefined });
-      });
-      return { rotulos, obstaculos };
+      return { rotulos, obstaculos: obstaculosLotes };
     };
 
     // caixa de cada área na tela
@@ -461,6 +479,18 @@ export default function useMapRenderer(mapInstanceRef) {
     });
     labelsRef.current.forEach((entry, id) => {
       if (!alvo || alvo.has(id)) entry.el.style.visibility = "hidden"; // mede sem pintar
+    });
+
+    // Ícones de lote são obstáculos dos nomes (D-PROD-126). Desenhados pelo mapa, não há elemento para medir: a caixa
+    // é o ponto do pasto na tela + o deslocamento e o tamanho da imagem (D-PROD-349), na mesma origem dos nomes.
+    // `dono`: o ícone do lote da própria área não conta contra o nome dela.
+    const origem = tela.getBoundingClientRect?.() || { left: 0, top: 0 };
+    /** @type {Array<{ x: number, y: number, w: number, h: number, dono: string }>} */
+    const obstaculosLotes = [];
+    lotesRef.current.forEach((lote, id) => {
+      if (alvo && !alvo.has(id)) return;
+      const c = caixaDoLote(map.project(lote.item.lngLat), labelsRef.current.has(id), lote.tamanho);
+      obstaculosLotes.push({ x: c.x + origem.left, y: c.y + origem.top, w: c.w, h: c.h, dono: id });
     });
 
     // mede cada nível já na posição final; o nome é medido sozinho (sem o "ha"
@@ -629,7 +659,6 @@ export default function useMapRenderer(mapInstanceRef) {
     const keys = new Set(itens.map((i) => i.key));
     markersRef.current.forEach((entry, key) => {
       if (key.startsWith(prefix) && !keys.has(key)) {
-        clearBlinks(key);
         removerMarcador(entry);
         markersRef.current.delete(key);
       }
@@ -725,6 +754,7 @@ export default function useMapRenderer(mapInstanceRef) {
     setSourceData(map, MG_SOURCE_IDS.LINHAS, fc);
     if (!linhasHandlersRef.current) {
       const onClick = (e) => {
+        if (haLoteNoPonto(map, e.point)) return;
         const f = e.features?.[0];
         const linha = linhasByIdRef.current.get(String(f?.properties?.id ?? f?.id));
         if (!linha) return;
@@ -783,11 +813,86 @@ export default function useMapRenderer(mapInstanceRef) {
     syncGrupo(prefix, itens);
   }, [mapInstanceRef]);
 
-  // ─── Lotes (agrupados por área) ───
+  // ─── Lotes (agrupados por área) — desenhados pelo mapa (D-PROD-349) ───
+
+  /**
+   * Publica a fonte dos lotes. `comRotulo` (o pasto tem nome embaixo do ícone) vem dos rótulos: muda o
+   * `icon-offset` sem tocar em imagem. Só chama `setData` quando algo mudou (lotes ou quais têm nome).
+   */
+  const publicarLotes = () => {
+    const map = getMap();
+    if (!map) return;
+    const itens = [];
+    let comNome = "";
+    lotesRef.current.forEach((l, areaId) => {
+      const comRotulo = labelsRef.current.has(areaId);
+      if (comRotulo) comNome += `${areaId},`;
+      itens.push({ ...l.item, comRotulo });
+    });
+    const chave = `${lotesConteudoRef.current}|${comNome}`;
+    if (chave === lotesPublicadoRef.current) return;
+    lotesPublicadoRef.current = chave;
+    const fc = colecaoLotes(itens);
+    dataRef.current.lotes = fc;
+    setSourceData(map, MG_SOURCE_IDS.LOTES, fc);
+  };
+
+  /** Clique, arrastar e imagens que faltam após troca de estilo: ligados uma vez por mapa. */
+  const ligarLotes = (/** @type {any} */ map) => {
+    if (lotesHandlersRef.current) return;
+    const pr = () => pixelRatioRef.current;
+    const interacao = ligarInteracaoLotes(map, {
+      lote: (areaId) => {
+        const l = lotesRef.current.get(areaId);
+        if (!l) return null;
+        return { areaId, lngLat: l.item.lngLat, comRotulo: labelsRef.current.has(areaId), imagem: l.item.imagem, ident: l.item.ident, nome: l.item.nome };
+      },
+      podeArrastar: () => lotesCallbacksRef.current.canDragLotes,
+      aoClicar: (areaId) => {
+        const l = lotesRef.current.get(areaId);
+        if (l) lotesCallbacksRef.current.onClickLotes?.(l.lotesNaArea);
+      },
+      // Como o `dragend` do marcador antigo: posição solta, lotes do pasto, id do pasto e todas as áreas.
+      aoSoltar: (lngLat, areaId) => {
+        const l = lotesRef.current.get(areaId);
+        if (l) lotesCallbacksRef.current.onDragLotes?.(lngLat, l.lotesNaArea, areaId, l.areas);
+      },
+      criarMarcador: (el, offset) => new maplibregl.Marker({ element: el, anchor: "center", offset }),
+      pixelRatio: pr,
+    });
+    const desligarImagens = ligarImagensFaltando(map, pr);
+    // A densidade da tela mudou: imagens novas nessa densidade (mesmas chaves; `registrarImagens` troca as do mapa).
+    const aoRedimensionar = () => {
+      const novo = pixelRatioDaTela();
+      if (novo === pixelRatioRef.current) return;
+      pixelRatioRef.current = novo;
+      if (lotesArgsRef.current) syncLotesRef.current?.(...lotesArgsRef.current);
+    };
+    map.on("resize", aoRedimensionar);
+    lotesHandlersRef.current = {
+      off: () => {
+        interacao.off();
+        desligarImagens();
+        try {
+          map.off("resize", aoRedimensionar);
+        } catch {
+          /* mapa já removido */
+        }
+      },
+    };
+  };
+
   // `categoriasManejo`: Categorias de Manejo da empresa (cache do mapa). O ícone
   // do lote sai delas, pelo código (D-PROD-191); não há mais ícone de Lote por upload.
+  // Devolve a promessa de quando os lotes estão no mapa (imagens novas são desenhadas antes de publicar).
   const syncLotes = useCallback((lotesFiltrados, areas, show, categoriasManejo, onClickLotes, onDragLotes, canDragLotes = true, blinkAlerts = false) => {
-    const prefix = "lote_area_";
+    const map = getMap();
+    if (!map) return Promise.resolve();
+    ensureMgLayers(map);
+    lotesCallbacksRef.current = { onClickLotes, onDragLotes, canDragLotes: !!canDragLotes };
+    lotesArgsRef.current = [lotesFiltrados, areas, show, categoriasManejo, onClickLotes, onDragLotes, canDragLotes, blinkAlerts];
+    ligarLotes(map);
+    const pr = pixelRatioRef.current;
     const porArea = {};
     if (show) {
       for (const lote of lotesFiltrados) {
@@ -795,82 +900,70 @@ export default function useMapRenderer(mapInstanceRef) {
         (porArea[lote.area_atual_id] ||= []).push(lote);
       }
     }
-    const itens = [];
+    /** @type {Map<string, any>} */
+    const novos = new Map();
+    /** @type {import('@/lib/maplibre/lotesNoMapa.js').PedidoImagem[]} */
+    const pedidos = [];
     for (const [areaId, lotesNaArea] of Object.entries(porArea)) {
       const area = areas.find((a) => a.id === areaId);
       const centro = area ? centroideArea(area) : null;
       if (!centro) continue;
       const totalCabecas = lotesNaArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
       const totalAlertas = lotesNaArea.reduce((s, l) => s + (l.alertas?.length || 0), 0);
-      // Sempre há figura (D-PROD-191): `iconUrl` é a data URL do SVG do marcador.
+      // Sempre há figura (D-PROD-191): `iconUrl` é a data URL do SVG do marcador; `chave` identifica o desenho.
       const { iconUrl, chave } = resolverIconeLote(lotesNaArea, categoriasManejo);
-      const identificadores = identificadoresDoLote(lotesNaArea);
-      const key = prefix + areaId;
-      const ref = { lotesNaArea, areas };
-      // No diff vai a `chave` do desenho, não a URL (dezenas de kB): mesma chave = mesma figura.
-      const estado = JSON.stringify([centro.lat, centro.lng, totalCabecas, totalAlertas, area.nome, !!canDragLotes, chave, identificadores, blinkAlerts]);
-      itens.push({
-        key,
-        lngLat: [centro.lng, centro.lat],
-        estado,
-        ref,
-        criar: () => {
-          const entry = criarMarcadorClicavel({ iconUrl, baseSize: LARGURA_MARCADOR_PX, cor: "#10b981", titulo: area.nome, raio: 19 }, () => {
-            if (entry.arrastou) return;
-            onClickLotes?.(markersRef.current.get(key)?.ultimo?.ref?.lotesNaArea || lotesNaArea);
-          }, { draggable: !!canDragLotes, offset: OFFSET_LOTE_PX });
-          // Desenho no marcador, para teste e diagnóstico (o mesmo `data-icone-lote` do SVG).
-          entry.el.dataset.iconeLote = chave;
-          entry.corpoChave = chave;
-          const badge = document.createElement("div");
-          badge.className = "mg-lote-count";
-          badge.style.cssText =
-            // Quantidade de cabeças: cinza, abaixo da figura, com halo claro para
-            // ler sobre o ícone (D-PROD-82). Tamanho fixo e milhar com ponto,
-            // texto em `preencherLote` (D-PROD-111). Altura: o centro da faixa do
-            // card reservada à contagem, onde nenhum animal entra (D-PROD-191).
-            `position:absolute;left:50%;top:${CONTAGEM_TOPO_PCT}%;transform:translate(-50%,-50%);color:#6b7280;font-size:${FONTE_CONTAGEM_PX}px;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;`;
-          const ind = document.createElement("div");
-          ind.className = "mg-lote-ident";
-          // Identificador no canto de cima à direita, só uma bordinha dentro da figura (D-PROD-125).
-          ind.style.cssText = "position:absolute;left:calc(50% + 22px);top:calc(50% - 24px);transform:translate(-50%,-50%);display:flex;pointer-events:none;";
-          entry.el.append(badge, ind);
-          entry.badge = badge;
-          entry.ind = ind;
-          entry.arrastou = false;
-          entry.marker.on("dragstart", () => {
-            entry.arrastou = true;
-          });
-          entry.marker.on("dragend", () => {
-            const ll = entry.marker.getLngLat();
-            const r = markersRef.current.get(key)?.ultimo?.ref || ref;
-            onDragLotes?.({ lat: ll.lat, lng: ll.lng }, r.lotesNaArea, areaId, r.areas);
-            const voltar = markersRef.current.get(key)?.ultimo?.lngLat;
-            if (voltar) entry.marker.setLngLat(voltar);
-            setTimeout(() => {
-              entry.arrastou = false;
-            }, 0);
-          });
-          preencherLote(entry, { totalCabecas, identificadores, totalAlertas, blinkAlerts, key, canDragLotes });
-          return entry;
+      const imagem = pedidoImagemLote({ desenho: chave, iconUrl, cabecas: totalCabecas, pixelRatio: pr });
+      pedidos.push(imagem);
+      const ident = identificadoresDoLote(lotesNaArea)[0] || null;
+      const pedidoIdent = ident ? pedidoImagemIdent(ident, pr) : null;
+      if (pedidoIdent) pedidos.push(pedidoIdent);
+      novos.set(String(areaId), {
+        item: {
+          areaId: String(areaId),
+          lngLat: /** @type {[number, number]} */ ([centro.lng, centro.lat]),
+          imagem: imagem.chave,
+          ident: pedidoIdent?.chave ?? null,
+          alerta: totalAlertas > 0,
+          // Alerta pisca o identificador (D-PROD-125); sem identificador não há o que piscar.
+          piscar: Boolean(blinkAlerts) && totalAlertas > 0 && Boolean(pedidoIdent),
+          nome: area.nome || "",
+          cabecas: totalCabecas,
+          desenho: chave,
         },
-        atualizar: (entry) => {
-          entry.el.title = String(area.nome || "");
-          // Só troca o <img> quando o DESENHO muda (mesma guarda dos cochos): a URL
-          // tem dezenas de kB, e contagem, alerta ou nome não mudam a figura.
-          if (entry.corpoChave !== chave) {
-            aplicarCorpo(entry.el, { iconUrl, baseSize: LARGURA_MARCADOR_PX, cor: "#10b981", raio: 19 });
-            entry.el.dataset.iconeLote = chave;
-            entry.corpoChave = chave;
-          }
-          preencherLote(entry, { totalCabecas, identificadores, totalAlertas, blinkAlerts, key, canDragLotes });
-        },
+        lotesNaArea,
+        areas,
       });
     }
-    syncGrupo(prefix, itens);
-    // Os ícones de lote são obstáculos para os rótulos (D-PROD-126).
-    agendarArrumar();
+    const seq = ++lotesSeqRef.current;
+    const aplicar = () => {
+      const m = getMap();
+      if (seq !== lotesSeqRef.current || !m) return;
+      const emUso = chavesImagensLotes(novos);
+      registrarImagens(m, emUso, pr);
+      novos.forEach((l) => {
+        const r = imagemPronta(l.item.imagem, pr);
+        l.tamanho = r ? { w: r.w, h: r.h } : TAMANHO_PADRAO_LOTE;
+      });
+      // Imagem que falhou: o lote aparece com a reserva. Quando ela vier numa próxima tentativa, a lista muda e a
+      // fonte é publicada de novo (o mapa só troca a reserva pela imagem ao refazer os dados).
+      const faltando = emUso.filter((k) => !imagemPronta(k, pr));
+      lotesRef.current = novos;
+      lotesConteudoRef.current = JSON.stringify([[...novos.values()].map((l) => l.item), faltando]);
+      publicarLotes();
+      // Depois de publicar: as imagens que nenhum lote usa mais saem do mapa e do cache.
+      podarImagens(m, new Set(emUso), pr);
+      piscaRef.current?.atualizar([...novos.values()].filter((l) => l.item.piscar).map((l) => l.item.areaId));
+      // Os ícones de lote são obstáculos para os rótulos (D-PROD-126).
+      agendarArrumar();
+    };
+    const espera = garantirImagens(pedidos, pr);
+    if (!espera) {
+      aplicar();
+      return Promise.resolve();
+    }
+    return espera.then(aplicar);
   }, [mapInstanceRef]);
+  syncLotesRef.current = syncLotes;
 
   // ─── Tarefas ───
   const syncTarefas = useCallback((tarefasMapa, areas, iconesConfig, onClickTarefa, hoje) => {
@@ -946,9 +1039,16 @@ export default function useMapRenderer(mapInstanceRef) {
     );
   }, [mapInstanceRef]);
 
-  /** Há área de negócio sob o ponto (para o clique geral do mapa não duplicar o da área). */
+  /** Há ícone de lote sob o ponto (px do mapa)? O toque longo do Mapa Geral não começa em cima de um lote. */
+  const hitLote = useCallback((point) => {
+    const map = getMap();
+    return Boolean(map) && haLoteNoPonto(map, point);
+  }, [mapInstanceRef]);
+
+  /** Há área de negócio (ou lote em cima dela) sob o ponto (para o clique geral do mapa não duplicar o da área). */
   const hitArea = useCallback((point) => {
     const map = getMap();
+    if (map && haLoteNoPonto(map, point)) return true;
     if (!map || !map.getLayer(MG_LAYER_IDS.AREAS_FILL)) return false;
     try {
       return map.queryRenderedFeatures(point, { layers: [MG_LAYER_IDS.AREAS_FILL] }).length > 0;
@@ -957,39 +1057,5 @@ export default function useMapRenderer(mapInstanceRef) {
     }
   }, [mapInstanceRef]);
 
-  return { clearAll, ensureLayers, hitArea, syncAreas, syncLabels, syncPontos, syncLinhas, syncPontosSuplementacao, syncLotes, syncTarefas, syncUserLocation, setEstiloPasto };
-}
-
-function identificadoresDoLote(lotesNaArea) {
-  const unicos = [
-    ...new Map(
-      lotesNaArea
-        .filter((l) => l.identificador_cor || l.identificador_sigla || l.identificador_nome)
-        .map((l) => {
-          const cor = l.identificador_cor || "#64748b";
-          const sigla = l.identificador_sigla || l.identificador_nome || "";
-          const nome = l.identificador_nome || sigla;
-          return [`${cor}_${sigla}_${nome}`, { cor, sigla, nome }];
-        })
-    ).values(),
-  ];
-  return unicos.length <= 1 ? unicos : [{ cor: "linear-gradient(90deg, #000000 50%, #ffffff 50%)", nome: "MISTO", sigla: "" }];
-}
-
-function preencherLote(entry, { totalCabecas, identificadores, totalAlertas, blinkAlerts, key, canDragLotes }) {
-  entry.badge.textContent = formatarContagem(totalCabecas);
-  entry.ind.replaceChildren(
-    ...identificadores.map((i) => {
-      const d = document.createElement("div");
-      d.title = i.nome || i.sigla || "";
-      d.style.cssText =
-        "width:13px;height:13px;box-sizing:border-box;border-radius:9999px;border:1px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:700;color:#fff;line-height:1;overflow:hidden;";
-      d.style.background = i.cor;
-      d.textContent = i.sigla ? String(i.sigla).substring(0, 2) : "";
-      return d;
-    })
-  );
-  entry.marker.setDraggable(!!canDragLotes);
-  entry.marker.getElement().style.zIndex = totalAlertas > 0 ? "2000" : "1000";
-  setBlink(key + "_ind", entry.ind, blinkAlerts && totalAlertas > 0, 0.2);
+  return { clearAll, ensureLayers, hitArea, hitLote, syncAreas, syncLabels, syncPontos, syncLinhas, syncPontosSuplementacao, syncLotes, syncTarefas, syncUserLocation, setEstiloPasto };
 }

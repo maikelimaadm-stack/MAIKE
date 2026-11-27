@@ -22,15 +22,20 @@ describe('CNT — quantidade de cabeças no marcador', () => {
     expect(formatarContagem('abc')).toBe('0');
   });
 
-  it('CNT-03 o marcador usa texto formatado, fonte fixa e fica abaixo da figura', () => {
-    const fonte = readFileSync('src/components/mapa/useMapRenderer.jsx', 'utf8');
+  it('CNT-03 o lote usa texto formatado, fonte fixa e fica abaixo da figura', () => {
+    // D-PROD-349: a contagem é escrita na imagem do lote (canvas), não num elemento HTML.
+    // O desenho em si é conferido em lotesNoMapaD349.test.jsx (L349-2).
+    const fonte = readFileSync('src/lib/maplibre/lotesNoMapa.js', 'utf8');
     expect(FONTE_CONTAGEM_PX).toBe(9.5);
-    expect(fonte).toMatch(/entry\.badge\.textContent = formatarContagem\(totalCabecas\)/);
+    expect(fonte).toMatch(/texto: formatarContagem\(cabecas\)/);
     // D-PROD-191: a altura é o centro da faixa do card reservada à contagem (motor do ícone).
     expect(fonte).toMatch(/import \{[^}]*\bCONTAGEM_TOPO_PCT\b[^}]*\} from "@\/assets\/icones\/lotes"/);
-    expect(fonte).toMatch(/top:\$\{CONTAGEM_TOPO_PCT\}%;[^`]*color:#6b7280;font-size:\$\{FONTE_CONTAGEM_PX\}px/);
-    expect(fonte).not.toMatch(/top:69%/);
-    expect(fonte).not.toMatch(/badge\.style\.fontSize/);
+    expect(fonte).toMatch(/\(h \* CONTAGEM_TOPO_PCT\) \/ 100/);
+    expect(fonte).toMatch(/ctx\.font = `700 \$\{FONTE_CONTAGEM_PX\}px \$\{FONTE_FAMILIA\}`;/);
+    expect(fonte).toMatch(/ctx\.fillStyle = "#6b7280";/);
+    expect(fonte).not.toMatch(/top:69%|0\.69/);
+    // sem text-field do MapLibre: o estilo sem internet não tem fonte de letras
+    expect(fonte).not.toMatch(/"text-field"/);
   });
 
   it('CNT-04 rótulo de área (nome e hectares) sem sombra no texto', () => {

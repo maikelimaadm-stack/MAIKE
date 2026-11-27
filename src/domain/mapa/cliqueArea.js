@@ -42,3 +42,19 @@ export const acaoDoCliqueNaArea = ({ area, selecionandoLocalTarefa, toqueLongoAc
   if (ehCurral(area)) return 'abrir-detalhes';
   return podeVerAreas(permissoes) ? 'abrir-detalhes' : 'ignorar';
 };
+
+/**
+ * D-PROD-349 — toque longo no mapa (lançar tarefa): não começa em cima do ícone de um lote. Ali o toque é do lote
+ * (abrir os lotes ou arrastar), e o toque longo dispararia junto com o clique ou o arrasto.
+ * @param {{ podeUsarTarefasMapa: boolean, selecionandoLocalTarefa: boolean, sobreLote: boolean }} p
+ */
+export const deveComecarToqueLongo = ({ podeUsarTarefasMapa, selecionandoLocalTarefa, sobreLote }) =>
+  Boolean(podeUsarTarefasMapa) && !selecionandoLocalTarefa && !sobreLote;
+
+/**
+ * D-PROD-349 — clique no ícone do lote: abre os lotes, a não ser que encerre um toque longo que já abriu o
+ * lançamento de tarefa (a mesma regra do clique na área).
+ * @param {{ toqueLongoAcabouDeDisparar: boolean }} p
+ * @returns {'abrir-lotes'|'ignorar'}
+ */
+export const acaoDoCliqueNoLote = ({ toqueLongoAcabouDeDisparar }) => (toqueLongoAcabouDeDisparar ? 'ignorar' : 'abrir-lotes');
