@@ -29,20 +29,26 @@ let registrado = false;
 let gravacoesDesdeALimpeza = 0;
 /**
  * D-PROD-360: a limpeza lê as imagens guardadas uma a uma (até 4.000). Ela não roda mais no meio do zoom: depois
- * de 200 gravações fica marcada e só roda quando o mapa passa `MS_SOSSEGO_LIMPEZA` sem gravar imagem nova.
+ * de 200 gravações (e uma vez ao abrir o app) fica marcada e só roda quando o mapa passa `MS_SOSSEGO_LIMPEZA` sem
+ * gravar imagem nova; com o mapa sempre em uso, roda no máximo `MS_TETO_ADIAMENTO` depois de marcada.
  */
 export const MS_SOSSEGO_LIMPEZA = 20000;
+export const MS_TETO_ADIAMENTO = 2 * 60 * 1000;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let limpezaAgendada = null;
 let precisaLimpar = false;
+let marcadaEm = 0;
 /** @param {() => number} agora */
 const adiarLimpeza = (agora) => {
+  if (!marcadaEm) marcadaEm = agora();
+  const resta = Math.max(0, marcadaEm + MS_TETO_ADIAMENTO - agora());
   if (limpezaAgendada) clearTimeout(limpezaAgendada);
   limpezaAgendada = setTimeout(() => {
     limpezaAgendada = null;
     precisaLimpar = false;
+    marcadaEm = 0;
     void limparTilesAntigos(agora);
-  }, MS_SOSSEGO_LIMPEZA);
+  }, Math.min(MS_SOSSEGO_LIMPEZA, resta));
 };
 
 export const sateliteGuardadoDisponivel = () => {
@@ -167,6 +173,9 @@ export const ativarSateliteGuardado = () => {
       carregarTileSatelite(/** @type {any} */ (params), abortController)
     );
     registrado = true;
+    // uma limpeza por abertura do app (a marcada na sessão anterior se perde quando o app é fechado)
+    precisaLimpar = true;
+    adiarLimpeza(Date.now);
   } catch {
     registrado = false;
   }

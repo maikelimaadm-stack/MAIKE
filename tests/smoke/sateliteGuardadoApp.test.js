@@ -103,4 +103,26 @@ describe('D-PROD-360 — a limpeza do cache do satélite não roda no meio do zo
       vi.useRealTimers();
     }
   });
+
+  it('SG-07 com o mapa sempre gravando imagem nova, a limpeza roda no máximo 2 min depois de marcada', async () => {
+    vi.useFakeTimers();
+    try {
+      const mod = await import('@/lib/maplibre/sateliteGuardado.js');
+      const lojas = /** @type {any} */ (globalThis.caches);
+      const aberto = await lojas.open('maike-satelite-v1');
+      const keys = vi.spyOn(aberto, 'keys');
+      lojas.open = async () => aberto;
+      const tile = (i) => `https://api.maptiler.com/tiles/satellite-v2/16/${i}/1.jpg`;
+      for (let i = 0; i < 200; i += 1) await mod.guardarTile(tile(i), new Uint8Array([1]).buffer, 'image/jpeg');
+      // uma imagem nova a cada 10 s: nunca passa 20 s parado
+      for (let k = 0; k < 11 && keys.mock.calls.length === 0; k += 1) {
+        await vi.advanceTimersByTimeAsync(10000);
+        await mod.guardarTile(tile(1000 + k), new Uint8Array([1]).buffer, 'image/jpeg');
+      }
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(keys).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

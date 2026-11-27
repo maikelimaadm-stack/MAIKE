@@ -711,10 +711,13 @@ describe("D-PROD-360 — com o satélite pronto, o mapa de ruas por baixo dele n
       const l = map.layers.find((x) => x.id === id);
       if (l) l.layout = { ...(l.layout || {}), visibility: v };
     };
+    // fonte do satélite carregada na tela (o `idle` só esconde com ela carregada)
+    map.satCarregado = true;
+    map.isSourceLoaded = (id) => (id === "maike-basemap-satelite" ? map.satCarregado : true);
     return map;
   };
 
-  it("SR-01 escondidas só depois do primeiro tile; o fundo, o negócio e o que já estava escondido ficam; Mapa devolve igual", async () => {
+  it("SR-01 escondidas só com o satélite carregado na tela (idle); o fundo, o negócio e o que já estava escondido ficam; Mapa devolve igual", async () => {
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "chave-teste");
     const { createBasemapController } = await import("@/lib/maplibre/basemapController.js");
     const { descartarSessoesMapTiles } = await import("@/lib/maplibre/googleMapTiles.js");
@@ -732,6 +735,13 @@ describe("D-PROD-360 — com o satélite pronto, o mapa de ruas por baixo dele n
     expect(vis("estrada")).toBe("visible");
     map.fire("sourcedata", { sourceId: "maike-basemap-satelite", tile: {} });
     expect(states.at(-1).status).toBe("pronto");
+    // um tile só não basta: as ruas continuam até o satélite cobrir a tela
+    expect(vis("estrada")).toBe("visible");
+    map.satCarregado = false;
+    map.fire("idle");
+    expect(vis("estrada")).toBe("visible");
+    map.satCarregado = true;
+    map.fire("idle");
     expect(["agua", "estrada", "nome-cidade"].map(vis)).toEqual(["none", "none", "none"]);
     expect(["fundo", "mg-areas-fill", "mg-nomes", "maike-basemap-satelite"].map(vis)).toEqual(["visible", "visible", "visible", "visible"]);
     // volta para Mapa: cada camada como estava (a que já estava escondida continua escondida)
@@ -742,8 +752,10 @@ describe("D-PROD-360 — com o satélite pronto, o mapa de ruas por baixo dele n
     c.setBasemap("satelite");
     await vi.waitFor(() => expect(map.layout.get("maike-basemap-satelite")).toBe("visible"));
     map.fire("sourcedata", { sourceId: "maike-basemap-satelite", tile: {} });
+    map.fire("idle");
     expect(vis("estrada")).toBe("none");
     c.dispose();
+    expect(map.handlers.has("idle")).toBe(false);
   });
 
   it("SR-02 satélite que falha devolve as ruas", async () => {
@@ -761,11 +773,44 @@ describe("D-PROD-360 — com o satélite pronto, o mapa de ruas por baixo dele n
     c.setBasemap("satelite");
     await vi.waitFor(() => expect(map.layout.get("maike-basemap-satelite")).toBe("visible"));
     map.fire("sourcedata", { sourceId: "maike-basemap-satelite", tile: {} });
+    map.fire("idle");
     expect(vis("estrada")).toBe("none");
     map.fire("error", { sourceId: "maike-basemap-satelite", error: { status: 429 } });
     expect(states.at(-1).status).toBe("erro");
     expect(states.at(-1).basemapId).toBe("ruas");
     expect(vis("estrada")).toBe("visible");
+    c.dispose();
+  });
+
+  it("SR-03 sessão renovada (401): as ruas voltam enquanto a fonte nova carrega e somem de novo no idle", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "chave-teste");
+    const { createBasemapController } = await import("@/lib/maplibre/basemapController.js");
+    const { descartarSessoesMapTiles } = await import("@/lib/maplibre/googleMapTiles.js");
+    descartarSessoesMapTiles();
+    let n = 0;
+    const fetchImpl = vi.fn(async (url) => {
+      if (String(url).includes("createSession")) {
+        n += 1;
+        return resp(200, { session: `R${n}`, expiry: "9999999999" });
+      }
+      return resp(200, { copyright: "©X" });
+    });
+    const map = mapaComRuas();
+    const states = [];
+    const c = createBasemapController(/** @type {any} */ (map), { fetchImpl, onState: (s) => states.push(s) });
+    const vis = (id) => map.layers.find((l) => l.id === id)?.layout?.visibility ?? "visible";
+    c.setBasemap("satelite");
+    await vi.waitFor(() => expect(map.layout.get("maike-basemap-satelite")).toBe("visible"));
+    map.fire("sourcedata", { sourceId: "maike-basemap-satelite", tile: {} });
+    map.fire("idle");
+    expect(vis("estrada")).toBe("none");
+    map.fire("error", { sourceId: "maike-basemap-satelite", error: { status: 401 } });
+    await vi.waitFor(() => expect(n).toBe(2));
+    await vi.waitFor(() => expect(map.sources.get("maike-basemap-satelite")?.tiles?.[0]).toMatch(/session=R2/));
+    expect(vis("estrada")).toBe("visible");
+    map.fire("sourcedata", { sourceId: "maike-basemap-satelite", tile: {} });
+    map.fire("idle");
+    expect(vis("estrada")).toBe("none");
     c.dispose();
   });
 });

@@ -10792,16 +10792,30 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 - **Problema:** o satélite (Google no site, MapTiler no app) é uma camada raster posta por cima do estilo de ruas (OpenFreeMap Liberty, ~110 camadas: estradas, rios, nomes de cidades). O satélite cobre a tela inteira, mas o MapLibre continuava baixando, processando e desenhando o mapa de ruas embaixo dele a cada passo do zoom e do arrasto. No app, a limpeza do cache do satélite (até 4.000 imagens lidas uma a uma) rodava a cada 200 imagens novas, justamente durante o zoom.
 - **Decisão:**
-  - Quando o satélite fica **pronto** (primeira imagem chegou), as camadas do estilo-base **abaixo** do satélite são escondidas (`visibility: none`), menos o `background` e as de negócio (`PREFIXOS_FONTES_NEGOCIO`). Sem camada visível, a fonte de ruas deixa de ser usada e o MapLibre para de pedir os tiles dela.
+  - Quando o satélite fica **pronto** e **carregado na tela** (evento `idle` do mapa com a fonte do satélite carregada), as camadas do estilo-base **abaixo** do satélite são escondidas (`visibility: none`), menos o `background` e as de negócio (`PREFIXOS_FONTES_NEGOCIO`). Sem camada visível, a fonte de ruas deixa de ser usada e o MapLibre para de pedir os tiles dela.
   - A visibilidade de cada camada é guardada e volta igual quando o usuário volta para **Mapa** ou quando o satélite falha (camada que já estava escondida continua escondida).
-  - Enquanto o satélite carrega, as ruas continuam (como antes).
-  - App: depois de 200 imagens guardadas, a limpeza do cache fica marcada e só roda quando o mapa passa 20 s sem gravar imagem nova (`MS_SOSSEGO_LIMPEZA`).
+  - Enquanto o satélite carrega (inclusive quando a fonte é trocada: sessão renovada, nova tentativa), as ruas aparecem, como antes.
+  - App: depois de 200 imagens guardadas, e uma vez ao abrir o app, a limpeza do cache fica marcada e só roda quando o mapa passa 20 s sem gravar imagem nova (`MS_SOSSEGO_LIMPEZA`), no máximo 2 min depois de marcada (`MS_TETO_ADIAMENTO`).
 - **Diferença visível:** o crédito do mapa de ruas no rodapé (OpenFreeMap, OpenMapTiles) sai no satélite, porque esses dados deixam de ser mostrados; fica o crédito do satélite (Google ou MapTiler + OpenStreetMap). Fora isso, a tela é idêntica (comparação de pixels no harness). Se faltar uma imagem do satélite (área nova, sinal fraco), aparece o fundo liso do mapa no lugar das ruas.
 - **Resultado (harness, 200 pastos, CPU 4×, densidade do Pixel 7, satélite simulado por servidor local, página nova a cada rodada, zoom e arrasto por áreas novas, três rodadas alternadas):**
   - tiles de ruas baixados: 9 → 0;
   - quadros/s: 7,7 · 9,7 · 10,3 → 7,8 · 12,2 · 11,9;
   - quadros acima de 100 ms: 194 · 169 · 157 → 188 · 108 · 115;
   - trabalho do processador principal: 9,1 · 8,7 · 8,0 s → 8,5 · 7,2 · 7,0 s.
-- **Testes:** `maplibreAreasUnificacao.test.jsx` (SR-01: só depois do primeiro tile, fundo, negócio e camada já escondida ficam, Mapa devolve igual, satélite de novo esconde de novo; SR-02: satélite que falha devolve as ruas) e `sateliteGuardadoApp.test.js` (SG-06: a limpeza espera 20 s sem imagem nova). Os três falham sem a mudança.
+- **Revisão independente:** quatro achados corrigidos.
+  - (1) Os atalhos de "pronto" confiavam em `isSourceLoaded`, que vale `true` para fonte ainda sem uso, e escondiam as ruas antes de qualquer imagem da área nova.
+  - (3) Esconder no primeiro tile deixava o resto da tela piscar no fundo.
+  - Correção de (1) e (3): esconder só no `idle`, com a fonte do satélite carregada.
+  - (2) Com a sessão renovada (401/403) ou numa nova tentativa, as ruas ficavam escondidas enquanto a fonte nova carregava. Agora elas voltam até lá.
+  - (4) A limpeza podia nunca rodar com o mapa sempre em uso ou com o app fechado antes. Correção: teto de 2 min e uma limpeza por abertura do app.
+- **Testes:**
+  - `maplibreAreasUnificacao.test.jsx`:
+    - SR-01: um tile só não esconde; `idle` com o satélite carregado esconde; fundo, negócio e camada já escondida ficam; Mapa devolve igual; satélite de novo esconde de novo.
+    - SR-02: satélite que falha devolve as ruas.
+    - SR-03: sessão renovada devolve as ruas até o próximo `idle`.
+  - `sateliteGuardadoApp.test.js`:
+    - SG-06: a limpeza espera 20 s sem imagem nova.
+    - SG-07: com imagens novas a cada 10 s, ela roda no máximo 2 min depois de marcada.
+  - Todos falham sem a mudança.
 
 <!-- Próxima decisão: D-PROD-361 -->

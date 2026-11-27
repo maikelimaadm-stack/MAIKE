@@ -123,7 +123,7 @@ export function createBasemapController(map, opts = {}) {
   };
 
   /**
-   * D-PROD-360: com o satélite pronto, o mapa de ruas que fica POR BAIXO dele é escondido. Ele não aparece (o
+   * D-PROD-360: com o satélite pronto e carregado na tela, o mapa de ruas que fica POR BAIXO dele é escondido. Ele não aparece (o
    * satélite cobre a tela), mas continuava baixando, processando e desenhando ~110 camadas a cada passo do zoom.
    * Escondidas, a fonte de ruas deixa de ser usada e o MapLibre para de pedir os tiles dela. Só as camadas abaixo
    * do satélite, que não são de negócio nem o fundo; a visibilidade de cada uma é guardada e volta igual no Mapa.
@@ -147,7 +147,27 @@ export function createBasemapController(map, opts = {}) {
       /* best-effort: no pior caso o mapa de ruas continua por baixo, como antes */
     }
   };
+  /**
+   * Esconde só quando o satélite cobriu a tela: no `idle` do mapa, com a fonte do satélite carregada (não no primeiro
+   * tile, nem pelo `isSourceLoaded` dos atalhos, que vale `true` para fonte ainda sem uso). Até lá, as ruas aparecem.
+   */
+  let ocultarPendente = false;
+  const ocultarQuandoCarregar = () => {
+    ocultarPendente = true;
+  };
+  const onIdle = () => {
+    if (disposed || !ocultarPendente || estado.basemapId !== BASEMAP_IDS.SATELITE || estado.status !== "pronto") return;
+    try {
+      if (!map.getLayer(SAT_LAYER_ID) || map.getLayoutProperty?.(SAT_LAYER_ID, "visibility") === "none") return;
+      if (map.isSourceLoaded && !map.isSourceLoaded(SAT_SOURCE_ID)) return;
+    } catch {
+      return;
+    }
+    ocultarPendente = false;
+    ocultarEstiloBase();
+  };
   const mostrarEstiloBase = () => {
+    ocultarPendente = false;
     for (const [id, vis] of baseOculta) {
       try {
         if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
@@ -262,7 +282,7 @@ export function createBasemapController(map, opts = {}) {
     prova.errosSeguidos = 0;
     if (estado.status === "carregando") {
       limparProvaTimer();
-      ocultarEstiloBase();
+      ocultarQuandoCarregar();
       emit({ basemapId: BASEMAP_IDS.SATELITE, status: "pronto", mensagem: null, atribuicao: estado.atribuicao || atribuicaoPadrao() });
       atualizarAtribuicao();
     }
@@ -279,6 +299,7 @@ export function createBasemapController(map, opts = {}) {
       const src = map.getSource(SAT_SOURCE_ID);
       const mesmaFonte = sessaoAtiva && sessaoAtiva.session === "maptiler";
       if (src && !mesmaFonte) {
+        mostrarEstiloBase();
         if (map.getLayer(SAT_LAYER_ID)) map.removeLayer(SAT_LAYER_ID);
         map.removeSource(SAT_SOURCE_ID);
       }
@@ -295,7 +316,7 @@ export function createBasemapController(map, opts = {}) {
       setSatVisivel(true);
       if (mesmaFonte && map.isSourceLoaded?.(SAT_SOURCE_ID)) {
         prova.ok = 1;
-        ocultarEstiloBase();
+        ocultarQuandoCarregar();
         emit({ basemapId: BASEMAP_IDS.SATELITE, status: "pronto", mensagem: null, atribuicao: ATRIBUICAO_MAPTILER_TEXTO });
         return;
       }
@@ -315,6 +336,7 @@ export function createBasemapController(map, opts = {}) {
   map.on("moveend", atualizarAtribuicao);
   map.on("error", onMapError);
   map.on("sourcedata", onSourceData);
+  map.on("idle", onIdle);
 
   const ativarSateliteGoogle = async (forcar, extra = {}) => {
     const meu = ++pedido;
@@ -331,6 +353,8 @@ export function createBasemapController(map, opts = {}) {
       const novaFonte = /** @type {any} */ (fonteRasterMapTiles({ session: String(s.session), key: String(s.key), tileSize: s.tileSize }));
       const mesmaSessao = sessaoAtiva && sessaoAtiva.session === s.session;
       if (src && !mesmaSessao) {
+        // fonte nova (sessão renovada, retry): as ruas voltam enquanto ela carrega; o próximo `idle` esconde de novo
+        mostrarEstiloBase();
         if (map.getLayer(SAT_LAYER_ID)) map.removeLayer(SAT_LAYER_ID);
         map.removeSource(SAT_SOURCE_ID);
       }
@@ -347,7 +371,7 @@ export function createBasemapController(map, opts = {}) {
       // Mesma sessão já com tiles em cache do MapLibre: a fonte pode já estar carregada.
       if (mesmaSessao && map.isSourceLoaded?.(SAT_SOURCE_ID)) {
         prova.ok = 1;
-        ocultarEstiloBase();
+        ocultarQuandoCarregar();
         emit({ basemapId: BASEMAP_IDS.SATELITE, status: "pronto", mensagem: null, atribuicao: estado.atribuicao || ATRIBUICAO_GOOGLE });
         atualizarAtribuicao();
         return;
@@ -452,6 +476,7 @@ export function createBasemapController(map, opts = {}) {
         map.off("moveend", atualizarAtribuicao);
         map.off("error", onMapError);
         map.off("sourcedata", onSourceData);
+        map.off("idle", onIdle);
       } catch {
         /* ignore */
       }

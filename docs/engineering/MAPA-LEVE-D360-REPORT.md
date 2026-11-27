@@ -17,12 +17,12 @@ No app havia mais um custo. A limpeza do cache do satélite lê até 4.000 image
 ## O que mudou
 
 - **Ruas escondidas com o satélite pronto** (`basemapController.js`).
-  - Quando chega a primeira imagem do satélite, as camadas do estilo de ruas que ficam **abaixo** do satélite recebem `visibility: none`.
+  - Quando o satélite está pronto e carregado na tela (evento `idle` do mapa, com a fonte do satélite carregada), as camadas do estilo de ruas que ficam **abaixo** do satélite recebem `visibility: none`.
   - Ficam visíveis o fundo (`background`) e as camadas de negócio (`PREFIXOS_FONTES_NEGOCIO`).
   - Sem camada visível, a fonte de ruas deixa de ser usada e o MapLibre para de pedir os tiles dela.
   - A visibilidade de cada camada é guardada. Ela volta igual quando o usuário escolhe **Mapa** ou quando o satélite falha. A camada que já estava escondida no estilo continua escondida.
-  - Enquanto o satélite carrega, as ruas continuam aparecendo, como antes.
-- **Limpeza do cache fora do zoom** (`sateliteGuardado.js`, só no app). Depois de 200 imagens guardadas, a limpeza fica marcada. Cada imagem nova a empurra para depois, e ela só roda quando o mapa passa 20 s sem gravar imagem nova.
+  - Enquanto o satélite carrega, as ruas continuam aparecendo, como antes. Isso vale também quando a fonte do satélite é trocada (sessão renovada depois de um 401/403, nova tentativa).
+- **Limpeza do cache fora do zoom** (`sateliteGuardado.js`, só no app). Depois de 200 imagens guardadas, a limpeza fica marcada. Cada imagem nova a empurra para depois, e ela só roda quando o mapa passa 20 s sem gravar imagem nova. Se o mapa nunca parar, ela roda no máximo 2 min depois de marcada. Ela também fica marcada uma vez a cada abertura do app, porque a marcação da sessão anterior se perde quando o app é fechado.
 
 ## Números
 
@@ -64,13 +64,27 @@ Comparei a tela com e sem as ruas por baixo, depois de carregada, com o satélit
 - **Crédito do mapa de ruas.** "OpenFreeMap © OpenMapTiles Data from OpenStreetMap" deixa de aparecer no satélite, porque esses dados deixam de ser mostrados. Fica o crédito do satélite: "Google Maps" no site, "© MapTiler © OpenStreetMap" no app.
 - **Imagem que falta.** Se faltar uma imagem do satélite (área nunca vista, sinal fraco), aparece o fundo liso do mapa onde antes podiam aparecer as ruas. O MapLibre já usa a imagem do nível de zoom de cima enquanto a nova chega, então isso é raro.
 
+## Revisão independente
+
+Uma revisão só de leitura achou quatro pontos. Todos foram corrigidos, cada um com um teste que falha sem a correção.
+
+1. **Atalhos de "pronto".** Ao voltar para o satélite com a mesma sessão, o controlador confiava em `isSourceLoaded`. Para uma fonte ainda sem uso, o MapLibre devolve `true`, então as ruas sumiam antes de qualquer imagem da área nova: tela no fundo liso até a rede responder.
+2. **Sessão renovada.** Com a sessão renovada depois de um 401/403, ou numa nova tentativa, as ruas continuavam escondidas enquanto a fonte nova carregava.
+3. **Primeiro tile.** Esconder com a primeira imagem fazia o resto da tela piscar no fundo até as outras chegarem.
+4. **Limpeza que nunca roda.** A limpeza adiada podia nunca rodar com o mapa sempre em uso, ou se o app fosse fechado antes dos 20 s.
+
+A correção de 1 e 3 foi esconder só no `idle` do mapa, com a fonte do satélite carregada. A de 2 foi devolver as ruas quando a fonte é trocada. A de 4 foi o teto de 2 min e uma limpeza por abertura do app.
+
 ## Testes
 
 - `tests/smoke/maplibreAreasUnificacao.test.jsx`:
-  - SR-01: as ruas ficam visíveis enquanto o satélite carrega e são escondidas no primeiro tile. O fundo, as camadas de negócio e a camada já escondida ficam como estavam. Voltar para Mapa devolve cada camada como estava. Satélite de novo esconde de novo.
+  - SR-01: um tile só não esconde as ruas; o `idle` com o satélite carregado esconde; com o satélite ainda carregando, não. O fundo, as camadas de negócio e a camada já escondida ficam como estavam. Voltar para Mapa devolve cada camada como estava. Satélite de novo esconde de novo.
   - SR-02: o satélite que falha (429) volta para Mapa com as ruas visíveis.
-- `tests/smoke/sateliteGuardadoApp.test.js`, SG-06: depois de 200 imagens a limpeza não roda; cada imagem nova a adia; ela roda depois de 20 s sem imagem nova.
-- Os três testes falham sem a mudança e passam com ela.
+  - SR-03: a sessão renovada (401) devolve as ruas até o próximo `idle`.
+- `tests/smoke/sateliteGuardadoApp.test.js`:
+  - SG-06: depois de 200 imagens a limpeza não roda; cada imagem nova a adia; ela roda depois de 20 s sem imagem nova.
+  - SG-07: com uma imagem nova a cada 10 s, ela roda no máximo 2 min depois de marcada.
+- Os testes novos falham sem a mudança e passam com ela.
 
 ## O que falta / riscos
 
