@@ -7,15 +7,18 @@ import {
   areaNoPonto,
   caixaDosPoligonos,
   chaveDaVistaSalva,
+  circuloDaLocalizacao,
   configDoMapaGoogle,
   ehMapaGoogleNativo,
   escalaDoMapaGoogle,
   limparMapaGoogleOrfao,
+  marcadorDaLocalizacao,
   APK_MARCADORES_NATIVOS,
   novoIdDoMapaGoogle,
   numeroDoApk,
   pluginDoMapaGoogle,
   poligonosDasAreas,
+  polilinhasDasLinhas,
   registrarMapaGoogleAberto,
   tipoDoMapaGoogle,
   zoomDoGoogle,
@@ -64,9 +67,12 @@ function abrirJanelaParaOMapa(el) {
  *   onClickArea?: (area: any) => void,
  *   onFalha?: (erro: unknown) => void,
  *   onMapa?: (mapa: any) => void,
- * }} props
+ *   linhas?: any[],
+ *   onClickLinha?: (linha: any) => void,
+ *   localizacao?: { lat: number, lng: number, accuracy?: number | null } | null,
+ * }} props `linhas` e `localizacao` (D-PROD-375): as linhas do Mapa Geral e o ponto azul com o círculo da precisão.
  */
-export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregadas = true, mostrarAreas, corDaArea, estiloPasto, tipoMapa, empresaId, ativo = true, onClickArea, onFalha, onMapa }) {
+export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregadas = true, mostrarAreas, corDaArea, estiloPasto, tipoMapa, empresaId, ativo = true, onClickArea, onFalha, onMapa, linhas, onClickLinha, localizacao }) {
   const elRef = useRef(/** @type {HTMLElement | null} */ (null));
   const mapaRef = useRef(/** @type {GoogleMap | null} */ (null));
   const idsRef = useRef(/** @type {string[]} */ ([]));
@@ -88,6 +94,13 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
   const ouvinteMovimentoRef = useRef(/** @type {{ remove: () => any } | null} */ (null));
   // App: os polígonos postos (para achar a área do toque; lá eles não são clicáveis)
   const poligonosRef = useRef(/** @type {any[]} */ ([]));
+  // D-PROD-375: as linhas postas (ids e a linha de cada `tag`), o círculo da localização e quem põe os marcadores
+  const linhasIdsRef = useRef(/** @type {string[]} */ ([]));
+  const linhasPorIdRef = useRef(new Map());
+  const circuloIdsRef = useRef(/** @type {string[]} */ ([]));
+  const definirRef = useRef(/** @type {null | ((grupo: string, lista: any[]) => any)} */ (null));
+  const linhaRef = useRef(onClickLinha);
+  linhaRef.current = onClickLinha;
   const [pronto, setPronto] = useState(false);
 
   // cria o mapa uma vez por fazenda
@@ -223,10 +236,20 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
           });
         }
         const alvoDosMarcadores = nativos || camada;
+        definirRef.current = alvoDosMarcadores
+          ? (g, l) => alvoDosMarcadores.definir(g, l)
+          : typeof mapa.definirMarcadores === "function"
+            ? (g, l) => mapa.definirMarcadores(g, l)
+            : null;
         mapaProntoRef.current?.(
           alvoDosMarcadores
             ? {
                 definirMarcadores: (/** @type {string} */ g, /** @type {any[]} */ l) => alvoDosMarcadores.definir(g, l),
+                /** "Localizar" (D-PROD-375): centraliza num ponto, no zoom do MapLibre. */
+                centrar: (/** @type {number} */ lat, /** @type {number} */ lng, /** @type {number} */ zoom) =>
+                  mapa
+                    .setCamera({ coordinate: { lat, lng }, ...(Number.isFinite(zoom) ? { zoom: zoomDoGoogle(zoom) } : {}), animate: false })
+                    ?.catch?.(() => {}),
                 /** @param {(c: any) => void} f */
                 aoMudarCamera: (f) => {
                   ouvintesCamera.add(f);
@@ -239,6 +262,13 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
           const area = areasPorIdRef.current.get(String(e?.tag));
           if (area) cliqueRef.current?.(area);
         });
+        // D-PROD-375: o toque na linha mostra o nome e o tipo dela
+        if (typeof mapa.setOnPolylineClickListener === "function") {
+          await mapa.setOnPolylineClickListener((/** @type {any} */ e) => {
+            const linha = linhasPorIdRef.current.get(String(e?.tag));
+            if (linha) linhaRef.current?.(linha);
+          });
+        }
         await mapa.setOnCameraIdleListener((e) => {
           if (quadro) cancelAnimationFrame(quadro);
           quadro = 0;
@@ -276,6 +306,9 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
       ouvinteMovimentoRef.current?.remove();
       ouvinteMovimentoRef.current = null;
       poligonosRef.current = [];
+      linhasIdsRef.current = [];
+      circuloIdsRef.current = [];
+      definirRef.current = null;
       mapa?.destroy().catch(() => {});
     };
   }, [empresaId]);
@@ -330,6 +363,56 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
       superada = true;
     };
   }, [pronto, areas, mostrarAreas, corDaArea, estiloPasto]);
+
+  // linhas (D-PROD-375): refeitas quando mudam (a fila é a mesma dos polígonos)
+  useEffect(() => {
+    const mapa = mapaRef.current;
+    if (!pronto || !mapa || typeof mapa.addPolylines !== "function") return undefined;
+    let superada = false;
+    const lista = linhas || [];
+    const polilinhas = polilinhasDasLinhas(lista, escalaDoMapaGoogle());
+    filaRef.current = filaRef.current.then(async () => {
+      if (mapaRef.current !== mapa) return;
+      try {
+        const velhas = linhasIdsRef.current;
+        linhasIdsRef.current = [];
+        if (velhas.length) await mapa.removePolylines(velhas);
+        if (superada || mapaRef.current !== mapa) return;
+        linhasPorIdRef.current = new Map(lista.map((l) => [String(l.id), l]));
+        if (polilinhas.length) linhasIdsRef.current = await mapa.addPolylines(/** @type {any} */ (polilinhas));
+      } catch {
+        /* mapa fechado no meio */
+      }
+    });
+    return () => {
+      superada = true;
+    };
+  }, [pronto, linhas]);
+
+  // minha localização (D-PROD-375): o ponto azul (marcador, por cima de tudo) e o círculo da precisão. O círculo novo
+  // entra antes do velho sair (não pisca a cada leitura do GPS).
+  const latLocal = localizacao?.lat;
+  const lngLocal = localizacao?.lng;
+  const precisaoLocal = localizacao?.accuracy;
+  useEffect(() => {
+    const mapa = mapaRef.current;
+    if (!pronto || !mapa) return;
+    const pos = Number.isFinite(latLocal) && Number.isFinite(lngLocal) ? { lat: /** @type {number} */ (latLocal), lng: /** @type {number} */ (lngLocal), accuracy: precisaoLocal } : null;
+    const ponto = marcadorDaLocalizacao(pos);
+    void definirRef.current?.("localizacao", ponto ? [ponto] : []);
+    if (typeof mapa.addCircles !== "function") return;
+    const circulos = pos ? [circuloDaLocalizacao(pos, escalaDoMapaGoogle())] : [];
+    filaRef.current = filaRef.current.then(async () => {
+      if (mapaRef.current !== mapa) return;
+      try {
+        const velhos = circuloIdsRef.current;
+        circuloIdsRef.current = circulos.length ? await mapa.addCircles(/** @type {any} */ (circulos)) : [];
+        if (velhos.length) await mapa.removeCircles(velhos);
+      } catch {
+        /* mapa fechado no meio */
+      }
+    });
+  }, [pronto, latLocal, lngLocal, precisaoLocal]);
 
   // primeira abertura sem vista salva: enquadra todas as áreas da fazenda (como o MapLibre, sem filtro nem camada).
   // Enquanto a consulta das áreas não termina, fica pendente e a vista não é gravada; fazenda sem áreas de fato:

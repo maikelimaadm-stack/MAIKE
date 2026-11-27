@@ -20,8 +20,8 @@ import { caixaDoMarcador, porNaCaixa } from "./posicaoDoMarcador.js";
  * Marcador numa imagem: posição, imagem já pronta (URL), tamanho em px da página, deslocamento do CENTRO da imagem
  * em relação ao ponto (px), ordem (maior por cima), título (dica do mouse) e o clique. D-PROD-374: `escala` (o
  * tamanho segue o zoom do MapLibre), `ancora` ("centro" ou "topo") e `semToque` (o nome do pasto: o clique passa
- * para a área), ver `posicaoDoMarcador.js`.
- * @typedef {{ id: string, lat: number, lng: number, url: string, w: number, h: number, dx?: number, dy?: number, z?: number, titulo?: string, onClick?: () => void, escala?: (zoom: number) => number, ancora?: "centro" | "topo", semToque?: boolean }} MarcadorWeb
+ * para a área), ver `posicaoDoMarcador.js`. D-PROD-375: `zNativo` (a ordem no mapa nativo do app, quando difere).
+ * @typedef {{ id: string, lat: number, lng: number, url: string, w: number, h: number, dx?: number, dy?: number, z?: number, titulo?: string, onClick?: () => void, escala?: (zoom: number) => number, ancora?: "centro" | "topo", semToque?: boolean, zNativo?: number }} MarcadorWeb
  */
 
 /** @param {string} tipo "Satellite" | "Normal" (os nomes do plugin) */
@@ -143,6 +143,13 @@ export async function criarMapaGoogleWeb({ element, config }) {
   let proximoId = 1;
   /** @type {null | ((e: { polygonId: string, tag?: string }) => void)} */
   let aoClicarPoligono = null;
+  // D-PROD-375: linhas e o círculo da localização
+  /** @type {Map<string, any>} */
+  const polilinhas = new Map();
+  /** @type {Map<string, any>} */
+  const circulos = new Map();
+  /** @type {null | ((e: { polylineId: string, tag?: string }) => void)} */
+  let aoClicarLinha = null;
   const camada = criarCamada(g);
   camada.setMap(mapa);
   // Cada gesto (mouse, dedo ou caneta) que começa no mapa diz se começou num marcador; o clique no polígono que esse
@@ -216,6 +223,53 @@ export async function criarMapaGoogleWeb({ element, config }) {
         poligonos.delete(id);
       }
     },
+    /** Linhas (D-PROD-375), as opções do `Polyline` do plugin. @param {Array<{ path: any[], tag?: string } & Record<string, any>>} lista */
+    async addPolylines(lista) {
+      return lista.map(({ tag, ...opcoes }) => {
+        const id = `l${proximoId++}`;
+        const p = new g.Polyline({ ...opcoes, map: mapa });
+        p.addListener("click", () => {
+          if (gestoNoMarcador) return;
+          aoClicarLinha?.({ polylineId: id, tag });
+        });
+        polilinhas.set(id, p);
+        return id;
+      });
+    },
+    /** @param {string[]} ids */
+    async removePolylines(ids) {
+      for (const id of ids) {
+        polilinhas.get(id)?.setMap(null);
+        polilinhas.delete(id);
+      }
+    },
+    /** @param {(e: { polylineId: string, tag?: string }) => void} cb */
+    async setOnPolylineClickListener(cb) {
+      aoClicarLinha = cb;
+    },
+    /** Círculos (a precisão da localização), as opções do `Circle` do plugin. @param {Array<{ center: any, radius: number, tag?: string } & Record<string, any>>} lista */
+    async addCircles(lista) {
+      return lista.map(({ tag: _tag, ...opcoes }) => {
+        const id = `c${proximoId++}`;
+        circulos.set(id, new g.Circle({ ...opcoes, map: mapa }));
+        return id;
+      });
+    },
+    /** @param {string[]} ids */
+    async removeCircles(ids) {
+      for (const id of ids) {
+        circulos.get(id)?.setMap(null);
+        circulos.delete(id);
+      }
+    },
+    /**
+     * Centraliza o mapa num ponto, num zoom do MapLibre ("Localizar", D-PROD-375).
+     * @param {number} lat @param {number} lng @param {number} [zoom] zoom do MapLibre
+     */
+    centrar(lat, lng, zoom) {
+      mapa.setCenter({ lat, lng });
+      if (Number.isFinite(zoom)) mapa.setZoom(/** @type {number} */ (zoom) + 1);
+    },
     /** @param {{ southwest: { lat: number, lng: number }, northeast: { lat: number, lng: number } }} caixa @param {number} [margem] */
     async fitBounds(caixa, margem = 0) {
       mapa.fitBounds(new g.LatLngBounds(caixa.southwest, caixa.northeast), margem);
@@ -245,6 +299,10 @@ export async function criarMapaGoogleWeb({ element, config }) {
       ouvintes.forEach((o) => o.remove?.());
       poligonos.forEach((p) => p.setMap(null));
       poligonos.clear();
+      polilinhas.forEach((p) => p.setMap(null));
+      polilinhas.clear();
+      circulos.forEach((c) => c.setMap(null));
+      circulos.clear();
       camada.setMap(null);
       g.event?.clearInstanceListeners?.(mapa);
       div.remove();
