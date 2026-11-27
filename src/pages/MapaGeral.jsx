@@ -20,6 +20,7 @@ import MapaFiltrosPainel from "@/components/mapa/MapaFiltrosPainel";
 import { acaoDoCliqueNaArea, acaoDoCliqueNoLote, deveComecarToqueLongo } from "@/domain/mapa/cliqueArea";
 import { LancLoteDialogo } from "../components/lotes/LancamentoLoteUi";
 import MapaControlesMobile from "../components/mapa/MapaControlesMobile";
+import NovoCadastroMapaBotao from "@/components/mapa/NovoCadastroMapaBotao";
 import MapaFiltrosAvancados, {
   CORES_TIPO_CULTURA, CORES_APROVEITAMENTO, CORES_OCUPACAO, CORES_CATEGORIA_GADO,
   CORES_UA_HA, CORES_SITUACAO_PASTO } from
@@ -1495,14 +1496,12 @@ export default function MapaGeral({ ativo = true } = {}) {
           focosPermitidos={focosDoMapa}
           showFiltrosButton={mapaGeralPermissions.visualizar_filtros_camadas}
           onOpenTarefas={null}
-          /* D-PROD-333/340: na aba Pontos, o "+" redondo abre direto a marcação de um ponto novo no Cadastro do Mapa.
+          /* D-PROD-333/340/359: na aba Pontos, o "+" redondo abre a escolha Novo pasto · Novo ponto · Nova linha e leva
+             direto ao editor no Cadastro do Mapa.
              Fica DENTRO da coluna da direita, logo acima de Atualizar/Localizar/Mover: solto no mapa, ele ficava
              por baixo dessa coluna (só uma faixa de 14 px pegava o toque; o resto caía em "Atualizar mapa"). */
           acimaDaPilha={focoAtivo === 'pastos' && podeCadastrarPonto ?
-          <button type="button" className="mk-mapa-novo-ponto" aria-label="Novo ponto" title="Novo ponto" data-mk-novo-ponto=""
-            onClick={() => navigate(`${createPageUrl('MapaCadastro')}?novo=ponto`)}>
-              <Plus size={30} strokeWidth={2.6} aria-hidden />
-            </button> :
+          <NovoCadastroMapaBotao onEscolher={(tipo) => navigate(`${createPageUrl('MapaCadastro')}?novo=${tipo}`)} /> :
           null}
           onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return;setShowFiltros(true);}}
           painel={

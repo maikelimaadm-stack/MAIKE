@@ -68,6 +68,13 @@ export function resolverAlvoDesenho(map, bruto, ctx) {
 }
 
 /**
+ * D-PROD-361: o toque vem como `touchstart` (MapLibre) ou como pointer `touch`/`pen` (WebView do Android);
+ * antes só o primeiro contava, e o dedo ficava com a folga do mouse.
+ * @param {any} oe evento original
+ */
+export const eToque = (oe) => !!oe && (String(oe.type || "").startsWith("touch") || oe.pointerType === "touch" || oe.pointerType === "pen");
+
+/**
  * Vértice/meio sob o ponteiro com área de acerto maior que o círculo visível
  * (mouse 8px, toque 14px). Vértice tem prioridade; entre iguais, o mais próximo.
  * `vertices: null` limita o acerto aos meios (cadastro aberto, D-PROD-68).

@@ -663,15 +663,17 @@ describe('BARRA-8 — D-PROD-326: cada aba com as suas camadas e os seus filtros
   });
 });
 
-describe('BARRA-9 — D-PROD-333: botão redondo "Novo ponto" na aba Pontos', () => {
-  const novoPonto = () => screen.queryByRole('button', { name: 'Novo ponto' });
+describe('BARRA-9 — D-PROD-333/359: botão redondo "+" na aba Pontos (novo pasto, ponto ou linha)', () => {
+  // D-PROD-361: o "+" abre a escolha Novo pasto · Novo ponto · Nova linha (antes ia direto ao ponto).
+  const novoPonto = () => screen.queryByRole('button', { name: 'Novo cadastro no mapa' });
 
-  it('só aparece na aba Pontos e leva direto ao cadastro de ponto', async () => {
+  it('só aparece na aba Pontos e cada opção leva direto ao editor dela', async () => {
     await abrir();
     expect(novoPonto(), 'na aba Lotes não aparece').toBeNull();
     await tocar('Pontos');
     expect(novoPonto()).toBeInTheDocument();
     await act(async () => { fireEvent.click(novoPonto()); });
+    await act(async () => { fireEvent.click(screen.getByRole('menuitem', { name: 'Novo ponto' })); });
     expect(rota.atual).toBe('/mapacadastro?novo=ponto');
   });
 
