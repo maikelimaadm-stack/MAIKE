@@ -250,7 +250,15 @@ export function syncDivisaWidth(map) {
  * @param {GeoJSON.FeatureCollection} data
  */
 export function setSourceData(map, sourceId, data) {
-  const src = map.getSource(sourceId);
+  // D-PROD-340: mapa já removido (`map.remove()` apaga o estilo). Ao fechar o editor do cadastro, a limpeza do cursor
+  // e do arrasto rodava DEPOIS da limpeza que remove o mapa; `getSource` lançava dentro da desmontagem do React, e
+  // sem ErrorBoundary o app inteiro sumia (tela branca: "trava tudo"), na web e no app.
+  let src;
+  try {
+    src = map?.getSource(sourceId);
+  } catch {
+    return;
+  }
   if (src && "setData" in src && typeof src.setData === "function") {
     /** @type {{ setData: (d: GeoJSON.FeatureCollection) => void }} */ (src).setData(data);
   }

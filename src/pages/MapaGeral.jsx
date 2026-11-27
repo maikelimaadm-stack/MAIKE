@@ -1478,6 +1478,15 @@ export default function MapaGeral({ ativo = true } = {}) {
           focosPermitidos={focosDoMapa}
           showFiltrosButton={mapaGeralPermissions.visualizar_filtros_camadas}
           onOpenTarefas={null}
+          /* D-PROD-333/340: na aba Pontos, o "+" redondo abre direto a marcação de um ponto novo no Cadastro do Mapa.
+             Fica DENTRO da coluna da direita, logo acima de Atualizar/Localizar/Mover: solto no mapa, ele ficava
+             por baixo dessa coluna (só uma faixa de 14 px pegava o toque; o resto caía em "Atualizar mapa"). */
+          acimaDaPilha={focoAtivo === 'pastos' && podeCadastrarPonto ?
+          <button type="button" className="mk-mapa-novo-ponto" aria-label="Novo ponto" title="Novo ponto" data-mk-novo-ponto=""
+            onClick={() => navigate(`${createPageUrl('MapaCadastro')}?novo=ponto`)}>
+              <Plus size={30} strokeWidth={2.6} aria-hidden />
+            </button> :
+          null}
           onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return;setShowFiltros(true);}}
           painel={
           <MapaVisualizacao
@@ -1530,13 +1539,6 @@ export default function MapaGeral({ ativo = true } = {}) {
           </button>
         </> :
         <>
-        {/* D-PROD-333: na aba Pontos, o "+" redondo abre direto a marcação de um ponto novo no Cadastro do Mapa. */}
-        {focoAtivo === 'pastos' && podeCadastrarPonto &&
-        <button type="button" className="mk-mapa-novo-ponto" aria-label="Novo ponto" title="Novo ponto" data-mk-novo-ponto=""
-          onClick={() => navigate(`${createPageUrl('MapaCadastro')}?novo=ponto`)}>
-            <Plus size={30} strokeWidth={2.6} aria-hidden />
-          </button>
-        }
         {/* Resumo inferior (D-PROD-131): cartão único, números grandes e rótulos discretos */}
         {/* D-PROD-213: com permissão de ver lotes, o cartão abre o Resumo do Rebanho. */}
         <div className="mk-mapa-resumo mk-mapa-card" aria-label="Resumo do mapa"
