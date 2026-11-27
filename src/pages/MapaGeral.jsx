@@ -498,7 +498,7 @@ export default function MapaGeral({ ativo = true } = {}) {
     placeholderData: []
   });
 
-  const { data: areasBase = [], refetch: refetchAreas } = useQuery(createMapaQuery('areas'));
+  const { data: areasBase = [], refetch: refetchAreas, isPlaceholderData: areasAindaCarregando } = useQuery(createMapaQuery('areas'));
   const { data: pontos = [], refetch: refetchPontosRef } = useQuery(createMapaQuery('pontos'));
   const { data: bebedouros = [] } = useBebedouros(empresaSelecionadaId);
   const { data: pontosSuplementacao = [], refetch: refetchPontosSupl } = useQuery(createMapaQuery('pontosSuplementacao'));
@@ -1112,7 +1112,8 @@ export default function MapaGeral({ ativo = true } = {}) {
       window.location.reload();
     }, 1500);
   }, []);
-  // Sem o mapa do Google: um mapa nativo que tenha ficado vivo de antes (app recarregado no meio) é destruído.
+  // Sem o mapa do Google: um mapa nativo que tenha ficado vivo de antes (app recarregado no meio) é destruído
+  // (com ele ligado, o próprio MapaGoogleNativo destrói o órfão antes de criar o mapa novo).
   useEffect(() => {
     if (!mapaGoogle) void limparMapaGoogleOrfao();
   }, [mapaGoogle]);
@@ -1567,6 +1568,8 @@ export default function MapaGeral({ ativo = true } = {}) {
         {mapaGoogle ?
         <MapaGoogleNativo
           areas={areasFiltradas}
+          areasDaFazenda={areas}
+          areasCarregadas={!areasAindaCarregando}
           mostrarAreas={mapaGeralPermissions.visualizar_areas && showAreas}
           corDaArea={getAreaColor}
           estiloPasto={estiloPasto}

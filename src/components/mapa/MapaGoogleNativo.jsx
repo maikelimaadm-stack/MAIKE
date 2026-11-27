@@ -9,6 +9,7 @@ import {
   configDoMapaGoogle,
   ehMapaGoogleNativo,
   escalaDoMapaGoogle,
+  limparMapaGoogleOrfao,
   novoIdDoMapaGoogle,
   poligonosDasAreas,
   registrarMapaGoogleAberto,
@@ -45,6 +46,8 @@ function abrirJanelaParaOMapa(el) {
  *
  * @param {{
  *   areas: any[],
+ *   areasDaFazenda?: any[],
+ *   areasCarregadas?: boolean,
  *   mostrarAreas: boolean,
  *   corDaArea: (area: any) => string | null | undefined,
  *   estiloPasto?: string,
@@ -55,7 +58,7 @@ function abrirJanelaParaOMapa(el) {
  *   onFalha?: (erro: unknown) => void,
  * }} props
  */
-export default function MapaGoogleNativo({ areas, mostrarAreas, corDaArea, estiloPasto, tipoMapa, empresaId, ativo = true, onClickArea, onFalha }) {
+export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregadas = true, mostrarAreas, corDaArea, estiloPasto, tipoMapa, empresaId, ativo = true, onClickArea, onFalha }) {
   const elRef = useRef(/** @type {HTMLElement | null} */ (null));
   const mapaRef = useRef(/** @type {GoogleMap | null} */ (null));
   const idsRef = useRef(/** @type {string[]} */ ([]));
@@ -88,6 +91,9 @@ export default function MapaGoogleNativo({ areas, mostrarAreas, corDaArea, estil
     filaRef.current = Promise.resolve();
     (async () => {
       try {
+        // um mapa nativo que ficou vivo de uma recarga no meio sai antes: o id novo apaga a única referência a ele
+        await limparMapaGoogleOrfao();
+        if (cancelado) return;
         const mapa = await GoogleMap.create({
           id: novoIdDoMapaGoogle(),
           element: el,
@@ -177,12 +183,6 @@ export default function MapaGoogleNativo({ areas, mostrarAreas, corDaArea, estil
         if (superada || mapaRef.current !== mapa) return;
         areasPorIdRef.current = new Map(lista.map((a) => [String(a.id), a]));
         if (poligonos.length) idsRef.current = await mapa.addPolygons(/** @type {any} */ (poligonos));
-        // primeira abertura sem vista salva: enquadra a fazenda (sem áreas, a vista passa a ser gravada como está)
-        if (!enquadrouRef.current) {
-          enquadrouRef.current = true;
-          const caixa = caixaDosPoligonos(poligonos);
-          if (caixa) await mapa.fitBounds(/** @type {any} */ (caixa), MARGEM_ENQUADRAR * escala);
-        }
       } catch (erro) {
         if (!superada && mapaRef.current === mapa) falhaRef.current?.(erro);
       }
@@ -191,6 +191,24 @@ export default function MapaGoogleNativo({ areas, mostrarAreas, corDaArea, estil
       superada = true;
     };
   }, [pronto, areas, mostrarAreas, corDaArea, estiloPasto]);
+
+  // primeira abertura sem vista salva: enquadra todas as áreas da fazenda (como o MapLibre, sem filtro nem camada).
+  // Enquanto a consulta das áreas não termina, fica pendente e a vista não é gravada; fazenda sem áreas de fato:
+  // a vista passa a ser gravada como está.
+  const paraEnquadrar = areasDaFazenda ?? areas;
+  useEffect(() => {
+    const mapa = mapaRef.current;
+    if (!pronto || !mapa || enquadrouRef.current) return;
+    const escala = escalaDoMapaGoogle();
+    const caixa = caixaDosPoligonos(poligonosDasAreas(paraEnquadrar || [], () => null, undefined, escala));
+    if (!caixa && !areasCarregadas) return;
+    enquadrouRef.current = true;
+    if (!caixa) return;
+    filaRef.current = filaRef.current.then(async () => {
+      if (mapaRef.current !== mapa) return;
+      await mapa.fitBounds(/** @type {any} */ (caixa), MARGEM_ENQUADRAR * escala).catch(() => {});
+    });
+  }, [pronto, paraEnquadrar, areasCarregadas]);
 
   return (
     <capacitor-google-map

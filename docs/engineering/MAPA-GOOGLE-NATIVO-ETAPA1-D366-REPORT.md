@@ -57,11 +57,12 @@ O proprietário escolheu o mapa do Google nos dois lados: nativo no app Android 
 
 ## Testes
 
-- `tests/smoke/mapaGoogleNativoD366.test.jsx`, 18 testes com o plugin falso:
+- `tests/smoke/mapaGoogleNativoD366.test.jsx`, 20 testes com o plugin falso:
   - cor igual à do MapLibre (modo padrão sem cinza, `#rrggbb`), estilos, escala do Android;
   - caixa e tipo; escolha no app (só com o plugin) e no site (só com a chave); opções de criação;
   - vista salva com zoom convertido, janela transparente e devolvida, toque → área, vista gravada, enquadramento;
   - trocas seguidas sem polígono órfão; `ativo` (fundo devolvido e toque largado; de volta, reabre);
+  - enquadramento à espera das áreas (fazenda vazia de fato grava a vista); órfão de recarga destruído antes do mapa novo;
   - destroy antes de recarregar; id novo por mapa;
   - site sem página transparente e com a chave do site; falha;
   - a escolha no painel.
@@ -84,6 +85,10 @@ Também foram corrigidos:
 - a linha e a margem em pixels físicos no Android;
 - o tipo do mapa já na criação;
 - a vista não gravada numa fazenda sem áreas.
+
+A revisão automática da PR achou mais dois, também corrigidos:
+- **Enquadramento cedo demais.** Com o mapa pronto antes das áreas carregarem, a fazenda abria no centro padrão e essa vista era gravada. Agora o enquadramento espera a consulta das áreas e usa todas as áreas da fazenda, como o MapLibre.
+- **Órfão com o modo ligado.** Depois de uma recarga com o mapa do Google ligado, o mapa nativo velho ficava vivo e o id novo apagava a referência a ele. Agora o órfão é destruído antes de criar o mapa novo.
 
 ## O que não deu para testar aqui
 

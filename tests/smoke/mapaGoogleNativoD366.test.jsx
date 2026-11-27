@@ -5,7 +5,8 @@
  *  G366-1. Polígonos das áreas: cor do Mapa Geral, estilo Cheio/Suave/Contorno, área sem contorno fica de fora, `tag`.
  *  G366-2. Caixa da fazenda, tipo do mapa, escolha do aparelho; sem o plugin (site, APK antigo) nunca liga.
  *  G366-3. Componente: cria o mapa na vista salva, abre a "janela" (fundos transparentes) e devolve ao sair,
- *          satélite, polígonos, toque → área, vista gravada, primeira abertura enquadra a fazenda, falha avisa.
+ *          satélite, polígonos, toque → área, vista gravada, primeira abertura enquadra a fazenda (espera as áreas
+ *          carregarem), órfão de recarga destruído antes do mapa novo, falha avisa.
  *  G366-4. Painel Visualização: a escolha "Mapa do Google (teste)" só aparece com o plugin.
  */
 import React from "react";
@@ -249,6 +250,57 @@ describe("G366-3 — o mapa nativo no Mapa Geral", () => {
     montar();
     await waitFor(() => expect(falso.estado.mapa?.fitBounds).toHaveBeenCalledTimes(1));
     expect(falso.estado.mapa.caixa.northeast).toEqual({ lat: -15, lng: -46.99 });
+  });
+
+  it("áreas ainda carregando: o enquadramento espera (a vista não é gravada); chegam as áreas, enquadra; fazenda vazia de fato, grava como está", async () => {
+    const { rerender } = montar({ areas: [], areasDaFazenda: [], areasCarregadas: false });
+    await waitFor(() => expect(falso.estado.mapa?.ouvintes.camera).toBeTypeOf("function"));
+    const mapa = falso.estado.mapa;
+    act(() => mapa.ouvintes.camera({ latitude: -15.78, longitude: -47.93, zoom: 15 }));
+    expect(localStorage.getItem("mapa_geral_view_e1")).toBeNull();
+    expect(mapa.fitBounds).not.toHaveBeenCalled();
+    // as áreas chegam (mesmo escondidas pelo filtro, a fazenda inteira enquadra, como no MapLibre)
+    rerender(<MapaGoogleNativo areas={[]} areasDaFazenda={[A1, A2]} areasCarregadas mostrarAreas corDaArea={cor} tipoMapa="satellite" empresaId="e1" />);
+    await waitFor(() => expect(mapa.fitBounds).toHaveBeenCalledTimes(1));
+    expect(mapa.caixa.northeast).toEqual({ lat: -15, lng: -46.99 });
+    act(() => mapa.ouvintes.camera({ latitude: -15.01, longitude: -47.01, zoom: 15 }));
+    expect(localStorage.getItem("mapa_geral_view_e1")).not.toBeNull();
+
+    // outra fazenda, sem áreas de fato: a consulta termina vazia e a vista passa a ser gravada
+    rerender(<MapaGoogleNativo areas={[]} areasDaFazenda={[]} areasCarregadas mostrarAreas corDaArea={cor} tipoMapa="satellite" empresaId="e2" />);
+    await waitFor(() => expect(falso.estado.mapa).not.toBe(mapa));
+    const outro = falso.estado.mapa;
+    await waitFor(() => expect(outro.ouvintes.camera).toBeTypeOf("function"));
+    await act(async () => {});
+    act(() => outro.ouvintes.camera({ latitude: -16, longitude: -48, zoom: 15 }));
+    expect(JSON.parse(localStorage.getItem("mapa_geral_view_e2") || "{}")).toEqual({ center: { lat: -16, lng: -48 }, zoom: 14 });
+    expect(outro.fitBounds).not.toHaveBeenCalled();
+  });
+
+  it("app recarregado com o mapa do Google ligado: o mapa órfão é destruído ANTES de criar o novo", async () => {
+    plugin.nativo = true;
+    plugin.disponivel = true;
+    localStorage.setItem("mk_mapa_google_ultimo_id", "mapa-orfao");
+    const { Capacitor } = await import("@capacitor/core");
+    const ordem = [];
+    const cap = /** @type {any} */ (Capacitor);
+    const antes = cap.nativePromise;
+    cap.nativePromise = vi.fn(async (_plugin, metodo, opcoes) => { ordem.push(`${metodo}:${opcoes.id}`); });
+    const { GoogleMap } = await import("@capacitor/google-maps");
+    /** @type {any} */ (GoogleMap.create).mockImplementationOnce(async (opcoes) => {
+      ordem.push("create");
+      falso.estado.criado = opcoes;
+      falso.estado.mapa = falso.novoMapa();
+      return falso.estado.mapa;
+    });
+    try {
+      montar();
+      await waitFor(() => expect(ordem).toContain("create"));
+      expect(ordem).toEqual(["destroy:mapa-orfao", "create"]);
+      expect(localStorage.getItem("mk_mapa_google_ultimo_id")).toBe(falso.estado.criado.id);
+    } finally {
+      cap.nativePromise = antes;
+    }
   });
 
   it("coloração, estilo ou áreas mudam: os polígonos velhos saem e os novos entram; áreas escondidas, nada", async () => {
