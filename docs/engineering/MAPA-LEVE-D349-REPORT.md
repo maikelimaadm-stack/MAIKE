@@ -1,8 +1,8 @@
-# Mapa leve — etapa 2: lotes desenhados pelo mapa (D-PROD-348)
+# Mapa leve — etapa 2: lotes desenhados pelo mapa (D-PROD-349)
 
 **Data:** 2026-11-27 · sem servidor, sem migration · base: etapa 1 ([D-PROD-347](./MAPA-LEVE-D347-REPORT.md))
 
-> **Numeração:** a `origin/main` já deu a D-PROD-348 ao Diário das atividades (outra sessão). Renumerar esta decisão antes do merge (regra A5).
+> **Numeração:** a `origin/main` já deu a D-PROD-349 ao Diário das atividades (outra sessão). Renumerar esta decisão antes do merge (regra A5).
 
 ## O que mudou
 
@@ -70,10 +70,10 @@ Arquivos:
 
 Capturas em `docs/engineering/evidencias/mapa-leve/` (harness `?cena=geral`, 390 px, deviceScaleFactor 2):
 
-- `d348-antes-geral.png` e `d348-antes-lote.png`;
-- `d348-depois-geral.png` e `d348-depois-lote.png`;
-- `d348-depois-arrastando.png` (a cópia no meio do arrasto);
-- `d348-comparacao-antes-depois-diferenca.png` (antes, depois e a diferença ampliada).
+- `d349-antes-geral.png` e `d349-antes-lote.png`;
+- `d349-depois-geral.png` e `d349-depois-lote.png`;
+- `d349-depois-arrastando.png` (a cópia no meio do arrasto);
+- `d349-comparacao-antes-depois-diferenca.png` (antes, depois e a diferença ampliada).
 
 Figura, moldura, cor, contagem e identificador saem iguais. O que muda:
 
@@ -89,7 +89,7 @@ Figura, moldura, cor, contagem e identificador saem iguais. O que muda:
 
 ## Testes
 
-- Novo: `tests/smoke/lotesNoMapaD348.test.jsx` (21 casos):
+- Novo: `tests/smoke/lotesNoMapaD349.test.jsx` (21 casos):
   - mesma chave = mesma imagem, sem redesenhar;
   - contagem com milhar, cor, fonte, posição e halo;
   - posição com e sem nome;

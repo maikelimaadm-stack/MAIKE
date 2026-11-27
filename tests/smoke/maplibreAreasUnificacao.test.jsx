@@ -149,7 +149,7 @@ describe("V — visualização das áreas cadastradas", () => {
     const c = centroideArea(area("a"));
     expect(c.lat).toBeCloseTo(-0.005, 9);
     expect(c.lng).toBeCloseTo(0.005, 9);
-    // D-PROD-348: o lote é desenhado pelo mapa; o deslocamento em px é o `icon-offset` da camada.
+    // D-PROD-349: o lote é desenhado pelo mapa; o deslocamento em px é o `icon-offset` da camada.
     const lotesNoMapa = readFileSync("src/lib/maplibre/lotesNoMapa.js", "utf8");
     expect(lotesNoMapa).toMatch(/export const OFFSET_LOTE_PX = \/\*\* @type \{\[number, number\]\} \*\/ \(\[0, -26\]\);/);
     expect(lotesNoMapa).toMatch(/\["literal", soma\(OFFSET_LOTE_PX, desloc\)\]/);
@@ -554,7 +554,7 @@ describe("V03 — renderer MapLibre preserva o contrato do Mapa Geral", () => {
       { id: "l2", area_atual_id: "a1", quantidade_cabecas: 12, categoria: "BOI" },
     ];
     // 4º argumento: as Categorias de Manejo (D-PROD-191); vazio, o ícone sai mesmo assim.
-    // D-PROD-348: o lote é um ponto na fonte `mg-lotes`, desenhado pela camada symbol (nenhum marcador HTML).
+    // D-PROD-349: o lote é um ponto na fonte `mg-lotes`, desenhado pela camada symbol (nenhum marcador HTML).
     await r.syncLotes(lotes, [area("a1")], true, [], onLotes, onDrag, true, false);
     expect(marcadores.find((m) => m.el.querySelector(".mg-lote-count"))).toBeUndefined();
     const [loteF] = map.data.get("mg-lotes").features;

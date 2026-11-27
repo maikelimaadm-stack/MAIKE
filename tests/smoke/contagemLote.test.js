@@ -23,8 +23,8 @@ describe('CNT — quantidade de cabeças no marcador', () => {
   });
 
   it('CNT-03 o lote usa texto formatado, fonte fixa e fica abaixo da figura', () => {
-    // D-PROD-348: a contagem é escrita na imagem do lote (canvas), não num elemento HTML.
-    // O desenho em si é conferido em lotesNoMapaD348.test.jsx (L348-2).
+    // D-PROD-349: a contagem é escrita na imagem do lote (canvas), não num elemento HTML.
+    // O desenho em si é conferido em lotesNoMapaD349.test.jsx (L348-2).
     const fonte = readFileSync('src/lib/maplibre/lotesNoMapa.js', 'utf8');
     expect(FONTE_CONTAGEM_PX).toBe(9.5);
     expect(fonte).toMatch(/texto: formatarContagem\(cabecas\)/);

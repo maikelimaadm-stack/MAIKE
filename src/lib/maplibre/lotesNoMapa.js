@@ -1,11 +1,11 @@
 /*
- * GUIA DE EDIÇÃO — LOTES DESENHADOS PELO MAPA (D-PROD-348): posição do ícone (OFFSET_LOTE_PX / OFFSET_LOTE_COM_NOME_PX),
+ * GUIA DE EDIÇÃO — LOTES DESENHADOS PELO MAPA (D-PROD-349): posição do ícone (OFFSET_LOTE_PX / OFFSET_LOTE_COM_NOME_PX),
  * identificador (DIAMETRO_IDENT_PX, DESLOC_IDENT_PX), piscar do alerta (PISCAR_MS, OPACIDADE_PISCAR) e arrastar (ARRASTO_MIN_PX).
  * A figura vem do código (src/assets/icones/lotes, D-PROD-191); a letra da contagem é FONTE_CONTAGEM_PX (contagemLote.js).
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
 /**
- * Lotes do Mapa Geral desenhados pelo PRÓPRIO mapa (D-PROD-348, "mapa leve", etapa 2).
+ * Lotes do Mapa Geral desenhados pelo PRÓPRIO mapa (D-PROD-349, "mapa leve", etapa 2).
  *
  * Antes cada pasto com gado era um marcador HTML; com 200 pastos o navegador recalculava o estilo de centenas de
  * elementos a cada quadro do arrastar. Agora cada lote é um ponto numa fonte GeoJSON e uma camada `symbol` pinta a

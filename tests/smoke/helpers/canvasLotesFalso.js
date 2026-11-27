@@ -1,5 +1,5 @@
 /**
- * Canvas e <img> falsos para as imagens dos lotes desenhadas pelo mapa (D-PROD-348).
+ * Canvas e <img> falsos para as imagens dos lotes desenhadas pelo mapa (D-PROD-349).
  *
  * O jsdom não desenha (o setup devolve `getContext() === null`) nem carrega imagem. Aqui:
  *  - `Image` falsa: "carrega" a data URL do SVG do marcador no próximo microtask, com `naturalWidth/Height`

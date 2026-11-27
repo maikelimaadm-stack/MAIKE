@@ -4,7 +4,7 @@
  * O motor (src/assets/icones/lotes) tem os testes dele em iconesLoteMotor.test.js.
  * Aqui é a integração com o mapa: `resolverIconeLote` (mapaGeralRender) e o
  * lote que `syncLotes` (useMapRenderer) põe no mapa, com MapLibre e canvas falsos.
- * Desde a D-PROD-348 o lote é desenhado pelo mapa: um ponto na fonte `mg-lotes`
+ * Desde a D-PROD-349 o lote é desenhado pelo mapa: um ponto na fonte `mg-lotes`
  * (com `desenho` = chave do motor) e uma imagem montada no canvas a partir da
  * data URL do motor, com a contagem escrita dentro.
  *
@@ -165,7 +165,7 @@ const doMotor = (posicoes, categorias) => {
   return { iconUrl: urlMarcadorLote(icone), chave: icone.chave, nivel: icone.nivel, rotulo: icone.rotulo };
 };
 
-/** Lotes na fonte do mapa (D-PROD-348). */
+/** Lotes na fonte do mapa (D-PROD-349). */
 const lotesNaFonte = (map) => map.data.get(LOTES_SOURCE_ID)?.features || [];
 
 /** Fonte sem comentários: comentário explicativo não é código. */
@@ -277,7 +277,7 @@ describe("ILM-2 — ConfiguracaoIcone não decide mais o ícone do lote", () => 
   });
 });
 
-describe("ILM-3 — o lote que syncLotes põe no mapa (D-PROD-348: desenhado pelo mapa)", () => {
+describe("ILM-3 — o lote que syncLotes põe no mapa (D-PROD-349: desenhado pelo mapa)", () => {
   it("imagem da data URL do motor, `desenho` = chave do motor, contagem no centro da faixa e largura do motor", async () => {
     const { map, r } = montar();
     renderer = r;

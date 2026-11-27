@@ -118,7 +118,7 @@ describe("pontoMaisDentro — nome e lote no miolo da área torta (D-PROD-127)",
     expect((r.match(/centroideArea\(area\)/g) || []).length).toBeGreaterThanOrEqual(3); // rótulo, lote e tarefa
     // D-PROD-128: par ícone + nome centrado no ponto com posições FIXAS — nada
     // depende da altura do nome nem da imagem; sem lote, nome centrado por CSS.
-    // D-PROD-348: o ícone é desenhado pelo mapa; o par vale pelo `comRotulo` da fonte.
+    // D-PROD-349: o ícone é desenhado pelo mapa; o par vale pelo `comRotulo` da fonte.
     expect(r).toMatch(/if \(lotesRef\.current\.has\(id\)\) \{[^}]*entry\.marker\.setOffset\(PAR_LOTE\.nome\);/);
     expect(r).toMatch(/entry\.marker\.setOffset\(\[0, 0\]\);\s*entry\.base = "translateY\(-50%\)";/);
     expect(r).toMatch(/icone: OFFSET_LOTE_COM_NOME_PX,/);

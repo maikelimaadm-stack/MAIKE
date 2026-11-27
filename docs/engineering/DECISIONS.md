@@ -10528,11 +10528,11 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - durante o zoom, a revisão mexe só nos pastos que estão na tela (com folga de ¼); o `moveend` revê todos, como antes.
 - **Resultado (200 pastos, CPU 4×):** zoom de 2,5 → 8,5 quadros/s; layout no gesto de 36 s → 0,05 s; quadro mais lento de 1,2 s → 0,22 s. Arrastar sem mudança (≈ 9 quadros/s): o custo que resta são os ~400 marcadores HTML reposicionados a cada quadro — próximas etapas (pontos e lotes desenhados pelo próprio mapa).
 
-## D-PROD-348 — Mapa leve, etapa 2: lotes desenhados pelo próprio mapa
+## D-PROD-349 — Mapa leve, etapa 2: lotes desenhados pelo próprio mapa
 
-**Data:** 2026-11-27 · **Origem:** proprietário, continuação da D-PROD-347: "sempre tentando ao máximo deixar igual o atual" · **Relatório:** [`MAPA-LEVE-D348-REPORT.md`](./MAPA-LEVE-D348-REPORT.md)
+**Data:** 2026-11-27 · **Origem:** proprietário, continuação da D-PROD-347: "sempre tentando ao máximo deixar igual o atual" · **Relatório:** [`MAPA-LEVE-D349-REPORT.md`](./MAPA-LEVE-D349-REPORT.md)
 
-> **Numeração:** a branch de base (etapa 1) indicava `Próxima decisão: D-PROD-348`, que é esta. **Atenção:** a `origin/main` já deu a D-PROD-348 ao Diário das atividades (outra sessão) e indica D-PROD-349 (`node scripts/dev/proxima-decisao.mjs`). Antes do merge, esta decisão precisa ser renumerada (regra A5).
+> **Numeração:** nasceu D-PROD-348; a `main` deu a D-PROD-348 ao Diário das atividades (PR #434, `dcdea1947`) e passou a indicar `Próxima decisão: D-PROD-349`, que é esta (`node scripts/dev/proxima-decisao.mjs`, regra A5). O marcador passa a D-PROD-350.
 
 - **Problema:** depois da etapa 1, o arrastar continuava pesado. Com 200 pastos, cada quadro reposicionava ~400 marcadores HTML (lotes e nomes) e recalculava o estilo deles.
 - **Decisão:** o ícone do lote deixa de ser marcador HTML e passa a ser desenhado pelo mapa.
@@ -10557,4 +10557,4 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - conferir no app (Android e iOS) que o canvas lê os pixels da figura SVG;
   - imagens por contagem acumulam na sessão.
 
-<!-- Próxima decisão: D-PROD-349 -->
+<!-- Próxima decisão: D-PROD-350 -->

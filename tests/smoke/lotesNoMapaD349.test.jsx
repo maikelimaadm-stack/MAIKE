@@ -1,5 +1,5 @@
 /**
- * D-PROD-348 (mapa leve, etapa 2) — lotes desenhados pelo próprio mapa.
+ * D-PROD-349 (mapa leve, etapa 2) — lotes desenhados pelo próprio mapa.
  *
  * O ícone do lote deixou de ser um marcador HTML: é um ponto na fonte GeoJSON `mg-lotes` e uma camada `symbol`
  * pinta a imagem (a figura do motor com a contagem escrita dentro, num canvas). MapLibre e canvas falsos.

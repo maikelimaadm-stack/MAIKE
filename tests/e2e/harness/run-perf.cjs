@@ -11,7 +11,7 @@
  * Saída: uma linha JSON por cenário (stdout). WebGL é SwiftShader (CPU): os números servem para COMPARAR antes × depois
  * na mesma máquina, não como tempo absoluto de um celular.
  * Variáveis: E2E_URL (padrão http://localhost:5199/), PERF_CPU (padrão 4), PERF_DPR (densidade de tela; padrão a do
- * Pixel 7, 2,625). D-PROD-348: com a densidade do Pixel 7 o SwiftShader gasta quase todo o quadro pintando o mapa
+ * Pixel 7, 2,625). D-PROD-349: com a densidade do Pixel 7 o SwiftShader gasta quase todo o quadro pintando o mapa
  * na CPU, e o arrastar fica em ≈ 9 quadros/s mesmo sem nenhum marcador HTML; PERF_DPR=1 mostra o custo da página.
  */
 const { chromium, devices } = require("playwright");
@@ -49,7 +49,7 @@ const resumo = (quadros) => {
   await p.goto(`${URL}?cena=geral&grande=${N}`);
   await p.waitForSelector(".maplibregl-canvas", { timeout: 120000 });
   const tCanvas = Date.now() - t0;
-  // Lotes desenhados pelo mapa (D-PROD-348): contados pela fonte `mg-lotes` do mapa do harness (`window.__E2E_MAPS__`,
+  // Lotes desenhados pelo mapa (D-PROD-349): contados pela fonte `mg-lotes` do mapa do harness (`window.__E2E_MAPS__`,
   // só no harness), não por elemento HTML. Aceita também o marcador HTML antigo (.mg-lote-count), para medir o "antes".
   const lotesNoMapa = () => {
     const m = (window.__E2E_MAPS__ || []).at(-1);

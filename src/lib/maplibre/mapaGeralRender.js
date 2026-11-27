@@ -25,7 +25,7 @@ export const MG_SOURCE_IDS = Object.freeze({
   AREAS: "mg-areas",
   LINHAS: "mg-linhas",
   USER: "mg-user",
-  /** Lotes desenhados pelo mapa (D-PROD-348). */
+  /** Lotes desenhados pelo mapa (D-PROD-349). */
   LOTES: LOTES_SOURCE_ID,
 });
 
@@ -36,7 +36,7 @@ export const MG_LAYER_IDS = Object.freeze({
   LINHAS: "mg-linhas",
   USER_FILL: "mg-user-fill",
   USER_LINE: "mg-user-line",
-  /** Ícone do lote com a contagem e, por cima, o identificador (D-PROD-348). */
+  /** Ícone do lote com a contagem e, por cima, o identificador (D-PROD-349). */
   LOTES: LOTES_LAYER_ID,
   LOTES_IDENT: LOTES_IDENT_LAYER_ID,
 });
@@ -517,7 +517,7 @@ export function aplicarEstiloPasto(map, estilo) {
 
 /**
  * Sources/layers do Mapa Geral — idempotente (reaplicável após setStyle).
- * Ordem: áreas (fill, divisa, destaque) → linhas → localização → lotes (D-PROD-348, por cima de tudo).
+ * Ordem: áreas (fill, divisa, destaque) → linhas → localização → lotes (D-PROD-349, por cima de tudo).
  * @param {any} map
  */
 export function ensureMgLayers(map) {

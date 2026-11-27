@@ -1,6 +1,6 @@
 /*
  * GUIA DE EDIÇÃO — MARCADORES DO MAPA: tamanho (baseSize) de pontos, cochos e tarefas; lotes em syncLotes; rótulos em syncLabels.
- * Lotes desenhados pelo mapa (D-PROD-348): posição, contagem, identificador, piscar e arrastar em src/lib/maplibre/lotesNoMapa.js.
+ * Lotes desenhados pelo mapa (D-PROD-349): posição, contagem, identificador, piscar e arrastar em src/lib/maplibre/lotesNoMapa.js.
  * Ícone do lote (D-PROD-191): o desenho, a largura (LARGURA_MARCADOR_PX) e a altura do número de cabeças (CONTAGEM_TOPO_PCT) vêm do código, em src/assets/icones/lotes.
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
@@ -60,7 +60,7 @@ import {
  * com o editor); pontos, cochos, tarefas e nomes continuam DOM, sempre com
  * `textContent` e cleanup explícito.
  *
- * Lotes (D-PROD-348): desenhados pelo próprio mapa — fonte GeoJSON + camadas
+ * Lotes (D-PROD-349): desenhados pelo próprio mapa — fonte GeoJSON + camadas
  * `symbol` com a imagem da figura e a contagem já escrita (`lotesNoMapa.js`).
  * O ícone vem do código (D-PROD-191): `resolverIconeLote` monta a figura pela
  * Categoria de Manejo de cada posição do pasto e sempre devolve figura; a
@@ -72,7 +72,7 @@ import {
  * alturas CONSTANTES (D-PROD-128): ícone 44 + 2 de espaço + nome reservado de
  * 26 px (nome + ha) = 72 px → ícone com o centro 14 px acima do ponto e o nome
  * começando 10 px abaixo. Não muda com o nível do rótulo nem com a imagem.
- * O ícone é o `icon-offset` da camada dos lotes quando `comRotulo` (D-PROD-348).
+ * O ícone é o `icon-offset` da camada dos lotes quando `comRotulo` (D-PROD-349).
  */
 const PAR_LOTE = {
   icone: OFFSET_LOTE_COM_NOME_PX,
@@ -228,7 +228,7 @@ export default function useMapRenderer(mapInstanceRef) {
   const labelZoomHandlerRef = useRef(/** @type {null | (() => void)} */ (null));
   const arrumarRef = useRef(/** @type {null | { handler: () => void, quadro: number }} */ (null));
   /**
-   * Lotes no mapa (D-PROD-348), por pasto: o que vai na fonte (`item`), os lotes e as áreas para os callbacks e o
+   * Lotes no mapa (D-PROD-349), por pasto: o que vai na fonte (`item`), os lotes e as áreas para os callbacks e o
    * tamanho do ícone (obstáculo dos nomes).
    * @type {import('react').MutableRefObject<Map<string, { item: Omit<import('@/lib/maplibre/lotesNoMapa.js').ItemLote, 'comRotulo'>, lotesNaArea: any[], areas: any[], tamanho: { w: number, h: number } }>>}
    */
@@ -269,7 +269,7 @@ export default function useMapRenderer(mapInstanceRef) {
     if (!map) return;
     ensureMgLayers(map);
     aplicarEstiloPasto(map, estiloPastoRef.current);
-    // Estilo novo (satélite ↔ mapa) vem sem as imagens dos lotes: repõe antes dos dados (D-PROD-348).
+    // Estilo novo (satélite ↔ mapa) vem sem as imagens dos lotes: repõe antes dos dados (D-PROD-349).
     registrarImagens(map, chavesImagensLotes(), pixelRatioRef.current);
     const d = dataRef.current;
     if (d.areas) setSourceData(map, MG_SOURCE_IDS.AREAS, d.areas);
@@ -359,7 +359,7 @@ export default function useMapRenderer(mapInstanceRef) {
         map.getCanvas().style.cursor = "";
       };
       const onClick = (e) => {
-        // O clique no ícone do lote abre os lotes, não a área por baixo (D-PROD-348).
+        // O clique no ícone do lote abre os lotes, não a área por baixo (D-PROD-349).
         if (haLoteNoPonto(map, e.point)) return;
         const area = featureArea(e);
         if (!area) return;
@@ -404,7 +404,7 @@ export default function useMapRenderer(mapInstanceRef) {
     const soNaTela = opcoes?.soNaTela === true;
     // Lote de área sem rótulo (nomes desligados ou área sem nome): volta à
     // posição padrão, sem o espaço do nome embaixo (D-PROD-127). Com rótulo, o
-    // par ícone + nome. Vai na fonte dos lotes como `comRotulo` (D-PROD-348).
+    // par ícone + nome. Vai na fonte dos lotes como `comRotulo` (D-PROD-349).
     publicarLotes();
     if (!labelsRef.current.size) return;
     const caixa = (/** @type {Element} */ el) => {
@@ -478,7 +478,7 @@ export default function useMapRenderer(mapInstanceRef) {
     });
 
     // Ícones de lote são obstáculos dos nomes (D-PROD-126). Desenhados pelo mapa, não há elemento para medir: a caixa
-    // é o ponto do pasto na tela + o deslocamento e o tamanho da imagem (D-PROD-348), na mesma origem dos nomes.
+    // é o ponto do pasto na tela + o deslocamento e o tamanho da imagem (D-PROD-349), na mesma origem dos nomes.
     // `dono`: o ícone do lote da própria área não conta contra o nome dela.
     const origem = tela.getBoundingClientRect?.() || { left: 0, top: 0 };
     /** @type {Array<{ x: number, y: number, w: number, h: number, dono: string }>} */
@@ -809,7 +809,7 @@ export default function useMapRenderer(mapInstanceRef) {
     syncGrupo(prefix, itens);
   }, [mapInstanceRef]);
 
-  // ─── Lotes (agrupados por área) — desenhados pelo mapa (D-PROD-348) ───
+  // ─── Lotes (agrupados por área) — desenhados pelo mapa (D-PROD-349) ───
 
   /**
    * Publica a fonte dos lotes. `comRotulo` (o pasto tem nome embaixo do ícone) vem dos rótulos: muda o
