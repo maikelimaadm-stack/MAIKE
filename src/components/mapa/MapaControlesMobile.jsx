@@ -61,7 +61,9 @@ export default function MapaControlesMobile({
   // uma preferência gravada sem efeito e Localizar ligaria uma camada proibida.
   showLocalizarButton = false,
   showMoverButton = false,
-  painel = null
+  painel = null,
+  // D-PROD-340: ação principal da aba (o "+" de Pontos), na coluna da direita, acima de Atualizar/Localizar/Mover.
+  acimaDaPilha = null
 }) {
   const [camadasAberto, setCamadasAberto] = React.useState(false);
 
@@ -125,6 +127,7 @@ export default function MapaControlesMobile({
       </div>
 
       <div className="mk-mapa-dir">
+        {acimaDaPilha}
         <div className="mk-mapa-pilha mk13-pilha">
           <button type="button" className="mk13-btn" onClick={onRefresh} aria-label="Atualizar mapa" title="Atualizar mapa">
             <RefreshCw size={19} aria-hidden />

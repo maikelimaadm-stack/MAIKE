@@ -311,9 +311,9 @@ describe("ehCampoDesconhecido (D-PROD-332 emenda)", () => {
   });
 });
 
-// ─── Frentes: uma abertura por máquina + implemento (D-PROD-339, emenda) ─────
+// ─── Frentes: uma abertura por máquina + implemento (D-PROD-341, emenda) ─────
 
-describe("frentes: uma abertura por máquina + implemento (D-PROD-339)", () => {
+describe("frentes: uma abertura por máquina + implemento (D-PROD-341)", () => {
   const obs = (bemId, bemNome, implementoId = "", implementoNome = "", horimetro = "1000.0") =>
     marcadorDaAbertura({ bemId, bemNome, implementoId, implementoNome, horimetro, responsavelId: "usr-3", responsavelNome: "João Pereira" });
   /** Três máquinas na MESMA atividade, em dias diferentes; a Trator 12 tem duas leituras (a do dia 20 é a mais recente). */

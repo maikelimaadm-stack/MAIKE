@@ -6,7 +6,7 @@
  *  (d) confirmar vazio mostra os erros e não envia;
  *  (e) confirmar envia `registrarCampo` uma vez, com a abertura na observação, e mostra o cabeçalho "Aberto";
  *  (f) aberto com uma atividade existente COM abertura, começa no cabeçalho (lido dos apontamentos);
- *  (f2)/(f3) D-PROD-339: a atividade existente SEM abertura (o fluxo antigo) vai ao formulário de abertura, com o tipo e a
+ *  (f2)/(f3) D-PROD-341: a atividade existente SEM abertura (o fluxo antigo) vai ao formulário de abertura, com o tipo e a
  *      operação dela já definidos; "Iniciar serviço" leva o `tipo_atividade_id` da atividade existente;
  *  (1) enquanto a abertura carrega, só "Carregando…" (sem cabeçalho nem menu); (3) falha na leitura: cabeçalho como antes;
  *  (g) com duas operações do tipo, a Operação vem primeiro e é obrigatória;
@@ -237,7 +237,7 @@ describe("Diário das atividades — abertura", () => {
     expect(screen.getByTestId("servico-encerrar")).toBeInTheDocument();
   });
 
-  it("(f2) D-PROD-339: serviço aberto SEM abertura gravada → formulário de abertura, com o tipo e a operação dele já definidos", async () => {
+  it("(f2) D-PROD-341: serviço aberto SEM abertura gravada → formulário de abertura, com o tipo e a operação dele já definidos", async () => {
     servico.listarApontamentos.mockResolvedValue({ items: [{ id: "ap-1", data_operacional: "2026-11-26", status: "CONFIRMADO", observacao: "Só texto" }] });
     renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
     await screen.findByTestId("abertura-form");
@@ -260,7 +260,7 @@ describe("Diário das atividades — abertura", () => {
     expect(lerAbertura(dados.observacao)).toMatchObject({ bemId: "bem-7", responsavelId: "usr-3", horimetro: "1245.0" });
   });
 
-  it("(f3) D-PROD-339: com duas operações do tipo, a Operação já vem com a do serviço aberto (e o envio leva o id dela)", async () => {
+  it("(f3) D-PROD-341: com duas operações do tipo, a Operação já vem com a do serviço aberto (e o envio leva o id dela)", async () => {
     servico.listarApontamentos.mockResolvedValue({ items: [{ id: "ap-1", data_operacional: "2026-11-26", status: "CONFIRMADO", observacao: "Só texto" }] });
     renderizar({ tipos: [OPERACAO_APLICACAO, OPERACAO_APLICACAO_2], atividade: { id: "atv-9", tipo_atividade_id: "op-2" } });
     await screen.findByTestId("abertura-form");
@@ -624,7 +624,7 @@ describe("Diário das atividades — Insumo (carga, D-PROD-334)", () => {
 
   it("(d) sem apontamento de hoje, a primeira carga cria o apontamento com criarApontamento e produtos[]", async () => {
     servico.criarApontamento.mockResolvedValue({ apontamento: { id: "ap-novo", versao: 1 }, atividade: null, alertas: [] });
-    // O serviço foi aberto ontem (a abertura está no apontamento de ontem); hoje ainda não há apontamento. D-PROD-339: sem
+    // O serviço foi aberto ontem (a abertura está no apontamento de ontem); hoje ainda não há apontamento. D-PROD-341: sem
     // nenhum apontamento com abertura o diário iria ao formulário de abertura, não ao serviço aberto.
     await abrirInsumo([{ ...apontamentoDeHoje(), id: "ap-0", data_operacional: "2026-11-25", createdAt: "2026-11-25T09:00:00.000Z" }]);
     await escolherProduto(0, "Glifosato");
@@ -741,7 +741,7 @@ describe("Diário das atividades — Insumo (carga, D-PROD-334)", () => {
   });
 });
 
-// ─── D-PROD-339 (emenda, frentes): a carga é POR FRENTE (máquina + implemento) ─────
+// ─── D-PROD-341 (emenda, frentes): a carga é POR FRENTE (máquina + implemento) ─────
 
 /** A frente do Trator 12 (sem implemento) com um apontamento de HOJE e a carga 1 dela. */
 const FRENTE_TRATOR_12_HOJE = {
@@ -782,7 +782,7 @@ const abrirCargaDaFrenteTrator08 = async (apontamentos) => {
   await screen.findByTestId("carga-form");
 };
 
-describe("Diário das atividades — carga por frente (D-PROD-339, emenda)", () => {
+describe("Diário das atividades — carga por frente (D-PROD-341, emenda)", () => {
   it("(d1) a carga numa frente usa o apontamento de hoje DELA (adicionarLinha no id dela) e numera só entre as dela", async () => {
     // A Carga 1 do Trator 12 é do OUTRO apontamento: a do Trator 08 começa em 1.
     await abrirCargaDaFrenteTrator08([FRENTE_TRATOR_12_HOJE, FRENTE_TRATOR_08_HOJE]);

@@ -1454,7 +1454,7 @@ describe("LA-PORTA — porta por allowlist e service sem fazenda", () => {
     expect(montarCaminhoOpcoes("operadores", { empresa_id: "emp-1", q: "jo", natureza: "MAQUINA" })).toBe("/atividades-opcoes/operadores?empresa_id=emp-1&q=jo");
   });
 
-  // D-PROD-339: a máquina da abertura vai em `bem_id` (a atividade criada). A porta descartava o campo em silêncio.
+  // D-PROD-341: a máquina da abertura vai em `bem_id` (a atividade criada). A porta descartava o campo em silêncio.
   it("LA-PORTA-BEM — o registro de campo leva `bem_id` no corpo (a máquina da atividade) e continua descartando o que não é do contrato", async () => {
     const { operacoesNativas } = await import("@/apis/atividades/lancamentoAtividadePort.js");
     await operacoesNativas.registrar({
@@ -2453,7 +2453,7 @@ describe("LA-E2E — ajustes do teste de ponta a ponta da Entrega 2 (D-PROD-274)
   });
 });
 
-describe("LA-DIARIO — a ação de linha \"Diário das atividades\" (D-PROD-339)", () => {
+describe("LA-DIARIO — a ação de linha \"Diário das atividades\" (D-PROD-341)", () => {
   // Uma atividade com um pasto EM ANDAMENTO (o servidor traz `areas[]`): a ação do ⚡ abre o diário do pasto.
   const COM_PASTO_EM_ANDAMENTO = {
     ...ATV_A1,

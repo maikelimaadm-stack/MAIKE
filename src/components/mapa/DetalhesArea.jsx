@@ -28,7 +28,7 @@ import { Abas, RodapePilulas, SecaoDetalhe, idsDaAba } from "./detalhes-lote/blo
  *   chave `medir_forragem`), Manejos (em andamento e planejado em cima; os REGISTROS de campo, "Já feito", embaixo —
  *   o antigo Histórico) e Custos. Sem permissão de ver atividades, Manejos e Custos não aparecem.
  * - Curral: a aba Abate de antes (`HistoricoAbateCurral`), à parte: são fatos de natureza diferente.
- * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre o "Diário das atividades" do pasto (D-PROD-332, D-PROD-339,
+ * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre o "Diário das atividades" do pasto (D-PROD-332, D-PROD-341,
  *   `DiarioDoPasto`): com atividades abertas, a lista "Em andamento neste pasto"; sem nenhuma, vai direto ao tipo. É a
  *   ÚNICA entrada de diário no Mapa (a ação de linha "Diário das atividades" abre o mesmo). A "Nova realização" continua
  *   na página Lançamento de Atividades, só não é mais aberta por aqui.

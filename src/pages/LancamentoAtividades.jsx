@@ -328,7 +328,7 @@ function LancamentoAtividadesTela() {
   const [lancandoDia, setLancandoDia] = useState(/** @type {any|null} */ (null));
   const [concluindoServico, setConcluindoServico] = useState(/** @type {any|null} */ (null));
   const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', areaId?: string|null, chave: number } | null} */ (null));
-  // Diário das atividades (D-PROD-339): a atividade lida e o pasto (a área) em que ele abre.
+  // Diário das atividades (D-PROD-341): a atividade lida e o pasto (a área) em que ele abre.
   const [diario, setDiario] = useState(/** @type {{ atividade: any, area: any, chave: number } | null} */ (null));
   const celular = useCelular();
   const { clienteId } = useAuth();
@@ -794,7 +794,7 @@ function LancamentoAtividadesTela() {
     const ac = acoesDaAtividade(a, acoes);
     const gravar = podeGravar && Number.isInteger(a?.versao);
     const abrirItem = [{ key: "abrir", label: "Abrir atividade", icon: <List size={16} strokeWidth={1.75} />, onSelect: () => controller.handleEdit(a) }];
-    // Diário das atividades (D-PROD-339): numa atividade ABERTA com pasto em andamento, abre no primeiro deles (só com permissão de lançar).
+    // Diário das atividades (D-PROD-341): numa atividade ABERTA com pasto em andamento, abre no primeiro deles (só com permissão de lançar).
     const pastoEmAndamento = gravar && ac.lancarApontamento ? areasEmAndamento(a)[0] ?? null : null;
     const diarioItem = pastoEmAndamento
       ? [

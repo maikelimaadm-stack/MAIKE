@@ -10373,7 +10373,24 @@ Vários itens ficavam presos para sempre, sem botão:
 
 > **Numeração:** a `main` (`0b482ce35`) indica `Próxima decisão: D-PROD-338`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-339. A D-PROD-336 continua com a PR #426. Conferir de novo antes do merge (regra A5).
 
-## D-PROD-339 — Abertura do Diário das atividades: pasto com serviço antigo e máquina no envio
+## D-PROD-340 — Fechar o cadastro do mapa não derruba o app; o "+" de Pontos na coluna da direita, sem a lista no meio
+
+**Data:** 2026-11-27 · **Origem:** defeitos relatados pelo proprietário: "quando eu clico em cadastrar ponto … leva para o mapa de cadastro e depois volta" e "quando eu abro o mapa, eu vou fechar de cadastro … ele trava tudo", na web e no app. Os dois foram reproduzidos num navegador real (Chromium + WebGL) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`CADASTRO-MAPA-FECHAR-D340-REPORT.md`](./CADASTRO-MAPA-FECHAR-D340-REPORT.md)
+
+**Decisão.**
+1. **`setSourceData` não lança com o mapa já removido.**
+   - O que acontecia: ao fechar o editor do cadastro (`MapaDesenho`), a limpeza do cursor e a do arrasto rodavam DEPOIS da limpeza que remove o mapa (o React desmonta os efeitos na ordem em que foram declarados). Nesse ponto, `map.getSource` lançava.
+   - Por que virava tela branca: o app não tem ErrorBoundary, então o React desmontava a raiz inteira. Era o "trava tudo".
+   - Quando acontecia:
+     - sempre, ao fechar uma área ou linha nova;
+     - ao fechar um ponto já marcado, caso que ficou alcançável com a D-PROD-333, em que o toque só marca o ponto.
+   - O que muda: a leitura da fonte dentro de `setSourceData` fica protegida, e isso vale para todos os mapas que usam essa função.
+2. **O "+" (Novo ponto) da aba Pontos fica DENTRO da coluna da direita**, acima de Atualizar, Localizar e Mover. Fica como `acimaDaPilha` no `MapaControlesMobile`. Antes ele ficava por baixo dessa coluna: só uma faixa de 14 px pegava o toque, e o resto caía em "Atualizar mapa".
+3. **Aberto pelo "+", o cadastro já nasce no editor de ponto.** O estado inicial vem de `?novo=ponto`. Ao fechar, ele volta direto ao Mapa Geral. Antes, a lista do cadastro aparecia por um instante na ida e na volta, e parecia que a tela ia e voltava.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indica D-PROD-339 na `main` (`db40842a6`, depois da #428). A PR #426 (diário, outra sessão) perdeu de novo o número para uma PR mergeada antes (agora a D-PROD-338) e deve passar à 339. Para não colidir, esta é a **D-PROD-340**, e o marcador passa a D-PROD-341. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-341 — Abertura do Diário das atividades: pasto com serviço antigo e máquina no envio
 
 **Causa (defeito 1).** Um pasto com uma atividade EM ANDAMENTO que não tem a linha `[abertura-servico ...]` na observação dos apontamentos (as criadas pelo fluxo antigo, como Gradagem e Combate à cigarrinha) abria o Diário direto no cabeçalho, com "Abertura não registrada neste serviço.". Não havia tela de tipo nem de abertura, então o usuário não conseguia iniciar nada.
 
@@ -10405,7 +10422,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 **Uma entrada só (pedido do dono).** Os Detalhes da área tinham três entradas de diário: a pílula "Manejos" do rodapé (abria a "Nova realização"), o botão verde "Diário das atividades" no topo da aba Manejos (D-PROD-332, PR #420) e a ação de linha "Diário da máquina" (a tela antiga `DiarioDaMaquina`). Agora a entrada é uma só, o "Diário das atividades" (`DiarioDoPasto`), aberto pela pílula "Manejos" do rodapé e pela ação de linha, que passa a se chamar "Diário das atividades". Religadas: a pílula "Manejos" (antes `JanelaRegistroDeCampo`) e a ação de linha (antes `DiarioDaMaquina`). Removida: o botão do topo da aba Manejos. Os arquivos `DiarioDaMaquina.jsx` e `RegistroDeCampo.jsx` continuam: a página Lançamento de Atividades segue usando os dois. Nos Detalhes da área, a "Nova realização" ainda abre pela ação de linha "+ Lançamento" (presa à atividade, D-PROD-278); só a pílula "Manejos" deixou de abri-la. Sem migration e sem backend. (Esta frase sobre a página foi superada pela "Organização das entradas" abaixo: a página deixou de usar a `DiarioDaMaquina`.)
 
-**Organização das entradas (pedido do dono, mesma D-PROD-339).** Lista final das entradas do diário:
+**Organização das entradas (pedido do dono, mesma D-PROD-341).** Lista final das entradas do diário:
 1. Pílula "Manejos" do rodapé da área (Detalhes da área): `DiarioDoPasto` sem atividade (lista "Em andamento neste pasto" ou, sem atividade aberta, o tipo).
 2. Ação de linha "Diário das atividades" da atividade em andamento na área (⚡ na aba Manejos): `DiarioDoPasto` com a atividade.
 3. Ação de linha "Diário das atividades" na página Lançamento de Atividades (⚡ de atividade ABERTA com pasto em andamento; abre no primeiro pasto em andamento): `DiarioDoPasto` com a atividade lida. A lista da página relê ao gravar (prop `aoGravar`).
@@ -10418,6 +10435,6 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 - Pílula "Manejos" e a ação de linha da área abrem o mesmo diário por caminhos diferentes (no rodapé, sem atividade escolhida; na linha, com ela). Ficam as duas porque a lista do dono as nomeia. Se o dono quiser uma só, a ação de linha de `AcoesDaAtividadeDaArea.jsx` sai numa linha: é decisão dele.
 - "Iniciar serviço" é o botão de dentro do diário, não uma entrada. "Iniciar atividade" não existe mais no código.
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`471ad9c9d`) indicou D-PROD-334. A PR #424 (Insumo) reservou o 334, então esta correção é a D-PROD-339, e o marcador passa a D-PROD-340. A PR #428 (offline, Grupo 3) mergeou antes com a D-PROD-338, por isso esta passou de 338 a 339.
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`471ad9c9d`) indicou D-PROD-334. A PR #424 (Insumo) reservou o 334, então esta correção é a D-PROD-341, e o marcador passa a D-PROD-342. A PR #428 (offline, Grupo 3) mergeou antes com a D-PROD-338 e a #429 com a D-PROD-340, por isso esta passou de 338 a 341.
 
-<!-- Próxima decisão: D-PROD-340 -->
+<!-- Próxima decisão: D-PROD-342 -->

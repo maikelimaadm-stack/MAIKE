@@ -164,7 +164,7 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
     <Vazio icone={Sprout}>Nenhuma atividade nesta área agora.</Vazio>
   );
 
-  // D-PROD-339: o diário das atividades (a pílula "Manejos" do rodapé e a ação de linha) é o DiarioDoPasto; não há botão aqui.
+  // D-PROD-341: o diário das atividades (a pílula "Manejos" do rodapé e a ação de linha) é o DiarioDoPasto; não há botão aqui.
   if (secao === "manejos") {
     return (
       <div className="mk-dp-area-organizada mk-dp-d13">
