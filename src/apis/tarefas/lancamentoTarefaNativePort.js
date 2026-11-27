@@ -98,7 +98,8 @@ export const operacoesNativas = Object.freeze({
   update: (id, dados) =>
     nativeRequest(
       `${CAMINHO}/${encodeURIComponent(id)}`,
-      { method: 'PATCH', body: corpoDeEnvio(dados, CAMPOS_DE_ATUALIZACAO), autenticado: true },
+      // D-PROD-344: a versão que a pessoa viu vai junto; o servidor confere na edição de campos.
+      { method: 'PATCH', body: corpoDeEnvio(dados, [...CAMPOS_DE_ATUALIZACAO, 'versao_esperada']), autenticado: true },
       ctx('updateLancamento')
     ),
 

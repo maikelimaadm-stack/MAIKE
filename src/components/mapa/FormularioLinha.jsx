@@ -61,6 +61,8 @@ export default function FormularioLinha({
         const vertices = parseVertices(coordenadasGPS || coordenadas || item.coordenadas?.coords);
         return atualizarLinha(item.id, {
           ...data,
+          // D-PROD-344: a versão da linha que a pessoa abriu; o servidor só grava se ela ainda está nela.
+          ...(item.updated_date ? { versao_esperada: item.updated_date } : {}),
           ...(vertices.length >= 2 ? { comprimento_metros: comprimentoMetros(vertices) } : {}),
           coordenadas: {
             coords: toPersistedCoords(coordenadasGPS || coordenadas || item.coordenadas?.coords),

@@ -33,6 +33,7 @@
  * possível do campo seja o setor lido no servidor.
  */
 
+import { SCHEMA_VERSAO_ESPERADA } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, renumerar } from './areaPastagemService.js';
 import { exigirParametrosSemCoercao } from '../culturas/culturaService.js';
@@ -127,7 +128,8 @@ const ATUALIZAR_SCHEMA = {
     type: 'object',
     minProperties: 1,
     additionalProperties: false,
-    properties: { ...CAMPOS_EDITAVEIS },
+    // D-PROD-344: a versão da área que a pessoa viu (o `updated_date`); diferente da atual → 409, nada gravado.
+    properties: { ...CAMPOS_EDITAVEIS, versao_esperada: SCHEMA_VERSAO_ESPERADA },
   },
 };
 
