@@ -168,6 +168,11 @@ export const iniciarSincronizacaoAutomatica = () => {
     App.addListener('resume', () => {
       void sincronizarTudo({ jaEmVoltaDaRede: true });
     }).catch(() => {});
+    // D-PROD-346: ao sair do app (botão de início, outra tela), o que espera envio tenta já, enquanto o Android ainda
+    // deixa o app rodar. Antes só tentava ao voltar.
+    App.addListener('pause', async () => {
+      if (estaOnline() && (await temAlgoEsperando())) void sincronizarTudo({ jaEmVoltaDaRede: true });
+    }).catch(() => {});
   }
   setInterval(async () => {
     if (estaOnline() && (await temAlgoEsperando())) void sincronizarTudo();

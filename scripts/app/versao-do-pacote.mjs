@@ -4,7 +4,7 @@
  *
  * É a identidade do pacote que o app carrega: a atualização automática compara
  * esta versão com a publicada (`/app-atualizacao/ultima.json`). Versão = commit
- * (curto) do build; `nativoMinimo` = `versionCode` de `app-version.json`.
+ * (curto) do build; `nativoMinimo` = `nativoMinimo` de `app-version.json` (D-PROD-346) ou, sem ele, o `versionCode`.
  *
  * Uso: node scripts/app/versao-do-pacote.mjs <pasta>
  */
@@ -22,7 +22,14 @@ export const versaoDoCommit = () => {
   }
 };
 
-export const nativoMinimo = () => Number(JSON.parse(readFileSync('app-version.json', 'utf8')).versionCode) || 1;
+/**
+ * O APK mais antigo que roda este pacote. D-PROD-346: `nativoMinimo` em `app-version.json` quando o pacote novo
+ * também roda no APK anterior (o código novo confere se o plugin nativo existe); sem ele, o `versionCode`.
+ */
+export const nativoMinimo = () => {
+  const versao = JSON.parse(readFileSync('app-version.json', 'utf8'));
+  return Number(versao.nativoMinimo ?? versao.versionCode) || 1;
+};
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const pasta = process.argv[2];
