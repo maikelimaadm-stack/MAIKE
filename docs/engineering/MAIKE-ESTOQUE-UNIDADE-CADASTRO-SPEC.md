@@ -66,6 +66,12 @@ As colunas de unidade dos itens já são VARCHAR(8), e a sigla da unidade de est
 
 ## 5. Fora
 
+> **Próximo passo já combinado (2026-11-27):** o proprietário avisou que o **abastecimento** também vai passar a aceitar
+> a unidade do cadastro ("essa regra nós vamos mudar também futuramente, vai ser igual para os outros"). Vai ser uma
+> etapa própria (UE-4), com uma emenda própria. Até lá, a sigla "LT" do cadastro de Unidades da fazenda fica como está.
+> Nenhum produto usa LT hoje; só depois da UE-4 um produto em LT poderá entrar no tanque.
+
+
 - Conversão KG ↔ L (densidade).
 - Abastecimento em outra unidade.
 - Mistura do implemento em outra unidade.
