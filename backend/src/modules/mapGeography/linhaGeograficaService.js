@@ -1,4 +1,5 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { consultarMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { exigirVersaoEsperada, separarVersaoEsperada } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
@@ -70,6 +71,17 @@ export const listar = async (contexto) => {
   const auth = exigirAuthContext(contexto?.auth);
   const registros = await listarLinhas(auth.clienteId);
   return registros.map(comoLinhaPublica);
+};
+
+/**
+ * D-PROD-345 — o que mudou nas linhas desde a última sincronização do aparelho. Linha não é excluída (sai com
+ * `ativo: false`, que volta como item alterado).
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{desde?: string, cursor?: string, limite?: number}} query
+ */
+export const mudancas = async (contexto, query) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  return consultarMudancas({ clienteId: auth.clienteId, query, modelo: 'linhaGeografica', entidadeAuditoria: 'LinhaGeografica', publico: comoLinhaPublica });
 };
 
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {Record<string, unknown>} entrada */

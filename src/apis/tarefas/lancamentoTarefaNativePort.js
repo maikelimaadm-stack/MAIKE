@@ -11,6 +11,7 @@ import {
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
 import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
+import { ordemPorAtualizacao, registrarListaIncremental } from '@/lib/offline/sincronizacaoIncremental';
 import { eIdDoAparelho } from '@/lib/offline/idDoAparelho';
 
 const RESOURCE = 'LancamentoTarefa';
@@ -124,3 +125,7 @@ export const lancamentoTarefaPort = createOfflineEntityAdapter({
 registrarLeiturasOffline([
   '/lancamentos-tarefa',
 ]);
+
+// D-PROD-345: a lista inteira (sem filtros) sincroniza só o que mudou desde a última vez. Antes vinha inteira a cada
+// baixa, com as fotos dentro de cada tarefa.
+registrarListaIncremental(CAMINHO, { mudancas: `${CAMINHO}/mudancas`, ordem: ordemPorAtualizacao });

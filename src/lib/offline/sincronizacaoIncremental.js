@@ -2,7 +2,8 @@
  * D-PROD-309 — sincronização incremental das listas grandes.
  *
  * Antes, cada leitura com internet de `/lotes`, `/pontos-suplementacao`, `/leituras-cocho` e
- * `/suplementacao-eventos` baixava a lista INTEIRA — e a mesma lista era pedida pelo cache
+ * `/suplementacao-eventos` (D-PROD-345: e `/pontos-referencia`, `/linhas-geograficas`, `/lancamentos-tarefa`) baixava
+ * a lista INTEIRA — e a mesma lista era pedida pelo cache
  * das entidades, pelo mapa e pelas telas (até três vezes por sincronização). Com milhões de
  * registros por cliente, não escala.
  *
@@ -30,6 +31,13 @@ const texto = (v) => (v === null || v === undefined ? '' : String(v));
 /** Ordem da listagem do servidor: createdAt DESC, id DESC. */
 export const ordemPorCriacao = (/** @type {any} */ a, /** @type {any} */ b) =>
   desc(texto(a?.created_date), texto(b?.created_date)) || desc(texto(a?.id), texto(b?.id));
+
+/** D-PROD-345: ordem dos pontos de referência e das linhas: createdAt ASC, id ASC. */
+export const ordemPorCriacaoCrescente = (/** @type {any} */ a, /** @type {any} */ b) => ordemPorCriacao(b, a);
+
+/** D-PROD-345: ordem das tarefas: updatedAt DESC, id DESC. */
+export const ordemPorAtualizacao = (/** @type {any} */ a, /** @type {any} */ b) =>
+  desc(texto(a?.updated_date), texto(b?.updated_date)) || desc(texto(a?.id), texto(b?.id));
 
 /** Ordem das leituras de cocho: dia da leitura DESC, depois createdAt DESC, id DESC. */
 export const ordemPorDiaDaLeitura = (/** @type {any} */ a, /** @type {any} */ b) =>
