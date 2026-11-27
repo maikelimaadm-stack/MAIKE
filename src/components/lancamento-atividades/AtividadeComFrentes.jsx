@@ -44,8 +44,8 @@ export function CartaoDaFrente({ id, frente, horasHoje, ocupado, onAbrir, onReab
   const { abertura, chave, encerrada, horimetroFinal } = frente;
   const titulo = abertura.bemNome || "Máquina";
   return (
-    <li>
-      <button type="button" className="frente-card" disabled={encerrada || ocupado} onClick={() => onAbrir(chave)} data-testid={`frente-${id}-${encodeURIComponent(chave)}`}>
+    <li className="frente-item">
+      <button type="button" className={encerrada && onReabrir ? "frente-card frente-card--com-acao" : "frente-card"} disabled={encerrada || ocupado} onClick={() => onAbrir(chave)} data-testid={`frente-${id}-${encodeURIComponent(chave)}`}>
         <span className="frente-card__ic" aria-hidden>
           <Tractor size={18} strokeWidth={1.75} />
         </span>
@@ -83,7 +83,7 @@ export function CartaoDaFrente({ id, frente, horasHoje, ocupado, onAbrir, onReab
         {encerrada ? null : <ChevronRight className="seta" size={18} aria-hidden />}
       </button>
       {encerrada && onReabrir ? (
-        <button type="button" className={BOTAO_SECUNDARIO} onClick={() => onReabrir(chave)} disabled={ocupado} data-testid={`frente-reabrir-${id}-${encodeURIComponent(chave)}`}>
+        <button type="button" className={`${BOTAO_SECUNDARIO} frente-reabrir`} onClick={() => onReabrir(chave)} disabled={ocupado} data-testid={`frente-reabrir-${id}-${encodeURIComponent(chave)}`}>
           Reabrir
         </button>
       ) : null}
