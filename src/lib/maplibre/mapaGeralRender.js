@@ -30,6 +30,7 @@ import {
   ensureCamadasAbaixoDosLotes,
   ensureCamadasAcimaDosLotes,
 } from "./pontosNoMapa.js";
+import { NOMES_LAYER_ID, NOMES_LOTE_LAYER_ID, NOMES_SOURCE_ID, ensureNomesLayers } from "./nomesNoMapa.js";
 
 export const MG_SOURCE_IDS = Object.freeze({
   AREAS: "mg-areas",
@@ -41,6 +42,8 @@ export const MG_SOURCE_IDS = Object.freeze({
   SUPL: SUPL_SOURCE_ID,
   PONTOS: PONTOS_SOURCE_ID,
   TAREFAS: TAREFAS_SOURCE_ID,
+  /** Nomes dos pastos desenhados pelo mapa (D-PROD-354). */
+  NOMES: NOMES_SOURCE_ID,
 });
 
 /** Camadas do Mapa Geral, na ordem em que são desenhadas (de baixo para cima). */
@@ -58,6 +61,9 @@ export const MG_LAYER_IDS = Object.freeze({
   LOTES: LOTES_LAYER_ID,
   LOTES_IDENT: LOTES_IDENT_LAYER_ID,
   TAREFAS: TAREFAS_LAYER_ID,
+  /** D-PROD-354: os nomes dos pastos por cima de tudo (o rótulo HTML de antes ficava por cima do mapa). */
+  NOMES: NOMES_LAYER_ID,
+  NOMES_LOTE: NOMES_LOTE_LAYER_ID,
 });
 
 const vazio = () => ({ type: "FeatureCollection", features: [] });
@@ -334,33 +340,10 @@ export function escolherModoRotulos(rotulos, obstaculos = [], { folga = 2, sobra
 }
 
 /**
- * Fonte do nome do pasto acompanhando o zoom SUAVEMENTE (D-PROD-129): cresce ao
- * aproximar e diminui ao afastar, como os nomes de um mapa, em vez de pular de
- * 10 → 11 → 12 px só no fim do zoom. 10 px até o zoom 13, 12 px a partir do 17
- * (de ¼ em ¼ px); o "ha" fica 1 px menor (mínimo 9).
- * @param {number} zoom
+ * Letra do nome por zoom (D-PROD-129) e encaixe no pasto (D-PROD-130): em `nomesNoMapa.js`, junto com os nomes
+ * desenhados pelo mapa (D-PROD-354), que as usam para as paradas do `icon-size`.
  */
-export function fontesRotuloPorZoom(zoom) {
-  const z = Number.isFinite(zoom) ? zoom : 0;
-  const nome = Math.round(Math.max(10, Math.min(12, 10 + (z - 13) * 0.5)) * 4) / 4;
-  return { nome, ha: Math.max(9, nome - 1) };
-}
-
-/**
- * Escala do nome do pasto para caber no espaço livre em volta do ponto
- * (D-PROD-130): o texto (w × h px) tem de caber no círculo de raio `raio` px.
- * Encolhe junto com o pasto no zoom; nunca passa do tamanho normal (1) nem fica
- * abaixo de `minimo` (legível).
- * @param {number} w largura do texto (px, sem escala)
- * @param {number} h altura do texto (px, sem escala)
- * @param {number | null | undefined} raio folga do ponto na tela (px)
- * @param {number} [minimo]
- */
-export function escalaRotulo(w, h, raio, minimo = 0.6) {
-  if (!(w > 0) || !(h > 0) || !(Number(raio) > 0)) return 1;
-  const s = (2 * Number(raio) * 0.95) / Math.hypot(w, h);
-  return Math.max(minimo, Math.min(1, Math.round(s * 100) / 100));
-}
+export { escalaRotulo, fontesRotuloPorZoom } from "./nomesNoMapa.js";
 
 /** "ha 12,34" (área pastejada se houver, senão tamanho); null se ≤ 0. */
 export function textoHectares(area) {
@@ -537,7 +520,7 @@ export function aplicarEstiloPasto(map, estilo) {
 /**
  * Sources/layers do Mapa Geral — idempotente (reaplicável após setStyle).
  * Ordem: áreas (fill, divisa, destaque) → linhas → localização → cochos → pontos → lotes (D-PROD-349) → tarefas
- * (D-PROD-353): a mesma ordem do z-index dos marcadores HTML de antes.
+ * (D-PROD-353) → nomes dos pastos (D-PROD-354): a mesma ordem do z-index dos marcadores HTML de antes.
  * @param {any} map
  */
 export function ensureMgLayers(map) {
@@ -565,4 +548,5 @@ export function ensureMgLayers(map) {
   ensureCamadasAbaixoDosLotes(map);
   ensureLotesLayers(map);
   ensureCamadasAcimaDosLotes(map);
+  ensureNomesLayers(map);
 }

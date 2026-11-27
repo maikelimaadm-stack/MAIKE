@@ -1,8 +1,9 @@
 /*
  * GUIA DE EDIÇÃO — MARCADORES DO MAPA: lotes em syncLotes; cochos, pontos e tarefas em syncPontosSuplementacao, syncPontos e
- * syncTarefas; rótulos em syncLabels.
+ * syncTarefas; nomes dos pastos em syncLabels (nível em arrumarNomes).
  * Lotes desenhados pelo mapa (D-PROD-349): posição, contagem, identificador, piscar e arrastar em src/lib/maplibre/lotesNoMapa.js.
  * Cochos, pontos e tarefas desenhados pelo mapa (D-PROD-353): tamanhos, selo, farol, indicador e ordem em src/lib/maplibre/pontosNoMapa.js.
+ * Nomes dos pastos desenhados pelo mapa (D-PROD-354): letra, cores, tamanho por zoom e posição em src/lib/maplibre/nomesNoMapa.js.
  * Ícone do lote (D-PROD-191): o desenho, a largura (LARGURA_MARCADOR_PX) e a altura do número de cabeças (CONTAGEM_TOPO_PCT) vêm do código, em src/assets/icones/lotes.
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
@@ -21,13 +22,11 @@ import {
   buildMgLinhasCollection,
   centroideArea,
   descreverMarcadorSuplementacao,
-  escalaRotulo,
   escolherModoRotulos,
   pontoEFolga,
   siglaDaArea,
   ensureMgLayers,
   aplicarEstiloPasto,
-  fontesRotuloPorZoom,
   resolverIconeLote,
   resolverIconePonto,
   resolverIconeSuplementacao,
@@ -35,7 +34,6 @@ import {
   textoHectares,
 } from "@/lib/maplibre/mapaGeralRender.js";
 import {
-  OFFSET_LOTE_COM_NOME_PX,
   TAMANHO_PADRAO_LOTE,
   caixaDoLote,
   colecaoLotes,
@@ -52,6 +50,21 @@ import {
   podarImagens,
   registrarImagens,
 } from "@/lib/maplibre/lotesNoMapa.js";
+import {
+  avisarFalhaNome,
+  caixaDoNome,
+  chaveImagemNome,
+  colecaoNomes,
+  ehImagemDeNome,
+  esperarFonteDosNomes,
+  ligarImagensFaltandoNomes,
+  linhasDoNivel,
+  medirLinhas,
+  pedidoImagemNome,
+  registrarImagensNomes,
+  tamanhosAcertadosNoZoom,
+  tamanhosPorZoom,
+} from "@/lib/maplibre/nomesNoMapa.js";
 import {
   PONTOS_LAYER_ID,
   PONTOS_SOURCE_ID,
@@ -80,8 +93,7 @@ import {
  * `syncPontos`, `syncLinhas`, `syncPontosSuplementacao`, `syncLotes`,
  * `syncTarefas`, `syncUserLocation`, `clearAll`), para que `MapaGeral` mantenha
  * filtros, permissões, painéis e ações. Áreas/linhas viram GeoJSON (estilo SSOT
- * com o editor); os nomes das áreas e a localização continuam DOM, sempre com
- * `textContent` e cleanup explícito.
+ * com o editor); só a localização do usuário continua DOM, com cleanup explícito.
  *
  * Lotes (D-PROD-349): desenhados pelo próprio mapa — fonte GeoJSON + camadas
  * `symbol` com a imagem da figura e a contagem já escrita (`lotesNoMapa.js`).
@@ -92,6 +104,11 @@ import {
  * Cochos/depósitos, pontos de referência (bebedouro incluído) e tarefas (D-PROD-353): também desenhados pelo mapa,
  * cada grupo numa fonte e numa camada `symbol` (`pontosNoMapa.js`): a figura com o selo e o farol do cocho ou o
  * indicador da tarefa já pintados na imagem; o clique chama os mesmos callbacks de antes.
+ *
+ * Nomes dos pastos (D-PROD-354): também desenhados pelo mapa — fonte GeoJSON + duas camadas `symbol` (sem lote, o nome
+ * centrado no ponto; com lote, logo abaixo do ícone) com a imagem do texto (`nomesNoMapa.js`). O tamanho no zoom é o
+ * `icon-size` da camada (paradas por pasto na fonte); o nível (nome + ha, nome, sigla) é escolhido sem tocar em
+ * elemento nenhum, no fim do movimento e algumas vezes por segundo durante o zoom.
  */
 
 /** Os três grupos de pontos desenhados pelo mapa (D-PROD-353): fonte, camada e prefixo das imagens. */
@@ -117,17 +134,23 @@ const MS_ESPERA_IMAGENS = 250;
 /** @returns {GrupoPontos} */
 const novoGrupo = () => ({ seq: 0, porId: new Map(), emUso: [], publicado: "", args: null, onClick: null });
 
-/**
- * Par ícone do lote (44 px) + nome embaixo, centrado no ponto da área, com
- * alturas CONSTANTES (D-PROD-128): ícone 44 + 2 de espaço + nome reservado de
- * 26 px (nome + ha) = 72 px → ícone com o centro 14 px acima do ponto e o nome
- * começando 10 px abaixo. Não muda com o nível do rótulo nem com a imagem.
- * O ícone é o `icon-offset` da camada dos lotes quando `comRotulo` (D-PROD-349).
+/*
+ * Par ícone do lote (44 px) + nome embaixo, centrado no ponto da área, com alturas CONSTANTES (D-PROD-128): ícone 44 +
+ * 2 de espaço + nome reservado de 26 px (nome + ha) = 72 px → ícone com o centro 14 px acima do ponto
+ * (`OFFSET_LOTE_COM_NOME_PX`, o `icon-offset` da camada dos lotes quando `comRotulo`, D-PROD-349) e o nome começando
+ * 10 px abaixo (`DESLOC_NOME_COM_LOTE_PX`, o `icon-translate` da camada dos nomes com lote, D-PROD-354).
  */
-const PAR_LOTE = {
-  icone: OFFSET_LOTE_COM_NOME_PX,
-  nome: /** @type {[number, number]} */ ([0, 10]),
-};
+
+/** @type {import('@/lib/maplibre/nomesNoMapa.js').NivelNome[]} */
+const NIVEIS_NOME = ["tudo", "nome", "sigla"];
+/**
+ * Um nível do nome de um pasto: as linhas, a chave da imagem, a medida na letra de 12 px e as paradas do `icon-size`.
+ * @typedef {{ linhas: import('@/lib/maplibre/nomesNoMapa.js').LinhaNome[], chave: string, medida: import('@/lib/maplibre/nomesNoMapa.js').Medida, tamanhos: Record<string, number> | null }} NivelDoNome
+ */
+/**
+ * O nome de um pasto: ponto, folga (D-PROD-130), caixa em graus (oeste/sul/leste/norte) e os três níveis.
+ * @typedef {{ lngLat: [number, number], nome: string, pf: { lat: number, lng: number, folga: number } | null, caixa: { oeste: number, sul: number, leste: number, norte: number } | null, niveis: Record<import('@/lib/maplibre/nomesNoMapa.js').NivelNome, NivelDoNome> }} NomeNaArea
+ */
 
 function removerMarcador(entry) {
   if (!entry) return;
@@ -151,15 +174,23 @@ function removerMarcador(entry) {
 export default function useMapRenderer(mapInstanceRef) {
   /** @type {import('react').MutableRefObject<Map<string, any>>} */
   const markersRef = useRef(new Map());
-  const labelsRef = useRef(new Map());
+  /** Nomes dos pastos (D-PROD-354), por área. @type {import('react').MutableRefObject<Map<string, NomeNaArea>>} */
+  const nomesRef = useRef(new Map());
+  /** Ponto, folga e caixa de cada área, refeitos só quando o contorno muda (o ponto mais de dentro é uma busca). */
+  const geoNomesRef = useRef(/** @type {Map<string, { chaveRing: string, centro: { lat: number, lng: number } | null, pf: any, caixa: any }>} */ (new Map()));
+  /** Nível publicado (o mesmo para todos), ordem das publicações e o último conteúdo publicado. */
+  const nomesEstadoRef = useRef(/** @type {{ nivel: import('@/lib/maplibre/nomesNoMapa.js').NivelNome, seq: number, seqSync: number, publicado: string }} */ ({ nivel: "tudo", seq: 0, seqSync: 0, publicado: "" }));
+  const nomesHandlersRef = useRef(/** @type {null | { off: () => void }} */ (null));
+  /** Últimos argumentos de `syncLabels`: refeitos quando a densidade da tela muda. */
+  const nomesArgsRef = useRef(/** @type {null | any[]} */ (null));
+  const syncLabelsRef = useRef(/** @type {null | ((...a: any[]) => void)} */ (null));
   const popupRef = useRef(/** @type {import('maplibre-gl').Popup | null} */ (null));
   const areasHandlersRef = useRef(/** @type {null | { off: () => void }} */ (null));
   const linhasHandlersRef = useRef(/** @type {null | { off: () => void }} */ (null));
   const areasCallbacksRef = useRef({ onClick: null, onRightClick: null });
   const areasByIdRef = useRef(new Map());
   const linhasByIdRef = useRef(new Map());
-  const dataRef = useRef(/** @type {{ areas: any, linhas: any, user: any, lotes: any, supl: any, pontos: any, tarefas: any }} */ ({ areas: null, linhas: null, user: null, lotes: null, supl: null, pontos: null, tarefas: null }));
-  const labelZoomHandlerRef = useRef(/** @type {null | (() => void)} */ (null));
+  const dataRef = useRef(/** @type {{ areas: any, linhas: any, user: any, lotes: any, supl: any, pontos: any, tarefas: any, nomes: any }} */ ({ areas: null, linhas: null, user: null, lotes: null, supl: null, pontos: null, tarefas: null, nomes: null }));
   const arrumarRef = useRef(/** @type {null | { handler: () => void, quadro: number }} */ (null));
   /**
    * Lotes no mapa (D-PROD-349), por pasto: o que vai na fonte (`item`), os lotes e as áreas para os callbacks e o
@@ -181,7 +212,7 @@ export default function useMapRenderer(mapInstanceRef) {
   /** Cochos, pontos e tarefas desenhados pelo mapa (D-PROD-353): um estado por grupo. */
   const gruposRef = useRef(/** @type {Record<NomeGrupo, GrupoPontos>} */ ({ supl: novoGrupo(), pontos: novoGrupo(), tarefas: novoGrupo() }));
   const pontosHandlersRef = useRef(/** @type {null | { off: () => void }} */ (null));
-  /** `resize` (densidade da tela nova): um só ouvinte refaz lotes e pontos. */
+  /** `resize` (densidade da tela nova): um só ouvinte refaz lotes, pontos e nomes. */
   const densidadeRef = useRef(/** @type {null | { off: () => void }} */ (null));
   /** As funções de sincronizar de cada grupo (refeitas quando a densidade da tela muda). */
   const syncGruposRef = useRef(/** @type {Partial<Record<NomeGrupo, (...a: any[]) => Promise<void>>>} */ ({}));
@@ -216,12 +247,14 @@ export default function useMapRenderer(mapInstanceRef) {
     // Estilo novo (satélite ↔ mapa) vem sem as imagens dos lotes e dos pontos: repõe antes dos dados (D-PROD-349/350).
     registrarImagens(map, chavesImagensLotes(), pixelRatioRef.current);
     registrarImagensPontos(map, NOMES_GRUPOS.flatMap((n) => gruposRef.current[n].emUso), pixelRatioRef.current);
+    registrarImagensNomes(map, chavesImagensNomes(), pixelRatioRef.current);
     const d = dataRef.current;
     if (d.areas) setSourceData(map, MG_SOURCE_IDS.AREAS, d.areas);
     if (d.linhas) setSourceData(map, MG_SOURCE_IDS.LINHAS, d.linhas);
     if (d.user) setSourceData(map, MG_SOURCE_IDS.USER, d.user);
     if (d.lotes) setSourceData(map, MG_SOURCE_IDS.LOTES, d.lotes);
     for (const n of NOMES_GRUPOS) if (d[n]) setSourceData(map, GRUPOS_PONTOS[n].fonte, d[n]);
+    if (d.nomes) setSourceData(map, MG_SOURCE_IDS.NOMES, d.nomes);
   }, [mapInstanceRef]);
 
   const clearAll = useCallback(() => {
@@ -245,22 +278,23 @@ export default function useMapRenderer(mapInstanceRef) {
     }
     markersRef.current.forEach(removerMarcador);
     markersRef.current.clear();
-    labelsRef.current.forEach(removerMarcador);
-    labelsRef.current.clear();
+    // nomes (D-PROD-354): imagens que ainda chegam não publicam mais nada
+    nomesHandlersRef.current?.off();
+    nomesHandlersRef.current = null;
+    nomesRef.current = new Map();
+    geoNomesRef.current = new Map();
+    nomesArgsRef.current = null;
+    {
+      const est = nomesEstadoRef.current;
+      nomesEstadoRef.current = { nivel: "tudo", seq: est.seq + 1, seqSync: est.seqSync + 1, publicado: "" };
+    }
+    setSourceData(/** @type {any} */ (mapInstanceRef.current), MG_SOURCE_IDS.NOMES, { type: "FeatureCollection", features: [] });
     popupRef.current?.remove();
     popupRef.current = null;
     areasHandlersRef.current?.off();
     areasHandlersRef.current = null;
     linhasHandlersRef.current?.off();
     linhasHandlersRef.current = null;
-    if (labelZoomHandlerRef.current) {
-      try {
-        mapInstanceRef.current?.off("zoom", labelZoomHandlerRef.current);
-      } catch {
-        /* ignore */
-      }
-      labelZoomHandlerRef.current = null;
-    }
     if (arrumarRef.current) {
       try {
         mapInstanceRef.current?.off("moveend", arrumarRef.current.handler);
@@ -272,7 +306,7 @@ export default function useMapRenderer(mapInstanceRef) {
     }
     areasByIdRef.current.clear();
     linhasByIdRef.current.clear();
-    dataRef.current = { areas: null, linhas: null, user: null, lotes: null, supl: null, pontos: null, tarefas: null };
+    dataRef.current = { areas: null, linhas: null, user: null, lotes: null, supl: null, pontos: null, tarefas: null, nomes: null };
   }, [mapInstanceRef]);
 
   // ─── Áreas (polígonos) ───
@@ -345,196 +379,148 @@ export default function useMapRenderer(mapInstanceRef) {
     }
   }, [mapInstanceRef]);
 
-  // ─── Rótulos das áreas (nome + ha + extra) ───
+  // ─── Nomes das áreas (nome + ha + extra) — desenhados pelo mapa (D-PROD-354) ───
+
+  /** Todas as chaves de imagem dos nomes de agora, nos três níveis (a poda não tira o nível que não está na tela). */
+  const chavesImagensNomes = () => {
+    /** @type {string[]} */
+    const chaves = [];
+    nomesRef.current.forEach((n) => {
+      for (const nivel of NIVEIS_NOME) if (n.niveis[nivel].linhas.length) chaves.push(n.niveis[nivel].chave);
+    });
+    return chaves;
+  };
+
   /**
-   * Sem bagunça de rótulos (D-PROD-126): mede os rótulos e as áreas na tela e
-   * põe TODOS no mesmo nível — nome + ha, só o nome, ou só a sigla.
+   * Publica os nomes num nível (o mesmo para todos, D-PROD-126). As imagens do nível são desenhadas antes (as do cache
+   * saem na hora); só então a fonte muda, e só se algo mudou. Nada é refeito por quadro: o tamanho no zoom é o
+   * `icon-size` da camada.
+   * @param {import('@/lib/maplibre/nomesNoMapa.js').NivelNome} nivel
+   */
+  const publicarNomes = (nivel) => {
+    const map = getMap();
+    if (!map) return Promise.resolve();
+    const est = nomesEstadoRef.current;
+    const pr = pixelRatioRef.current;
+    const zoom = map.getZoom();
+    const seq = ++est.seq;
+    /** @type {import('@/lib/maplibre/lotesNoMapa.js').PedidoImagem[]} */
+    const pedidos = [];
+    /** @type {import('@/lib/maplibre/nomesNoMapa.js').ItemNome[]} */
+    const itens = [];
+    nomesRef.current.forEach((n, id) => {
+      const d = n.niveis[nivel];
+      if (!d.linhas.length) return;
+      pedidos.push(pedidoImagemNome(d.linhas, pr));
+      // as paradas do `icon-size`, com as duas em volta do zoom de agora acertadas para o tamanho exato
+      const tamanhos = tamanhosAcertadosNoZoom(tamanhosDoNivel(n, nivel), d.medida, n.pf, zoom);
+      itens.push({ id, lngLat: n.lngLat, imagem: d.chave, comLote: lotesRef.current.has(id), nivel, nome: n.nome, texto: d.linhas.map((l) => l.texto).join("\n"), tamanhos });
+    });
+    const aplicar = () => {
+      const m = getMap();
+      if (seq !== est.seq || !m) return;
+      const emUso = chavesImagensNomes();
+      registrarImagensNomes(m, emUso, pr);
+      est.nivel = nivel;
+      // a imagem que falhou não entra (o nome não aparece até a próxima tentativa; não há reserva para um texto)
+      const fc = colecaoNomes(itens.filter((i) => imagemPronta(i.imagem, pr)));
+      const conteudo = JSON.stringify(fc.features);
+      if (conteudo !== est.publicado) {
+        est.publicado = conteudo;
+        dataRef.current.nomes = fc;
+        setSourceData(m, MG_SOURCE_IDS.NOMES, fc);
+      }
+      podarImagens(m, new Set(emUso), pr, ehImagemDeNome);
+    };
+    const espera = garantirImagens(pedidos, pr, avisarFalhaNome);
+    if (!espera) {
+      aplicar();
+      return Promise.resolve();
+    }
+    return espera.then(aplicar);
+  };
+
+  /** As paradas do `icon-size` de um pasto num nível (calculadas uma vez por texto e por área). */
+  const tamanhosDoNivel = (/** @type {NomeNaArea} */ n, /** @type {import('@/lib/maplibre/nomesNoMapa.js').NivelNome} */ nivel) => {
+    const d = n.niveis[nivel];
+    if (!d.tamanhos) d.tamanhos = tamanhosPorZoom(d.medida, n.pf);
+    return d.tamanhos;
+  };
+
+  /**
+   * Sem bagunça de nomes (D-PROD-126): todos no MESMO nível — nome + ha, só o nome, ou só a sigla —, escolhido por
+   * colisão, com os ícones de lote como obstáculos (o da própria área não conta). Sem tocar em elemento nenhum
+   * (D-PROD-354): a caixa de cada nome é o tamanho da imagem na letra do zoom e a posição da camada, a partir de
+   * `map.project`; a da área, os cantos dela na tela.
    *
-   * D-PROD-347 (mapa leve): `soNaTela` (durante o zoom) mede e mexe só nos rótulos cujo pasto está na tela; os de fora
-   * ficam como estavam até o `moveend`, que revê todos. Medir os 200 rótulos a cada revisão travava o zoom.
+   * `soNaTela` (durante o zoom, D-PROD-129/347): decide só pelos pastos que estão na tela; o `moveend` decide por todos.
    * @param {{ soNaTela?: boolean }} [opcoes]
    */
-  const arrumarRotulos = (opcoes) => {
+  const arrumarNomes = (opcoes) => {
     const map = getMap();
     if (!map) return;
-    const soNaTela = opcoes?.soNaTela === true;
-    // Lote de área sem rótulo (nomes desligados ou área sem nome): volta à
-    // posição padrão, sem o espaço do nome embaixo (D-PROD-127). Com rótulo, o
-    // par ícone + nome. Vai na fonte dos lotes como `comRotulo` (D-PROD-349).
+    // Lote de área sem nome (nomes desligados): volta à posição padrão, sem o espaço do nome embaixo (D-PROD-127).
+    // Com nome, o par ícone + nome. Vai na fonte dos lotes como `comRotulo` (D-PROD-349).
     publicarLotes();
-    if (!labelsRef.current.size) return;
-    const caixa = (/** @type {Element} */ el) => {
-      const r = el.getBoundingClientRect();
-      return { x: r.left, y: r.top, w: r.width, h: r.height };
-    };
-
-    /**
-     * Põe todos os rótulos num nível e já na posição final (D-PROD-127): sem
-     * lote, o nome centrado no ponto; com lote, o par ícone (em cima) + nome
-     * (embaixo) centrado. A colisão é medida depois disso, no que vai aparecer.
-     * @param {"tudo" | "nome" | "sigla"} modo
-     */
-    const aplicar = (modo) => {
-      labelsRef.current.forEach((entry, id) => {
-        if (alvo && !alvo.has(id)) return;
-        entry.titulo.textContent = modo === "sigla" ? entry.sigla : entry.nome;
-        entry.ha.style.display = modo === "tudo" && entry.temHa ? "block" : "none";
-        entry.extra.style.display = modo === "tudo" && entry.temExtra ? "block" : "none";
-        // Posições FIXAS (D-PROD-128): o par ícone + nome continua centrado no
-        // ponto, mas calculado com alturas constantes — nada sobe nem desce ao
-        // trocar sigla/nome/ha, no zoom, ao redimensionar ou quando a figura do
-        // boi termina de carregar. Sem lote, o nome é centrado por CSS.
-        if (lotesRef.current.has(id)) {
-          // o ícone já está em PAR_LOTE.icone (`comRotulo` na fonte dos lotes)
-          entry.marker.setOffset(PAR_LOTE.nome);
-          entry.base = "";
-          entry.corpo.style.transformOrigin = "50% 0";
-        } else {
-          entry.marker.setOffset([0, 0]);
-          entry.base = "translateY(-50%)";
-          entry.corpo.style.transformOrigin = "50% 50%";
-        }
-        entry.corpo.style.transform = entry.base; // mede sem escala
-      });
-    };
-    const medir = () => {
-      /** @type {Map<string, { x: number, y: number, w: number, h: number }>} */
-      const rotulos = new Map();
-      labelsRef.current.forEach((entry, id) => {
-        if (alvo && !alvo.has(id)) return;
-        // D-PROD-351 (revisão Codex): durante o zoom a letra fica no tamanho antigo e o nome aparece ampliado na razão
-        // da fonte (`escalarNome`); a colisão mede a caixa como ela aparece, ampliada a partir da mesma origem
-        // (topo, com lote embaixo; centro, sem lote). No fim do zoom a letra é a real e a razão é 1.
-        const c = caixa(entry.corpo);
-        const fr = alvo && entry.fonte0 ? fontesRotuloPorZoom(zoomAgora).nome / entry.fonte0 : 1;
-        if (fr === 1) {
-          rotulos.set(id, c);
-          return;
-        }
-        const w = c.w * fr, h = c.h * fr;
-        const doTopo = entry.base === "";
-        rotulos.set(id, { x: c.x - (w - c.w) / 2, y: doTopo ? c.y : c.y - (h - c.h) / 2, w, h });
-      });
-      return { rotulos, obstaculos: obstaculosLotes };
-    };
-
-    // caixa de cada área na tela
-    /** @type {Map<string, { x: number, y: number, w: number, h: number }>} */
-    const areas = new Map();
+    if (!nomesRef.current.size) {
+      publicarNomes(nomesEstadoRef.current.nivel);
+      return;
+    }
+    const soNaTela = opcoes?.soNaTela === true;
+    const zoom = map.getZoom();
     const tela = map.getCanvas();
     const larg = tela.clientWidth || tela.width, alt = tela.clientHeight || tela.height;
     /** @type {Set<string> | null} */
     const alvo = soNaTela ? new Set() : null;
-    labelsRef.current.forEach((entry, id) => {
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      for (const p of entry.ring || []) {
-        const pt = map.project([p.lng, p.lat]);
-        if (pt.x < minX) minX = pt.x;
-        if (pt.y < minY) minY = pt.y;
-        if (pt.x > maxX) maxX = pt.x;
-        if (pt.y > maxY) maxY = pt.y;
-      }
+    const itens = [];
+    nomesRef.current.forEach((n, id) => {
+      // caixa da área na tela pelos cantos dela (o mapa não gira: a caixa projetada é a dos cantos)
+      const b = n.caixa;
+      if (!b) return;
+      const cantos = [map.project([b.oeste, b.norte]), map.project([b.leste, b.sul])];
+      const x0 = Math.min(cantos[0].x, cantos[1].x), x1 = Math.max(cantos[0].x, cantos[1].x);
+      const y0 = Math.min(cantos[0].y, cantos[1].y), y1 = Math.max(cantos[0].y, cantos[1].y);
       if (alvo) {
-        // fora da tela (com 1/4 de folga): fica como está até o moveend
-        if (!Number.isFinite(minX) || maxX < -larg / 4 || minX > larg * 1.25 || maxY < -alt / 4 || minY > alt * 1.25) return;
+        // fora da tela (com 1/4 de folga): não pesa na decisão durante o zoom
+        if (!Number.isFinite(x0) || x1 < -larg / 4 || x0 > larg * 1.25 || y1 < -alt / 4 || y0 > alt * 1.25) return;
         alvo.add(id);
       }
-      if (Number.isFinite(minX)) areas.set(id, { x: minX, y: minY, w: maxX - minX, h: maxY - minY });
+      const p = map.project(n.lngLat);
+      const comLote = lotesRef.current.has(id);
+      itens.push({
+        id,
+        area: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 },
+        tudo: caixaDoNome(p, n.niveis.tudo.medida, zoom, comLote),
+        nome: caixaDoNome(p, n.niveis.nome.medida, zoom, comLote),
+      });
     });
-    // D-PROD-351: o `getBoundingClientRect` do canvas antes de qualquer escrita (sem recalcular a página à toa).
-    const origem = tela.getBoundingClientRect?.() || { left: 0, top: 0 };
-    const zoomAgora = map.getZoom();
-    labelsRef.current.forEach((entry, id) => {
-      if (alvo && !alvo.has(id)) return;
-      entry.el.style.visibility = "hidden"; // mede sem pintar
-      // fim do zoom: a letra assume o tamanho real deste zoom (durante o zoom, só ampliação; ver escalarNome)
-      if (!alvo) aplicarFonteRotulo(entry, zoomAgora);
-    });
-
-    // Ícones de lote são obstáculos dos nomes (D-PROD-126). Desenhados pelo mapa, não há elemento para medir: a caixa
-    // é o ponto do pasto na tela + o deslocamento e o tamanho da imagem (D-PROD-349), na mesma origem dos nomes.
-    // `dono`: o ícone do lote da própria área não conta contra o nome dela.
+    // Ícones de lote são obstáculos dos nomes (D-PROD-126): a caixa é o ponto do pasto na tela + o deslocamento e o
+    // tamanho da imagem (D-PROD-349). `dono`: o ícone do lote da própria área não conta contra o nome dela.
     /** @type {Array<{ x: number, y: number, w: number, h: number, dono: string }>} */
     const obstaculosLotes = [];
     lotesRef.current.forEach((lote, id) => {
       if (alvo && !alvo.has(id)) return;
-      const c = caixaDoLote(map.project(lote.item.lngLat), labelsRef.current.has(id), lote.tamanho);
-      obstaculosLotes.push({ x: c.x + origem.left, y: c.y + origem.top, w: c.w, h: c.h, dono: id });
+      const c = caixaDoLote(map.project(lote.item.lngLat), nomesRef.current.has(id), lote.tamanho);
+      obstaculosLotes.push({ ...c, dono: id });
     });
-
-    // mede cada nível já na posição final; o nome é medido sozinho (sem o "ha"
-    // por perto, que alargaria a caixa)
-    aplicar("tudo");
-    const comTudo = medir();
-    aplicar("nome");
-    const soNome = medir();
-    const itens = [];
-    areas.forEach((area, id) => {
-      const tudo = comTudo.rotulos.get(id);
-      const nome = soNome.rotulos.get(id);
-      if (tudo && nome) itens.push({ id, area, tudo, nome });
-    });
-    const modo = escolherModoRotulos(itens, { tudo: comTudo.obstaculos, nome: soNome.obstaculos });
-    aplicar(modo);
-    const zoom = map.getZoom();
-    // D-PROD-347: primeiro LER todos (um cálculo de página só), depois ESCREVER todos. Ler e escrever alternados, um
-    // nome por vez, recalculava a página inteira a cada nome (centenas de vezes por revisão) e travava o zoom.
-    labelsRef.current.forEach((entry, id) => {
-      if (alvo && !alvo.has(id)) return;
-      // tamanho do texto sem escala e a folga do ponto na tela, neste zoom
-      const t = entry.corpo.getBoundingClientRect(); // ainda sem escala (aplicar)
-      entry.tam = { w: t.width, h: t.height };
-      const pf = entry.pf;
-      entry.raio0 = pf ? Math.abs(map.project([pf.lng, pf.lat + pf.folga]).y - map.project([pf.lng, pf.lat]).y) : null;
-      entry.z0 = zoom;
-    });
-    labelsRef.current.forEach((entry, id) => {
-      if (alvo && !alvo.has(id)) return;
-      escalarNome(entry, zoom);
-      entry.el.style.visibility = "visible";
-      entry.el.dataset.rotulo = modo;
-    });
+    if (!itens.length) return;
+    const nivel = escolherModoRotulos(itens, { tudo: obstaculosLotes, nome: obstaculosLotes });
+    // durante o zoom só publica se o nível mudou; no fim do movimento confere tudo (lotes e nomes podem ter mudado)
+    if (soNaTela && nivel === nomesEstadoRef.current.nivel) return;
+    publicarNomes(nivel);
   };
 
   /**
-   * Tamanho real da letra do nome no zoom (D-PROD-129). Só no fim do zoom e ao criar/atualizar o nome; durante o zoom
-   * `escalarNome` amplia na razão `fontesRotuloPorZoom(z).nome / fonte0` (D-PROD-351).
-   * @param {any} entry @param {number} zoom
-   */
-  const aplicarFonteRotulo = (entry, zoom) => {
-    const f = fontesRotuloPorZoom(zoom);
-    if (entry.fonte0 === f.nome) return;
-    entry.titulo.style.fontSize = `${f.nome}px`;
-    entry.ha.style.fontSize = `${f.ha}px`;
-    entry.extra.style.fontSize = `${f.ha}px`;
-    entry.fonte0 = f.nome;
-  };
-
-  /**
-   * Nome do tamanho do pasto (D-PROD-130): a folga do ponto cresce/encolhe com o
-   * zoom (×2 por nível); o nome acompanha a cada quadro, para não sobrar para
-   * fora do polígono. O ícone do lote não é tocado.
-   */
-  const escalarNome = (/** @type {any} */ entry, /** @type {number} */ zoom) => {
-    if (!entry?.corpo || !entry.tam) return;
-    const raio = entry.raio0 ? entry.raio0 * Math.pow(2, zoom - entry.z0) : null;
-    // D-PROD-351: durante o zoom a letra não muda de tamanho de verdade (isso refazia o texto de todos os nomes a cada
-    // quadro): o nome já pronto é ampliado/reduzido na razão da fonte do D-PROD-129 (`fr`), e só então cabe no pasto.
-    const fr = entry.fonte0 ? fontesRotuloPorZoom(zoom).nome / entry.fonte0 : 1;
-    const s = fr * escalaRotulo(entry.tam.w * fr, entry.tam.h * fr, raio);
-    entry.corpo.style.transform = Math.abs(s - 1) > 0.001 ? `${entry.base || ""} scale(${s})`.trim() : entry.base || "";
-  };
-
-  /**
-   * Revisão do nível durante o zoom (D-PROD-129), no máximo a cada 120 ms e só nos pastos que estão na tela
-   * (D-PROD-347); o `moveend` revê todos.
+   * Revisão do nível durante o zoom (D-PROD-129), no máximo a cada 120 ms e só pelos pastos que estão na tela
+   * (D-PROD-347); o `moveend` revê todos. Sem medir elemento, custa poucas contas; o tamanho do nome no zoom não
+   * passa por aqui (é o `icon-size` da camada).
    */
   const ultimoArrumarRef = useRef(0);
   const arrumarDuranteZoom = () => {
     const agora = typeof performance !== "undefined" ? performance.now() : Date.now();
     if (agora - ultimoArrumarRef.current < 120) return;
     ultimoArrumarRef.current = agora;
-    arrumarRotulos({ soNaTela: true });
+    arrumarNomes({ soNaTela: true });
   };
 
   const agendarArrumar = () => {
@@ -546,87 +532,91 @@ export default function useMapRenderer(mapInstanceRef) {
       map.on("moveend", handler);
     }
     cancelAnimationFrame(arrumarRef.current.quadro);
-    arrumarRef.current.quadro = requestAnimationFrame(() => arrumarRotulos());
+    arrumarRef.current.quadro = requestAnimationFrame(() => arrumarNomes());
+  };
+
+  /** Monta os nomes (texto de cada nível, medida, caixa da área) depois que a letra está pronta. */
+  const montarNomes = (/** @type {any[]} */ areas, /** @type {boolean} */ show, /** @type {any} */ extraTextFn, /** @type {boolean} */ showHectares) => {
+    const map = getMap();
+    if (!map) return;
+    const lista = show ? areas : [];
+    /** @type {Map<string, NomeNaArea>} */
+    const novos = new Map();
+    for (const area of lista) {
+      const id = String(area.id);
+      const chaveRing = JSON.stringify(area?.coordenadas?.coords || null);
+      let geo = geoNomesRef.current.get(id);
+      if (!geo || geo.chaveRing !== chaveRing) {
+        const ring = parseVertices(area?.coordenadas?.coords);
+        let oeste = Infinity, sul = Infinity, leste = -Infinity, norte = -Infinity;
+        for (const p of ring) {
+          if (p.lng < oeste) oeste = p.lng;
+          if (p.lng > leste) leste = p.lng;
+          if (p.lat < sul) sul = p.lat;
+          if (p.lat > norte) norte = p.lat;
+        }
+        geo = { chaveRing, centro: centroideArea(area), pf: pontoEFolga(ring), caixa: Number.isFinite(oeste) ? { oeste, sul, leste, norte } : null };
+        geoNomesRef.current.set(id, geo);
+      }
+      if (!geo.centro) continue;
+      const texto = {
+        nome: area.nome || "",
+        sigla: siglaDaArea(area),
+        ha: showHectares ? textoHectares(area) : null,
+        extra: (extraTextFn ? extraTextFn(area) : null) || null,
+      };
+      const anterior = nomesRef.current.get(id);
+      /** @type {Record<import('@/lib/maplibre/nomesNoMapa.js').NivelNome, NivelDoNome>} */
+      const niveis = /** @type {any} */ ({});
+      for (const nivel of NIVEIS_NOME) {
+        const linhas = linhasDoNivel(texto, nivel);
+        const chave = chaveImagemNome(linhas);
+        const velho = anterior?.niveis[nivel];
+        // mesmo texto e mesma área: aproveita a medida e as paradas já calculadas
+        niveis[nivel] = velho && velho.chave === chave && anterior?.pf === geo.pf ? velho : { linhas, chave, medida: medirLinhas(linhas), tamanhos: null };
+      }
+      novos.set(id, { lngLat: [geo.centro.lng, geo.centro.lat], nome: texto.nome, pf: geo.pf, caixa: geo.caixa, niveis });
+    }
+    for (const id of [...geoNomesRef.current.keys()]) if (!novos.has(id)) geoNomesRef.current.delete(id);
+    nomesRef.current = novos;
+    agendarArrumar();
   };
 
   const syncLabels = useCallback((areas, show, extraTextFn, showHectares = true) => {
     const map = getMap();
     if (!map) return;
-    const lista = show ? areas : [];
-    const ids = new Set(lista.map((a) => String(a.id)));
-    labelsRef.current.forEach((entry, id) => {
-      if (!ids.has(id)) {
-        removerMarcador(entry);
-        labelsRef.current.delete(id);
-      }
-    });
-
-    const aplicarFonte = (entry) => aplicarFonteRotulo(entry, map.getZoom());
-
-    // D-PROD-129: durante o zoom (cada quadro) a fonte acompanha suave e o
-    // nível do nome (sigla/nome/ha) é revisto algumas vezes por segundo — não
-    // só no fim —, para o nome não ficar maior que o pasto enquanto ele encolhe.
-    if (!labelZoomHandlerRef.current) {
-      const h = () => {
-        const z = map.getZoom();
-        labelsRef.current.forEach((entry) => {
-          escalarNome(entry, z);
-        });
-        arrumarDuranteZoom();
-      };
-      labelZoomHandlerRef.current = h;
+    ensureMgLayers(map);
+    nomesArgsRef.current = [areas, show, extraTextFn, showHectares];
+    if (!nomesHandlersRef.current) {
+      // D-PROD-129: durante o zoom o nível (sigla/nome/ha) é revisto algumas vezes por segundo — não só no fim —, para
+      // o nome não ficar maior que o pasto enquanto ele encolhe. O tamanho acompanha sozinho (`icon-size`).
+      const h = () => arrumarDuranteZoom();
       map.on("zoom", h);
+      const desligarImagens = ligarImagensFaltandoNomes(map, () => pixelRatioRef.current);
+      ligarDensidade(map);
+      nomesHandlersRef.current = {
+        off: () => {
+          try {
+            map.off("zoom", h);
+          } catch {
+            /* mapa já removido */
+          }
+          desligarImagens();
+        },
+      };
     }
-
-    for (const area of lista) {
-      const id = String(area.id);
-      const centro = centroideArea(area);
-      if (!centro) continue;
-      const extraText = extraTextFn ? extraTextFn(area) : null;
-      const haText = showHectares ? textoHectares(area) : null;
-      let entry = labelsRef.current.get(id);
-      if (!entry) {
-        const el = document.createElement("div");
-        el.className = "mg-area-label";
-        el.dataset.area = id;
-        el.style.cssText =
-          "pointer-events:none;color:#fff;text-align:center;white-space:nowrap;line-height:1.15;font-family:Inter,Arial,sans-serif;";
-        const titulo = document.createElement("div");
-        titulo.style.fontWeight = "700";
-        const ha = document.createElement("div");
-        ha.style.opacity = "0.95";
-        const extra = document.createElement("div");
-        extra.style.cssText = "font-weight:600;color:#fef08a;";
-        // `corpo` leva o texto; centralizar sem lote é CSS (D-PROD-128).
-        const corpo = document.createElement("div");
-        corpo.className = "mg-area-label__corpo";
-        corpo.append(titulo, ha, extra);
-        el.append(corpo);
-        const marker = new maplibregl.Marker({ element: el, anchor: "top", offset: [0, 2] }).setLngLat([centro.lng, centro.lat]).addTo(map);
-        entry = { el, corpo, marker, titulo, ha, extra };
-        labelsRef.current.set(id, entry);
-      } else {
-        entry.marker.setLngLat([centro.lng, centro.lat]);
-      }
-      entry.nome = area.nome || "";
-      entry.sigla = siglaDaArea(area);
-      entry.titulo.textContent = entry.nome;
-      entry.ha.textContent = haText || "";
-      entry.ha.style.display = haText ? "block" : "none";
-      entry.extra.textContent = extraText || "";
-      entry.extra.style.display = extraText ? "block" : "none";
-      entry.temHa = Boolean(haText);
-      entry.temExtra = Boolean(extraText);
-      const chaveRing = JSON.stringify(area?.coordenadas?.coords || null);
-      if (entry.chaveRing !== chaveRing) {
-        entry.chaveRing = chaveRing;
-        entry.ring = parseVertices(area?.coordenadas?.coords);
-        entry.pf = pontoEFolga(entry.ring);
-      }
-      aplicarFonte(entry);
+    const seq = ++nomesEstadoRef.current.seqSync;
+    // A letra Inter antes de medir e desenhar (sem ela, Arial); depois da primeira vez, segue na hora.
+    const espera = esperarFonteDosNomes();
+    if (!espera) {
+      montarNomes(areas, show, extraTextFn, showHectares);
+      return;
     }
-    agendarArrumar();
+    espera.then(() => {
+      if (seq === nomesEstadoRef.current.seqSync) montarNomes(areas, show, extraTextFn, showHectares);
+    });
   }, [mapInstanceRef]);
+  syncLabelsRef.current = syncLabels;
 
   /**
    * Sincroniza um grupo de marcadores DOM identificado por prefixo.
@@ -684,6 +674,7 @@ export default function useMapRenderer(mapInstanceRef) {
       if (novo === pixelRatioRef.current) return;
       pixelRatioRef.current = novo;
       if (lotesArgsRef.current) syncLotesRef.current?.(...lotesArgsRef.current);
+      if (nomesArgsRef.current) syncLabelsRef.current?.(...nomesArgsRef.current);
       for (const n of NOMES_GRUPOS) {
         const args = gruposRef.current[n].args;
         if (args) syncGruposRef.current[n]?.(...args);
@@ -878,7 +869,7 @@ export default function useMapRenderer(mapInstanceRef) {
     const itens = [];
     let comNome = "";
     lotesRef.current.forEach((l, areaId) => {
-      const comRotulo = labelsRef.current.has(areaId);
+      const comRotulo = nomesRef.current.has(areaId);
       if (comRotulo) comNome += `${areaId},`;
       itens.push({ ...l.item, comRotulo });
     });
@@ -898,7 +889,7 @@ export default function useMapRenderer(mapInstanceRef) {
       lote: (areaId) => {
         const l = lotesRef.current.get(areaId);
         if (!l) return null;
-        return { areaId, lngLat: l.item.lngLat, comRotulo: labelsRef.current.has(areaId), imagem: l.item.imagem, ident: l.item.ident, nome: l.item.nome };
+        return { areaId, lngLat: l.item.lngLat, comRotulo: nomesRef.current.has(areaId), imagem: l.item.imagem, ident: l.item.ident, nome: l.item.nome };
       },
       podeArrastar: () => lotesCallbacksRef.current.canDragLotes,
       aoClicar: (areaId) => {
@@ -998,7 +989,7 @@ export default function useMapRenderer(mapInstanceRef) {
       // Depois de publicar: as imagens que nenhum lote usa mais saem do mapa e do cache.
       podarImagens(m, new Set(emUso), pr);
       piscaRef.current?.atualizar([...novos.values()].filter((l) => l.item.piscar).map((l) => l.item.areaId));
-      // Os ícones de lote são obstáculos para os rótulos (D-PROD-126).
+      // Os ícones de lote são obstáculos para os nomes (D-PROD-126).
       agendarArrumar();
     };
     const espera = garantirImagens(pedidos, pr);

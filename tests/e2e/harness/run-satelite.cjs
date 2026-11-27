@@ -5,6 +5,7 @@
  * Uso: VITE_GOOGLE_MAPS_API_KEY=e2e-chave-ficticia npx vite --config tests/e2e/harness/vite.e2e.config.mjs
  *      node tests/e2e/harness/run-satelite.cjs
  */
+// D-PROD-354: os nomes dos pastos são desenhados pelo mapa — lidos da fonte `mg-nomes` (window.__E2E_MAPS__, só no harness).
 const { chromium, devices } = require('playwright');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -46,7 +47,7 @@ async function rotear(page, modo) {
     const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
     const conta = await rotear(p, 'ok');
     await p.goto(URL + '?cena=geral');
-    await p.waitForFunction(() => document.querySelectorAll('.mg-area-label').length >= 3, null, { timeout: 30000 });
+    await p.waitForFunction(() => ((m) => (m?.getStyle?.() && m.getSource('mg-nomes')?.serialize?.().data?.features) || [])((window.__E2E_MAPS__ || []).at(-1)).length >= 3, null, { timeout: 30000 });
     await p.waitForSelector('[data-testid=basemap-atribuicao-texto]', { timeout: 30000 });
     await p.waitForFunction((c) => document.querySelector('[data-testid=basemap-atribuicao-texto]')?.textContent.includes(c), COPYRIGHT.slice(0, 20), { timeout: 15000 });
     await p.waitForTimeout(1200);
@@ -64,7 +65,7 @@ async function rotear(page, modo) {
       await p.click('button:has-text("Satélite")');
       await p.waitForTimeout(500);
     }
-    res.S02_labels_apos_trocas = await p.$$eval('.mg-area-label', (els) => els.length);
+    res.S02_labels_apos_trocas = await p.evaluate(() => ((m) => (m?.getStyle?.() && m.getSource('mg-nomes')?.serialize?.().data?.features) || [])((window.__E2E_MAPS__ || []).at(-1)).length);
     res.S02_lotes_apos_trocas = await p.$$eval('.mg-lote-count', (els) => els.map((e) => e.textContent));
     res.S02_sessoes_apos_trocas = conta.sessao;
     await p.click('button:has-text("Mapa")');
@@ -95,11 +96,11 @@ async function rotear(page, modo) {
     const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
     await rotear(p, modo);
     await p.goto(URL + '?cena=geral');
-    await p.waitForFunction(() => document.querySelectorAll('.mg-area-label').length >= 3, null, { timeout: 30000 });
+    await p.waitForFunction(() => ((m) => (m?.getStyle?.() && m.getSource('mg-nomes')?.serialize?.().data?.features) || [])((window.__E2E_MAPS__ || []).at(-1)).length >= 3, null, { timeout: 30000 });
     await p.waitForSelector('[role=alert]', { timeout: 25000 });
     res[`S03_${modo}_alerta`] = await p.textContent('[role=alert]');
     res[`S03_${modo}_satelite_ativo`] = await p.evaluate(() => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Satélite')?.className.includes('bg-black'));
-    res[`S03_${modo}_labels`] = await p.$$eval('.mg-area-label', (els) => els.length);
+    res[`S03_${modo}_labels`] = await p.evaluate(() => ((m) => (m?.getStyle?.() && m.getSource('mg-nomes')?.serialize?.().data?.features) || [])((window.__E2E_MAPS__ || []).at(-1)).length);
     if (modo === 'tiles404') await p.screenshot({ path: path.join(OUT, 'satelite-falha-404.png') });
     await p.close();
   }

@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { centroideArea, escalaRotulo, escolherModoRotulos, fontesRotuloPorZoom, pontoEFolga, pontoMaisDentro, siglaDaArea } from "@/lib/maplibre/mapaGeralRender.js";
 import { pointInPolygonRing } from "@/lib/maplibre/taskLocationPicker.js";
 import { OFFSET_LOTE_COM_NOME_PX, OFFSET_LOTE_PX, camadasLotes } from "@/lib/maplibre/lotesNoMapa.js";
+import { DESLOC_NOME_COM_LOTE_PX, camadasNomes, expressaoTamanhoNome, tamanhoNoZoom } from "@/lib/maplibre/nomesNoMapa.js";
 
 const cx = (x, y, w, h) => ({ x, y, w, h });
 /** rótulo com caixa "tudo" (nome + ha) e "nome" (metade de cima) */
@@ -61,10 +62,11 @@ describe("escolherModoRotulos (D-PROD-126)", () => {
   it("o renderer reaplica a cada movimento/zoom e quando os lotes mudam, e troca o texto pela sigla", () => {
     const r = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
     expect(r).toMatch(/map\.on\("moveend", handler\)/);
-    // mede cada nível já na posição final e o nome sozinho (revisão Codex no #194)
-    expect(r).toMatch(/aplicar\("tudo"\);\s*const comTudo = medir\(\);\s*aplicar\("nome"\);\s*const soNome = medir\(\);/);
-    expect(r).toMatch(/escolherModoRotulos\(itens, \{ tudo: comTudo\.obstaculos, nome: soNome\.obstaculos \}\)/);
-    expect(r).toMatch(/entry\.titulo\.textContent = modo === "sigla" \? entry\.sigla : entry\.nome;/);
+    // D-PROD-354: cada nível já na posição final (caixaDoNome, com e sem lote) e o nome sozinho, sem medir elemento
+    expect(r).toMatch(/tudo: caixaDoNome\(p, n\.niveis\.tudo\.medida, zoom, comLote\),\s*nome: caixaDoNome\(p, n\.niveis\.nome\.medida, zoom, comLote\),/);
+    expect(r).toMatch(/escolherModoRotulos\(itens, \{ tudo: obstaculosLotes, nome: obstaculosLotes \}\)/);
+    // o nível vale para todos: uma publicação com o mesmo nível em todos os nomes (o funcionamento em nomesNoMapaD354)
+    expect(r).toMatch(/const d = n\.niveis\[nivel\];/);
     expect(r).not.toMatch(/visibility = d === "nada"/);
     expect((r.match(/agendarArrumar\(\);/g) || []).length).toBeGreaterThanOrEqual(2);
   });
@@ -116,22 +118,23 @@ describe("pontoMaisDentro — nome e lote no miolo da área torta (D-PROD-127)",
     expect(viaArea).toEqual(direto);
     const r = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
     expect((r.match(/centroideArea\(area\)/g) || []).length).toBeGreaterThanOrEqual(3); // rótulo, lote e tarefa
-    // D-PROD-128: par ícone + nome centrado no ponto com posições FIXAS — nada
-    // depende da altura do nome nem da imagem; sem lote, nome centrado por CSS.
-    // D-PROD-349: o ícone é desenhado pelo mapa; o par vale pelo `comRotulo` da fonte.
-    expect(r).toMatch(/if \(lotesRef\.current\.has\(id\)\) \{[^}]*entry\.marker\.setOffset\(PAR_LOTE\.nome\);/);
-    expect(r).toMatch(/entry\.marker\.setOffset\(\[0, 0\]\);\s*entry\.base = "translateY\(-50%\)";/);
-    expect(r).toMatch(/icone: OFFSET_LOTE_COM_NOME_PX,/);
+    // D-PROD-128: par ícone + nome centrado no ponto com posições FIXAS — nada depende da altura do nome nem da imagem.
+    // D-PROD-349: o ícone é desenhado pelo mapa (`comRotulo` na fonte); D-PROD-354: o nome também — com lote, o topo
+    // 10 px abaixo do ponto (icon-translate, que o icon-size não escala); sem lote, centrado no ponto.
     expect(OFFSET_LOTE_COM_NOME_PX).toEqual([0, -14]);
-    expect(r).toMatch(/nome: \/\*\* @type \{\[number, number\]\} \*\/ \(\[0, 10\]\)/);
+    expect(DESLOC_NOME_COM_LOTE_PX).toEqual([0, 10]);
+    const [semLote, comLote] = camadasNomes();
+    expect(semLote.layout["icon-anchor"]).toBe("center");
+    expect(comLote.layout["icon-anchor"]).toBe("top");
+    expect(comLote.paint["icon-translate"]).toEqual([0, 10]);
     expect(r).not.toMatch(/offsetHeight/);
-    // nomes desligados: o lote volta à posição padrão (revisão Cursor no #194) — `comRotulo` é ter rótulo, e a fonte é
-    // publicada antes do retorno "sem rótulos"
+    // nomes desligados: o lote volta à posição padrão (revisão Cursor no #194) — `comRotulo` é ter nome, e a fonte é
+    // publicada antes do retorno "sem nomes"
     expect(OFFSET_LOTE_PX).toEqual([0, -26]);
-    expect(r).toMatch(/const comRotulo = labelsRef\.current\.has\(areaId\);/);
-    const arrumar = r.slice(r.indexOf("const arrumarRotulos = (opcoes) =>"));
+    expect(r).toMatch(/const comRotulo = nomesRef\.current\.has\(areaId\);/);
+    const arrumar = r.slice(r.indexOf("const arrumarNomes = (opcoes) =>"));
     expect(arrumar.indexOf("publicarLotes();")).toBeGreaterThan(-1);
-    expect(arrumar.indexOf("publicarLotes();")).toBeLessThan(arrumar.indexOf("if (!labelsRef.current.size) return;"));
+    expect(arrumar.indexOf("publicarLotes();")).toBeLessThan(arrumar.indexOf("if (!nomesRef.current.size) {"));
   });
 });
 
@@ -148,18 +151,15 @@ describe("nome do pasto acompanha o zoom (D-PROD-129)", () => {
     }
   });
 
-  it("durante o zoom a fonte e o nível são revistos (não só no fim); o ícone não muda", () => {
+  it("durante o zoom a letra acompanha (pelo próprio mapa) e o nível é revisto (não só no fim); o ícone não muda", () => {
     const r = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
     expect(r).toMatch(/map\.on\("zoom", h\)/);
     expect(r).not.toMatch(/map\.on\("zoomend"/);
-    // D-PROD-351: a cada quadro só a escala (a fonte acompanha pela razão fontesRotuloPorZoom(z)/fonte0);
-    // o tamanho real da letra é aplicado no fim do zoom (arrumarRotulos completo) e ao criar o nome
-    expect(r).toMatch(/const h = \(\) => \{\s*const z = map\.getZoom\(\);\s*labelsRef\.current\.forEach\(\(entry\) => \{\s*escalarNome\(entry, z\);\s*\}\);/);
-    expect(r).toMatch(/const fr = entry\.fonte0 \? fontesRotuloPorZoom\(zoom\)\.nome \/ entry\.fonte0 : 1;/);
-    expect(r).toMatch(/if \(!alvo\) aplicarFonteRotulo\(entry, zoomAgora\);/);
-    // a colisão durante o zoom mede a caixa ampliada como aparece (revisão Codex no #439)
-    expect(r).toMatch(/const fr = alvo && entry\.fonte0 \? fontesRotuloPorZoom\(zoomAgora\)\.nome \/ entry\.fonte0 : 1;/);
-    expect(r).toMatch(/rotulos\.set\(id, \{ x: c\.x - \(w - c\.w\) \/ 2, y: doTopo \? c\.y : c\.y - \(h - c\.h\) \/ 2, w, h \}\);/);
+    // D-PROD-354: a letra acompanha o zoom no `icon-size` da camada dos nomes (paradas = letra ÷ 12 × encaixe)
+    for (const camada of camadasNomes()) expect(camada.layout["icon-size"]).toEqual(expressaoTamanhoNome());
+    expect(tamanhoNoZoom({ w: 40, h: 13 }, null, 13)).toBeCloseTo(fontesRotuloPorZoom(13).nome / 12, 10);
+    expect(tamanhoNoZoom({ w: 40, h: 13 }, null, 17)).toBe(1);
+    // o nível é revisto no zoom no máximo a cada 120 ms
     expect(r).toMatch(/arrumarDuranteZoom\(\);/);
     expect(r).toMatch(/if \(agora - ultimoArrumarRef\.current < 120\) return;/);
     // ícone do lote: posição fixa do D-PROD-128, sem escala por zoom (camada sem icon-size nem expressão de zoom)
@@ -167,10 +167,8 @@ describe("nome do pasto acompanha o zoom (D-PROD-129)", () => {
       expect(camada.layout["icon-size"]).toBeUndefined();
       expect(JSON.stringify(camada)).not.toMatch(/"zoom"/);
     }
-    // só o nome escala (D-PROD-130); o ícone do lote nunca
-    expect((r.match(/scale\(/g) || []).length).toBe(1);
-    expect(r).toMatch(/const s = fr \* escalaRotulo\(entry\.tam\.w \* fr, entry\.tam\.h \* fr, raio\);/);
-    expect(r).toMatch(/entry\.corpo\.style\.transform = Math\.abs\(s - 1\) > 0\.001 \? `\$\{entry\.base \|\| ""\} scale\(\$\{s\}\)`/);
+    // nada é escalado por CSS
+    expect(r).not.toMatch(/scale\(/);
   });
 });
 
