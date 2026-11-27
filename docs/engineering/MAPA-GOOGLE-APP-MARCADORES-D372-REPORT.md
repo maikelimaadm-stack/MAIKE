@@ -30,6 +30,7 @@ O proprietário testou o APK 1.0.6: no mapa do Google do app apareciam só as á
   - O `div` da camada tem `pointer-events: none`, então o toque fora do ícone vai para o mapa nativo: o plugin decide pelo `elementFromPoint`.
   - A imagem pega o toque e abre o mesmo detalhe de antes. Ela também tem `touch-action: none`.
 - **Ligação:** no app, o `MapaGoogleNativo` entrega ao `MapaGeral` o `definirMarcadores` da camada, e não o mapa nativo. O resto é o mesmo do site.
+- **Ordem dentro do mapa:** o elemento do mapa do Google tem `isolation: isolate`, no app e no site, como o MapLibre. Assim os z-index dos marcadores (500 a 3000) ficam dentro do mapa e não passam por cima da barra (20), do resumo (10) e das janelas do Mapa Geral. Foi achado da revisão automática.
 
 ## Testes
 

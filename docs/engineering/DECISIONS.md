@@ -11077,6 +11077,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - **Movimento:** no `onCameraMoveStarted`, a camada some; no `onCameraIdle`, volta reposicionada. O plugin não avisa quadro a quadro.
   - **Toque:** o `div` tem `pointer-events: none`, então o toque vai para o mapa nativo; só a imagem pega o toque, e abre o mesmo detalhe. O plugin decide quem recebe o toque pelo `elementFromPoint`. A imagem tem `touch-action: none`.
   - **Ligação:** o `MapaGoogleNativo` entrega ao `MapaGeral` um `definirMarcadores` da camada, e não o mapa nativo. O `useMarcadoresGoogle` é o mesmo do site.
+  - **Ordem dentro do mapa:** o elemento do mapa do Google tem `isolation: isolate`, no app e no site, como o MapLibre. Os z-index dos marcadores (500 a 3000) não passam por cima da barra, do resumo e das janelas do Mapa Geral (achado da revisão automática).
 - **Fica para depois:** os nomes dos pastos (etapa 3) e o resto da etapa 4.
 - **Testes:** `mapaGoogleAppMarcadoresD372.test.jsx` (7: projeção, camada, componente no app e no site), `mapaGoogleNativoD366.test.jsx` (o mapa falso ganha `setOnCameraMoveStartedListener`).
 

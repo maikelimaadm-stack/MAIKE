@@ -248,9 +248,11 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
 
   // App: o elemento do plugin (ele abre o "buraco" para o mapa nativo). Site: um div comum (o elemento do plugin
   // apaga o conteúdo quando volta à página, e o mapa do site mora dentro dele).
+  // `isolation: isolate` nos dois, como no MapLibre: a ordem dos marcadores (z-index 500 a 3000) fica dentro do mapa e
+  // não passa por cima da barra, do resumo e das janelas do Mapa Geral.
   const estilo = { display: "block", width: "100%", height: "100%" };
   return ehMapaGoogleNativo() ? (
-    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+    <div style={{ position: "relative", width: "100%", height: "100%", isolation: "isolate" }}>
       <capacitor-google-map ref={elRef} data-testid="mapa-geral-google" style={estilo} />
       {/* os marcadores por cima do mapa nativo: o div não pega o toque (vai para o mapa); só a imagem pega */}
       <div
@@ -260,6 +262,6 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
       />
     </div>
   ) : (
-    <div ref={/** @type {any} */ (elRef)} data-testid="mapa-geral-google" style={estilo} />
+    <div ref={/** @type {any} */ (elRef)} data-testid="mapa-geral-google" style={{ ...estilo, isolation: "isolate" }} />
   );
 }

@@ -132,6 +132,8 @@ describe("G372-3 — os marcadores no mapa nativo do app", () => {
     expect(typeof alvo.definirMarcadores).toBe("function");
     const camadaEl = getByTestId("mapa-google-marcadores-app");
     expect(camadaEl.style.pointerEvents).toBe("none");
+    // a ordem dos marcadores fica dentro do mapa: não passa por cima da barra e do resumo do Mapa Geral
+    expect(/** @type {HTMLElement} */ (camadaEl.parentElement).style.isolation).toBe("isolate");
 
     act(() => alvo.definirMarcadores("lotes", [{ id: "a1", lat: -15, lng: -47, url: "data:x", w: 44, h: 42, z: 1000 }]));
     const img = /** @type {HTMLImageElement} */ (camadaEl.querySelector("img"));
@@ -160,6 +162,7 @@ describe("G372-3 — os marcadores no mapa nativo do app", () => {
     const { queryByTestId } = render(<Componente areas={[]} areasCarregadas mostrarAreas corDaArea={() => null} tipoMapa="satellite" empresaId="e1" onMapa={onMapa} />);
     await waitFor(() => expect(onMapa).toHaveBeenCalled());
     expect(queryByTestId("mapa-google-marcadores-app")).toBeNull();
+    expect(/** @type {HTMLElement} */ (queryByTestId("mapa-geral-google")).style.isolation).toBe("isolate");
     vi.doUnmock("@/lib/mapaNativo/mapaGoogleWeb.js");
   });
 });
