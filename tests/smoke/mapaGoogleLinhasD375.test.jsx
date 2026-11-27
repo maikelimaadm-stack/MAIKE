@@ -2,7 +2,7 @@
  * D-PROD-375 — mapa do Google, etapa 4: linhas, minha localização e "Localizar" (site e app, sem APK novo).
  *
  *  G375-1. As linhas (cor da linha, 3 px × densidade, `tag`), o círculo da precisão (3 a 500 m, 20 m sem leitura) e o
- *          ponto azul (por cima de tudo, sem toque).
+ *          ponto azul (no site por cima de tudo e sem toque; no app por baixo dos ícones).
  *  G375-2. Mapa do site: linhas e círculos pela Maps JavaScript API; o toque na linha devolve a `tag` (o gesto que
  *          começou num ícone não abre a linha); "Localizar" centraliza no zoom do Google; destruir limpa.
  *  G375-3. Componente no app: linhas no mapa nativo e o toque nelas; o ponto azul como marcador nativo e o círculo
@@ -73,6 +73,7 @@ import {
   COR_LOCALIZACAO,
   LARGURA_LINHA_PX,
   Z_LOCALIZACAO,
+  Z_LOCALIZACAO_NATIVO,
   circuloDaLocalizacao,
   marcadorDaLocalizacao,
   polilinhasDasLinhas,
@@ -81,6 +82,8 @@ import {
 import { criarMapaGoogleWeb } from "@/lib/mapaNativo/mapaGoogleWeb.js";
 import MapaGoogleNativo from "@/components/mapa/MapaGoogleNativo.jsx";
 import { useLocalizacaoNoMapa } from "@/components/mapa/useLocalizacaoNoMapa.js";
+import { Z_NOME_NATIVO } from "@/lib/mapaNativo/marcadoresNativos.js";
+import { ORDEM_GOOGLE } from "@/components/mapa/useMarcadoresGoogle.js";
 
 const CERCA = { id: 7, nome: "Cerca do rio", tipo: "Cerca", coordenadas: { coords: [[-15, -47], [-15.01, -47.01], [-15.02, -47]], cor: "#ff0000" } };
 const SEM_COR = { id: 8, nome: "Estrada", coordenadas: { coords: [[-15, -47], [-15, -47.02]] } };
@@ -142,8 +145,11 @@ describe("G375-1 — linhas, círculo da precisão e ponto azul", () => {
     });
   });
 
-  it("o ponto azul: 24 px, por cima de tudo (no site e no app), sem toque; sem posição, nada", () => {
-    expect(marcadorDaLocalizacao({ lat: -15, lng: -47 })).toMatchObject({ id: "eu", w: 24, h: 24, z: Z_LOCALIZACAO, zNativo: Z_LOCALIZACAO, semToque: true });
+  it("o ponto azul: 24 px; no site por cima de tudo e sem toque; no app por baixo dos ícones e por cima dos nomes", () => {
+    expect(marcadorDaLocalizacao({ lat: -15, lng: -47 })).toMatchObject({ id: "eu", w: 24, h: 24, z: Z_LOCALIZACAO, zNativo: Z_LOCALIZACAO_NATIVO, semToque: true });
+    // no app o toque não atravessa um marcador: o ponto não pode cobrir o cocho (o ícone mais baixo) nem ficar sob o nome
+    expect(Z_LOCALIZACAO_NATIVO).toBeLessThan(ORDEM_GOOGLE.supl);
+    expect(Z_LOCALIZACAO_NATIVO).toBeGreaterThan(Z_NOME_NATIVO);
     expect(marcadorDaLocalizacao(null)).toBeNull();
     expect(marcadorDaLocalizacao({ lat: NaN, lng: 0 })).toBeNull();
   });
@@ -281,7 +287,7 @@ describe("G375-3 — linhas e localização no mapa do app", () => {
     rerender(<MapaGoogleNativo {...props({ onMapa, onClickLinha, linhas: [], localizacao: { lat: -15, lng: -47, accuracy: 10 } })} />);
     await waitFor(() => expect(falso.mapa.addCircles).toHaveBeenCalledTimes(1));
     expect(falso.mapa.addCircles.mock.calls[0][0][0]).toMatchObject({ center: { lat: -15, lng: -47 }, radius: 10, strokeWeight: 2 });
-    await waitFor(() => expect(falso.mapa.addMarkers.mock.calls.some(([l]) => l[0]?.zIndex === Z_LOCALIZACAO)).toBe(true));
+    await waitFor(() => expect(falso.mapa.addMarkers.mock.calls.some(([l]) => l[0]?.zIndex === Z_LOCALIZACAO_NATIVO)).toBe(true));
 
     // leitura nova do GPS: o círculo novo entra e só depois o velho sai
     const ordem = [];

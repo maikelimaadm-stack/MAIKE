@@ -317,6 +317,11 @@ export const LARGURA_LINHA_PX = 3;
 export const COR_LOCALIZACAO = "#4285F4";
 /** O ponto azul por cima de tudo (como o z-index 10000 do MapLibre). */
 export const Z_LOCALIZACAO = 10000;
+/**
+ * No app (marcadores nativos), o ponto azul fica POR BAIXO dos ícones e por cima dos nomes: o mapa nativo não deixa o
+ * toque atravessar um marcador, e o ponto por cima roubaria o toque do lote, cocho, ponto ou tarefa embaixo dele.
+ */
+export const Z_LOCALIZACAO_NATIVO = 400;
 /** O ponto azul: 24 px, borda branca de 3 px e sombra. */
 export const TAMANHO_PONTO_LOCALIZACAO = 24;
 
@@ -416,7 +421,8 @@ export function imagemDoPontoDeLocalizacao(pixelRatio = Math.max(1, Number(globa
 }
 
 /**
- * O marcador do ponto azul (o toque passa para o que está por baixo, como no MapLibre), ou null.
+ * O marcador do ponto azul, ou null. No site, por cima de tudo e o toque passa para o que está por baixo (como no
+ * MapLibre); no app, por baixo dos ícones (`Z_LOCALIZACAO_NATIVO`) e o toque nele abre o pasto.
  * @param {{ lat: number, lng: number } | null | undefined} pos
  * @returns {import('./mapaGoogleWeb.js').MarcadorWeb | null}
  */
@@ -425,5 +431,5 @@ export function marcadorDaLocalizacao(pos) {
   const url = imagemDoPontoDeLocalizacao();
   if (!url) return null;
   const t = TAMANHO_PONTO_LOCALIZACAO;
-  return { id: "eu", lat: pos.lat, lng: pos.lng, url, w: t, h: t, z: Z_LOCALIZACAO, zNativo: Z_LOCALIZACAO, titulo: "Sua localização", semToque: true };
+  return { id: "eu", lat: pos.lat, lng: pos.lng, url, w: t, h: t, z: Z_LOCALIZACAO, zNativo: Z_LOCALIZACAO_NATIVO, titulo: "Sua localização", semToque: true };
 }

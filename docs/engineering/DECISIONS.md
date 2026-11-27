@@ -11166,7 +11166,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - **Linhas:** as mesmas do MapLibre (cor da linha ou `#f59e0b`, 3 px), como `Polyline` do Google. No app a espessura é multiplicada pela densidade da tela, como nos polígonos.
     - O toque na linha mostra o nome e o tipo dela num aviso. No MapLibre é um balão no ponto.
     - No site, o gesto que começou num ícone não abre a linha por baixo, a mesma regra dos polígonos (D-PROD-369).
-  - **Minha localização:** o ponto azul (24 px, borda branca) é um marcador por cima de tudo e sem toque (`zNativo` no app). O círculo da precisão real do GPS (3 a 500 m, 20 m sem leitura) é um `Circle`.
+  - **Minha localização:** o ponto azul (24 px, borda branca) é um marcador. No site fica por cima de tudo e sem toque. No app (`zNativo`) fica por baixo dos ícones e por cima dos nomes: o mapa nativo não deixa o toque atravessar um marcador, e por cima ele roubaria o toque do lote ou do cocho (achado do Codex). O círculo da precisão real do GPS (3 a 500 m, 20 m sem leitura) é um `Circle`.
     - A cada leitura nova, o círculo novo entra antes de o velho sair, para não piscar.
   - **"Localizar":** com o mapa do Google aberto, o GPS liga com ele e o "Localizar" centraliza nele no mesmo zoom de antes (18 do MapLibre, 19 do Google).
     - `useLocalizacaoNoMapa` ganha `centrarEm`. O mapa do Google expõe `centrar`: no site, `setCenter`/`setZoom`; no app, `setCamera`.

@@ -21,7 +21,9 @@ No mapa do Google (site e app):
 
 ### Minha localização
 
-- O ponto azul (24 px, borda branca, sombra) é um marcador por cima de tudo e não pega o toque: o toque vai para o que está por baixo.
+- O ponto azul (24 px, borda branca, sombra) é um marcador.
+  - No site, fica por cima de tudo e não pega o toque: o toque vai para o que está por baixo.
+  - No app, fica por baixo dos ícones e por cima dos nomes. O mapa nativo não deixa o toque atravessar um marcador, e por cima ele roubaria o toque do lote ou do cocho. Tocar no ponto abre o pasto.
 - O círculo mostra a precisão real do GPS, entre 3 e 500 m, e 20 m sem leitura (`circuloDaLocalizacao`, como o MapLibre).
 - A cada leitura nova do GPS, o círculo novo entra antes de o velho sair, para não piscar.
 - Seguem a permissão "visualizar localização" e a camada "Minha localização".
