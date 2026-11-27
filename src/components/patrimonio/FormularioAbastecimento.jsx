@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
-import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Eye } from "lucide-react";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { AvisoGestao, CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
@@ -31,21 +30,19 @@ import {
   medidorDoFormulario,
   medidorExigeLeitura,
   opcaoNoFormulario,
-  produtoAutomatico,
   rotuloDaUnidade,
   rotuloDoBem,
-  situacaoDaEscolha,
   unidadeDoFormulario,
 } from "@/lib/abastecimentoRegras";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import CampoLotes from "@/components/estoque/CampoLotes";
 import { lerNumeroLocal } from "@/lib/dinheiroDecimal";
+import { SEM_PRODUTO, chaveLocais, useOpcoesDoAbastecimento } from "@/hooks/useOpcoesDoAbastecimento";
 
 export const FORMULARIO_ABASTECIMENTO_ID = "formulario-abastecimento";
 
 /** Chaves das leituras do formulário (prefixo da tela: confirmar/cancelar/recusas invalidam). */
-export { chaveProdutosDoBem };
-export const chaveLocais = (/** @type {string|null} */ empresaId, /** @type {string|null} */ produtoId) => ["patrimonio-abastecimentos", "locais", empresaId, produtoId];
+export { chaveProdutosDoBem, chaveLocais };
 
 /** Até este número de Produtos (resposta completa) a escolha é por botões; acima, seletor com busca. */
 export const MAXIMO_PRODUTOS_EM_BOTOES = 6;
@@ -68,9 +65,6 @@ export const TEXTO_SEM_PRODUTO = Object.freeze(
   }),
 );
 
-/** Campos que dependem do bem / do Produto (trocar um limpa os seguintes). */
-const SEM_PRODUTO = Object.freeze({ produto: null, tanque_id: null, local_estoque_id: null });
-
 /** Rótulo do Produto na escolha: o NOME real do Produto do estoque. @param {any} item */
 const rotuloDoProduto = (item) => String(item?.produto?.nome ?? "");
 
@@ -79,10 +73,6 @@ const rotuloDoTanque = (t) => {
   const nome = String(t?.identificador ?? "");
   return t?.capacidade_litros ? `${nome} (${formatarLitrosCurto(t.capacidade_litros)} L)` : nome;
 };
-
-/** O que da opção a tela reflete no formulário (unidade, tanques): mudou → reaplica. @param {any} p */
-const assinaturaDaOpcao = (p) =>
-  JSON.stringify([p?.unidade_principal_estoque ?? null, (Array.isArray(p?.tanques) ? p.tanques : []).map((/** @type {any} */ t) => [t.id, t.capacidade_litros])]);
 
 /** A quantidade digitada como número (na unidade de estoque do Produto), 0 quando inválida. @param {unknown} v */
 const quantidadeDoEstoque = (v) => {
@@ -148,8 +138,15 @@ export default function FormularioAbastecimento({
   const externo = ehExterno(form);
   // "Abrir Bens Patrimoniais" só para quem vê a tela de Bens (onde ficam os Produtos aceitos do tanque).
   const acoesBens = useAcoesTelaPatrimonio(TELAS_PATRIMONIO.BENS);
-  const [indisponivel, setIndisponivel] = useState(false);
   const [maisDetalhes, setMaisDetalhes] = useState(() => Boolean(String(form.observacao ?? "").trim() || String(form.referencia_externa ?? "").trim()));
+  // As opções do bem e dos locais, e as regras da escolha (um só Produto/local já vem escolhido; a que saiu é avisada).
+  const { respostaDoBem, itens, resumo, completa, semProduto, produtosQuery, locaisQuery, locais, indisponivel, setIndisponivel } = useOpcoesDoAbastecimento({
+    empresaId,
+    bemId,
+    form,
+    setForm,
+  });
+  const modoBotoes = completa && itens.length > 0 && itens.length <= MAXIMO_PRODUTOS_EM_BOTOES;
 
   /** @param {Record<string, any>} mudanca @param {string[]} campos */
   const mudar = (mudanca, campos) => {
@@ -162,72 +159,6 @@ export default function FormularioAbastecimento({
     setForm((f) => opcaoNoFormulario(f, item));
     for (const c of ["produto", "tanque_id", "local_estoque_id"]) limparErro(c);
   };
-
-  // Decisão da escolha: 1ª página SEM busca, a maior permitida (100). `has_more` manda.
-  const produtosQuery = useQuery({
-    queryKey: chaveProdutosDoBem(empresaId, bemId),
-    queryFn: () => listarProdutosDoBem(empresaId, bemId, { limit: 100 }),
-    enabled: Boolean(empresaId && bemId),
-    staleTime: 15 * 1000,
-  });
-  const resposta = /** @type {any} */ (produtosQuery.data ?? null);
-  // Só vale a resposta DO BEM atual (nunca a de um bem anterior).
-  const respostaDoBem = resposta && bemId && String(resposta.bem?.id ?? "") === bemId ? resposta : null;
-  const itens = /** @type {any[]} */ (Array.isArray(respostaDoBem?.itens) ? respostaDoBem.itens : []);
-  const resumo = /** @type {any} */ (respostaDoBem?.resumo ?? null);
-  const completa = respostaDoBem?.has_more === false;
-  const modoBotoes = completa && itens.length > 0 && itens.length <= MAXIMO_PRODUTOS_EM_BOTOES;
-  const semProduto = Boolean(respostaDoBem) && !itens.length && (resumo?.total === 0 || completa);
-
-  const locaisQuery = useQuery({
-    queryKey: chaveLocais(empresaId, produtoId),
-    queryFn: () => listarOpcoesAbastecimento("locais", empresaId, { produtoId }),
-    enabled: Boolean(empresaId && produtoId && !externo),
-    staleTime: 15 * 1000,
-  });
-  const locais = /** @type {any[]} */ (locaisQuery.data?.itens ?? []);
-
-  // Um só Produto (resposta COMPLETA do bem atual): já vem escolhido.
-  useEffect(() => {
-    const item = produtoAutomatico(respostaDoBem, bemId);
-    if (item) setForm((f) => (f.bem?.id && String(f.bem.id) === bemId && !f.produto ? opcaoNoFormulario(f, item) : f));
-  }, [respostaDoBem, bemId, setForm]);
-
-  // A escolha ainda está nas opções? Saiu (aceite retirado do tanque, Produto inativo…) → limpa e avisa;
-  // continua mas o servidor mudou a unidade ou os tanques → reaplica a opção nova.
-  useEffect(() => {
-    const situacao = situacaoDaEscolha(respostaDoBem, form);
-    if (situacao === "ausente") {
-      setIndisponivel(true);
-      setForm((f) => (String(f.produto?.id ?? "") === produtoId ? { ...f, ...SEM_PRODUTO } : f));
-      return;
-    }
-    if (situacao !== "presente") return;
-    const item = itens.find((i) => String(i?.produto?.id ?? "") === produtoId);
-    if (item && assinaturaDaOpcao({ ...item.produto, tanques: item.tanques }) !== assinaturaDaOpcao(form.produto)) {
-      setForm((f) => (String(f.produto?.id ?? "") === produtoId ? opcaoNoFormulario(f, item) : f));
-    }
-    // Só reage à RESPOSTA do servidor e à troca de escolha (não a cada tecla).
-  }, [respostaDoBem, bemId, produtoId]);
-
-  // Local: o único com saldo já vem escolhido; um local que sumiu da lista sai do formulário.
-  useEffect(() => {
-    if (!produtoId || externo || !locaisQuery.isSuccess) return;
-    const atual = form.local_estoque_id ? String(form.local_estoque_id) : null;
-    if (atual && !locais.some((l) => String(l.local_estoque_id) === atual)) {
-      setForm((f) => (String(f.produto?.id ?? "") === produtoId && String(f.local_estoque_id ?? "") === atual ? { ...f, local_estoque_id: null } : f));
-      return;
-    }
-    if (!atual && locais.length === 1) {
-      const local = String(locais[0].local_estoque_id);
-      setForm((f) => (String(f.produto?.id ?? "") === produtoId && !f.local_estoque_id ? { ...f, local_estoque_id: local } : f));
-    }
-  }, [produtoId, externo, form.local_estoque_id, locais, locaisQuery.isSuccess, setForm]);
-
-  // D-PROD-282 em todas as telas: trocar o Produto, o local ou a origem volta a escolha dos lotes para a sugestão.
-  useEffect(() => {
-    setForm((f) => (f.lotes == null && !f.confirmaVencido ? f : { ...f, lotes: null, confirmaVencido: false }));
-  }, [produtoId, form.local_estoque_id, externo, setForm]);
 
   const tipoMedidor = medidorDoFormulario(form);
   const contador = medidorExigeLeitura(tipoMedidor);
