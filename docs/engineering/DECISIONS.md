@@ -10576,7 +10576,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 **Data:** 2026-11-27 · **Origem:** proprietário, continuação da D-PROD-347: "sempre tentando ao máximo deixar igual o atual" · **Relatório:** [`MAPA-LEVE-D349-REPORT.md`](./MAPA-LEVE-D349-REPORT.md)
 
-> **Numeração:** nasceu D-PROD-348; a `main` deu a D-PROD-348 ao Diário das atividades (PR #434, `dcdea1947`) e passou a indicar `Próxima decisão: D-PROD-349`, que é esta (`node scripts/dev/proxima-decisao.mjs`, regra A5). O marcador passa a D-PROD-350.
+> **Numeração:** nasceu D-PROD-348; a `main` deu a D-PROD-348 ao Diário das atividades (PR #434, `dcdea1947`) e passou a indicar `Próxima decisão: D-PROD-349`, que é esta (`node scripts/dev/proxima-decisao.mjs`, regra A5). O marcador passa a D-PROD-352.
 
 - **Problema:** depois da etapa 1, o arrastar continuava pesado. Com 200 pastos, cada quadro reposicionava ~400 marcadores HTML (lotes e nomes) e recalculava o estilo deles.
 - **Decisão:** o ícone do lote deixa de ser marcador HTML e passa a ser desenhado pelo mapa.
@@ -10636,4 +10636,27 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 - **Diferença visível:** durante o zoom o nome é uma ampliação do texto, não o texto refeito (diferença de no máximo ¼ px na letra); no fim do zoom fica idêntico ao de antes.
 - **Próximo:** os nomes desenhados pelo próprio mapa (camadas `symbol`), que tiram o custo restante do zoom.
 
-<!-- Próxima decisão: D-PROD-352 -->
+## D-PROD-352 — Mapa leve, etapa 3: cochos, pontos e tarefas desenhados pelo próprio mapa
+
+**Data:** 2026-11-27 · **Origem:** proprietário, continuação da D-PROD-349: "sempre tentando ao máximo deixar igual o atual" · **Relatório:** [`MAPA-LEVE-D352-REPORT.md`](./MAPA-LEVE-D352-REPORT.md)
+
+> **Numeração:** nasceu D-PROD-350 (`node scripts/dev/proxima-decisao.mjs` na `main` `dcc7d46a6`). Antes de terminar, a `main` deu a D-PROD-350 ao celular de mais de uma pessoa (PR #438, `bf7e5adf2`) e a PR #439 (aberta) reservou a D-PROD-351; o script passou a indicar D-PROD-352, que é esta (regra A5). O marcador passa a D-PROD-353.
+
+- **Problema:** depois da etapa 2, cochos/depósitos, pontos de referência (bebedouro incluído) e tarefas continuavam marcadores HTML. Com 200 pastos, eram 50 a 100 marcadores a mais, reposicionados a cada quadro do arrastar.
+- **Decisão:** os três grupos passam a ser desenhados pelo mapa, no mesmo padrão dos lotes (`src/lib/maplibre/pontosNoMapa.js`).
+  - Uma fonte GeoJSON e uma camada `symbol` por grupo: `mg-supl`, `mg-pontos`, `mg-tarefas`. Nunca somem por colisão e são recriadas com as outras camadas (`ensureMgLayers`).
+  - A imagem é montada num canvas no `devicePixelRatio`, igual ao marcador: figura sem achatar (36 px no cocho e no depósito, 40 no ponto e na tarefa) ou o círculo da cor; selo "?"/"!" e farol do cocho; indicador do prazo da tarefa. Mesmas posições, cores, bordas e sombras.
+  - Chave da imagem = o que ela desenha (resumo da URL da figura, tamanho, cor, selo, farol, indicador). Cache, fila em fatias, limite de tentativas e poda são os dos lotes (a poda é por grupo).
+  - Reserva por ponto (`coalesce`): o círculo da cor com os mesmos enfeites. Figura de link `http(s)` é pedida com CORS; sem CORS, fica a reserva, e um canvas sujo é trocado por um novo (nada quebra). A tarefa cujo ícone não carrega usa o modelo local da prioridade.
+  - Ordem = z-index de antes: cocho < ponto < lote < identificador < tarefa; Urgente por cima das outras tarefas (`symbol-sort-key`). A localização continua HTML, por cima de tudo.
+  - Clique pela camada, com os callbacks de antes. Só age quem está por cima no ponto tocado (`iconeNoTopo`): tarefa sobre lote abre a tarefa (o lote não abre nem arrasta). A área e a linha por baixo não abrem. `hitArea` e o novo `hitPonto` enxergam os pontos; o toque longo não começa em cima deles (`deveComecarToqueLongo` com `sobrePonto`). O clique ao soltar um lote arrastado não abre o ponto embaixo.
+  - O `title`/`aria-label` vira o `titulo` do ponto na fonte e aparece como título do canvas no mouse.
+- **Diferenças registradas:** o nome do pasto (HTML) fica por cima do ponto quando se encostam; bordas e texto podem variar meio pixel; a área de toque é a imagem inteira (um pouco maior: o selo e o indicador agora contam); o leitor de tela não lê mais o nível do cocho no mapa — o texto está no detalhe que abre ao tocar.
+- **Resultado (200 pastos, CPU 4×, densidade 1, antes e depois alternados):**
+  - foco Pontos: arrastar 31 – 33 → 36 – 37 quadros/s; quadros acima de 50 ms ≈ 88 → 29 – 51; recálculo de estilo ≈ 5,9 s → ≈ 4,3 s;
+  - foco Tarefas: arrastar ≈ 36 → ≈ 40 quadros/s; quadros acima de 50 ms ≈ 50 → ≈ 22;
+  - foco Lotes (só 50 pontos saíram do HTML): dentro do ruído;
+  - densidade do Pixel 7: arrastar igual (≈ 11 quadros/s, limitado pela pintura do SwiftShader); zoom quase igual (o custo são os nomes).
+- **Riscos:** medir em celular de verdade; conferir no app (Android/iOS) que o canvas lê os SVGs; ícone antigo gravado como link de outro servidor sem CORS aparece como o círculo da cor (o envio do app grava `data:` URL).
+
+<!-- Próxima decisão: D-PROD-353 -->
