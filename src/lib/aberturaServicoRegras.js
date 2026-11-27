@@ -487,7 +487,7 @@ const UNIDADE_DA_MEDIDA = Object.freeze({ HORA: "h", DIARIA: "diária", TAREFA: 
 const quantidadeTexto = (v) => (ehCanonico(v) ? formatarNumero(/** @type {string} */ (v), { locale: "pt-BR", casasMin: 0, casasMax: 4 }) : "");
 
 /** A hora HH:MM de um instante no fuso da fazenda; sem instante válido ou fuso, "". @param {unknown} iso @param {string|null} fuso */
-const horaNoFuso = (iso, fuso) => {
+export const horaNoFuso = (iso, fuso) => {
   const ms = typeof iso === "string" || typeof iso === "number" ? Date.parse(String(iso)) : Number.NaN;
   if (!Number.isFinite(ms) || !fuso) return "";
   try {

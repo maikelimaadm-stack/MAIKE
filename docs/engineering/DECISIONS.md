@@ -10743,4 +10743,45 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-358 (356 reservado pela PR #444, 357 pela PR #445). O marcador passa a D-PROD-359. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-359 -->
+## D-PROD-356 — Caminho único do Diário: "+ Lançamento" em toda a Lançamento de Atividades, e Insumo só com `permite_produto`
+
+**Data:** 2026-11-27 · **Origem:** acerto do caminho único do Diário das atividades (fecha os limites da D-PROD-352)
+
+> **Numeração:** D-PROD-354 (PR aberta), D-PROD-355 e D-PROD-357 já estão na `main`; esta é a D-PROD-356, reservada para a PR #444 e o marcador continua D-PROD-359 (a 357 e a 358 já estão na `main`).
+
+**Decisão.** Dois acertos de tela, sem backend, sem migration e sem mudança de dados.
+
+**O que muda.**
+- **Um só "+ Lançamento" numa atividade em andamento (Lançamento de Atividades).** A coluna Situação da tabela, o botão do card do celular, o card "Atividades em andamento" e o ⚡ da linha usam o mesmo caminho (`lancarNaAtividade`): com UMA área na atividade, abre o Diário das atividades dessa área já na atividade; com VÁRIAS áreas (ou nenhuma), segue a Nova realização preenchida, como antes. Se a atividade não puder ser lida e o diário não abre, a Nova realização também abre (com o aviso). No ⚡, o rótulo "Diário das atividades" saiu: a entrada é "+ Lançamento", só com a permissão de lançar numa atividade aberta; com várias áreas, abre no primeiro pasto em andamento, e sem nenhum, segue a Nova realização. A Nova realização continua sendo o caminho de criar, de várias áreas e de reforma.
+- **Insumo só com `permite_produto`.** A opção "Insumo" (Carga de insumo) do serviço no Diário só aparece quando a operação da atividade permite produto. É a mesma flag do "Só insumo" do mapa (`flagsDoTipoDaAtividade`, em `atividadeLinhasRegras.js`, reaproveitada sem cópia). A flag fecha por padrão: enquanto as operações carregam, ou se a leitura delas falha, o Insumo não aparece, e a carga não abre. A flag da própria atividade, quando vem, vale sobre a lista de operações. As outras seis opções seguem como estavam.
+
+**O que NÃO muda.** Os "+" por tipo dentro da atividade aberta (`LancamentosDaArea`, a janela de um lançamento por tipo e por área) seguem como estão: o Diário ainda mostra Máquina, Mão de obra e Serviço de terceiro como "Em breve", e desviá-los para o Diário tiraria um caminho que funciona hoje. O mapa ("Só máquina / mão de obra / insumo / serviço") também segue igual.
+
+**Riscos e limites.** A regra do Insumo depende de a operação chegar à tela: o Diário recebe as operações pela mesma lista da `DetalhesArea` e da Lançamento de Atividades. Operação inativa e fora dessa lista esconde o Insumo (fechado por padrão).
+
+**Testes.** `lancamentoAtividades.test.jsx` (LD-1, LD-2, LD-2b, LD-5 a LD-9, LA-RAIO-1), `diarioDasAtividades.test.jsx` (fixture com `permite_produto`; bloco m1 a m6 do Insumo).
+
+## D-PROD-359 — O abastecimento dentro da frente: a tela real na mesma janela do serviço, com o registro do dia
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário (PR B do Diário das atividades, depois da D-PROD-348 e da D-PROD-356): a opção "Abastecimento" do serviço abria "Em breve" · **Branch:** `feat/diario-abastecimento` · **Migration:** nenhuma · **APK:** a conferir (só front-end)
+
+**Decisão.** A opção "Abastecimento" do serviço de uma frente abre a tela de abastecimento NA MESMA janela do serviço, como a Carga de insumo (D-PROD-334): sem wizard e sem popup sobre popup. Grava pelo fluxo que já existe (a prévia no servidor, a confirmação com `operation_id` persistente e a baixa do estoque pela tabela de abastecimentos). Nenhuma rota, tabela, migration ou serviço de gravação novo.
+
+**O que muda.**
+- **A tela.** Cartão "Abastecimento" com "Abastecer o <máquina da frente>"; origem "Tanque da fazenda" (padrão) ou "Posto externo" (as origens `ESTOQUE`/`EXTERNO`). Tanque da fazenda: o Produto (das opções "Produtos aceitos" do tanque da máquina; um só já vem escolhido, com o nome real do estoque), o tanque (só se a máquina tem mais de um que aceita o Produto), o local do estoque com "Disponível neste local" na unidade do cadastro do Produto, a quantidade com a unidade do Produto (sem seletor), o contador da máquina (Horímetro, Odômetro ou Ciclos, quando a máquina tem) com a última leitura, e o Responsável só para leitura (é o da frente). Posto externo: o valor total da nota (R$) e o número da nota ou cupom; sem local e sem baixa de estoque.
+- **Salvar.** Valida; cria ou acha o registro de hoje da frente (o `apontamento_id`); pede a prévia; sem bloqueio, confirma direto. Com bloqueio (saldo insuficiente, por exemplo), ou se o envio falhar, a revisão aparece NA MESMA tela, com "Confirmar abastecimento" (ou "Repetir o mesmo envio", no resultado incerto) e "Corrigir os dados". O envio incerto usa o mesmo envio compartilhado da janela de abastecimento da área (repetir e consultar). Voltar e fechar ficam travados enquanto a gravação sai.
+- **O registro do dia.** O abastecimento precisa de um apontamento. Usa o CONFIRMADO de hoje da frente (o mesmo que a carga usa). Sem ele, cria um apontamento vazio, com a abertura da frente na observação, e guarda o id: uma nova tentativa não cria outro.
+- **Permissão e estado.** A opção só aparece com a permissão de lançar apontamento e a de criar abastecimento; some na frente encerrada. As outras cinco opções seguem "Em breve".
+- **"Lançado hoje".** Entram os abastecimentos CONFIRMADOS de hoje da máquina da frente (o cancelado não entra): ícone de bomba, título "Abastecimento", "Produto · local" (ou "Posto externo") e a quantidade, como "80 L". `lancamentosDoDia` e o cálculo das horas não mudam: a junção é feita depois, em `abastecimentoNaFrenteRegras.js`.
+- **Compartilhado.** `useOpcoesDoAbastecimento` (novo) reúne as consultas de Produtos do bem e de locais e as regras da escolha (um Produto ou local único já vem escolhido; a escolha que saiu das opções é avisada). O `FormularioAbastecimento` passou a usar o hook, sem mudança de comportamento; a tela nova usa o mesmo. No `useFluxoAbastecimento`, a prévia aceita o registro do dia como complemento, e a confirmação lê a prévia mais recente por ref (quem confirma logo depois da prévia não usa a versão antiga).
+- **Layout.** O fim do conteúdo rolável da janela do Diário ganha um respiro igual à altura do rodapé, para a última linha de "Lançado hoje" não ficar atrás do botão. Vale para carga, abastecimento e serviço.
+
+**O que NÃO muda.** Backend, banco, rotas, a tela Abastecimentos e a janela de abastecimento da área (D-PROD-252). A baixa de estoque e o FEFO continuam sendo do servidor. O corpo do abastecimento de estoque segue sem `origem` (o servidor assume ESTOQUE, como o formulário de sempre).
+
+**Riscos e limites.** "Completou o tanque?" não aparece (o mockup aprovado não o tem; o valor enviado é "Não"). Lote vencido e escolha de lotes são decididos no campo de lotes ANTES da prévia; a revisão mostra só os bloqueios. O respiro do rodapé não foi conferido em celular real.
+
+**Testes.** `diarioAbastecimento.test.jsx` (a a h: a tela, tanque da fazenda com o corpo enviado, registro do dia criado uma vez, posto externo, revisão com bloqueio na mesma tela, "Lançado hoje" com "80 L", permissão e frente encerrada), `abastecimentoNaFrenteRegras.test.js`, `diarioDasAtividades.test.jsx` e `diarioFrentes.test.jsx` (com a permissão de abastecimento mockada), e os de `FormularioAbastecimento` e abastecimento (`patrimonio*`, `*bastecimento*`, `lancamentoAtividadesLinhas`).
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-359 (a 354 é de uma PR aberta; 355, 357 e 358 já estão na `main`). Esta ficou com D-PROD-359, e o marcador passa a D-PROD-360.
+
+<!-- Próxima decisão: D-PROD-360 -->
