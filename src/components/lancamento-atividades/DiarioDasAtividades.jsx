@@ -21,18 +21,21 @@ import {
   lancamentosDoDia,
   lerTodasAsPaginas,
   marcadorDaAbertura,
+  marcadorDaProducaoEncerramento,
+  marcadorDaReabertura,
   marcadorDoEncerramento,
   parseHorimetroPtBr,
+  producaoEncerramentoGravada,
   validarAbertura,
   validarEncerramento,
 } from "@/lib/aberturaServicoRegras";
-import { RAIZ_CONSULTAS_ATIVIDADES, chaveApontamentos, itensDaLista, normalizarPaginaDeOpcoes } from "@/lib/atividadeApontamentoRegras";
+import { RAIZ_CONSULTAS_ATIVIDADES, chaveApontamentos, itensDaLista, normalizarPaginaDeOpcoes, siglaDaProducao } from "@/lib/atividadeApontamentoRegras";
 import { capinsDoCadastro } from "@/lib/camposPorTipo";
 import { medidorDaResposta, textoDaLeituraVigente } from "@/lib/atividadeLinhasRegras";
 import { areasDaAtividade } from "@/lib/atividadeAreasRegras";
 import { tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
-import { mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
+import { ehProducaoExigida, mensagemDeErroAtividade, parseQuantidadeProduzida } from "@/lib/lancamentoAtividadesRegras";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { TIPOS_FIXOS_ATIVIDADE, operacoesDoTipoFixo, rotuloDoTipoFixo, tipoFixoDaOperacao } from "@/lib/tiposFixosAtividade";
 import {
@@ -139,6 +142,9 @@ function CampoEscolha({ label, value, onChange, options, required = false, error
  * apontamento do dia com a abertura na observação, `marcadorDaAbertura`); encerrar uma frente é um `criarApontamento` do dia
  * com a linha `marcadorDoEncerramento`; encerrar a atividade grava uma linha dessas por frente aberta e depois conclui
  * (`concluirAtividade`). As frentes saem dos apontamentos da atividade (`frentesDosApontamentos`).
+ * D-PROD-348 (item 4): "Reabrir" numa frente encerrada grava um apontamento só com `[reabertura-servico …]` (não conta como
+ * lançamento do dia). D-PROD-348 (item 5): se o concluir recusar porque o tipo exige produção, a atividade segue aberta e o
+ * painel pede a quantidade produzida; o "Encerrar atividade" grava essa produção e conclui de novo.
  *
  * @param {{
  *   area: any,
@@ -223,6 +229,24 @@ export default function DiarioDasAtividades({
   const [encerrandoAtividade, setEncerrandoAtividade] = useState(false);
   const [horimetrosFim, setHorimetrosFim] = useState(/** @type {Record<string, string>} */ ({}));
   const [errosFim, setErrosFim] = useState(/** @type {Record<string, string>} */ ({}));
+  /**
+   * D-PROD-348 (item 5): o concluir recusou porque o tipo EXIGE produção. O painel pede a quantidade (o aviso e o campo),
+   * e o "Encerrar atividade" grava um apontamento com a produção antes de concluir de novo.
+   */
+  const [producaoExigida, setProducaoExigida] = useState(false);
+  const [quantidadeProduzida, setQuantidadeProduzida] = useState("");
+  const [erroProducao, setErroProducao] = useState("");
+  /**
+   * A atividade cuja produção já foi gravada NESTA tentativa de encerramento (o id). Uma nova tentativa (rede, outra
+   * recusa) não grava a mesma produção de novo: o concluir é que se repete.
+   */
+  const producaoGravadaRef = useRef(/** @type {string | null} */ (null));
+  /**
+   * D-PROD-352 (item 2): a chave da produção gravada por esta tentativa (a observação `[producao-encerramento chave=…]`). Ela
+   * fica enquanto a produção não for confirmada; uma nova tentativa usa a MESMA chave, e a releitura da lista acha a linha
+   * se a resposta do servidor se perdeu. Zera quando a conclusão é recusada pela produção e quando a atividade conclui.
+   */
+  const producaoChaveRef = useRef(/** @type {{ atividadeId: string, chave: string } | null} */ (null));
 
   // ─── Opções (só no passo da abertura) ───────────────────────────────
   // D-PROD-332 (emenda): as opções vêm TODAS as páginas (`lerTodasAsPaginas`), não só a 1ª de 50.
@@ -318,6 +342,9 @@ export default function DiarioDasAtividades({
    */
   const podeEncerrarAtividade = acoes?.editar === true;
   const avisoSemPermissaoEncerrar = !acoes?.carregando && !podeEncerrarAtividade;
+  /** D-PROD-348 (item 4): reabrir uma frente é lançar apontamento, e só com a atividade ainda não concluída. */
+  const atividadeConcluida = String(atividadeAtual?.status ?? "").toUpperCase() === "CONCLUIDA";
+  const podeReabrir = podeGravar && !atividadeConcluida;
   const avisoStatus = !acoes?.carregando && acoes?.lancarApontamento !== true
     ? "Sem permissão para registrar atividades."
     : empresaId && !fuso
@@ -332,6 +359,9 @@ export default function DiarioDasAtividades({
     setEncerrandoAtividade(false);
     setErrosFinal({});
     setErrosFim({});
+    setProducaoExigida(false);
+    setQuantidadeProduzida("");
+    setErroProducao("");
   };
   /** @param {string} valor */
   const escolherTipo = (valor) => {
@@ -661,11 +691,67 @@ export default function DiarioDasAtividades({
     }
   };
 
+  /**
+   * D-PROD-348 (item 4): "Reabrir" numa frente encerrada envia um apontamento do dia só com a linha `[reabertura-servico …]`
+   * (sem operador, sem produto nem máquina). A reabertura NÃO é lançamento do dia: não chama `onGravou`. Relê as frentes.
+   * @param {any} abertura a abertura da frente
+   */
+  const gravarReabertura = (abertura) =>
+    criarApontamento(String(atividadeId), {
+      data_operacional: hoje,
+      ...(atividadeAreaId && areasDaAtividade(atividadeAtual).length > 1 ? { atividade_area_id: atividadeAreaId } : {}),
+      observacao: marcadorDaReabertura({ bemId: abertura.bemId, implementoId: abertura.implementoId }),
+    });
+  /** "Reabrir" (a frente encerrada no cartão): grava a reabertura e relê as frentes. A frente volta a Aberto. */
+  const reabrirFrente = async (chave) => {
+    const frente = frentes.find((f) => f.chave === chave);
+    if (enviandoRef.current || !podeReabrir || !frente || !frente.encerrada || !atividadeId) return;
+    enviandoRef.current = true;
+    setEnviando(true);
+    try {
+      await gravarReabertura(frente.abertura);
+      await queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, atividadeId) });
+      notifySuccess("Sucesso", "Serviço reaberto.");
+    } catch (erro) {
+      notifyWarning("Não foi possível reabrir o serviço", mensagemDeErroAtividade(erro, "Confira e tente de novo."));
+    } finally {
+      enviandoRef.current = false;
+      setEnviando(false);
+    }
+  };
+
   const abrirEncerrarAtividade = () => {
     if (enviando || apontamentosLidos.isPending || !podeEncerrarAtividade) return;
     setHorimetrosFim({});
     setErrosFim({});
+    setProducaoExigida(false);
+    setQuantidadeProduzida("");
+    setErroProducao("");
     setEncerrandoAtividade(true);
+  };
+  /** D-PROD-352 (item 2): a chave da produção desta tentativa (a mesma em todas as tentativas até a produção ser confirmada). */
+  const chaveDaProducao = (id) => {
+    if (producaoChaveRef.current?.atividadeId !== id) {
+      const aleatoria = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+      producaoChaveRef.current = { atividadeId: id, chave: aleatoria };
+    }
+    return producaoChaveRef.current.chave;
+  };
+  /**
+   * D-PROD-348 (item 5): a quantidade produzida gravada como apontamento do dia (sem operador, sem linhas), como o encerramento.
+   * D-PROD-352 (item 2): antes de gravar, relê a lista FRESCA; se a linha com a chave desta tentativa já está lá (a resposta
+   * do POST anterior se perdeu), não grava de novo: a produção conta como gravada. Sem isso, o servidor somaria em dobro.
+   */
+  const gravarProducao = async (id, quantidade) => {
+    const chave = chaveDaProducao(id);
+    const lista = await queryClient.fetchQuery({ queryKey: chaveApontamentos(empresaId, id), queryFn: () => listarApontamentos(id), staleTime: 0 });
+    if (producaoEncerramentoGravada(itensDaLista(lista), chave)) return;
+    await criarApontamento(String(id), {
+      data_operacional: hoje,
+      ...(atividadeAreaId && areasDaAtividade(atividadeAtual).length > 1 ? { atividade_area_id: atividadeAreaId } : {}),
+      quantidade_produzida_dia: quantidade,
+      observacao: marcadorDaProducaoEncerramento(chave),
+    });
   };
   /**
    * "Encerrar atividade": lê as frentes de novo (as já encerradas saem), valida o horímetro final de cada aberta e grava um
@@ -675,6 +761,14 @@ export default function DiarioDasAtividades({
   const encerrarAtividade = async () => {
     if (enviandoRef.current || !podeGravar || !podeEncerrarAtividade || !atividadeId) return;
     const id = atividadeId;
+    // D-PROD-348 (item 5): se o servidor pediu a produção, ela tem que estar informada (e > 0) ANTES de qualquer envio.
+    const precisaProducao = producaoExigida && producaoGravadaRef.current !== id;
+    const producao = precisaProducao ? parseQuantidadeProduzida(quantidadeProduzida) : null;
+    if (precisaProducao && producao === null) {
+      setErroProducao("Informe a quantidade produzida, maior que zero.");
+      notifyWarning("Atenção", "Revise os campos destacados.");
+      return;
+    }
     enviandoRef.current = true;
     setEnviando(true);
     let encerrouAlguma = false;
@@ -692,6 +786,16 @@ export default function DiarioDasAtividades({
         notifyWarning("Atenção", "Revise os campos destacados.");
         return;
       }
+      if (precisaProducao && producao !== null) {
+        try {
+          await gravarProducao(id, producao);
+          producaoGravadaRef.current = id;
+        } catch (erro) {
+          await queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, id) });
+          notifyWarning("Não foi possível encerrar a atividade", `A produção não foi lançada. ${mensagemDeErroAtividade(erro, "Confira e tente de novo.")}`);
+          return;
+        }
+      }
       for (const f of abertas) {
         try {
           await gravarEncerramento(f.abertura, horimetrosFim[f.chave]);
@@ -708,12 +812,23 @@ export default function DiarioDasAtividades({
         const detalhe = /** @type {any} */ (await obterAtividade(id));
         resposta = await concluirAtividade(id, { versao: detalhe?.versao, data_conclusao: hoje });
       } catch (erro) {
+        // D-PROD-348 (item 5): o tipo exige produção. A atividade segue aberta (e as frentes como estão) e o painel pede
+        // a quantidade. A produção gravada nesta tentativa não vale mais (a recusa diz que a soma é zero): a próxima grava.
+        if (ehProducaoExigida(erro)) {
+          producaoGravadaRef.current = null;
+          producaoChaveRef.current = null;
+          await queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, id) });
+          setErroProducao("");
+          setProducaoExigida(true);
+          return;
+        }
         if (!encerrouAlguma) throw erro;
         await queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, id) });
         notifyWarning("Não foi possível encerrar a atividade", "As máquinas foram encerradas, mas não foi possível encerrar a atividade. Tente de novo.");
         return;
       }
       await queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, id) });
+      producaoChaveRef.current = null;
       onGravou?.(resposta);
       notifySuccess("Sucesso", "Atividade encerrada.");
       onFechar();
@@ -1068,6 +1183,14 @@ export default function DiarioDasAtividades({
         setHorimetrosFim((m) => ({ ...m, [chave]: valor }));
         setErrosFim((e) => semCampo(e, chave));
       }}
+      producaoExigida={producaoExigida}
+      rotuloProducao={siglaDaProducao(atividadeAtual) ? `Quantidade produzida (${siglaDaProducao(atividadeAtual)})` : "Quantidade produzida"}
+      quantidadeProduzida={quantidadeProduzida}
+      erroProducao={erroProducao || undefined}
+      onChangeProducao={(valor) => {
+        setQuantidadeProduzida(valor);
+        setErroProducao("");
+      }}
     />
   ) : null;
   /** D-PROD-348: "Encerrar atividade" só confirma com as frentes LIDAS (sem leitura, não há horímetro a conferir). */
@@ -1208,10 +1331,10 @@ export default function DiarioDasAtividades({
             lendo={apontamentosLidos.isLoading}
             erro={apontamentosLidos.isError}
             hoje={hoje}
-            fuso={fuso}
             ocupado={enviando}
             painel={painelDaAtividade}
             onAbrirFrente={abrirFrente}
+            onReabrirFrente={podeReabrir ? reabrirFrente : undefined}
             onAdicionar={adicionarMaquina}
           />
         ) : null}

@@ -3,6 +3,7 @@ import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 import { AvisoGestao, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import { BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import { formatarHorimetro } from "@/lib/aberturaServicoRegras";
+import { TEXTO_PRODUCAO_EXIGIDA } from "@/lib/lancamentoAtividadesRegras";
 import { tituloDaFrente } from "@/components/lancamento-atividades/AtividadeComFrentes";
 
 /**
@@ -45,9 +46,26 @@ export function PainelEncerrarFrente({ abertura, horimetroFinal, erro = undefine
  * O painel "Encerrar atividade": enquanto as frentes são lidas, "Carregando…"; se a leitura falhou, o aviso e "Tentar de novo"
  * (sem horímetro, sem confirmação). Lidas: com frentes abertas, o "Horímetro final" de cada uma (obrigatório, com a dica do
  * inicial); sem nenhuma, só a pergunta de confirmação.
- * @param {{ nome: string, abertas: Array<{ chave: string, abertura: any }>, lendo?: boolean, erroLeitura?: boolean, onTentarLeitura?: () => void, valores: Record<string, string>, erros: Record<string, string>, readOnly: boolean, onChange: (chave: string, valor: string) => void }} props
+ * D-PROD-348 (item 5): com `producaoExigida` (o servidor recusou o encerramento porque o tipo exige produção), o aviso
+ * `TEXTO_PRODUCAO_EXIGIDA` e o campo "Quantidade produzida" (com a unidade, `rotuloProducao`) entram no fim do painel.
+ * @param {{ nome: string, abertas: Array<{ chave: string, abertura: any }>, lendo?: boolean, erroLeitura?: boolean, onTentarLeitura?: () => void, valores: Record<string, string>, erros: Record<string, string>, readOnly: boolean, onChange: (chave: string, valor: string) => void, producaoExigida?: boolean, rotuloProducao?: string, quantidadeProduzida?: string, erroProducao?: string, onChangeProducao?: (valor: string) => void }} props
  */
-export function PainelEncerrarAtividade({ nome, abertas, lendo = false, erroLeitura = false, onTentarLeitura = undefined, valores, erros, readOnly, onChange }) {
+export function PainelEncerrarAtividade({
+  nome,
+  abertas,
+  lendo = false,
+  erroLeitura = false,
+  onTentarLeitura = undefined,
+  valores,
+  erros,
+  readOnly,
+  onChange,
+  producaoExigida = false,
+  rotuloProducao = "Quantidade produzida",
+  quantidadeProduzida = "",
+  erroProducao = undefined,
+  onChangeProducao = undefined,
+}) {
   if (lendo) {
     return (
       <section className="b1-aberto-painel" aria-label="Encerrar atividade" data-testid="atividade-encerrar-painel">
@@ -97,6 +115,25 @@ export function PainelEncerrarAtividade({ nome, abertas, lendo = false, erroLeit
           </div>
         </>
       )}
+      {producaoExigida ? (
+        <>
+          <AvisoGestao testId="atividade-encerrar-producao-exigida">{TEXTO_PRODUCAO_EXIGIDA}</AvisoGestao>
+          <div className="grid grid-cols-12 gap-3 b1-form-embutido" data-densidade={DENSIDADE_BASE1}>
+            <CampoTexto
+              label={rotuloProducao}
+              required
+              value={quantidadeProduzida}
+              onChange={(v) => onChangeProducao?.(v)}
+              error={erroProducao}
+              span={12}
+              inputMode="decimal"
+              keepCase
+              readOnly={readOnly}
+              testId="atividade-encerrar-producao"
+            />
+          </div>
+        </>
+      ) : null}
     </section>
   );
 }

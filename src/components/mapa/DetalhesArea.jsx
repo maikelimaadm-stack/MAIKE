@@ -30,7 +30,7 @@ import { Abas, RodapePilulas, SecaoDetalhe, idsDaAba } from "./detalhes-lote/blo
  * - Curral: a aba Abate de antes (`HistoricoAbateCurral`), à parte: são fatos de natureza diferente.
  * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre o "Diário das atividades" do pasto (D-PROD-332, D-PROD-341,
  *   `DiarioDoPasto`): com atividades abertas, a lista "Em andamento neste pasto"; sem nenhuma, vai direto ao tipo. É a
- *   ÚNICA entrada de diário no Mapa (a ação de linha "Diário das atividades" abre o mesmo). A "Nova realização" continua
+ *   ÚNICA entrada de diário no Mapa (a ação "+ Lançamento" da linha abre o mesmo). A "Nova realização" continua
  *   na página Lançamento de Atividades, só não é mais aberta por aqui.
  *   "Histórico completo" (com a permissão de histórico de
  *   movimentação) continua sendo o Histórico de Movimentação de hoje, com o "Excluir movimentação" do administrador

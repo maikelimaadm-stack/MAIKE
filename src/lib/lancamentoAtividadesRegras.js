@@ -15,7 +15,7 @@
  * Contrato: docs/engineering/MAIKE-ATIVIDADE-CABECALHO-CONTRATO.md (§3, §5, §10).
  */
 
-import { ehCanonico, formatarNumero } from './dinheiroDecimal.js';
+import { ehCanonico, formatarNumero, lerNumeroLocal } from './dinheiroDecimal.js';
 import { ehDiaValido, formatarDia } from './diaCivil.js';
 import { rotuloDoBem } from './abastecimentoRegras.js';
 import { lerErroGestao, mensagemErroGestao } from './gestaoErros.js';
@@ -324,6 +324,32 @@ const EXIGIDOS = Object.freeze(
       'Este tipo de atividade exige produção para concluir: lance a produção nos apontamentos confirmados antes de concluir.',
   }),
 );
+
+/**
+ * D-PROD-348 (item 5): o servidor recusou o encerramento porque o tipo EXIGE produção
+ * (`ATIVIDADE_EXIGIDA_PELO_TIPO`, `details.field = quantidade_produzida`, `reason = exige_producao`). Lê com `lerErroGestao`.
+ * @param {unknown} erro
+ * @returns {boolean}
+ */
+export const ehProducaoExigida = (erro) => {
+  const { code, field } = lerErroGestao(erro);
+  return code === 'ATIVIDADE_EXIGIDA_PELO_TIPO' && field === 'quantidade_produzida';
+};
+
+/** D-PROD-348 (item 5): a mensagem clara no painel do encerramento quando o tipo exige produção. */
+export const TEXTO_PRODUCAO_EXIGIDA = 'Este tipo de atividade exige informar a produção. Informe a quantidade produzida para encerrar.';
+
+/**
+ * D-PROD-348 (item 5): a quantidade produzida digitada (pt-BR, até 10 inteiros e 4 casas) → canônica ("1250.5"). Vazio,
+ * zero, negativo ou que não é número → `null`. Igual ao servidor (`PADRAO_DECIMAL`), que não aceita mais casas.
+ * @param {unknown} digitado
+ * @returns {string | null}
+ */
+export const parseQuantidadeProduzida = (digitado) => {
+  const lida = lerNumeroLocal(String(digitado ?? '').trim(), 'pt-BR', { casas: 4, inteiros: 10 });
+  if (!lida.ok || lida.valor === undefined || !ehCanonico(lida.valor)) return null;
+  return /[1-9]/.test(lida.valor) ? lida.valor : null;
+};
 
 /** Nome de cada data nas mensagens. */
 const NOME_DA_DATA = Object.freeze(

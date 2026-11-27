@@ -32,7 +32,7 @@ import { VerCustoContext, useVerCusto } from "@/components/lancamento-atividades
 import { podeVerCusto } from "@/lib/verCustoRegras";
 import JanelaLancamentoPorTipo, { lancamentoDoTipo } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
 import DiarioDoPasto from "@/components/mapa/detalhes-area/DiarioDoPasto";
-import { areasDaAtividade, areasEmAndamento, rotuloDaAreaDaAtividade, textoDaColunaArea } from "@/lib/atividadeAreasRegras";
+import { areaUnicaDaAtividade, areasDaAtividade, areasEmAndamento, rotuloDaAreaDaAtividade, textoDaColunaArea } from "@/lib/atividadeAreasRegras";
 import { situacaoDaAtividade, textoProgressoAreas } from "@/lib/atividadeFluxoCampo";
 import {
   OPCOES_DA_SITUACAO,
@@ -839,6 +839,17 @@ function LancamentoAtividadesTela() {
     }
   };
 
+  /**
+   * "+ Lançamento" do card "Atividades em andamento" (D-PROD-281): com UMA área na atividade, abre o Diário das atividades
+   * dessa área já na atividade (o mesmo caminho do mapa, D-PROD-348); com mais de uma área, segue a Nova realização de sempre.
+   * @param {any} item
+   */
+  const lancarNoCard = (item) => {
+    const pasto = areaUnicaDaAtividade(item);
+    if (pasto) void abrirDiario(item, pasto);
+    else setLancandoDia(item);
+  };
+
   /** O ⚡ da linha (grade e cards). @param {any} a */
   const renderAcoesDaLinha = (a) => (
     <B1MenuAcoesDaLinha
@@ -912,7 +923,7 @@ function LancamentoAtividadesTela() {
           hoje={hoje}
           podeLancar={podeLancarDia}
           podeFinalizar={podeConcluirServico}
-          onLancar={setLancandoDia}
+          onLancar={lancarNoCard}
           onFinalizar={setConcluindoServico}
         />
       ) : null}

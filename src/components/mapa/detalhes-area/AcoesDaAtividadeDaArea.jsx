@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { CircleCheck, Plus, Tractor } from "lucide-react";
+import { CircleCheck, Plus } from "lucide-react";
 import DialogoConcluirServico from "@/components/lancamento-atividades/DialogoConcluirServico";
-import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDeCampo";
 import JanelaLancamentoPorTipo, { lancamentoDoTipo, lancamentosPermitidos } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
@@ -23,10 +22,13 @@ export { lerAtividadeParaAcoes };
  * MAIKE-MAPA-ATIVIDADE-ACOES (D-PROD-278) — as ações rápidas de uma atividade em andamento, tocada nos Detalhes da área do
  * Mapa ("Atividades em andamento"): as MESMAS do Lançamento de Atividades, sem refazer tudo pela "Nova realização".
  *
- *  - "+ Lançar dia": a Nova realização preenchida com o serviço (`JanelaRegistroDeCampo` com `continuar`, D-PROD-267);
+ *  - "+ Lançamento" (o "+ Lançar dia" de antes): o Diário das atividades do pasto (`DiarioDoPasto`) já na atividade — o
+ *    mesmo caminho da pílula "Manejos" (um só caminho para lançar numa atividade em andamento, D-PROD-348);
  *  - "Só máquina", "Só mão de obra", "Só insumo", "Só serviço de terceiro": a janela de UM lançamento
  *    (`JanelaLancamentoPorTipo`, D-PROD-233/252) presa NESTA área; só os que a operação permite (`flagsDoTipoDaAtividade`)
- *    e só com a área em andamento na atividade (a janela recusa as outras);
+ *    e só com a área em andamento na atividade (a janela recusa as outras). O "Só insumo" fica MESMO com o diário: a
+ *    atividade SEM máquina não abre o diário (ele exige máquina, horímetro e responsável na abertura), e este é o único
+ *    caminho de lançar insumo nela. Máquina, mão de obra e serviço de terceiro ainda são "Em breve" no diário;
  *  - "Concluir": o mesmo diálogo da linha da lista (`DialogoConcluirServico`), só com dia lançado na área.
  *
  * As permissões são as da lista (`acoesDaAtividade`, o fuso da fazenda = `podeGravar`): lançar pede `lancarApontamento`,
@@ -37,7 +39,11 @@ export { lerAtividadeParaAcoes };
  * atividades não abre uma atividade pelo endereço.
  */
 
-/** As ações por tipo, com o rótulo do mapa ("Só …"), na ordem do pedido do dono. */
+/**
+ * As ações por tipo, com o rótulo do mapa ("Só …"), na ordem do pedido do dono. O insumo fica aqui mesmo com o Diário:
+ * o diário exige máquina, horímetro e responsável na abertura, então uma atividade SEM máquina só lança insumo por esta
+ * janela (sem ela, não há caminho nenhum).
+ */
 const SO_DO_TIPO = Object.freeze(
   /** @type {Record<string, string>} */ ({
     [LINHA_MAQUINA]: "Só máquina",
@@ -63,7 +69,7 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
   const podeGravar = Boolean(empresaId) && fusoOk;
   const areaId = String(area?.id ?? "");
 
-  const [aberta, setAberta] = useState(/** @type {{ modo: 'dia'|'tipo'|'concluir'|'diario', atividade: any, tipo?: string, chave: number } | null} */ (null));
+  const [aberta, setAberta] = useState(/** @type {{ modo: 'tipo'|'concluir'|'diario', atividade: any, tipo?: string, chave: number } | null} */ (null));
   const [buscando, setBuscando] = useState(false);
 
   /** O resumo da área (atividades e custos), os registros e as consultas da tela de atividades se relêem. */
@@ -72,7 +78,7 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
     void queryClient.invalidateQueries({ queryKey: [RAIZ_CONSULTAS_ATIVIDADES] });
   };
 
-  /** @param {any} linha @param {'dia'|'tipo'|'concluir'|'diario'} modo @param {string} [tipo] */
+  /** @param {any} linha @param {'tipo'|'concluir'|'diario'} modo @param {string} [tipo] */
   const abrir = async (linha, modo, tipo) => {
     if (buscando) return;
     setBuscando(true);
@@ -96,14 +102,12 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
     const emAndamentoNaArea = linha.area_status === STATUS_AREA.EM_ANDAMENTO;
     const lancar = ac.lancarApontamento
       ? [
-          { key: "lancar-dia", label: "+ Lançamento", icon: <Plus size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "dia") },
-          // Diário das atividades (D-PROD-314, D-PROD-341): só numa atividade em andamento NESTA área. É a mesma entrada da
-          // pílula "Manejos" do rodapé (o DiarioDoPasto); o botão do topo da aba foi tirado.
-          ...(emAndamentoNaArea
-            ? [{ key: "diario", label: "Diário das atividades", icon: <Tractor size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "diario") }]
-            : []),
+          // "+ Lançamento" = o Diário das atividades do pasto, já na atividade (D-PROD-348: um caminho só). É a mesma entrada
+          // da pílula "Manejos" do rodapé (o DiarioDoPasto).
+          { key: "lancar-dia", label: "+ Lançamento", icon: <Plus size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "diario") },
           ...(emAndamentoNaArea
             ? lancamentosPermitidos(flagsDoTipoDaAtividade(linha, tipos))
+                .filter((l) => SO_DO_TIPO[l.tipo])
                 .slice()
                 .sort((a, b) => ORDEM_DO_TIPO.indexOf(a.tipo) - ORDEM_DO_TIPO.indexOf(b.tipo))
                 .map((l) => ({
@@ -137,9 +141,7 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
 
   const fechar = () => setAberta(null);
   let janelas = null;
-  if (aberta?.modo === "dia") {
-    janelas = <JanelaRegistroDeCampo key={`lancar-dia-${aberta.chave}`} tipos={tipos} continuar={aberta.atividade} onGravou={reler} onFechar={fechar} />;
-  } else if (aberta?.modo === "tipo" && aberta.tipo && lancamentoDoTipo(aberta.tipo)) {
+  if (aberta?.modo === "tipo" && aberta.tipo && lancamentoDoTipo(aberta.tipo)) {
     // Presa NESTA área: a área da atividade (o vínculo) cuja área do mapa é a dos detalhes.
     const daArea = areasDaAtividade(aberta.atividade).find((a) => String(a.area_id ?? a.area?.id ?? "") === areaId) ?? null;
     janelas = (
@@ -156,7 +158,7 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
       />
     );
   } else if (aberta?.modo === "diario") {
-    // O mesmo diário da pílula "Manejos" (DiarioDoPasto); ele já relê o resumo da área depois de gravar.
+    // O mesmo diário da pílula "Manejos" e do "+ Lançamento" (DiarioDoPasto); ele já relê o resumo da área depois de gravar.
     janelas = <DiarioDoPasto key={`diario-${aberta.chave}`} area={area} tipos={tipos} atividade={aberta.atividade} onFechar={fechar} />;
   } else if (aberta?.modo === "concluir") {
     janelas = (

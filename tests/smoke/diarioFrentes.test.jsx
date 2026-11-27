@@ -21,12 +21,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, fireEvent, waitFor, cleanup, within, act } from "@testing-library/react";
 
 /** A permissão da sessão: `editar` é a que o "Encerrar atividade" exige (o concluir do backend é `g.editar`). */
-const permissoes = vi.hoisted(() => ({ editar: true }));
+const permissoes = vi.hoisted(() => ({ editar: true, lancar: true }));
 vi.mock("@/hooks/useLancamentoAtividadesSessao", async (importOriginal) => ({
   ...(await importOriginal()),
   useEmpresaRealSelecionadaId: () => "emp-1",
   useFusoDaFazenda: () => ({ hoje: "2026-11-26", fuso: "America/Sao_Paulo", semFuso: false, fusoOk: true }),
-  useAcoesTelaAtividades: () => ({ lancarApontamento: true, editar: permissoes.editar, login: "operador", permissaoEfetiva: { is_admin: false } }),
+  useAcoesTelaAtividades: () => ({ lancarApontamento: permissoes.lancar, editar: permissoes.editar, login: "operador", permissaoEfetiva: { is_admin: false } }),
 }));
 vi.mock("@/lib/AuthContext", async (importOriginal) => ({ ...(await importOriginal()), useAuth: () => ({ clienteId: "c1" }) }));
 vi.mock("@/lib/maikeNotify", async (importOriginal) => ({
@@ -114,7 +114,7 @@ const abertura = ({ bem, bemNome, impl = "", implNome = "", hor, resp = "usr-3",
 const TRATOR_12 = abertura({ bem: "bem-7", bemNome: "Trator 12", impl: "imp-2", implNome: "Pulverizador 2.000 L", hor: "1000.0" });
 const TRATOR_08 = abertura({ bem: "bem-8", bemNome: "Trator 08", hor: "900.0", resp: "usr-4", respNome: "Maria Souza" });
 /** Uma linha de produto CONFIRMADA (a carga). */
-const linhaProduto = (id, nome, quantidade, unidade, jato) => ({ id, status: "CONFIRMADO", produto_id: id, produto: { nome }, quantidade, unidade, jato, createdAt: "2026-11-26T09:10:00.000Z" });
+const linhaProduto = (id, nome, quantidade, unidade, jato, observacao = null) => ({ id, status: "CONFIRMADO", produto_id: id, produto: { nome }, quantidade, unidade, jato, observacao, createdAt: "2026-11-26T09:10:00.000Z" });
 /** Um apontamento CONFIRMADO de um dia, com a observação e as linhas dadas. */
 const ap = (id, dia, observacao, produtos = []) => ({ id, data_operacional: dia, status: "CONFIRMADO", versao: 2, createdAt: `${dia}T09:00:00.000Z`, observacao, produtos, maquinas: [], mao_obra: [], servicos: [] });
 
@@ -126,19 +126,19 @@ let store;
 const comecoDoServidor = () => ({
   "at-1": [
     ap("ap-1", "2026-11-02", TRATOR_12),
-    ap("ap-1h", "2026-11-26", TRATOR_12, [linhaProduto("pl-1", "Glifosato", "10.0000", "L", 1)]),
+    ap("ap-1h", "2026-11-26", TRATOR_12, [linhaProduto("pl-1", "Glifosato", "10.0000", "L", 1, "[carga hor=1100.0]")]),
     ap("ap-2", "2026-11-20", TRATOR_08),
     ap("ap-2h", "2026-11-26", TRATOR_08, [linhaProduto("pl-2", "Ureia", "500.0000", "kg", 1)]),
   ],
   "at-2": [],
 });
 
-/** @param {{ atividadesAbertas?: any[], atividade?: any }} [props] */
+/** @param {{ atividadesAbertas?: any[], atividade?: any, detalhe?: Record<string, unknown> }} [props] */
 const renderizar = (props = {}) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const onFechar = vi.fn();
   const onGravou = vi.fn();
-  const lerAtividade = vi.fn(async (id) => ({ ...DETALHE[/** @type {"at-1" | "at-2"} */ (id)] }));
+  const lerAtividade = vi.fn(async (id) => ({ ...DETALHE[/** @type {"at-1" | "at-2"} */ (id)], ...(props.detalhe ?? {}) }));
   render(
     <QueryClientProvider client={queryClient}>
       <DiarioDasAtividades
@@ -180,6 +180,7 @@ const adicionarMaquina = async () => {
 
 beforeEach(() => {
   permissoes.editar = true;
+  permissoes.lancar = true;
   store = comecoDoServidor();
   servico.listarOpcoesBens.mockResolvedValue(BENS);
   servico.listarOpcoesImplementos.mockResolvedValue(IMPLEMENTOS);
@@ -230,12 +231,15 @@ describe("D-PROD-348 — o passo \"Em andamento neste pasto\" (a) e o passo da a
     expect(within(trator12).getByText("Pulverizador 2.000 L")).toBeInTheDocument();
     expect(within(trator12).getByText("João Pereira")).toBeInTheDocument();
     expect(within(trator12).getByText("1.000,0")).toBeInTheDocument();
-    // "Hoje" conta os lançamentos do dia (a carga de Glifosato), não as horas.
-    expect(within(trator12).getByTestId("frente-hoje")).toHaveTextContent("1 lançamento");
+    // D-PROD-348 (item 1): "Hoje" são as horas do dia: a carga de Glifosato leu 1.100,0 h; a abertura, 1.000,0 h → 100 h.
+    expect(within(trator12).getByTestId("frente-hoje")).toHaveTextContent("100 h");
+    expect(within(trator12).getByTestId("frente-hoje")).not.toHaveTextContent("lançamento");
     const trator08 = screen.getByTestId("frente-at-1-bem-8%7C");
     expect(within(trator08).getByText("Maria Souza")).toBeInTheDocument();
     expect(within(trator08).getByText("900,0")).toBeInTheDocument();
     expect(within(trator08).getByText("—")).toBeInTheDocument();
+    // Ureia hoje sem horímetro na observação: sem leitura do dia, "Nada hoje" (dado ausente).
+    expect(within(trator08).getByTestId("frente-hoje")).toHaveTextContent("Nada hoje");
     expect(screen.getByTestId("atividade-adicionar-maquina")).toHaveTextContent("Adicionar máquina");
     expect(screen.getByTestId("atividade-encerrar")).toHaveTextContent("Encerrar atividade");
   });
@@ -577,5 +581,251 @@ describe("D-PROD-348 — acertos de rótulo, cartão e encerramento (itens 2, 3 
     await waitFor(() => expect(screen.getByTestId(`atividade-encerrar-horimetro-${encodeURIComponent("bem-7|imp-2")}`)).toBeInTheDocument());
     expect(screen.queryByTestId("atividade-encerrar-erro-leitura")).toBeNull();
     expect(screen.getByTestId("atividade-encerrar-confirmar")).toBeEnabled();
+  });
+});
+
+// ─── D-PROD-348 (item 4): reabrir uma frente encerrada ─────
+
+/** Põe no "servidor" o encerramento do Trator 12 + Pulverizador (dia 26, horímetro 1.100,0): a frente fica encerrada. */
+const encerrarNoServidor = (id = "at-1") =>
+  store[id].push(
+    ap("ap-enc-trator12", "2026-11-26", marcadorDoEncerramento({ bemId: "bem-7", implementoId: "imp-2", horimetro: "1100.0", bemNome: "Trator 12", implementoNome: "Pulverizador 2.000 L" })),
+  );
+
+describe("D-PROD-348 — reabrir uma frente encerrada (item 4)", () => {
+  it("(q1) \"Reabrir\" envia a linha [reabertura-servico bem= impl=] (sem operador, sem linhas), relê e a frente volta a Aberto com o horímetro inicial original; não conta como lançamento do dia", async () => {
+    encerrarNoServidor();
+    const { onGravou } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await abrirAtividade();
+    const encerrada = await screen.findByTestId("frente-at-1-bem-7%7Cimp-2");
+    expect(encerrada).toBeDisabled();
+    expect(within(encerrada).getByText("● Encerrado")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("frente-reabrir-at-1-bem-7%7Cimp-2"));
+    await waitFor(() => expect(servico.criarApontamento).toHaveBeenCalledTimes(1));
+    expect(servico.criarApontamento.mock.calls[0]).toEqual(["at-1", { data_operacional: "2026-11-26", observacao: "[reabertura-servico bem=bem-7 impl=imp-2]" }]);
+    expect(servico.criarApontamento.mock.calls[0][1]).not.toHaveProperty("operador_usuario_id");
+    expect(servico.criarApontamento.mock.calls[0][1]).not.toHaveProperty("produtos");
+    expect(servico.criarApontamento.mock.calls[0][1]).not.toHaveProperty("maquinas");
+    await waitFor(() => expect(screen.getByTestId("frente-at-1-bem-7%7Cimp-2")).toBeEnabled());
+    const reaberta = screen.getByTestId("frente-at-1-bem-7%7Cimp-2");
+    expect(within(reaberta).getByText("● Aberto")).toBeInTheDocument();
+    expect(within(reaberta).getByText("1.000,0")).toBeInTheDocument();
+    expect(within(reaberta).getByTestId("frente-hoje")).toBeInTheDocument();
+    expect(screen.queryByTestId("frente-reabrir-at-1-bem-7%7Cimp-2")).toBeNull();
+    expect(onGravou).not.toHaveBeenCalled();
+    expect(notifySuccess).toHaveBeenCalledWith("Sucesso", "Serviço reaberto.");
+  });
+
+  it("(q2) sem permissão de lançar apontamento, a frente encerrada NÃO mostra \"Reabrir\"", async () => {
+    permissoes.lancar = false;
+    encerrarNoServidor();
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await abrirAtividade();
+    await screen.findByTestId("frente-at-1-bem-7%7Cimp-2");
+    expect(screen.queryByTestId("frente-reabrir-at-1-bem-7%7Cimp-2")).toBeNull();
+    expect(servico.criarApontamento).not.toHaveBeenCalled();
+  });
+
+  it("(q3) atividade CONCLUÍDA: a frente encerrada NÃO mostra \"Reabrir\"", async () => {
+    encerrarNoServidor();
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO], detalhe: { status: "CONCLUIDA" } });
+    await abrirAtividade();
+    await screen.findByTestId("frente-at-1-bem-7%7Cimp-2");
+    expect(screen.queryByTestId("frente-reabrir-at-1-bem-7%7Cimp-2")).toBeNull();
+  });
+
+  it("(q4) encerra → reabre → encerra de novo: a frente volta a Encerrado com o horímetro final do último encerramento", async () => {
+    encerrarNoServidor();
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await abrirAtividade();
+    fireEvent.click(await screen.findByTestId("frente-reabrir-at-1-bem-7%7Cimp-2"));
+    await waitFor(() => expect(screen.getByTestId("frente-at-1-bem-7%7Cimp-2")).toBeEnabled());
+    await abrirFrente("bem-7|imp-2");
+    fireEvent.click(screen.getByTestId("servico-encerrar"));
+    fireEvent.change(screen.getByTestId("encerrar-horimetro"), { target: { value: "1.150" } });
+    fireEvent.click(screen.getByTestId("servico-encerrar-confirmar"));
+    expect(await screen.findByTestId("atividade-passo")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("frente-at-1-bem-7%7Cimp-2")).toBeDisabled());
+    const encerradaDeNovo = screen.getByTestId("frente-at-1-bem-7%7Cimp-2");
+    expect(within(encerradaDeNovo).getByText("1.150,0")).toBeInTheDocument();
+    expect(within(encerradaDeNovo).getByText("1.000,0")).toBeInTheDocument();
+    expect(screen.getByTestId("frente-reabrir-at-1-bem-7%7Cimp-2")).toBeInTheDocument();
+    const observacoes = servico.criarApontamento.mock.calls.map((c) => c[1].observacao);
+    expect(observacoes[0]).toBe("[reabertura-servico bem=bem-7 impl=imp-2]");
+    expect(observacoes[1]).toMatch(/^\[encerramento-servico bem=bem-7 impl=imp-2 hor=1150\.0 /);
+  });
+});
+
+// ─── D-PROD-348 (item 5): o tipo exige produção ─────
+
+/** A recusa do concluir por produção, como o transporte a entrega (código no topo, campo e motivo em `details`). */
+const erroDeProducao = () =>
+  Object.assign(new Error("recusado"), { code: "ATIVIDADE_EXIGIDA_PELO_TIPO", details: { entidade: "atividade", field: "quantidade_produzida", reason: "exige_producao" } });
+const TEXTO_PRODUCAO = "Este tipo de atividade exige informar a produção. Informe a quantidade produzida para encerrar.";
+/** D-PROD-352 (item 2): a observação da produção, uma só linha `[producao-encerramento chave=…]`. */
+const CHAVE_DA_PRODUCAO = /^\[producao-encerramento chave=[^\s\]]+\]$/;
+/** As chamadas de criarApontamento que são a PRODUÇÃO (o encerramento não leva quantidade_produzida_dia). */
+const chamadasDeProducao = () => servico.criarApontamento.mock.calls.filter(([, d]) => d.quantidade_produzida_dia !== undefined);
+
+/** Na atividade com as duas frentes abertas: "Encerrar atividade", os dois horímetros finais e "Encerrar atividade" (confirmar). */
+const encerrarAtividadeComDuasFrentes = async () => {
+  await abrirAtividade();
+  await screen.findByTestId("frente-at-1-bem-8%7C");
+  fireEvent.click(screen.getByTestId("atividade-encerrar"));
+  fireEvent.change(screen.getByTestId(`atividade-encerrar-horimetro-${encodeURIComponent("bem-7|imp-2")}`), { target: { value: "1.200,5" } });
+  fireEvent.change(screen.getByTestId(`atividade-encerrar-horimetro-${encodeURIComponent("bem-8|")}`), { target: { value: "950" } });
+  fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+};
+
+describe("D-PROD-348 — o tipo exige produção: a recusa do concluir (item 5)", () => {
+  it("(p1) o concluir recusa por produção: a mensagem clara aparece no painel, a atividade fica aberta, as frentes seguem encerradas e o campo de produção aparece", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
+    const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+
+    expect(await screen.findByTestId("atividade-encerrar-producao-exigida")).toHaveTextContent(TEXTO_PRODUCAO);
+    expect(screen.queryByText(/ATIVIDADE_EXIGIDA_PELO_TIPO|Nada foi gravado/)).toBeNull();
+    expect(screen.getByTestId("atividade-encerrar-producao")).toBeInTheDocument();
+    expect(screen.getByTestId("atividade-encerrar-painel")).toHaveTextContent("Quantidade produzida");
+    expect(servico.concluirAtividade).toHaveBeenCalledTimes(1);
+    expect(onFechar).not.toHaveBeenCalled();
+    expect(notifySuccess).not.toHaveBeenCalledWith("Sucesso", "Atividade encerrada.");
+    // Nada reaberto nem perdido: as duas frentes seguem encerradas (o cabeçalho não tem máquina aberta e os dois
+    // encerramentos desta tentativa ficaram gravados; nenhuma reabertura foi enviada).
+    expect(screen.getByTestId("atividade-topo")).toHaveTextContent("Sem máquina em campo");
+    expect(servico.criarApontamento).toHaveBeenCalledTimes(2);
+    expect(servico.criarApontamento.mock.calls.some((c) => String(c[1].observacao).startsWith("[reabertura-servico"))).toBe(false);
+    expect(servico.criarApontamento.mock.calls.every((c) => c[1].observacao?.startsWith("[encerramento-servico "))).toBe(true);
+  });
+
+  it("(p2) com a unidade da atividade, o rótulo leva a sigla: \"Quantidade produzida (KM)\"", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO], detalhe: { unidade_producao_sigla: "KM" } });
+    await encerrarAtividadeComDuasFrentes();
+    expect(await screen.findByTestId("atividade-encerrar-producao")).toBeInTheDocument();
+    expect(screen.getByTestId("atividade-encerrar-painel")).toHaveTextContent("Quantidade produzida (KM)");
+  });
+
+  it("(p3) \"Encerrar atividade\" sem a quantidade (ou com zero): erro no campo, nada é enviado", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+    await screen.findByTestId("atividade-encerrar-producao");
+    const criacoes = servico.criarApontamento.mock.calls.length;
+
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    expect(await screen.findByText("Informe a quantidade produzida, maior que zero.")).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("atividade-encerrar-producao"), { target: { value: "0" } });
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    expect(await screen.findByText("Informe a quantidade produzida, maior que zero.")).toBeInTheDocument();
+    expect(servico.criarApontamento).toHaveBeenCalledTimes(criacoes);
+    expect(servico.concluirAtividade).toHaveBeenCalledTimes(1);
+  });
+
+  it("(p4) quantidade informada: grava o apontamento com quantidade_produzida_dia de hoje e a chave da tentativa, e conclui de novo com a versão atual", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
+    const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+    fireEvent.change(await screen.findByTestId("atividade-encerrar-producao"), { target: { value: "1.250,5" } });
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+
+    await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
+    const producao = servico.criarApontamento.mock.calls[2];
+    expect(producao).toEqual(["at-1", { data_operacional: "2026-11-26", quantidade_produzida_dia: "1250.5", observacao: expect.stringMatching(CHAVE_DA_PRODUCAO) }]);
+    expect(servico.concluirAtividade).toHaveBeenCalledTimes(2);
+    expect(servico.concluirAtividade.mock.calls[1]).toEqual(["at-1", { versao: 7, data_conclusao: "2026-11-26" }]);
+    expect(notifySuccess).toHaveBeenCalledWith("Sucesso", "Atividade encerrada.");
+  });
+
+  it("(p5) falha de rede no concluir DEPOIS de gravar a produção: tentar de novo não grava a produção outra vez", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao()).mockRejectedValueOnce(new Error("rede"));
+    const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+    fireEvent.change(await screen.findByTestId("atividade-encerrar-producao"), { target: { value: "500" } });
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    await waitFor(() => expect(servico.concluirAtividade).toHaveBeenCalledTimes(2));
+    expect(onFechar).not.toHaveBeenCalled();
+    expect(servico.criarApontamento).toHaveBeenCalledTimes(3);
+
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
+    expect(servico.criarApontamento).toHaveBeenCalledTimes(3);
+    expect(servico.concluirAtividade).toHaveBeenCalledTimes(3);
+  });
+
+  it("(p6) sem a recusa de produção, o encerramento segue igual: nenhum campo de produção aparece", async () => {
+    const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+    await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId("atividade-encerrar-producao")).toBeNull();
+    expect(servico.criarApontamento).toHaveBeenCalledTimes(2);
+  });
+
+  // D-PROD-352 (item 2): a produção leva a chave da tentativa, e uma nova tentativa não a grava em dobro.
+  it("(p7a) a 1ª gravação da produção leva a observação [producao-encerramento chave=…], uma linha só", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
+    const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+    fireEvent.change(await screen.findByTestId("atividade-encerrar-producao"), { target: { value: "500" } });
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
+
+    const producoes = chamadasDeProducao();
+    expect(producoes).toHaveLength(1);
+    expect(producoes[0][1].observacao).toMatch(CHAVE_DA_PRODUCAO);
+    expect(producoes[0][1].observacao.split("\n")).toHaveLength(1);
+  });
+
+  it("(p7b) a resposta do POST da produção se perdeu (o servidor JÁ gravou): a nova tentativa NÃO grava de novo e conclui", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
+    const gravaDeVerdade = servico.criarApontamento.getMockImplementation();
+    servico.criarApontamento.mockImplementation(async (atividadeId, dados) => {
+      if (dados.quantidade_produzida_dia === undefined) return gravaDeVerdade(atividadeId, dados);
+      // O servidor grava, mas a resposta se perde: o POST rejeita e a lista seguinte já traz o apontamento com a chave.
+      store[atividadeId].push(ap(`ap-prod-${store[atividadeId].length}`, dados.data_operacional, dados.observacao));
+      throw new Error("rede");
+    });
+    const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+    fireEvent.change(await screen.findByTestId("atividade-encerrar-producao"), { target: { value: "500" } });
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    await waitFor(() => expect(notifyWarning).toHaveBeenCalledWith("Não foi possível encerrar a atividade", expect.stringContaining("A produção não foi lançada")));
+    expect(onFechar).not.toHaveBeenCalled();
+    expect(chamadasDeProducao()).toHaveLength(1);
+
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
+    // Nenhum POST de produção a mais: a releitura achou a chave e a produção conta como gravada.
+    expect(chamadasDeProducao()).toHaveLength(1);
+    expect(servico.concluirAtividade).toHaveBeenCalledTimes(2);
+    expect(notifySuccess).toHaveBeenCalledWith("Sucesso", "Atividade encerrada.");
+  });
+
+  it("(p7c) a falha que NÃO gravou: a nova tentativa grava de novo, com a MESMA chave", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
+    const gravaDeVerdade = servico.criarApontamento.getMockImplementation();
+    let falhou = false;
+    servico.criarApontamento.mockImplementation(async (atividadeId, dados) => {
+      if (dados.quantidade_produzida_dia !== undefined && !falhou) {
+        falhou = true;
+        throw new Error("rede");
+      }
+      return gravaDeVerdade(atividadeId, dados);
+    });
+    const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+    fireEvent.change(await screen.findByTestId("atividade-encerrar-producao"), { target: { value: "500" } });
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    await waitFor(() => expect(notifyWarning).toHaveBeenCalledWith("Não foi possível encerrar a atividade", expect.stringContaining("A produção não foi lançada")));
+    expect(onFechar).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
+    const producoes = chamadasDeProducao();
+    expect(producoes).toHaveLength(2);
+    // As duas tentativas (a que falhou e a que gravou) usam a mesma chave.
+    expect(producoes[1][1].observacao).toMatch(CHAVE_DA_PRODUCAO);
+    expect(producoes[1][1].observacao).toBe(producoes[0][1].observacao);
+    expect(servico.concluirAtividade).toHaveBeenCalledTimes(2);
   });
 });

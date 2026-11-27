@@ -1,7 +1,8 @@
 import React from "react";
 import { ChevronRight, Plus, Tractor } from "lucide-react";
 import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
-import { apontamentosDaFrente, formatarHorimetro, lancamentosDoDia, resumoDasFrentes, textoDasMaquinasEmCampo } from "@/lib/aberturaServicoRegras";
+import { BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
+import { formatarHorimetro, horasDaFrenteNoDia, resumoDasFrentes, textoDasHorasHoje, textoDasMaquinasEmCampo } from "@/lib/aberturaServicoRegras";
 import { STATUS_AREA } from "@/lib/atividadeAreasRegras";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
 
@@ -32,20 +33,19 @@ export const tituloDaFrente = (abertura) => {
   return abertura?.implementoNome ? `${bem} + ${abertura.implementoNome}` : bem;
 };
 
-/** "Hoje" de uma frente: quantos lançamentos ela teve no dia. @param {number} n */
-const textoDeHoje = (n) => (n === 0 ? "Nada hoje" : n === 1 ? "1 lançamento" : `${n} lançamentos`);
-
 /**
  * Um cartão de FRENTE (máquina + implemento) da atividade. Aberta é tocável (abre o serviço dela); encerrada não (cartão
  * desabilitado, sem seta, com o horímetro final no lugar de "Hoje").
- * @param {{ id: string, frente: { chave: string, abertura: any, encerrada: boolean, horimetroFinal: string }, lancamentosHoje: number, ocupado: boolean, onAbrir: (chave: string) => void }} props
+ * D-PROD-348 (item 1): o "Hoje" é as horas trabalhadas no dia (`horasHoje`, de `horasDaFrenteNoDia`); sem elas, "Nada hoje".
+ * D-PROD-348 (item 4): numa frente ENCERRADA, o botão "Reabrir" (fora do cartão, que é um botão) quando `onReabrir` vier.
+ * @param {{ id: string, frente: { chave: string, abertura: any, encerrada: boolean, horimetroFinal: string }, horasHoje: string | null, ocupado: boolean, onAbrir: (chave: string) => void, onReabrir?: (chave: string) => void }} props
  */
-export function CartaoDaFrente({ id, frente, lancamentosHoje, ocupado, onAbrir }) {
+export function CartaoDaFrente({ id, frente, horasHoje, ocupado, onAbrir, onReabrir = undefined }) {
   const { abertura, chave, encerrada, horimetroFinal } = frente;
   const titulo = abertura.bemNome || "Máquina";
   return (
-    <li>
-      <button type="button" className="frente-card" disabled={encerrada || ocupado} onClick={() => onAbrir(chave)} data-testid={`frente-${id}-${encodeURIComponent(chave)}`}>
+    <li className="frente-item">
+      <button type="button" className={encerrada && onReabrir ? "frente-card frente-card--com-acao" : "frente-card"} disabled={encerrada || ocupado} onClick={() => onAbrir(chave)} data-testid={`frente-${id}-${encodeURIComponent(chave)}`}>
         <span className="frente-card__ic" aria-hidden>
           <Tractor size={18} strokeWidth={1.75} />
         </span>
@@ -75,13 +75,18 @@ export function CartaoDaFrente({ id, frente, lancamentosHoje, ocupado, onAbrir }
             ) : (
               <span data-testid="frente-hoje">
                 <i>Hoje</i>
-                {textoDeHoje(lancamentosHoje)}
+                {textoDasHorasHoje(horasHoje)}
               </span>
             )}
           </span>
         </span>
         {encerrada ? null : <ChevronRight className="seta" size={18} aria-hidden />}
       </button>
+      {encerrada && onReabrir ? (
+        <button type="button" className={`${BOTAO_SECUNDARIO} frente-reabrir`} onClick={() => onReabrir(chave)} disabled={ocupado} data-testid={`frente-reabrir-${id}-${encodeURIComponent(chave)}`}>
+          Reabrir
+        </button>
+      ) : null}
     </li>
   );
 }
@@ -126,11 +131,11 @@ export function CartaoDaAtividade({ atividade, frentes, ocupado, onTocar }) {
  * entra no lugar da lista quando a pessoa está encerrando. Lendo, erro e aviso vêm das props.
  * @param {{
  *   atividade: any, nome: string, pasto: string, frentes: any[], apontamentos: any[], lendo: boolean, erro: boolean,
- *   hoje: string, fuso: string | null, ocupado: boolean, painel?: import('react').ReactNode,
- *   onAbrirFrente: (chave: string) => void, onAdicionar: () => void,
+ *   hoje: string, ocupado: boolean, painel?: import('react').ReactNode,
+ *   onAbrirFrente: (chave: string) => void, onAdicionar: () => void, onReabrirFrente?: (chave: string) => void,
  * }} props
  */
-export default function AtividadeComFrentes({ atividade, nome, pasto, frentes, apontamentos, lendo, erro, hoje, fuso, ocupado, painel = null, onAbrirFrente, onAdicionar }) {
+export default function AtividadeComFrentes({ atividade, nome, pasto, frentes, apontamentos, lendo, erro, hoje, ocupado, painel = null, onAbrirFrente, onAdicionar, onReabrirFrente = undefined }) {
   const id = String(atividade?.id ?? "");
   const maquinas = lendo || erro ? "—" : textoDasMaquinasEmCampo(resumoDasFrentes(frentes).abertas);
   const inicio = diaComAno(atividade?.data_inicio);
@@ -177,9 +182,10 @@ export default function AtividadeComFrentes({ atividade, nome, pasto, frentes, a
                     key={f.chave}
                     id={id}
                     frente={f}
-                    lancamentosHoje={lancamentosDoDia(apontamentosDaFrente(apontamentos, f.chave), hoje, fuso).length}
+                    horasHoje={horasDaFrenteNoDia(apontamentos, f.chave, hoje, f.abertura.horimetro)}
                     ocupado={ocupado}
                     onAbrir={onAbrirFrente}
+                    onReabrir={onReabrirFrente}
                   />
                 ))}
               </ul>
