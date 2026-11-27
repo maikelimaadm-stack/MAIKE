@@ -27,6 +27,7 @@
  * qualquer regra rodar.
  */
 
+import { criarComIdDoAparelho, foiExcluidoNoHistorico, idDoAparelhoDe } from '../../shared/idempotency/idDoAparelho.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
@@ -221,7 +222,8 @@ export const listarPagina = async (contexto, query = {}) => {
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {Record<string, unknown>} entrada
  */
-export const criar = async (contexto, entrada) => {
+/** @param {any} contexto @param {Record<string, unknown>} entrada @param {string|null} idDoAparelho */
+const criarComId = async (contexto, entrada, idDoAparelho) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
 
@@ -233,6 +235,7 @@ export const criar = async (contexto, entrada) => {
     });
 
     const registro = await inserirSetor(tx, {
+      ...(idDoAparelho ? { id: idDoAparelho } : {}),
       ...camposDe(entrada),
       cliente_id: auth.clienteId,
       numero_setor: String(numero),
@@ -255,6 +258,29 @@ export const criar = async (contexto, entrada) => {
   });
 
   return criado;
+};
+
+/**
+ * D-PROD-353 — cria com o id gerado no aparelho (como lote e cocho, D-PROD-308): repetir a MESMA criação (resposta
+ * perdida com o sinal fraco, app fechado no meio) devolve o registro já criado em vez de gravar outro em dobro.
+ * Sem id do aparelho, o servidor gera o id, como antes.
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {Record<string, unknown>} entrada
+ */
+export const criar = async (contexto, entrada) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const { registro } = await criarComIdDoAparelho({
+    id: idDoAparelhoDe(entrada?.id),
+    clienteId: auth.clienteId,
+    entidade: 'Setor',
+    buscar: async (id) => {
+      const registro = await getPrismaClient().setor.findUnique({ where: { id } });
+      if (registro) return { cliente_id: registro.cliente_id, registro: registro.cliente_id === auth.clienteId ? comoSetorPublico(registro) : null };
+      return (await foiExcluidoNoHistorico(auth.clienteId, 'Setor', id)) ? { cliente_id: auth.clienteId, excluido: true, registro: null } : null;
+    },
+    criar: (id) => criarComId(contexto, entrada, id),
+  });
+  return registro;
 };
 
 /**

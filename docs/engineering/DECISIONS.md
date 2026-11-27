@@ -10653,4 +10653,18 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` indicou D-PROD-351, que a PR #439 (aberta) já usa; esta ficou com D-PROD-352 e o marcador passa a D-PROD-353.
 
-<!-- Próxima decisão: D-PROD-353 -->
+## D-PROD-353 — O código do aparelho também em área, ponto de referência, linha e setor: com o sinal fraco, nada em dobro
+
+**Data:** 2026-11-27 · **Origem:** pendência da sincronização (auditoria do servidor, D2), pedida pelo proprietário ("consegue ir resolvendo todos esses bugs sem parar?") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`ID-DO-APARELHO-CADASTROS-D353-REPORT.md`](./ID-DO-APARELHO-CADASTROS-D353-REPORT.md)
+
+**Decisão.**
+1. **A criação de área, ponto de referência, linha e setor aceita o id gerado no aparelho** (UUID, `criarComIdDoAparelho`, como o lote e o cocho na D-PROD-308):
+   - a mesma criação repetida devolve o registro já criado, com o mesmo número;
+   - o mesmo id em outra conta dá 409 `ID_DO_APARELHO_EM_USO`, sem dizer de quem;
+   - criado e depois excluído dá 409 `ID_DO_APARELHO_EXCLUIDO` e não recria;
+   - sem id, o servidor gera o id, como antes.
+2. **No app, as quatro portas pedem o id do aparelho** (`idDoAparelho: true`) e o mandam na criação. Antes, com o sinal fraco, a resposta da criação se perdia, o app mandava de novo e o servidor gravava um segundo registro.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`bafa269b2`) indicou D-PROD-353. O marcador passa a D-PROD-354. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-354 -->

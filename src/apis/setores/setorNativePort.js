@@ -42,6 +42,7 @@
  * o servidor recusaria para sempre.
  */
 
+import { eIdDoAparelho } from '@/lib/offline/idDoAparelho';
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import {
   createOfflineEntityAdapter,
@@ -147,7 +148,8 @@ export const operacoesNativas = Object.freeze({
   create: (dados) =>
     nativeRequest(
       CAMINHO,
-      { method: 'POST', body: corpoDeEnvio(dados, CAMPOS_DE_CRIACAO), autenticado: true },
+      // D-PROD-353: o id gerado no aparelho vai junto (repetir a criação devolve o mesmo setor).
+      { method: 'POST', body: { ...corpoDeEnvio(dados, CAMPOS_DE_CRIACAO), ...(eIdDoAparelho(/** @type {any} */ (dados)?.id) ? { id: /** @type {any} */ (dados).id } : {}) }, autenticado: true },
       ctx('createSetor')
     ),
 
@@ -179,6 +181,8 @@ export const setorPort = createOfflineEntityAdapter({
   // fila, a operação enfileirada por um cliente seria aplicada dentro de outro
   // que entrasse depois no mesmo navegador. Ver D-PROD-25 §L.
   tenantScoped: true,
+  // D-PROD-353: nasce com o id definitivo (UUID); com o sinal fraco, repetir a criação não grava em dobro.
+  idDoAparelho: true,
 });
 
 // D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes

@@ -33,6 +33,7 @@
  * possível do campo seja o setor lido no servidor.
  */
 
+import { SCHEMA_ID_DO_APARELHO } from '../../shared/idempotency/idDoAparelho.js';
 import { SCHEMA_VERSAO_ESPERADA } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, renumerar } from './areaPastagemService.js';
@@ -101,7 +102,8 @@ const CRIAR_SCHEMA = {
     type: 'object',
     required: ['empresa_id', 'setor_id', 'nome', 'tamanho_hectares'],
     additionalProperties: false,
-    properties: { ...CAMPOS },
+    // D-PROD-353: o id gerado no aparelho (repetir a criação devolve a mesma área).
+    properties: { ...CAMPOS, id: SCHEMA_ID_DO_APARELHO },
   },
 };
 

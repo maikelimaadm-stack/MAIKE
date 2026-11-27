@@ -49,6 +49,7 @@
  * setor da área.
  */
 
+import { criarComIdDoAparelho, foiExcluidoNoHistorico, idDoAparelhoDe } from '../../shared/idempotency/idDoAparelho.js';
 import { exigirVersaoEsperada, separarVersaoEsperada } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -359,7 +360,8 @@ export const listar = async (contexto) => {
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {Record<string, unknown>} entrada
  */
-export const criar = async (contexto, entrada) => {
+/** @param {any} contexto @param {Record<string, unknown>} entrada @param {string|null} idDoAparelho */
+const criarComId = async (contexto, entrada, idDoAparelho) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
 
@@ -382,6 +384,7 @@ export const criar = async (contexto, entrada) => {
     });
 
     const registro = await inserirArea(tx, {
+      ...(idDoAparelho ? { id: idDoAparelho } : {}),
       ...campos,
       cliente_id: auth.clienteId,
       numero_area: String(numero),
@@ -405,6 +408,29 @@ export const criar = async (contexto, entrada) => {
     const [comGado] = await comOcupacao(auth.clienteId, [publico], { tx });
     return comGado;
   });
+};
+
+/**
+ * D-PROD-353 — cria com o id gerado no aparelho (como lote e cocho, D-PROD-308): repetir a MESMA criação (resposta
+ * perdida com o sinal fraco, app fechado no meio) devolve o registro já criado em vez de gravar outro em dobro.
+ * Sem id do aparelho, o servidor gera o id, como antes.
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {Record<string, unknown>} entrada
+ */
+export const criar = async (contexto, entrada) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const { registro } = await criarComIdDoAparelho({
+    id: idDoAparelhoDe(entrada?.id),
+    clienteId: auth.clienteId,
+    entidade: 'AreaPastagem',
+    buscar: async (id) => {
+      const registro = await getPrismaClient().areaPastagem.findUnique({ where: { id } });
+      if (registro) return { cliente_id: registro.cliente_id, registro: registro.cliente_id === auth.clienteId ? (await comOcupacao(auth.clienteId, [comoAreaPublica(registro)]))[0] : null };
+      return (await foiExcluidoNoHistorico(auth.clienteId, 'AreaPastagem', id)) ? { cliente_id: auth.clienteId, excluido: true, registro: null } : null;
+    },
+    criar: (id) => criarComId(contexto, entrada, id),
+  });
+  return registro;
 };
 
 /**

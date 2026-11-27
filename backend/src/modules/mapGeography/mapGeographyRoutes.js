@@ -3,6 +3,7 @@
  * PontoReferencia e LinhaGeografica.
  */
 
+import { SCHEMA_ID_DO_APARELHO } from '../../shared/idempotency/idDoAparelho.js';
 import { SCHEMA_VERSAO_ESPERADA } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { schemaMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -196,7 +197,8 @@ const CRIAR_PONTO_SCHEMA = {
     type: 'object',
     required: ['empresa_id', 'nome', 'tipo'],
     additionalProperties: false,
-    properties: { ...CAMPOS_PONTO },
+    // D-PROD-353: o id gerado no aparelho (repetir a criação devolve o mesmo ponto).
+    properties: { ...CAMPOS_PONTO, id: SCHEMA_ID_DO_APARELHO },
   },
 };
 
@@ -232,7 +234,8 @@ const CRIAR_LINHA_SCHEMA = {
     type: 'object',
     required: ['empresa_id', 'nome', 'tipo'],
     additionalProperties: false,
-    properties: { ...CAMPOS_LINHA },
+    // D-PROD-353: o id gerado no aparelho (repetir a criação devolve a mesma linha).
+    properties: { ...CAMPOS_LINHA, id: SCHEMA_ID_DO_APARELHO },
   },
 };
 
