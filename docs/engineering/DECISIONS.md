@@ -10732,4 +10732,15 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-357 (354 reservado pela PR #443, 355 da PR #442, 356 reservado pela PR #444). O marcador passa a D-PROD-358. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-358 -->
+## D-PROD-358 — A tela da tarefa manda a versão que a pessoa viu (sem falso "alterado por outra pessoa")
+
+**Data:** 2026-11-27 · **Origem:** pendência da D-PROD-344 (o servidor já conferia, a tela não mandava), pedida pelo proprietário · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`VERSAO-NA-TAREFA-D358-REPORT.md`](./VERSAO-NA-TAREFA-D358-REPORT.md)
+
+**Decisão.**
+1. **A tela de detalhes da tarefa e a lista de tarefas mandam `versao_esperada`** ao salvar a edição e ao mudar o status. O registro só de histórico não confere, como na D-PROD-344. Antes, duas pessoas editando a mesma tarefa, uma delas sem internet, apagavam a edição uma da outra sem aviso.
+2. **A foto que sobe com a tela aberta atualiza a versão da tela.** O aviso das fotos enviadas (D-PROD-335) passa a levar também o `updated_date` da tarefa. A lista guarda essa versão para o formulário aberto. Era isso que segurava a D-PROD-344: sem esse cuidado, a edição seguinte daria um falso conflito.
+3. **A cópia montada sem internet não manda versão** (`versaoVista`: `_isOffline` → nada). A hora dela é local, e mandá-la daria um falso conflito depois que a fila sobe. A fila sem internet já cuida da ordem (D-PROD-316). A mesma regra passa a valer nos formulários de área, ponto e linha (D-PROD-344).
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-358 (356 reservado pela PR #444, 357 pela PR #445). O marcador passa a D-PROD-359. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-359 -->

@@ -1,5 +1,6 @@
 import "@/styles/mapa-cadastro-formularios.css";
 /* global google */
+import { versaoVista } from "@/lib/offline/versaoVista";
 import React, { useEffect, useId, useMemo, useState } from "react";
 import {
   listarIconesPorTipoEntidade,
@@ -449,7 +450,7 @@ export default function FormularioPonto({
 
       const pontoReferencia = item ?
       // D-PROD-344: a versão do ponto que a pessoa abriu; o servidor só grava se ele ainda está nela.
-      await atualizarPonto(item.id, item.updated_date ? { ...payloadPonto, versao_esperada: item.updated_date } : payloadPonto) :
+      await atualizarPonto(item.id, { ...payloadPonto, ...versaoVista(item) }) :
       await criarPonto(payloadPonto);
       const pontoReferenciaId = pontoReferencia?.id || item?.id;
       /** Local do depósito NOVO, criado pelo servidor junto com o depósito. */

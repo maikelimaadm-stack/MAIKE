@@ -35,11 +35,12 @@ describe('D-PROD-344 — a versão vai ao servidor', () => {
     ]);
   });
 
+  // D-PROD-358: os formulários usam `versaoVista` (a cópia montada sem internet não manda versão).
   it('VA-03 os formulários passam a versão do registro aberto', async () => {
     const fs = await import('node:fs');
     for (const arquivo of ['src/components/mapa/FormularioArea.jsx', 'src/components/mapa/FormularioLinha.jsx']) {
-      expect(fs.readFileSync(arquivo, 'utf8')).toMatch(/item\.updated_date \? \{ versao_esperada: item\.updated_date \}/);
+      expect(fs.readFileSync(arquivo, 'utf8')).toMatch(/\.\.\.versaoVista\(item\)/);
     }
-    expect(fs.readFileSync('src/components/mapa/FormularioPonto.jsx', 'utf8')).toMatch(/atualizarPonto\(item\.id, item\.updated_date \? \{ \.\.\.payloadPonto, versao_esperada: item\.updated_date \}/);
+    expect(fs.readFileSync('src/components/mapa/FormularioPonto.jsx', 'utf8')).toMatch(/atualizarPonto\(item\.id, \{ \.\.\.payloadPonto, \.\.\.versaoVista\(item\) \}\)/);
   });
 });
