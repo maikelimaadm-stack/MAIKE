@@ -14,7 +14,7 @@ import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import { lerErroGestao } from '@/lib/gestaoErros';
 import { lerNumeroLocal } from '@/lib/dinheiroDecimal';
 import { formatarQtd } from '@/lib/estoqueConsultaRegras';
-import { LIMITES_ENTRADA, LOCALE_ENTRADA, paraCampo } from '@/lib/estoqueEntradasRegras';
+import { LIMITES_ENTRADA, LOCALE_ENTRADA, paraCampo, produtoDaLinhaGravada, unidadeEstoqueDe } from '@/lib/estoqueEntradasRegras';
 import { mensagemRecusaRecalculo } from '@/lib/estoqueRecalculoExclusao';
 import { corpoDosLotes } from './estoqueLotesRegras.js';
 
@@ -112,7 +112,7 @@ const opcaoOuNada = (id, nome) => (id ? { id: String(id), rotulo: String(nome ??
 export const formularioDaSaida = (s) => {
   const itens = (Array.isArray(s?.itens) ? s.itens : []).map((/** @type {any} */ i) => ({
     ...linhaVaziaSaida(),
-    produto: { id: String(i.produto_id), rotulo: String(i.produto_nome ?? ''), unidade_estoque: i.unidade_estoque === 'L' ? 'L' : 'KG', peso_por_saco_kg: i.unidade === 'SACO' ? (i.fator_kg ?? null) : null, unidades_conversao: !['KG', 'L', 'SACO'].includes(String(i.unidade)) && i.fator_kg ? [{ sigla: String(i.unidade), operacao: 'MULTIPLICA', fator: String(i.fator_kg), ativa: true }] : [] },
+    produto: produtoDaLinhaGravada(i),
     deposito: { id: String(i.local_estoque_id), rotulo: String(i.local_estoque_nome ?? '') },
     unidade: String(i.unidade ?? ''),
     quantidade: i.quantidade != null ? paraCampo(i.quantidade) : '',
@@ -182,7 +182,7 @@ const naLinha = (details, itens) => {
   if (indice == null) return { linha: '', unidade: undefined };
   const l = itens[indice];
   const nomes = [l?.produto?.rotulo, l?.deposito?.rotulo].filter(Boolean);
-  const unidade = l?.produto?.unidade_estoque === 'L' ? 'L' : l?.produto ? 'KG' : undefined;
+  const unidade = l?.produto ? unidadeEstoqueDe(l.produto) : undefined;
   return { linha: `linha ${indice + 1}${nomes.length === 2 ? ` (${nomes[0]} em ${nomes[1]})` : nomes.length ? ` (${nomes[0]})` : ''}`, unidade };
 };
 

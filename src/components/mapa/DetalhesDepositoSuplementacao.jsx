@@ -240,14 +240,17 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
       if (quantidade <= 0) return;
       const produto = produtos.find((item) => item.id === lote.produto_id);
       const emLitros = produto?.unidade_principal_estoque === "L";
-      const pesoPorSaco = emLitros ? 0 : Number(produto?.peso_por_saco_kg || 0);
+      // D-PROD-371 (trava até a UE-3): estoque noutra unidade (SC, UN...) também fica fora do saldo em kg, com a sigla.
+      const unidadeDoProduto = String(produto?.unidade_principal_estoque ?? "").trim().toUpperCase();
+      const foraDoKg = emLitros || (Boolean(unidadeDoProduto) && unidadeDoProduto !== "KG" && unidadeDoProduto !== "SACO");
+      const pesoPorSaco = foraDoKg ? 0 : Number(produto?.peso_por_saco_kg || 0);
       const current = mapa.get(lote.produto_id) || {
         produto_id: lote.produto_id,
         produto_nome: produto?.nome_produto || lote.produto_nome || "Produto sem nome",
         saldo: 0,
         saldoSacos: 0,
         unidadeConfirmada: Boolean(produto),
-        ...(emLitros ? { emLitros: true } : {})
+        ...(foraDoKg ? { emLitros: true, unidade: emLitros ? "L" : unidadeDoProduto } : {})
       };
       current.saldo += quantidade;
       current.saldoSacos += pesoPorSaco > 0 ? kgParaSacos(quantidade, pesoPorSaco) : 0;
@@ -447,7 +450,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
                     {saldosAgrupados.emLitros.length > 0 ? (
                       <div role="group" aria-labelledby={idGrupoLitros} className="mk-dp-deposito__litros">
                         <p id={idGrupoLitros} className="mk-dp-deposito__litros-tit">
-                          Em litros (fora do saldo em kg)
+                          {saldosAgrupados.emLitros.every((item) => item.unidade === "L") ? "Em litros (fora do saldo em kg)" : "Em litros ou outra unidade (fora do saldo em kg)"}
                         </p>
                         {saldosAgrupados.emLitros.map((item) => (
                           <LinhaSaldoProduto key={item.produto_id} item={item} />
@@ -588,7 +591,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
 }
 
 /**
- * @typedef {{ produto_id: string, produto_nome: string, saldo: number, saldoSacos: number, unidadeConfirmada: boolean, emLitros?: boolean }} SaldoProduto
+ * @typedef {{ produto_id: string, produto_nome: string, saldo: number, saldoSacos: number, unidadeConfirmada: boolean, emLitros?: boolean, unidade?: string }} SaldoProduto
  */
 
 /**
@@ -613,7 +616,7 @@ function LinhaSaldoProduto({ item, totalKg = 0 }) {
     </>
   );
   const valor = item.emLitros ? (
-    <span data-testid={`saldo-litros-${item.produto_id}`}>{`${formatDecimal(item.saldo)} L`}</span>
+    <span data-testid={`${!item.unidade || item.unidade === "L" ? "saldo-litros" : "saldo-outra"}-${item.produto_id}`}>{`${formatDecimal(item.saldo)} ${item.unidade || "L"}`}</span>
   ) : (
     formatarKgNivel(item.saldo)
   );
@@ -708,15 +711,18 @@ function destinoDaSaida(mov, cochosPorId) {
 function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId, acaoDeCancelar = null }) {
   const entrada = ehEntradaNoDeposito(mov, localEstoqueId);
   const emLitros = mov?.unidade_medida === "L";
+  // D-PROD-371: o rótulo real do movimento (SC, UN...); KG, o SACO legado e o vazio continuam "kg".
+  const siglaDoMovimento = String(mov?.unidade_medida ?? "").trim().toUpperCase();
+  const unidade = emLitros ? "L" : siglaDoMovimento && siglaDoMovimento !== "KG" && siglaDoMovimento !== "SACO" ? siglaDoMovimento : "kg";
   // D-PROD-301: o que espera envio vem sem o nome do produto (o envio não leva): pelo cadastro.
   const nomeDoProduto = mov?.produto_nome || produtosPorId.get(mov?.produto_id)?.nome_produto || "";
-  const pesoPorSaco = emLitros ? 0 : Number(produtosPorId.get(mov?.produto_id)?.peso_por_saco_kg || 0);
+  const pesoPorSaco = unidade !== "kg" ? 0 : Number(produtosPorId.get(mov?.produto_id)?.peso_por_saco_kg || 0);
   // D-PROD-313: digitada numa unidade de conversão (D-PROD-310) → "3 SC" no lugar dos sacos pelo peso do cadastro.
   const digitada = textoDaUnidadeDigitada(mov);
   const linhas = [
     entrada ? { rotulo: "Origem", valor: mov?.local_origem || VAZIO } : { rotulo: "Destino", valor: destinoDaSaida(mov, cochosPorId) },
     { rotulo: "Produto", valor: nomeDoProduto || VAZIO },
-    { rotulo: emLitros ? "Quantidade (L)" : "Quantidade (kg)", valor: fmtNumero(mov?.quantidade ?? 0, 2) },
+    { rotulo: `Quantidade (${unidade})`, valor: fmtNumero(mov?.quantidade ?? 0, 2) },
     digitada
       ? { rotulo: "Digitado como", valor: digitada }
       : { rotulo: "Sacos", valor: pesoPorSaco > 0 ? fmtNumero(kgParaSacos(mov?.quantidade, pesoPorSaco), 2) : VAZIO },
@@ -725,7 +731,6 @@ function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId,
   if (observacoes) linhas.push({ rotulo: "Observações", valor: observacoes });
   // v13 (cartão curto): a quantidade com sinal à direita (verde na entrada, vermelho na saída),
   // os sacos embaixo dela, e na linha de baixo do título o produto com a origem/destino.
-  const unidade = emLitros ? "L" : "kg";
   const qtdTexto = `${entrada ? "+" : "−"}${fmtNumero(mov?.quantidade ?? 0, 2).replace(/,00$/, "")} ${unidade}`;
   const sacos = digitada || (pesoPorSaco > 0 ? `${fmtNumero(kgParaSacos(mov?.quantidade, pesoPorSaco), 2)} sacos` : null);
   const lugar = entrada ? (mov?.local_origem ? `de ${mov.local_origem}` : "") : destinoDaSaida(mov, cochosPorId);

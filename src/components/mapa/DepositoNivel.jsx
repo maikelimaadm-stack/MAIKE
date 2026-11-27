@@ -10,6 +10,8 @@ const ROTULO_NIVEL = "Nível do depósito";
 const ROTULO_OCUPACAO_LIMITE = "Ocupação do limite operacional";
 const ROTULO_ESTOQUE_MINIMO = "Estoque mínimo";
 const AVISO_PRODUTOS_EM_LITROS = "Produtos em litros ficam fora do saldo em kg e do percentual.";
+/** D-PROD-371: produto com estoque noutra unidade (SC, UN...) também fica fora, até o cocho contar pelo peso dela. */
+const AVISO_PRODUTOS_FORA_DO_KG = "Produtos com estoque em outra unidade (não kg) ficam fora do saldo em kg e do percentual.";
 const ORIENTACAO_SEM_MINIMO = "Configure o estoque mínimo no cadastro do ponto para o mapa avisar a reposição.";
 
 /**
@@ -133,6 +135,7 @@ export default function DepositoNivel({ nivel, saldoSacos = null, necessidadeSac
 
       {nivel.mensagemUnidade ? <Aviso>{nivel.mensagemUnidade}</Aviso> : null}
       {nivel.lotesEmLitrosIgnorados > 0 ? <Aviso tom="neutro">{AVISO_PRODUTOS_EM_LITROS}</Aviso> : null}
+      {nivel.lotesForaDoKgIgnorados > 0 ? <Aviso tom="neutro">{AVISO_PRODUTOS_FORA_DO_KG}</Aviso> : null}
     </section>
   );
 }

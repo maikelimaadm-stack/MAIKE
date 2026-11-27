@@ -108,14 +108,14 @@ describe("Produtos — rollout MotorBase1", () => {
     expect(firstCall[0]).toBe("emp-1");
   });
 
-  it("D-PROD-162: o formulário oferece KG, SACOS e LITROS (L) como unidade principal de estoque", async () => {
+  it("D-PROD-162 / D-PROD-371: a unidade de estoque é a Unidade de Medida do cadastro (KG, L, SC...); sem o seletor separado KG/SACO/L", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const code = fs.readFileSync(path.join(process.cwd(), "src/components/produtos/FormularioProduto.jsx"), "utf8");
-    expect(code).toMatch(/<option value="KG">/);
-    expect(code).toMatch(/<option value="SACO">/);
-    expect(code).toMatch(/<option value="L">\{ROTULO_UNIDADE_ESTOQUE\.L\}<\/option>/);
-    expect(code).toMatch(/L: "LITROS \(L\)"/);
+    expect(code).toMatch(/export const unidadePrincipalDoFormulario/);
+    expect(code).toMatch(/unidade_principal_estoque: unidadePrincipal/);
+    expect(code).not.toMatch(/<option value="SACO">/);
+    expect(code).not.toMatch(/Unidade principal de estoque/);
   });
 
   it("grade usa preset integrado, storageKey histórico e badge ativo SSOT", async () => {

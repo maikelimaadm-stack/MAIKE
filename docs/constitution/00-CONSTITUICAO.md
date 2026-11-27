@@ -166,6 +166,20 @@ D-PROD-162 acima ("exatamente a quantidade digitada, na unidade de estoque do Pr
 nenhuma conversão entre unidades") continua valendo para ele, inteira. Texto proposto na SPEC de unidades (§7) e **aprovado
 pelo proprietário em 2026-11-25** ("Aprovo: cocho, transferência e atividade").
 
+**Emenda aprovada pelo proprietário (D-PROD-371):** **Estoque na unidade do cadastro do produto.** A unidade de estoque
+do produto é a sua Unidade de Medida, uma sigla ativa do cadastro de Unidades (KG, L, SC, UN, CX...). Saldo, custo
+médio, lotes, recálculo e a quantidade de todo movimento ficam nessa unidade. As unidades de conversão do cadastro
+(D-PROD-288) valem a partir dela. KG, L e UN podem ser conversão, mas a conversão entre KG e L continua proibida nos dois
+sentidos. A unidade de estoque só muda enquanto o produto não tem lote, movimento nem item de lançamento. Onde esta
+Constituição e as decisões D-PROD-162, D-PROD-184 (M3) e D-PROD-288 dizem que o estoque fica "em KG ou L" (ou no domínio
+{KG, SACO, L}), vale esta regra; o SACO legado continua guardando kg até o produto ser editado.
+- **Sem mudança:** o abastecimento. Ele segue a revisão D-PROD-162 acima, só L ou KG e sem conversão, inteira.
+- **Contas de peso** (cocho, depósito e formulação): usam o "kg por unidade de estoque" do produto, que é 1 em KG, o
+  peso do saco no SACO legado ou o fator da conversão KG do cadastro. Produto sem esse fator não entra no cocho.
+- **Sem mudança:** a mistura do implemento, que continua em L ou KG (D-PROD-323).
+- **Origem:** texto proposto na SPEC `MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md` e **aprovado pelo proprietário em
+  2026-11-27** ("Estoque na unidade que eu escolher"; "Aprovo a emenda"; cocho e depósito: "Usar a conversão para KG").
+
 **Expansão autorizada pelo proprietário (D-PROD-193):** **Apontamento de Atividade — itens** (página
 `ApontamentosAtividade`, Fatia D do apontamento). O apontamento confirmado recebe itens de custo. O item
 **PRODUTO** baixa do estoque **exatamente** a quantidade digitada, na unidade de estoque do Produto, pelo motor de

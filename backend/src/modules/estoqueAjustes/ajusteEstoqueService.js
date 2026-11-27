@@ -15,7 +15,7 @@
  * ORDEM DAS TRAVAS: recibo → Empresa FOR SHARE (o "hoje") → (exclusão: cabeçalho FOR UPDATE) →
  * LocalEstoque FOR KEY SHARE → Produto (`travarProdutosEstoque`) → camadas → movimentos → sequências.
  */
-import { SELECT_CONVERSOES } from '../produtos/produtoUnidadesConversao.js';
+import { SELECT_CONVERSOES, unidadeEstoqueEfetiva } from '../produtos/produtoUnidadesConversao.js';
 import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -75,7 +75,7 @@ const comoItem = (i) => ({
   contado_estoque: d4(i.contado_estoque),
   saldo_anterior: d4(i.saldo_anterior),
   diferenca: d4(i.diferenca),
-  unidade_estoque: i.produto?.unidade_principal_estoque === 'L' ? 'L' : 'KG',
+  unidade_estoque: unidadeEstoqueEfetiva(i.produto),
   tipo: i.tipo,
   custo_unitario: c4(i.custo_unitario),
   custo_informado: i.custo_informado,
@@ -167,7 +167,7 @@ export const saldoDoDeposito = async (contexto, query = {}) => {
     if (!local) throw invalido422('local_estoque_id', 'local_inexistente', 'depósito não encontrado');
     const poco = await pocoDoDeposito(tx, cli, empresaId, produto.id, local.id);
     return {
-      produto_id: produto.id, local_estoque_id: local.id, unidade_estoque: produto.unidade_principal_estoque === 'L' ? 'L' : 'KG',
+      produto_id: produto.id, local_estoque_id: local.id, unidade_estoque: unidadeEstoqueEfetiva(produto),
       saldo: d4(poco.quantidade), custo_medio: poco.custoMedio === null ? null : c4(poco.custoMedio),
     };
   });

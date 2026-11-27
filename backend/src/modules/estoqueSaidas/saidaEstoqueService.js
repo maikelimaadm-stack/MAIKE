@@ -23,7 +23,7 @@
  * ORDEM DAS TRAVAS: recibo → Empresa FOR SHARE (o "hoje") → (edição e exclusão: cabeçalho FOR UPDATE) →
  * LocalEstoque FOR KEY SHARE → Produto (`travarProdutosEstoque`) → camadas → movimentos → sequências.
  */
-import { SELECT_CONVERSOES } from '../produtos/produtoUnidadesConversao.js';
+import { SELECT_CONVERSOES, unidadeEstoqueEfetiva } from '../produtos/produtoUnidadesConversao.js';
 import { randomUUID } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -88,7 +88,7 @@ const comoItem = (i) => ({
   quantidade: d4(i.quantidade),
   fator_kg: d4(i.fator_kg),
   quantidade_estoque: d4(i.quantidade_estoque),
-  unidade_estoque: i.produto?.unidade_principal_estoque === 'L' ? 'L' : 'KG',
+  unidade_estoque: unidadeEstoqueEfetiva(i.produto),
   custo_unitario: c4(i.custo_unitario),
   valor_total: c4(i.valor_total),
   movimentacao_estoque_id: i.movimentacao_estoque_id,

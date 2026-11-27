@@ -39,7 +39,7 @@ export const getAjusteEstoque = async (id, empresaId) => {
 
 /**
  * Saldo atual e custo médio de um produto num depósito. @param {{ empresa_id: string, produto_id: string, local_estoque_id: string }} filtros
- * @returns {Promise<{ produto_id: string, local_estoque_id: string, unidade_estoque: 'KG'|'L', saldo: string, custo_medio: string|null }>}
+ * @returns {Promise<{ produto_id: string, local_estoque_id: string, unidade_estoque: string, saldo: string, custo_medio: string|null }>}
  */
 export const getSaldoAjusteEstoque = async (filtros) => {
   const contexto = ctx('getSaldoAjusteEstoque');
@@ -49,7 +49,8 @@ export const getSaldoAjusteEstoque = async (filtros) => {
   return {
     produto_id: String(o.produto_id ?? filtros.produto_id),
     local_estoque_id: String(o.local_estoque_id ?? filtros.local_estoque_id),
-    unidade_estoque: o.unidade_estoque === 'L' ? 'L' : 'KG',
+    // D-PROD-371: a unidade de estoque real do produto (KG, L, SC, UN...); vazia ou SACO legado → KG.
+    unidade_estoque: typeof o.unidade_estoque === 'string' && o.unidade_estoque.trim() && o.unidade_estoque.trim().toUpperCase() !== 'SACO' ? o.unidade_estoque.trim().toUpperCase() : 'KG',
     saldo: typeof o.saldo === 'string' ? o.saldo : '0',
     custo_medio: typeof o.custo_medio === 'string' ? o.custo_medio : null,
   };

@@ -66,7 +66,7 @@ import { PrismaClient } from '@prisma/client';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { encerrar } from './helpers.mjs';
 import {
-  CENARIOS_RED, DECISAO, MIGRATIONS_DEPOIS_DO_CONTRACT, MIGRATIONS_PARTIDA, NOME_ATIVIDADE_CABECALHO, NOME_CONTRACT, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, PAPEL_OUTRO,
+  CENARIOS_RED, DECISAO, MIGRATIONS_DEPOIS_DO_CONTRACT, MIGRATIONS_PARTIDA, NOME_ATIVIDADE_CABECALHO, NOME_CONTRACT, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM, NOME_EUC, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, PAPEL_OUTRO,
   TOTAL_MIGRATIONS, TABELAS_APAGADAS, TABELAS_DEPOIS_DO_CONTRACT, TABELAS_ESTOQUE, TABELAS_FINAIS_DEPOIS_DO_CONTRACT, TABELAS_NOVAS,
   aplicarMigrationsDaMain, aplicarPeloRunner, checksOperacaoItem, comBanco, comImpressao, contarTabelas, donoEAcl,
   estoqueCoerente, estruturaNovas, exigirUrlLocal, fingerprintV2, historico, impressao, itemEmLitros, migrateDiff,
@@ -116,7 +116,8 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     // D-PROD-310: a EXPAND da unidade convertida, também: agora 31.
     // D-PROD-315: a EXPAND dos índices da sincronização, também: agora 32.
     // D-PROD-323: a EXPAND da mistura no implemento, também: agora 33.
-    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 33, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216, a D-PROD-217, a D-PROD-219, a D-PROD-223, a D-PROD-249, a D-PROD-257, a D-PROD-259, a D-PROD-264, a D-PROD-265, a D-PROD-272, a D-PROD-274, a D-PROD-276, a D-PROD-279 e a D-PROD-283');
+    // D-PROD-371: a CONTRACT do estoque na unidade do cadastro, também: agora 34.
+    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 34, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216, a D-PROD-217, a D-PROD-219, a D-PROD-223, a D-PROD-249, a D-PROD-257, a D-PROD-259, a D-PROD-264, a D-PROD-265, a D-PROD-272, a D-PROD-274, a D-PROD-276, a D-PROD-279 e a D-PROD-283');
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabelas, 88);
     // D-PROD-190/191/198: as migrations que dependem do formato novo não estão na partida (nem as tabelas delas).
@@ -125,7 +126,7 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     // consumo nas Formulações), a D-PROD-211 (o abastecimento ligado à atividade: muda a AbastecimentoBem que esta recria),
     // a EXPAND do Cadastro de Culturas (D-PROD-215, CADCULTURAS), a Área ligada à Cultura (D-PROD-216, que depende dela)
     // e, por último, a D-PROD-217 (o reforço: a FK do apontamento de AbastecimentoBem com a atividade) — a ordem de produção.
-    assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, '20261115900000_atividade_mao_obra_servico', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', '20261116200000_formulacao_base_consumo', '20261116300000_abastecimento_atividade', '20261116500000_cadculturas', '20261117000000_area_cultura', '20261117100000_abastecimento_fk_apontamento_atividade', '20261117200000_medicao_forragem', '20261117300000_descanso_e_alturas_por_area', '20261118100000_atividade_areas', NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM]);
+    assert.deepEqual(MIGRATIONS_DEPOIS_DO_CONTRACT, ['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, '20261114600000_atividade_linhas_produto_maquina', NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, '20261115900000_atividade_mao_obra_servico', '20261116000000_mao_obra_parceiro', '20261116100000_funcionario_tipo_terceirizado', '20261116200000_formulacao_base_consumo', '20261116300000_abastecimento_atividade', '20261116500000_cadculturas', '20261117000000_area_cultura', '20261117100000_abastecimento_fk_apontamento_atividade', '20261117200000_medicao_forragem', '20261117300000_descanso_e_alturas_por_area', '20261118100000_atividade_areas', NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM, NOME_EUC]);
     const depoisNaPartida = await db.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "_prisma_migrations" WHERE migration_name = ANY($1::text[])`, [...MIGRATIONS_DEPOIS_DO_CONTRACT]);
     assert.equal(depoisNaPartida[0].n, 0);
     assert.deepEqual(await donoEAcl(db, TABELAS_DEPOIS_DO_CONTRACT), []);
@@ -187,8 +188,8 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.equal(recusada.status, 1, recusada.saida);
     assert.match(recusada.saida, /alvo conferido nas duas conexões/);
     assert.match(recusada.saida, /FALHOU \[DEPLOY-MIGRATION-CONTRACT-UNAUTHORIZED\]/);
-    // D-PROD-208, D-PROD-209, D-PROD-210, D-PROD-211, D-PROD-216, D-PROD-217, D-PROD-249, D-PROD-259 e D-PROD-265: as CONTRACT posteriores também pendem e também são citadas.
-    assert.ok(recusada.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_ATIVIDADE_CABECALHO} (D-PROD-200), 20261116000000_mao_obra_parceiro (D-PROD-208), 20261116100000_funcionario_tipo_terceirizado (D-PROD-209), 20261116200000_formulacao_base_consumo (D-PROD-210), 20261116300000_abastecimento_atividade (D-PROD-211), 20261117000000_area_cultura (D-PROD-216), 20261117100000_abastecimento_fk_apontamento_atividade (D-PROD-217), 20261118100000_atividade_areas (D-PROD-249), 20261119200000_estoque_entradas_motivos (D-PROD-259), 20261120200000_apontamento_data_termino (D-PROD-265), 20261125200000_produto_unidades_conversao (D-PROD-288).`), recusada.saida);
+    // D-PROD-208, D-PROD-209, D-PROD-210, D-PROD-211, D-PROD-216, D-PROD-217, D-PROD-249, D-PROD-259, D-PROD-265, D-PROD-288 e D-PROD-371: as CONTRACT posteriores também pendem e também são citadas.
+    assert.ok(recusada.saida.includes(`migration CONTRACT pendente no alvo: ${NOME_ATIVIDADE_CABECALHO} (D-PROD-200), 20261116000000_mao_obra_parceiro (D-PROD-208), 20261116100000_funcionario_tipo_terceirizado (D-PROD-209), 20261116200000_formulacao_base_consumo (D-PROD-210), 20261116300000_abastecimento_atividade (D-PROD-211), 20261117000000_area_cultura (D-PROD-216), 20261117100000_abastecimento_fk_apontamento_atividade (D-PROD-217), 20261118100000_atividade_areas (D-PROD-249), 20261119200000_estoque_entradas_motivos (D-PROD-259), 20261120200000_apontamento_data_termino (D-PROD-265), 20261125200000_produto_unidades_conversao (D-PROD-288), 20261127200000_estoque_unidade_cadastro (D-PROD-371).`), recusada.saida);
     assert.match(recusada.saida, /Nenhuma migration foi executada/);
     assert.deepEqual(await retrato(db), partida, 'nada mudou');
     assert.equal((await historico(db)).concluidas, MIGRATIONS_PARTIDA);
@@ -271,8 +272,10 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     assert.deepEqual(await fingerprintV2(db), fpAntes, 'as 75 tabelas que ficam não mudaram (fora os 2 CHECKs alargados)');
     const k = await checksOperacaoItem(db);
     // D-PROD-288: os 2 CHECKs foram alargados de novo depois (a unidade de conversão do produto); L continua aceito.
+    // D-PROD-371: e mais uma vez (a mercadoria aceita qualquer unidade de estoque, UN também); o serviço segue só em UN.
     assert.match(k.OperacaoFinanceiraItem_unidade_check, /char_length\(btrim/);
-    assert.match(k.OperacaoFinanceiraItem_forma_check, /'MERCADORIA'.*<> 'UN'.*'SERVICO'.*'UN'/);
+    assert.match(k.OperacaoFinanceiraItem_forma_check, /'MERCADORIA'.*'SERVICO'.*'UN'/);
+    assert.doesNotMatch(k.OperacaoFinanceiraItem_forma_check, /<> 'UN'/);
     assert.deepEqual(await itemEmLitros(db), { aceito: true }, 'o item P3 em L agora entra (D1)');
 
     const diff = await migrateDiff(URL_T);

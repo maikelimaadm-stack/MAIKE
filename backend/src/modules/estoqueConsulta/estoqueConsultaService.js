@@ -28,6 +28,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, dec } from '../financeiro/decimalFinanceiro.js';
 import { unidadePublica } from '../produtos/unidadeLancamento.js';
+import { unidadeEstoqueEfetiva } from '../produtos/produtoUnidadesConversao.js';
 import { ORIGEM_SAIDA_ESTOQUE, loteVencido, lotesFifo, ordenarFefo } from '../estoqueFisico/estoqueFisicoMotor.js';
 import { hojeDaEmpresa } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import { MARCA_EXCLUSAO_RECALCULO } from '../estoqueRecalculo/estoqueReplay.js';
@@ -45,8 +46,11 @@ const LEITURA = Object.freeze({ maxWait: 2000, timeout: 9000, isolationLevel: /*
 /** `origem_sistema` do motor: minúsculas e `_` (a lista de origens é do motor; origem sem movimento só devolve vazio). */
 const ORIGEM_VALIDA = /^[a-z_]{1,32}$/;
 
-/** Unidade em que o motor expressa a quantidade do Produto: L para L; KG para o resto (SACO guarda kg). */
-export const unidadeDeEstoque = (unidadePrincipal) => (unidadePrincipal === 'L' ? 'L' : 'KG');
+/**
+ * Unidade em que o motor expressa a quantidade do Produto (D-PROD-371): a unidade de estoque dele (KG, L, SC, UN...);
+ * KG para o SACO legado (guarda kg) e para o vazio.
+ */
+export const unidadeDeEstoque = (unidadePrincipal) => unidadeEstoqueEfetiva({ unidade_principal_estoque: unidadePrincipal });
 
 const texto = (valor, casas) => dec(valor ?? 0).toFixed(casas);
 const textoOuNulo = (valor, casas) => (valor === null || valor === undefined ? null : dec(valor).toFixed(casas));
