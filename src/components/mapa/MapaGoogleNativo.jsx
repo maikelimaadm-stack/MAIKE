@@ -18,6 +18,7 @@ import {
   zoomDoMapLibre,
 } from "@/lib/mapaNativo/mapaGoogleNativo.js";
 import { criarMapaGoogleWeb } from "@/lib/mapaNativo/mapaGoogleWeb.js";
+import { criarCamadaDeImagens, projetarNaCamera } from "@/lib/mapaNativo/camadaDeImagens.js";
 
 const CENTRO_PADRAO = { lat: -15.78, lng: -47.93 };
 /** Margem em volta da fazenda ao enquadrar (px da página). */
@@ -75,6 +76,9 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
   mapaProntoRef.current = onMapa;
   const enquadrouRef = useRef(false);
   const tipoMapaInicialRef = useRef(tipoMapa);
+  // App: os marcadores ficam num div por cima do mapa nativo (D-PROD-372)
+  const camadaElRef = useRef(/** @type {HTMLDivElement | null} */ (null));
+  const camadaRef = useRef(/** @type {ReturnType<typeof criarCamadaDeImagens> | null} */ (null));
   const [pronto, setPronto] = useState(false);
 
   // cria o mapa uma vez por fazenda
@@ -121,12 +125,32 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
         }
         mapaRef.current = mapa;
         registrarMapaGoogleAberto(mapa);
-        mapaProntoRef.current?.(mapa);
+        // App (D-PROD-372): o mapa nativo não aceita a imagem desenhada na hora; os marcadores do Mapa Geral ficam
+        // num div por cima dele, posicionados pela câmera. Somem enquanto o mapa se move e voltam quando ele para.
+        const camadaEl = camadaElRef.current;
+        const camada = nativo && camadaEl ? criarCamadaDeImagens(camadaEl) : null;
+        camadaRef.current = camada;
+        /** @param {any} camera */
+        const mostrarNaCamera = (camera) => {
+          if (!camada || !camadaEl) return;
+          const projetar = projetarNaCamera(camera, camadaEl.clientWidth, camadaEl.clientHeight);
+          if (!projetar) return;
+          camada.posicionarTodos(projetar);
+          camadaEl.style.visibility = "visible";
+        };
+        if (camada) {
+          mostrarNaCamera({ latitude: config.center.lat, longitude: config.center.lng, zoom: config.zoom, bearing: 0 });
+          await mapa.setOnCameraMoveStartedListener(() => {
+            if (camadaEl) camadaEl.style.visibility = "hidden";
+          });
+        }
+        mapaProntoRef.current?.(camada ? { definirMarcadores: (/** @type {string} */ g, /** @type {any[]} */ l) => camada.definir(g, l) } : mapa);
         await mapa.setOnPolygonClickListener((e) => {
           const area = areasPorIdRef.current.get(String(e?.tag));
           if (area) cliqueRef.current?.(area);
         });
         await mapa.setOnCameraIdleListener((e) => {
+          mostrarNaCamera(e);
           if (!enquadrouRef.current || !Number.isFinite(e?.latitude)) return;
           try {
             localStorage.setItem(
@@ -150,6 +174,8 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
       mapaRef.current = null;
       registrarMapaGoogleAberto(null);
       if (mapa) mapaProntoRef.current?.(null);
+      camadaRef.current?.limpar();
+      camadaRef.current = null;
       mapa?.destroy().catch(() => {});
     };
   }, [empresaId]);
@@ -224,7 +250,15 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
   // apaga o conteúdo quando volta à página, e o mapa do site mora dentro dele).
   const estilo = { display: "block", width: "100%", height: "100%" };
   return ehMapaGoogleNativo() ? (
-    <capacitor-google-map ref={elRef} data-testid="mapa-geral-google" style={estilo} />
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <capacitor-google-map ref={elRef} data-testid="mapa-geral-google" style={estilo} />
+      {/* os marcadores por cima do mapa nativo: o div não pega o toque (vai para o mapa); só a imagem pega */}
+      <div
+        ref={camadaElRef}
+        data-testid="mapa-google-marcadores-app"
+        style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}
+      />
+    </div>
   ) : (
     <div ref={/** @type {any} */ (elRef)} data-testid="mapa-geral-google" style={estilo} />
   );

@@ -11060,4 +11060,24 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369; a 369 foi reservada pela PR #457 (e 366 e 368 pelas #454 e #456), e esta ficou com D-PROD-370. O marcador passa a D-PROD-371. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-371 -->
+## D-PROD-372 — Mapa do Google no app: lotes, cochos, pontos e tarefas no mapa nativo
+
+**Data:** 2026-11-27 · **Origem:** o proprietário testou o APK 1.0.6 ("no aplicativo apk ainda não aparecem os lotes") e escolheu os mesmos ícones do sistema ("é melhor deixar do jeito que está o nosso, não quero mudar") · **Relatório:** [`MAPA-GOOGLE-APP-MARCADORES-D372-REPORT.md`](./MAPA-GOOGLE-APP-MARCADORES-D372-REPORT.md) · **Migration:** nenhuma · **APK:** nenhum (chega pela atualização automática)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-372: a D-PROD-371 está reservada pela PR #460 (regra A5). O marcador passa a D-PROD-373.
+
+- **Problema:** no app, o mapa do Google é o nativo do plugin. O SDK nativo só aceita imagem de marcador de arquivo do app ou de endereço `https`, não a imagem desenhada na hora: o lote com a contagem e o identificador, o cocho com o nível e o farol.
+- **Opções levadas ao proprietário:**
+  - ícones do Google: gravados no APK, acompanham o mapa ao arrastar, mas sem a parte que muda (contagem, nível, farol, identificador), e com APK novo;
+  - os mesmos ícones do sistema por cima do mapa nativo, que somem enquanto o mapa se mexe e voltam no lugar quando ele para, sem APK novo.
+  - **Escolha:** os mesmos ícones.
+- **Decisão:**
+  - **Camada:** um `div` por cima do mapa nativo (`src/lib/mapaNativo/camadaDeImagens.js`), com as mesmas imagens, posições, ordem e cliques do site (`useMarcadoresGoogle`, `itensDoMapaGeral`).
+  - **Posição:** vem da câmera que o plugin entrega quando o mapa para (`onCameraIdle`). A projeção é Web Mercator no zoom do Google, com o centro da câmera no meio do elemento e girada pelo rumo (`projetarNaCamera`). Mapa inclinado não tem projeção plana, e os ícones ficam escondidos.
+  - **Movimento:** no `onCameraMoveStarted`, a camada some; no `onCameraIdle`, volta reposicionada. O plugin não avisa quadro a quadro.
+  - **Toque:** o `div` tem `pointer-events: none`, então o toque vai para o mapa nativo; só a imagem pega o toque, e abre o mesmo detalhe. O plugin decide quem recebe o toque pelo `elementFromPoint`. A imagem tem `touch-action: none`.
+  - **Ligação:** o `MapaGoogleNativo` entrega ao `MapaGeral` um `definirMarcadores` da camada, e não o mapa nativo. O `useMarcadoresGoogle` é o mesmo do site.
+- **Fica para depois:** os nomes dos pastos (etapa 3) e o resto da etapa 4.
+- **Testes:** `mapaGoogleAppMarcadoresD372.test.jsx` (7: projeção, camada, componente no app e no site), `mapaGoogleNativoD366.test.jsx` (o mapa falso ganha `setOnCameraMoveStartedListener`).
+
+<!-- Próxima decisão: D-PROD-373 -->
