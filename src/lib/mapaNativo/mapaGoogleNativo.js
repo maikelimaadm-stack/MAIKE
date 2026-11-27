@@ -12,7 +12,7 @@
  * o plugin nativo instalado (APK 1.0.6 em diante); no site, com a chave do Google configurada. Sem isso — APK antigo
  * recebendo a atualização automática, testes — nada muda: o Mapa Geral segue no MapLibre.
  */
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 
 import { getGoogleMapsApiKey } from "@/config/runtimeConfig";
 
@@ -254,4 +254,38 @@ export async function limparMapaGoogleOrfao() {
   } catch {
     /* sem armazenamento */
   }
+}
+
+// ——— câmera a cada quadro e toque no app (D-PROD-373) ———
+
+/** @type {any} */
+let pluginNativo = null;
+/**
+ * O plugin nativo do mapa do Google, para ouvir eventos que a classe `GoogleMap` não expõe (`onCameraMove`, que o
+ * remendo `scripts/app/remendar-google-maps.mjs` liga no APK 1.0.7 em diante).
+ */
+export function pluginDoMapaGoogle() {
+  if (!pluginNativo) pluginNativo = registerPlugin(PLUGIN_MAPA_GOOGLE);
+  return pluginNativo;
+}
+
+/**
+ * A área (a `tag` do polígono) que contém o ponto, ou null. Com áreas sobrepostas, a de cima (a última posta).
+ * No app os polígonos não são clicáveis (o toque vai inteiro para o mapa) e o clique do mapa decide: ícone ou área.
+ * @param {Array<{ paths: Array<{ lat: number, lng: number }>, tag?: string }>} poligonos
+ * @param {number} lat @param {number} lng
+ * @returns {string | null}
+ */
+export function areaNoPonto(poligonos, lat, lng) {
+  for (let i = (poligonos || []).length - 1; i >= 0; i -= 1) {
+    const { paths, tag } = poligonos[i];
+    let dentro = false;
+    for (let a = 0, b = paths.length - 1; a < paths.length; b = a, a += 1) {
+      const pa = paths[a];
+      const pb = paths[b];
+      if (pa.lat > lat !== pb.lat > lat && lng < ((pb.lng - pa.lng) * (lat - pa.lat)) / (pb.lat - pa.lat) + pa.lng) dentro = !dentro;
+    }
+    if (dentro && tag != null) return tag;
+  }
+  return null;
 }

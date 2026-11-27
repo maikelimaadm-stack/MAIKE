@@ -48,6 +48,7 @@ const falso = vi.hoisted(() => {
       disableTouch: vi.fn(async () => {}),
       setOnCameraIdleListener: vi.fn(async (cb) => { ouvintes.camera = cb; }),
       setOnCameraMoveStartedListener: vi.fn(async (cb) => { ouvintes.mover = cb; }),
+      setOnMapClickListener: vi.fn(async (cb) => { ouvintes.mapa = cb; }),
       destroy: vi.fn(async function () { this.destruido = true; }),
     };
   };

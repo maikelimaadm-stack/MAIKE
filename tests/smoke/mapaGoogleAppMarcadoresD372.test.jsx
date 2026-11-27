@@ -5,19 +5,29 @@
  *
  *  G372-1. `projetarNaCamera`: centro no meio, escala do zoom do Google (256 px), rumo girado, inclinado = sem
  *          projeção, o caminho mais curto pelo meridiano 180.
- *  G372-2. `criarCamadaDeImagens`: centro + deslocamento, ordem, clique, troca por grupo, limpar.
- *  G372-3. Componente no app: o Mapa Geral recebe `definirMarcadores` da camada (não o mapa nativo); a camada some
- *          quando o mapa começa a mexer e volta, reposicionada, quando ele para; o div não pega o toque, a imagem pega.
+ *  G372-2. `criarCamadaDeImagens`: centro + deslocamento, ordem, toque no ponto (ícone de cima), troca por grupo,
+ *          limpar; a imagem não pega toque (D-PROD-373).
+ *  G372-3. Componente no app: o Mapa Geral recebe `definirMarcadores` da camada (não o mapa nativo); D-PROD-373: com
+ *          o `onCameraMove` do APK 1.0.7 os ícones andam junto a cada quadro; no APK antigo somem ao mexer e voltam ao
+ *          parar; todo toque é do mapa e o clique do mapa decide entre ícone e área.
  */
 import React from "react";
 import { act, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const plugin = vi.hoisted(() => ({ nativo: true }));
+const plugin = vi.hoisted(() => ({ nativo: true, movimento: /** @type {any} */ (null), semEvento: false }));
 vi.mock("@capacitor/core", async (orig) => {
   const real = /** @type {any} */ (await orig());
   return {
     ...real,
+    // o plugin nativo do mapa: o `onCameraMove` do remendo (D-PROD-373)
+    registerPlugin: () => ({
+      addListener: async (nome, cb) => {
+        if (plugin.semEvento) throw new Error("sem o evento");
+        if (nome === "onCameraMove") plugin.movimento = cb;
+        return { remove: () => { plugin.movimento = null; } };
+      },
+    }),
     Capacitor: {
       ...real.Capacitor,
       isNativePlatform: () => plugin.nativo,
@@ -33,6 +43,7 @@ vi.mock("@capacitor/google-maps", () => ({
     create: vi.fn(async () => {
       const ouvintes = {};
       falso.mapa = {
+        id: "mapa-1",
         ouvintes,
         setMapType: vi.fn(async () => {}),
         addPolygons: vi.fn(async (l) => l.map((_, i) => `p${i}`)),
@@ -41,6 +52,7 @@ vi.mock("@capacitor/google-maps", () => ({
         setOnPolygonClickListener: vi.fn(async (cb) => { ouvintes.poligono = cb; }),
         setOnCameraIdleListener: vi.fn(async (cb) => { ouvintes.parou = cb; }),
         setOnCameraMoveStartedListener: vi.fn(async (cb) => { ouvintes.mexeu = cb; }),
+        setOnMapClickListener: vi.fn(async (cb) => { ouvintes.toque = cb; }),
         enableTouch: vi.fn(async () => {}),
         disableTouch: vi.fn(async () => {}),
         destroy: vi.fn(async () => {}),
@@ -55,6 +67,8 @@ import MapaGoogleNativo from "@/components/mapa/MapaGoogleNativo.jsx";
 
 beforeEach(() => {
   plugin.nativo = true;
+  plugin.movimento = null;
+  plugin.semEvento = false;
   falso.mapa = null;
   localStorage.clear();
 });
@@ -94,23 +108,28 @@ describe("G372-1 — projeção do mapa nativo pela câmera", () => {
 });
 
 describe("G372-2 — camada de imagens", () => {
-  it("centro + deslocamento, ordem, clique; troca por grupo; limpar", () => {
+  it("centro + deslocamento, ordem; a imagem não pega toque; o toque no ponto vai para o ícone de cima; troca por grupo; limpar", () => {
     const div = document.createElement("div");
-    const tocou = vi.fn();
-    const camada = criarCamadaDeImagens(div, { aoTocar: tocou });
+    const camada = criarCamadaDeImagens(div);
     camada.posicionarTodos(() => ({ x: 100, y: 50 }));
-    const clique = vi.fn();
-    camada.definir("lotes", [{ id: "a1", lat: 0, lng: 0, url: "data:x", w: 44, h: 42, dx: 0, dy: -26, z: 1000, onClick: clique }]);
-    camada.definir("supl", [{ id: "c1", lat: 0, lng: 0, url: "data:y", w: 36, h: 36, z: 500 }]);
+    const noLote = vi.fn();
+    const noCocho = vi.fn();
+    camada.definir("lotes", [{ id: "a1", lat: 0, lng: 0, url: "data:x", w: 44, h: 42, dx: 0, dy: -26, z: 1000, onClick: noLote }]);
+    camada.definir("supl", [{ id: "c1", lat: 0, lng: 0, url: "data:y", w: 36, h: 36, z: 500, onClick: noCocho }]);
     const [lote, cocho] = div.querySelectorAll("img");
     expect(lote.style.transform).toBe("translate(78px, 3px)");
     expect(lote.style.zIndex).toBe("1000");
-    expect(lote.style.pointerEvents).toBe("auto");
-    expect(lote.style.touchAction).toBe("none");
-    lote.dispatchEvent(new Event("pointerdown"));
-    lote.click();
-    expect(tocou).toHaveBeenCalledTimes(1);
-    expect(clique).toHaveBeenCalledTimes(1);
+    // D-PROD-373: todo toque é do mapa nativo (a pinça em cima do ícone dá zoom)
+    expect(lote.style.pointerEvents).toBe("none");
+    // ponto em cima do lote e do cocho: o de cima (lote) recebe
+    expect(camada.tocar(100, 40)).toBe(true);
+    expect(noLote).toHaveBeenCalledTimes(1);
+    expect(noCocho).not.toHaveBeenCalled();
+    // só o cocho (abaixo do lote): o cocho
+    expect(camada.tocar(100, 66)).toBe(true);
+    expect(noCocho).toHaveBeenCalledTimes(1);
+    // longe de tudo: ninguém
+    expect(camada.tocar(10, 10)).toBe(false);
     camada.posicionarTodos(() => ({ x: 0, y: 0 }));
     expect(cocho.style.transform).toBe("translate(-18px, -18px)");
     camada.definir("lotes", []);
@@ -121,7 +140,9 @@ describe("G372-2 — camada de imagens", () => {
 });
 
 describe("G372-3 — os marcadores no mapa nativo do app", () => {
-  it("o Mapa Geral recebe a camada; some ao mexer, volta reposicionada ao parar; só a imagem pega o toque", async () => {
+  const quadrado = { id: "a1", nome: "Pasto 1", coordenadas: { coords: [[-15, -47], [-15, -46.99], [-15.01, -46.99], [-15.01, -47]] } };
+
+  it("o Mapa Geral recebe a camada; com o APK novo os ícones andam junto com o mapa a cada quadro", async () => {
     const onMapa = vi.fn();
     const { getByTestId } = render(
       <MapaGoogleNativo areas={[]} areasCarregadas mostrarAreas corDaArea={() => null} tipoMapa="satellite" empresaId="e1" onMapa={onMapa} />
@@ -139,18 +160,59 @@ describe("G372-3 — os marcadores no mapa nativo do app", () => {
     const img = /** @type {HTMLImageElement} */ (camadaEl.querySelector("img"));
     expect(img).not.toBeNull();
 
+    // o mapa começa a mexer e avisa a câmera a cada quadro: os ícones ficam à vista e acompanham
+    act(() => falso.mapa.ouvintes.mexeu({ isGesture: true }));
+    act(() => plugin.movimento({ mapId: "mapa-1", latitude: -15, longitude: -47, zoom: 15, bearing: 0, tilt: 0 }));
+    expect(camadaEl.style.visibility).toBe("visible");
+    // jsdom não mede: largura e altura 0 → o centro da câmera fica no canto (0, 0)
+    expect(img.style.transform).toBe("translate(-22px, -21px)");
+    act(() => falso.mapa.ouvintes.mexeu({ isGesture: true }));
+    expect(camadaEl.style.visibility).toBe("visible");
+    // evento de outro mapa: ignorado
+    act(() => plugin.movimento({ mapId: "outro", latitude: 10, longitude: 10, zoom: 15 }));
+    expect(img.style.transform).toBe("translate(-22px, -21px)");
+    // inclinado: escondido
+    act(() => plugin.movimento({ mapId: "mapa-1", latitude: -15, longitude: -47, zoom: 15, bearing: 0, tilt: 45 }));
+    expect(camadaEl.style.visibility).toBe("hidden");
+  });
+
+  it("APK antigo (sem o evento a cada quadro): os ícones somem ao mexer e voltam reposicionados ao parar", async () => {
+    plugin.semEvento = true;
+    const onMapa = vi.fn();
+    const { getByTestId } = render(
+      <MapaGoogleNativo areas={[]} areasCarregadas mostrarAreas corDaArea={() => null} tipoMapa="satellite" empresaId="e1" onMapa={onMapa} />
+    );
+    await waitFor(() => expect(onMapa).toHaveBeenCalled());
+    const camadaEl = getByTestId("mapa-google-marcadores-app");
     act(() => falso.mapa.ouvintes.mexeu({ isGesture: true }));
     expect(camadaEl.style.visibility).toBe("hidden");
-
-    // jsdom não mede: largura e altura 0 → o centro da câmera fica no canto (0, 0)
     act(() => falso.mapa.ouvintes.parou({ latitude: -15, longitude: -47, zoom: 15, bearing: 0, tilt: 0 }));
     expect(camadaEl.style.visibility).toBe("visible");
-    expect(img.style.transform).toBe("translate(-22px, -21px)");
+  });
 
-    // inclinado: continua escondido
-    act(() => falso.mapa.ouvintes.mexeu({ isGesture: true }));
-    act(() => falso.mapa.ouvintes.parou({ latitude: -15, longitude: -47, zoom: 15, bearing: 0, tilt: 45 }));
-    expect(camadaEl.style.visibility).toBe("hidden");
+  it("todo toque é do mapa: o toque rápido num ícone abre o ícone; fora dele, a área; os polígonos não pegam o toque", async () => {
+    const onMapa = vi.fn();
+    const onClickArea = vi.fn();
+    render(
+      <MapaGoogleNativo areas={[quadrado]} areasCarregadas mostrarAreas corDaArea={() => "#22c55e"} tipoMapa="satellite" empresaId="e1" onMapa={onMapa} onClickArea={onClickArea} />
+    );
+    await waitFor(() => expect(falso.mapa?.addPolygons).toHaveBeenCalled());
+    expect(falso.mapa.addPolygons.mock.calls.at(-1)[0][0].clickable).toBe(false);
+    const alvo = onMapa.mock.calls.at(-1)[0];
+    const noLote = vi.fn();
+    act(() => alvo.definirMarcadores("lotes", [{ id: "a1", lat: -15.005, lng: -46.995, url: "data:x", w: 44, h: 42, z: 1000, onClick: noLote }]));
+    // a câmera centrada no lote (jsdom: elemento 0 × 0, centro no canto 0,0)
+    act(() => plugin.movimento({ mapId: "mapa-1", latitude: -15.005, longitude: -46.995, zoom: 15, bearing: 0, tilt: 0 }));
+    // toque em cima do lote: o lote, não a área
+    act(() => falso.mapa.ouvintes.toque({ latitude: -15.005, longitude: -46.995 }));
+    expect(noLote).toHaveBeenCalledTimes(1);
+    expect(onClickArea).not.toHaveBeenCalled();
+    // toque no pasto, longe do ícone: a área
+    act(() => falso.mapa.ouvintes.toque({ latitude: -15.0095, longitude: -46.9905 }));
+    expect(onClickArea).toHaveBeenCalledWith(quadrado);
+    // fora de tudo: nada
+    act(() => falso.mapa.ouvintes.toque({ latitude: -14, longitude: -46 }));
+    expect(onClickArea).toHaveBeenCalledTimes(1);
   });
 
   it("no site não há a camada do app: o Mapa Geral recebe o mapa do site", async () => {
