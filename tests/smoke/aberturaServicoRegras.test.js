@@ -8,15 +8,21 @@ import {
   chaveDaFrente,
   frentesDosApontamentos,
   ehCampoDesconhecido,
+  lerEncerramento,
   lerTodasAsPaginas,
   formatarHorimetro,
   lancamentosDoDia,
   lerAbertura,
   marcadorDaAbertura,
+  marcadorDoEncerramento,
   observacaoComAbertura,
+  observacaoComEncerramento,
   parseHorimetroPtBr,
+  resumoDasFrentes,
   textoDaObservacao,
+  textoDasMaquinasEmCampo,
   validarAbertura,
+  validarEncerramento,
 } from "@/lib/aberturaServicoRegras";
 
 const ABERTURA = {
@@ -362,5 +368,212 @@ describe("frentes: uma abertura por máquina + implemento (D-PROD-341)", () => {
 
   it("aberturaDosApontamentos continua igual (usado por quem não filtra por frente)", () => {
     expect(aberturaDosApontamentos(ITENS)?.bemId).toBe("bem-7");
+  });
+});
+
+// ─── Encerramento de uma frente (D-PROD-348) ─────
+
+describe("marcadorDoEncerramento / lerEncerramento (D-PROD-348)", () => {
+  const ENC = { bemId: "bem-7", implementoId: "imp-2", horimetro: "1290.5", bemNome: "Trator 12", implementoNome: "Pulverizador 2.000 L" };
+
+  it("grava a linha com os campos na ordem, sem responsável, e os nomes codificados", () => {
+    expect(marcadorDoEncerramento(ENC)).toBe(
+      "[encerramento-servico bem=bem-7 impl=imp-2 hor=1290.5 bemn=Trator%2012 impln=Pulverizador%202.000%20L]",
+    );
+  });
+
+  it("omite os campos vazios (implemento opcional)", () => {
+    const linha = marcadorDoEncerramento({ ...ENC, implementoId: "", implementoNome: "" });
+    expect(linha).toBe("[encerramento-servico bem=bem-7 hor=1290.5 bemn=Trator%2012]");
+    expect(lerEncerramento(linha)).toEqual({ bemId: "bem-7", implementoId: "", horimetro: "1290.5", bemNome: "Trator 12", implementoNome: "" });
+  });
+
+  it("ida e volta com acentos e espaços no nome da máquina e do implemento", () => {
+    const comAcento = { ...ENC, bemNome: "Trator Ç/Ã — nº 12", implementoNome: "Plantadeira [dupla] = 3 linhas" };
+    expect(lerEncerramento(marcadorDoEncerramento(comAcento))).toEqual({
+      bemId: "bem-7",
+      implementoId: "imp-2",
+      horimetro: "1290.5",
+      bemNome: "Trator Ç/Ã — nº 12",
+      implementoNome: "Plantadeira [dupla] = 3 linhas",
+    });
+  });
+
+  it("lê a linha só com a máquina (sem implemento) e o horímetro inteiro com .0", () => {
+    const lida = lerEncerramento(`[encerramento-servico bem=bem-8 hor=900.0]\nFim do dia`);
+    expect(lida).toEqual({ bemId: "bem-8", implementoId: "", horimetro: "900.0", bemNome: "", implementoNome: "" });
+  });
+
+  it("tag inválida: sem máquina, sem horímetro, horímetro não canônico ou com texto antes: null", () => {
+    expect(lerEncerramento("")).toBeNull();
+    expect(lerEncerramento(null)).toBeNull();
+    expect(lerEncerramento("Encerrou cedo")).toBeNull();
+    expect(lerEncerramento("[encerramento-servico hor=1290.5]")).toBeNull();
+    expect(lerEncerramento("[encerramento-servico bem=bem-7]")).toBeNull();
+    expect(lerEncerramento("[encerramento-servico bem=bem-7 hor=1.290,5]")).toBeNull();
+    expect(lerEncerramento("[encerramento-servico bem=bem-7 hor=]")).toBeNull();
+    expect(lerEncerramento("Obs\n[encerramento-servico bem=bem-7 hor=1290.5]")).toBeNull();
+  });
+
+  it("encerramento e abertura nunca se leem uma como a outra", () => {
+    const abertura = marcadorDaAbertura({ bemId: "bem-7", horimetro: "1245.0", responsavelId: "usr-3" });
+    const encerramento = marcadorDoEncerramento({ bemId: "bem-7", horimetro: "1290.5" });
+    expect(lerEncerramento(abertura)).toBeNull();
+    expect(lerAbertura(encerramento)).toBeNull();
+    expect(lerEncerramento(encerramento)?.horimetro).toBe("1290.5");
+    expect(lerAbertura(abertura)?.horimetro).toBe("1245.0");
+  });
+
+  it("textoDaObservacao tira a linha de encerramento e preserva o texto da pessoa", () => {
+    const obs = `${marcadorDoEncerramento({ bemId: "bem-7", horimetro: "1290.5" })}\nChuva à tarde`;
+    expect(textoDaObservacao(obs)).toBe("Chuva à tarde");
+    expect(textoDaObservacao(marcadorDoEncerramento({ bemId: "bem-7", horimetro: "1.0" }))).toBe("");
+  });
+
+  it("observacaoComEncerramento põe a linha na 1ª posição, mantém o texto e troca a linha existente sem duplicar", () => {
+    const nova = observacaoComEncerramento("Texto antigo", { bemId: "bem-7", horimetro: "1290.5" });
+    expect(nova.split("\n")[0]).toBe(marcadorDoEncerramento({ bemId: "bem-7", horimetro: "1290.5" }));
+    expect(textoDaObservacao(nova)).toBe("Texto antigo");
+    const trocada = observacaoComEncerramento(nova, { bemId: "bem-7", horimetro: "1300.0" });
+    expect(trocada.match(/\[encerramento-servico/g)).toHaveLength(1);
+    expect(lerEncerramento(trocada)?.horimetro).toBe("1300.0");
+    expect(observacaoComEncerramento("", { bemId: "bem-7", horimetro: "1.0" })).toBe("[encerramento-servico bem=bem-7 hor=1.0]");
+  });
+});
+
+describe("validarEncerramento (D-PROD-348)", () => {
+  it("horímetro final vazio ou inválido: \"Informe o horímetro final.\"", () => {
+    expect(validarEncerramento({ horimetroFinal: "", horimetroInicial: "1245.0" })).toEqual({ horimetroFinal: "Informe o horímetro final." });
+    expect(validarEncerramento({ horimetroFinal: "-3", horimetroInicial: "1245.0" })).toEqual({ horimetroFinal: "Informe o horímetro final." });
+    expect(validarEncerramento({ horimetroFinal: "abc", horimetroInicial: "1245.0" })).toEqual({ horimetroFinal: "Informe o horímetro final." });
+    expect(validarEncerramento({})).toEqual({ horimetroFinal: "Informe o horímetro final." });
+  });
+
+  it("menor que o inicial: a mensagem traz o inicial em pt-BR", () => {
+    expect(validarEncerramento({ horimetroFinal: "1.200,0", horimetroInicial: "1245.0" })).toEqual({
+      horimetroFinal: "O horímetro final não pode ser menor que o inicial (1.245,0).",
+    });
+  });
+
+  it("compara como número: 1.300 é maior que 1.245,5 (não é comparação de texto)", () => {
+    expect(validarEncerramento({ horimetroFinal: "1.300", horimetroInicial: "1245.5" })).toEqual({});
+    expect(validarEncerramento({ horimetroFinal: "999,9", horimetroInicial: "1245.5" }).horimetroFinal).toMatch(/menor que o inicial \(1\.245,5\)/);
+  });
+
+  it("igual ao inicial é válido; maior também; inicial de casas diferentes compara certo", () => {
+    expect(validarEncerramento({ horimetroFinal: "1.245,0", horimetroInicial: "1245.0" })).toEqual({});
+    expect(validarEncerramento({ horimetroFinal: "1245,0001", horimetroInicial: "1245.0" })).toEqual({});
+    expect(validarEncerramento({ horimetroFinal: "1245,5", horimetroInicial: "1245.50" })).toEqual({});
+    expect(validarEncerramento({ horimetroFinal: "1245,4", horimetroInicial: "1245.50" }).horimetroFinal).toMatch(/menor/);
+  });
+
+  it("sem horímetro inicial canônico, a comparação é pulada (só o final é validado)", () => {
+    expect(validarEncerramento({ horimetroFinal: "10", horimetroInicial: "" })).toEqual({});
+    expect(validarEncerramento({ horimetroFinal: "10", horimetroInicial: "1.245,0" })).toEqual({});
+  });
+});
+
+describe("resumoDasFrentes / textoDasMaquinasEmCampo (D-PROD-348)", () => {
+  it("conta abertas, encerradas e o total", () => {
+    expect(resumoDasFrentes([{ encerrada: false }, { encerrada: true }, { encerrada: false }])).toEqual({ abertas: 2, encerradas: 1, total: 3 });
+    expect(resumoDasFrentes([])).toEqual({ abertas: 0, encerradas: 0, total: 0 });
+    expect(resumoDasFrentes(undefined)).toEqual({ abertas: 0, encerradas: 0, total: 0 });
+  });
+
+  it("o texto do cabeçalho: sem máquina, 1 máquina e N máquinas", () => {
+    expect(textoDasMaquinasEmCampo(0)).toBe("Sem máquina em campo");
+    expect(textoDasMaquinasEmCampo(1)).toBe("1 máquina em campo");
+    expect(textoDasMaquinasEmCampo(3)).toBe("3 máquinas em campo");
+    expect(textoDasMaquinasEmCampo(-2)).toBe("Sem máquina em campo");
+  });
+});
+
+describe("frentes com encerramento (D-PROD-348)", () => {
+  const abre = (dia, bemId, bemNome, implementoId = "", horimetro = "1000.0", id = `ab-${dia}-${bemId}`) => ({
+    id,
+    data_operacional: dia,
+    status: "CONFIRMADO",
+    observacao: marcadorDaAbertura({ bemId, bemNome, implementoId, implementoNome: implementoId ? "Pulverizador" : "", horimetro, responsavelId: "usr-3", responsavelNome: "João" }),
+  });
+  const encerra = (dia, bemId, horimetro, implementoId = "", status = "CONFIRMADO", id = `en-${dia}-${bemId}`) => ({
+    id,
+    data_operacional: dia,
+    status,
+    observacao: marcadorDoEncerramento({ bemId, implementoId, horimetro, bemNome: "", implementoNome: "" }),
+  });
+
+  it("2 frentes: uma encerra e a outra segue aberta; a encerrada traz o horímetro final e o dia", () => {
+    const itens = [
+      abre("2026-11-02", "bem-7", "Trator 12", "imp-2", "1000.0", "a1"),
+      abre("2026-11-03", "bem-8", "Trator 08", "", "900.0", "b1"),
+      encerra("2026-11-05", "bem-7", "1080.5", "imp-2", "CONFIRMADO", "e1"),
+    ];
+    const frentes = frentesDosApontamentos(itens);
+    expect(frentes.map((f) => [f.chave, f.encerrada, f.horimetroFinal, f.fim, f.inicio])).toEqual([
+      ["bem-7|imp-2", true, "1080.5", "2026-11-05", "2026-11-02"],
+      ["bem-8|", false, "", "", "2026-11-03"],
+    ]);
+    expect(resumoDasFrentes(frentes)).toEqual({ abertas: 1, encerradas: 1, total: 2 });
+  });
+
+  it("encerramento sem abertura com a mesma chave é ignorado (não cria frente)", () => {
+    const frentes = frentesDosApontamentos([encerra("2026-11-05", "bem-9", "50.0", "imp-2")]);
+    expect(frentes).toEqual([]);
+  });
+
+  it("encerramento de OUTRA chave não fecha a frente; a mesma máquina com outro implemento é outra frente", () => {
+    const itens = [
+      abre("2026-11-02", "bem-7", "Trator 12", "imp-2", "1000.0"),
+      encerra("2026-11-05", "bem-7", "1100.0", ""),
+    ];
+    const frentes = frentesDosApontamentos(itens);
+    expect(frentes).toHaveLength(1);
+    expect(frentes[0]).toMatchObject({ chave: "bem-7|imp-2", encerrada: false, horimetroFinal: "", fim: "" });
+  });
+
+  it("apontamento de encerramento CANCELADO não conta (a frente segue aberta)", () => {
+    const itens = [abre("2026-11-02", "bem-7", "Trator 12", "imp-2"), encerra("2026-11-05", "bem-7", "1080.0", "imp-2", "CANCELADO")];
+    expect(frentesDosApontamentos(itens)[0]).toMatchObject({ encerrada: false, horimetroFinal: "", fim: "" });
+  });
+
+  it("encerramento ANTERIOR ao início da frente não fecha (o dia tem que ser o da abertura ou depois)", () => {
+    const itens = [abre("2026-11-10", "bem-7", "Trator 12", "imp-2"), encerra("2026-11-05", "bem-7", "1080.0", "imp-2")];
+    expect(frentesDosApontamentos(itens)[0]).toMatchObject({ encerrada: false });
+  });
+
+  it("encerramento no MESMO dia da abertura fecha a frente", () => {
+    const itens = [abre("2026-11-02", "bem-7", "Trator 12", "imp-2"), encerra("2026-11-02", "bem-7", "1010.0", "imp-2")];
+    expect(frentesDosApontamentos(itens)[0]).toMatchObject({ encerrada: true, horimetroFinal: "1010.0", fim: "2026-11-02" });
+  });
+
+  it("frente reaberta depois de um encerramento: o encerramento antigo não fecha a nova abertura", () => {
+    const itens = [
+      abre("2026-11-02", "bem-7", "Trator 12", "imp-2", "1000.0", "a1"),
+      encerra("2026-11-05", "bem-7", "1080.0", "imp-2"),
+      abre("2026-11-20", "bem-7", "Trator 12", "imp-2", "1100.0", "a2"),
+    ];
+    const frente = frentesDosApontamentos(itens)[0];
+    expect(frente).toMatchObject({ chave: "bem-7|imp-2", inicio: "2026-11-02", encerrada: false, horimetroFinal: "", fim: "" });
+    expect(frente.abertura.horimetro).toBe("1100.0");
+  });
+
+  it("frente reaberta e encerrada de novo: vale o encerramento do ciclo atual", () => {
+    const itens = [
+      abre("2026-11-02", "bem-7", "Trator 12", "imp-2", "1000.0", "a1"),
+      encerra("2026-11-05", "bem-7", "1080.0", "imp-2"),
+      abre("2026-11-20", "bem-7", "Trator 12", "imp-2", "1100.0", "a2"),
+      encerra("2026-11-22", "bem-7", "1150.0", "imp-2"),
+    ];
+    expect(frentesDosApontamentos(itens)[0]).toMatchObject({ encerrada: true, horimetroFinal: "1150.0", fim: "2026-11-22" });
+  });
+
+  it("apontamentosDaFrente não traz o encerramento (ele não é abertura)", () => {
+    const itens = [abre("2026-11-02", "bem-7", "Trator 12", "imp-2", "1000.0", "a1"), encerra("2026-11-05", "bem-7", "1080.0", "imp-2", "CONFIRMADO", "e1")];
+    expect(apontamentosDaFrente(itens, "bem-7|imp-2").map((a) => a.id)).toEqual(["a1"]);
+  });
+
+  it("aberturaDosApontamentos continua ignorando o encerramento", () => {
+    const itens = [abre("2026-11-02", "bem-7", "Trator 12", "imp-2", "1000.0", "a1"), encerra("2026-11-09", "bem-7", "1080.0", "imp-2")];
+    expect(aberturaDosApontamentos(itens)?.horimetro).toBe("1000.0");
   });
 });

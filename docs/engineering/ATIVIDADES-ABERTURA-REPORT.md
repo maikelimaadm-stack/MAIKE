@@ -127,6 +127,41 @@ Vários tratores e implementos trabalham no mesmo pasto, no mesmo tipo, ao mesmo
 
 **Testes:** `tests/smoke/aberturaServicoRegras.test.js` (frentes), `tests/smoke/diarioEmAndamentoNoPasto.test.jsx` (b, c, e, f, f2, g, g2), `tests/smoke/diarioDasAtividades.test.jsx` (carga por frente, d1 e d2).
 
+## Frentes (D-PROD-348)
+
+**Decisão:** [D-PROD-348](./DECISIONS.md). Uma atividade por pasto e tipo; as máquinas em campo são as frentes dela (máquina + implemento), cada uma com a sua abertura, horímetro inicial e final, operador e lançamentos. Sem backend e sem migration.
+
+**Como a pessoa vê (o que mudou no Diário):**
+
+| Passo | O que tem |
+|---|---|
+| Em andamento neste pasto (`escolher`) | Um cartão por ATIVIDADE: nome, "N máquinas em campo · Início dd/mm" e a etiqueta (Em andamento / Aberta). "Nova atividade" no rodapé. |
+| Atividade (`atividade`) | Cabeçalho (Pasto, Início, Máquinas em campo). Um cartão por FRENTE: máquina, implemento, operador, horímetro inicial e "Hoje" (quantos lançamentos do dia). Frente encerrada: chip "Encerrado", horímetro final, não toca. "Adicionar máquina" e "Encerrar atividade". |
+| Adicionar máquina (`abrir`) | Título "Adicionar máquina", com o tipo e a operação da atividade já escolhidos. "Iniciar serviço" grava e volta à atividade. |
+| Serviço de uma frente (`iniciado`) | O cabeçalho da frente, as 7 opções (como antes), "Lançado hoje" só com os lançamentos dela e "Encerrar serviço". |
+| Encerrar serviço | Painel com "Horímetro final" (não pode ser menor que o inicial). Grava `[encerramento-servico bem=… impl=… hor=… bemn=… impln=…]` como apontamento do dia e volta à atividade. |
+| Encerrar atividade | Painel com o "Horímetro final" de cada frente aberta. Grava um encerramento por frente e conclui (`versao`, `data_conclusao` de hoje). |
+
+**Como:**
+- `src/lib/aberturaServicoRegras.js`: `frentesDosApontamentos` lê o encerramento (mesma chave, dia da abertura mais recente ou depois); `lerEncerramento`, `marcadorDoEncerramento`, `observacaoComEncerramento`, `validarEncerramento`, `resumoDasFrentes`, `textoDasMaquinasEmCampo`.
+- `src/components/lancamento-atividades/DiarioDasAtividades.jsx`: os passos, as travas e os envios (`encerrarFrente`, `encerrarAtividade`, `adicionarMaquina`).
+- `src/components/lancamento-atividades/AtividadeComFrentes.jsx` (novo): o passo `atividade`, o cartão da atividade e o cartão da frente.
+- `src/components/lancamento-atividades/EncerramentoDeFrentes.jsx` (novo): os dois painéis de horímetro final.
+
+**Correção nesta etapa:** o formulário de "Adicionar máquina" mostrava "Esta máquina com este implemento já tem serviço aberto" também para a frente já encerrada. Agora a frente encerrada tem a frase própria (`MSG_FRENTE_ENCERRADA`), a mesma que o envio já usava.
+
+**Testes:**
+- `tests/smoke/diarioFrentes.test.jsx` (novo, 12): (a) um cartão por atividade com "2 máquinas em campo"; (b) dois cartões de frente e "Adicionar máquina"; (c1) Adicionar máquina com `bem_id` e a tag, volta à atividade; (c2) duplicada aberta e (c3) duplicada encerrada bloqueiam sem POST; (d) a frente abre só o seu serviço; (e1) horímetro final inválido não envia; (e2) o encerramento grava a tag e a frente fica Encerrado; (f1) duas frentes exigem dois horímetros, dois encerramentos e o concluir com `versao`; (f2) falha no concluir e nova tentativa sem repetir os encerramentos; (g) atividade sem frente, sem pedir horímetro; (h) duplo clique, um só POST.
+- `tests/smoke/diarioDasAtividades.test.jsx` e `tests/smoke/diarioEmAndamentoNoPasto.test.jsx`: o caminho até a tela mudou (a abertura volta à atividade, e a frente leva ao serviço). As asserções do corpo enviado, as travas P1 e de frente duplicada, a carga por frente e a ausência do botão duplicado foram mantidas.
+- `tests/smoke/lancamentoAtividades.test.jsx` (LD-1): a atividade sem frente abre no passo da atividade, com o aviso e "Adicionar máquina".
+
+**Limites:**
+- A atividade nasce com a 1ª máquina (os tipos que exigem máquina pedem `bem_id` ao criar). "Adicionar máquina" só existe depois disso.
+- "Hoje" conta lançamentos, não horas.
+- Frente encerrada não reabre nesta atividade.
+- Conclusão recusada pelo servidor (um tipo que exige produção): o aviso sai na tela e as máquinas já encerradas ficam encerradas.
+- A lista "Atividades em andamento" dos Detalhes da área ainda não mostra "N máquinas em campo".
+
 ## Fora desta parte
 
 Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia; o "Diário da máquina" (`DiarioDaMaquina`) saiu dos Detalhes da área e da página Lançamento de Atividades; o código da tela antiga foi removido (sem uso).
