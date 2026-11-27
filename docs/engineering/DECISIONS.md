@@ -10531,7 +10531,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 **Ficou de fora, de propósito:** o envio de verdade com o app fechado, porque exigiria duplicar as filas na parte nativa. E o iPhone, que não tem o plugin e onde nada muda.
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`a33ede1b6`) indicou D-PROD-346. A D-PROD-347 (mapa leve, PR #436) entrou na `main` antes, deixando a 346 para esta; o marcador continua D-PROD-348.
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`a33ede1b6`) indicou D-PROD-346. A D-PROD-347 (mapa leve, PR #436) e a D-PROD-348 (diário, PR #434) entraram na `main` antes, deixando a 346 para esta; o marcador continua D-PROD-349.
 
 ## D-PROD-347 — Mapa leve, etapa 1: medir e tirar a trava do zoom nos nomes das áreas
 
