@@ -16,6 +16,13 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 export const PLUGIN_CAMADA = "CamadaDoMapa";
 /** A partir deste número de APK (`versionCode`) o app tem a camada nativa. APK 1.0.9 = código 10. */
 export const APK_CAMADA_NATIVA = 10;
+/**
+ * D-PROD-377: a camada nativa está DESLIGADA. No teste do proprietário no APK 1.0.9, ícones e nomes "se moviam
+ * conforme o zoom": a camada é desenhada por cima do mapa, fora do desenho dele, e no zoom fica atrás do mapa. Os
+ * marcadores do próprio mapa (D-PROD-374) ficam colados; o app volta a eles. O código fica para uma versão que desenhe
+ * junto com o mapa.
+ */
+export const CAMADA_NATIVA_LIGADA = false;
 /** Zooms do MapLibre das paradas de tamanho (o Android interpola entre elas, como o `icon-size` do MapLibre). */
 export const ZOOMS_ESCALA = Object.freeze(Array.from({ length: 25 }, (_, i) => i));
 /** Quantas vezes `ligar` tenta achar o mapa (ele acabou de ser criado) e o intervalo (ms). */
@@ -26,6 +33,7 @@ const camada = /** @type {any} */ (registerPlugin(PLUGIN_CAMADA));
 
 /** O app tem a camada nativa (Android com o plugin)? Fora do app, não. */
 export function camadaNativaDisponivel() {
+  if (!CAMADA_NATIVA_LIGADA) return false;
   try {
     return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android" && Capacitor.isPluginAvailable(PLUGIN_CAMADA);
   } catch {

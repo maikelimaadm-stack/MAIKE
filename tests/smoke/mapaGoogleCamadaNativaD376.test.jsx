@@ -5,8 +5,8 @@
  *          camada (ordem do site, toque só em quem tem clique, âncora).
  *  G376-2. `criarCamadaNativa`: liga (tentando de novo enquanto o mapa nasce), manda cada imagem uma vez, não manda de
  *          novo o que não mudou, o toque devolve o marcador mais novo, desligar; sem o mapa, null.
- *  G376-3. Componente no app com o APK 1.0.9: os ícones vão para a camada (não para os marcadores do mapa), sem a câmera
- *          a cada quadro; o toque pergunta à camada e, sem item, abre a área. APK 1.0.8: os marcadores do mapa.
+ *  G376-3. Componente no app: D-PROD-377 desligou a camada (no APK 1.0.9 os ícones e nomes se moviam no zoom); os
+ *          marcadores do mapa, sem a câmera a cada quadro. APK 1.0.8: os marcadores do mapa.
  *  G376-4. O lado Android: o plugin registrado, a mesma versão do mapa do plugin, o nome do plugin e a mesma conta da
  *          página (ladrilho de 256 dp, zoom do MapLibre = do Google − 1, folga do toque, 25 paradas).
  */
@@ -82,6 +82,7 @@ vi.mock("@capacitor/google-maps", () => ({
 
 import {
   APK_CAMADA_NATIVA,
+  CAMADA_NATIVA_LIGADA,
   PLUGIN_CAMADA,
   ZOOMS_ESCALA,
   camadaNativaDisponivel,
@@ -132,10 +133,9 @@ describe("G376-1 — imagens, paradas e itens", () => {
     expect(itemDaCamada(/** @type {any} */ ({ id: "eu", lat: 0, lng: 0, url: "u", w: 24, h: 24, z: 10000, zNativo: 400, semToque: true }), "k3")).toMatchObject({ z: 10000, toque: false });
   });
 
-  it("disponível só no Android com o plugin; APK 1.0.9 = código 10", () => {
+  it("D-PROD-377: a camada está desligada (ícones e nomes se moviam no zoom): nunca disponível; APK 1.0.9 = código 10", () => {
     expect(APK_CAMADA_NATIVA).toBe(10);
-    expect(camadaNativaDisponivel()).toBe(true);
-    nativo.comCamada = false;
+    expect(CAMADA_NATIVA_LIGADA).toBe(false);
     expect(camadaNativaDisponivel()).toBe(false);
     nativo.ligado = false;
     expect(camadaNativaDisponivel()).toBe(false);
@@ -203,42 +203,15 @@ describe("G376-3 — o mapa do app com a camada nativa", () => {
   const quadrado = { id: "p1", nome: "Pasto 1", coordenadas: { coords: [[-14.99, -47.01], [-14.99, -46.99], [-15.01, -46.99], [-15.01, -47.01]] } };
   const props = (extra = {}) => ({ areas: [quadrado], areasCarregadas: true, mostrarAreas: true, corDaArea: () => "#22c55e", tipoMapa: "satellite", empresaId: "e1", ...extra });
 
-  it("APK 1.0.9: os ícones vão para a camada; sem câmera a cada quadro; o toque pergunta à camada e, sem item, abre a área", async () => {
+  it("D-PROD-377: no APK 1.0.9 a camada fica desligada; os marcadores do mapa (colados nele), sem câmera a cada quadro", async () => {
     const onMapa = vi.fn();
-    const onClickArea = vi.fn();
-    const { getByTestId, unmount } = render(<MapaGoogleNativo {...props({ onMapa, onClickArea })} />);
+    const { getByTestId } = render(<MapaGoogleNativo {...props({ onMapa })} />);
     await waitFor(() => expect(onMapa).toHaveBeenCalled());
-    expect(camadaFalsa.plugin.ligar).toHaveBeenCalledWith({ mapId: "mapa-7" });
+    expect(camadaFalsa.plugin.ligar).not.toHaveBeenCalled();
+    expect(falso.mapa.setOnMarkerClickListener).toHaveBeenCalled();
     expect(getByTestId("mapa-google-marcadores-app").style.display).toBe("none");
+    // com os ícones no mapa nativo, a página não pede a câmera a cada quadro
     expect(nativo.movimento).not.toHaveBeenCalled();
-    expect(falso.mapa.setOnMarkerClickListener).not.toHaveBeenCalled();
-
-    const l = lote();
-    await act(async () => {
-      await onMapa.mock.calls.at(-1)[0].definirMarcadores("lotes", [l]);
-    });
-    expect(camadaFalsa.plugin.definir).toHaveBeenCalledWith({ grupo: "lotes", itens: [expect.objectContaining({ id: "a1", toque: true })] });
-    expect(falso.mapa.addMarkers).not.toHaveBeenCalled();
-
-    await waitFor(() => expect(falso.mapa.ouvintes.toque).toBeTypeOf("function"));
-    camadaFalsa.estado.item = { grupo: "lotes", id: "a1" };
-    await act(async () => {
-      falso.mapa.ouvintes.toque({ latitude: -15, longitude: -47 });
-      await Promise.resolve();
-    });
-    expect(camadaFalsa.plugin.tocar).toHaveBeenCalledWith({ lat: -15, lng: -47 });
-    await waitFor(() => expect(l.onClick).toHaveBeenCalledTimes(1));
-    expect(onClickArea).not.toHaveBeenCalled();
-
-    // fora de ícone: a área no ponto
-    camadaFalsa.estado.item = null;
-    await act(async () => {
-      falso.mapa.ouvintes.toque({ latitude: -15.005, longitude: -46.995 });
-    });
-    await waitFor(() => expect(onClickArea).toHaveBeenCalledWith(quadrado));
-
-    unmount();
-    await waitFor(() => expect(camadaFalsa.plugin.desligar).toHaveBeenCalled());
   });
 
   it("APK 1.0.8 (código 9): os marcadores do mapa, sem a camada", async () => {
@@ -250,13 +223,6 @@ describe("G376-3 — o mapa do app com a camada nativa", () => {
     expect(falso.mapa.setOnMarkerClickListener).toHaveBeenCalled();
   });
 
-  it("a camada não liga: os marcadores do mapa", async () => {
-    camadaFalsa.estado.falhasAoLigar = 100;
-    const onMapa = vi.fn();
-    render(<MapaGoogleNativo {...props({ onMapa })} />);
-    await waitFor(() => expect(onMapa).toHaveBeenCalled(), { timeout: 4000 });
-    expect(falso.mapa.setOnMarkerClickListener).toHaveBeenCalled();
-  });
 });
 
 describe("G376-4 — o lado Android", () => {
