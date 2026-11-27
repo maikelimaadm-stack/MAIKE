@@ -89,6 +89,23 @@ describe('UC — cadastro do produto', () => {
     fireEvent.submit(document.getElementById(FORMULARIO_PRODUTO_ID));
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it('UC-3b — D-PROD-371: KG, L e UN valem como conversão; só KG ↔ L é recusado; produto em SC com "1 KG = 0,04 SC"', () => {
+    expect(errosDasConversoes([{ sigla: 'UN', operacao: 'MULTIPLICA', fator: '2' }], 'KG')).toEqual({});
+    expect(errosDasConversoes([{ sigla: 'L', operacao: 'MULTIPLICA', fator: '1' }], 'KG')['0.sigla']).toBe('Conversão entre KG e L não é permitida');
+    expect(errosDasConversoes([{ sigla: 'KG', operacao: 'MULTIPLICA', fator: '1' }], 'L')['0.sigla']).toBe('Conversão entre KG e L não é permitida');
+    expect(errosDasConversoes([{ sigla: 'KG', operacao: 'DIVIDE', fator: '25' }, { sigla: 'L', operacao: 'MULTIPLICA', fator: '50' }], 'SC')).toEqual({});
+    expect(errosDasConversoes([{ sigla: 'SC', operacao: 'MULTIPLICA', fator: '1' }], 'SC')['0.sigla']).toMatch(/unidade de estoque \(SC\)/);
+    expect(previaDaConversao({ sigla: 'KG', operacao: 'DIVIDE', fator: '25' }, 'SC')).toBe('1 KG = 0,04 SC');
+    const onSubmit = vi.fn();
+    montar({ onSubmit, isEditing: true, initialData: { ...PRODUTO, unidade_medida: 'SC', unidade_principal_estoque: 'SC', unidades_conversao: [{ id: 'k1', sigla: 'KG', operacao: 'DIVIDE', fator: '25.000000', ativa: true }] } });
+    fireEvent.click(screen.getByRole('tab', { name: 'Conversão de unidades' }));
+    expect(screen.getByTestId('produto-unidades-conversao').textContent).toContain('Saldo e custo ficam sempre em SC');
+    expect(screen.getByTestId('produto-unidade-0-previa').textContent).toContain('1 KG = 0,04 SC');
+    fireEvent.submit(document.getElementById(FORMULARIO_PRODUTO_ID));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ unidade_medida: 'SC', unidade_principal_estoque: 'SC' });
+  });
 });
 
 describe('UC — lançamentos', () => {
@@ -103,6 +120,15 @@ describe('UC — lançamentos', () => {
     expect(equivalenciaDaLinha({ produto, unidade: 'SACO', quantidade: '10' })).toBe('10 SACO = 250 kg');
     expect(equivalenciaDaLinha({ produto, unidade: 'KG', quantidade: '10' })).toBe('');
     expect(contadoEmEstoque({ produto, unidade: 'SACO', contado: '8' })).toBe('200.0000');
+  });
+
+  it('UC-4b — D-PROD-371: produto em SC — o seletor traz SC e a conversão KG; 500 KG = 20 SC; a equivalência com a sigla real', () => {
+    const sc = { id: 'p2', rotulo: 'MILHO', unidade_estoque: 'SC', unidades_conversao: [{ sigla: 'KG', operacao: 'DIVIDE', fator: '25', ativa: true, equivalencia: '1 KG = 0,04 SC' }] };
+    expect(unidadesDoProduto(sc, 'compra')).toEqual([{ value: 'SC', label: 'SC' }, { value: 'KG', label: 'KG (1 KG = 0,04 SC)' }]);
+    expect(emUnidadeDeEstoque(sc, 'KG', '500')).toBe('20.0000');
+    expect(emUnidadeDeEstoque(sc, 'SC', '3')).toBe('3.0000');
+    expect(equivalenciaDaLinha({ produto: sc, unidade: 'KG', quantidade: '500' })).toBe('500 KG = 20 SC');
+    expect(contadoEmEstoque({ produto: sc, unidade: 'KG', contado: '250' })).toBe('10.0000');
   });
 });
 

@@ -12,8 +12,9 @@
  *    movimento, `estoque_atual`, consumo e estorno. Os parâmetros e variáveis
  *    `quantidadeKg`/`custoUnitarioKg`/`kg` mantêm o nome (contrato da P3), mas
  *    estão na unidade de estoque do Produto; o rótulo do movimento
- *    (`unidade_medida`) vem do Produto: `'L'` para Produto em L, `'KG'` para o
- *    resto (inclusive SACO, que guarda kg);
+ *    (`unidade_medida`) vem do Produto: a unidade de estoque dele (D-PROD-371:
+ *    a sigla do cadastro, KG, L, SC, UN...; `'KG'` para o SACO legado, que
+ *    guarda kg, e para o vazio);
  *  - `travarProdutosEstoque` antes de QUALQUER leitura de produto/lote e antes
  *    de qualquer UPDATE em movimento (evita lost update com a suplementação e o
  *    ciclo com `/referencias/sincronizar`, que faz FOR SHARE no Produto);
@@ -49,6 +50,7 @@ import { travarEscopo } from '../gestao/gestaoComum.js';
 import { reservarNumero, reservarNumeros, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, Dec, LIMITE_ESTOQUE, ZERO, arredondar, dec, paraBanco, somar } from '../financeiro/decimalFinanceiro.js';
 import { buscarMovimentoPosterior } from './movimentoPosterior.js';
+import { unidadeEstoqueEfetiva } from '../produtos/produtoUnidadesConversao.js';
 
 export const ENTIDADE_MOVIMENTO = 'MovimentacaoEstoque';
 export const ORIGEM_SISTEMA = 'operacao_financeira';
@@ -569,8 +571,9 @@ const camposComuns = (auth, a) => {
     cliente_id: auth.clienteId,
     empresa_id: a.empresaId,
     ...camposDoProduto(a.produto),
-    // D-PROD-162: o rótulo vem do Produto (quem chama passa `unidade_principal_estoque`); KG e SACO continuam 'KG'.
-    unidade_medida: a.produto?.unidade_principal_estoque === 'L' ? 'L' : 'KG',
+    // D-PROD-162 / D-PROD-371: o rótulo vem do Produto (quem chama passa `unidade_principal_estoque`): a unidade de
+    // estoque real (KG, L, SC, UN...); o SACO legado continua 'KG'.
+    unidade_medida: unidadeEstoqueEfetiva(a.produto),
     numero_documento: a.documento?.numero ?? null,
     data_documento: a.documento?.data ? comoDia(a.documento.data) : null,
     lancamento_origem_id: a.origem.operacaoId,

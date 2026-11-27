@@ -1,7 +1,8 @@
 /**
  * D-PROD-288 — unidades de conversão do produto (o "motor" da conversão de unidade).
  *
- * O produto tem UMA unidade de estoque efetiva: L (litros) ou KG (KG e o SACO legado, que guarda kg). Saldo, custo
+ * O produto tem UMA unidade de estoque efetiva. D-PROD-371 (emenda aprovada pelo proprietário): é a sua Unidade de
+ * Medida, uma sigla do cadastro de Unidades (KG, L, SC, UN, CX...); o SACO legado guarda kg (efetiva KG). Saldo, custo
  * médio, lote e recálculo ficam sempre nela (D-PROD-256/273/282 não mudam). Uma conversão diz quanto vale 1 unidade
  * alternativa (`sigla`) na unidade de estoque:
  *  - MULTIPLICA fator → 1 sigla = fator (ex.: SACO ×25 → 1 SACO = 25 KG);
@@ -18,15 +19,22 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { CASAS_QUANTIDADE, Dec, dec, arredondar } from '../financeiro/decimalFinanceiro.js';
 
 export const OPERACOES = Object.freeze(['MULTIPLICA', 'DIVIDE']);
-/** Siglas que nunca são conversão: as unidades físicas de estoque e a do serviço (o mesmo CHECK do banco). */
-export const SIGLAS_RESERVADAS = Object.freeze(['KG', 'L', 'UN']);
 export const FATOR_DIVIDE_MAXIMO = 10000;
 export const SIGLA_MAX = 8;
 export const CASAS_FATOR = 6;
 
-/** Unidade de estoque EFETIVA: L para L; KG para KG, SACO (legado) e o resto. */
-/** @param {any} produto @returns {'KG'|'L'} */
-export const unidadeEstoqueEfetiva = (produto) => (produto?.unidade_principal_estoque === 'L' ? 'L' : 'KG');
+/**
+ * Unidade de estoque EFETIVA (D-PROD-371): a sigla gravada em `unidade_principal_estoque` (aparada e em maiúsculas);
+ * KG para o SACO legado (guarda kg) e para o vazio.
+ * @param {any} produto @returns {string}
+ */
+export const unidadeEstoqueEfetiva = (produto) => {
+  const u = String(produto?.unidade_principal_estoque ?? '').trim().toUpperCase();
+  return !u || u === 'SACO' ? 'KG' : u;
+};
+
+/** KG ↔ L nunca: nem no lançamento nem como conversão (densidade fica fora; D-PROD-371). */
+const cruzaKgL = (a, b) => (a === 'KG' && b === 'L') || (a === 'L' && b === 'KG');
 
 /** `select` do Prisma para carregar as conversões vigentes (não excluídas) junto do produto. */
 export const SELECT_CONVERSOES = Object.freeze({
@@ -76,7 +84,7 @@ const UM = Object.freeze({ sigla: null, operacao: 'MULTIPLICA', fator: '1' });
  * @param {any} produto  com `unidade_principal_estoque`, `peso_por_saco_kg` e `unidadesConversao` (opcional)
  * @param {string} unidade  a sigla escolhida (a de estoque ou a de uma conversão ativa)
  * @param {{ uso?: 'compra'|'venda'|null, erro: (reason: string, mensagem: string, extra?: object) => Error }} opcoes
- * @returns {{ conversao: any, unidadeEstoque: 'KG'|'L', fator: InstanceType<typeof Dec>, quantidadeEstoque: (q: any) => InstanceType<typeof Dec>, custoEstoque: (c: any, casas: number) => InstanceType<typeof Dec> }}
+ * @returns {{ conversao: any, unidadeEstoque: string, fator: InstanceType<typeof Dec>, quantidadeEstoque: (q: any) => InstanceType<typeof Dec>, custoEstoque: (c: any, casas: number) => InstanceType<typeof Dec> }}
  */
 export const resolverUnidade = (produto, unidade, { uso = null, erro }) => {
   const unidadeEstoque = unidadeEstoqueEfetiva(produto);
@@ -89,7 +97,8 @@ export const resolverUnidade = (produto, unidade, { uso = null, erro }) => {
     custoEstoque: (custo, casas) => converterCusto(custo, c, casas),
   });
   if (u === unidadeEstoque) return pronta(UM);
-  if (u === 'KG' || u === 'L') {
+  // D-PROD-371: só KG ↔ L é recusado; KG, L e UN podem ser conversão (um produto em SC lança em KG pela conversão KG).
+  if (cruzaKgL(u, unidadeEstoque)) {
     throw erro('unidade_incompativel', 'a unidade do lançamento não é compatível com o estoque do produto (nada de conversão entre kg e litros); nada foi gravado', { unidade_produto: unidadeEstoque });
   }
   const conversoes = Array.isArray(produto?.unidadesConversao) ? produto.unidadesConversao : [];
@@ -115,8 +124,8 @@ const invalido = (mensagem, details) => new AppError('REQUEST_VALIDATION_FAILED'
 
 /**
  * Normaliza a lista do corpo. Cada item: `{ id?, sigla, operacao, fator, uso_compra?, uso_venda?, codigo_barras?, ativa?, ordem? }`.
- * Recusa: sigla vazia/longa/reservada/igual à unidade de estoque/repetida, operação fora, fator ≤ 0 ou DIVIDE > 10000,
- * nenhum uso.
+ * Recusa: sigla vazia/longa/igual à unidade de estoque/repetida, KG num produto em L ou L num produto em KG
+ * (D-PROD-371: `conversao_kg_l`), operação fora, fator ≤ 0 ou DIVIDE > 10000, nenhum uso.
  * @param {unknown} lista @param {any} produto  o produto (unidade de estoque)
  */
 export const normalizarConversoes = (lista, produto) => {
@@ -132,7 +141,9 @@ export const normalizarConversoes = (lista, produto) => {
     if (sigla === unidadeEstoque || sigla === String(produto?.unidade_principal_estoque ?? '')) {
       throw invalido(`a unidade alternativa não pode ser a própria unidade de estoque (${unidadeEstoque})`, { reason: 'sigla_igual_principal', sigla, ...extra });
     }
-    if (SIGLAS_RESERVADAS.includes(sigla)) throw invalido(`a sigla ${sigla} é reservada (KG, L e UN não são conversão)`, { reason: 'sigla_reservada', sigla, ...extra });
+    if (cruzaKgL(sigla, unidadeEstoque)) {
+      throw invalido(`conversão entre KG e L não é permitida (o estoque deste produto está em ${unidadeEstoque})`, { reason: 'conversao_kg_l', sigla, ...extra });
+    }
     if (vistas.has(sigla)) throw invalido(`a sigla ${sigla} aparece mais de uma vez`, { reason: 'sigla_repetida', sigla, ...extra });
     vistas.add(sigla);
     if (!OPERACOES.includes(it.operacao)) throw invalido('a operação é MULTIPLICA ou DIVIDE', { reason: 'operacao_invalida', ...extra });

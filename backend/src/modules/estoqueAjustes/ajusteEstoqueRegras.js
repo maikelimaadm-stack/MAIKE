@@ -65,8 +65,9 @@ export const normalizarCriacao = (corpo) => {
   if (!bruto.length || bruto.length > MAX_ITENS) throw invalido(`informe de 1 a ${MAX_ITENS} itens`, { field: 'itens', reason: 'quantidade_de_itens' });
   const itens = bruto.map((i, indice) => {
     const it = /** @type {Record<string, any>} */ (i ?? {});
-    // D-PROD-288: KG, L, SACO ou a sigla de uma unidade de conversão do produto (conferida contra o cadastro depois).
-    if (typeof it.unidade !== 'string' || !it.unidade.trim() || it.unidade.trim().length > 8 || it.unidade.trim() === 'UN') throw invalido('unidade inválida (a de estoque ou uma unidade de conversão do produto)', { field: 'unidade', reason: 'unidade', indice });
+    // D-PROD-288 / D-PROD-371: a unidade de estoque do produto (KG, L, SC, UN...) ou a sigla de uma unidade de conversão
+    // dele (conferida contra o cadastro depois).
+    if (typeof it.unidade !== 'string' || !it.unidade.trim() || it.unidade.trim().length > 8) throw invalido('unidade inválida (a de estoque ou uma unidade de conversão do produto)', { field: 'unidade', reason: 'unidade', indice });
     it.unidade = it.unidade.trim().toUpperCase();
     const quantidade = decimalDoCorpo(it.quantidade_contada, 'quantidade_contada', indice);
     const custo = it.custo_unitario === undefined || it.custo_unitario === null ? null : dec(decimalDoCorpo(it.custo_unitario, 'custo_unitario', indice)).toFixed(CASAS_CUSTO);

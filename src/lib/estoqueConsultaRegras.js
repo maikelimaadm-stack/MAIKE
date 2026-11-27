@@ -2,7 +2,7 @@
  * Estoque — Saldo e Movimentos (D-PROD-255): rótulos e formatação das consultas.
  *
  * Os decimais vêm do servidor como TEXTO canônico ("150.0000"); nada aqui faz
- * aritmética de ponto flutuante. Quantidade na unidade do Produto (L ou kg).
+ * aritmética de ponto flutuante. Quantidade na unidade de estoque do Produto (D-PROD-371: kg, L, SC, UN...).
  * Datas em DD/MM/AAAA, dinheiro em R$.
  */
 import { formatarMoeda } from '@/lib/dinheiroDecimal';
@@ -103,8 +103,16 @@ export const formatarInstante = (iso) => {
   return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-/** "150" + "L" → "150 L"; "KG" → "kg". @param {unknown} v @param {unknown} unidade */
-export const formatarQtd = (v, unidade) => (typeof v === 'string' ? formatarQuantidadeCurta(v, unidade) : '');
+/**
+ * "150" + "L" → "150 L"; "KG" → "kg". D-PROD-371: outra unidade de estoque sai com a sigla ("40 SC", "12 UN").
+ * @param {unknown} v @param {unknown} unidade
+ */
+export const formatarQtd = (v, unidade) => {
+  if (typeof v !== 'string') return '';
+  const sigla = typeof unidade === 'string' ? unidade.trim().toUpperCase() : '';
+  if (!sigla || sigla === 'KG' || sigla === 'L' || sigla === 'SACO') return formatarQuantidadeCurta(v, sigla || unidade);
+  return `${formatarQuantidadeCurta(v, null)} ${sigla}`;
+};
 
 /** Sem o centavo quebrado: R$ 1.234,56; custo com até 4 casas. @param {unknown} v */
 export const formatarReais = (v) => (typeof v === 'string' ? formatarMoeda(v, { casas: 2 }) : '');

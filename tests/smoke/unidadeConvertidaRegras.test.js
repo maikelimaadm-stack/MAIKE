@@ -5,6 +5,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  rotuloDoEstoque,
+  unidadeDeEstoqueDoProduto,
   canonicoDigitado,
   conversaoEscolhida,
   corpoDaUnidade,
@@ -92,5 +94,19 @@ describe('UCR-3 — a linha de produto da atividade', () => {
     expect(camposAlteradosDaLinhaProduto(linha, corpoDaLinhaProduto({ ...f, observacao: 'ok' }))).toEqual({ observacao: 'ok' });
     expect(camposAlteradosDaLinhaProduto(linha, corpoDaLinhaProduto({ ...f, quantidade: '3' }))).toEqual({ quantidade: '75.0000', unidade_lancamento: 'SACO', quantidade_lancamento: '3' });
     expect(camposAlteradosDaLinhaProduto(linha, corpoDaLinhaProduto({ ...f, unidade: '', quantidade: '50' }))).toEqual({ quantidade: '50' });
+  });
+});
+
+describe('UCR-SC — D-PROD-371: a unidade de estoque real do cadastro', () => {
+  const MILHO = { id: 'p9', unidade_estoque: 'SC', unidade_principal_estoque: 'SC', unidades_conversao: [conv('KG', 'DIVIDE', '25.000000', { equivalencia: '1 KG = 0,04 SC' })] };
+  it('a sigla real (SACO legado e vazio = KG); o rótulo kg/L/sigla; o seletor e a conta em SC', () => {
+    expect(['KG', 'L', 'SC', 'UN', 'SACO', '', null, ' sc '].map((u) => unidadeDeEstoqueDoProduto({ unidade_principal_estoque: u }))).toEqual(['KG', 'L', 'SC', 'UN', 'KG', 'KG', 'KG', 'SC']);
+    expect([{ unidade_estoque: 'KG' }, { unidade_estoque: 'L' }, { unidade_estoque: 'SC' }, { unidade_principal_estoque: 'SACO' }].map(rotuloDoEstoque)).toEqual(['kg', 'L', 'SC', 'kg']);
+    expect(opcoesDeUnidade(MILHO)).toEqual([{ value: 'SC', label: 'SC' }, { value: 'KG', label: 'KG (1 KG = 0,04 SC)' }]);
+    expect(quantidadeEmEstoque(MILHO, 'KG', '500')).toBe('20.0000');
+    expect(textoDaConversao(MILHO, 'KG', '500')).toBe('= 20 SC');
+    expect(textoDaConversao(MILHO, 'SC', '3')).toBe('');
+    expect(conversaoEscolhida(MILHO, 'KG')).toBe('KG');
+    expect(conversaoEscolhida(MILHO, 'SC')).toBe('');
   });
 });

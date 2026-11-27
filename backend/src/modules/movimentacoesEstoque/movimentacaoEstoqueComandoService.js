@@ -31,8 +31,10 @@ import {
   conferirQuantidadeDoCorpo,
   converterUnidadeDoLancamento,
   unidadeDoCorpo,
+  unidadeInvalida,
   unidadeNoFingerprint,
 } from '../produtos/unidadeLancamento.js';
+import { unidadeEstoqueEfetiva } from '../produtos/produtoUnidadesConversao.js';
 import {
   ENTIDADE_MOVIMENTO,
   ORIGEM_SUPLEMENTACAO,
@@ -217,6 +219,14 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
         // financeiro) ANTES de ler produto e lotes.
         await travarProdutosEstoque(tx, cli, empresaId, [produtoId]);
         const produto = await exigirProdutoDaEmpresa(tx, cli, produtoId, empresaId);
+        // D-PROD-371 (trava até a UE-3): o cocho conta em kg (g/cab/dia, %PV, capacidade e custo por kg). Produto com
+        // estoque fora de KG (o SACO legado é KG; L segue como antes) não entra no cocho; nada foi gravado.
+        const unidadeDoProduto = unidadeEstoqueEfetiva(produto);
+        if (unidadeDoProduto !== 'KG' && unidadeDoProduto !== 'L') {
+          throw unidadeInvalida('unidade_sem_peso', `o estoque deste produto está em ${unidadeDoProduto}, e o cocho ainda só conta produto com estoque em KG`, {
+            field: 'produto_id', unidade_produto: unidadeDoProduto,
+          });
+        }
         // D-PROD-310: o cocho tira produto (uso "saída/venda" da conversão), como a saída manual.
         const { kg, colunas: colunasUnidade } = await quantidadeDoComando(tx, cli, produto, entrada, unidade, 'venda');
         const local = /** @type {{ id: string, nome: string }} */ (locais.get(localOrigemId));

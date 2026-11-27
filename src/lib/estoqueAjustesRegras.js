@@ -12,7 +12,7 @@ import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import { lerErroGestao } from '@/lib/gestaoErros';
 import { comparar, lerNumeroLocal, multiplicarArredondar, subtrair } from '@/lib/dinheiroDecimal';
 import { formatarQtd } from '@/lib/estoqueConsultaRegras';
-import { LIMITES_ENTRADA, LOCALE_ENTRADA, emUnidadeDeEstoque } from '@/lib/estoqueEntradasRegras';
+import { LIMITES_ENTRADA, LOCALE_ENTRADA, emUnidadeDeEstoque, unidadeEstoqueDe } from '@/lib/estoqueEntradasRegras';
 import { mensagemRecusaRecalculo } from '@/lib/estoqueRecalculoExclusao';
 
 export const MAX_ITENS_AJUSTE = 100;
@@ -22,7 +22,7 @@ export const FALTA = 'FALTA';
 export const SEM_DIFERENCA = 'SEM_DIFERENCA';
 export const ROTULO_TIPO_AJUSTE = Object.freeze(/** @type {Record<string, string>} */ ({ [SOBRA]: 'Sobra', [FALTA]: 'Falta', [SEM_DIFERENCA]: 'Sem diferença' }));
 
-/** @typedef {{ produto_id: string, local_estoque_id: string, unidade_estoque: 'KG'|'L', saldo: string, custo_medio: string|null }} SaldoDoDeposito */
+/** @typedef {{ produto_id: string, local_estoque_id: string, unidade_estoque: string, saldo: string, custo_medio: string|null }} SaldoDoDeposito */
 
 let sequenciaDeLinha = 0;
 /** Uma linha vazia do ajuste (a `chave` é só da tela, para o React). */
@@ -54,7 +54,7 @@ export const contadoEmEstoque = (linha) => {
   const q = lerDecimal(linha?.contado);
   if (!q.ok || !linha?.unidade) return null;
   // D-PROD-288: SACO e as unidades de conversão pela mesma conta do servidor (multiplica ou divide, 4 casas).
-  const estoque = linha.produto?.unidade_estoque === 'L' ? 'L' : 'KG';
+  const estoque = unidadeEstoqueDe(linha.produto);
   if (linha.unidade === estoque) return q.valor;
   return emUnidadeDeEstoque(linha.produto, linha.unidade, q.valor);
 };

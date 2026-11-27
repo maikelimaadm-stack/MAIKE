@@ -9,20 +9,27 @@
  * (D-PROD-300) continuam na unidade de estoque. Produto sem conversão: nada muda na tela nem no corpo.
  *
  * Os produtos chegam em formatos diferentes (`GET /produtos`, as opções da atividade, as opções da entrada): a unidade
- * de estoque sai de `unidade_estoque`, `unidade` ou `unidade_principal_estoque` (L → L; o resto, KG); as conversões, de
- * `unidades_conversao`. O SACO legado (produto SACO com `peso_por_saco_kg` e sem a conversão SACO) também aparece.
+ * de estoque sai de `unidade_estoque`, `unidade` ou `unidade_principal_estoque` (D-PROD-371: a sigla do cadastro, KG,
+ * L, SC, UN...; o SACO legado e o vazio são KG); as conversões, de `unidades_conversao`. O SACO legado (produto SACO com `peso_por_saco_kg` e sem a conversão SACO) também aparece.
  */
 import { emUnidadeDeEstoque, equivalenciaDaConversao, paraCampo } from '@/lib/estoqueEntradasRegras';
 import { lerNumeroLocal } from '@/lib/dinheiroDecimal';
 
-/** @param {any} produto @returns {'KG'|'L'} */
+/**
+ * A unidade de estoque do produto (D-PROD-371): a sigla real, aparada e em maiúsculas; KG para o SACO legado (guarda kg)
+ * e para o vazio. A mesma regra do servidor (`unidadeEstoqueEfetiva`).
+ * @param {any} produto @returns {string}
+ */
 export const unidadeDeEstoqueDoProduto = (produto) => {
-  const u = produto?.unidade_estoque ?? produto?.unidade ?? produto?.unidade_principal_estoque;
-  return u === 'L' ? 'L' : 'KG';
+  const u = String(produto?.unidade_estoque ?? produto?.unidade ?? produto?.unidade_principal_estoque ?? '').trim().toUpperCase();
+  return !u || u === 'SACO' ? 'KG' : u;
 };
 
-/** "kg" / "L" (a unidade de estoque na frase). @param {any} produto */
-export const rotuloDoEstoque = (produto) => (unidadeDeEstoqueDoProduto(produto) === 'L' ? 'L' : 'kg');
+/** "kg" / "L" / a sigla (a unidade de estoque na frase: "SC", "UN"). @param {any} produto */
+export const rotuloDoEstoque = (produto) => {
+  const u = unidadeDeEstoqueDoProduto(produto);
+  return u === 'KG' ? 'kg' : u;
+};
 
 /**
  * As conversões que a tela oferece: as ATIVAS, com o uso pedido (`venda` = saída; `null` = qualquer), e o SACO
@@ -56,7 +63,7 @@ export const opcoesDeUnidade = (produto, { uso = null, gravado = null, rotuloEst
   const estoque = unidadeDeEstoqueDoProduto(produto);
   const lista = conversoesComGravado(produto, uso, gravado);
   return [
-    { value: estoque, label: rotuloEstoque === 'sigla' ? estoque : estoque === 'L' ? 'Litros (L)' : 'Quilos (kg)' },
+    { value: estoque, label: rotuloEstoque === 'sigla' ? estoque : estoque === 'L' ? 'Litros (L)' : estoque === 'KG' ? 'Quilos (kg)' : estoque },
     ...lista.map((c) => ({ value: c.sigla, label: `${c.sigla} (${c.equivalencia})` })),
   ];
 };
