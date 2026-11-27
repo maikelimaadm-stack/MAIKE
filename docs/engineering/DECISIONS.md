@@ -10891,6 +10891,71 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-364 (362 etapa 2, PR #450; 363 etapa 3, ainda local). O marcador passa a D-PROD-365. Conferir antes do merge (regra A5).
 
+## D-PROD-366 — Mapa do Google no Mapa Geral, etapa 1: nativo no app, Maps JavaScript API no site, em teste por aparelho
+
+**Data:** 2026-11-27 · **Origem:** o proprietário comparou com o AgriWebb e com o MAKGESTAO antigo e pediu o mapa do Google no app (Android e iOS) e no site ("vamos usar o mapa nativo do google", "já ajuste assim o meu mapa do aplicativo e da web") · **Relatório:** [`MAPA-GOOGLE-NATIVO-ETAPA1-D366-REPORT.md`](./MAPA-GOOGLE-NATIVO-ETAPA1-D366-REPORT.md) · **Migration:** nenhuma · **APK:** 1.0.6 (código 7)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-366: a D-PROD-364 foi da PR #452 e a D-PROD-365 está reservada pela PR #453 (regra A5). A `main` deu a D-PROD-367 ao cadastro no mapa, etapa 5 (PR #455), e passou a indicar `Próxima decisão: D-PROD-368`, que fica.
+
+- **Problema:**
+  - O satélite do Mapa Geral é o MapLibre com a Map Tiles API do Google, que conta **cada imagem** baixada (faixa grátis de 100 mil por mês) e não deixa guardar imagem no aparelho. O consumo estava chegando à cobrança.
+  - O APK do AgriWebb usa o Google Maps **nativo** do Android (`com.google.android.gms.maps`). O Google não cobra pelo mapa nativo e o SDK guarda as imagens já vistas.
+  - O MAKGESTAO antigo e o outro sistema mostrado pelo proprietário usam o Google Maps **do navegador** (Maps JavaScript API), que conta **aberturas de mapa** (faixa grátis de cerca de 10 mil por mês), não imagens.
+- **Decisão:** o Mapa Geral passa a ter o mapa do Google, pelo plugin oficial `@capacitor/google-maps` 8.0.1. Um código só serve os dois lados:
+  - no app Android/iOS, o mapa **nativo**;
+  - no site, a versão web do mesmo plugin (**Maps JavaScript API**).
+  As etapas seguintes (marcadores, nomes, coloração) valem para os dois. A troca é por etapas; a etapa 1 fica atrás de uma escolha por aparelho:
+  1. **Escolha:** Mapa Geral → Visualização → "Mapa do Google (teste)".
+     - No app, só aparece com o plugin instalado (APK 1.0.6). No site, com a chave do Google configurada.
+     - APK antigo recebendo o pacote novo e testes seguem no MapLibre. Trocar a escolha recarrega a página.
+  2. **O que o mapa do Google mostra:**
+     - satélite do Google (foto limpa) ou mapa, conforme o tipo do Mapa Geral, já na criação;
+     - as áreas como polígonos, com **a mesma cor do MapLibre**: a da coloração ou, no modo padrão, a cor salva da área, com o mesmo clareamento de 5%, sempre `#rrggbb`;
+     - o estilo do pasto: Cheio 78%, Suave 40%, Contorno 8% com a divisa na cor da área;
+     - o toque na área abre o mesmo detalhe;
+     - no site, um dedo arrasta (`greedy`), sem os botões e ícones clicáveis do Google.
+  3. **Vista:**
+     - centro e zoom ficam na mesma chave do MapLibre, com o zoom convertido: Google = MapLibre + 1, porque os ladrilhos são de 256 contra 512 px;
+     - sem vista salva, enquadra a fazenda; sem áreas, grava a vista como está.
+  4. **App — mapa atrás da página:**
+     - o plugin põe o mapa nativo atrás da WebView. Com o Mapa Geral à vista, os fundos entre o mapa e a raiz ficam transparentes e o mapa recebe o toque;
+     - escondido (D-PROD-305), os fundos voltam e o mapa larga o toque (`disableTouch`);
+     - os botões e painéis por cima continuam com o toque, porque o plugin confere o elemento sob o dedo;
+     - os avisos "Carregando mapa salvo…" e "Mapa indisponível" do MapLibre não aparecem com o mapa do Google.
+  5. **Ciclo de vida:**
+     - cada mapa criado tem um id novo;
+     - a troca da escolha **destrói o mapa antes de recarregar**, porque recarregar não roda a limpeza do React e o mapa nativo ficaria pegando os toques;
+     - o id do último mapa fica guardado, e um mapa órfão é destruído na abertura seguinte;
+     - as trocas de polígonos rodam uma de cada vez, e a seguinte tira o que a anterior pôs.
+  6. **Unidades no Android:** linha e margem multiplicadas pela densidade da tela, porque o Android as lê em pixels físicos.
+  7. **Falha:** se o mapa do Google não abrir, o app avisa, desliga a escolha, destrói o mapa e volta ao mapa de sempre.
+  8. **Chaves:** uma chave só, a `VITE_GOOGLE_MAPS_API_KEY`, que já está na Vercel e nos segredos do GitHub, serve o site, o Android e o iPhone.
+     - Android: vai ao `AndroidManifest` pelo `build.gradle`. Na falta de `GOOGLE_MAPS_ANDROID_KEY`, o workflow usa essa.
+     - iPhone: vai pelo código. Na falta de `VITE_GOOGLE_MAPS_IOS_KEY`, usa essa.
+     - Para o app, ela **não pode** estar restrita a "Sites" (referrer HTTP). Restrita assim, o mapa do Google fica cinza no app e a pessoa volta ao mapa de sempre.
+     - O workflow mostra a impressão SHA-1 do certificado, para quem preferir uma chave própria restrita ao app.
+  9. **iOS:** o pacote Swift do plugin entrou em `ios/App/CapApp-SPM/Package.swift`. O app de iPhone só é gerado num Mac com Xcode.
+- **Próximas etapas:**
+  - 2: lotes, cochos, pontos e tarefas como marcadores, com as imagens das etapas 2 e 3 do mapa leve.
+  - 3: nomes dos pastos, com as imagens da etapa 4.
+  - 4: coloração por situação, forragem e farol; focos; arrastar lote; minha localização; local da tarefa pelo toque no mapa.
+  - Depois disso, o mapa do Google vira o padrão no app e no site e a Map Tiles API sai.
+  - O editor de áreas continua no MapLibre até haver pedido.
+- **Revisão independente:** um crítico e três altos corrigidos:
+  - toques presos depois de desligar (o destroy antes de recarregar e a limpeza do órfão);
+  - aviso "Carregando…" fixo no centro;
+  - áreas cinza no modo padrão;
+  - polígonos órfãos em trocas seguidas.
+  E também: mapa nativo visível e pegando toques em outras telas (`ativo`); destroy atrasado derrubando o mapa novo (id por mapa); zoom ±1; unidades do Android; tipo do mapa na criação; vista sem áreas.
+- **Testes:** `tests/smoke/mapaGoogleNativoD366.test.jsx`, 18 testes com o plugin falso:
+  - cor igual à do MapLibre (modo padrão sem cinza, `#rrggbb`), estilos, escala do Android;
+  - caixa e tipo; escolha no app (só com o plugin) e no site (só com a chave); opções de criação;
+  - vista salva com o zoom convertido, janela transparente, toque → área, vista gravada, enquadramento;
+  - trocas sem polígono órfão; `ativo`; destroy antes de recarregar; id novo por mapa;
+  - no site, a página não fica transparente e a chave é a do site; falha;
+  - a escolha no painel.
+  O teste AE-03 (D-PROD-346) passou a conferir `nativoMinimo` 5 em vez da versão exata do app.
+
 ## D-PROD-367 — Cadastrar no mapa como no AgriWebb, etapa 5: KMZ e exclusão sem internet que não fica pela metade
 
 **Data:** 2026-11-27 · **Origem:** pedido do proprietário (o mapa como no AgriWebb, também sem internet) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`MAPA-CADASTRO-ETAPA5-D367-REPORT.md`](./MAPA-CADASTRO-ETAPA5-D367-REPORT.md)
@@ -10910,6 +10975,31 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
    - dividir e juntar pastos, que mexe no gado de dentro e no histórico.
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-367 (363 e 364 são as etapas 3 e 4, PRs #451 e #452; 365 e 366 estão reservados pelas PRs #453 e #454). O marcador passa a D-PROD-368. Conferir antes do merge (regra A5).
+
+## D-PROD-365 — A opção "Máquina" da frente: as horas do dia na mesma janela do serviço
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário (depois da D-PROD-359 e da D-PROD-363): a opção "Máquina" do serviço abria "Em breve"; o mockup aprovado é "Horas do dia" (`a-maquina-horas-do-dia`) · **Branch:** `feat/diario-maquina` · **Migration:** nenhuma · **APK:** a conferir (só front-end)
+
+**Decisão.** A opção "Máquina" do serviço de uma frente abre a tela de HORAS DO DIA na MESMA janela do serviço, como a Carga de insumo (D-PROD-334) e o Abastecimento (D-PROD-359): sem wizard e sem popup sobre popup. Esta etapa é só "Horas do dia": sem abas, sem "Parada", sem trocar implemento e sem corrigir horímetro (essas continuam fora desta tela). Grava a linha de máquina que já existe (`AtividadeApontamentoMaquina`) pelo fluxo que já existe. Nenhuma rota, tabela, migration ou serviço de gravação novo.
+
+**O que muda.**
+- **A tela** (`MaquinaDaFrente.jsx`). Cabeçalho "Máquina" com "Lançar as horas do <máquina da frente>". "Horímetro inicial do dia" só para leitura, com a linha "Último horímetro lido: … (abertura do serviço | último lançamento | encerramento anterior | leitura do medidor)". O inicial é o MAIOR entre a leitura vigente do medidor do bem na data e o último horímetro lido pela frente (`ultimoHorimetroLidoDaFrente`). "Horímetro final do dia" obrigatório. "Horas trabalhadas: 4,5 h (3.131,5 - 3.127,0)", calculada. "Responsável" só para leitura (o da frente). Botão do rodapé "Salvar horas".
+- **Gravação.** Com o apontamento CONFIRMADO de hoje da frente, `adicionarLinha(LINHA_MAQUINA)` com a `versao` dele; sem ele, um `criarApontamento` com `maquinas[]` (o dia e a linha nascem juntos, atômico, como a carga faz com `produtos`). A observação leva a abertura da frente. O corpo sai de `formularioMaquinaVazio`, `validarLinhaMaquina` e `corpoDaLinhaMaquina`, com bem = máquina da frente e implemento = o da frente. Idempotência como a carga: `operation_id` persistente, "Repetir o mesmo envio" e "Consultar".
+- **Máquina sem contador** (ou sem medidor): em vez das duas leituras, um campo "Horas trabalhadas" (uso maior que zero) com `sem_medidor: true`.
+- **Salto.** Passou do teto do tipo (`passaDoTeto`) ou o servidor recusa com `ATIVIDADE_SALTO_MEDIDOR`: o campo "Justificativa do salto" aparece e o envio repete com `justificativa_salto`. As recusas do servidor aparecem na própria janela (`mensagemDeErroLinha`), sem popup.
+- **"Lançado hoje" e "Hoje".** A linha de máquina com as duas leituras mostra "3.127,0 → 3.131,5" no lugar do nome do bem (sem leituras, o nome segue). O "Hoje" do cartão da frente já somava (final − inicial) dessas linhas (`horasDaFrenteNoDia`); a nova linha entra nele sem mudança de cálculo.
+- **Base do horímetro.** A lógica de "base" que `horasDaFrenteNoDia` já tinha foi movida para `baseDoHorimetroDaFrente` (exportada, sem mudar o resultado). O último horímetro lido soma também as leituras da frente já confirmadas HOJE, para a 2ª linha do dia não contar a 1ª de novo.
+- **Permissão e estado.** A opção só aparece com a permissão de lançar apontamento e com a frente aberta (não encerrada). Remove o "Em breve" da Máquina; as demais opções seguem "Em breve". O sub da opção vira "Horas trabalhadas e horímetro do dia".
+
+**Custo de máquina (achado).** O servidor calcula `custo_total = quantidade_uso × custo_unitario_uso` em cada linha de máquina (snapshot do bem; nulo se o bem não tem custo de uso), conferido em `atividadeApontamentoMaquinaService.js`. O `/totais` da atividade soma as linhas CONFIRMADAS. Logo, as horas lançadas por esta tela PASSAM A GERAR CUSTO DE MÁQUINA para o bem que tiver custo de uso cadastrado. O encerramento da frente (a tag com o horímetro) NÃO gera linha de máquina, então não conta em dobro. **Limite conhecido:** as horas entre a leitura final da última linha e o horímetro do encerramento, no mesmo dia, não geram custo (não há linha para elas).
+
+**O que NÃO muda.** Backend, banco, rotas e migrations. O cálculo do custo é o do servidor, como sempre. A linha de máquina que o Lançamento de Atividades já criava segue como estava.
+
+**Riscos e limites.** "Parada", troca de implemento e correção de horímetro continuam fora desta tela. O campo "Horímetro quebrado?" do formulário antigo não está aqui: a máquina sem contador usa o campo "Horas trabalhadas". O inicial é só leitura: para corrigir uma leitura errada, o caminho continua sendo o Lançamento de Atividades. O rótulo do contador é o nome sem a unidade ("Horímetro", "Odômetro", "Ciclos"), como no Abastecimento da frente.
+
+**Testes.** `diarioMaquina.test.jsx` (a tela; sem apontamento de hoje, `criarApontamento` com `maquinas[0]`; com apontamento de hoje, `adicionarLinha` com a versão dele; final menor que a inicial; salto com justificativa; "Lançado hoje" com "3.127,0 → 3.131,5" e "4,5 h" e o "Hoje" do cartão; permissão; máquina sem medidor). `diarioAbastecimento.test.jsx` (regressão do registro do dia entre atividades: abastece na A e na B com a mesma máquina e implemento; cada uma cria o seu registro; a confirmação leva o id certo). `aberturaServicoRegras.test.js` (último horímetro lido, a 2ª linha do dia e o "Lançado hoje" com as leituras). `diarioDasAtividades.test.jsx` (a opção Máquina sem "Em breve").
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-364, mas a PR #452 (mapa, etapa 4) já a reservou; esta ficou com D-PROD-365 e o marcador passa a D-PROD-366. Conferir antes do merge (regra A5).
 
 ## D-PROD-368 — Cadastro de produto: "Conversão de unidades" no padrão Base1
 
@@ -10944,4 +11034,27 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369 (a D-PROD-368 é a da PR #456, base desta branch; a PR #458 reserva a D-PROD-370). O marcador passa a D-PROD-370. O número não está no `migration.sql`, então renumerar não muda o checksum. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-370 -->
+## D-PROD-370 — Cadastro de ponto simples: cocho e depósito sem instruções, avisos nem Observações
+
+**Data:** 2026-11-27 · **Origem:** o proprietário: "no cadastro de novo ponto seja cocho ou depósito precisa ser algo simples e correto… não preciso de instruções de campos, não preciso de alertas… não preciso de campo de observações" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`PONTO-SIMPLES-D370-REPORT.md`](./PONTO-SIMPLES-D370-REPORT.md)
+
+**Decisão.** O formulário do ponto (`FormularioPonto`) passa a mostrar só o necessário.
+1. **Saíram da tela:**
+   - todos os textos de instrução embaixo dos campos (limite, estoque mínimo, dias de reposição, "Selecione uma ou mais áreas…");
+   - as caixas de aviso: "Área detectada", "Cadastre primeiro um depósito", "um local de estoque será criado", "Local de estoque atual" e "criado também na Gestão de Bebedouros";
+   - o aviso de estoque mínimo ≥ limite;
+   - o campo **Observações**;
+   - no cocho, os campos **Dias de alerta para reposição** e **Alerta sem lançamento**.
+2. **Nada muda no que é gravado nem no que o mapa calcula.**
+   - Os campos que saíram continuam indo com o valor que já tinham: no cocho novo, os padrões de 3 e 10 dias; no cocho editado e nas Observações, o que já estava gravado.
+   - As validações continuam as mesmas. O "Selecione o depósito vinculado ao cocho." explica quando falta depósito, e o próprio campo mostra "Nenhum depósito cadastrado".
+3. **Rótulos mais claros:**
+   - "Ponto de referência" → **Tipo do ponto**;
+   - "Limite operacional do cocho/depósito (kg)" → **Limite do cocho/depósito (kg)**, também nas mensagens;
+   - "Áreas vinculadas" → **Pastos do cocho**;
+   - "Pastos vinculados" → **Pastos do bebedouro**;
+   - "Depósito vinculado" → **Depósito de onde sai o produto**.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369; a 369 foi reservada pela PR #457 (e 366 e 368 pelas #454 e #456), e esta ficou com D-PROD-370. O marcador passa a D-PROD-371. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-371 -->
