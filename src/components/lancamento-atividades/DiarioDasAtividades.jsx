@@ -51,7 +51,7 @@ import { listarCulturas } from "@/services/culturaCadastroService";
 
 /** D-PROD-341 (frentes): a mensagem da trava de duplicidade (mesma máquina + implemento já aberta no pasto). */
 const MSG_FRENTE_DUPLICADA = "Esta máquina com este implemento já tem serviço aberto neste pasto. Toque nele na lista para continuar.";
-/** D-PROD-346: a mesma máquina com o mesmo implemento já encerrou o serviço nesta atividade (aberta OU encerrada, bloqueia). */
+/** D-PROD-348: a mesma máquina com o mesmo implemento já encerrou o serviço nesta atividade (aberta OU encerrada, bloqueia). */
 const MSG_FRENTE_ENCERRADA = "Esta máquina com este implemento já encerrou o serviço nesta atividade.";
 /** D-PROD-341 (P1 da revisão do Codex): continuar a atividade sem abertura com mais de uma do mesmo tipo no pasto. */
 const MSG_TIPO_AMBIGUO = "Há mais de uma atividade deste tipo aberta neste pasto, e o servidor não deixa escolher qual recebe a abertura. Conclua uma delas e tente de novo.";
@@ -118,11 +118,11 @@ function CampoEscolha({ label, value, onChange, options, required = false, error
 }
 
 /**
- * D-PROD-332 — o "Diário das atividades" (Mapa Geral → Detalhes da área → Manejos). D-PROD-346: UMA atividade por área e
+ * D-PROD-332 — o "Diário das atividades" (Mapa Geral → Detalhes da área → Manejos). D-PROD-348: UMA atividade por área e
  * tipo; dentro dela, as FRENTES (máquina + implemento). Passos:
  *  - `escolher` (Em andamento neste pasto, só com atividades abertas): UM cartão por ATIVIDADE (máquinas em campo e início)
  *    e "Nova atividade";
- *  - `atividade` (tela b, D-PROD-346): a atividade — o cabeçalho (Pasto, Início, Máquinas), UM cartão por FRENTE (máquina +
+ *  - `atividade` (tela b, D-PROD-348): a atividade — o cabeçalho (Pasto, Início, Máquinas), UM cartão por FRENTE (máquina +
  *    implemento; "Hoje" = lançamentos do dia; a encerrada mostra o horímetro final e não toca), "Adicionar máquina" e
  *    "Encerrar atividade" (painel com o horímetro final de cada frente aberta: grava um encerramento por frente e conclui a
  *    atividade). Sem frente, o aviso. A entrada com `atividade` na prop cai aqui;
@@ -183,7 +183,7 @@ export default function DiarioDasAtividades({
   const pedirOperacao = operacoes.length > 1;
   const semOperacao = tipoFixo !== "" && operacoes.length === 0;
   const [operacaoEscolhidaId, setOperacaoEscolhidaId] = useState("");
-  /** D-PROD-346: o formulário foi aberto por "Adicionar máquina" (a atividade `atividadeAtual` é o destino). */
+  /** D-PROD-348: o formulário foi aberto por "Adicionar máquina" (a atividade `atividadeAtual` é o destino). */
   const [adicionandoA, setAdicionandoA] = useState(false);
   // Na "Adicionar máquina" a operação é a da atividade (sem campo). Fora dela, com uma operação só, ela é usada sem
   // perguntar; com mais de uma, vale a escolhida.
@@ -192,9 +192,9 @@ export default function DiarioDasAtividades({
     : operacoes.length === 1 ? String(operacoes[0].id) : operacaoEscolhidaId;
   /** O tipo FIXO do formulário (a categoria, como "Preparo do solo"): o título "Nova atividade de …" do caminho novo. */
   const rotuloDoTipo = tipoFixo ? rotuloDoTipoFixo(tipoFixo) : "";
-  /** D-PROD-346: o rótulo da atividade aberta é o NOME DO TIPO dela (como "Gradeação"); sem ele, o tipo fixo. */
+  /** D-PROD-348: o rótulo da atividade aberta é o NOME DO TIPO dela (como "Gradeação"); sem ele, o tipo fixo. */
   const rotuloTipo = atividadeAtual?.tipo_atividade_nome || rotuloDoTipo || atividadeAtual?.nome || "";
-  /** D-PROD-346: o nome da atividade (o tipo, como "Gradeação"), para o título e os textos do passo `atividade`. */
+  /** D-PROD-348: o nome da atividade (o tipo, como "Gradeação"), para o título e os textos do passo `atividade`. */
   const nomeDaAtividade = atividadeAtual?.tipo_atividade_nome || atividadeAtual?.nome || rotuloTipo;
   /** A Operação aparece só no caminho novo (tipo → abrir) e quando há mais de uma do tipo. */
   const pedirOperacaoNoForm = pedirOperacao && !adicionandoA;
@@ -215,11 +215,11 @@ export default function DiarioDasAtividades({
   const [nomeServicoExistente, setNomeServicoExistente] = useState("");
   /** D-PROD-341 (frentes): a frente (máquina + implemento) do serviço aberto; `null` = nenhuma escolhida. */
   const [frenteChave, setFrenteChave] = useState(/** @type {string | null} */ (null));
-  /** D-PROD-346: o painel "Encerrar serviço" do passo `iniciado` (e o seu horímetro final). */
+  /** D-PROD-348: o painel "Encerrar serviço" do passo `iniciado` (e o seu horímetro final). */
   const [encerrandoFrente, setEncerrandoFrente] = useState(false);
   const [horimetroFinal, setHorimetroFinal] = useState("");
   const [errosFinal, setErrosFinal] = useState(/** @type {{ horimetroFinal?: string }} */ ({}));
-  /** D-PROD-346: o painel "Encerrar atividade" do passo `atividade` (o horímetro final de cada frente aberta). */
+  /** D-PROD-348: o painel "Encerrar atividade" do passo `atividade` (o horímetro final de cada frente aberta). */
   const [encerrandoAtividade, setEncerrandoAtividade] = useState(false);
   const [horimetrosFim, setHorimetrosFim] = useState(/** @type {Record<string, string>} */ ({}));
   const [errosFim, setErrosFim] = useState(/** @type {Record<string, string>} */ ({}));
@@ -281,7 +281,7 @@ export default function DiarioDasAtividades({
     staleTime: 15 * 1000,
   });
   const apontamentosDaAtividade = useMemo(() => itensDaLista(apontamentosLidos.data), [apontamentosLidos.data]);
-  /** D-PROD-346: as frentes da atividade (uma por máquina + implemento), por início. Sem leitura, `[]`. */
+  /** D-PROD-348: as frentes da atividade (uma por máquina + implemento), por início. Sem leitura, `[]`. */
   const frentes = useMemo(() => (apontamentosLidos.isSuccess ? frentesDosApontamentos(apontamentosDaAtividade) : []), [apontamentosLidos.isSuccess, apontamentosDaAtividade]);
   const frentesAbertas = useMemo(() => frentes.filter((f) => !f.encerrada), [frentes]);
   const frenteAtual = useMemo(() => (frenteChave ? (frentes.find((f) => f.chave === frenteChave) ?? null) : null), [frenteChave, frentes]);
@@ -347,7 +347,7 @@ export default function DiarioDasAtividades({
     setErros({});
     setPasso("abrir");
   };
-  /** D-PROD-346: sai do "Adicionar máquina" e volta à atividade (sem fechar a janela). */
+  /** D-PROD-348: sai do "Adicionar máquina" e volta à atividade (sem fechar a janela). */
   const voltarDaAdicao = () => {
     setErros({});
     setAdicionandoA(false);
@@ -389,7 +389,7 @@ export default function DiarioDasAtividades({
       staleTime: 15 * 1000,
     })),
   });
-  // Frentes ABERTAS e ENCERRADAS do tipo: a mesma máquina com o mesmo implemento não entra de novo (D-PROD-346).
+  // Frentes ABERTAS e ENCERRADAS do tipo: a mesma máquina com o mesmo implemento não entra de novo (D-PROD-348).
   const frentesDoTipo = consultasDoTipo.flatMap((q) => frentesDosApontamentos(itensDaLista(q.data)));
   /** A máquina + implemento do formulário (a chave da frente que ele abriria); "" sem máquina. */
   const chaveDoFormulario = bemId ? chaveDaFrente({ bemId, implementoId }) : "";
@@ -424,7 +424,7 @@ export default function DiarioDasAtividades({
     setPasso("escolher");
   };
   /**
-   * D-PROD-346: tocar numa atividade da lista lê a atividade inteira e vai ao passo `atividade` (as frentes dela). Falha na
+   * D-PROD-348: tocar numa atividade da lista lê a atividade inteira e vai ao passo `atividade` (as frentes dela). Falha na
    * leitura: aviso, e fica na lista.
    * @param {any} linha
    */
@@ -449,14 +449,14 @@ export default function DiarioDasAtividades({
       setAbrindoAtividade(null);
     }
   };
-  /** D-PROD-346: a frente tocada (aberta) no passo `atividade` abre o serviço dela (`iniciado`). */
+  /** D-PROD-348: a frente tocada (aberta) no passo `atividade` abre o serviço dela (`iniciado`). */
   const abrirFrente = (chave) => {
     if (enviando) return;
     setFrenteChave(chave);
     zerarPaineis();
     setPasso("iniciado");
   };
-  /** D-PROD-346: "Adicionar máquina" — o formulário de abertura com o tipo e a operação da atividade já escolhidos. */
+  /** D-PROD-348: "Adicionar máquina" — o formulário de abertura com o tipo e a operação da atividade já escolhidos. */
   const adicionarMaquina = () => {
     if (enviando) return;
     setBemId("");
@@ -473,7 +473,7 @@ export default function DiarioDasAtividades({
     setAdicionandoA(true);
     setPasso("abrir");
   };
-  /** D-PROD-346: "Voltar" da atividade: a lista (quando houve), ou fecha. Com o painel de encerramento aberto, só fecha o painel. */
+  /** D-PROD-348: "Voltar" da atividade: a lista (quando houve), ou fecha. Com o painel de encerramento aberto, só fecha o painel. */
   const voltarDaAtividade = () => {
     if (enviando) return;
     if (encerrandoAtividade) {
@@ -486,7 +486,7 @@ export default function DiarioDasAtividades({
     }
     onFechar();
   };
-  /** D-PROD-346: "Voltar" do serviço da frente: volta à atividade (com as frentes). */
+  /** D-PROD-348: "Voltar" do serviço da frente: volta à atividade (com as frentes). */
   const voltarDoServico = () => {
     if (enviando) return;
     zerarPaineis();
@@ -606,7 +606,7 @@ export default function DiarioDasAtividades({
     }
   };
 
-  // ─── D-PROD-346: encerrar uma frente e a atividade ──────────────────
+  // ─── D-PROD-348: encerrar uma frente e a atividade ──────────────────
   /**
    * Um apontamento do dia que encerra UMA frente: a linha `[encerramento-servico …]` na observação, com o horímetro final
    * canônico. Sem `operador_usuario_id`: o operador é opcional no apontamento, e o do responsável da abertura pode estar
@@ -1016,7 +1016,7 @@ export default function DiarioDasAtividades({
       </p>
     ) : null;
   /**
-   * D-PROD-341 (passo `escolher`): as atividades abertas do pasto. D-PROD-346: UM cartão por atividade (as máquinas em campo
+   * D-PROD-341 (passo `escolher`): as atividades abertas do pasto. D-PROD-348: UM cartão por atividade (as máquinas em campo
    * vêm das frentes de cada uma, lidas uma vez por atividade; o cache é o mesmo da abertura).
    */
   // A atividade recebida entra na lista se o pasto ainda não a listou (a lista nunca sai vazia por isso).
@@ -1053,7 +1053,7 @@ export default function DiarioDasAtividades({
     </div>
   );
 
-  /** D-PROD-346 (passo `atividade`): a atividade com as frentes; o encerramento entra no lugar da lista quando aberto. */
+  /** D-PROD-348 (passo `atividade`): a atividade com as frentes; o encerramento entra no lugar da lista quando aberto. */
   const painelDaAtividade = encerrandoAtividade ? (
     <PainelEncerrarAtividade
       nome={nomeDaAtividade}
@@ -1070,7 +1070,7 @@ export default function DiarioDasAtividades({
       }}
     />
   ) : null;
-  /** D-PROD-346: "Encerrar atividade" só confirma com as frentes LIDAS (sem leitura, não há horímetro a conferir). */
+  /** D-PROD-348: "Encerrar atividade" só confirma com as frentes LIDAS (sem leitura, não há horímetro a conferir). */
   const frentesLidas = apontamentosLidos.isSuccess;
 
   const rodape =

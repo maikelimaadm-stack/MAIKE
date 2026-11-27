@@ -2750,7 +2750,7 @@
     display: block;
   }
 }
-/* D-PROD-346 — a atividade e as frentes (máquina + implemento) do Diário das atividades. Os valores são os da maquete
+/* D-PROD-348 — a atividade e as frentes (máquina + implemento) do Diário das atividades. Os valores são os da maquete
    aprovada (proposta-frentes): o cabeçalho verde é o mesmo do serviço aberto; o título de grupo usa o padrão do
    "Lançado hoje" (.b1-aberto-secao), com o espaçamento da maquete. */
 .b1-ativ-topo {

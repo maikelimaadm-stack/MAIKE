@@ -6,7 +6,7 @@ import { STATUS_AREA } from "@/lib/atividadeAreasRegras";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
 
 /**
- * D-PROD-346 — o JSX do passo `atividade` do Diário das atividades (a atividade inteira, uma por área e tipo) e dos seus
+ * D-PROD-348 — o JSX do passo `atividade` do Diário das atividades (a atividade inteira, uma por área e tipo) e dos seus
  * cartões: a linha da atividade no passo `escolher`, o cartão de cada FRENTE (máquina + implemento) e o cabeçalho.
  * Só apresentação: o estado, as leituras e os envios ficam no `DiarioDasAtividades`.
  */
@@ -93,7 +93,7 @@ export function CartaoDaFrente({ id, frente, lancamentosHoje, ocupado, onAbrir }
  */
 export function CartaoDaAtividade({ atividade, frentes, ocupado, onTocar }) {
   const id = String(atividade.atividade_id);
-  // D-PROD-346: o título é o TIPO da atividade e o mês de início ("Gradeação · nov/26"); sem tipo, o nome dela como antes.
+  // D-PROD-348: o título é o TIPO da atividade e o mês de início ("Gradeação · nov/26"); sem tipo, o nome dela como antes.
   const tipo = atividade.tipo_atividade_nome;
   const nome = tipo ? [tipo, mesCurto(atividade.data_inicio)].filter(Boolean).join(" · ") : atividade.nome || "Atividade";
   const Icone = iconeDoTipoAtividade({ nome_tipo: atividade.tipo_atividade_nome ?? atividade.nome });

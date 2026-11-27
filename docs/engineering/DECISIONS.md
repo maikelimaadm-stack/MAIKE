@@ -10515,7 +10515,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** depois da D-PROD-344 (Fase 2). O marcador passa a D-PROD-346. Conferir antes do merge (regra A5).
 
-## D-PROD-346 — Diário das atividades: o modelo de frentes (uma atividade por pasto e tipo, máquinas dentro)
+## D-PROD-348 — Diário das atividades: o modelo de frentes (uma atividade por pasto e tipo, máquinas dentro)
 
 **Decisão.** No pasto, cada tipo de atividade é UMA atividade (a atividade do pasto). As máquinas em campo são as FRENTES dela (máquina + implemento): cada frente tem a sua abertura, o horímetro inicial e final, o seu operador e os seus lançamentos. A frente continua sendo lida dos apontamentos (D-PROD-341, emenda); o que muda é que o encerramento também é um apontamento.
 
@@ -10539,6 +10539,6 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 **Correção no caminho.** O formulário de "Adicionar máquina" mostrava "já tem serviço aberto" também para a frente encerrada. Agora a frente encerrada tem a sua frase (`MSG_FRENTE_ENCERRADA`), no mesmo ponto em que a trava já decidia.
 
-> **Numeração:** nasceu D-PROD-342 (`node scripts/dev/proxima-decisao.mjs` na `main` `6aa675672`). Antes do merge, a `main` levou as D-PROD-342 a D-PROD-345 (sem internet e sincronização, PRs #430 a #433); esta passou a D-PROD-346 e o marcador a D-PROD-347.
+> **Numeração:** nasceu D-PROD-342 (`node scripts/dev/proxima-decisao.mjs` na `main` `6aa675672`). Antes do merge, a `main` levou as D-PROD-342 a D-PROD-345 (sem internet e sincronização, PRs #430 a #433); esta passou a D-PROD-348 e o marcador a D-PROD-349 (a D-PROD-346 é da PR #435 e a D-PROD-347 da PR #436, ainda abertas).
 
-<!-- Próxima decisão: D-PROD-347 -->
+<!-- Próxima decisão: D-PROD-349 -->

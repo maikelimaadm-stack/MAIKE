@@ -2473,7 +2473,7 @@ describe("LA-DIARIO — a ação de linha \"Diário das atividades\" (D-PROD-341
     fireEvent.click(screen.getByRole("menuitem", { name: "Diário das atividades" }));
     const diario = await screen.findByTestId("diario-atividades");
     expect(diario).toBeTruthy();
-    // D-PROD-346: a atividade do pasto sem nenhuma máquina em campo vai ao passo da atividade (o aviso), no pasto dela,
+    // D-PROD-348: a atividade do pasto sem nenhuma máquina em campo vai ao passo da atividade (o aviso), no pasto dela,
     // com "Adicionar máquina" (a máquina entra por ali) e "Encerrar atividade".
     expect(await within(diario).findByTestId("atividade-sem-maquina")).toHaveTextContent("Esta atividade não tem máquina em campo.");
     expect(within(diario).getByTestId("diario-atividades-titulo")).toHaveTextContent("APLICAÇÃO");
