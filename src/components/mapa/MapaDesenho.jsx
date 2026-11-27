@@ -3,7 +3,7 @@ import { listarAreasAtivas, listarPontosAtivos, listarLinhasAtivas, listarIcones
 import { invalidarCachesDoMapa } from "./invalidarCachesMapa";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { X, Target, LocateFixed } from "lucide-react";
+import { X, Target, LocateFixed, Crosshair, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -68,6 +68,7 @@ import {
   hitEditLayers,
 } from "@/lib/maplibre/editorInteraction.js";
 import { mensagemFalhaMapa } from "@/lib/maplibre/falhaWebGL";
+import { acaoDaMira, centroDaMira } from "@/lib/maplibre/miraDoEditor.js";
 
 /**
  * Ponto médio exato da aresta i→i+1 (fecho incluso por módulo).
@@ -92,6 +93,9 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const [modo, setModo] = useState(() => /** @type {string} */ (modoInicial({ tipo: tipoDesenho, editando: !!itemEditando })));
   const [verticeSelecionado, setVerticeSelecionado] = useState(/** @type {number | null} */ (null));
   const [reguaAtiva, setReguaAtiva] = useState(false);
+  // D-PROD-362: mira fixa no centro (o mapa anda por baixo e "Marcar aqui" marca) e seguir minha posição.
+  const [miraAtiva, setMiraAtiva] = useState(false);
+  const [seguindo, setSeguindo] = useState(false);
   const [confirmarSaida, setConfirmarSaida] = useState(false);
 
   const [currentPoints, setCurrentPoints] = useState([]);
@@ -150,6 +154,11 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const corPreviaRef = useRef(corPrevia);
   corPreviaRef.current = corPrevia;
   /** Overlay do cursor (cruz/ímã/rumo) — atualizado sem re-render. */
+  const miraRef = useRef(miraAtiva);
+  miraRef.current = miraAtiva;
+  /** O "adicionar vértice" do toque (com ímã e fechamento), reaproveitado por "Marcar aqui". */
+  const pendenteMiraRef = useRef(/** @type {{lat: number, lng: number} | null} */ (null));
+  const adicionarPontoRef = useRef(/** @type {null | ((ll: {lat: number, lng: number}) => void)} */ (null));
   const cursorRef = useRef(/** @type {{ atualizar: Function, limpar: Function } | null} */ (null));
 
   const syncHistoryUi = useCallback(() => {
@@ -670,6 +679,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     const onUp = (ev) => {
       if (!downPos) return;
       if (ev.pointerType === "touch" && ev.isPrimary === false) return;
+      // D-PROD-362: com a mira ligada o toque só move o mapa; quem marca é "Marcar aqui".
+      if (miraRef.current) { downPos = null; return; }
       const elapsed = Date.now() - downTime;
       const dx = ev.clientX - downPos.x;
       const dy = ev.clientY - downPos.y;
@@ -693,10 +704,18 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
 
     canvas.addEventListener("pointerdown", onDown, { passive: true });
     canvas.addEventListener("pointerup", onUp, { passive: true });
+    adicionarPontoRef.current = (ll) => handleAddPoint(ll, {});
+    // "Marcar aqui" tocado fora do modo Desenhar: o editor voltou a desenhar e o ponto entra agora.
+    if (pendenteMiraRef.current) {
+      const c = pendenteMiraRef.current;
+      pendenteMiraRef.current = null;
+      handleAddPoint(c, {});
+    }
 
     return () => {
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointerup", onUp);
+      adicionarPontoRef.current = null;
     };
   }, [tipoDesenho, mapReady, itemEditando, drawingClosed, syncHistoryUi, modoInteracao]);
 
@@ -1232,6 +1251,84 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     };
     minhaLocalizacao.localizar({ aoResponder: marcar });
   };
+
+  // ── D-PROD-362: mira no centro e seguir minha posição ──────────────────
+  const acaoMira = acaoDaMira({
+    tipo: tipoDesenho,
+    fechado: drawingClosed,
+    editando: !!itemEditando,
+    selecionado: verticeSelecionado,
+    pontos: currentPoints.length,
+  });
+
+  const alternarMira = () => {
+    const ligar = !miraAtiva;
+    setMiraAtiva(ligar);
+    // Desenho novo aberto: a mira desenha (o toque só move o mapa enquanto ela está ligada).
+    if (ligar && (tipoDesenho === "area" || tipoDesenho === "linha") && !itemEditando && !drawingClosed) setModo(MODOS.DESENHAR);
+  };
+
+  const marcarNaMira = () => {
+    const centro = centroDaMira(mapInstanceRef.current);
+    if (!centro || !acaoMira.acao) return;
+    if (acaoMira.acao === "ponto") {
+      undoStackRef.current.push(currentMarkerRef.current ? [{ ...currentMarkerRef.current }] : []);
+      redoStackRef.current = [];
+      syncHistoryUi();
+      setCurrentMarker(centro);
+      toast.success("Ponto marcado na mira", { duration: 900 });
+      return;
+    }
+    if (acaoMira.acao === "vertice") {
+      if (adicionarPontoRef.current && modoRef.current === MODOS.DESENHAR) adicionarPontoRef.current(centro);
+      else {
+        pendenteMiraRef.current = centro;
+        setModo(MODOS.DESENHAR);
+      }
+      return;
+    }
+    if (acaoMira.acao === "mover-vertice" && verticeSelecionado != null) {
+      const i = verticeSelecionado;
+      setCurrentPoints((prev) => {
+        if (i < 0 || i >= prev.length) return prev;
+        undoStackRef.current.push(prev.map((p) => ({ ...p })));
+        redoStackRef.current = [];
+        syncHistoryUi();
+        return prev.map((p, k) => (k === i ? { ...centro } : p));
+      });
+      toast.success(`Ponto ${i + 1} levado para a mira`, { duration: 900 });
+    }
+  };
+
+  const alternarSeguir = () => {
+    if (seguindo) {
+      setSeguindo(false);
+      return;
+    }
+    setSeguindo(true);
+    minhaLocalizacao.localizar();
+  };
+
+  // Seguindo: cada leitura nova do GPS recentra o mapa (sem mudar o zoom). Com a mira ligada, ela fica em cima de
+  // onde a pessoa está. Arrastar o mapa com o dedo para de seguir, como no AgriWebb.
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const p = minhaLocalizacao.posicao;
+    if (!seguindo || !map || !p || !mapReady) return;
+    try {
+      map.easeTo({ center: [p.lng, p.lat], duration: 400 });
+    } catch {
+      /* mapa trocando de fundo */
+    }
+  }, [seguindo, minhaLocalizacao.posicao, mapReady]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!seguindo || !map || !mapReady || typeof map.on !== "function") return undefined;
+    const parar = (e) => { if (e?.originalEvent) setSeguindo(false); };
+    map.on("dragstart", parar);
+    return () => map.off?.("dragstart", parar);
+  }, [seguindo, mapReady]);
   /** As listas do celular (B1Select) abrem DENTRO do formulário lateral: tocar nelas não fecha o formulário. */
   const [alvoFolhaArea, setAlvoFolhaArea] = useState(/** @type {HTMLElement|null} */ (null));
   const [alvoFolhaPonto, setAlvoFolhaPonto] = useState(/** @type {HTMLElement|null} */ (null));
@@ -1444,7 +1541,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
               </div>
             )}
             {tipoDesenho === "area" && currentPoints.length >= 3 && (
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+              <div className={`absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none ${miraAtiva ? "top-[24%]" : "top-1/2"}`}>
                 <div data-testid="medidas-area" className="bg-black/70 text-white px-3 py-1.5 rounded text-sm font-semibold text-center">
                   <div>Área: {formatHectaresPt(areaHectares(currentPoints))} ha</div>
                   {fechadoParaMedir && (
@@ -1454,10 +1551,49 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
               </div>
             )}
             {tipoDesenho === "linha" && currentPoints.length >= 2 && (
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+              <div className={`absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none ${miraAtiva ? "top-[24%]" : "top-1/2"}`}>
                 <div className="bg-black/70 text-white px-3 py-1.5 rounded text-sm font-semibold">
                   {formatDistanciaPt(comprimentoMetros(currentPoints))}
                 </div>
+              </div>
+            )}
+
+            <div role="toolbar" aria-label="Mira e posição" className="mk-editor-direita absolute right-1 z-20 flex flex-col gap-1" style={{ top: "max(3.75rem, env(safe-area-inset-top))" }}>
+              <button
+                type="button"
+                onClick={alternarMira}
+                aria-pressed={miraAtiva}
+                aria-label="Mira no centro"
+                title="Mira no centro: mova o mapa e toque em Marcar aqui"
+                className={`flex h-11 w-11 items-center justify-center rounded-full border shadow-sm ${miraAtiva ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-800"}`}
+              >
+                <Crosshair className="h-6 w-6" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={alternarSeguir}
+                aria-pressed={seguindo}
+                aria-label="Seguir minha posição"
+                title={seguindo ? "Seguindo a sua posição (arraste o mapa para parar)" : "Seguir minha posição"}
+                className={`flex h-11 w-11 items-center justify-center rounded-full border shadow-sm ${seguindo ? "border-blue-700 bg-blue-600 text-white" : "border-slate-300 bg-white text-blue-700"}`}
+              >
+                <Navigation className="h-5 w-5" aria-hidden="true" style={minhaLocalizacao.rumo != null ? { transform: `rotate(${minhaLocalizacao.rumo - 45}deg)` } : undefined} />
+              </button>
+            </div>
+
+            {miraAtiva && (
+              <div data-testid="mira-centro" aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
+                <svg width="56" height="56" viewBox="0 0 56 56">
+                  <g stroke="#ffffff" strokeWidth="5" strokeLinecap="round">
+                    <line x1="28" y1="4" x2="28" y2="20" /><line x1="28" y1="36" x2="28" y2="52" />
+                    <line x1="4" y1="28" x2="20" y2="28" /><line x1="36" y1="28" x2="52" y2="28" />
+                  </g>
+                  <g stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="28" y1="4" x2="28" y2="20" /><line x1="28" y1="36" x2="28" y2="52" />
+                    <line x1="4" y1="28" x2="20" y2="28" /><line x1="36" y1="28" x2="52" y2="28" />
+                  </g>
+                  <circle cx="28" cy="28" r="3" fill="#dc2626" stroke="#ffffff" strokeWidth="1.5" />
+                </svg>
               </div>
             )}
 
@@ -1476,20 +1612,36 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
             )}
 
             <div className="mk-editor-rodape absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-1">
+              {miraAtiva && (
+                <>
+                  <button
+                    type="button"
+                    onClick={marcarNaMira}
+                    disabled={!acaoMira.acao}
+                    data-mk-marcar-aqui=""
+                    className="mb-1 h-14 min-w-[200px] rounded-full bg-emerald-600 px-6 text-base font-bold text-white shadow-xl active:bg-emerald-700 disabled:bg-slate-400"
+                  >
+                    {acaoMira.rotulo}
+                  </button>
+                  {acaoMira.dica && (
+                    <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">{acaoMira.dica}</div>
+                  )}
+                </>
+              )}
               {tipoDesenho === "ponto" && !itemEditando && (
                 <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
-                  {currentMarker ? "Arraste o ponto para ajustar e toque em Continuar" : "Toque no mapa para marcar — ou use a sua localização"}
+                  {miraAtiva ? "Mova o mapa até a mira e toque em Marcar aqui" : currentMarker ? "Arraste o ponto para ajustar e toque em Continuar" : "Toque no mapa para marcar — ou use a sua localização"}
                 </div>
               )}
               {(tipoDesenho === "area" || tipoDesenho === "linha") && currentPoints.length === 0 && !itemEditando && (
                 <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
-                  {tipoDesenho === "area" ? "Toque para desenhar a área" : "Toque para desenhar a linha"}
+                  {miraAtiva ? "Mova o mapa até a mira e toque em Marcar" : tipoDesenho === "area" ? "Toque para desenhar a área" : "Toque para desenhar a linha"}
                 </div>
               )}
               {desenhaAreaOuLinha && currentPoints.length > 0 && (
                 <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
                   {modo === MODOS.NAVEGAR && "Navegando — o mapa move sem criar pontos"}
-                  {modo === MODOS.DESENHAR && "Toque para adicionar pontos"}
+                  {modo === MODOS.DESENHAR && (miraAtiva ? "Mova o mapa até a mira e toque em Marcar" : "Toque para adicionar pontos")}
                   {modo === MODOS.EDITAR && (verticeSelecionado != null ? `Ponto ${verticeSelecionado + 1} selecionado` : "Arraste os pontos para ajustar")}
                   {modo === MODOS.MOVER && (tipoDesenho === "linha" ? "Arraste a linha para movê-la" : "Arraste o interior para mover a área")}
                 </div>

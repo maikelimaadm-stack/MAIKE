@@ -25,7 +25,8 @@ const BOA_VALE_MS = 30_000;
 const OPCOES_GPS = Object.freeze({ enableHighAccuracy: true, maximumAge: 3_000, timeout: 20_000 });
 
 /**
- * @typedef {{ lat: number, lng: number, accuracy: number|null, em: number }} PosicaoGps
+ * @typedef {{ lat: number, lng: number, accuracy: number|null, em: number, rumo?: number|null, velocidade?: number|null }} PosicaoGps
+ * `rumo`/`velocidade` (D-PROD-362): o rumo do GPS em graus e a velocidade em m/s, quando o aparelho informa.
  */
 
 /**
@@ -48,6 +49,8 @@ const deGeolocation = (pos) => ({
   lng: pos.coords.longitude,
   accuracy: Number.isFinite(pos.coords.accuracy) ? pos.coords.accuracy : null,
   em: Number.isFinite(pos.timestamp) ? pos.timestamp : Date.now(),
+  rumo: Number.isFinite(pos.coords.heading) ? pos.coords.heading : null,
+  velocidade: Number.isFinite(pos.coords.speed) ? pos.coords.speed : null,
 });
 
 /** @param {GeolocationPositionError|null|undefined} erro */
