@@ -2474,7 +2474,7 @@ describe("LA-DIARIO — a ação de linha \"Diário das atividades\" (D-PROD-338
     const diario = await screen.findByTestId("diario-atividades");
     expect(diario).toBeTruthy();
     // Sem abertura no servidor, o diário vai ao formulário da abertura do tipo (o da atividade), no pasto dela.
-    expect(within(diario).getByTestId("diario-atividades-titulo")).toHaveTextContent("Nova atividade de");
+    await waitFor(() => expect(within(diario).getByTestId("diario-atividades-titulo")).toHaveTextContent("Nova atividade de"));
     expect(within(diario).getByTestId("diario-atividades-titulo")).toHaveTextContent("Pasto 01");
     expect(screen.queryByTestId("diario-maquina")).toBeNull();
   });
