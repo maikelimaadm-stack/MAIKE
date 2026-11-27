@@ -1741,8 +1741,10 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     const linha = /** @type {HTMLElement} */ (botaoRaio("a1").closest('[data-testid="b1-row"]'));
     expect(within(linha).getByRole("checkbox", { name: "Selecionar linha" })).toBeTruthy();
 
+    // D-PROD-356: com permissão de lançar numa atividade ABERTA, o "+ Lançamento" entra logo depois de "Abrir atividade".
     expect(await itensDoRaio("a1")).toEqual([
       "Abrir atividade",
+      "+ Lançamento",
       "Alterar atividade",
       "Finalizar atividade",
       "Duplicar atividade",
@@ -1754,7 +1756,7 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     expect(menu).toHaveTextContent("Nº 3 · Cigarrinha Pasto 01");
     expect(menu).toHaveTextContent("APLICAÇÃO · 01 — Pasto 01");
     // Os três grupos (lançar · abrir · alterar…) com divisória; o cancelar em vermelho.
-    expect(within(menu).getAllByRole("group")).toHaveLength(2);
+    expect(within(menu).getAllByRole("group")).toHaveLength(3);
     expect(within(menu).getByRole("menuitem", { name: "Cancelar atividade" })).toHaveClass("is-danger");
     // Esc fecha e o foco volta ao ⚡.
     await fecharRaio("a1");
@@ -2453,24 +2455,25 @@ describe("LA-E2E — ajustes do teste de ponta a ponta da Entrega 2 (D-PROD-274)
   });
 });
 
-describe("LA-DIARIO — a ação de linha \"Diário das atividades\" (D-PROD-341)", () => {
+describe("LA-DIARIO — o \"+ Lançamento\" da linha, da tabela e do card (D-PROD-341, D-PROD-356)", () => {
   // Uma atividade com um pasto EM ANDAMENTO (o servidor traz `areas[]`): a ação do ⚡ abre o diário do pasto.
   const COM_PASTO_EM_ANDAMENTO = {
     ...ATV_A1,
     areas: [{ id: "aa1", area_id: "ar1", ordem: 1, status: "EM_ANDAMENTO", area: { id: "ar1", numero_area: "01", nome: "Pasto 01" } }],
   };
 
-  it("LD-1 — o ⚡ traz \"Diário das atividades\" (nunca \"Diário da máquina\") e abre o novo diário no pasto em andamento", async () => {
+  it("LD-1 — o ⚡ traz \"+ Lançamento\" (D-PROD-356: a única entrada de lançar; nunca \"Diário da máquina\") e abre o diário no pasto em andamento", async () => {
     sessao.permissao = permissaoCom({ ...ACOES_PADRAO, ...EXTRAS });
     atividades.set("a1", COM_PASTO_EM_ANDAMENTO);
     await montarComLista();
     await assentar();
     const itens = await itensDoRaio("a1");
-    expect(itens).toContain("Diário das atividades");
+    expect(itens).toContain("+ Lançamento");
+    expect(itens).not.toContain("Diário das atividades");
     expect(itens.join("|")).not.toMatch(/Diário da máquina/);
     expect(screen.queryByTestId("diario-maquina")).toBeNull();
 
-    fireEvent.click(screen.getByRole("menuitem", { name: "Diário das atividades" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "+ Lançamento" }));
     const diario = await screen.findByTestId("diario-atividades");
     expect(diario).toBeTruthy();
     // D-PROD-348: a atividade do pasto sem nenhuma máquina em campo vai ao passo da atividade (o aviso), no pasto dela,
@@ -2483,17 +2486,21 @@ describe("LA-DIARIO — a ação de linha \"Diário das atividades\" (D-PROD-341
     expect(screen.queryByTestId("diario-maquina")).toBeNull();
   });
 
-  it("LD-2 — sem permissão de lançar, ou sem pasto em andamento, a ação não aparece", async () => {
+  it("LD-2 — sem permissão de lançar, a ação não aparece", async () => {
     sessao.permissao = permissaoCom(ACOES_PADRAO);
     atividades.set("a1", COM_PASTO_EM_ANDAMENTO);
     await montarComLista();
-    expect(await itensDoRaio("a1")).not.toContain("Diário das atividades");
-    cleanup();
+    expect(await itensDoRaio("a1")).not.toContain("+ Lançamento");
+  });
 
+  it("LD-2b — sem pasto em andamento (a atividade sem áreas), o \"+ Lançamento\" do ⚡ segue a Nova realização, sem o diário", async () => {
     sessao.permissao = permissaoCom({ ...ACOES_PADRAO, ...EXTRAS });
     atividades.set("a1", ATV_A1);
     await montarComLista();
-    expect(await itensDoRaio("a1")).not.toContain("Diário das atividades");
+    expect(await itensDoRaio("a1")).toContain("+ Lançamento");
+    fireEvent.click(screen.getByRole("menuitem", { name: "+ Lançamento" }));
+    expect(await screen.findByTestId("janela-registro-de-campo")).toBeTruthy();
+    expect(screen.queryByTestId("diario-atividades")).toBeNull();
   });
 
   it("LD-3 — o \"+ Lançamento\" do card em andamento, com UMA área na atividade, abre o diário dessa área já na atividade", async () => {
@@ -2518,5 +2525,90 @@ describe("LA-DIARIO — a ação de linha \"Diário das atividades\" (D-PROD-341
     fireEvent.click(await screen.findByTestId("em-andamento-lancar-a1"));
     expect(await screen.findByTestId("janela-registro-de-campo")).toBeTruthy();
     expect(screen.queryByTestId("diario-atividades")).toBeNull();
+  });
+
+  // D-PROD-356: o "+ Lançamento" da TABELA e do CARD do celular seguem o mesmo caminho do card em andamento.
+  const UMA_AREA_EM_ANDAMENTO = COM_PASTO_EM_ANDAMENTO;
+  const DUAS_AREAS = {
+    ...COM_PASTO_EM_ANDAMENTO,
+    areas: [...COM_PASTO_EM_ANDAMENTO.areas, { id: "aa2", area_id: "ar2", ordem: 2, status: "EM_ANDAMENTO", area: { id: "ar2", numero_area: "02", nome: "Pasto 02" } }],
+  };
+  /** A linha da tabela (computador): o botão "Lançamento" da coluna Situação. */
+  const lancarNaTabela = () => within(screen.getByTestId("atividade-status-a1")).getByRole("button", { name: "Lançamento" });
+
+  it("LD-5 — a TABELA: o \"+ Lançamento\" da linha com UMA área abre o diário dessa área já na atividade (sem a Nova realização)", async () => {
+    sessao.permissao = permissaoCom({ ...ACOES_PADRAO, ...EXTRAS });
+    atividades.set("a1", UMA_AREA_EM_ANDAMENTO);
+    await montarComLista();
+    await assentar();
+    fireEvent.click(lancarNaTabela());
+    const diario = await screen.findByTestId("diario-atividades");
+    expect(await within(diario).findByTestId("diario-atividades-titulo")).toHaveTextContent("Pasto 01");
+    expect(screen.queryByTestId("janela-registro-de-campo")).toBeNull();
+  });
+
+  it("LD-6 — a TABELA: com VÁRIAS áreas, o \"+ Lançamento\" da linha segue a Nova realização (sem o diário)", async () => {
+    sessao.permissao = permissaoCom({ ...ACOES_PADRAO, ...EXTRAS });
+    atividades.set("a1", DUAS_AREAS);
+    await montarComLista();
+    await assentar();
+    fireEvent.click(lancarNaTabela());
+    expect(await screen.findByTestId("janela-registro-de-campo")).toBeTruthy();
+    expect(screen.queryByTestId("diario-atividades")).toBeNull();
+  });
+
+  it("LD-7 — o CARD do celular: o \"+ Lançamento\" com UMA área abre o diário; com VÁRIAS, segue a Nova realização", async () => {
+    try {
+      sessao.permissao = permissaoCom({ ...ACOES_PADRAO, ...EXTRAS });
+      vi.stubGlobal("matchMedia", (/** @type {string} */ query) => ({
+        matches: query.includes("max-width: 639px") || query.includes("max-width: 767px") || query.includes("max-width: 1023px"),
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      }));
+      atividades.set("a1", UMA_AREA_EM_ANDAMENTO);
+      await montar();
+      await waitFor(() => expect(screen.getAllByTestId("b1-card").length).toBe(3));
+      const bloco = within(await screen.findByTestId("servico-bloco-a1")).getByRole("button", { name: "Lançamento" });
+      fireEvent.click(bloco);
+      expect(await within(await screen.findByTestId("diario-atividades")).findByTestId("diario-atividades-titulo")).toHaveTextContent("Pasto 01");
+      expect(screen.queryByTestId("janela-registro-de-campo")).toBeNull();
+      cleanup();
+
+      atividades.set("a1", DUAS_AREAS);
+      await montar();
+      await waitFor(() => expect(screen.getAllByTestId("b1-card").length).toBe(3));
+      fireEvent.click(within(await screen.findByTestId("servico-bloco-a1")).getByRole("button", { name: "Lançamento" }));
+      expect(await screen.findByTestId("janela-registro-de-campo")).toBeTruthy();
+      expect(screen.queryByTestId("diario-atividades")).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("LD-8 — o ⚡ com VÁRIAS áreas em andamento abre o diário no PRIMEIRO pasto em andamento", async () => {
+    sessao.permissao = permissaoCom({ ...ACOES_PADRAO, ...EXTRAS });
+    atividades.set("a1", DUAS_AREAS);
+    await montarComLista();
+    await assentar();
+    expect(await itensDoRaio("a1")).toContain("+ Lançamento");
+    fireEvent.click(screen.getByRole("menuitem", { name: "+ Lançamento" }));
+    const diario = await screen.findByTestId("diario-atividades");
+    expect(await within(diario).findByTestId("diario-atividades-titulo")).toHaveTextContent("Pasto 01");
+  });
+
+  it("LD-9 — se o diário não abre (a leitura da atividade falha), o \"+ Lançamento\" segue a Nova realização e avisa", async () => {
+    sessao.permissao = permissaoCom({ ...ACOES_PADRAO, ...EXTRAS });
+    atividades.set("a1", UMA_AREA_EM_ANDAMENTO);
+    await montarComLista();
+    await assentar();
+    // A lista já carregou; sem a atividade no servidor, a leitura dela (GET) falha e o diário não abre.
+    atividades.delete("a1");
+    fireEvent.click(lancarNaTabela());
+    expect(await screen.findByTestId("janela-registro-de-campo")).toBeTruthy();
+    expect(screen.queryByTestId("diario-atividades")).toBeNull();
+    expect(notify.notifyWarning).toHaveBeenCalledWith("Não foi possível abrir o diário", expect.any(String));
   });
 });

@@ -61,7 +61,8 @@ import * as culturas from "@/services/culturaCadastroService";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 
 const AREA = { id: "area-A", nome: "Pasto 04", tamanho_hectares: "28.3500" };
-const OPERACAO_APLICACAO = { id: "op-1", nome_tipo: "Aplicação de defensivo", categoria: "APLICACAO", ativo: true };
+// D-PROD-356: o Insumo só existe com `permite_produto` na operação (a fixture da Aplicação a tem; os testes sem ela a tiram).
+const OPERACAO_APLICACAO = { id: "op-1", nome_tipo: "Aplicação de defensivo", categoria: "APLICACAO", ativo: true, permite_produto: true };
 const OPERACAO_APLICACAO_2 = { id: "op-2", nome_tipo: "Aplicação de adubo foliar", categoria: "APLICACAO", ativo: true };
 const OPERACAO_PLANTIO = { id: "op-p", nome_tipo: "Plantio de pastagem", categoria: "PLANTIO", ativo: true };
 const CAPINS = [
@@ -854,5 +855,52 @@ describe("Diário das atividades — carga por frente (D-PROD-341, emenda)", () 
     expect(lerAbertura(dados.observacao)).toMatchObject({ bemId: "bem-8", horimetro: "900.0" });
     expect(dados).toMatchObject({ data_operacional: "2026-11-26", produtos: [expect.objectContaining({ produto_id: "p-gli", jato: "1" })] });
     expect(servico.adicionarLinha).not.toHaveBeenCalled();
+  });
+});
+
+describe("Diário das atividades — Insumo só quando a operação permite produto (D-PROD-356)", () => {
+  const OPERACAO_SEM_PRODUTO = { id: "op-1", nome_tipo: "Aplicação de defensivo", categoria: "APLICACAO", ativo: true, permite_produto: false };
+  const SEM_INSUMO = ["maquina", "abastecimento", "trocar-pasto", "mao-de-obra", "servico-terceiro", "outros-custos"];
+
+  it("(m1) com permite_produto na operação, o Insumo aparece e abre a Carga de insumo", async () => {
+    renderizar({ tipos: [OPERACAO_APLICACAO], atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+    await irAoServicoDaFrente();
+    expect(screen.getByTestId("servico-opcao-insumo")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("servico-opcao-insumo"));
+    expect(await screen.findByTestId("carga-form")).toBeInTheDocument();
+  });
+
+  it("(m2) sem permite_produto na operação, o Insumo NÃO aparece; as outras seis opções seguem", async () => {
+    renderizar({ tipos: [OPERACAO_SEM_PRODUTO], atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+    await irAoServicoDaFrente();
+    expect(screen.queryByTestId("servico-opcao-insumo")).toBeNull();
+    expect(screen.queryByText("Insumo")).toBeNull();
+    for (const chave of SEM_INSUMO) expect(screen.getByTestId(`servico-opcao-${chave}`)).toBeInTheDocument();
+    expect(document.querySelectorAll('[data-testid^="servico-opcao-"]').length).toBe(6);
+  });
+
+  it("(m3) enquanto as operações não chegaram (lista vazia), o Insumo NÃO aparece; as outras seis seguem", async () => {
+    renderizar({ tipos: [], atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+    await irAoServicoDaFrente();
+    expect(screen.queryByTestId("servico-opcao-insumo")).toBeNull();
+    for (const chave of SEM_INSUMO) expect(screen.getByTestId(`servico-opcao-${chave}`)).toBeInTheDocument();
+  });
+
+  it("(m4) se a leitura da operação falhou (a lista não traz a operação da atividade), o Insumo some: nunca carga em operação que não permite produto", async () => {
+    renderizar({ tipos: [OPERACAO_APLICACAO_2], atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
+    await irAoServicoDaFrente();
+    expect(screen.queryByTestId("servico-opcao-insumo")).toBeNull();
+  });
+
+  it("(m5) a flag da própria atividade vale: permite_produto true na atividade mostra o Insumo mesmo sem a operação na lista", async () => {
+    renderizar({ tipos: [], atividade: { id: "atv-9", tipo_atividade_id: "op-1", permite_produto: true } });
+    await irAoServicoDaFrente();
+    expect(screen.getByTestId("servico-opcao-insumo")).toBeInTheDocument();
+  });
+
+  it("(m6) a flag da própria atividade (false) prevalece sobre a operação da lista (true): sem Insumo", async () => {
+    renderizar({ tipos: [OPERACAO_APLICACAO], atividade: { id: "atv-9", tipo_atividade_id: "op-1", permite_produto: false } });
+    await irAoServicoDaFrente();
+    expect(screen.queryByTestId("servico-opcao-insumo")).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CalendarPlus, CircleCheck, Copy, List, Pencil, RotateCcw, Tractor } from "lucide-react";
+import { Ban, CalendarPlus, CircleCheck, Copy, List, Pencil, Plus, RotateCcw } from "lucide-react";
 import { FiltrosDaTelaContext, opcoesDeOrdenacao } from "@/components/cadastro/base1/FiltrosRapidos";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
@@ -324,7 +324,7 @@ function LancamentoAtividadesTela() {
   /** Janela de UM tipo de lançamento (D-PROD-233), aberta pelo menu ⚡ da lista sobre a atividade da linha. */
   /** D-PROD-254: "Registrar serviço" — registrar trabalho de campo escolhendo área e tipo (o planejar é a "Nova atividade"). */
   const [registrando, setRegistrando] = useState(false);
-  /** D-PROD-267: "+ Lançar dia" (a Nova realização preenchida com o serviço) e o "Concluir" da linha. */
+  /** D-PROD-267: a Nova realização preenchida com o serviço (o fallback do "+ Lançamento") e o "Concluir" da linha. */
   const [lancandoDia, setLancandoDia] = useState(/** @type {any|null} */ (null));
   const [concluindoServico, setConcluindoServico] = useState(/** @type {any|null} */ (null));
   const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', areaId?: string|null, chave: number } | null} */ (null));
@@ -794,17 +794,10 @@ function LancamentoAtividadesTela() {
     const ac = acoesDaAtividade(a, acoes);
     const gravar = podeGravar && Number.isInteger(a?.versao);
     const abrirItem = [{ key: "abrir", label: "Abrir atividade", icon: <List size={16} strokeWidth={1.75} />, onSelect: () => controller.handleEdit(a) }];
-    // Diário das atividades (D-PROD-341): numa atividade ABERTA com pasto em andamento, abre no primeiro deles (só com permissão de lançar).
-    const pastoEmAndamento = gravar && ac.lancarApontamento ? areasEmAndamento(a)[0] ?? null : null;
-    const diarioItem = pastoEmAndamento
-      ? [
-          {
-            key: "diario",
-            label: "Diário das atividades",
-            icon: <Tractor size={16} strokeWidth={1.75} />,
-            onSelect: () => void abrirDiario(a, pastoEmAndamento),
-          },
-        ]
+    // D-PROD-356: o "+ Lançamento" da linha é a ÚNICA entrada de lançar numa atividade ABERTA (com permissão de lançar): o
+    // mesmo caminho do "+ Lançamento" da tabela e do card (o diário no pasto; sem pasto, a Nova realização de antes).
+    const lancarItem = gravar && ac.lancarApontamento
+      ? [{ key: "lancar", label: "+ Lançamento", icon: <Plus size={16} strokeWidth={1.75} />, onSelect: () => void lancarPeloMenu(a) }]
       : [];
     const gerir = gravar
       ? [
@@ -817,12 +810,12 @@ function LancamentoAtividadesTela() {
           ac.cancelar ? { key: "cancelar", label: "Cancelar atividade", icon: <Ban size={16} strokeWidth={1.75} />, danger: true, onSelect: () => abrirDialogo("cancelar", a) } : null,
         ].filter((x) => x !== null)
       : [];
-    return [abrirItem, diarioItem, /** @type {any[]} */ (gerir)];
+    return [abrirItem, lancarItem, /** @type {any[]} */ (gerir)];
   };
 
   /**
    * Abre o Diário das atividades (o mesmo do mapa, `DiarioDoPasto`) da atividade no pasto dado: a atividade lida inteira,
-   * e a área no formato que o diário lê (id, nome e, se o servidor trouxer, o tamanho).
+   * e a área no formato que o diário lê (id, nome e, se o servidor trouxer, o tamanho). @returns {Promise<boolean>} se abriu.
    * @param {any} a @param {any} pasto
    */
   const abrirDiario = async (a, pasto) => {
@@ -834,21 +827,36 @@ function LancamentoAtividadesTela() {
         tamanho_hectares: pasto.area?.tamanho_hectares ?? undefined,
       };
       setDiario({ atividade, area, chave: Date.now() });
+      return true;
     } catch (erro) {
       notifyWarning("Não foi possível abrir o diário", mensagemDeErroAtividade(erro, "Confira a conexão e tente de novo."));
+      return false;
     }
   };
 
   /**
-   * "+ Lançamento" do card "Atividades em andamento" (D-PROD-281): com UMA área na atividade, abre o Diário das atividades
-   * dessa área já na atividade (o mesmo caminho do mapa, D-PROD-348); com mais de uma área, segue a Nova realização de sempre.
+   * O "+ Lançamento" (D-PROD-356): abre o Diário das atividades no pasto dado, já na atividade. Sem pasto, ou se o diário
+   * não abre, segue a Nova realização preenchida com o serviço (o fluxo de antes).
+   * @param {any} item @param {any} pasto
+   */
+  const lancarNaAtividade = async (item, pasto) => {
+    if (!pasto || !(await abrirDiario(item, pasto))) setLancandoDia(item);
+  };
+
+  /**
+   * "+ Lançamento" da linha da tabela, do card do celular e do card "Atividades em andamento" (D-PROD-281): com UMA área na
+   * atividade, o Diário dessa área já na atividade (o mesmo caminho do mapa, D-PROD-348); com mais de uma (ou nenhuma), a
+   * Nova realização de sempre.
    * @param {any} item
    */
-  const lancarNoCard = (item) => {
-    const pasto = areaUnicaDaAtividade(item);
-    if (pasto) void abrirDiario(item, pasto);
-    else setLancandoDia(item);
-  };
+  const lancarNoCard = (item) => void lancarNaAtividade(item, areaUnicaDaAtividade(item));
+
+  /**
+   * O "+ Lançamento" do ⚡ da linha (D-PROD-356): a área única; com várias, o primeiro pasto em andamento (como o Diário
+   * sempre abriu pelo menu); sem nenhum, a Nova realização.
+   * @param {any} a
+   */
+  const lancarPeloMenu = (a) => lancarNaAtividade(a, areaUnicaDaAtividade(a) ?? areasEmAndamento(a)[0] ?? null);
 
   /** O ⚡ da linha (grade e cards). @param {any} a */
   const renderAcoesDaLinha = (a) => (
@@ -1151,7 +1159,7 @@ function LancamentoAtividadesTela() {
           item={item}
           podeLancar={podeLancarDia(item)}
           podeConcluir={podeConcluirServico(item) && situacaoDoServico(item) === "EM_ANDAMENTO"}
-          onLancarDia={setLancandoDia}
+          onLancarDia={lancarNoCard}
           onConcluir={setConcluindoServico}
         />
       );
@@ -1166,7 +1174,7 @@ function LancamentoAtividadesTela() {
       comAcoes={Boolean(empresaId && acoes.ver)}
       podeLancar={podeLancarDia(item)}
       podeConcluir={podeConcluirServico(item) && situacaoDoServico(item) === "EM_ANDAMENTO"}
-      onLancarDia={setLancandoDia}
+      onLancarDia={lancarNoCard}
       onConcluir={setConcluindoServico}
     />
   );
