@@ -4,16 +4,16 @@
  * O ícone do lote deixou de ser um marcador HTML: é um ponto na fonte GeoJSON `mg-lotes` e uma camada `symbol`
  * pinta a imagem (a figura do motor com a contagem escrita dentro, num canvas). MapLibre e canvas falsos.
  *
- *  L348-1. Imagem por desenho + contagem: mesma chave = mesma imagem, sem desenhar de novo nem registrar de novo.
- *  L348-2. Contagem com milhar, cinza #6b7280, 9,5 px, negrito, na faixa CONTAGEM_TOPO_PCT, com halo branco.
- *  L348-3. Posição: [0,-26] sem nome embaixo, [0,-14] com nome (`comRotulo` na fonte); nomes mantêm PAR_LOTE.nome.
- *  L348-4. Clique no lote abre os lotes e não a área por baixo; `hitArea` vê o lote.
- *  L348-5. Arrastar chama onDragLotes como o dragend antigo; clique curto não; sem permissão o mapa desliza.
- *  L348-6. Piscar só com alerta (e com identificador): estado `piscaApagado` só nesses lotes; a pintura da
+ *  L349-1. Imagem por desenho + contagem: mesma chave = mesma imagem, sem desenhar de novo nem registrar de novo.
+ *  L349-2. Contagem com milhar, cinza #6b7280, 9,5 px, negrito, na faixa CONTAGEM_TOPO_PCT, com halo branco.
+ *  L349-3. Posição: [0,-26] sem nome embaixo, [0,-14] com nome (`comRotulo` na fonte); nomes mantêm PAR_LOTE.nome.
+ *  L349-4. Clique no lote abre os lotes e não a área por baixo; `hitArea` vê o lote.
+ *  L349-5. Arrastar chama onDragLotes como o dragend antigo; clique curto não; sem permissão o mapa desliza.
+ *  L349-6. Piscar só com alerta (e com identificador): estado `piscaApagado` só nesses lotes; a pintura da
  *          camada não muda (nada de setPaintProperty, que refaria a fonte no worker).
- *  L348-7. Troca de estilo (satélite ↔ mapa): as imagens voltam (ensureLayers e styleimagemissing).
- *  L348-8. Identificador: bolinha com a sigla, MISTO metade preto/metade branco.
- *  L348-9. Revisão: arrasto não fica preso com o botão solto fora do mapa; imagem que falha usa a reserva e é
+ *  L349-7. Troca de estilo (satélite ↔ mapa): as imagens voltam (ensureLayers e styleimagemissing).
+ *  L349-8. Identificador: bolinha com a sigla, MISTO metade preto/metade branco.
+ *  L349-9. Revisão: arrasto não fica preso com o botão solto fora do mapa; imagem que falha usa a reserva e é
  *          tentada de novo; imagens sem uso saem do mapa e do cache; densidade da tela nova troca as imagens;
  *          toque longo não começa em cima do lote e o clique que encerra um toque longo não abre os lotes.
  */
@@ -41,6 +41,7 @@ import {
   chaveImagemLote,
   identificadoresDoLote,
   limparCacheImagensLotes,
+  MAX_TENTATIVAS_IMAGEM,
 } from "@/lib/maplibre/lotesNoMapa.js";
 import useMapRenderer from "@/components/mapa/useMapRenderer.jsx";
 import { acaoDoCliqueNoLote, deveComecarToqueLongo } from "@/domain/mapa/cliqueArea";
@@ -189,7 +190,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("L348-1 — imagem por desenho + contagem", () => {
+describe("L349-1 — imagem por desenho + contagem", () => {
   it("o lote vai para a fonte do mapa com a imagem da figura e a contagem; a camada é symbol", async () => {
     const { map, r } = montar();
     renderer = r;
@@ -283,7 +284,7 @@ describe("L348-1 — imagem por desenho + contagem", () => {
   });
 });
 
-describe("L348-2 — a contagem desenhada na imagem", () => {
+describe("L349-2 — a contagem desenhada na imagem", () => {
   it("milhar com ponto, cinza, 9,5 px, negrito, centrada na faixa da contagem, com halo branco", async () => {
     const { map, r } = montar();
     renderer = r;
@@ -311,7 +312,7 @@ describe("L348-2 — a contagem desenhada na imagem", () => {
   });
 });
 
-describe("L348-3 — posição do ícone com e sem nome embaixo", () => {
+describe("L349-3 — posição do ícone com e sem nome embaixo", () => {
   it("icon-offset: [0,-26] sozinho, [0,-14] com nome; identificador 22 px à direita e 24 px acima do centro", () => {
     expect(OFFSET_LOTE_PX).toEqual([0, -26]);
     expect(OFFSET_LOTE_COM_NOME_PX).toEqual([0, -14]);
@@ -352,7 +353,7 @@ describe("L348-3 — posição do ícone com e sem nome embaixo", () => {
   });
 });
 
-describe("L348-4 — clique", () => {
+describe("L349-4 — clique", () => {
   it("clique no lote abre os lotes do pasto e NÃO a área por baixo; hitArea enxerga o lote", async () => {
     const { map, r } = montar();
     renderer = r;
@@ -392,7 +393,7 @@ describe("L348-4 — clique", () => {
   });
 });
 
-describe("L348-5 — arrastar para mover", () => {
+describe("L349-5 — arrastar para mover", () => {
   const preparar = async (canDrag = true) => {
     const { map, r } = montar();
     renderer = r;
@@ -477,7 +478,7 @@ describe("L348-5 — arrastar para mover", () => {
   });
 });
 
-describe("L348-6 — piscar do alerta", () => {
+describe("L349-6 — piscar do alerta", () => {
   const comAlerta = (extra = {}) => [pos("p1", "cat-touro", 3, { identificador_cor: "#dc2626", identificador_sigla: "LA", alertas: [{ id: "x" }], ...extra })];
   /** estados `piscaApagado` marcados, em ordem: [id, valor] */
   const piscadas = (map) =>
@@ -557,7 +558,7 @@ describe("L348-6 — piscar do alerta", () => {
   });
 });
 
-describe("L348-7 — troca de estilo (satélite ↔ mapa)", () => {
+describe("L349-7 — troca de estilo (satélite ↔ mapa)", () => {
   it("ensureLayers recria camadas, imagens e dados; styleimagemissing repõe a imagem que faltar", async () => {
     const { map, r } = montar();
     renderer = r;
@@ -587,7 +588,7 @@ describe("L348-7 — troca de estilo (satélite ↔ mapa)", () => {
   });
 });
 
-describe("L348-8 — identificador", () => {
+describe("L349-8 — identificador", () => {
   it("um, nenhum ou MISTO (mesmo comportamento do marcador antigo)", () => {
     expect(identificadoresDoLote([{ quantidade_cabecas: 1 }])).toEqual([]);
     expect(identificadoresDoLote([{ identificador_cor: "#f00", identificador_sigla: "AB" }, { quantidade_cabecas: 2 }])).toEqual([{ cor: "#f00", sigla: "AB", nome: "AB" }]);
@@ -627,7 +628,7 @@ describe("L348-8 — identificador", () => {
   });
 });
 
-describe("L348-9 — correções da revisão", () => {
+describe("L349-9 — correções da revisão", () => {
   const umLote = (extra = {}) => [pos("p1", "cat-touro", 3, { identificador_cor: "#dc2626", identificador_sigla: "LA", ...extra })];
   const feature = { properties: { areaId: "a1" } };
   const iniciarArrasto = async (map, r) => {
@@ -725,6 +726,18 @@ describe("L348-9 — correções da revisão", () => {
     await r.syncLotes(umLote(), [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
     expect(map.images.has(f.properties.imagem)).toBe(true);
     expect(fonte(map)).not.toBe(dados);
+  });
+
+  it("imagem que falha sempre: para de tentar depois de MAX_TENTATIVAS_IMAGEM (fica a reserva)", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    canvas.falharLeitura = (w) => w === LARGURA_MARCADOR_PX;
+    const { r } = montar();
+    renderer = r;
+    const tentativas = () => canvas.chamadas.filter((c) => c.nome === "getImageData" && c.args[0] === LARGURA_MARCADOR_PX).length;
+    for (let i = 0; i < MAX_TENTATIVAS_IMAGEM + 3; i++) {
+      await r.syncLotes(umLote(), [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
+    }
+    expect(tentativas()).toBe(MAX_TENTATIVAS_IMAGEM);
   });
 
   it("imagens que nenhum lote usa mais saem do mapa e do cache; com os lotes escondidos, nada sai", async () => {

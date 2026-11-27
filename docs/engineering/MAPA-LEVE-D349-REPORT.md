@@ -120,3 +120,10 @@ Figura, moldura, cor, contagem e identificador saem iguais. O que muda:
 - **Próximas etapas:**
   - nomes das áreas, cochos e pontos desenhados pelo mapa, com o mesmo cuidado de deixar igual. Os nomes são o custo do zoom e a maior parte do que resta no arrastar;
   - depois, medir de novo.
+
+## Revisão independente e correções
+
+Uma revisão de código independente (somente leitura) achou oito pontos; os seis que mudam comportamento foram corrigidos antes do merge (ver D-PROD-349). Ficam como diferenças conhecidas:
+- os lotes ficam abaixo do que ainda é HTML (cocho, ponto, tarefa, nome): um cocho no centro do pasto cobre o lote e recebe o clique;
+- a reserva (imagem que não pôde ser desenhada) não mostra a contagem;
+- um toque longo em cima do lote abre os lotes, não o lançamento de tarefa.

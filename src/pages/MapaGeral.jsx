@@ -1121,7 +1121,7 @@ export default function MapaGeral({ ativo = true } = {}) {
 
   const handleClickLotes = useCallback((l) => {
     if (!mapaGeralPermissions.visualizar_detalhes_lotes) return;
-    // D-PROD-348: o clique que encerra um toque longo (lançamento de tarefa) não abre os lotes.
+    // D-PROD-349: o clique que encerra um toque longo (lançamento de tarefa) não abre os lotes.
     if (acaoDoCliqueNoLote({ toqueLongoAcabouDeDisparar: longPressTriggeredRef.current }) === 'ignorar') return;
     setSelectedLote(l);
     setShowDetalhesLote(true);
@@ -1273,7 +1273,7 @@ export default function MapaGeral({ ativo = true } = {}) {
       const point = getPointFromEvent(event);
       if (!point) return;
       longPressTriggeredRef.current = false;
-      // D-PROD-348: em cima do ícone de um lote o toque é do lote (abrir ou arrastar), não do lançamento de tarefa.
+      // D-PROD-349: em cima do ícone de um lote o toque é do lote (abrir ou arrastar), não do lançamento de tarefa.
       const rect = mapElement.getBoundingClientRect();
       const sobreLote = Boolean(rendererHitLoteRef.current?.({ x: point.x - rect.left, y: point.y - rect.top }));
       if (!deveComecarToqueLongo({ podeUsarTarefasMapa, selecionandoLocalTarefa, sobreLote })) {

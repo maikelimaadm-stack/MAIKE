@@ -226,6 +226,10 @@ const bases = new Map();
 const prontas = new Map();
 /** @type {Map<string, Promise<Raster | null>>} */
 const pendentes = new Map();
+/** Quantas vezes cada imagem já falhou. Depois de MAX_TENTATIVAS_IMAGEM, para de tentar (fica a reserva). */
+const falhas = new Map();
+/** Um aparelho que sempre bloqueia a leitura do canvas não redesenha 200 lotes a cada sincronização. */
+export const MAX_TENTATIVAS_IMAGEM = 3;
 /** @type {HTMLCanvasElement | null} */
 let tela = null;
 
@@ -237,6 +241,7 @@ export function limparCacheImagensLotes() {
   avisouFalha = false;
   prontas.clear();
   pendentes.clear();
+  falhas.clear();
   tela = null;
 }
 
@@ -492,7 +497,7 @@ export function garantirImagens(pedidos, pixelRatio) {
   const esperar = [];
   for (const { chave, gerar } of pedidos) {
     const k = chaveCache(chave, pixelRatio);
-    if (prontas.has(k)) continue;
+    if (prontas.has(k) || (falhas.get(k) || 0) >= MAX_TENTATIVAS_IMAGEM) continue;
     let p = pendentes.get(k);
     if (!p) {
       p = naFila(gerar)
@@ -500,8 +505,13 @@ export function garantirImagens(pedidos, pixelRatio) {
         .then((r) => {
           pendentes.delete(k);
           // Falhou: não guarda (a próxima sincronização tenta de novo); o lote aparece com a reserva.
-          if (r) prontas.set(k, r);
-          else avisarFalha();
+          if (r) {
+            prontas.set(k, r);
+            falhas.delete(k);
+          } else {
+            falhas.set(k, (falhas.get(k) || 0) + 1);
+            avisarFalha();
+          }
           return r;
         });
       pendentes.set(k, p);

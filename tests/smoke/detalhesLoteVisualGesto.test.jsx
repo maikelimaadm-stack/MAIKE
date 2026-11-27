@@ -93,7 +93,7 @@ describe("Ajustes D-PROD-125", () => {
   });
 
   it("identificador do lote no mapa: bolinha menor, borda fina, encostada na figura", () => {
-    // D-PROD-349: desenhado pelo mapa (imagem própria, camada que pisca); o desenho é conferido em L348-8.
+    // D-PROD-349: desenhado pelo mapa (imagem própria, camada que pisca); o desenho é conferido em L349-8.
     const mapa = readFileSync("src/lib/maplibre/lotesNoMapa.js", "utf8");
     expect(mapa).toContain("export const DESLOC_IDENT_PX = /** @type {[number, number]} */ ([22, -24]);");
     expect(mapa).toContain("export const DIAMETRO_IDENT_PX = 13;");

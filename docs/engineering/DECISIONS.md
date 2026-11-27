@@ -10583,4 +10583,12 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - conferir no app (Android e iOS) que o canvas lê os pixels da figura SVG;
   - imagens por contagem acumulam na sessão.
 
+- **Correções da revisão independente (antes do merge):**
+  - o piscar do alerta muda só o `feature-state` dos lotes que piscam (antes trocava a pintura da camada e o mapa refazia todos os lotes a cada 550 ms);
+  - arrasto com mouse encerra se o botão for solto fora do mapa (`buttons === 0`, `mouseup`/`blur` na janela);
+  - toque longo não começa em cima de um lote, e o clique que encerra um toque longo não abre os lotes (`deveComecarToqueLongo`, `acaoDoCliqueNoLote`, `hitLote`); `queryRenderedFeatures` recebe `[x, y]` (com `{x, y}` o MapLibre consultava a tela inteira);
+  - imagem que falha usa a reserva (círculo verde antigo, sem a contagem), avisa uma vez e tenta de novo até 3 vezes;
+  - imagens que nenhum lote usa saem do mapa e do cache (não com os lotes escondidos pelo filtro);
+  - devicePixelRatio relido no `resize`.
+
 <!-- Próxima decisão: D-PROD-350 -->
