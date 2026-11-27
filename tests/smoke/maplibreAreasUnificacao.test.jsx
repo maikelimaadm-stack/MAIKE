@@ -568,7 +568,7 @@ describe("V03 — renderer MapLibre preserva o contrato do Mapa Geral", () => {
     doMapa("mouseup")({ point: { x: 10, y: -5 } });
     expect(onDrag).toHaveBeenCalledWith({ lat: -5, lng: 10 }, lotes, "a1", [area("a1")]);
 
-    // D-PROD-352: cocho, ponto e tarefa desenhados pelo mapa (fontes mg-supl/mg-pontos/mg-tarefas), clique pela camada.
+    // D-PROD-353: cocho, ponto e tarefa desenhados pelo mapa (fontes mg-supl/mg-pontos/mg-tarefas), clique pela camada.
     const naCamadaDe = (camada, ev) => map.handlers.find((h) => h[0] === ev && h[1] === camada)[2];
     const onSupl = vi.fn();
     await r.syncPontosSuplementacao([{ id: "c1", nome_ponto: "Cocho", coordenadas: { lat: 0, lng: 0 } }], true, [], onSupl);

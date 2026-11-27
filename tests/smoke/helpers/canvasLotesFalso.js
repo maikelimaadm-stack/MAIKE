@@ -7,7 +7,7 @@
  *  - contexto 2D falso: guarda as chamadas (`fillText`, `drawImage`, `font`, `fillStyle`, sombras) e devolve
  *    pixels do tamanho do canvas em `getImageData`.
  *
- * D-PROD-352 (pontos desenhados pelo mapa): URL http(s) "carrega" com 64 × 64 (ou falha, por `falharUrl`); uma figura
+ * D-PROD-353 (pontos desenhados pelo mapa): URL http(s) "carrega" com 64 × 64 (ou falha, por `falharUrl`); uma figura
  * de outra origem pode SUJAR o canvas em que é desenhada (`sujarCom`), e daí em diante `getImageData` daquele canvas
  * lança, como no navegador; `measureText` mede 6 px por letra; caminho com `moveTo`/`lineTo`/`closePath`.
  */

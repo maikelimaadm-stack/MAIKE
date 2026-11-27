@@ -12,7 +12,7 @@ Este documento é um índice dos arquivos reais do sistema. As tabelas indicam *
 | Desenho do depósito | `src/assets/icones/deposito-sal.js` → `MODELO`, `CORPO`, `desenhoAjustado` |
 | Bolinha branca e ponteira de cocho/depósito | `cocho-descoberto.js` → `envolverMarcadorSvg` |
 | Tamanho dos bois no mapa | `src/assets/icones/lotes/quadradinho.js` → `LARGURA_MARCADOR_PX` (44) |
-| Tamanho dos cochos, depósitos, pontos e tarefas no mapa | `src/lib/maplibre/pontosNoMapa.js` → `TAMANHO_SUPL_PX` (36), `TAMANHO_PONTO_PX` (40), `TAMANHO_TAREFA_PX` (40); sem figura, `RAIO_CIRCULO_PX` (D-PROD-352: desenhados pelo próprio mapa) |
+| Tamanho dos cochos, depósitos, pontos e tarefas no mapa | `src/lib/maplibre/pontosNoMapa.js` → `TAMANHO_SUPL_PX` (36), `TAMANHO_PONTO_PX` (40), `TAMANHO_TAREFA_PX` (40); sem figura, `RAIO_CIRCULO_PX` (D-PROD-353: desenhados pelo próprio mapa) |
 | Selo "?"/"!" e farol do cocho; indicador da tarefa | `src/lib/maplibre/pontosNoMapa.js` → `SELO_SUPL`, `CORES_SELO_SUPLEMENTACAO`, `FAROL_SUPL`, `INDICADOR_TAREFA` (pintados na imagem por `desenharImagemPonto`) |
 | Número de cabeças: tamanho da letra | `src/lib/maplibre/contagemLote.js` → `FONTE_CONTAGEM_PX` |
 | Número de cabeças: posição e cor | Altura: centro da faixa reservada à contagem, `CONTAGEM_TOPO_PCT` (`src/assets/icones/lotes/index.js`, calculado de `CARD_FRAC` e `FAIXA_CONTAGEM`). Cor (`#6b7280`), halo e centro na horizontal: `desenharImagemLote` em `src/lib/maplibre/lotesNoMapa.js` (a contagem é escrita na imagem do lote, D-PROD-349) |
@@ -82,7 +82,7 @@ As imagens publicadas são assets com URLs versionadas. Para trocar a imagem ofi
 
 ## 3. Tamanhos e posições dos marcadores
 
-Arquivo: `src/components/mapa/useMapRenderer.jsx`; os lotes (desenhados pelo próprio mapa desde a D-PROD-349), em `src/lib/maplibre/lotesNoMapa.js`; cochos, depósitos, pontos de referência e tarefas (desenhados pelo próprio mapa desde a D-PROD-352), em `src/lib/maplibre/pontosNoMapa.js`.
+Arquivo: `src/components/mapa/useMapRenderer.jsx`; os lotes (desenhados pelo próprio mapa desde a D-PROD-349), em `src/lib/maplibre/lotesNoMapa.js`; cochos, depósitos, pontos de referência e tarefas (desenhados pelo próprio mapa desde a D-PROD-353), em `src/lib/maplibre/pontosNoMapa.js`.
 
 | Elemento | Referência no código |
 | --- | --- |

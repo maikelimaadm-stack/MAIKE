@@ -9,7 +9,7 @@ const ret = (dLat, dLng, w, h) => [
 export const EMPRESA = "emp-e2e";
 /**
  * Fazenda grande para medir desempenho (`?grande=200`): N pastos em grade, um lote em cada, um cocho a cada 4,
- * um ponto de referência (bebedouro) a cada 4 e uma tarefa a cada 5 (D-PROD-352; uma em cada 4 tarefas é Urgente).
+ * um ponto de referência (bebedouro) a cada 4 e uma tarefa a cada 5 (D-PROD-353; uma em cada 4 tarefas é Urgente).
  */
 const N_GRANDE = (() => {
   try {

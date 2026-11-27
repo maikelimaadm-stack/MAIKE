@@ -1,8 +1,8 @@
-# Mapa leve — etapa 3: cochos, pontos e tarefas desenhados pelo mapa (D-PROD-352)
+# Mapa leve — etapa 3: cochos, pontos e tarefas desenhados pelo mapa (D-PROD-353)
 
 **Data:** 2026-11-27 · sem servidor, sem migration · base: etapa 2 ([D-PROD-349](./MAPA-LEVE-D349-REPORT.md))
 
-> **Numeração:** nasceu D-PROD-350; a `main` deu a D-PROD-350 a outra decisão (PR #438) e a PR #439 reservou a D-PROD-351. `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-352, que é esta; os arquivos (teste, relatório e capturas) levam o número novo.
+> **Numeração:** nasceu D-PROD-350; a `main` deu a D-PROD-350 a outra decisão (PR #438) e a PR #439 reservou a D-PROD-351. `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-353, que é esta; os arquivos (teste, relatório e capturas) levam o número novo.
 
 ## O que mudou
 
@@ -101,10 +101,10 @@ Arquivos:
 
 Capturas em `docs/engineering/evidencias/mapa-leve/` (harness `?cena=geral&grande=40`, 390 px, deviceScaleFactor 2, zoom 13,9):
 
-- `d352-antes-lotes.png` / `d352-depois-lotes.png` (foco Lotes: lotes, bebedouros e porteiras);
-- `d352-antes-pontos.png` / `d352-depois-pontos.png` (foco Pontos: cochos com selo "?" e farol, bebedouros, porteiras);
-- `d352-antes-tarefas.png` / `d352-depois-tarefas.png` (foco Tarefas);
-- `d352-comparacao-cocho-selo-farol.png` e `d352-comparacao-tarefa.png`: antes, depois e a diferença, ampliados 3×.
+- `d353-antes-lotes.png` / `d353-depois-lotes.png` (foco Lotes: lotes, bebedouros e porteiras);
+- `d353-antes-pontos.png` / `d353-depois-pontos.png` (foco Pontos: cochos com selo "?" e farol, bebedouros, porteiras);
+- `d353-antes-tarefas.png` / `d353-depois-tarefas.png` (foco Tarefas);
+- `d353-comparacao-cocho-selo-farol.png` e `d353-comparacao-tarefa.png`: antes, depois e a diferença, ampliados 3×.
 
 Figura, selo, farol, indicador, contorno, tamanho e posição saem iguais. O que muda:
 
@@ -127,7 +127,7 @@ Fica registrado como diferença: quem usa leitor de tela não ouve mais o nível
 
 ## Testes
 
-- Novo: `tests/smoke/pontosNoMapaD352.test.jsx` (P352-1 a P352-8):
+- Novo: `tests/smoke/pontosNoMapaD353.test.jsx` (P353-1 a P353-8):
   - imagem por chave: pontos iguais dividem a imagem, refetch não redesenha nem republica, nível novo = imagem nova;
   - selo e farol do cocho e indicador da tarefa nas posições, cores e fontes de antes; figura sem achatar e centrada;
   - ordem das camadas (também com um estilo em que os lotes já existiam);

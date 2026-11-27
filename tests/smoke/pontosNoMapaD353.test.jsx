@@ -1,20 +1,20 @@
 /**
- * D-PROD-352 (mapa leve, etapa 3) — cochos/depósitos, pontos de referência (bebedouro incluído) e tarefas desenhados
+ * D-PROD-353 (mapa leve, etapa 3) — cochos/depósitos, pontos de referência (bebedouro incluído) e tarefas desenhados
  * pelo próprio mapa, no mesmo padrão dos lotes (D-PROD-349). MapLibre e canvas falsos.
  *
- *  P352-1. Imagem por chave: pontos iguais dividem a imagem; a mesma chave não é desenhada nem registrada de novo;
+ *  P353-1. Imagem por chave: pontos iguais dividem a imagem; a mesma chave não é desenhada nem registrada de novo;
  *          o nível muda → imagem nova; nenhum marcador HTML.
- *  P352-2. Cocho: figura de 36 px sem achatar, selo "?"/"!" no canto de cima à direita e farol no de baixo, nas
+ *  P353-2. Cocho: figura de 36 px sem achatar, selo "?"/"!" no canto de cima à direita e farol no de baixo, nas
  *          posições e cores de antes.
- *  P352-3. Tarefa: indicador ("3d", cor do prazo) como o `aplicarIndicadorTarefa`; Urgente por cima (`symbol-sort-key`).
- *  P352-4. Ordem das camadas: cocho < ponto < lote < identificador < tarefa (o z-index de antes).
- *  P352-5. Clique: o callback de sempre com o objeto mais novo; nunca abre a área/linha por baixo; quem está por
+ *  P353-3. Tarefa: indicador ("3d", cor do prazo) como o `aplicarIndicadorTarefa`; Urgente por cima (`symbol-sort-key`).
+ *  P353-4. Ordem das camadas: cocho < ponto < lote < identificador < tarefa (o z-index de antes).
+ *  P353-5. Clique: o callback de sempre com o objeto mais novo; nunca abre a área/linha por baixo; quem está por
  *          cima ganha (tarefa sobre lote, lote sobre ponto); hitArea/hitPonto; toque longo não começa num ponto.
- *  P352-6. Reserva: figura que não carrega, figura de outra origem que suja o canvas (sem quebrar o próximo desenho),
+ *  P353-6. Reserva: figura que não carrega, figura de outra origem que suja o canvas (sem quebrar o próximo desenho),
  *          limite de tentativas; a tarefa com ícone enviado que não carrega usa o modelo local.
- *  P352-7. Poda (imagens sem uso saem; grupo escondido não poda) e troca de estilo (as imagens voltam).
- *  P352-8. Texto acessível: o título (nível do cocho, prazo da tarefa) vai na fonte e aparece no mouse.
- *  P352-9. Revisão: figura remota lenta fora da fila (não atrasa lotes nem outros pontos; publica com a reserva),
+ *  P353-7. Poda (imagens sem uso saem; grupo escondido não poda) e troca de estilo (as imagens voltam).
+ *  P353-8. Texto acessível: o título (nível do cocho, prazo da tarefa) vai na fonte e aparece no mouse.
+ *  P353-9. Revisão: figura remota lenta fora da fila (não atrasa lotes nem outros pontos; publica com a reserva),
  *          falha lembrada por URL; sobrepostos abrem o de cima; clique com o objeto novo; margem transparente.
  */
 import { readFileSync } from "node:fs";
@@ -95,7 +95,7 @@ vi.mock("@/lib/maplibre/lifecycle.js", async (orig) => {
     remove() {}
   }
   const popups = [];
-  globalThis.__popupsD352 = popups;
+  globalThis.__popupsD353 = popups;
   return { ...real, maplibregl: { Marker, Popup, LngLatBounds: class {} }, setSourceData: (map, id, data) => map?.data?.set(id, data) };
 });
 
@@ -196,7 +196,7 @@ afterEach(() => {
   renderer?.clearAll();
 });
 
-describe("P352-1 — imagem por chave", () => {
+describe("P353-1 — imagem por chave", () => {
   it("o cocho vai para a fonte mg-supl com imagem, reserva e título; nenhum marcador HTML", async () => {
     const { map, r } = montar();
     renderer = r;
@@ -266,7 +266,7 @@ describe("P352-1 — imagem por chave", () => {
   });
 });
 
-describe("P352-2 — selo e farol do cocho", () => {
+describe("P353-2 — selo e farol do cocho", () => {
   it("neutro: selo '?' cinza 13 px à direita/14 acima do centro; farol 13 à direita/12 abaixo; figura 34 × 36 no centro", async () => {
     const { map, r } = montar();
     renderer = r;
@@ -315,7 +315,7 @@ describe("P352-2 — selo e farol do cocho", () => {
   });
 });
 
-describe("P352-3 — tarefa", () => {
+describe("P353-3 — tarefa", () => {
   it("indicador como o aplicarIndicadorTarefa: '3d' na cor do prazo, 7 px para fora à direita, 4 px acima do pé", async () => {
     const { map, r } = montar();
     renderer = r;
@@ -363,7 +363,7 @@ describe("P352-3 — tarefa", () => {
   });
 });
 
-describe("P352-4 — ordem das camadas", () => {
+describe("P353-4 — ordem das camadas", () => {
   it("cocho < ponto < lote < identificador < tarefa, como o z-index dos marcadores antigos", async () => {
     const { map, r } = montar();
     renderer = r;
@@ -398,7 +398,7 @@ describe("P352-4 — ordem das camadas", () => {
   });
 });
 
-describe("P352-5 — clique", () => {
+describe("P353-5 — clique", () => {
   const preparar = async () => {
     const { map, r } = montar();
     renderer = r;
@@ -421,7 +421,7 @@ describe("P352-5 — clique", () => {
     disparar(map, "click", "mg-linhas", e({ id: "ln1" }));
     expect(cb.supl).toHaveBeenCalledWith(expect.objectContaining({ id: "c1", indicador_percentual: 0.75 }));
     expect(cb.area).not.toHaveBeenCalled();
-    expect(globalThis.__popupsD352).toHaveLength(0);
+    expect(globalThis.__popupsD353).toHaveLength(0);
     expect(r.hitArea({ x: 5, y: 5 })).toBe(true);
     expect(r.hitPonto({ x: 5, y: 5 })).toBe(true);
     expect(r.hitLote({ x: 5, y: 5 })).toBe(false);
@@ -475,12 +475,12 @@ describe("P352-5 — clique", () => {
   it("ponto sem callback abre o popup com nome e tipo (como antes)", async () => {
     const { map, r } = montar();
     renderer = r;
-    globalThis.__popupsD352.length = 0;
+    globalThis.__popupsD353.length = 0;
     await r.syncPontos([BEBEDOURO], true, [], null);
     map.sobPonto = { [PONTOS_LAYER_ID]: [{ properties: { id: "p1" } }] };
     disparar(map, "click", PONTOS_LAYER_ID, { point: { x: 1, y: 1 }, features: [{ properties: { id: "p1" } }] });
-    expect(globalThis.__popupsD352).toHaveLength(1);
-    expect(globalThis.__popupsD352[0].el.textContent).toBe("Bebedouro 1BEBEDOURO");
+    expect(globalThis.__popupsD353).toHaveLength(1);
+    expect(globalThis.__popupsD353[0].el.textContent).toBe("Bebedouro 1BEBEDOURO");
   });
 
   it("toque longo não começa em cima de um ponto clicável (Mapa Geral consulta hitPonto antes de armar o tempo)", () => {
@@ -508,7 +508,7 @@ describe("P352-5 — clique", () => {
   });
 });
 
-describe("P352-6 — reserva", () => {
+describe("P353-6 — reserva", () => {
   it("figura que não carrega: o ponto fica com a reserva (círculo da cor + selo), avisa uma vez e tenta de novo", async () => {
     const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
     canvas.falharUrl = (u) => u === urlIconeCocho(0, true);
@@ -618,7 +618,7 @@ describe("P352-6 — reserva", () => {
   });
 });
 
-describe("P352-7 — poda e troca de estilo", () => {
+describe("P353-7 — poda e troca de estilo", () => {
   it("imagens que nenhum ponto usa saem do mapa; com o grupo escondido, nada sai", async () => {
     const { map, r } = montar();
     renderer = r;
@@ -672,7 +672,7 @@ describe("P352-7 — poda e troca de estilo", () => {
   });
 });
 
-describe("P352-8 — texto acessível", () => {
+describe("P353-8 — texto acessível", () => {
   it("no mouse, cursor de mão e o título (nível do cocho) no canvas; ao sair, some", async () => {
     const { map, r } = montar();
     renderer = r;
@@ -707,7 +707,7 @@ describe("P352 — imagens só depois de prontas", () => {
   });
 });
 
-describe("P352-9 — revisão: sobrepostos, objeto novo e margem transparente", () => {
+describe("P353-9 — revisão: sobrepostos, objeto novo e margem transparente", () => {
   it("sobrepostos na mesma camada: abre a Urgente (desenhada por cima) mesmo se o mapa a devolver depois", async () => {
     const { map, r } = montar();
     renderer = r;

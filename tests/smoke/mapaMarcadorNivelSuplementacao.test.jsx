@@ -1,6 +1,6 @@
 /**
  * D-PROD-178 (MAPA-NIVEIS-COCHO-DEPOSITO-UX01) — cocho/depósito no renderer REAL do Mapa Geral (`useMapRenderer`),
- * com MapLibre e canvas falsos. Desde a D-PROD-352 o cocho é desenhado pelo próprio mapa (fonte `mg-supl`, camada
+ * com MapLibre e canvas falsos. Desde a D-PROD-353 o cocho é desenhado pelo próprio mapa (fonte `mg-supl`, camada
  * `symbol`), não é mais marcador HTML:
  *
  *  - o `titulo` do ponto na fonte = nome do ponto + " — " + o mesmo texto do nível (`indicador_titulo`, que vem do
@@ -102,7 +102,7 @@ const TXT_DEP_50 = 'Saldo de 150 kg: 50% do limite operacional de 300 kg.';
 
 const cocho = (extra) => ({ ...COCHO, indicador_neutro: false, ...extra });
 const deposito = (extra) => ({ ...DEPOSITO, indicador_neutro: false, indicador_alerta_excesso: false, ...extra });
-/** O cocho/depósito na fonte do mapa (D-PROD-352). */
+/** O cocho/depósito na fonte do mapa (D-PROD-353). */
 const pontoNaFonte = (map, id) => (map.data.get(SUPL_SOURCE_ID)?.features || []).find((f) => f.properties.id === id);
 /** Selos escritos na imagem ("?" ou "!"), na ordem. */
 const selosDesenhados = () => canvas.textos().filter((t) => t === '?' || t === '!');
@@ -133,7 +133,7 @@ describe('descreverMarcadorSuplementacao (pura)', () => {
   });
 });
 
-describe('useMapRenderer.syncPontosSuplementacao — nível no cocho desenhado pelo mapa (D-PROD-178, D-PROD-352)', () => {
+describe('useMapRenderer.syncPontosSuplementacao — nível no cocho desenhado pelo mapa (D-PROD-178, D-PROD-353)', () => {
   it('cria com a figura do nível e o título do nível; sem selo quando há estimativa; nenhum marcador HTML', async () => {
     const { r, map } = await montarRenderer();
     await r.syncPontosSuplementacao([cocho({ indicador_percentual: 1, indicador_titulo: TXT_100 })], true, [], vi.fn());

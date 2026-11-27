@@ -53,7 +53,7 @@ export const COR_IDENT_MISTO = "linear-gradient(90deg, #000000 50%, #ffffff 50%)
  * @typedef {{ imagem: Pixels, pixelRatio: number, w: number, h: number }} Raster
  *   `w`/`h`: tamanho na tela (px CSS); `imagem`: pixels em `w × pixelRatio`.
  * @typedef {{ chave: string, gerar: (preparado?: any) => Promise<Raster | null>, preparar?: () => Promise<any> }} PedidoImagem
- *   `preparar` (D-PROD-352): o que espera rede (carregar a figura de um ponto) roda FORA da fila de desenho; o
+ *   `preparar` (D-PROD-353): o que espera rede (carregar a figura de um ponto) roda FORA da fila de desenho; o
  *   resultado vai para `gerar`, que só desenha. Se `preparar` devolver `ADIADA`, a imagem não é tentada agora (a figura
  *   falhou há pouco) e isso não conta como falha.
  */
@@ -139,7 +139,7 @@ export function colecaoLotes(itens) {
     if (it.ident) properties.ident = it.ident;
     features.push({ type: "Feature", id: it.areaId, properties, geometry: { type: "Point", coordinates: it.lngLat } });
   }
-  // Lote com alerta por ÚLTIMO (D-PROD-352): ele é desenhado por cima (`symbol-sort-key`) e o MapLibre devolve o
+  // Lote com alerta por ÚLTIMO (D-PROD-353): ele é desenhado por cima (`symbol-sort-key`) e o MapLibre devolve o
   // clique na ordem inversa dos dados — com a mesma ordem, o lote que aparece por cima é o que abre.
   const alerta = (/** @type {GeoJSON.Feature} */ f) => (f.properties?.alerta ? 1 : 0);
   features.sort((a, b) => alerta(a) - alerta(b));
@@ -277,7 +277,7 @@ export function figuraFalhouHaPouco(url) {
 
 /**
  * Figura carregada (uma por URL; quem pede a mesma URL enquanto ela carrega espera o mesmo download). URL que não é
- * `data:`/`blob:` (ícone antigo gravado como link; o envio do app devolve `data:` URL — D-PROD-352) é pedida com CORS:
+ * `data:`/`blob:` (ícone antigo gravado como link; o envio do app devolve `data:` URL — D-PROD-353) é pedida com CORS:
  * sem ele, desenhar a figura sujaria o canvas e nenhum pixel poderia ser lido. Servidor sem CORS, ou que não responde
  * em MS_LIMITE_FIGURA, = figura que não carrega (o ponto fica com a reserva). A falha de uma URL remota é lembrada por
  * MS_FALHA_FIGURA; a de uma `data:` URL, não (a próxima tentativa decodifica de novo).
@@ -346,7 +346,7 @@ function baseDaFigura(iconUrl, pixelRatio) {
 
 /**
  * Canvas único de trabalho (`willReadFrequently`: a leitura dos pixels não passa pela GPU). Também desenha as imagens
- * dos pontos (D-PROD-352, `contextoDeDesenho`).
+ * dos pontos (D-PROD-353, `contextoDeDesenho`).
  * @param {number} largura @param {number} altura
  */
 function contexto(largura, altura) {
@@ -383,13 +383,13 @@ function lerPixels(ctx, largura, altura) {
     return { width: d.width, height: d.height, data: d.data };
   } catch {
     // Canvas "sujo" (figura de outra origem): sem pixels, sem imagem. Um canvas sujo fica sujo para sempre: o de
-    // trabalho é trocado por um novo, senão nenhuma imagem depois desta sairia (D-PROD-352).
+    // trabalho é trocado por um novo, senão nenhuma imagem depois desta sairia (D-PROD-353).
     tela = null;
     return null;
   }
 }
 
-/** O canvas de trabalho e a leitura dos pixels, para as imagens dos pontos (D-PROD-352, `pontosNoMapa.js`). */
+/** O canvas de trabalho e a leitura dos pixels, para as imagens dos pontos (D-PROD-353, `pontosNoMapa.js`). */
 export { contexto as contextoDeDesenho, lerPixels as lerPixelsDoCanvas };
 
 /**
@@ -551,7 +551,7 @@ function naFila(fn) {
 /**
  * Garante as imagens pedidas no cache. Devolve `null` se todas já estão prontas (o chamador segue sem esperar) ou a
  * promessa de quando ficarem. Uma chave só é desenhada uma vez, mesmo pedida várias vezes ao mesmo tempo.
- * Usado pelos lotes e pelos pontos (D-PROD-352): o cache, a fila e o limite de tentativas são os mesmos.
+ * Usado pelos lotes e pelos pontos (D-PROD-353): o cache, a fila e o limite de tentativas são os mesmos.
  * @param {PedidoImagem[]} pedidos @param {number} pixelRatio
  * @param {() => void} [aoFalhar] aviso (uma vez) de imagem que falhou; padrão: o dos lotes
  * @returns {Promise<void> | null}
@@ -658,7 +658,7 @@ const registradasDo = (map) => {
 
 /**
  * Põe (ou troca) uma imagem no estilo. Já está com o mesmo DPR: nada. Com outro DPR (a tela mudou): troca.
- * Também para as imagens dos pontos (D-PROD-352, `porImagemNoMapa`).
+ * Também para as imagens dos pontos (D-PROD-353, `porImagemNoMapa`).
  * @param {any} map @param {string} chave @param {Raster} r
  */
 export function porImagemNoMapa(map, chave, r) {
@@ -702,7 +702,7 @@ const ehImagemDeLote = (chave) => chave.startsWith("mg-lote|") || chave.startsWi
  * Tira do mapa e do cache as imagens de lote que nenhum lote usa mais (contagem que mudou, lote que saiu) e as de
  * outro DPR. As que ainda estão sendo desenhadas ficam (entram no cache e saem na próxima poda). Sem nenhum lote
  * (camada escondida pelo filtro) não poda: ao mostrar de novo, as imagens já estão prontas.
- * Os pontos (D-PROD-352) podam só as do seu grupo, com `ehDoGrupo`.
+ * Os pontos (D-PROD-353) podam só as do seu grupo, com `ehDoGrupo`.
  * @param {any} map @param {Set<string>} emUso @param {number} pixelRatio
  * @param {(chave: string) => boolean} [ehDoGrupo] quais imagens esta poda pode tirar; padrão: as de lote
  * @returns {string[]} chaves tiradas do mapa
@@ -852,7 +852,7 @@ export function criarPiscaIdent(getMap) {
  *   pixelRatio: () => number,
  *   coberto?: (ponto: { x: number, y: number }) => boolean,
  * }} opts
- *   `coberto(ponto)` (D-PROD-352): há algo clicável POR CIMA do lote nesse ponto (uma tarefa) — o toque é dele.
+ *   `coberto(ponto)` (D-PROD-353): há algo clicável POR CIMA do lote nesse ponto (uma tarefa) — o toque é dele.
  * @returns {{ off: () => void, cancelarArrasto: () => void, acabouDeArrastar: () => boolean }}
  */
 export function ligarInteracaoLotes(map, opts) {
@@ -1013,7 +1013,7 @@ export function ligarInteracaoLotes(map, opts) {
 
   return {
     cancelarArrasto: () => terminar(false),
-    // o clique que o navegador manda ao soltar um lote arrastado não abre o ponto que estiver ali (D-PROD-352)
+    // o clique que o navegador manda ao soltar um lote arrastado não abre o ponto que estiver ali (D-PROD-353)
     acabouDeArrastar: () => ignorarClique || Boolean(arrasto?.ativo),
     off: () => {
       terminar(false);

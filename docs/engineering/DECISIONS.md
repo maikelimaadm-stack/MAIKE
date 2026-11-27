@@ -10636,11 +10636,11 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 - **Diferença visível:** durante o zoom o nome é uma ampliação do texto, não o texto refeito (diferença de no máximo ¼ px na letra); no fim do zoom fica idêntico ao de antes.
 - **Próximo:** os nomes desenhados pelo próprio mapa (camadas `symbol`), que tiram o custo restante do zoom.
 
-## D-PROD-352 — Mapa leve, etapa 3: cochos, pontos e tarefas desenhados pelo próprio mapa
+## D-PROD-353 — Mapa leve, etapa 3: cochos, pontos e tarefas desenhados pelo próprio mapa
 
-**Data:** 2026-11-27 · **Origem:** proprietário, continuação da D-PROD-349: "sempre tentando ao máximo deixar igual o atual" · **Relatório:** [`MAPA-LEVE-D352-REPORT.md`](./MAPA-LEVE-D352-REPORT.md)
+**Data:** 2026-11-27 · **Origem:** proprietário, continuação da D-PROD-349: "sempre tentando ao máximo deixar igual o atual" · **Relatório:** [`MAPA-LEVE-D353-REPORT.md`](./MAPA-LEVE-D353-REPORT.md)
 
-> **Numeração:** nasceu D-PROD-350 (`node scripts/dev/proxima-decisao.mjs` na `main` `dcc7d46a6`). Antes de terminar, a `main` deu a D-PROD-350 ao celular de mais de uma pessoa (PR #438, `bf7e5adf2`) e a PR #439 (aberta) reservou a D-PROD-351; o script passou a indicar D-PROD-352, que é esta (regra A5). O marcador passa a D-PROD-353.
+> **Numeração:** nasceu D-PROD-350 e passou a D-PROD-352; a `main` deu a D-PROD-350 ao celular compartilhado (PR #438) e a D-PROD-352 ao Diário das atividades (PR #440), e passou a indicar `Próxima decisão: D-PROD-353`, que é esta (`node scripts/dev/proxima-decisao.mjs`, regra A5). O marcador passa a D-PROD-354.
 
 - **Problema:** depois da etapa 2, cochos/depósitos, pontos de referência (bebedouro incluído) e tarefas continuavam marcadores HTML. Com 200 pastos, eram 50 a 100 marcadores a mais, reposicionados a cada quadro do arrastar.
 - **Decisão:** os três grupos passam a ser desenhados pelo mapa, no mesmo padrão dos lotes (`src/lib/maplibre/pontosNoMapa.js`).
@@ -10664,4 +10664,4 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - o clique entrega o objeto novo na hora, mesmo com a imagem nova pendente;
   - o toque na margem transparente da imagem é da área por baixo (meia largura/altura do ícone visível na fonte); a área de toque volta a ser a de antes.
 
-<!-- Próxima decisão: D-PROD-353 -->
+<!-- Próxima decisão: D-PROD-354 -->

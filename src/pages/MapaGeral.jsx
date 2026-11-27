@@ -1276,7 +1276,7 @@ export default function MapaGeral({ ativo = true } = {}) {
       if (!point) return;
       longPressTriggeredRef.current = false;
       // D-PROD-349: em cima do ícone de um lote o toque é do lote (abrir ou arrastar), não do lançamento de tarefa.
-      // D-PROD-352: o mesmo em cima de um cocho, ponto de referência ou tarefa (o toque abre o detalhe dele).
+      // D-PROD-353: o mesmo em cima de um cocho, ponto de referência ou tarefa (o toque abre o detalhe dele).
       const rect = mapElement.getBoundingClientRect();
       const noMapa = { x: point.x - rect.left, y: point.y - rect.top };
       const sobreLote = Boolean(rendererHitLoteRef.current?.(noMapa));

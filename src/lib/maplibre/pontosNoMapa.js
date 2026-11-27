@@ -1,12 +1,12 @@
 /*
- * GUIA DE EDIÇÃO — PONTOS DESENHADOS PELO MAPA (D-PROD-352): tamanhos (TAMANHO_SUPL_PX, TAMANHO_PONTO_PX, TAMANHO_TAREFA_PX),
+ * GUIA DE EDIÇÃO — PONTOS DESENHADOS PELO MAPA (D-PROD-353): tamanhos (TAMANHO_SUPL_PX, TAMANHO_PONTO_PX, TAMANHO_TAREFA_PX),
  * círculo de quando não há figura (RAIO_CIRCULO_PX), selo e farol do cocho (SELO_SUPL, FAROL_SUPL, CORES_SELO_SUPLEMENTACAO),
  * indicador da tarefa (INDICADOR_TAREFA) e a ordem das camadas (ORDEM_CLICAVEIS).
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
 /**
  * Cochos/depósitos, pontos de referência (bebedouro incluído) e tarefas do Mapa Geral desenhados pelo PRÓPRIO mapa
- * (D-PROD-352, "mapa leve", etapa 3). Mesmo padrão dos lotes (D-PROD-349, `lotesNoMapa.js`):
+ * (D-PROD-353, "mapa leve", etapa 3). Mesmo padrão dos lotes (D-PROD-349, `lotesNoMapa.js`):
  *
  *  - cada grupo é uma fonte GeoJSON e uma camada `symbol`; a imagem de cada ponto é montada num canvas no
  *    devicePixelRatio — a figura (sem achatar), ou o círculo da cor quando não há figura, e por cima o selo e o farol

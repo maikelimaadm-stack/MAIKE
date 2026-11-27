@@ -2,7 +2,7 @@
  * GUIA DE EDIÇÃO — MARCADORES DO MAPA: lotes em syncLotes; cochos, pontos e tarefas em syncPontosSuplementacao, syncPontos e
  * syncTarefas; rótulos em syncLabels.
  * Lotes desenhados pelo mapa (D-PROD-349): posição, contagem, identificador, piscar e arrastar em src/lib/maplibre/lotesNoMapa.js.
- * Cochos, pontos e tarefas desenhados pelo mapa (D-PROD-352): tamanhos, selo, farol, indicador e ordem em src/lib/maplibre/pontosNoMapa.js.
+ * Cochos, pontos e tarefas desenhados pelo mapa (D-PROD-353): tamanhos, selo, farol, indicador e ordem em src/lib/maplibre/pontosNoMapa.js.
  * Ícone do lote (D-PROD-191): o desenho, a largura (LARGURA_MARCADOR_PX) e a altura do número de cabeças (CONTAGEM_TOPO_PCT) vêm do código, em src/assets/icones/lotes.
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
@@ -89,12 +89,12 @@ import {
  * Categoria de Manejo de cada posição do pasto e sempre devolve figura; a
  * `chave` do desenho vai na fonte (`desenho`) e na chave da imagem.
  *
- * Cochos/depósitos, pontos de referência (bebedouro incluído) e tarefas (D-PROD-352): também desenhados pelo mapa,
+ * Cochos/depósitos, pontos de referência (bebedouro incluído) e tarefas (D-PROD-353): também desenhados pelo mapa,
  * cada grupo numa fonte e numa camada `symbol` (`pontosNoMapa.js`): a figura com o selo e o farol do cocho ou o
  * indicador da tarefa já pintados na imagem; o clique chama os mesmos callbacks de antes.
  */
 
-/** Os três grupos de pontos desenhados pelo mapa (D-PROD-352): fonte, camada e prefixo das imagens. */
+/** Os três grupos de pontos desenhados pelo mapa (D-PROD-353): fonte, camada e prefixo das imagens. */
 const GRUPOS_PONTOS = Object.freeze({
   supl: Object.freeze({ fonte: SUPL_SOURCE_ID, camada: SUPL_LAYER_ID, prefixo: "mg-supl" }),
   pontos: Object.freeze({ fonte: PONTOS_SOURCE_ID, camada: PONTOS_LAYER_ID, prefixo: "mg-ponto" }),
@@ -112,7 +112,7 @@ const NOMES_GRUPOS = ["supl", "pontos", "tarefas"];
  * @typedef {{ seq: number, porId: Map<string, { item: import('@/lib/maplibre/pontosNoMapa.js').ItemPonto, ref: any }>, emUso: string[], publicado: string, args: any[] | null, onClick: null | ((ref: any, item: import('@/lib/maplibre/pontosNoMapa.js').ItemPonto) => void) }} GrupoPontos
  */
 /** Quanto um grupo espera as imagens antes de publicar com a reserva no que faltar (ms): o cache sai na hora, uma
- * figura remota lenta não segura o grupo (D-PROD-352). */
+ * figura remota lenta não segura o grupo (D-PROD-353). */
 const MS_ESPERA_IMAGENS = 250;
 /** @returns {GrupoPontos} */
 const novoGrupo = () => ({ seq: 0, porId: new Map(), emUso: [], publicado: "", args: null, onClick: null });
@@ -178,7 +178,7 @@ export default function useMapRenderer(mapInstanceRef) {
   const syncLotesRef = useRef(/** @type {null | ((...a: any[]) => Promise<void>)} */ (null));
   const piscaRef = useRef(/** @type {null | ReturnType<typeof criarPiscaIdent>} */ (null));
   if (!piscaRef.current) piscaRef.current = criarPiscaIdent(() => mapInstanceRef.current);
-  /** Cochos, pontos e tarefas desenhados pelo mapa (D-PROD-352): um estado por grupo. */
+  /** Cochos, pontos e tarefas desenhados pelo mapa (D-PROD-353): um estado por grupo. */
   const gruposRef = useRef(/** @type {Record<NomeGrupo, GrupoPontos>} */ ({ supl: novoGrupo(), pontos: novoGrupo(), tarefas: novoGrupo() }));
   const pontosHandlersRef = useRef(/** @type {null | { off: () => void }} */ (null));
   /** `resize` (densidade da tela nova): um só ouvinte refaz lotes e pontos. */
@@ -233,7 +233,7 @@ export default function useMapRenderer(mapInstanceRef) {
     lotesConteudoRef.current = "";
     lotesPublicadoRef.current = "";
     setSourceData(/** @type {any} */ (mapInstanceRef.current), MG_SOURCE_IDS.LOTES, { type: "FeatureCollection", features: [] });
-    // cochos, pontos e tarefas (D-PROD-352): imagens que ainda chegam não publicam mais nada
+    // cochos, pontos e tarefas (D-PROD-353): imagens que ainda chegam não publicam mais nada
     pontosHandlersRef.current?.off();
     pontosHandlersRef.current = null;
     densidadeRef.current?.off();
@@ -315,7 +315,7 @@ export default function useMapRenderer(mapInstanceRef) {
         map.getCanvas().style.cursor = "";
       };
       const onClick = (e) => {
-        // O clique no ícone do lote (D-PROD-349) ou de um cocho, ponto ou tarefa (D-PROD-352) é dele, não da área por baixo.
+        // O clique no ícone do lote (D-PROD-349) ou de um cocho, ponto ou tarefa (D-PROD-353) é dele, não da área por baixo.
         if (haLoteNoPonto(map, e.point) || haPontoNoPonto(map, e.point)) return;
         const area = featureArea(e);
         if (!area) return;
@@ -674,7 +674,7 @@ export default function useMapRenderer(mapInstanceRef) {
     popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: "260px" }).setLngLat(lngLat).setDOMContent(box).addTo(map);
   };
 
-  // ─── Cochos, pontos e tarefas desenhados pelo mapa (D-PROD-352) ───
+  // ─── Cochos, pontos e tarefas desenhados pelo mapa (D-PROD-353) ───
 
   /** Um só ouvinte de `resize`: densidade da tela nova refaz as imagens dos lotes e dos pontos nela. */
   const ligarDensidade = (/** @type {any} */ map) => {
@@ -728,7 +728,7 @@ export default function useMapRenderer(mapInstanceRef) {
   };
 
   /**
-   * Publica um grupo (D-PROD-352). O mapa id → objeto do app é trocado NA HORA (o clique entrega sempre o mais novo,
+   * Publica um grupo (D-PROD-353). O mapa id → objeto do app é trocado NA HORA (o clique entrega sempre o mais novo,
    * mesmo com imagens ainda por desenhar). Depois:
    *  1. as reservas (círculo da cor, sem rede) são desenhadas;
    *  2. espera as imagens no máximo MS_ESPERA_IMAGENS (as do cache saem na hora) e publica: o que ainda falta aparece
@@ -912,7 +912,7 @@ export default function useMapRenderer(mapInstanceRef) {
       },
       criarMarcador: (el, offset) => new maplibregl.Marker({ element: el, anchor: "center", offset }),
       pixelRatio: pr,
-      // uma tarefa por cima do lote (D-PROD-352): o toque é da tarefa
+      // uma tarefa por cima do lote (D-PROD-353): o toque é da tarefa
       coberto: (ponto) => haTarefaNoPonto(map, ponto),
     });
     const desligarImagens = ligarImagensFaltando(map, pr);
@@ -1094,7 +1094,7 @@ export default function useMapRenderer(mapInstanceRef) {
 
   /**
    * Há cocho, ponto de referência ou tarefa sob o ponto (px do mapa)? O toque longo do Mapa Geral não começa em cima de
-   * um deles (D-PROD-352).
+   * um deles (D-PROD-353).
    */
   const hitPonto = useCallback((point) => {
     const map = getMap();

@@ -21,7 +21,7 @@ export function indicadorTarefa(tarefa, hoje = hojeNoFuso(null)) {
 
 /**
  * Texto da tarefa no mapa (título e texto para leitor de tela): título — prioridade — situação e prazo. O mesmo no
- * marcador DOM (`aplicarIndicadorTarefa`) e na tarefa desenhada pelo Mapa Geral (D-PROD-352).
+ * marcador DOM (`aplicarIndicadorTarefa`) e na tarefa desenhada pelo Mapa Geral (D-PROD-353).
  * @param {{ titulo?: string, prioridade?: string, status?: string, data_prevista?: string | null }} tarefa
  * @param {string | null} [hoje]
  */
