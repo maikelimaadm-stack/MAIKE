@@ -1,4 +1,6 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { consultarMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
+import { exigirVersaoEsperada, separarVersaoEsperada } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
@@ -71,6 +73,17 @@ export const listar = async (contexto) => {
   return registros.map(comoLinhaPublica);
 };
 
+/**
+ * D-PROD-345 — o que mudou nas linhas desde a última sincronização do aparelho. Linha não é excluída (sai com
+ * `ativo: false`, que volta como item alterado).
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{desde?: string, cursor?: string, limite?: number}} query
+ */
+export const mudancas = async (contexto, query) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  return consultarMudancas({ clienteId: auth.clienteId, query, modelo: 'linhaGeografica', entidadeAuditoria: 'LinhaGeografica', publico: comoLinhaPublica });
+};
+
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {Record<string, unknown>} entrada */
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
@@ -110,8 +123,12 @@ export const atualizar = async (contexto, id, entrada) => {
   const prisma = getPrismaClient();
 
   return prisma.$transaction(async (tx) => {
+    const { versaoEsperada } = separarVersaoEsperada(entrada);
+    // D-PROD-344: versão conferida sob a trava da linha (como no lote, D-PROD-316).
+    if (versaoEsperada) await tx.$queryRaw`SELECT id FROM "LinhaGeografica" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR NO KEY UPDATE`;
     const anterior = await buscarLinha(auth.clienteId, id, tx);
     if (!anterior) throw linhaGeograficaNotFound();
+    await exigirVersaoEsperada(tx, { clienteId: auth.clienteId, entidade: 'LinhaGeografica', registro: anterior, versaoEsperada, rotulo: 'A linha', pedido: camposDe(entrada) });
 
     const campos = camposDe(entrada);
     const registro = Object.keys(campos).length

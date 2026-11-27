@@ -62,7 +62,9 @@ describe('D-PROD-329 — sincronização nos dois sentidos', () => {
   it('SC-02 quando sincronizar sozinho', () => {
     const agora = 1_000_000_000;
     const base = { ultima: agora - 60_000, agora, formatoAtual: true, semInternet: false };
-    expect(svc.deveSincronizarSozinho('voltou', base)).toBe(true);
+    // D-PROD-343: a volta da internet só baixa de novo se a última baixa tem mais de 3 min (antes: sempre).
+    expect(svc.deveSincronizarSozinho('voltou', base)).toBe(false);
+    expect(svc.deveSincronizarSozinho('voltou', { ...base, ultima: agora - 4 * 60_000 })).toBe(true);
     expect(svc.deveSincronizarSozinho('abriu', base)).toBe(false);
     expect(svc.deveSincronizarSozinho('abriu', { ...base, ultima: agora - 11 * 60_000 })).toBe(true);
     expect(svc.deveSincronizarSozinho('relogio', { ...base, ultima: agora - 2 * 3600_000 })).toBe(false);

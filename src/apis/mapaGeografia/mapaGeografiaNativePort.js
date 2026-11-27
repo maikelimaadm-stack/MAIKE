@@ -11,6 +11,7 @@ import {
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
 import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
+import { ordemPorCriacaoCrescente, registrarListaIncremental } from '@/lib/offline/sincronizacaoIncremental';
 
 const valorDeEnvio = (valor) => {
   if (valor === undefined) return undefined;
@@ -126,7 +127,8 @@ const operacoesPonto = Object.freeze({
       `/pontos-referencia/${encodeURIComponent(id)}`,
       {
         method: 'PATCH',
-        body: corpoDeEnvio(dados, CAMPOS_PONTO_ATUALIZACAO),
+        // D-PROD-344: a versão que a pessoa viu vai junto; o servidor confere.
+        body: corpoDeEnvio(dados, [...CAMPOS_PONTO_ATUALIZACAO, 'versao_esperada']),
         autenticado: true,
       },
       { operation: 'updatePonto', resource: 'PontoReferencia' }
@@ -187,7 +189,8 @@ const operacoesLinha = Object.freeze({
       `/linhas-geograficas/${encodeURIComponent(id)}`,
       {
         method: 'PATCH',
-        body: corpoDeEnvio(dados, CAMPOS_LINHA_ATUALIZACAO),
+        // D-PROD-344: a versão que a pessoa viu vai junto; o servidor confere.
+        body: corpoDeEnvio(dados, [...CAMPOS_LINHA_ATUALIZACAO, 'versao_esperada']),
         autenticado: true,
       },
       { operation: 'updateLinha', resource: 'LinhaGeografica' }
@@ -208,3 +211,7 @@ registrarLeiturasOffline([
   '/linhas-geograficas',
   '/pontos-referencia',
 ]);
+
+// D-PROD-345: as listas inteiras (sem filtros) sincronizam só o que mudou desde a última vez.
+registrarListaIncremental('/pontos-referencia', { mudancas: '/pontos-referencia/mudancas', ordem: ordemPorCriacaoCrescente });
+registrarListaIncremental('/linhas-geograficas', { mudancas: '/linhas-geograficas/mudancas', ordem: ordemPorCriacaoCrescente });

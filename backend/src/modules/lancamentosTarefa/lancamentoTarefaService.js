@@ -2,7 +2,8 @@
  * Serviço de LancamentoTarefa e histórico (P5.3, D-PROD-49).
  */
 
-import { pedidoJaAplicado } from '../../shared/sincronizacao/versaoDoRegistro.js';
+import { consultarMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
+import { exigirVersaoEsperada, pedidoJaAplicado, separarVersaoEsperada } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { exigirLotesNaoExcluidos } from '../../shared/lotes/loteVivo.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -332,6 +333,17 @@ export const listar = async (contexto) => {
 };
 
 /**
+ * D-PROD-345 — o que mudou nas tarefas desde a última sincronização do aparelho. A lista inteira traz as fotos dentro
+ * de cada tarefa e crescia a cada baixa; agora vem só o que mudou.
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{desde?: string, cursor?: string, limite?: number}} query
+ */
+export const mudancas = async (contexto, query) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  return consultarMudancas({ clienteId: auth.clienteId, query, modelo: 'lancamentoTarefa', entidadeAuditoria: 'LancamentoTarefa', publico: comoLancamentoPublico });
+};
+
+/**
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {import('@prisma/client').Prisma.TransactionClient} tx
  * @param {import('../../shared/auth/authContext.js').AuthContext} auth
@@ -442,16 +454,23 @@ export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
   const { corpo: corpoComFotosNovas, historico } = separarHistoricoMapa(entrada);
-  const { fotos_adicionar: fotosAdicionar, ...corpo } = corpoComFotosNovas;
+  const { fotos_adicionar: fotosAdicionar, ...corpoComVersao } = corpoComFotosNovas;
+  const { versaoEsperada, resto: corpo } = separarVersaoEsperada(corpoComVersao);
   const somarFotos = Array.isArray(fotosAdicionar) && fotosAdicionar.length > 0;
 
   return prisma.$transaction(async (tx) => {
     // D-PROD-335: quem soma fotos trava a tarefa antes de ler as atuais (dois envios ao mesmo tempo não se apagam).
-    if (somarFotos) await tx.$queryRaw`SELECT id FROM "LancamentoTarefa" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
+    // D-PROD-344: quem manda a versão também (a conferência vale sob a trava).
+    if (somarFotos || versaoEsperada) await tx.$queryRaw`SELECT id FROM "LancamentoTarefa" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
     const anterior = await buscarLancamento(auth.clienteId, id, tx);
     if (!anterior) throw attachmentOwnerInvalid();
 
     const campos = camposDeLancamento(corpo);
+    // D-PROD-344: a edição de campos confere a versão que a pessoa viu (como no lote, D-PROD-316). Somar fotos e
+    // registrar no histórico não apagam o que outra pessoa fez: não conferem.
+    if (Object.keys(campos).length > 0) {
+      await exigirVersaoEsperada(tx, { clienteId: auth.clienteId, entidade: 'LancamentoTarefa', registro: anterior, versaoEsperada, rotulo: 'A tarefa', pedido: campos });
+    }
     // D-PROD-342: a edição pedida já está toda na tarefa (e as fotos a somar já estão nela)?
     const fotosJaNaTarefa = !somarFotos || fotosAdicionar.every((f) => (Array.isArray(anterior.fotos) ? anterior.fotos : []).includes(String(f)));
     const repeticao = (Object.keys(campos).length > 0 || somarFotos) && fotosJaNaTarefa && (Object.keys(campos).length === 0 || pedidoJaAplicado(anterior, campos));

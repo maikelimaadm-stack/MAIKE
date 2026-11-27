@@ -168,7 +168,10 @@ export const baixarDadosParaOffline = ({ empresaId, aoAvancar }) => {
       if (estaSemInternet()) return { ok: false, falhas: 0, em: null };
       // Primeiro o que está no aparelho vai ao servidor (a baixa já traz o resultado).
       await sincronizarTudo().catch(() => undefined);
-      return naVezDaSincronia(() => baixarJa({ empresaId, aoAvancar: avisar }));
+      // D-PROD-343: a vez da sincronia é tomada POR PARTE (mapa, cadastros, telas), não pela baixa inteira: entre
+      // uma parte e outra, o envio que estava esperando passa. Antes a baixa (minutos, no sinal fraco) segurava a vez
+      // e o que se fazia no celular nesse tempo não subia, mesmo com o sinal de volta.
+      return baixarJa({ empresaId, aoAvancar: avisar });
     })().finally(() => {
       baixaEmCurso = null;
       empresaDaBaixaEmCurso = null;
@@ -203,7 +206,7 @@ const baixarJa = async ({ empresaId, aoAvancar }) => {
       aoAvancar?.({ etapa: 'mapa', titulo: 'Mapa', feitas: feitasMapa, total: CACHE_KEYS.length });
     }
   };
-  await Promise.all(Array.from({ length: 6 }, trabalharMapa));
+  await naVezDaSincronia(() => Promise.all(Array.from({ length: 6 }, trabalharMapa)));
   if (!mesmaConta()) return contaTrocou();
   falhas += falhasMapa;
   marcarPartes({ mapa: { em: Date.now(), total: CACHE_KEYS.length, falhas: falhasMapa } }, tenant);
@@ -211,15 +214,15 @@ const baixarJa = async ({ empresaId, aoAvancar }) => {
   // D-PROD-304: as telas carregam sob demanda; as portas (que registram as entidades e as
   // leituras de cada módulo) carregam todas aqui, antes de baixar.
   await carregarTodasAsPortas();
-  const cadastros = await baixarEntidadesParaOffline((p) =>
-    aoAvancar?.({ etapa: 'cadastros', titulo: 'Cadastros', feitas: p.feitas, total: p.total })
+  const cadastros = await naVezDaSincronia(() =>
+    baixarEntidadesParaOffline((p) => aoAvancar?.({ etapa: 'cadastros', titulo: 'Cadastros', feitas: p.feitas, total: p.total }))
   );
   if (!mesmaConta()) return contaTrocou();
   falhas += cadastros.falhas.length;
   marcarPartes({ cadastros: { em: Date.now(), total: Number(cadastros.total) || 0, falhas: cadastros.falhas.length } }, tenant);
 
-  const telas = await baixarLeiturasDasTelas(empresaId, (p) =>
-    aoAvancar?.({ etapa: 'telas', titulo: 'Telas do sistema', feitas: p.feitas, total: p.total })
+  const telas = await naVezDaSincronia(() =>
+    baixarLeiturasDasTelas(empresaId, (p) => aoAvancar?.({ etapa: 'telas', titulo: 'Telas do sistema', feitas: p.feitas, total: p.total }))
   );
   if (!mesmaConta()) return contaTrocou();
   falhas += telas.falhas;

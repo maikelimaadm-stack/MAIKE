@@ -10458,4 +10458,61 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** nasceu D-PROD-341. A PR #426 (diário, outra sessão) levou a D-PROD-341 para a `main` (`6aa675672`), que passou a indicar `Próxima decisão: D-PROD-342`, que é esta (`node scripts/dev/proxima-decisao.mjs`). O marcador passa a D-PROD-343. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-343 -->
+## D-PROD-343 — Sincronização, Fase 1 (proteção): o feito sem internet aparece no mapa, a baixa não segura o envio e não engana
+
+**Data:** 2026-11-27 · **Origem:** plano de sincronização aprovado pelo proprietário ("fazer as implementações para melhorar"), a partir da auditoria do lado da baixa · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-FASE1-D343-REPORT.md`](./SINCRONIZACAO-FASE1-D343-REPORT.md)
+
+**Decisão.**
+1. **O cocho, o depósito, a área, o ponto e a linha feitos sem internet aparecem no mapa já.** A fila de cadastros é aplicada na leitura da cópia do mapa (`comFilaDaEntidade`), como já era com as tarefas (D-PROD-330). Antes eles só apareciam no cadastro: no pasto, o cocho novo não podia ser tocado para lançar a leitura. Valem as mesmas regras das tarefas: só a fila da fazenda; o recusado não entra; o excluído sai.
+2. **A volta da internet só baixa de novo se a última baixa tem mais de 3 min.** Com o sinal piscando, cada volta baixava tudo de novo: dezenas de listas inteiras a cada vez. O envio não espera, porque a volta da rede sempre envia (`gatilhosDeSincronizacao`).
+3. **A baixa toma a vez da sincronia por parte (mapa, cadastros, telas), não pela baixa inteira.** O envio pedido no meio passa entre uma parte e outra. Antes, a baixa (minutos, no sinal fraco) segurava a vez, e o que se fazia nesse tempo não subia.
+4. **A baixa das telas não engana e não demora à toa.**
+   - O erro do servidor (5xx) e a sessão recusada contam como falha: antes a parte aparecia como "baixada".
+   - Quando o servidor diz que algo não existe mais (404), a cópia sai do aparelho: antes o lote excluído abria sem internet.
+   - Depois de 6 faltas de rede seguidas a baixa para, e o que faltou conta como falha. Antes, cada caminho esperava 20 s.
+   - Sem permissão (403) continua não sendo falha.
+5. **A resposta do pedido mais antigo não apaga a do mais novo.** Ao guardar uma leitura, fica a do pedido mais recente (`pedido_em`, na mesma transação). Antes, a leitura lenta da sincronização chegava depois da releitura feita ao salvar e apagava o registro novo da cópia.
+6. **As telas abertas se atualizam ao terminar a sincronização.** O mapa relê a cópia nova sem pedir de novo ao servidor (`atualizar-mapa` com `jaBuscado`), e as outras telas abertas releem.
+7. **O armazenamento do app fica protegido.** O app pede `navigator.storage.persist()` ao abrir, para que o sistema não apague o que espera envio quando o celular fica sem espaço. Se o sistema negar, tudo segue como antes.
+
+**Ficou de fora, de propósito:**
+- **Dono por pessoa na fila de cadastros.** Pular os itens de outra pessoa faria o registro dela esperar até ela entrar de novo, talvez nunca. Hoje eles sobem com a conta de quem está no celular. Fica para decidir com o proprietário.
+- **O servidor recusar um app desatualizado.** Exige o app mandar a versão em todo pedido; vai junto da Fase 4 (APK novo).
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` indica a D-PROD-342 enquanto a PR da D-PROD-342 não entra; esta é a seguinte. O marcador passa a D-PROD-344. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-344 — Sincronização, Fase 2: a versão do registro também em área, ponto de referência, linha e tarefa
+
+**Data:** 2026-11-27 · **Origem:** plano de sincronização aprovado pelo proprietário; auditoria do servidor (D8: só lote e cocho conferiam a versão) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-FASE2-D344-REPORT.md`](./SINCRONIZACAO-FASE2-D344-REPORT.md)
+
+**Decisão.**
+1. **O servidor confere a versão (`versao_esperada`) na edição de área, ponto de referência, linha e tarefa**, como no lote e no cocho (D-PROD-316). A conferência é feita sob a trava da linha. Com a versão velha e outra edição, a resposta é 409 `REGISTRO_VERSAO_CONFLITO` e nada é gravado. A mesma edição repetida não é conflito (D-PROD-342). Sem versão, grava como antes, o que mantém compatível o app antigo e a cascata interna.
+2. **Na tarefa, só a edição de campos confere a versão.** Somar fotos e registrar no histórico não apagam o que outra pessoa fez, então não conferem.
+3. **A repetição compara o valor já tratado pelo servidor.** A altura digitada "30,5" repetida conta como a mesma edição. As colunas Decimal com outra escala informam as próprias casas (`escalas`).
+4. **O app manda a versão nos formulários de área, ponto e linha** (o `updated_date` do registro aberto). As portas repassam o campo. A fila sem internet segue as regras da D-PROD-316: vale a versão da primeira edição, e a continuação vai sem versão.
+5. **A tela da tarefa ainda não manda a versão.** As fotos tiradas sem internet sobem sozinhas depois de salvar e mudam a versão; com a versão, a edição seguinte na mesma tela daria um falso "alterado por outra pessoa". O servidor já aceita a versão; o app passa a mandá-la quando a tela reler a tarefa depois das fotos.
+
+> **Numeração:** depois da D-PROD-343 (Fase 1). O marcador passa a D-PROD-345. Conferir antes do merge (regra A5).
+
+## D-PROD-345 — Sincronização, Fase 3: pontos de referência, linhas e tarefas baixam só o que mudou
+
+**Data:** 2026-11-27 · **Origem:** plano de sincronização aprovado pelo proprietário; auditoria da baixa (H1: quase tudo vinha inteiro a cada sincronização) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-FASE3-D345-REPORT.md`](./SINCRONIZACAO-FASE3-D345-REPORT.md)
+
+**Decisão.**
+1. **`GET /pontos-referencia/mudancas`, `/linhas-geograficas/mudancas` e `/lancamentos-tarefa/mudancas`** seguem o mesmo contrato da D-PROD-309 (`consultarMudancas`):
+   - `desde`, cursor e páginas;
+   - a mesma forma pública da listagem;
+   - as exclusões vêm da auditoria;
+   - a mesma permissão da listagem;
+   - o tenant vem do auth_context.
+   A linha não é excluída: sai com `ativo: false`, que volta como item alterado.
+2. **O app registra as três listas como incrementais**, cada uma com a ordem da listagem do servidor:
+   - pontos e linhas: criação crescente;
+   - tarefas: alteração decrescente.
+   `nativeRequest` junta pelo id com a cópia do aparelho, e quem chama não percebe diferença. Nas tarefas, que trazem as fotos dentro e cresciam a cada baixa, é o ganho maior.
+3. **A área fica de fora de propósito.** A listagem da área traz a ocupação (o gado dentro), que muda com as movimentações sem mudar a área. Uma lista "só o que mudou" mostraria a ocupação velha.
+4. **Índice:** `PontoReferencia` e `LinhaGeografica` não têm `(cliente_id, updatedAt)`, e a consulta usa `(cliente_id, …)` e ordena. Com poucos registros por cliente, a diferença é pequena. Se crescer, uma migration futura cria os dois índices; esta missão não cria. `LancamentoTarefa` já tem o índice.
+
+> **Numeração:** depois da D-PROD-344 (Fase 2). O marcador passa a D-PROD-346. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-346 -->

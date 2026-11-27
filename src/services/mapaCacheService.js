@@ -201,11 +201,19 @@ const tarefaAbertaNoMapa = (t) => Boolean(t?.coordenadas) && (t.status === 'Pend
  * alteração mistura, exclusão tira. O recusado pelo servidor não entra.
  * @param {any[]} itens @param {string|null} empresaId
  */
-const comTarefasDaFila = async (itens, empresaId) => {
-  // D-PROD-337: só a fila desta fazenda. A edição de uma tarefa não leva `empresa_id` nos dados: antes, a tarefa da
-  // fazenda A editada sem internet aparecia no mapa da fazenda B.
+const comTarefasDaFila = (itens, empresaId) => comFilaDaEntidade('LancamentoTarefa', itens, empresaId, { status: 'Pendente' }, tarefaAbertaNoMapa);
+
+/**
+ * D-PROD-330/343 — aplica a fila de cadastros de UMA entidade por cima da cópia do mapa, na ordem, casando pelo id.
+ * `aoCriar`: o que o servidor põe sozinho na criação (a do app não leva). `noMapa`: o filtro da capacidade.
+ * @param {string} entidade @param {any[]} itens @param {string|null} empresaId
+ * @param {Record<string, unknown>} aoCriar @param {(r: any) => boolean} noMapa
+ */
+const comFilaDaEntidade = async (entidade, itens, empresaId, aoCriar, noMapa) => {
+  // D-PROD-337: só a fila desta fazenda. A edição não leva `empresa_id` nos dados: antes, o registro da fazenda A
+  // editado sem internet aparecia no mapa da fazenda B.
   const daFazenda = (/** @type {any} */ f) => !empresaId || !f.empresaId || f.empresaId === empresaId;
-  const fila = (await listarItensDaFilaDeEntidades()).filter((f) => f.entidade === 'LancamentoTarefa' && f.situacao === 'aguardando' && daFazenda(f));
+  const fila = (await listarItensDaFilaDeEntidades()).filter((f) => f.entidade === entidade && f.situacao === 'aguardando' && daFazenda(f));
   if (!fila.length) return itens;
   /** @type {Map<string, any>} */
   const porId = new Map(itens.map((t) => [String(t?.id), t]));
@@ -213,17 +221,25 @@ const comTarefasDaFila = async (itens, empresaId) => {
     const id = f.registroId ?? (f.dados && typeof f.dados.id === 'string' ? f.dados.id : null);
     if (!id) continue;
     if (f.operacao === 'delete') porId.delete(id);
-    // A criação feita no app não leva a situação (o servidor põe "Pendente").
-    else if (f.operacao === 'create') porId.set(id, { status: 'Pendente', ...(porId.get(id) ?? {}), ...f.dados, id, _isOffline: true });
+    else if (f.operacao === 'create') porId.set(id, { ...aoCriar, ...(porId.get(id) ?? {}), ...f.dados, id, _isOffline: true });
     else if (f.operacao === 'update' && porId.has(id)) porId.set(id, { ...porId.get(id), ...f.dados, id, _isOffline: true });
     else if (f.operacao === 'update' && f.dados?.coordenadas) porId.set(id, { ...f.dados, id, _isOffline: true });
   }
-  return [...porId.values()].filter((t) => (!empresaId || !t.empresa_id || t.empresa_id === empresaId) && tarefaAbertaNoMapa(t));
+  return [...porId.values()].filter((t) => (!empresaId || !t.empresa_id || t.empresa_id === empresaId) && noMapa(t));
 };
+
+const ativoNoMapa = (/** @type {any} */ r) => r?.ativo !== false;
 
 /** @type {Record<string, (itens: any[], empresaId: string|null) => Promise<any[]>>} */
 const VISAO_DO_QUE_ESPERA_ENVIO = {
   tarefas: (itens, empresaId) => comTarefasDaFila(itens, empresaId),
+  // D-PROD-343: o cocho, o depósito, a área, o ponto e a linha feitos ou mudados SEM internet aparecem no mapa já
+  // (antes só no cadastro: no pasto, o cocho novo não podia ser tocado para lançar a leitura).
+  pontosSuplementacao: (itens, empresaId) =>
+    comFilaDaEntidade('PontoSuplementacao', itens, empresaId, { status: 'Ativo' }, (p) => p?.status === 'Ativo'),
+  areas: (itens, empresaId) => comFilaDaEntidade('AreaPastagem', itens, empresaId, { ativo: true }, ativoNoMapa),
+  pontos: (itens, empresaId) => comFilaDaEntidade('PontoReferencia', itens, empresaId, { ativo: true }, ativoNoMapa),
+  linhas: (itens, empresaId) => comFilaDaEntidade('LinhaGeografica', itens, empresaId, { ativo: true }, ativoNoMapa),
   leiturasCocho: async (itens, empresaId) => [...(await leiturasAguardandoEnvio(empresaId)), ...SEM_MARCAS(itens)],
   eventosSuplementacao: (itens, empresaId) => comLancamentosAguardandoEnvio(SEM_MARCAS(itens), empresaId),
   estoqueLotes: async (itens, empresaId) =>
