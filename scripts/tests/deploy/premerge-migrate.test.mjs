@@ -463,11 +463,11 @@ const NOME_UCL = '20261126200000_unidade_convertida_lancamentos';
 const NOME_SII = '20261126300000_sincronizacao_incremental_indices';
 /** D-PROD-323: a mistura no implemento (EXPAND), a 83ª, depois dos índices da sincronização (D-PROD-315). */
 const NOME_DM = '20261127100000_diario_maquina';
-/** D-PROD-369: o estoque na unidade do cadastro (CONTRACT, os 6 CHECKs de unidade alargados), a 84ª, depois do diário da máquina. */
+/** D-PROD-371: o estoque na unidade do cadastro (CONTRACT, os 6 CHECKs de unidade alargados), a 84ª, depois do diário da máquina. */
 const NOME_EUC = '20261127200000_estoque_unidade_cadastro';
 const GUARDA_EUC = '8d78338bcd424a644f78ea2a2bc2e506a71af7c57b23c87cf60271224b7a9af7';
 const CONTRACT_EUC = {
-  migration: NOME_EUC, decisao: 'D-PROD-369', tabelas_removidas: [],
+  migration: NOME_EUC, decisao: 'D-PROD-371', tabelas_removidas: [],
   constraints_alargadas: ['ProdutoUnidadeConversao.ProdutoUnidadeConversao_sigla_check', 'EntradaEstoqueItem.EntradaEstoqueItem_unidade_check',
     'SaidaEstoqueItem.SaidaEstoqueItem_unidade_check', 'AjusteEstoqueItem.AjusteEstoqueItem_unidade_check',
     'OperacaoFinanceiraItem.OperacaoFinanceiraItem_forma_check', 'AtividadeApontamentoProduto.AtividadeApontamentoProduto_valores_check'],
@@ -577,7 +577,7 @@ test('B1f (D-PROD-162): a migration CONTRACT classificada SOZINHA, como na relea
 
 test('B8-0 (D-PROD-162/D-PROD-183/D-PROD-187/D-PROD-194/D-PROD-195/D-PROD-197/D-PROD-200/D-PROD-208/D-PROD-209/D-PROD-210/D-PROD-211/D-PROD-216/D-PROD-217/D-PROD-249/D-PROD-259/D-PROD-265): MIGRATIONS_CONTRACT_APROVADAS é fechado e tem EXATAMENTE as dezesseis entradas (D-PROD-265 a última), na ordem; só a D-PROD-200 e a D-PROD-249 têm `conversao` e só a D-PROD-208 tem `drop_no_fim`; o conteúdo pinado da D-PROD-162 é o ensaiado', () => {
   assert.deepEqual(Object.keys(MIGRATIONS_CONTRACT_APROVADAS), [NOME_C, NOME_T, NOME_D, NOME_K, NOME_G, NOME_P, NOME_V, NOME_PP, NOME_TT, NOME_BC, NOME_AB, NOME_AC, NOME_FA, NOME_ARA, NOME_EEM, NOME_DT, NOME_LOTE, NOME_UNID, NOME_EUC]);
-  assert.deepEqual(Object.values(MIGRATIONS_CONTRACT_APROVADAS).map((k) => k.decisao), ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', 'D-PROD-200', 'D-PROD-208', 'D-PROD-209', 'D-PROD-210', 'D-PROD-211', 'D-PROD-216', 'D-PROD-217', 'D-PROD-249', 'D-PROD-259', 'D-PROD-265', 'D-PROD-282', 'D-PROD-288', 'D-PROD-369']);
+  assert.deepEqual(Object.values(MIGRATIONS_CONTRACT_APROVADAS).map((k) => k.decisao), ['D-PROD-162', 'D-PROD-183', 'D-PROD-187', 'D-PROD-194', 'D-PROD-195', 'D-PROD-197', 'D-PROD-200', 'D-PROD-208', 'D-PROD-209', 'D-PROD-210', 'D-PROD-211', 'D-PROD-216', 'D-PROD-217', 'D-PROD-249', 'D-PROD-259', 'D-PROD-265', 'D-PROD-282', 'D-PROD-288', 'D-PROD-371']);
   // O formato CONVERSÃO é escolha da entrada: as seis anteriores, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211,
   // a D-PROD-216 e a D-PROD-217 não têm o campo.
   // D-PROD-249: a segunda no formato CONVERSÃO (sem DROP: a cauda é o backfill e a FK para a tabela nova).
@@ -6190,7 +6190,7 @@ test('B47c (D-PROD-315/D-PROD-310): ordem de produção hoje — alvo com as 81 
   assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas: depois }), []);
 });
 
-test('B49a (D-PROD-369): o estoque na unidade do cadastro classificado SOZINHO, como na release: ok, modo CONTRACT (formato de sempre, sem DROP TABLE e sem resto), nenhuma tabela nova nem coluna, os 6 CHECKs de unidade alargados; checksum, guarda e texto pinados; a última do manifesto', () => {
+test('B49a (D-PROD-371): o estoque na unidade do cadastro classificado SOZINHO, como na release: ok, modo CONTRACT (formato de sempre, sem DROP TABLE e sem resto), nenhuma tabela nova nem coluna, os 6 CHECKs de unidade alargados; checksum, guarda e texto pinados; a última do manifesto', () => {
   const c = classificarMigrations([ler(NOME_EUC)]);
   assert.deepEqual(c.violacoes, []);
   assert.equal(c.ok, true);
@@ -6203,7 +6203,7 @@ test('B49a (D-PROD-369): o estoque na unidade do cadastro classificado SOZINHO, 
   assert.equal(MIGRATIONS_APROVADAS[NOME_EUC], 'f9719220fd738d6a522fa0c0967c77dcde0dd6fa498d9ef31744b2387878a77f');
   const k = MIGRATIONS_CONTRACT_APROVADAS[NOME_EUC];
   assert.equal(Object.isFrozen(k), true);
-  assert.deepEqual([k.decisao, k.guarda_sha256, [...k.drop]], ['D-PROD-369', GUARDA_EUC, []]);
+  assert.deepEqual([k.decisao, k.guarda_sha256, [...k.drop]], ['D-PROD-371', GUARDA_EUC, []]);
   assert.deepEqual([...k.literais_guarda], ['ProdutoUnidadeConversao', 'EntradaEstoqueItem', 'SaidaEstoqueItem', 'AjusteEstoqueItem', 'OperacaoFinanceiraItem', 'AtividadeApontamentoProduto', 'UN', 'KG']);
   assert.equal(k.alter_antigas.length, 12);
   assert.equal(k.conversao, undefined);
@@ -6217,7 +6217,7 @@ test('B49a (D-PROD-369): o estoque na unidade do cadastro classificado SOZINHO, 
   assert.equal(NOMES.at(-2), NOME_DM, 'depois do diário da máquina (D-PROD-323)');
 });
 
-test('B49b (D-PROD-369): o mesmo arquivo com CHECK trocado (ainda recusando UN), DML (mudar a unidade dos produtos), DROP, coluna nova ou guarda alterada/ausente é recusado; o contrato é do NOME', () => {
+test('B49b (D-PROD-371): o mesmo arquivo com CHECK trocado (ainda recusando UN), DML (mudar a unidade dos produtos), DROP, coluna nova ou guarda alterada/ausente é recusado; o contrato é do NOME', () => {
   const sql = readFileSync(`backend/prisma/migrations/${NOME_EUC}/migration.sql`, 'utf8');
   const classificarE = classificarContractDe(NOME_EUC);
   assert.equal(classificarE(sql).ok, true, 'o original passa com o manifesto sintético');
@@ -6242,12 +6242,12 @@ test('B49b (D-PROD-369): o mesmo arquivo com CHECK trocado (ainda recusando UN),
   assert.deepEqual(codigos(classificarMigrations([{ nome: NOME_EUC, sql: `${sql} ` }])), ['MIGRATION_CHECKSUM_DIVERGENTE']);
 });
 
-test('B49c (D-PROD-369/D-PROD-323): ordem de produção hoje — alvo com as 83 da main concluídas (por último o diário da máquina, D-PROD-323, checksum b1896a7c…aeb): o histórico confere, a única pendente é o estoque na unidade do cadastro e a barreira do CONTRACT a exige; checksum diferente ou registro parcial é divergência; depois dela, 84 e nada pendente', () => {
+test('B49c (D-PROD-371/D-PROD-323): ordem de produção hoje — alvo com as 83 da main concluídas (por último o diário da máquina, D-PROD-323, checksum b1896a7c…aeb): o histórico confere, a única pendente é o estoque na unidade do cadastro e a barreira do CONTRACT a exige; checksum diferente ou registro parcial é divergência; depois dela, 84 e nada pendente', () => {
   const raiz = 'backend/prisma/migrations';
   const locais = readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())
     .map((d) => ({ nome: d.name, checksum: sha256(readFileSync(`${raiz}/${d.name}/migration.sql`, 'utf8')) }));
   assert.equal(locais.length, 84);
-  assert.ok(locais.every((l) => l.nome <= NOME_EUC), 'o estoque na unidade do cadastro (D-PROD-369) é a migration de nome mais recente');
+  assert.ok(locais.every((l) => l.nome <= NOME_EUC), 'o estoque na unidade do cadastro (D-PROD-371) é a migration de nome mais recente');
   const t0 = Date.parse('2026-01-01T00:00:00Z');
   const anteriores = locais.filter((l) => l.nome !== NOME_EUC && l.nome !== NOME_DM);
   const linhas = [...anteriores, locais.find((l) => l.nome === NOME_DM)].map((l, i) => ({ migration_name: l.nome, checksum: l.checksum, finished_at: new Date(t0 + i * 1000), rolled_back_at: null }));
@@ -6255,7 +6255,7 @@ test('B49c (D-PROD-369/D-PROD-323): ordem de produção hoje — alvo com as 83 
   assert.equal(linhas.at(-1).checksum, 'b1896a7c2d350fe31a313563f97192bd961db4c9b905b235bbecced90bfc0aeb');
   const h = conferirHistoricoRemoto({ locais, linhas });
   assert.deepEqual(h, { ok: true, codigo: null, pendentes: [NOME_EUC], falhas: [] });
-  assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas }), [{ nome: NOME_EUC, decisao: 'D-PROD-369' }], 'CONTRACT: a barreira exige a D-PROD-369');
+  assert.deepEqual(contractsPendentes({ locais: locais.map((l) => l.nome), linhas }), [{ nome: NOME_EUC, decisao: 'D-PROD-371' }], 'CONTRACT: a barreira exige a D-PROD-371');
   const linhaE = (checksum, extra = {}) => ({ migration_name: NOME_EUC, checksum, finished_at: new Date(t0 + 99_000), rolled_back_at: null, ...extra });
   for (const errado of [MIGRATIONS_APROVADAS[NOME_DM], 'manual', GUARDA_EUC]) {
     assert.equal(conferirHistoricoRemoto({ locais, linhas: [...linhas, linhaE(errado)] }).codigo, 'PREMERGE_MIGRATIONS_NAO_COMPROVADAS', errado);

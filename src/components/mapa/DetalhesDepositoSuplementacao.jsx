@@ -240,7 +240,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
       if (quantidade <= 0) return;
       const produto = produtos.find((item) => item.id === lote.produto_id);
       const emLitros = produto?.unidade_principal_estoque === "L";
-      // D-PROD-369 (trava até a UE-3): estoque noutra unidade (SC, UN...) também fica fora do saldo em kg, com a sigla.
+      // D-PROD-371 (trava até a UE-3): estoque noutra unidade (SC, UN...) também fica fora do saldo em kg, com a sigla.
       const unidadeDoProduto = String(produto?.unidade_principal_estoque ?? "").trim().toUpperCase();
       const foraDoKg = emLitros || (Boolean(unidadeDoProduto) && unidadeDoProduto !== "KG" && unidadeDoProduto !== "SACO");
       const pesoPorSaco = foraDoKg ? 0 : Number(produto?.peso_por_saco_kg || 0);
@@ -711,7 +711,7 @@ function destinoDaSaida(mov, cochosPorId) {
 function cartaoDaMovimentacao(mov, { localEstoqueId, produtosPorId, cochosPorId, acaoDeCancelar = null }) {
   const entrada = ehEntradaNoDeposito(mov, localEstoqueId);
   const emLitros = mov?.unidade_medida === "L";
-  // D-PROD-369: o rótulo real do movimento (SC, UN...); KG, o SACO legado e o vazio continuam "kg".
+  // D-PROD-371: o rótulo real do movimento (SC, UN...); KG, o SACO legado e o vazio continuam "kg".
   const siglaDoMovimento = String(mov?.unidade_medida ?? "").trim().toUpperCase();
   const unidade = emLitros ? "L" : siglaDoMovimento && siglaDoMovimento !== "KG" && siglaDoMovimento !== "SACO" ? siglaDoMovimento : "kg";
   // D-PROD-301: o que espera envio vem sem o nome do produto (o envio não leva): pelo cadastro.

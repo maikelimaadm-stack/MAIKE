@@ -4,7 +4,7 @@
  * a prova de "nada gravado" é a fotografia das linhas do tenant.
  *
  *  D1. cadastro: KG e L criam (com espaços aparados); ausente → KG
- *      (como antes); D-PROD-369: uma sigla ATIVA do cadastro de Unidades
+ *      (como antes); D-PROD-371: uma sigla ATIVA do cadastro de Unidades
  *      também cria; SACO novo, 'UN' e 'CX' fora do cadastro, 'Litro', 'kg',
  *      'Kg' → 400 REQUEST_VALIDATION_FAILED `unidade_invalida` (field
  *      `unidade_principal_estoque`, `permitidos`), sem número reservado nem
@@ -60,7 +60,7 @@ const produtoNoBanco = (s, unidade, extra = {}) => {
   });
 };
 
-describe('D1 — cadastro do Produto: KG, L ou uma unidade do cadastro (D-PROD-369)', () => {
+describe('D1 — cadastro do Produto: KG, L ou uma unidade do cadastro (D-PROD-371)', () => {
   test('KG, L e a sigla ativa do cadastro criam; espaços aparados; ausente → KG; SACO novo/UN e CX fora do cadastro/Litro/kg/Kg → 400 unidade_invalida sem gravar nada (nem número, nem auditoria)', async () => {
     const s = await montarTenant(app);
     assert.deepEqual([...UNIDADES_ESTOQUE], ['KG', 'L']);

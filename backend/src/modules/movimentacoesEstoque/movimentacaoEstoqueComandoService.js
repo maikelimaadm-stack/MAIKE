@@ -219,7 +219,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
         // financeiro) ANTES de ler produto e lotes.
         await travarProdutosEstoque(tx, cli, empresaId, [produtoId]);
         const produto = await exigirProdutoDaEmpresa(tx, cli, produtoId, empresaId);
-        // D-PROD-369 (trava até a UE-3): o cocho conta em kg (g/cab/dia, %PV, capacidade e custo por kg). Produto com
+        // D-PROD-371 (trava até a UE-3): o cocho conta em kg (g/cab/dia, %PV, capacidade e custo por kg). Produto com
         // estoque fora de KG (o SACO legado é KG; L segue como antes) não entra no cocho; nada foi gravado.
         const unidadeDoProduto = unidadeEstoqueEfetiva(produto);
         if (unidadeDoProduto !== 'KG' && unidadeDoProduto !== 'L') {

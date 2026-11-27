@@ -97,7 +97,7 @@ describe('UCR-3 — a linha de produto da atividade', () => {
   });
 });
 
-describe('UCR-SC — D-PROD-369: a unidade de estoque real do cadastro', () => {
+describe('UCR-SC — D-PROD-371: a unidade de estoque real do cadastro', () => {
   const MILHO = { id: 'p9', unidade_estoque: 'SC', unidade_principal_estoque: 'SC', unidades_conversao: [conv('KG', 'DIVIDE', '25.000000', { equivalencia: '1 KG = 0,04 SC' })] };
   it('a sigla real (SACO legado e vazio = KG); o rótulo kg/L/sigla; o seletor e a conta em SC', () => {
     expect(['KG', 'L', 'SC', 'UN', 'SACO', '', null, ' sc '].map((u) => unidadeDeEstoqueDoProduto({ unidade_principal_estoque: u }))).toEqual(['KG', 'L', 'SC', 'UN', 'KG', 'KG', 'KG', 'SC']);

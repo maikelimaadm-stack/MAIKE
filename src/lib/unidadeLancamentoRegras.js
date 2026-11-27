@@ -9,14 +9,14 @@
  * (D-PROD-300) continuam na unidade de estoque. Produto sem conversão: nada muda na tela nem no corpo.
  *
  * Os produtos chegam em formatos diferentes (`GET /produtos`, as opções da atividade, as opções da entrada): a unidade
- * de estoque sai de `unidade_estoque`, `unidade` ou `unidade_principal_estoque` (D-PROD-369: a sigla do cadastro, KG,
+ * de estoque sai de `unidade_estoque`, `unidade` ou `unidade_principal_estoque` (D-PROD-371: a sigla do cadastro, KG,
  * L, SC, UN...; o SACO legado e o vazio são KG); as conversões, de `unidades_conversao`. O SACO legado (produto SACO com `peso_por_saco_kg` e sem a conversão SACO) também aparece.
  */
 import { emUnidadeDeEstoque, equivalenciaDaConversao, paraCampo } from '@/lib/estoqueEntradasRegras';
 import { lerNumeroLocal } from '@/lib/dinheiroDecimal';
 
 /**
- * A unidade de estoque do produto (D-PROD-369): a sigla real, aparada e em maiúsculas; KG para o SACO legado (guarda kg)
+ * A unidade de estoque do produto (D-PROD-371): a sigla real, aparada e em maiúsculas; KG para o SACO legado (guarda kg)
  * e para o vazio. A mesma regra do servidor (`unidadeEstoqueEfetiva`).
  * @param {any} produto @returns {string}
  */

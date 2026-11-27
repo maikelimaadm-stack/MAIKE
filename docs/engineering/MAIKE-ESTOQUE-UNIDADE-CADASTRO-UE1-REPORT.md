@@ -1,6 +1,6 @@
-# MAIKE — Estoque na unidade do cadastro, UE-1 (relatório, D-PROD-369)
+# MAIKE — Estoque na unidade do cadastro, UE-1 (relatório, D-PROD-371)
 
-**Data:** 2026-11-27 · **Decisão:** [D-PROD-369](./DECISIONS.md) · **SPEC:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md) ·
+**Data:** 2026-11-27 · **Decisão:** [D-PROD-371](./DECISIONS.md) · **SPEC:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md) ·
 **Branch:** `claude/estoque-unidade-cadastro` · **Migration:** `20261127200000_estoque_unidade_cadastro` (CONTRACT, **não aplicada em
 produção**) · **Runbook:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-RUNBOOK-RELEASE.md)
 
@@ -30,7 +30,7 @@ A migration `20261127200000_estoque_unidade_cadastro` recria 6 CHECKs mais largo
 - **Guarda:** `8d78338bcd424a644f78ea2a2bc2e506a71af7c57b23c87cf60271224b7a9af7`.
 
 Registro feito:
-- o manifesto e a entrada em `MIGRATIONS_CONTRACT_APROVADAS` (`scripts/deploy/premergeMigrateLib.mjs`, decisão D-PROD-369);
+- o manifesto e a entrada em `MIGRATIONS_CONTRACT_APROVADAS` (`scripts/deploy/premergeMigrateLib.mjs`, decisão D-PROD-371);
 - os testes do premerge (B1, B8-0, contagens de pastas 83 → 84, posições do manifesto e os novos B49a/b/c);
 - o runner (B31 em `migrations.test.mjs` e AB-05);
 - os ensaios das CONTRACT antigas (`ensaio-categoria-manejo-cadcategoria`, `ensaio-patrimonio-simplifica` e os testes deles, mais `estoqueEntradasMotivosMigration`), com a nova fora da partida.
@@ -83,7 +83,7 @@ O preflight de schema não pina CHECK e ficou igual.
   - `estoqueP1M3Unidades` D1: SACO novo e as siglas fora do cadastro são recusados, e a sigla do cadastro cria. O teste continua conferindo `kg`/`Litro`/`L L`.
   - `produtoUnidadeLitros` P2/P3/P4: a troca L → SACO virou L → KG. O SACO legado volta a KG com histórico, e KG → SACO é recusado. UN do cadastro num produto aceito em tanque dá 409 `aceito_em_tanque`.
   - `produtoUnidadesConversao`: as recusas `sigla_reservada` viraram `conversao_kg_l` (L num produto em KG).
-  - `patrimonioSimplificaMigration` SM-03: o `forma_check` final sem `<> 'UN'` e a recusa citando a D-PROD-369.
+  - `patrimonioSimplificaMigration` SM-03: o `forma_check` final sem `<> 'UN'` e a recusa citando a D-PROD-371.
   - `patrimonioSimplifica02` C6, `patrimonioSimplificaAbastecimentos` e `patrimonioSimplificaTanqueProdutos` T7: o KG → SACO pela API virou SACO gravado por fora, como nos produtos antigos (ou UN do cadastro, no T7). A intenção não mudou: a unidade efetiva kg não trava, e o aceite que não vale não trava.
   - Os smoke `produtoUnidadeLitros` (PL-1 com o campo único e PL-3 com a frase nova) e `produtosBase1Rollout`.
 - **Novos casos no smoke:** `produtoUnidadesConversao` (UC-3b, UC-4b, produto em SC) e `unidadeConvertidaRegras` (UCR-SC).

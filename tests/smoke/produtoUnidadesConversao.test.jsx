@@ -90,7 +90,7 @@ describe('UC — cadastro do produto', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('UC-3b — D-PROD-369: KG, L e UN valem como conversão; só KG ↔ L é recusado; produto em SC com "1 KG = 0,04 SC"', () => {
+  it('UC-3b — D-PROD-371: KG, L e UN valem como conversão; só KG ↔ L é recusado; produto em SC com "1 KG = 0,04 SC"', () => {
     expect(errosDasConversoes([{ sigla: 'UN', operacao: 'MULTIPLICA', fator: '2' }], 'KG')).toEqual({});
     expect(errosDasConversoes([{ sigla: 'L', operacao: 'MULTIPLICA', fator: '1' }], 'KG')['0.sigla']).toBe('Conversão entre KG e L não é permitida');
     expect(errosDasConversoes([{ sigla: 'KG', operacao: 'MULTIPLICA', fator: '1' }], 'L')['0.sigla']).toBe('Conversão entre KG e L não é permitida');
@@ -122,7 +122,7 @@ describe('UC — lançamentos', () => {
     expect(contadoEmEstoque({ produto, unidade: 'SACO', contado: '8' })).toBe('200.0000');
   });
 
-  it('UC-4b — D-PROD-369: produto em SC — o seletor traz SC e a conversão KG; 500 KG = 20 SC; a equivalência com a sigla real', () => {
+  it('UC-4b — D-PROD-371: produto em SC — o seletor traz SC e a conversão KG; 500 KG = 20 SC; a equivalência com a sigla real', () => {
     const sc = { id: 'p2', rotulo: 'MILHO', unidade_estoque: 'SC', unidades_conversao: [{ sigla: 'KG', operacao: 'DIVIDE', fator: '25', ativa: true, equivalencia: '1 KG = 0,04 SC' }] };
     expect(unidadesDoProduto(sc, 'compra')).toEqual([{ value: 'SC', label: 'SC' }, { value: 'KG', label: 'KG (1 KG = 0,04 SC)' }]);
     expect(emUnidadeDeEstoque(sc, 'KG', '500')).toBe('20.0000');

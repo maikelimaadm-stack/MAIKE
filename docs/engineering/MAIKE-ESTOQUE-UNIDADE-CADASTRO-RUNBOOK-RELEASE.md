@@ -1,11 +1,11 @@
-# MAIKE — Estoque na unidade do cadastro: runbook de release (D-PROD-369, UE-1)
+# MAIKE — Estoque na unidade do cadastro: runbook de release (D-PROD-371, UE-1)
 
 > **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário. Ele para no primeiro desvio com **`RELEASE_BLOCKED`**.
 > Valores entre `<…>` são preenchidos na hora, a partir de leituras reais.
 
-Decisão: [D-PROD-369](./DECISIONS.md) · SPEC: [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md) ·
+Decisão: [D-PROD-371](./DECISIONS.md) · SPEC: [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md) ·
 Relatório: [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-UE1-REPORT.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-UE1-REPORT.md).
 Molde: [`MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md`](./MAIKE-PRODUTO-UNIDADES-CONVERSAO-RUNBOOK-RELEASE.md) e, para a
 troca de um CHECK com o mesmo nome, o tipo do funcionário (D-PROD-209).
@@ -31,8 +31,8 @@ as linhas uma vez, e todas já cumprem o CHECK mais largo. Para o volume de hoje
 
 ## 1. Caminhos
 
-- **A — runner oficial (padrão, D-PROD-74):** `node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --contract D-PROD-369`,
-  depois `--verificar-alvo` e `--aplicar`. Numa máquina protegida, com `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-369`.
+- **A — runner oficial (padrão, D-PROD-74):** `node scripts/deploy/premerge-migrate.mjs --sha <SHA_APROVADO> --contract D-PROD-371`,
+  depois `--verificar-alvo` e `--aplicar`. Numa máquina protegida, com `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-371`.
 - **B — conector Supabase, uma única `execute_sql` (§3):** só com autorização **escrita e específica do proprietário
   para esta migration**, como nas anteriores.
 

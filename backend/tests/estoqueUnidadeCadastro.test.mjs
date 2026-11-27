@@ -1,5 +1,5 @@
 /**
- * D-PROD-369 (UE-1) — o estoque na unidade do cadastro do produto (emenda aprovada pelo proprietário em 2026-11-27).
+ * D-PROD-371 (UE-1) — o estoque na unidade do cadastro do produto (emenda aprovada pelo proprietário em 2026-11-27).
  *
  *  U1. a unidade de estoque é KG, L ou uma sigla ATIVA do cadastro de Unidades do próprio tenant (SC, UN...); fora
  *      disso (e SACO novo) → 400 `unidade_invalida`, nada gravado; só a Unidade de Medida no corpo → ela é a unidade

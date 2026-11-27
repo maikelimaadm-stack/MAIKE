@@ -26,7 +26,7 @@
  *  C6. Produto SACO aceito no tanque e abastecido em kg: baixa EXATA, sem
  *      conferir capacidade; L continua conferindo; unidade fora de L/KG/SACO
  *      continua recusada; KG ↔ SACO de Produto aceito em tanque é permitido
- *      (D-PROD-369: só do SACO legado para KG; ninguém passa a SACO).
+ *      (D-PROD-371: só do SACO legado para KG; ninguém passa a SACO).
  */
 
 import { test, describe, before, after, beforeEach } from 'node:test';
@@ -461,7 +461,7 @@ describe('C6 — Produtos aceitos em qualquer unidade (SACO abastece em kg)', ()
     assert.ok(!opcoes.itens.some((i) => i.id === un.id));
 
     await ok(criarBem(s, corpoTrator(s, { tanques: [tanqueCom([graxa.id, diesel.id])] })), 201);
-    // SACO legado ↔ KG com aceite que vale: mesma unidade efetiva (kg). D-PROD-369: o SACO é só legado — o produto em
+    // SACO legado ↔ KG com aceite que vale: mesma unidade efetiva (kg). D-PROD-371: o SACO é só legado — o produto em
     // SACO (gravado por fora, como os antigos) volta a KG (200), mas a API não põe ninguém em SACO (400).
     await prisma().produto.update({ where: { id: graxa.id }, data: { unidade_principal_estoque: 'SACO', peso_por_saco_kg: '20' } });
     assert.equal((await req('PATCH', `/produtos/${graxa.id}`, s.token, { unidade_principal_estoque: 'KG' })).statusCode, 200);
@@ -470,7 +470,7 @@ describe('C6 — Produtos aceitos em qualquer unidade (SACO abastece em kg)', ()
     // MAIKE-ESTOQUE-P1-02 (M3): unidade nova fora de KG/SACO/L é recusada antes da regra do tanque (antes: 409 aceito_em_tanque).
     const paraUn = await req('PATCH', `/produtos/${graxa.id}`, s.token, { unidade_principal_estoque: 'UN' });
     assert.deepEqual(erro(paraUn), [400, 'REQUEST_VALIDATION_FAILED', 'unidade_principal_estoque', 'unidade_invalida']);
-    // L → KG sem histórico: a regra (só sem histórico) continua; o aceite não trava (D-PROD-369: L → SACO não existe mais).
+    // L → KG sem histórico: a regra (só sem histórico) continua; o aceite não trava (D-PROD-371: L → SACO não existe mais).
     assert.equal((await req('PATCH', `/produtos/${diesel.id}`, s.token, { unidade_principal_estoque: 'KG' })).statusCode, 200);
     const cam = await ok(criarBem(s, corpoCaminhonete(s, { tanques: [tanqueCom([diesel.id], { identificador: 'Tanque', capacidade_litros: '80' })] })), 201);
     assert.equal(cam.tanques[0].produtos[0].unidade_principal_estoque, 'KG');

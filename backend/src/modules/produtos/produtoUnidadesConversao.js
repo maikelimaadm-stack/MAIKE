@@ -1,7 +1,7 @@
 /**
  * D-PROD-288 — unidades de conversão do produto (o "motor" da conversão de unidade).
  *
- * O produto tem UMA unidade de estoque efetiva. D-PROD-369 (emenda aprovada pelo proprietário): é a sua Unidade de
+ * O produto tem UMA unidade de estoque efetiva. D-PROD-371 (emenda aprovada pelo proprietário): é a sua Unidade de
  * Medida, uma sigla do cadastro de Unidades (KG, L, SC, UN, CX...); o SACO legado guarda kg (efetiva KG). Saldo, custo
  * médio, lote e recálculo ficam sempre nela (D-PROD-256/273/282 não mudam). Uma conversão diz quanto vale 1 unidade
  * alternativa (`sigla`) na unidade de estoque:
@@ -24,7 +24,7 @@ export const SIGLA_MAX = 8;
 export const CASAS_FATOR = 6;
 
 /**
- * Unidade de estoque EFETIVA (D-PROD-369): a sigla gravada em `unidade_principal_estoque` (aparada e em maiúsculas);
+ * Unidade de estoque EFETIVA (D-PROD-371): a sigla gravada em `unidade_principal_estoque` (aparada e em maiúsculas);
  * KG para o SACO legado (guarda kg) e para o vazio.
  * @param {any} produto @returns {string}
  */
@@ -33,7 +33,7 @@ export const unidadeEstoqueEfetiva = (produto) => {
   return !u || u === 'SACO' ? 'KG' : u;
 };
 
-/** KG ↔ L nunca: nem no lançamento nem como conversão (densidade fica fora; D-PROD-369). */
+/** KG ↔ L nunca: nem no lançamento nem como conversão (densidade fica fora; D-PROD-371). */
 const cruzaKgL = (a, b) => (a === 'KG' && b === 'L') || (a === 'L' && b === 'KG');
 
 /** `select` do Prisma para carregar as conversões vigentes (não excluídas) junto do produto. */
@@ -97,7 +97,7 @@ export const resolverUnidade = (produto, unidade, { uso = null, erro }) => {
     custoEstoque: (custo, casas) => converterCusto(custo, c, casas),
   });
   if (u === unidadeEstoque) return pronta(UM);
-  // D-PROD-369: só KG ↔ L é recusado; KG, L e UN podem ser conversão (um produto em SC lança em KG pela conversão KG).
+  // D-PROD-371: só KG ↔ L é recusado; KG, L e UN podem ser conversão (um produto em SC lança em KG pela conversão KG).
   if (cruzaKgL(u, unidadeEstoque)) {
     throw erro('unidade_incompativel', 'a unidade do lançamento não é compatível com o estoque do produto (nada de conversão entre kg e litros); nada foi gravado', { unidade_produto: unidadeEstoque });
   }
@@ -125,7 +125,7 @@ const invalido = (mensagem, details) => new AppError('REQUEST_VALIDATION_FAILED'
 /**
  * Normaliza a lista do corpo. Cada item: `{ id?, sigla, operacao, fator, uso_compra?, uso_venda?, codigo_barras?, ativa?, ordem? }`.
  * Recusa: sigla vazia/longa/igual à unidade de estoque/repetida, KG num produto em L ou L num produto em KG
- * (D-PROD-369: `conversao_kg_l`), operação fora, fator ≤ 0 ou DIVIDE > 10000, nenhum uso.
+ * (D-PROD-371: `conversao_kg_l`), operação fora, fator ≤ 0 ou DIVIDE > 10000, nenhum uso.
  * @param {unknown} lista @param {any} produto  o produto (unidade de estoque)
  */
 export const normalizarConversoes = (lista, produto) => {

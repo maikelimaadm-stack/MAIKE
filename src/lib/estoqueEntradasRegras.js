@@ -104,7 +104,7 @@ export const unidadesDoProduto = (produto, uso = null) => {
 };
 
 /**
- * D-PROD-369: a unidade de estoque do produto (`unidade_estoque` do servidor): a sigla real, em maiúsculas (KG, L, SC,
+ * D-PROD-371: a unidade de estoque do produto (`unidade_estoque` do servidor): a sigla real, em maiúsculas (KG, L, SC,
  * UN...); KG para o SACO legado e para o vazio.
  * @param {any} produto @returns {string}
  */
@@ -277,7 +277,7 @@ export const montarCorpoEntrada = (empresaId, form, operationId) => {
 // ─── edição completa (D-PROD-271) ──────────────────────────────────────────
 
 /**
- * O produto de uma linha GRAVADA (entrada ou saída), para a edição: a unidade de estoque real (D-PROD-369) e, quando a
+ * O produto de uma linha GRAVADA (entrada ou saída), para a edição: a unidade de estoque real (D-PROD-371) e, quando a
  * linha foi lançada noutra unidade, essa unidade com o fator GRAVADO (o SACO legado de produto em kg vira o peso do
  * saco, como antes). @param {any} i
  */

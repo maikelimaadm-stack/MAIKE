@@ -220,7 +220,7 @@ Violação exige **rollback**, não flexibilização da regra.
 > quantidade do movimento noutra unidade que não a de estoque; recalcular o lançamento já gravado pelo fator novo do
 > cadastro (editar e reenviar mantêm o fator gravado); converter entre KG e L.
 
-> **Nota (D-PROD-369, emenda aprovada pelo proprietário em 2026-11-27):** o estoque fica na Unidade de Medida do
+> **Nota (D-PROD-371, emenda aprovada pelo proprietário em 2026-11-27):** o estoque fica na Unidade de Medida do
 > cadastro do produto (KG, L, SC, UN, CX...). Continua proibido:
 > - trocar a unidade de estoque de produto que já tem lote, movimento ou item de lançamento;
 > - converter entre KG e L;

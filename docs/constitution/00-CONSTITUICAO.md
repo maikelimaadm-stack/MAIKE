@@ -166,7 +166,7 @@ D-PROD-162 acima ("exatamente a quantidade digitada, na unidade de estoque do Pr
 nenhuma conversão entre unidades") continua valendo para ele, inteira. Texto proposto na SPEC de unidades (§7) e **aprovado
 pelo proprietário em 2026-11-25** ("Aprovo: cocho, transferência e atividade").
 
-**Emenda aprovada pelo proprietário (D-PROD-369):** **Estoque na unidade do cadastro do produto.** A unidade de estoque
+**Emenda aprovada pelo proprietário (D-PROD-371):** **Estoque na unidade do cadastro do produto.** A unidade de estoque
 do produto é a sua Unidade de Medida, uma sigla ativa do cadastro de Unidades (KG, L, SC, UN, CX...). Saldo, custo
 médio, lotes, recálculo e a quantidade de todo movimento ficam nessa unidade. As unidades de conversão do cadastro
 (D-PROD-288) valem a partir dela. KG, L e UN podem ser conversão, mas a conversão entre KG e L continua proibida nos dois

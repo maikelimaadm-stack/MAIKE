@@ -1,6 +1,6 @@
-# MAIKE — Estoque na unidade do cadastro do produto (SPEC, D-PROD-369)
+# MAIKE — Estoque na unidade do cadastro do produto (SPEC, D-PROD-371)
 
-**Data:** 2026-11-27 · **Decisão:** [D-PROD-369](./DECISIONS.md) · **Emenda da Constituição:** aprovada pelo
+**Data:** 2026-11-27 · **Decisão:** [D-PROD-371](./DECISIONS.md) · **Emenda da Constituição:** aprovada pelo
 proprietário em 2026-11-27 ("Aprovo a emenda"; para cocho e depósito, "Usar a conversão para KG").
 
 ## 1. Pedido

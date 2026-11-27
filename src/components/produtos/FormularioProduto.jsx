@@ -36,7 +36,7 @@ const TIPOS_USO = [
 const sigla = (v) => String(v ?? "").trim().toUpperCase();
 
 /**
- * D-PROD-369 — a Unidade de Medida é a unidade de estoque do produto (um campo só). O que vai em
+ * D-PROD-371 — a Unidade de Medida é a unidade de estoque do produto (um campo só). O que vai em
  * `unidade_principal_estoque`: no produto novo, ou quando a pessoa troca a Unidade de Medida, a sigla escolhida; sem
  * troca, a que o produto já tem (o produto antigo pode ter estoque noutra unidade, ou no SACO legado, que guarda kg).
  * @param {Record<string, any>} formData @param {Record<string, any>|null|undefined} initialData
@@ -236,11 +236,11 @@ export default function FormularioProduto({
   };
 
   const estoqueMinNum = useMemo(() => parseNumero(formData.estoque_minimo), [formData.estoque_minimo]);
-  // D-PROD-369: a unidade de estoque sai da Unidade de Medida (KG, L, SC, UN...).
+  // D-PROD-371: a unidade de estoque sai da Unidade de Medida (KG, L, SC, UN...).
   const unidadePrincipal = unidadePrincipalDoFormulario(formData, initialData);
   const unidadeEstoque = unidadeEfetiva(unidadePrincipal);
   const rotuloEstoqueAtual = unidadeEstoque === "KG" ? "kg" : unidadeEstoque;
-  // Produto antigo cuja unidade de estoque não é a Unidade de Medida mostrada (cadastro de antes da D-PROD-369).
+  // Produto antigo cuja unidade de estoque não é a Unidade de Medida mostrada (cadastro de antes da D-PROD-371).
   const estoqueEmOutraUnidade = isExistingRecord && Boolean(sigla(formData.unidade_medida)) && unidadeEstoque !== sigla(formData.unidade_medida);
 
   const findItemId = (items, value) => {

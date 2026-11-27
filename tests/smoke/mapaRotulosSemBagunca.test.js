@@ -116,8 +116,11 @@ describe("pontoMaisDentro — nome e lote no miolo da área torta (D-PROD-127)",
     const viaArea = centroideArea(area);
     const direto = pontoMaisDentro(L.map(([lat, lng]) => ({ lat, lng })));
     expect(viaArea).toEqual(direto);
+    // rótulo no renderer; lote e tarefa nos itens do Mapa Geral (D-PROD-369: os mesmos para o MapLibre e o Google)
     const r = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
-    expect((r.match(/centroideArea\(area\)/g) || []).length).toBeGreaterThanOrEqual(3); // rótulo, lote e tarefa
+    const itens = readFileSync("src/lib/maplibre/itensDoMapaGeral.js", "utf8");
+    expect((r.match(/centroideArea\(area\)/g) || []).length).toBeGreaterThanOrEqual(1);
+    expect((itens.match(/centroideArea\(area\)/g) || []).length).toBeGreaterThanOrEqual(2);
     // D-PROD-128: par ícone + nome centrado no ponto com posições FIXAS — nada depende da altura do nome nem da imagem.
     // D-PROD-349: o ícone é desenhado pelo mapa (`comRotulo` na fonte); D-PROD-354: o nome também — com lote, o topo
     // 10 px abaixo do ponto (icon-translate, que o icon-size não escala); sem lote, centrado no ponto.

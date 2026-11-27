@@ -133,7 +133,7 @@ import { normalizarTexto } from '@/domain/mapa/pontoCascata';
  * @property {number} saldoKg                     Σ lotes em kg do local (sem L), sem truncar
  * @property {number} lotesConsiderados
  * @property {number} lotesEmLitrosIgnorados
- * @property {number} lotesForaDoKgIgnorados  D-PROD-369: lotes de produto com estoque noutra unidade (SC, UN...)
+ * @property {number} lotesForaDoKgIgnorados  D-PROD-371: lotes de produto com estoque noutra unidade (SC, UN...)
  * @property {boolean} unidadesConfirmadas
  * @property {string|null} mensagemUnidade
  * @property {number|null} limiteOperacionalKg
@@ -1130,7 +1130,7 @@ export function calcularNivelDeposito({ deposito, estoqueLotes = [], produtos = 
         lotesEmLitrosIgnorados += 1;
         continue;
       }
-      // D-PROD-369 (trava até a UE-3): produto com estoque fora de KG (SC, UN, CX...) fica fora do saldo em kg, como o de
+      // D-PROD-371 (trava até a UE-3): produto com estoque fora de KG (SC, UN, CX...) fica fora do saldo em kg, como o de
       // litros; o SACO legado guarda kg e conta.
       const unidadeDoLote = String(unidadePorProduto.get(chave) ?? '').trim().toUpperCase();
       if (unidadeDoLote && unidadeDoLote !== 'KG' && unidadeDoLote !== 'SACO' && unidadeDoLote !== 'L') {

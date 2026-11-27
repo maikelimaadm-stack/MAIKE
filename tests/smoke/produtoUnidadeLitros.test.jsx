@@ -1,7 +1,7 @@
 /**
  * D-PROD-162 (F4, §5.3) — Produto em LITROS na tela Produtos.
  *
- *  PL-1. formulário (D-PROD-369): a Unidade de Medida é a unidade de estoque;
+ *  PL-1. formulário (D-PROD-371): a Unidade de Medida é a unidade de estoque;
  *        o seletor "Unidade principal de estoque" e o aviso de litros saíram;
  *        o produto antigo (estoque noutra unidade, ou o SACO legado) manda a
  *        unidade gravada enquanto a Unidade de Medida não muda;
@@ -49,9 +49,9 @@ const comConsulta = (ui) => {
 };
 
 // ─── PL-1 ────────────────────────────────────────────────────────────────────
-// D-PROD-369: a Unidade de Medida é a unidade de estoque (um campo só). O seletor "Unidade principal de estoque" e o
+// D-PROD-371: a Unidade de Medida é a unidade de estoque (um campo só). O seletor "Unidade principal de estoque" e o
 // aviso de litros saíram; a guia se chama "Estoque".
-describe('PL-1 — formulário do Produto (D-PROD-369: um campo só)', () => {
+describe('PL-1 — formulário do Produto (D-PROD-371: um campo só)', () => {
   const PRODUTO = { id: 'p1', nome_produto: 'DIESEL S10', codigo_interno: 'DS10', unidade_medida: 'KG', categoria: 'COMBUSTIVEL', local_estoque: 'TANQUE', unidade_principal_estoque: 'KG', estoque_atual: 12.5, ativo: true };
   const renderizar = async (props) => {
     const { default: FormularioProduto } = await import('@/components/produtos/FormularioProduto');
@@ -182,7 +182,7 @@ describe('PL-3 — mensagens do service', () => {
 
   it('mudar a unidade de estoque: frase por reason (P-10) e aceito em tanque', async () => {
     const svc = await import('@/services/produtoService');
-    // D-PROD-369: qualquer troca da unidade de estoque (não só de ou para litros) exige produto sem histórico.
+    // D-PROD-371: qualquer troca da unidade de estoque (não só de ou para litros) exige produto sem histórico.
     const NOVO = 'a unidade de estoque só muda em produto sem estoque, lotes, movimentos ou lançamentos. Cadastre um Produto novo em litros, ex.: “Diesel S10 (L)”. Nada foi gravado.';
     for (const [reason, inicio] of [
       ['estoque', 'Este produto tem estoque'],
@@ -198,7 +198,7 @@ describe('PL-3 — mensagens do service', () => {
     expect(svc.mensagemErroSalvarProduto(saindoDeLitros)).toBe(
       'Este produto tem estoque: a unidade de estoque só muda em produto sem estoque, lotes, movimentos ou lançamentos. Cadastre um Produto novo em quilos (KG). Nada foi gravado.',
     );
-    // D-PROD-369: para uma unidade do cadastro (SC), o Produto novo nessa unidade.
+    // D-PROD-371: para uma unidade do cadastro (SC), o Produto novo nessa unidade.
     const paraSc = await falhaAoSalvar({ code: 'PRODUTO_UNIDADE_EM_USO', field: 'unidade_principal_estoque', reason: 'movimentos', details: { id: 'p1', de: 'KG', para: 'SC' } });
     expect(svc.mensagemErroSalvarProduto(paraSc)).toBe(
       'Este produto tem movimentações de estoque: a unidade de estoque só muda em produto sem estoque, lotes, movimentos ou lançamentos. Cadastre um Produto novo na unidade SC. Nada foi gravado.',

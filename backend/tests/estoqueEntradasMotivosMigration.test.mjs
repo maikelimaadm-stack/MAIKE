@@ -66,7 +66,7 @@ const NOME_UNIDADE_CONVERTIDA = '20261126200000_unidade_convertida_lancamentos';
 const NOME_SINC_INDICES = '20261126300000_sincronizacao_incremental_indices';
 /** D-PROD-323: a EXPAND da mistura no implemento, também posterior (fora da partida). */
 const NOME_DM = '20261127100000_diario_maquina';
-/** D-PROD-369: a CONTRACT do estoque na unidade do cadastro, também posterior (fora da partida). */
+/** D-PROD-371: a CONTRACT do estoque na unidade do cadastro, também posterior (fora da partida). */
 const NOME_EUC = '20261127200000_estoque_unidade_cadastro';
 const BANCO = 'maike_eem_teste';
 const PAPEL_BACKEND = 'maike_vercel';

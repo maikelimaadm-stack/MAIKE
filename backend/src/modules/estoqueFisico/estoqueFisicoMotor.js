@@ -12,7 +12,7 @@
  *    movimento, `estoque_atual`, consumo e estorno. Os parâmetros e variáveis
  *    `quantidadeKg`/`custoUnitarioKg`/`kg` mantêm o nome (contrato da P3), mas
  *    estão na unidade de estoque do Produto; o rótulo do movimento
- *    (`unidade_medida`) vem do Produto: a unidade de estoque dele (D-PROD-369:
+ *    (`unidade_medida`) vem do Produto: a unidade de estoque dele (D-PROD-371:
  *    a sigla do cadastro, KG, L, SC, UN...; `'KG'` para o SACO legado, que
  *    guarda kg, e para o vazio);
  *  - `travarProdutosEstoque` antes de QUALQUER leitura de produto/lote e antes
@@ -571,7 +571,7 @@ const camposComuns = (auth, a) => {
     cliente_id: auth.clienteId,
     empresa_id: a.empresaId,
     ...camposDoProduto(a.produto),
-    // D-PROD-162 / D-PROD-369: o rótulo vem do Produto (quem chama passa `unidade_principal_estoque`): a unidade de
+    // D-PROD-162 / D-PROD-371: o rótulo vem do Produto (quem chama passa `unidade_principal_estoque`): a unidade de
     // estoque real (KG, L, SC, UN...); o SACO legado continua 'KG'.
     unidade_medida: unidadeEstoqueEfetiva(a.produto),
     numero_documento: a.documento?.numero ?? null,

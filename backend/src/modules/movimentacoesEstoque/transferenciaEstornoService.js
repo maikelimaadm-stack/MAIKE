@@ -100,7 +100,7 @@ const efeitosDoPar = (s, r, locais = {}) => ({
   produto_id: s.produto_id,
   produto_nome: s.produto_nome ?? null,
   quantidade: kg(s.quantidade),
-  // D-PROD-369: o rótulo real do movimento (a unidade de estoque do produto); o SACO legado e o vazio são KG.
+  // D-PROD-371: o rótulo real do movimento (a unidade de estoque do produto); o SACO legado e o vazio são KG.
   unidade: unidadeEstoqueEfetiva({ unidade_principal_estoque: s.unidade_medida }),
   valor_total: s.valor_total === null || s.valor_total === undefined ? null : dec(s.valor_total).toFixed(2),
   origem: { id: s.local_estoque_origem, nome: locais.origem?.nome ?? s.local_origem ?? null },

@@ -10,7 +10,7 @@ import { parseDecimalPtBR } from "@/domain/numeroPtBR";
  * Cada linha: unidade (sigla), Multiplica/Divide, fator, uso em compra e em saída, e a prévia em linguagem simples
  * ("1 SACO = 25 KG"). O servidor confere de novo (sigla, fator > 0, divide ≤ 10000, nunca a unidade de estoque);
  * unidade já usada em lançamento, tirada da lista, fica desativada em vez de apagada.
- * D-PROD-369: a unidade de estoque é a do cadastro (KG, L, SC, UN...). KG, L e UN podem ser conversão; só KG ↔ L não.
+ * D-PROD-371: a unidade de estoque é a do cadastro (KG, L, SC, UN...). KG, L e UN podem ser conversão; só KG ↔ L não.
  */
 
 /** KG ↔ L nunca (o mesmo motivo `conversao_kg_l` do servidor). @param {string} sigla @param {string} unidadeEstoque */

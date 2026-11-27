@@ -2,7 +2,7 @@
  * Estoque — Saldo e Movimentos (D-PROD-255): rótulos e formatação das consultas.
  *
  * Os decimais vêm do servidor como TEXTO canônico ("150.0000"); nada aqui faz
- * aritmética de ponto flutuante. Quantidade na unidade de estoque do Produto (D-PROD-369: kg, L, SC, UN...).
+ * aritmética de ponto flutuante. Quantidade na unidade de estoque do Produto (D-PROD-371: kg, L, SC, UN...).
  * Datas em DD/MM/AAAA, dinheiro em R$.
  */
 import { formatarMoeda } from '@/lib/dinheiroDecimal';
@@ -104,7 +104,7 @@ export const formatarInstante = (iso) => {
 };
 
 /**
- * "150" + "L" → "150 L"; "KG" → "kg". D-PROD-369: outra unidade de estoque sai com a sigla ("40 SC", "12 UN").
+ * "150" + "L" → "150 L"; "KG" → "kg". D-PROD-371: outra unidade de estoque sai com a sigla ("40 SC", "12 UN").
  * @param {unknown} v @param {unknown} unidade
  */
 export const formatarQtd = (v, unidade) => {

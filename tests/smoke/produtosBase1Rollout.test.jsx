@@ -108,7 +108,7 @@ describe("Produtos — rollout MotorBase1", () => {
     expect(firstCall[0]).toBe("emp-1");
   });
 
-  it("D-PROD-162 / D-PROD-369: a unidade de estoque é a Unidade de Medida do cadastro (KG, L, SC...); sem o seletor separado KG/SACO/L", async () => {
+  it("D-PROD-162 / D-PROD-371: a unidade de estoque é a Unidade de Medida do cadastro (KG, L, SC...); sem o seletor separado KG/SACO/L", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const code = fs.readFileSync(path.join(process.cwd(), "src/components/produtos/FormularioProduto.jsx"), "utf8");

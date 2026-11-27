@@ -585,7 +585,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   // D-PROD-310 — a quantidade numa unidade de conversão do produto (cocho, transferência e linha de produto da atividade).
   UNIDADE_LANCAMENTO_INVALIDA: {
     http: 422,
-    meaning: 'a unidade de conversão do lançamento não serve (details.reason: unidade_inativa | unidade_nao_cadastrada | unidade_de_outro_produto | unidade_sem_uso | unidade_incompativel | peso_por_saco_ausente | quantidade_divergente | quantidade_estoque_zero | valor_excede_limite_estoque | unidade_sem_peso: o cocho só conta produto com estoque em KG, D-PROD-369); nada foi gravado',
+    meaning: 'a unidade de conversão do lançamento não serve (details.reason: unidade_inativa | unidade_nao_cadastrada | unidade_de_outro_produto | unidade_sem_uso | unidade_incompativel | peso_por_saco_ausente | quantidade_divergente | quantidade_estoque_zero | valor_excede_limite_estoque | unidade_sem_peso: o cocho só conta produto com estoque em KG, D-PROD-371); nada foi gravado',
   },
   ESTOQUE_ESTORNO_MODO_LOTE_DIVERGENTE: {
     http: 409,

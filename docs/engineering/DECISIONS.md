@@ -11015,24 +11015,25 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 - **Migration:** nenhuma. **Constituição:** sem mudança.
 - **Testes:** `tests/smoke/produtoUnidadesConversao.test.jsx` com o nome novo da aba; os testes do cadastro de produtos passam (7 arquivos, 49 testes); capturas em 1280 e 390 px sem rolagem lateral.
 
-## D-PROD-369 — Estoque na unidade do cadastro do produto (UE-1)
+## D-PROD-369 — Mapa do Google no Mapa Geral, etapa 2: lotes, cochos, pontos e tarefas no site
 
-**Data:** 2026-11-27 · **Origem:** pedido do proprietário ("a unidade de estoque para a conversão tem que ser a unidade do cadastro principal"; escolha "Estoque na unidade que eu escolher"; "Aprovo a emenda"; cocho e depósito: "Usar a conversão para KG") · **Branch:** `claude/estoque-unidade-cadastro` · **Migration:** `20261127200000_estoque_unidade_cadastro` (CONTRACT condicionado, **não aplicada em produção**) · **SPEC:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md) · **Relatório:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-UE1-REPORT.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-UE1-REPORT.md) · **Runbook:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-RUNBOOK-RELEASE.md)
+**Data:** 2026-11-27 · **Origem:** com a etapa 1 no ar e a Map Tiles API desligada pelo proprietário, o satélite do site só vem pelo mapa do Google, e ele mostrava só as áreas ("no meu mapa do google abriu assim porém não mostrou lotes etc essas coisas") · **Relatório:** [`MAPA-GOOGLE-ETAPA2-D369-REPORT.md`](./MAPA-GOOGLE-ETAPA2-D369-REPORT.md) · **Migration:** nenhuma · **APK:** nenhum (o site e a atualização automática)
 
-- **Emenda da Constituição** aprovada pelo proprietário (texto em `00-CONSTITUICAO.md` e `07-DO-NOT-DO.md`): a unidade de estoque do produto é a sua Unidade de Medida, uma sigla ativa do cadastro de Unidades. Vale no lugar do "estoque em KG ou L" da D-PROD-162, da D-PROD-184 (M3) e da D-PROD-288.
-- **Decisão (UE-1, esta PR):**
-  1. **Domínio.** A unidade de estoque é KG, L ou uma sigla ATIVA do cadastro de Unidades do próprio tenant (maiúsculas, até 8 caracteres). O tenant vem do `auth_context`. SACO é só legado: o produto que o tem continua com ele (guarda kg), e nenhum produto passa a SACO. Fora disso, 400 `unidade_invalida`.
-  2. **Um campo só.** Na tela, a "Unidade de Medida" é a unidade de estoque. O seletor "Unidade principal de estoque" e o aviso de litros saíram, e a guia passa a se chamar "Estoque". O corpo que traz só `unidade_medida` grava a mesma sigla em `unidade_principal_estoque`: na criação sempre, na edição só quando a Unidade de Medida muda. O produto antigo (estoque noutra unidade, ou SACO) continua com a unidade gravada até a pessoa trocar a Unidade de Medida.
-  3. **Troca da unidade de estoque.** Qualquer troca da unidade efetiva (antes, só com L) exige produto sem histórico: `estoque` → `lotes` → `movimentos` → `lancamentos` (409 `PRODUTO_UNIDADE_EM_USO`, nessa ordem). Os lançamentos são o item do financeiro (rascunho inclusive) e o item de entrada, saída, ajuste ou linha de produto da atividade. KG ↔ SACO legado passa, porque o saldo é o mesmo. O tanque continua aceitando só L, KG e SACO.
-  4. **Conversões.** Valem a partir da unidade de estoque. KG, L e UN podem ser conversão. KG ↔ L continua proibido nos dois sentidos (`conversao_kg_l`). O lançamento na própria unidade tem fator 1. Um produto em SC lança em KG pela conversão KG ("1 KG = 0,04 SC").
-  5. **Rótulos.** O movimento grava a sigla real em `unidade_medida`, e não mais "KG" fixo. A entrada, a saída, o ajuste, a consulta do saldo e o desfazer da transferência mostram a unidade real. O motor não muda a conta.
-  6. **Trava até a UE-3.** O cocho recusa produto com estoque fora de KG (422 `UNIDADE_LANCAMENTO_INVALIDA`, `unidade_sem_peso`; o L segue como antes). O nível do depósito deixa esse produto fora do saldo em kg, com aviso.
-- **Banco:** os 6 CHECKs de unidade são recriados mais largos, com o mesmo nome. São eles `ProdutoUnidadeConversao_sigla_check`, `EntradaEstoqueItem/SaidaEstoqueItem/AjusteEstoqueItem_unidade_check`, `OperacaoFinanceiraItem_forma_check` (o serviço continua em UN) e `AtividadeApontamentoProduto_valores_check`. Nenhuma coluna, tabela ou dado muda. A entrada fica em `MIGRATIONS_CONTRACT_APROVADAS` com a decisão D-PROD-369.
-- **Fica para a UE-2:** financeiro (`exigirUnidadeCompativel` e as opções), linha de produto da atividade e opções, transferência e telas do estoque com o rótulo real. Até lá, eles continuam recusando produto fora de KG/L, o que é seguro.
-- **Fica para a UE-3:** cocho, depósito e formulação pelo "kg por unidade de estoque", tirando a trava.
-- **Sem mudança:** abastecimento (só L ou KG) e mistura do implemento (L ou KG).
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369: a D-PROD-368 foi da PR #456 e a D-PROD-370 da PR #458; a PR #457, que tinha reservado a 369, foi fechada sem merge (regra A5). O marcador fica D-PROD-371.
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369 (a D-PROD-368 é a da PR #456, base desta branch; a PR #458 reserva a D-PROD-370). O marcador passa a D-PROD-370. O número não está no `migration.sql`, então renumerar não muda o checksum. Conferir antes do merge (regra A5).
+- **Problema:**
+  - A versão web do plugin (D-PROD-366) não dá acesso ao mapa do Google e só põe marcador com a ponta embaixo, sem deslocamento em px nem ordem por marcador.
+  - Os marcadores do Mapa Geral são centrados (cochos, pontos, tarefas) ou deslocados em px (o lote acima do centro do pasto, o identificador ao lado), numa ordem fixa.
+- **Decisão:**
+  - **Site:** o mapa do Google passa a ser a Maps JavaScript API direto, pelo carregador canônico do produto (`loadGoogleMaps`), em `src/lib/mapaNativo/mapaGoogleWeb.js`. O objeto tem os nomes de método do `GoogleMap` do plugin, então o `MapaGoogleNativo` segue um só. O app continua no mapa nativo do plugin.
+  - **Marcadores:** uma camada `OverlayView` com uma imagem por marcador, reposicionada a cada quadro: o centro da imagem no ponto mais o deslocamento do MapLibre, e a ordem dos z-index de antes (cocho 500 < ponto 800 < lote 1000 < lote com alerta < identificador < tarefa 2500 < Urgente 3000). O toque no marcador não passa para o mapa nem para a área.
+  - **Os mesmos marcadores:** o que vai em cada um (posição, imagem, título, clique) saiu do `useMapRenderer` para `src/lib/maplibre/itensDoMapaGeral.js`, usado pelo MapLibre e pelo `useMarcadoresGoogle`. A imagem é o mesmo desenho e o mesmo cache; no Google ela vira uma URL `data:` (convertida uma vez por chave).
+  - **Ligação:** o `MapaGeral` chama `syncLotes`, `syncPontos`, `syncPontosSuplementacao` e `syncTarefas` com os mesmos filtros, permissões, focos e cliques. Com o mapa do Google ligado, quem recebe é o `useMarcadoresGoogle`; senão, o MapLibre.
+- **Fica para depois:**
+  - nomes dos pastos (etapa 3);
+  - arrastar lote, piscar o identificador com alerta, linhas, localização, coloração e "Localizar" (etapa 4);
+  - marcadores no mapa nativo do app: o SDK nativo só aceita imagem de arquivo do app ou de endereço `https`, não a imagem desenhada na hora.
+- **Testes:** `mapaGoogleMarcadoresD369.test.jsx` (9, com `google.maps` falso), `mapaGoogleNativoD366.test.jsx` (21; o site agora sem o plugin), `mapaRotulosSemBagunca.test.js` (lê o ponto do lote em `itensDoMapaGeral.js`). Os 1.102 testes do mapa passam.
 
 ## D-PROD-370 — Cadastro de ponto simples: cocho e depósito sem instruções, avisos nem Observações
 
@@ -11057,4 +11058,25 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369; a 369 foi reservada pela PR #457 (e 366 e 368 pelas #454 e #456), e esta ficou com D-PROD-370. O marcador passa a D-PROD-371. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-371 -->
+## D-PROD-371 — Estoque na unidade do cadastro do produto (UE-1)
+
+> **Numeração:** nasceu D-PROD-369 nesta branch (a SPEC e a emenda foram aprovadas com esse número). Antes do merge, a `main` deu a D-PROD-369 ao mapa do Google, etapa 2 (PR #459), e a D-PROD-370 ao cadastro de ponto simples (PR #458), e passou a indicar `Próxima decisão: D-PROD-371`, que é esta; o marcador passa a D-PROD-372. O número não está no `migration.sql` (só no manifesto), então o checksum não muda. A aprovação da emenda (2026-11-27) foi dada com o número D-PROD-369; é a mesma decisão.
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário ("a unidade de estoque para a conversão tem que ser a unidade do cadastro principal"; escolha "Estoque na unidade que eu escolher"; "Aprovo a emenda"; cocho e depósito: "Usar a conversão para KG") · **Branch:** `claude/estoque-unidade-cadastro` · **Migration:** `20261127200000_estoque_unidade_cadastro` (CONTRACT condicionado, **não aplicada em produção**) · **SPEC:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md) · **Relatório:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-UE1-REPORT.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-UE1-REPORT.md) · **Runbook:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-RUNBOOK-RELEASE.md)
+
+- **Emenda da Constituição** aprovada pelo proprietário (texto em `00-CONSTITUICAO.md` e `07-DO-NOT-DO.md`): a unidade de estoque do produto é a sua Unidade de Medida, uma sigla ativa do cadastro de Unidades. Vale no lugar do "estoque em KG ou L" da D-PROD-162, da D-PROD-184 (M3) e da D-PROD-288.
+- **Decisão (UE-1, esta PR):**
+  1. **Domínio.** A unidade de estoque é KG, L ou uma sigla ATIVA do cadastro de Unidades do próprio tenant (maiúsculas, até 8 caracteres). O tenant vem do `auth_context`. SACO é só legado: o produto que o tem continua com ele (guarda kg), e nenhum produto passa a SACO. Fora disso, 400 `unidade_invalida`.
+  2. **Um campo só.** Na tela, a "Unidade de Medida" é a unidade de estoque. O seletor "Unidade principal de estoque" e o aviso de litros saíram, e a guia passa a se chamar "Estoque". O corpo que traz só `unidade_medida` grava a mesma sigla em `unidade_principal_estoque`: na criação sempre, na edição só quando a Unidade de Medida muda. O produto antigo (estoque noutra unidade, ou SACO) continua com a unidade gravada até a pessoa trocar a Unidade de Medida.
+  3. **Troca da unidade de estoque.** Qualquer troca da unidade efetiva (antes, só com L) exige produto sem histórico: `estoque` → `lotes` → `movimentos` → `lancamentos` (409 `PRODUTO_UNIDADE_EM_USO`, nessa ordem). Os lançamentos são o item do financeiro (rascunho inclusive) e o item de entrada, saída, ajuste ou linha de produto da atividade. KG ↔ SACO legado passa, porque o saldo é o mesmo. O tanque continua aceitando só L, KG e SACO.
+  4. **Conversões.** Valem a partir da unidade de estoque. KG, L e UN podem ser conversão. KG ↔ L continua proibido nos dois sentidos (`conversao_kg_l`). O lançamento na própria unidade tem fator 1. Um produto em SC lança em KG pela conversão KG ("1 KG = 0,04 SC").
+  5. **Rótulos.** O movimento grava a sigla real em `unidade_medida`, e não mais "KG" fixo. A entrada, a saída, o ajuste, a consulta do saldo e o desfazer da transferência mostram a unidade real. O motor não muda a conta.
+  6. **Trava até a UE-3.** O cocho recusa produto com estoque fora de KG (422 `UNIDADE_LANCAMENTO_INVALIDA`, `unidade_sem_peso`; o L segue como antes). O nível do depósito deixa esse produto fora do saldo em kg, com aviso.
+- **Banco:** os 6 CHECKs de unidade são recriados mais largos, com o mesmo nome. São eles `ProdutoUnidadeConversao_sigla_check`, `EntradaEstoqueItem/SaidaEstoqueItem/AjusteEstoqueItem_unidade_check`, `OperacaoFinanceiraItem_forma_check` (o serviço continua em UN) e `AtividadeApontamentoProduto_valores_check`. Nenhuma coluna, tabela ou dado muda. A entrada fica em `MIGRATIONS_CONTRACT_APROVADAS` com a decisão D-PROD-371.
+- **Fica para a UE-2:** financeiro (`exigirUnidadeCompativel` e as opções), linha de produto da atividade e opções, transferência e telas do estoque com o rótulo real. Até lá, eles continuam recusando produto fora de KG/L, o que é seguro.
+- **Fica para a UE-3:** cocho, depósito e formulação pelo "kg por unidade de estoque", tirando a trava.
+- **Sem mudança:** abastecimento (só L ou KG) e mistura do implemento (L ou KG).
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-371 (a D-PROD-368 é a da PR #456, base desta branch; a PR #458 reserva a D-PROD-370). O marcador passa a D-PROD-370. O número não está no `migration.sql`, então renumerar não muda o checksum. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-372 -->

@@ -112,7 +112,7 @@ describe('D-PROD-288 — cadastro: unidades de conversão dentro do POST/PATCH d
 
   test('recusas: unidade igual à de estoque, KG ↔ L, repetida, operação, fator ≤ 0, divide > 10000, sem uso — nada gravado', async () => {
     const x = await cenario();
-    // D-PROD-369: KG, L e UN deixaram de ser reservadas; só KG ↔ L continua proibido (`conversao_kg_l`). UN vale como
+    // D-PROD-371: KG, L e UN deixaram de ser reservadas; só KG ↔ L continua proibido (`conversao_kg_l`). UN vale como
     // conversão (ver o teste do estoque na unidade do cadastro, estoqueUnidadeCadastro.test.mjs).
     const casos = [
       [{ sigla: 'KG', operacao: 'MULTIPLICA', fator: 1 }, 'sigla_igual_principal'],

@@ -366,7 +366,7 @@ describe('T7 — integração com o cadastro do Produto (F4: produtoService)', (
     // Tanque A inativo: o aceite não vale e não trava.
     const inat = await ok(patchBem(s, trator, { tanques: tanquesDe(trator).map((t, i) => (i === 0 ? { ...t, ativo: false } : t)) }));
     assert.equal((await patchProduto(diesel.id, { empresa_id: s.e2.id })).statusCode, 200, 'aceite em tanque inativo não trava a fazenda');
-    // Bem inativo: o aceite do tanque B não vale e a unidade troca. D-PROD-369: para uma unidade do cadastro que o tanque
+    // Bem inativo: o aceite do tanque B não vale e a unidade troca. D-PROD-371: para uma unidade do cadastro que o tanque
     // não aceitaria (UN, KG nunca usado); antes era KG → SACO, que não existe mais (SACO só legado).
     await ok(patchBem(s, inat, { ativo: false }));
     await prisma().unidadeMedida.create({ data: { cliente_id: s.c, numero_unidade: '901', sigla: 'UN', descricao: 'UNIDADE' } });

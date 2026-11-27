@@ -302,7 +302,7 @@ export const mensagemExclusaoProdutoBloqueada = (erro) => {
 };
 
 /**
- * Sugestão do 409 PRODUTO_UNIDADE_EM_USO: um Produto novo na unidade de destino (D-PROD-369: qualquer troca da unidade
+ * Sugestão do 409 PRODUTO_UNIDADE_EM_USO: um Produto novo na unidade de destino (D-PROD-371: qualquer troca da unidade
  * de estoque, não só de ou para litros).
  * @param {Record<string, any>} details
  */

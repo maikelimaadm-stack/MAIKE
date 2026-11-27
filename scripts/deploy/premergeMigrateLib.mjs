@@ -240,7 +240,7 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // (Produto.quantidade_padrao e quantidade_padrao_unidade; AtividadeApontamentoProduto.mistura_id e volume_aplicado).
   // Sem DROP, sem ALTER COLUMN, sem DML; a baixa de estoque não está aqui (passa pelo estoqueFisicoMotor).
   '20261127100000_diario_maquina': 'b1896a7c2d350fe31a313563f97192bd961db4c9b905b235bbecced90bfc0aeb',
-  // MAIKE-ESTOQUE-UNIDADE-CADASTRO (D-PROD-369): CONTRACT condicionado, formato de sempre (sem DROP TABLE, sem resto e
+  // MAIKE-ESTOQUE-UNIDADE-CADASTRO (D-PROD-371): CONTRACT condicionado, formato de sempre (sem DROP TABLE, sem resto e
   // sem DML) — os 6 CHECKs de unidade recriados mais largos, com o mesmo nome: a sigla da conversão pode ser KG, L ou UN;
   // as linhas de entrada, saída, ajuste, item do financeiro (mercadoria) e linha de produto da atividade aceitam qualquer
   // unidade não vazia (a unidade de estoque é a do cadastro de Unidades). O serviço do financeiro continua só em UN.
@@ -790,14 +790,14 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'UPDATE "CADFORMULACAO" AS f SET "consumo_minimo_pv" = p."consumo_minimo_pv", "consumo_maximo_pv" = p."consumo_maximo_pv" FROM "Produto" AS p WHERE p."cliente_id" = f."cliente_id" AND p."id" = f."produto_id" AND (p."consumo_minimo_pv" IS NOT NULL OR p."consumo_maximo_pv" IS NOT NULL)',
     ]),
   }),
-  // D-PROD-369: o estoque na unidade do cadastro do produto. Formato de sempre, sem DROP TABLE e sem resto (como a
+  // D-PROD-371: o estoque na unidade do cadastro do produto. Formato de sempre, sem DROP TABLE e sem resto (como a
   // D-PROD-209): depois da guarda (hash pinado; confere que as 6 tabelas existem e que os 6 CHECKs estão no formato
   // anterior — com UN, ou com KG na linha de produto da atividade —, e trava as 6 tabelas em ACCESS EXCLUSIVE),
   // EXATAMENTE as 12 instruções abaixo, nesta ordem (texto pinado): cada CHECK apagado e recriado mais largo, com o mesmo
   // nome (o descritor os declara em `constraints_alargadas`). Nenhuma coluna, tabela ou dado muda. A guarda só cita as 6
   // tabelas e os literais UN e KG.
   '20261127200000_estoque_unidade_cadastro': Object.freeze({
-    decisao: 'D-PROD-369',
+    decisao: 'D-PROD-371',
     guarda_sha256: '8d78338bcd424a644f78ea2a2bc2e506a71af7c57b23c87cf60271224b7a9af7',
     drop: Object.freeze([]),
     literais_guarda: Object.freeze(['ProdutoUnidadeConversao', 'EntradaEstoqueItem', 'SaidaEstoqueItem', 'AjusteEstoqueItem', 'OperacaoFinanceiraItem', 'AtividadeApontamentoProduto', 'UN', 'KG']),

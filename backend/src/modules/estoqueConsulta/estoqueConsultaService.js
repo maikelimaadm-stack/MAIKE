@@ -47,7 +47,7 @@ const LEITURA = Object.freeze({ maxWait: 2000, timeout: 9000, isolationLevel: /*
 const ORIGEM_VALIDA = /^[a-z_]{1,32}$/;
 
 /**
- * Unidade em que o motor expressa a quantidade do Produto (D-PROD-369): a unidade de estoque dele (KG, L, SC, UN...);
+ * Unidade em que o motor expressa a quantidade do Produto (D-PROD-371): a unidade de estoque dele (KG, L, SC, UN...);
  * KG para o SACO legado (guarda kg) e para o vazio.
  */
 export const unidadeDeEstoque = (unidadePrincipal) => unidadeEstoqueEfetiva({ unidade_principal_estoque: unidadePrincipal });

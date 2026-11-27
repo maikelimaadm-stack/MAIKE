@@ -11,7 +11,7 @@
  *      `movimentos` → `lancamentos` (item da Gestão P3, rascunho inclusive);
  *      `details.de/para`; nada gravado;
  *  P3. KG ↔ SACO sem tanque: como hoje (P-08), mesmo com estoque e lotes
- *      (D-PROD-169: também com tanque — SACO é aceito em tanque). D-PROD-369:
+ *      (D-PROD-169: também com tanque — SACO é aceito em tanque). D-PROD-371:
  *      o SACO é só legado — o produto SACO volta a KG com histórico, mas nenhum
  *      produto passa a SACO (400 `unidade_invalida`);
  *  P4. unidade nova fora de {L, KG, SACO} (D-PROD-169) com ACEITE QUE VALE (tanque ativo de bem
@@ -157,14 +157,14 @@ describe('P2 — P-10: troca envolvendo L só sem histórico', () => {
     await unidadeEmUso(s, lEstoque, 'KG', 'estoque');
     const lLote = await produtoNovo(s, 'L');
     await lote(s, lLote, { disponivel: '0', status: 'Estornado' });
-    // D-PROD-369: SACO não é mais unidade nova (só legado); de L para KG vale a mesma regra.
+    // D-PROD-371: SACO não é mais unidade nova (só legado); de L para KG vale a mesma regra.
     await unidadeEmUso(s, lLote, 'KG', 'lotes');
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('P3 — KG ↔ SACO sem tanque continua como hoje (P-08)', () => {
-  test('SACO legado com estoque e lote → KG: 200 (o mesmo saldo em kg); KG → SACO: 400 (D-PROD-369: SACO novo não existe)', async () => {
+  test('SACO legado com estoque e lote → KG: 200 (o mesmo saldo em kg); KG → SACO: 400 (D-PROD-371: SACO novo não existe)', async () => {
     const s = await montar();
     const p = await produtoNovo(s, 'SACO', { estoque_atual: '10', peso_por_saco_kg: '30' });
     await lote(s, p);
@@ -183,7 +183,7 @@ describe('P4 — unidade fora de {L, KG, SACO} com aceite que vale (D-PROD-169)'
   test('aceito em tanque ativo → KG ↔ SACO passa (mesma unidade efetiva kg); unidade fora de L/KG/SACO recusada (aceito_em_tanque + tanques); KG aceito → L passa; tanque inativo não trava', async () => {
     const s = await montar();
     // D-PROD-169: SACO é aceito em tanque (abastece em kg) — o SACO legado → KG com aceite que vale: 200.
-    // D-PROD-369: KG → SACO não existe mais (SACO só legado).
+    // D-PROD-371: KG → SACO não existe mais (SACO só legado).
     const graxa = await produtoNovo(s, 'SACO', { peso_por_saco_kg: '25' });
     const trator = await criarBem(s, corpoTrator(s, { tanques: [tanqueCom([graxa.id], { identificador: 'Reserva' })] }));
     assert.equal((await patch(s, graxa, { unidade_principal_estoque: 'KG' })).statusCode, 200);
@@ -193,7 +193,7 @@ describe('P4 — unidade fora de {L, KG, SACO} com aceite que vale (D-PROD-169)'
     const paraUn = await patch(s, graxa, { unidade_principal_estoque: 'UN' });
     assert.deepEqual(erro(paraUn), [400, 'REQUEST_VALIDATION_FAILED', 'unidade_principal_estoque', 'unidade_invalida'], paraUn.body);
     assert.equal(await unidadeGravada(graxa), 'KG', 'nada foi gravado');
-    // D-PROD-369: UN do cadastro de Unidades é unidade de estoque válida, mas o tanque só aceita L/KG/SACO: 409 aceito_em_tanque.
+    // D-PROD-371: UN do cadastro de Unidades é unidade de estoque válida, mas o tanque só aceita L/KG/SACO: 409 aceito_em_tanque.
     await prisma().unidadeMedida.create({ data: { cliente_id: s.c, numero_unidade: '901', sigla: 'UN', descricao: 'UNIDADE' } });
     const unNoTanque = await patch(s, graxa, { unidade_principal_estoque: 'UN' });
     assert.deepEqual(erro(unNoTanque), [409, 'PRODUTO_UNIDADE_EM_USO', 'unidade_principal_estoque', 'aceito_em_tanque'], unNoTanque.body);
@@ -202,7 +202,7 @@ describe('P4 — unidade fora de {L, KG, SACO} com aceite que vale (D-PROD-169)'
     assert.equal((await patch(s, graxa, { unidade_principal_estoque: 'L' })).statusCode, 200);
     assert.equal((await patch(s, graxa, { unidade_principal_estoque: 'KG' })).statusCode, 200);
     // Tanque inativo: o aceite não vale e não trava a troca; 'CX' (fora do cadastro) continua fora do domínio: 400;
-    // D-PROD-369: 'UN' (do cadastro, sem histórico) troca.
+    // D-PROD-371: 'UN' (do cadastro, sem histórico) troca.
     await patchBem(s, trator, { tanques: tanquesDoCorpo(trator, () => ({ ativo: false })) });
     assert.equal((await patch(s, graxa, { unidade_principal_estoque: 'CX' })).statusCode, 400);
     assert.equal((await patch(s, graxa, { unidade_principal_estoque: 'UN' })).statusCode, 200);

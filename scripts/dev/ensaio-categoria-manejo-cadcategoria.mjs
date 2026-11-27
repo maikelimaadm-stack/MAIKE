@@ -197,7 +197,7 @@ export const NOME_UNIDADE_CONVERTIDA = '20261126200000_unidade_convertida_lancam
 export const NOME_SINC_INDICES = '20261126300000_sincronizacao_incremental_indices';
 /** D-PROD-323: a EXPAND da mistura no implemento, também posterior (fora da partida). */
 export const NOME_DM = '20261127100000_diario_maquina';
-/** D-PROD-369: a CONTRACT do estoque na unidade do cadastro (CHECKs da ProdutoUnidadeConversao e das linhas), também posterior (fora da partida). */
+/** D-PROD-371: a CONTRACT do estoque na unidade do cadastro (CHECKs da ProdutoUnidadeConversao e das linhas), também posterior (fora da partida). */
 export const NOME_EUC = '20261127200000_estoque_unidade_cadastro';
 export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_CONTROLE_LOTE, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM, NOME_EUC]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
