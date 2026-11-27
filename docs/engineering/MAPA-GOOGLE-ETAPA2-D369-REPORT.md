@@ -40,6 +40,16 @@ O MapLibre e o `useMarcadoresGoogle` usam essas funções. A imagem é o mesmo d
 
 O `MapaGeral` chama `syncLotes`, `syncPontos`, `syncPontosSuplementacao` e `syncTarefas` com os mesmos filtros, permissões, focos e cliques de antes. Com o mapa do Google ligado, quem recebe é o `useMarcadoresGoogle`; com ele desligado, o MapLibre.
 
+## Correção depois do merge: zoom com o mouse em cima de um marcador
+
+No teste do proprietário, a roda do mouse não dava zoom quando o cursor estava em cima de um lote, cocho, ponto ou tarefa. A camada usava `OverlayView.preventMapHitsAndGesturesFrom`, que corta o clique e também a roda, o arrasto e a pinça.
+
+Agora só o clique é do marcador:
+- a roda, o arrasto e a pinça chegam ao mapa, como no MapLibre;
+- para a área por baixo não abrir junto, um clique no polígono até 700 ms (`MS_TOQUE_NO_MARCADOR`) depois de um toque que começou num marcador é ignorado.
+
+O teste "a roda do mouse e o arrasto em cima do marcador chegam ao mapa" cobre os dois lados.
+
 ## Testes
 
 - `tests/smoke/mapaGoogleMarcadoresD369.test.jsx`, 9 testes com um `google.maps` falso:

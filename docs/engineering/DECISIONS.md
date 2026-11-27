@@ -11035,6 +11035,8 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - marcadores no mapa nativo do app: o SDK nativo só aceita imagem de arquivo do app ou de endereço `https`, não a imagem desenhada na hora.
 - **Testes:** `mapaGoogleMarcadoresD369.test.jsx` (9, com `google.maps` falso), `mapaGoogleNativoD366.test.jsx` (21; o site agora sem o plugin), `mapaRotulosSemBagunca.test.js` (lê o ponto do lote em `itensDoMapaGeral.js`). Os 1.102 testes do mapa passam.
 
+> **Adendo (2026-11-27, depois do merge):** no teste do proprietário, a roda do mouse em cima de um marcador não dava zoom. A camada usava `OverlayView.preventMapHitsAndGesturesFrom`, que corta também a roda, o arrasto e a pinça. Agora só o clique é do marcador: a roda, o arrasto e a pinça chegam ao mapa, como no MapLibre. Para a área por baixo não abrir junto, o clique no polígono até `MS_TOQUE_NO_MARCADOR` (700 ms) depois de um toque que começou num marcador é ignorado. Teste novo em `mapaGoogleMarcadoresD369.test.jsx` (10 testes).
+
 ## D-PROD-370 — Cadastro de ponto simples: cocho e depósito sem instruções, avisos nem Observações
 
 **Data:** 2026-11-27 · **Origem:** o proprietário: "no cadastro de novo ponto seja cocho ou depósito precisa ser algo simples e correto… não preciso de instruções de campos, não preciso de alertas… não preciso de campo de observações" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`PONTO-SIMPLES-D370-REPORT.md`](./PONTO-SIMPLES-D370-REPORT.md)

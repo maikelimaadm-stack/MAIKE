@@ -20,6 +20,9 @@ import { loadGoogleMaps } from "@/lib/googleMaps";
  * @typedef {{ id: string, lat: number, lng: number, url: string, w: number, h: number, dx?: number, dy?: number, z?: number, titulo?: string, onClick?: () => void }} MarcadorWeb
  */
 
+/** Por quanto tempo um clique no polígono, depois de um toque que começou num marcador, é do marcador (ms). */
+export const MS_TOQUE_NO_MARCADOR = 700;
+
 /** @param {string} tipo "Satellite" | "Normal" (os nomes do plugin) */
 const tipoDaApi = (tipo) => (String(tipo).toLowerCase() === "satellite" ? "satellite" : "roadmap");
 
@@ -37,6 +40,8 @@ function criarCamada(g) {
       this.div.dataset.testid = "mapa-google-marcadores";
       /** @type {Map<string, { m: MarcadorWeb, el: HTMLImageElement }>} */
       this.itens = new Map();
+      /** Quando começou o último toque num marcador (ms). */
+      this.toqueNoMarcador = 0;
     }
 
     onAdd() {
@@ -84,8 +89,12 @@ function criarCamada(g) {
           el.draggable = false;
           el.style.cssText = "position:absolute;left:0;top:0;cursor:pointer;user-select:none;-webkit-user-drag:none;";
           el.dataset.marcador = k;
-          // o toque no marcador não vira clique nem arrasto do mapa (nem abre a área por baixo)
-          g.OverlayView.preventMapHitsAndGesturesFrom?.(el);
+          // A roda do mouse, o arrasto e a pinça em cima do marcador continuam do mapa (como no MapLibre): só o
+          // clique é do marcador. O Google não usa o clique do DOM para o polígono: o toque que começou no marcador
+          // fica marcado, e o clique no polígono logo depois é ignorado (a área por baixo não abre junto).
+          el.addEventListener("pointerdown", () => {
+            this.toqueNoMarcador = Date.now();
+          });
           el.addEventListener("click", (e) => {
             e.stopPropagation();
             this.itens.get(k)?.m.onClick?.();
@@ -139,7 +148,11 @@ export async function criarMapaGoogleWeb({ element, config }) {
       return lista.map(({ tag, ...opcoes }) => {
         const id = String(proximoId++);
         const p = new g.Polygon({ ...opcoes, map: mapa });
-        p.addListener("click", () => aoClicarPoligono?.({ polygonId: id, tag }));
+        p.addListener("click", () => {
+          // clique que começou num marcador: é do marcador (ele já abriu o detalhe dele)
+          if (Date.now() - camada.toqueNoMarcador < MS_TOQUE_NO_MARCADOR) return;
+          aoClicarPoligono?.({ polygonId: id, tag });
+        });
         poligonos.set(id, p);
         return id;
       });
