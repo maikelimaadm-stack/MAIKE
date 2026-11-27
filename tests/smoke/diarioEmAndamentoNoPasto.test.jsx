@@ -197,7 +197,7 @@ describe("Diário das atividades — Em andamento neste pasto (D-PROD-338)", () 
     fireEvent.click(screen.getByTestId("diario-nova-atividade"));
     fireEvent.click(screen.getByTestId("abertura-tipo-APLICACAO"));
     expect(screen.getByTestId("abertura-ja-existe")).toHaveTextContent(
-      "Já existe Aplicação · nov/26 em andamento neste pasto: este serviço entra nela como mais uma frente (outra máquina ou implemento).",
+      "Já existe Aplicação · nov/26 aberta neste pasto: este serviço entra nela como mais uma frente (outra máquina ou implemento).",
     );
     fireEvent.click(screen.getByTestId("abertura-tipo-PLANTIO"));
     expect(screen.queryByTestId("abertura-ja-existe")).toBeNull();
@@ -306,7 +306,7 @@ describe("Diário das atividades — frentes: uma abertura por máquina + implem
   it("(e) \"Nova atividade\" do mesmo tipo com outra máquina envia registrarCampo normalmente e avisa que entra como mais uma frente", async () => {
     renderizar({ atividadesAbertas: [ABERTA_COM_ABERTURA] });
     await novaAplicacao();
-    expect(screen.getByTestId("abertura-ja-existe")).toHaveTextContent("Já existe Aplicação · nov/26 em andamento neste pasto: este serviço entra nela como mais uma frente");
+    expect(screen.getByTestId("abertura-ja-existe")).toHaveTextContent("Já existe Aplicação · nov/26 aberta neste pasto: este serviço entra nela como mais uma frente");
     // Trator 10: uma máquina sem frente no pasto (a Trator 08 já tem uma, e seria duplicidade).
     await escolherOpcao(screen.getByRole("combobox", { name: "Máquina" }), "Trator 10");
     fireEvent.change(screen.getByTestId("abertura-horimetro"), { target: { value: "900" } });

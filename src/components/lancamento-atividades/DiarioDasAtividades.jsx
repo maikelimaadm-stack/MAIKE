@@ -856,7 +856,7 @@ export default function DiarioDasAtividades({
   const avisoJaExiste =
     abertaDoTipo && !nomeServicoExistente ? (
       <p className="b1-realizacao__ajuda" data-testid="abertura-ja-existe">
-        {`Já existe ${abertaDoTipo.nome || abertaDoTipo.tipo_atividade_nome} em andamento neste pasto: este serviço entra nela como mais uma frente (outra máquina ou implemento).`}
+        {`Já existe ${abertaDoTipo.nome || abertaDoTipo.tipo_atividade_nome} aberta neste pasto: este serviço entra nela como mais uma frente (outra máquina ou implemento).`}
       </p>
     ) : null;
   /** D-PROD-338 (passo `escolher`): as atividades abertas do pasto; tocar numa leva ao serviço ou à abertura dele. */
