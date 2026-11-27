@@ -24,6 +24,12 @@
 
         </activity>
 
+        <!-- D-PROD-366: mapa nativo do Google (Maps SDK for Android). A chave vem do segredo GOOGLE_MAPS_ANDROID_KEY
+             no build do APK (app/build.gradle) e é restrita ao pacote e à assinatura do app no Google Cloud. -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${googleMapsKey}" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
