@@ -85,7 +85,7 @@ const CRIAR_SCHEMA = {
     type: 'object',
     required: ['empresa_id', 'nome', 'tipo'],
     additionalProperties: false,
-    // D-PROD-353: o id gerado no aparelho (repetir a criação devolve o mesmo setor).
+    // D-PROD-355: o id gerado no aparelho (repetir a criação devolve o mesmo setor).
     properties: { ...CAMPOS, id: SCHEMA_ID_DO_APARELHO },
   },
 };

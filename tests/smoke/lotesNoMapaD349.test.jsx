@@ -508,7 +508,8 @@ describe("L349-6 — piscar do alerta", () => {
     renderer = r;
     const dois = [...comAlerta(), { ...pos("p9", "cat-touro", 3, { identificador_cor: "#2563eb", identificador_sigla: "B" }), area_atual_id: "a2" }];
     await r.syncLotes(dois, [AREA, AREA2], true, CATEGORIAS, vi.fn(), vi.fn(), true, true);
-    expect(feicoes(map).map((f) => [f.properties.areaId, f.properties.piscar])).toEqual([["a1", true], ["a2", false]]);
+    // D-PROD-353: o lote com alerta vai no fim dos dados (é desenhado por cima, e o clique segue a ordem dos dados)
+    expect(feicoes(map).map((f) => [f.properties.areaId, f.properties.piscar])).toEqual([["a2", false], ["a1", true]]);
     expect(piscadas(map)).toHaveLength(0);
     vi.advanceTimersByTime(PISCAR_MS);
     expect(piscadas(map)).toEqual([["a1", true]]);
@@ -825,7 +826,7 @@ describe("L349-9 — correções da revisão", () => {
     const press = src.slice(src.indexOf("const handlePressStart = (event) => {"), src.indexOf("const handlePressMove"));
     const zera = press.indexOf("longPressTriggeredRef.current = false;");
     const consulta = press.indexOf("rendererHitLoteRef.current?.(");
-    const regra = press.indexOf("deveComecarToqueLongo({ podeUsarTarefasMapa, selecionandoLocalTarefa, sobreLote })");
+    const regra = press.indexOf("deveComecarToqueLongo({ podeUsarTarefasMapa, selecionandoLocalTarefa, sobreLote, sobrePonto })");
     const arma = press.indexOf("longPressTimerRef.current = setTimeout(");
     expect(zera).toBeGreaterThan(-1);
     expect(consulta).toBeGreaterThan(zera);

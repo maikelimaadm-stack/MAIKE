@@ -1,5 +1,5 @@
 /**
- * D-PROD-353 — o id gerado no aparelho também em área, ponto de referência, linha e setor (como lote e cocho,
+ * D-PROD-355 — o id gerado no aparelho também em área, ponto de referência, linha e setor (como lote e cocho,
  * D-PROD-308). Com o sinal fraco, a resposta da criação se perdia e o app mandava de novo: o servidor gravava em dobro.
  *
  * IA-01 cada um: a mesma criação repetida devolve o MESMO registro (uma linha só, mesmo número)
@@ -44,7 +44,7 @@ const conta = async () => {
   return { ...c, token: corpo.token, empresa };
 };
 
-describe('D-PROD-353 — id do aparelho em mais cadastros', () => {
+describe('D-PROD-355 — id do aparelho em mais cadastros', () => {
   test('IA-01 a mesma criação repetida devolve o mesmo registro', async () => {
     const c = await conta();
     const setorId = randomUUID();

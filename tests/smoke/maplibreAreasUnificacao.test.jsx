@@ -568,38 +568,44 @@ describe("V03 — renderer MapLibre preserva o contrato do Mapa Geral", () => {
     doMapa("mouseup")({ point: { x: 10, y: -5 } });
     expect(onDrag).toHaveBeenCalledWith({ lat: -5, lng: 10 }, lotes, "a1", [area("a1")]);
 
+    // D-PROD-353: cocho, ponto e tarefa desenhados pelo mapa (fontes mg-supl/mg-pontos/mg-tarefas), clique pela camada.
+    const naCamadaDe = (camada, ev) => map.handlers.find((h) => h[0] === ev && h[1] === camada)[2];
     const onSupl = vi.fn();
-    r.syncPontosSuplementacao([{ id: "c1", nome_ponto: "Cocho", coordenadas: { lat: 0, lng: 0 } }], true, [], onSupl);
-    const cocho = marcadores.find((m) => m.el.title === "Cocho");
-    expect(cocho).toBeTruthy();
-    cocho.el.click();
-    expect(onSupl).toHaveBeenCalled();
+    await r.syncPontosSuplementacao([{ id: "c1", nome_ponto: "Cocho", coordenadas: { lat: 0, lng: 0 } }], true, [], onSupl);
+    const [cochoF] = map.data.get("mg-supl").features;
+    expect(cochoF.properties).toMatchObject({ id: "c1", titulo: "Cocho" });
+    expect(marcadores.find((m) => m.el.title === "Cocho")).toBeUndefined(); // nenhum marcador HTML
+    naCamadaDe("mg-supl", "click")({ point: { x: 0, y: 0 }, features: [{ properties: { id: "c1" } }] });
+    expect(onSupl).toHaveBeenCalledWith(expect.objectContaining({ id: "c1" }));
 
     const tarefa = { id: "t1", titulo: "Cerca", prioridade: "Urgente", area_id: "a1", status: "Pendente", data_prevista: "2026-11-29" };
     const onTarefa = vi.fn();
-    r.syncTarefas([tarefa], [area("a1")], [], onTarefa, "2026-11-26");
-    const tarefaMarker = marcadores.find((m) => m.el.title.startsWith("Cerca —"));
-    expect(tarefaMarker.el.querySelector('[data-indicador-tarefa]').textContent).toBe('3d');
-    expect(tarefaMarker.el.style.zIndex).toBe('3000');
+    await r.syncTarefas([tarefa], [area("a1")], [], onTarefa, "2026-11-26");
+    const [tarefaF] = map.data.get("mg-tarefas").features;
+    expect(tarefaF.properties.titulo).toMatch(/^Cerca — prioridade Urgente —/);
+    expect(tarefaF.properties.imagem).toContain("|3d~"); // o indicador "3d" pintado na imagem
+    expect(tarefaF.properties.urgente).toBe(true); // por cima das outras tarefas (era o z-index 3000)
     const tarefaEmAndamento = { ...tarefa, status: "Em Andamento" };
-    r.syncTarefas([tarefaEmAndamento], [area("a1")], [], onTarefa, "2026-11-30");
-    expect(marcadores.filter((m) => m.el.title.startsWith("Cerca —"))).toHaveLength(1);
-    expect(tarefaMarker.el.querySelectorAll('[data-indicador-tarefa]')).toHaveLength(1);
-    expect(tarefaMarker.el.querySelector('[data-indicador-tarefa]').textContent).toBe('1d');
-    expect(tarefaMarker.el.title).toContain('Em andamento, 1 dia(s) de atraso');
-    tarefaMarker.el.click();
+    await r.syncTarefas([tarefaEmAndamento], [area("a1")], [], onTarefa, "2026-11-30");
+    const tarefasF = map.data.get("mg-tarefas").features;
+    expect(tarefasF).toHaveLength(1);
+    expect(tarefasF[0].properties.imagem).toContain("|1d~");
+    expect(tarefasF[0].properties.titulo).toContain('Em andamento, 1 dia(s) de atraso');
+    naCamadaDe("mg-tarefas", "click")({ point: { x: 0, y: 0 }, features: [{ properties: { id: "t1" } }] });
     expect(onTarefa).toHaveBeenLastCalledWith(tarefaEmAndamento);
     r.syncUserLocation({ lat: 0, lng: 0 }, true);
     expect(map.data.get("mg-user").features).toHaveLength(1);
 
-    // filtro esconde pontos: remove só o grupo
-    r.syncPontosSuplementacao([], false, [], onSupl);
-    expect(cocho.removed).toBe(true);
+    // filtro esconde pontos: esvazia só o grupo
+    await r.syncPontosSuplementacao([], false, [], onSupl);
+    expect(map.data.get("mg-supl").features).toHaveLength(0);
+    expect(map.data.get("mg-tarefas").features).toHaveLength(1);
     expect(map.data.get("mg-lotes").features).toHaveLength(1);
 
     r.clearAll();
     expect(marcadores.every((m) => m.removed)).toBe(true);
     expect(map.data.get("mg-lotes").features).toHaveLength(0);
+    expect(map.data.get("mg-tarefas").features).toHaveLength(0);
     expect(map.handlers.filter((h) => typeof h[1] === "string")).toHaveLength(0);
   });
 

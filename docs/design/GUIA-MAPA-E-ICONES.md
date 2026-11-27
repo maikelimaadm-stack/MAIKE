@@ -12,7 +12,8 @@ Este documento é um índice dos arquivos reais do sistema. As tabelas indicam *
 | Desenho do depósito | `src/assets/icones/deposito-sal.js` → `MODELO`, `CORPO`, `desenhoAjustado` |
 | Bolinha branca e ponteira de cocho/depósito | `cocho-descoberto.js` → `envolverMarcadorSvg` |
 | Tamanho dos bois no mapa | `src/assets/icones/lotes/quadradinho.js` → `LARGURA_MARCADOR_PX` (44) |
-| Tamanho dos cochos, depósitos e tarefas no mapa | `src/components/mapa/useMapRenderer.jsx` → `baseSize` nas funções `syncPontosSuplementacao`, `syncTarefas` |
+| Tamanho dos cochos, depósitos, pontos e tarefas no mapa | `src/lib/maplibre/pontosNoMapa.js` → `TAMANHO_SUPL_PX` (36), `TAMANHO_PONTO_PX` (40), `TAMANHO_TAREFA_PX` (40); sem figura, `RAIO_CIRCULO_PX` (D-PROD-353: desenhados pelo próprio mapa) |
+| Selo "?"/"!" e farol do cocho; indicador da tarefa | `src/lib/maplibre/pontosNoMapa.js` → `SELO_SUPL`, `CORES_SELO_SUPLEMENTACAO`, `FAROL_SUPL`, `INDICADOR_TAREFA` (pintados na imagem por `desenharImagemPonto`) |
 | Número de cabeças: tamanho da letra | `src/lib/maplibre/contagemLote.js` → `FONTE_CONTAGEM_PX` |
 | Número de cabeças: posição e cor | Altura: centro da faixa reservada à contagem, `CONTAGEM_TOPO_PCT` (`src/assets/icones/lotes/index.js`, calculado de `CARD_FRAC` e `FAIXA_CONTAGEM`). Cor (`#6b7280`), halo e centro na horizontal: `desenharImagemLote` em `src/lib/maplibre/lotesNoMapa.js` (a contagem é escrita na imagem do lote, D-PROD-349) |
 | Avisos dos bois no canto superior direito | `src/lib/maplibre/lotesNoMapa.js` → `desenharImagemIdent`, `DIAMETRO_IDENT_PX`, `DESLOC_IDENT_PX`; piscar: `PISCAR_MS`, `OPACIDADE_PISCAR` |
@@ -81,20 +82,21 @@ As imagens publicadas são assets com URLs versionadas. Para trocar a imagem ofi
 
 ## 3. Tamanhos e posições dos marcadores
 
-Arquivo: `src/components/mapa/useMapRenderer.jsx`; os lotes (desenhados pelo próprio mapa desde a D-PROD-349), em `src/lib/maplibre/lotesNoMapa.js`.
+Arquivo: `src/components/mapa/useMapRenderer.jsx`; os lotes (desenhados pelo próprio mapa desde a D-PROD-349), em `src/lib/maplibre/lotesNoMapa.js`; cochos, depósitos, pontos de referência e tarefas (desenhados pelo próprio mapa desde a D-PROD-353), em `src/lib/maplibre/pontosNoMapa.js`.
 
 | Elemento | Referência no código |
 | --- | --- |
 | Gado/lotes | `LARGURA_MARCADOR_PX` (44), em `src/assets/icones/lotes/quadradinho.js`, usado por `desenharImagemLote` (`lotesNoMapa.js`) |
-| Cochos e depósitos | `baseSize` de 36, em `syncPontosSuplementacao` |
-| Pontos de referência | `baseSize: 40`, em `syncPontos` |
-| Tarefas | `baseSize: 40`, em `syncTarefas`; selo DOM de 22 px independente do desenho |
+| Cochos e depósitos | `TAMANHO_SUPL_PX` (36), em `pontosNoMapa.js` (usado por `syncPontosSuplementacao`) |
+| Pontos de referência | `TAMANHO_PONTO_PX` (40), em `pontosNoMapa.js` (usado por `syncPontos`) |
+| Tarefas | `TAMANHO_TAREFA_PX` (40), em `pontosNoMapa.js` (usado por `syncTarefas`); indicador de 22 px (`INDICADOR_TAREFA`) independente do desenho |
+| Ordem entre eles | `ORDEM_CLICAVEIS` em `pontosNoMapa.js` e `ensureMgLayers` em `mapaGeralRender.js`: cocho < ponto < lote < tarefa (Urgente por cima pelo `symbol-sort-key`) |
 | Deslocamento do gado em relação ao ponto | `OFFSET_LOTE_PX = [0, -26]`; com o nome do pasto embaixo, `OFFSET_LOTE_COM_NOME_PX = [0, -14]` (`lotesNoMapa.js`, `icon-offset` da camada `mg-lotes`) |
 | Contagem dentro do ícone do gado | no meio da largura, a `CONTAGEM_TOPO_PCT` da altura (centro da faixa reservada, ≈ 73,46%), escrita no canvas em `desenharImagemLote` |
 | Avisos no alto à direita do gado | `DESLOC_IDENT_PX = [22, -24]` a partir do centro do ícone (camada `mg-lotes-ident`) |
-| Selo neutro/excesso de suplementação | Função `aplicarTextoESeloSuplementacao` e seu `style.cssText` |
+| Selo neutro/excesso de suplementação | `SELO_SUPL` e `CORES_SELO_SUPLEMENTACAO` em `pontosNoMapa.js`; farol: `FAROL_SUPL` |
 
-Altere o tamanho tanto na criação quanto na atualização do marcador quando houver duas chamadas. A função `iconeSemAchatar` em `mapaGeralRender.js` preserva a proporção: `baseSize` é o tamanho de referência, não uma ordem para esticar a imagem em um quadrado.
+Os pontos são imagens no cache: a chave inclui o tamanho, então mudar a constante gera imagens novas sozinho. A função `iconeSemAchatar` em `mapaGeralRender.js` preserva a proporção: `baseSize` é o tamanho de referência, não uma ordem para esticar a imagem em um quadrado.
 
 `left` positivo move para a direita; `top` positivo move para baixo. Em um offset `[x, y]`, `y` negativo sobe. Ao mudar a posição dos avisos ou do número de cabeças, confira ícones de proporções diferentes e números como 9, 120 e 5.000.
 

@@ -130,7 +130,7 @@ const criarComId = async (contexto, entrada, idDoAparelho) => {
 };
 
 /**
- * D-PROD-353 — cria com o id gerado no aparelho (como lote e cocho, D-PROD-308): repetir a MESMA criação (resposta
+ * D-PROD-355 — cria com o id gerado no aparelho (como lote e cocho, D-PROD-308): repetir a MESMA criação (resposta
  * perdida com o sinal fraco, app fechado no meio) devolve o registro já criado em vez de gravar outro em dobro.
  * Sem id do aparelho, o servidor gera o id, como antes.
  * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto

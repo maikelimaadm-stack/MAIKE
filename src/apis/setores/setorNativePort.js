@@ -134,7 +134,7 @@ export const corpoDeEnvio = (dados, permitidos) => {
 
 /** Operações online, sem offline nenhum. Exportadas para teste direto. */
 /**
- * D-PROD-353 — o corpo da criação: a lista literal de campos e, só se for UUID do aparelho, o `id` (o `offline_…`
+ * D-PROD-355 — o corpo da criação: a lista literal de campos e, só se for UUID do aparelho, o `id` (o `offline_…`
  * antigo e os metadados nunca vão). @param {Record<string, unknown>} dados
  */
 const corpoDeCriacao = (dados) => {
@@ -159,7 +159,7 @@ export const operacoesNativas = Object.freeze({
   create: (dados) =>
     nativeRequest(
       CAMINHO,
-      // D-PROD-353: o id gerado no aparelho vai junto (repetir a criação devolve o mesmo setor).
+      // D-PROD-355: o id gerado no aparelho vai junto (repetir a criação devolve o mesmo setor).
       { method: 'POST', body: corpoDeCriacao(dados), autenticado: true },
       ctx('createSetor')
     ),
@@ -192,7 +192,7 @@ export const setorPort = createOfflineEntityAdapter({
   // fila, a operação enfileirada por um cliente seria aplicada dentro de outro
   // que entrasse depois no mesmo navegador. Ver D-PROD-25 §L.
   tenantScoped: true,
-  // D-PROD-353: nasce com o id definitivo (UUID); com o sinal fraco, repetir a criação não grava em dobro.
+  // D-PROD-355: nasce com o id definitivo (UUID); com o sinal fraco, repetir a criação não grava em dobro.
   idDoAparelho: true,
 });
 

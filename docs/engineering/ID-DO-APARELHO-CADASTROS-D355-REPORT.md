@@ -1,6 +1,6 @@
-# Relatório: o código do aparelho em mais cadastros (D-PROD-353)
+# Relatório: o código do aparelho em mais cadastros (D-PROD-355)
 
-**Data:** 2026-11-27 · **Branch:** `claude/nifty-feynman-rh0kdn` · **Decisão:** [D-PROD-353](./DECISIONS.md)
+**Data:** 2026-11-27 · **Branch:** `claude/nifty-feynman-rh0kdn` · **Decisão:** [D-PROD-355](./DECISIONS.md)
 
 ## Pedido
 
@@ -16,13 +16,13 @@
 
 ## Verificação
 
-- `backend/tests/idDoAparelhoCadastrosD353.test.mjs`:
+- `backend/tests/idDoAparelhoCadastrosD355.test.mjs`:
   - IA-01: a mesma criação repetida devolve o mesmo registro, com uma linha só, para os quatro cadastros;
   - IA-02: o mesmo id em outra conta dá 409;
   - IA-03: criado e excluído não é recriado;
   - IA-04: sem id, funciona como antes.
   - IA-01 a IA-03 falham no servidor antigo.
-- `tests/smoke/idDoAparelhoCadastrosD353.test.js`, IC-01 e IC-02: as portas pedem e mandam o id.
+- `tests/smoke/idDoAparelhoCadastrosD355.test.js`, IC-01 e IC-02: as portas pedem e mandam o id.
 - Os testes do servidor de área, cultura, ocupação, mapa, setor, versão e mudanças passam.
 - `test:smoke`: 4741 de 4741.
 - Os gates passam.

@@ -197,7 +197,7 @@ const CRIAR_PONTO_SCHEMA = {
     type: 'object',
     required: ['empresa_id', 'nome', 'tipo'],
     additionalProperties: false,
-    // D-PROD-353: o id gerado no aparelho (repetir a criação devolve o mesmo ponto).
+    // D-PROD-355: o id gerado no aparelho (repetir a criação devolve o mesmo ponto).
     properties: { ...CAMPOS_PONTO, id: SCHEMA_ID_DO_APARELHO },
   },
 };
@@ -234,7 +234,7 @@ const CRIAR_LINHA_SCHEMA = {
     type: 'object',
     required: ['empresa_id', 'nome', 'tipo'],
     additionalProperties: false,
-    // D-PROD-353: o id gerado no aparelho (repetir a criação devolve a mesma linha).
+    // D-PROD-355: o id gerado no aparelho (repetir a criação devolve a mesma linha).
     properties: { ...CAMPOS_LINHA, id: SCHEMA_ID_DO_APARELHO },
   },
 };

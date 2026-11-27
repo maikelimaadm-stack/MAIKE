@@ -118,7 +118,7 @@ const operacoesPonto = Object.freeze({
       '/pontos-referencia',
       {
         method: 'POST',
-        // D-PROD-353: o id gerado no aparelho vai junto.
+        // D-PROD-355: o id gerado no aparelho vai junto.
         body: { ...corpoDeEnvio(dados, CAMPOS_PONTO_CRIACAO), ...(eIdDoAparelho(/** @type {any} */ (dados)?.id) ? { id: /** @type {any} */ (dados).id } : {}) },
         autenticado: true,
       },
@@ -148,7 +148,7 @@ export const pontoReferenciaPort = createOfflineEntityAdapter({
   operations: operacoesPonto,
   enabled: offlineStorageDisponivel(),
   tenantScoped: true,
-  // D-PROD-353: nasce com o id definitivo (UUID).
+  // D-PROD-355: nasce com o id definitivo (UUID).
   idDoAparelho: true,
 });
 
@@ -183,7 +183,7 @@ const operacoesLinha = Object.freeze({
       '/linhas-geograficas',
       {
         method: 'POST',
-        // D-PROD-353: o id gerado no aparelho vai junto.
+        // D-PROD-355: o id gerado no aparelho vai junto.
         body: { ...corpoDeEnvio(dados, CAMPOS_LINHA_CRIACAO), ...(eIdDoAparelho(/** @type {any} */ (dados)?.id) ? { id: /** @type {any} */ (dados).id } : {}) },
         autenticado: true,
       },
@@ -207,7 +207,7 @@ export const linhaGeograficaPort = createOfflineEntityAdapter({
   operations: operacoesLinha,
   enabled: offlineStorageDisponivel(),
   tenantScoped: true,
-  // D-PROD-353: nasce com o id definitivo (UUID).
+  // D-PROD-355: nasce com o id definitivo (UUID).
   idDoAparelho: true,
 });
 
