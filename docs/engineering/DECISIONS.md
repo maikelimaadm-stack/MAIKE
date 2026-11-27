@@ -10718,4 +10718,18 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`bafa269b2`) indicou D-PROD-353. A D-PROD-353 (mapa leve, etapa 3, PR #441) entrou antes e a D-PROD-354 está reservada pela PR #443 (mapa leve, etapa 4); esta passou a D-PROD-355. O marcador passa a D-PROD-356. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-356 -->
+## D-PROD-357 — As fotos tiradas sem internet sobem em partes que cabem no envio
+
+**Data:** 2026-11-27 · **Origem:** pendência da sincronização (auditoria do servidor, D5), pedida pelo proprietário · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`FOTOS-EM-PARTES-D357-REPORT.md`](./FOTOS-EM-PARTES-D357-REPORT.md)
+
+**Decisão.**
+1. **As fotos guardadas no celular sobem em partes de no máximo `LIMITE_DAS_FOTOS_NA_TAREFA`** (3,5 MB, com folga dentro dos 4 MB que o servidor aceita por tarefa enviada).
+   - Cada parte é uma soma própria (`fotos_adicionar`), com o seu registro no histórico.
+   - As fotos de uma parte só saem do aparelho com a resposta dela. Se uma parte fica sem resposta, as fotos dela continuam guardadas e sobem depois, sem repetir as anteriores.
+   - A foto maior que o limite vai sozinha.
+   Antes, todas iam num pedido só. Muitas fotos passavam do limite, o servidor recusava e elas ficavam em "precisa de atenção".
+2. **A conferência na hora da escolha** (D-PROD-338, `fotosCabemNaTarefa`) continua. Esta divisão protege as fotos guardadas antes dela e os casos que escapam dela.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-357 (354 reservado pela PR #443, 355 da PR #442, 356 reservado pela PR #444). O marcador passa a D-PROD-358. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-358 -->

@@ -13,6 +13,7 @@
  * Uma tarefa que deu errado não impede as outras; o que falhou fica para a próxima passada.
  */
 
+import { LIMITE_DAS_FOTOS_NA_TAREFA } from '@/lib/imagens/fotosDaTarefa';
 import {
   deleteTarefaImageOffline,
   getAllPendingTarefaImages,
@@ -163,16 +164,49 @@ const enviarDaTarefa = async (tarefaId, fotos) => {
     subiram.push(depois);
   }
   if (!urls.length) return null;
-  const atualizada = await atualizarTarefa(tarefaId, {
-    fotos_adicionar: [...new Set(urls)],
-    historico_evento: 'Edição',
-    historico_descricao: urls.length === 1 ? 'Foto tirada sem internet enviada.' : `${urls.length} fotos tiradas sem internet enviadas.`,
+  // D-PROD-357: as fotos sobem em partes que cabem no envio (o servidor aceita até 4 MB por tarefa enviada). Antes
+  // iam todas num pedido só: muitas fotos tiradas sem internet passavam do limite, o servidor recusava e elas ficavam
+  // em "precisa de atenção". Cada parte só sai do aparelho com a resposta dela.
+  let atualizada = null;
+  for (const parte of emPartesQueCabem(subiram, urls)) {
+    const resposta = await atualizarTarefa(tarefaId, {
+      fotos_adicionar: [...new Set(parte.urls)],
+      historico_evento: 'Edição',
+      historico_descricao: parte.urls.length === 1 ? 'Foto tirada sem internet enviada.' : `${parte.urls.length} fotos tiradas sem internet enviadas.`,
+    });
+    // A edição ficou na fila (sem resposta): as fotos continuam no aparelho e são somadas de novo depois (sem repetir).
+    if (resposta?._isOffline) return atualizada;
+    registrarFotosQueSubiram(tarefaId, parte.urls);
+    for (const foto of parte.fotos) await deleteTarefaImageOffline(foto._imgId);
+    atualizada = resposta ?? atualizada;
+  }
+  return atualizada;
+};
+
+/**
+ * D-PROD-357 — divide as fotos em partes que cabem num envio (`LIMITE_DAS_FOTOS_NA_TAREFA`, com folga dentro dos 4 MB).
+ * A foto maior que o limite vai sozinha (o servidor diz se aceita). A ordem se mantém.
+ * @param {any[]} fotos @param {string[]} urls (mesma ordem)
+ * @returns {Array<{ fotos: any[], urls: string[] }>}
+ */
+export const emPartesQueCabem = (fotos, urls) => {
+  /** @type {Array<{ fotos: any[], urls: string[] }>} */
+  const partes = [];
+  let atual = { fotos: [], urls: [] };
+  let tamanho = 0;
+  urls.forEach((url, i) => {
+    const t = String(url ?? '').length;
+    if (atual.urls.length && tamanho + t > LIMITE_DAS_FOTOS_NA_TAREFA) {
+      partes.push(atual);
+      atual = { fotos: [], urls: [] };
+      tamanho = 0;
+    }
+    atual.urls.push(url);
+    if (fotos[i]) atual.fotos.push(fotos[i]);
+    tamanho += t;
   });
-  // A edição ficou na fila (sem resposta): as fotos continuam no aparelho e são somadas de novo depois (sem repetir).
-  if (atualizada?._isOffline) return null;
-  registrarFotosQueSubiram(tarefaId, urls);
-  for (const foto of subiram) await deleteTarefaImageOffline(foto._imgId);
-  return atualizada ?? null;
+  if (atual.urls.length) partes.push(atual);
+  return partes;
 };
 
 /** D-PROD-328: depois de tantas falhas seguidas, a foto para de tentar sozinha e pede a pessoa (fila única). */
