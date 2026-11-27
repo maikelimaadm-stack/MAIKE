@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { versaoVista } from "@/lib/offline/versaoVista";
 import { listarTarefasDaEmpresa, criarTarefa, atualizarTarefa } from "@/services/tarefasMapaService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { API_ERROR_CODES, getApiErrorMessage, hasApiErrorCode } from "@/apis/_core/ApiError";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import ResumoTarefasMapa from "@/components/tarefas/ResumoTarefasMapa";
-import { guardarFotosDaTarefa, enviarOuSepararFotos, avisoDeFotosQueNaoCouberam } from "@/services/fotosDeTarefaAguardandoService";
+import { guardarFotosDaTarefa, enviarOuSepararFotos, avisoDeFotosQueNaoCouberam, EVENTO_TAREFA_COM_FOTOS_ENVIADAS } from "@/services/fotosDeTarefaAguardandoService";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 /**
@@ -40,7 +41,24 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   }, [controlado, openCreateOnMount, initialCoordinates, initialDraft]);
   const form = controlado ? formulario : interno;
   const showForm = Boolean(form);
-  const editingTarefa = form?.tarefa || null;
+  // D-PROD-358: a foto guardada que subiu com o formulário aberto muda a versão da tarefa no servidor; o formulário passa
+  // a usar a nova (senão salvar daria um falso "alterado por outra pessoa").
+  const [versoesNovas, setVersoesNovas] = useState(/** @type {Record<string, string>} */ ({}));
+  useEffect(() => {
+    const aoEnviar = (/** @type {any} */ evento) => {
+      const novas = {};
+      for (const t of evento?.detail?.tarefas ?? []) {
+        if (t?.id && typeof t.updated_date === "string" && !t._isOffline) novas[t.id] = t.updated_date;
+      }
+      if (Object.keys(novas).length) setVersoesNovas((atual) => ({ ...atual, ...novas }));
+    };
+    window.addEventListener(EVENTO_TAREFA_COM_FOTOS_ENVIADAS, aoEnviar);
+    return () => window.removeEventListener(EVENTO_TAREFA_COM_FOTOS_ENVIADAS, aoEnviar);
+  }, []);
+  const tarefaDoFormulario = form?.tarefa || null;
+  const editingTarefa = tarefaDoFormulario && versoesNovas[tarefaDoFormulario.id]
+    ? { ...tarefaDoFormulario, updated_date: versoesNovas[tarefaDoFormulario.id] }
+    : tarefaDoFormulario;
   /** @param {FormularioDaTarefa | null} f */
   const mudarFormulario = (f) => {
     if (controlado) onFormularioChange?.(f);
@@ -136,6 +154,8 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
         id,
         {
           ...payload,
+          // D-PROD-358: a versão da tarefa que a pessoa abriu; o servidor só grava se ela ainda está nela.
+          ...versaoVista(previous),
           historico_evento: evento,
           historico_descricao: descricao,
           historico_data_evento: new Date().toISOString(),

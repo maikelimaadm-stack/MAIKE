@@ -24,7 +24,7 @@ vi.mock('@/services/sessionService', () => ({ getCurrentUser: vi.fn(async () => 
 vi.mock('@/hooks/useEmpresaSelecionadaId', () => ({ useEmpresaSelecionadaId: () => 'emp-1' }));
 vi.mock('@/hooks/useSetorAreas', () => ({ default: () => ({ setores: [], areas: [], getAreasBySetor: () => [] }) }));
 vi.mock('@/hooks/useFotosGuardadasDaTarefa', () => ({ default: () => [] }));
-vi.mock('@/services/fotosDeTarefaAguardandoService', () => ({ guardarFotosDaTarefa: vi.fn(), excluirFotoGuardada: vi.fn() }));
+vi.mock('@/services/fotosDeTarefaAguardandoService', () => ({ guardarFotosDaTarefa: vi.fn(), excluirFotoGuardada: vi.fn(), EVENTO_TAREFA_COM_FOTOS_ENVIADAS: 'maike:tarefa-com-fotos-enviadas' }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } }));
 
 const { default: TarefasMapaPanel } = await import('@/components/mapa/TarefasMapaPanel');
