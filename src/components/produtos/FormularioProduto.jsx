@@ -280,7 +280,7 @@ export default function FormularioProduto({
     () => [
       { id: "principal", label: "Principal" },
       { id: "estoque", label: "Unidade de Estoque" },
-      { id: "unidades", label: "Unidades" },
+      { id: "unidades", label: "Conversão de unidades" },
     ],
     [],
   );
@@ -389,42 +389,47 @@ export default function FormularioProduto({
                 {/* Diário da máquina (Fase 3): quanto do produto vai em cada implemento cheio (ex.: 4 L em 2.000 L). Opcional. */}
                 <B1Field
                   label="Quantidade por implemento cheio"
-                  span={6}
+                  span={4}
                   hasValue={Boolean(String(formData.quantidade_padrao ?? "").trim())}
                   locked={readOnly}
                   disabled={locked}
+                  fieldClassName="b1-campo--num"
                   error={invalidFields.includes("quantidade_padrao") ? "Informe um número maior que zero, ou deixe vazio." : undefined}
                   dica={<p className="mt-1 px-1 text-[12px] text-[var(--mg-text-2,#475569)]">opcional: o diário da máquina preenche a mistura com este valor</p>}
                 >
-                  <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.quantidade_padrao ?? ""}
+                    onChange={(e) => handleChange("quantidade_padrao", e.target.value.slice(0, 12))}
+                    placeholder="Ex.: 4"
+                    className={`${B1_FIELD_CTL_CLS} text-right tabular-nums`}
+                    readOnly={readOnly}
+                    data-testid="produto-quantidade-padrao"
+                    aria-invalid={invalidFields.includes("quantidade_padrao")}
+                  />
+                </B1Field>
+                <B1Field label="Unidade do implemento" span={2} hasValue locked={readOnly} disabled={locked}>
+                  {readOnly ? (
                     <input
                       type="text"
-                      inputMode="decimal"
-                      value={formData.quantidade_padrao ?? ""}
-                      onChange={(e) => handleChange("quantidade_padrao", e.target.value.slice(0, 12))}
-                      placeholder="Ex.: 4"
-                      className={`${B1_FIELD_CTL_CLS} text-right tabular-nums`}
-                      readOnly={readOnly}
-                      data-testid="produto-quantidade-padrao"
-                      aria-invalid={invalidFields.includes("quantidade_padrao")}
+                      readOnly
+                      value={formData.quantidade_padrao_unidade === "L" ? "L" : "kg"}
+                      className={B1_FIELD_CTL_CLS}
+                      data-testid="produto-quantidade-padrao-unidade"
                     />
-                    {readOnly ? (
-                      <span className="text-[13px] text-[var(--mg-text-2,#475569)]" data-testid="produto-quantidade-padrao-unidade">
-                        {formData.quantidade_padrao_unidade === "L" ? "L" : "kg"}
-                      </span>
-                    ) : (
-                      <B1Select
-                        value={formData.quantidade_padrao_unidade === "L" ? "L" : "KG"}
-                        onChange={(e) => handleChange("quantidade_padrao_unidade", e.target.value)}
-                        className={B1_FIELD_CTL_CLS}
-                        aria-label="Unidade da quantidade por implemento cheio"
-                        data-testid="produto-quantidade-padrao-unidade"
-                      >
-                        <option value="L">L</option>
-                        <option value="KG">kg</option>
-                      </B1Select>
-                    )}
-                  </div>
+                  ) : (
+                    <B1Select
+                      value={formData.quantidade_padrao_unidade === "L" ? "L" : "KG"}
+                      onChange={(e) => handleChange("quantidade_padrao_unidade", e.target.value)}
+                      className={B1_FIELD_CTL_CLS}
+                      aria-label="Unidade da quantidade por implemento cheio"
+                      data-testid="produto-quantidade-padrao-unidade"
+                    >
+                      <option value="L">L</option>
+                      <option value="KG">kg</option>
+                    </B1Select>
+                  )}
                 </B1Field>
 
                 <B1Field label="Observações" span={12} hasValue={Boolean(formData.observacoes?.trim())} locked={readOnly} disabled={locked}>
