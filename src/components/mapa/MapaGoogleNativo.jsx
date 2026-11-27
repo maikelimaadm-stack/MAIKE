@@ -27,6 +27,7 @@ import {
 import { criarMapaGoogleWeb } from "@/lib/mapaNativo/mapaGoogleWeb.js";
 import { criarCamadaDeImagens, projetarNaCamera } from "@/lib/mapaNativo/camadaDeImagens.js";
 import { criarMarcadoresNativos } from "@/lib/mapaNativo/marcadoresNativos.js";
+import { APK_CAMADA_NATIVA, camadaNativaDisponivel, criarCamadaNativa } from "@/lib/mapaNativo/camadaNativa.js";
 
 const CENTRO_PADRAO = { lat: -15.78, lng: -47.93 };
 /** Margem em volta da fazenda ao enquadrar (px da página). */
@@ -91,6 +92,8 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
   const camadaElRef = useRef(/** @type {HTMLDivElement | null} */ (null));
   const camadaRef = useRef(/** @type {ReturnType<typeof criarCamadaDeImagens> | null} */ (null));
   const nativosRef = useRef(/** @type {ReturnType<typeof criarMarcadoresNativos> | null} */ (null));
+  // D-PROD-376: a camada desenhada pelo Android (APK 1.0.9 em diante)
+  const camadaNativaRef = useRef(/** @type {Awaited<ReturnType<typeof criarCamadaNativa>> | null} */ (null));
   const ouvinteMovimentoRef = useRef(/** @type {{ remove: () => any } | null} */ (null));
   // App: os polígonos postos (para achar a área do toque; lá eles não são clicáveis)
   const poligonosRef = useRef(/** @type {any[]} */ ([]));
@@ -152,13 +155,21 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
         //   no mapa.
         // - APK mais antigo (D-PROD-372/373): imagens num div por cima do mapa, posicionadas pela câmera (com o
         //   `onCameraMove` do 1.0.7, a cada quadro do ecrã; no 1.0.6, somem enquanto o mapa se mexe).
+        // - APK 1.0.9 em diante (D-PROD-376): a camada desenhada pelo próprio Android, colada no mapa; os nomes mudam
+        //   de tamanho junto com o zoom. Se ela não ligar, os marcadores do mapa.
         const camadaEl = camadaElRef.current;
-        const usarNativos = nativo && (await numeroDoApk()) >= APK_MARCADORES_NATIVOS;
-        const nativos = usarNativos ? criarMarcadoresNativos(mapa) : null;
+        const apk = nativo ? await numeroDoApk() : 0;
+        const camadaNativa = nativo && apk >= APK_CAMADA_NATIVA && camadaNativaDisponivel() ? await criarCamadaNativa(mapa.id) : null;
+        if (cancelado) {
+          await camadaNativa?.limpar();
+          return;
+        }
+        camadaNativaRef.current = camadaNativa;
+        const nativos = nativo && !camadaNativa && apk >= APK_MARCADORES_NATIVOS ? criarMarcadoresNativos(mapa) : null;
         nativosRef.current = nativos;
-        const camada = nativo && !nativos && camadaEl ? criarCamadaDeImagens(camadaEl) : null;
+        const camada = nativo && !camadaNativa && !nativos && camadaEl ? criarCamadaDeImagens(camadaEl) : null;
         camadaRef.current = camada;
-        if (camadaEl && nativos) camadaEl.style.display = "none";
+        if (camadaEl && (nativos || camadaNativa)) camadaEl.style.display = "none";
         /** @type {Set<(c: any) => void>} quem quer a câmera (os nomes dos pastos) */
         const ouvintesCamera = new Set();
         /** @type {ReturnType<typeof projetarNaCamera>} */
@@ -194,22 +205,27 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
           quadro = 0;
           if (!ultimaCamera) return;
           mostrarNaCamera(ultimaCamera);
-          avisarCamera(ultimaCamera, false);
+          // com os ícones no mapa nativo, os nomes são revistos só quando o mapa para: nada de trabalho no meio do gesto
+          if (camada) avisarCamera(ultimaCamera, false);
         };
         if (nativo) {
           if (camada) mostrarNaCamera({ latitude: config.center.lat, longitude: config.center.lng, zoom: config.zoom, bearing: 0 });
           await mapa.setOnCameraMoveStartedListener(() => {
             if (camadaEl && camada && !recebeMovimento) camadaEl.style.visibility = "hidden";
           });
-          try {
-            ouvinteMovimentoRef.current = await pluginDoMapaGoogle().addListener("onCameraMove", (/** @type {any} */ e) => {
-              if (e?.mapId !== mapa.id) return;
-              recebeMovimento = true;
-              ultimaCamera = e;
-              if (!quadro) quadro = requestAnimationFrame(noQuadro);
-            });
-          } catch {
-            ouvinteMovimentoRef.current = null; // plugin sem o evento: os ícones somem durante o movimento
+          // a câmera a cada quadro só serve aos ícones por cima do mapa (APK antigo); a camada nativa e os marcadores
+          // do mapa andam sozinhos
+          if (camada) {
+            try {
+              ouvinteMovimentoRef.current = await pluginDoMapaGoogle().addListener("onCameraMove", (/** @type {any} */ e) => {
+                if (e?.mapId !== mapa.id) return;
+                recebeMovimento = true;
+                ultimaCamera = e;
+                if (!quadro) quadro = requestAnimationFrame(noQuadro);
+              });
+            } catch {
+              ouvinteMovimentoRef.current = null; // plugin sem o evento: os ícones somem durante o movimento
+            }
           }
           // O toque no ícone nativo (APK 1.0.8): abre o detalhe dele; no nome do pasto, abre o pasto.
           if (nativos) {
@@ -227,15 +243,27 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
           }
           // Todo toque fora de ícone nativo vai para o mapa: no APK antigo, o ícone de cima nesse ponto abre o detalhe
           // dele; sem ícone, a área nesse ponto.
-          await mapa.setOnMapClickListener((/** @type {any} */ e) => {
+          /** @param {any} e */
+          const tocarSemCamadaNativa = (e) => {
             const p = projecao?.(e?.latitude, e?.longitude);
             if (camada && p && camada.tocar(p.x, p.y)) return;
             const tag = areaNoPonto(poligonosRef.current, e?.latitude, e?.longitude);
             const area = tag != null ? areasPorIdRef.current.get(String(tag)) : null;
             if (area) cliqueRef.current?.(area);
+          };
+          await mapa.setOnMapClickListener((/** @type {any} */ e) => {
+            if (!camadaNativa) {
+              tocarSemCamadaNativa(e);
+              return;
+            }
+            // D-PROD-376: o Android diz qual item da camada está no ponto (o de cima que recebe toque); sem item, a área
+            void camadaNativa.tocar(e?.latitude, e?.longitude).then((m) => {
+              if (m?.onClick) m.onClick();
+              else tocarSemCamadaNativa(e);
+            });
           });
         }
-        const alvoDosMarcadores = nativos || camada;
+        const alvoDosMarcadores = camadaNativa || nativos || camada;
         definirRef.current = alvoDosMarcadores
           ? (g, l) => alvoDosMarcadores.definir(g, l)
           : typeof mapa.definirMarcadores === "function"
@@ -303,6 +331,8 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
       camadaRef.current = null;
       void nativosRef.current?.limpar();
       nativosRef.current = null;
+      void camadaNativaRef.current?.limpar();
+      camadaNativaRef.current = null;
       ouvinteMovimentoRef.current?.remove();
       ouvinteMovimentoRef.current = null;
       poligonosRef.current = [];
