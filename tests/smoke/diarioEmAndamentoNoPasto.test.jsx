@@ -7,9 +7,11 @@
  *  (5) tocar a aberta SEM abertura: formulário de abertura com o tipo e a operação dela já definidos;
  *  (6) falha ao ler: aviso (notifyWarning) e fica na lista;
  *  (7) tipo com atividade aberta no pasto: "Já existe … entra nela como mais uma frente." (só aviso); outro tipo, sem o aviso.
- * D-PROD-341 (emenda, frentes): (b) um cartão por frente (máquina, implemento, responsável, início); (c) tocar uma frente abre só
- *  ela; (e) Nova atividade do mesmo tipo com outra máquina envia; (f)/(f2) mesma máquina+implemento não envia (ou envia, com outro
- *  implemento); (g)/(g2) continuar com duas abertas do mesmo tipo não envia (P1), com uma só envia.
+ * D-PROD-341 (emenda, frentes) e D-PROD-348 (modelo de frentes): a lista tem UM cartão por atividade (máquinas em campo); (b) tocar
+ *  a atividade mostra um cartão por frente (máquina, implemento, operador, horímetro inicial), em ordem de início; (c) tocar uma
+ *  frente abre só ela; (e) Nova atividade do mesmo tipo com outra máquina envia; (f)/(f2) mesma máquina+implemento não envia (ou
+ *  envia, com outro implemento); (g)/(g2) continuar com duas abertas do mesmo tipo não envia (P1), com uma só envia. A atividade
+ *  sem frente (5) mostra o aviso e "Adicionar máquina".
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -128,16 +130,18 @@ describe("Diário das atividades — Em andamento neste pasto (D-PROD-341)", () 
     expect(screen.getByTestId("diario-atividades-escolher")).toBeInTheDocument();
     expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Em andamento neste pasto");
     expect(screen.queryByTestId("diario-atividades-tipos")).toBeNull();
-    // A atividade COM abertura vira um cartão por frente (máquina + implemento, responsável, início); a SEM, "Sem abertura".
-    const frente = await screen.findByTestId("diario-frente-at-1-bem-7%7C");
-    expect(frente).toHaveTextContent("Trator 12");
-    expect(frente).toHaveTextContent("Responsável: João Pereira · Início 02/11");
-    expect(frente).toHaveTextContent("Aplicação · nov/26");
-    expect(within(frente).getByText("Em andamento")).toBeInTheDocument();
+    // D-PROD-348: um cartão por ATIVIDADE. A com frente mostra as máquinas em campo; a planejada, "Sem máquina em campo".
+    const primeira = await screen.findByTestId("diario-atividade-aberta-at-1");
+    // D-PROD-348 (item 3): o título é o TIPO da atividade e o mês de início.
+    expect(primeira).toHaveTextContent("Aplicação de defensivo · nov/26");
+    expect(primeira).toHaveTextContent("Início 02/11");
+    expect(within(primeira).getByTestId("diario-atividade-aberta-etiqueta-at-1")).toHaveTextContent("Em andamento");
+    await waitFor(() => expect(primeira).toHaveTextContent("1 máquina em campo"));
     const segunda = screen.getByTestId("diario-atividade-aberta-at-2");
     expect(segunda).toHaveTextContent("Gradagem · nov/26");
     expect(segunda).toHaveTextContent("Início 20/11");
-    expect(await within(segunda).findByText("Sem abertura")).toBeInTheDocument();
+    expect(within(segunda).getByTestId("diario-atividade-aberta-etiqueta-at-2")).toHaveTextContent("Aberta");
+    expect(screen.queryByTestId(/^diario-frente-/)).toBeNull();
     expect(screen.getByTestId("diario-nova-atividade")).toHaveTextContent("Nova atividade");
   });
 
@@ -163,19 +167,23 @@ describe("Diário das atividades — Em andamento neste pasto (D-PROD-341)", () 
   it("(4) tocar a atividade COM abertura lê a atividade e vai ao cabeçalho do serviço", async () => {
     const { lerAtividade } = renderizar({ atividadesAbertas: [ABERTA_COM_ABERTURA, ABERTA_SEM_ABERTURA] });
     fireEvent.click(screen.getByTestId("diario-atividade-aberta-at-1"));
-    expect(await screen.findByTestId("abertura-iniciado")).toBeInTheDocument();
     expect(lerAtividade).toHaveBeenCalledWith("at-1");
+    // D-PROD-348: tocar a atividade vai às frentes dela; a frente (máquina sem implemento: "bem-7|") leva ao serviço.
+    fireEvent.click(await screen.findByTestId("frente-at-1-bem-7%7C"));
+    expect(await screen.findByTestId("abertura-iniciado")).toBeInTheDocument();
     expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Diário das atividades");
     expect(screen.getByTestId("servico-encerrar")).toBeInTheDocument();
     expect(await screen.findByText("Horímetro inicial 1.245,0")).toBeInTheDocument();
   });
 
-  it("(5) tocar a atividade SEM abertura vai ao formulário de abertura, com o tipo e a operação dela já escolhidos", async () => {
+  it("(5) tocar a atividade SEM frente vai ao passo da atividade (aviso); \"Adicionar máquina\" abre o formulário com o tipo e a operação dela já escolhidos", async () => {
     const { lerAtividade } = renderizar({ atividadesAbertas: [ABERTA_COM_ABERTURA, ABERTA_SEM_ABERTURA] });
     fireEvent.click(screen.getByTestId("diario-atividade-aberta-at-2"));
-    expect(await screen.findByTestId("abertura-form")).toBeInTheDocument();
+    expect(await screen.findByTestId("atividade-sem-maquina")).toHaveTextContent("Esta atividade não tem máquina em campo.");
     expect(lerAtividade).toHaveBeenCalledWith("at-2");
-    expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Nova atividade de");
+    fireEvent.click(screen.getByTestId("atividade-adicionar-maquina"));
+    expect(await screen.findByTestId("abertura-form")).toBeInTheDocument();
+    expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Adicionar máquina");
     expect(screen.getByTestId("abertura-servico-existente")).toHaveTextContent("Este pasto já tem o serviço Gradagem em andamento, sem abertura. Preencha para iniciar.");
     expect(screen.queryByTestId("abertura-iniciado")).toBeNull();
     expect(screen.queryByTestId("abertura-operacao")).toBeNull();
@@ -270,28 +278,34 @@ describe("Diário das atividades — frentes: uma abertura por máquina + implem
     servico.listarApontamentos.mockImplementation(async (id) => (id === "at-1" ? { items: FRENTES_DO_PASTO } : { items: [apontamento("ap-x", "2026-11-02", "Só texto")] }));
   });
 
-  it("(b) a lista mostra um cartão por frente, com máquina, implemento e responsável, em ordem de início", async () => {
+  it("(b) a lista mostra UMA atividade com \"3 máquinas em campo\"; tocá-la mostra um cartão por frente, em ordem de início", async () => {
     renderizar({ atividadesAbertas: [ABERTA_COM_ABERTURA] });
-    const lista = screen.getByRole("list", { name: "Atividades em andamento neste pasto" });
-    const trator12 = await screen.findByTestId("diario-frente-at-1-bem-7%7Cimp-2");
-    expect(trator12).toHaveTextContent("Trator 12 + Pulverizador 2.000 L");
-    expect(trator12).toHaveTextContent("Responsável: João Pereira · Início 02/11");
-    expect(trator12).toHaveTextContent("Aplicação · nov/26");
-    const trator08 = screen.getByTestId("diario-frente-at-1-bem-8%7C");
+    const card = await screen.findByTestId("diario-atividade-aberta-at-1");
+    await waitFor(() => expect(card).toHaveTextContent("3 máquinas em campo"));
+    fireEvent.click(card);
+    const lista = await screen.findByRole("list", { name: "Máquinas em campo" });
+    // Três cartões de frente (um por máquina+implemento), na ordem do início: 02/11, 10/11, 20/11.
+    const ordem = Array.from(lista.querySelectorAll('[data-testid^="frente-at-1-"]')).map((el) => el.getAttribute("data-testid"));
+    expect(ordem).toEqual(["frente-at-1-bem-7%7Cimp-2", "frente-at-1-bem-9%7Cimp-2", "frente-at-1-bem-8%7C"]);
+    const trator12 = screen.getByTestId("frente-at-1-bem-7%7Cimp-2");
+    expect(trator12).toHaveTextContent("Trator 12");
+    expect(trator12).toHaveTextContent("Pulverizador 2.000 L");
+    expect(trator12).toHaveTextContent("Operador");
+    expect(trator12).toHaveTextContent("João Pereira");
+    expect(trator12).toHaveTextContent("1.000,0");
+    const trator08 = screen.getByTestId("frente-at-1-bem-8%7C");
     expect(trator08).toHaveTextContent("Trator 08");
     expect(trator08.textContent).not.toContain(" + ");
-    expect(trator08).toHaveTextContent("Responsável: Maria Souza · Início 20/11");
-    const trator09 = screen.getByTestId("diario-frente-at-1-bem-9%7Cimp-2");
-    expect(trator09).toHaveTextContent("Trator 09 + Pulverizador 2.000 L");
-    expect(trator09).toHaveTextContent("Início 10/11");
-    // Três cartões de frente (um por máquina+implemento), na ordem do início: 02/11, 10/11, 20/11.
-    const ordem = Array.from(lista.querySelectorAll('[data-testid^="diario-frente-at-1-"]')).map((el) => el.getAttribute("data-testid"));
-    expect(ordem).toEqual(["diario-frente-at-1-bem-7%7Cimp-2", "diario-frente-at-1-bem-9%7Cimp-2", "diario-frente-at-1-bem-8%7C"]);
+    expect(trator08).toHaveTextContent("Maria Souza");
+    expect(screen.getByTestId("frente-at-1-bem-9%7Cimp-2")).toHaveTextContent("Trator 09");
+    expect(screen.getByTestId("frente-at-1-bem-9%7Cimp-2")).toHaveTextContent("Pulverizador 2.000 L");
+    expect(screen.getByTestId("atividade-adicionar-maquina")).toBeInTheDocument();
   });
 
   it("(c) tocar numa frente abre só o serviço dela: o cabeçalho e o \"Lançado hoje\" são os dela", async () => {
     const { lerAtividade } = renderizar({ atividadesAbertas: [ABERTA_COM_ABERTURA] });
-    fireEvent.click(await screen.findByTestId("diario-frente-at-1-bem-8%7C"));
+    fireEvent.click(await screen.findByTestId("diario-atividade-aberta-at-1"));
+    fireEvent.click(await screen.findByTestId("frente-at-1-bem-8%7C"));
     const cabecalho = await screen.findByTestId("abertura-iniciado");
     expect(lerAtividade).toHaveBeenCalledWith("at-1");
     expect(within(cabecalho).getByText("Trator 08")).toBeInTheDocument();
@@ -313,7 +327,8 @@ describe("Diário das atividades — frentes: uma abertura por máquina + implem
     await escolherOpcao(screen.getByRole("combobox", { name: "Responsável" }), "Maria Souza");
     expect(screen.queryByTestId("abertura-trava")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
-    await screen.findByTestId("abertura-iniciado");
+    // Volta ao passo da atividade (as frentes) depois de gravar.
+    await screen.findByTestId("atividade-passo");
     expect(servico.registrarCampo).toHaveBeenCalledTimes(1);
     const [dados] = servico.registrarCampo.mock.calls[0];
     expect(dados).toMatchObject({ tipo_atividade_id: "op-1", bem_id: "bem-10", operador_usuario_id: "usr-4" });
@@ -347,6 +362,7 @@ describe("Diário das atividades — frentes: uma abertura por máquina + implem
     const segundaSemAbertura = { ...ABERTA_SEM_ABERTURA, atividade_id: "at-3", numero: 12, nome: "Gradagem · dez/26", data_inicio: "2026-11-05" };
     renderizar({ atividadesAbertas: [ABERTA_SEM_ABERTURA, segundaSemAbertura] });
     fireEvent.click(await screen.findByTestId("diario-atividade-aberta-at-2"));
+    fireEvent.click(await screen.findByTestId("atividade-adicionar-maquina"));
     await screen.findByTestId("abertura-form");
     expect(screen.getByTestId("abertura-trava")).toHaveTextContent(MSG_TIPO_AMBIGUO);
     expect(screen.getByRole("button", { name: "Iniciar serviço" })).toBeDisabled();
@@ -358,13 +374,14 @@ describe("Diário das atividades — frentes: uma abertura por máquina + implem
   it("(g2) continuar a atividade SEM abertura com uma só do tipo: envia normalmente", async () => {
     renderizar({ atividadesAbertas: [ABERTA_SEM_ABERTURA] });
     fireEvent.click(await screen.findByTestId("diario-atividade-aberta-at-2"));
+    fireEvent.click(await screen.findByTestId("atividade-adicionar-maquina"));
     await screen.findByTestId("abertura-form");
     expect(screen.queryByTestId("abertura-trava")).toBeNull();
     await escolherOpcao(screen.getByRole("combobox", { name: "Máquina" }), "Trator 12");
     fireEvent.change(screen.getByTestId("abertura-horimetro"), { target: { value: "1200" } });
     await escolherOpcao(screen.getByRole("combobox", { name: "Responsável" }), "João Pereira");
     fireEvent.click(screen.getByRole("button", { name: "Iniciar serviço" }));
-    await screen.findByTestId("abertura-iniciado");
+    await screen.findByTestId("atividade-passo");
     expect(servico.registrarCampo).toHaveBeenCalledTimes(1);
     expect(servico.registrarCampo.mock.calls[0][0]).toMatchObject({ tipo_atividade_id: "op-g", bem_id: "bem-7" });
   });
