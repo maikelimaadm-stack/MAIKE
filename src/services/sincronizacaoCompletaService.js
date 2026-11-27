@@ -65,6 +65,18 @@ const emitir = (novo) => {
 /** @type {Promise<{ok: boolean, falhas: number, em: number|null}>|null} */
 let emCurso = null;
 
+/** D-PROD-343: o mapa relê a cópia nova (sem pedir de novo ao servidor) e as outras telas abertas releem. Nunca lança. */
+const avisarTelasAbertas = () => {
+  try {
+    window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { jaBuscado: true } }));
+  } catch {
+    // sem window
+  }
+  import('@/lib/query-client')
+    .then((m) => m.queryClientInstance.invalidateQueries({ predicate: (q) => q.queryKey?.[0] !== 'mapa-cache' }))
+    .catch(() => undefined);
+};
+
 /** Quantos registros desta sessão ainda não chegaram ao servidor (aguardando + precisa de atenção). */
 const quantosFicaramNoCelular = async () => {
   try {
@@ -102,6 +114,9 @@ export const sincronizarNosDoisSentidos = ({ empresaId, aoAvancar }) => {
           aoAvancar?.({ titulo: p.titulo, feitas: p.feitas, total: p.total });
         },
       });
+      // D-PROD-343: as telas abertas passam a mostrar o que acabou de chegar. Antes só o cartão dizia "Tudo
+      // sincronizado"; o mapa aberto sem internet continuava com a cópia de ontem até ser reaberto.
+      if (r.em) avisarTelasAbertas();
     } finally {
       // D-PROD-337: "Tudo sincronizado" só quando nada ficou no celular. Antes valia só a baixa: com registros parados
       // na fila (sem rede no envio, recusados), o cartão dizia "Tudo sincronizado" e a pessoa ia embora.
@@ -125,6 +140,12 @@ export const sincronizarNosDoisSentidos = ({ empresaId, aoAvancar }) => {
   return emCurso;
 };
 
+/**
+ * D-PROD-343: quando a internet volta, baixa de novo só se a última baixa tem mais que isto. Com o sinal piscando,
+ * cada volta baixava tudo de novo (dezenas de listas inteiras). O ENVIO não espera: a volta da rede sempre envia
+ * (`gatilhosDeSincronizacao`).
+ */
+export const SINCRONIZAR_AO_VOLTAR_APOS_MS = 3 * 60 * 1000;
 /** Ao abrir ou voltar ao app: sincroniza se a última baixa tem mais que isto. */
 export const SINCRONIZAR_AO_ABRIR_APOS_MS = 10 * 60 * 1000;
 /** Com o app aberto: sincroniza sozinho depois deste tempo. */
@@ -132,7 +153,7 @@ export const SINCRONIZAR_PARADO_APOS_MS = 6 * 60 * 60 * 1000;
 
 /**
  * Quando sincronizar sozinho (o app já preparado):
- *  - "voltou": a internet voltou → sempre;
+ *  - "voltou": a internet voltou → se a última baixa tem mais de 3 min (D-PROD-343; antes, sempre);
  *  - "abriu": abriu ou voltou ao app → se a última baixa tem mais de 10 min (ou os dados estão no formato antigo);
  *  - "relogio": a cada 15 min com o app aberto → se tem mais de 6 h.
  * @param {'voltou'|'abriu'|'relogio'} motivo
@@ -140,7 +161,8 @@ export const SINCRONIZAR_PARADO_APOS_MS = 6 * 60 * 60 * 1000;
  */
 export const deveSincronizarSozinho = (motivo, { ultima, agora, formatoAtual, semInternet }) => {
   if (!ultima || semInternet) return false;
-  if (!formatoAtual || motivo === 'voltou') return true;
+  if (!formatoAtual) return true;
   const idade = agora - ultima;
+  if (motivo === 'voltou') return idade > SINCRONIZAR_AO_VOLTAR_APOS_MS;
   return motivo === 'abriu' ? idade > SINCRONIZAR_AO_ABRIR_APOS_MS : idade > SINCRONIZAR_PARADO_APOS_MS;
 };

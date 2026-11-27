@@ -10458,4 +10458,27 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** nasceu D-PROD-341. A PR #426 (diário, outra sessão) levou a D-PROD-341 para a `main` (`6aa675672`), que passou a indicar `Próxima decisão: D-PROD-342`, que é esta (`node scripts/dev/proxima-decisao.mjs`). O marcador passa a D-PROD-343. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-343 -->
+## D-PROD-343 — Sincronização, Fase 1 (proteção): o feito sem internet aparece no mapa, a baixa não segura o envio e não engana
+
+**Data:** 2026-11-27 · **Origem:** plano de sincronização aprovado pelo proprietário ("fazer as implementações para melhorar"), a partir da auditoria do lado da baixa · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-FASE1-D343-REPORT.md`](./SINCRONIZACAO-FASE1-D343-REPORT.md)
+
+**Decisão.**
+1. **O cocho, o depósito, a área, o ponto e a linha feitos sem internet aparecem no mapa já.** A fila de cadastros é aplicada na leitura da cópia do mapa (`comFilaDaEntidade`), como já era com as tarefas (D-PROD-330). Antes eles só apareciam no cadastro: no pasto, o cocho novo não podia ser tocado para lançar a leitura. Valem as mesmas regras das tarefas: só a fila da fazenda; o recusado não entra; o excluído sai.
+2. **A volta da internet só baixa de novo se a última baixa tem mais de 3 min.** Com o sinal piscando, cada volta baixava tudo de novo: dezenas de listas inteiras a cada vez. O envio não espera, porque a volta da rede sempre envia (`gatilhosDeSincronizacao`).
+3. **A baixa toma a vez da sincronia por parte (mapa, cadastros, telas), não pela baixa inteira.** O envio pedido no meio passa entre uma parte e outra. Antes, a baixa (minutos, no sinal fraco) segurava a vez, e o que se fazia nesse tempo não subia.
+4. **A baixa das telas não engana e não demora à toa.**
+   - O erro do servidor (5xx) e a sessão recusada contam como falha: antes a parte aparecia como "baixada".
+   - Quando o servidor diz que algo não existe mais (404), a cópia sai do aparelho: antes o lote excluído abria sem internet.
+   - Depois de 6 faltas de rede seguidas a baixa para, e o que faltou conta como falha. Antes, cada caminho esperava 20 s.
+   - Sem permissão (403) continua não sendo falha.
+5. **A resposta do pedido mais antigo não apaga a do mais novo.** Ao guardar uma leitura, fica a do pedido mais recente (`pedido_em`, na mesma transação). Antes, a leitura lenta da sincronização chegava depois da releitura feita ao salvar e apagava o registro novo da cópia.
+6. **As telas abertas se atualizam ao terminar a sincronização.** O mapa relê a cópia nova sem pedir de novo ao servidor (`atualizar-mapa` com `jaBuscado`), e as outras telas abertas releem.
+7. **O armazenamento do app fica protegido.** O app pede `navigator.storage.persist()` ao abrir, para que o sistema não apague o que espera envio quando o celular fica sem espaço. Se o sistema negar, tudo segue como antes.
+
+**Ficou de fora, de propósito:**
+- **Dono por pessoa na fila de cadastros.** Pular os itens de outra pessoa faria o registro dela esperar até ela entrar de novo, talvez nunca. Hoje eles sobem com a conta de quem está no celular. Fica para decidir com o proprietário.
+- **O servidor recusar um app desatualizado.** Exige o app mandar a versão em todo pedido; vai junto da Fase 4 (APK novo).
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` indica a D-PROD-342 enquanto a PR da D-PROD-342 não entra; esta é a seguinte. O marcador passa a D-PROD-344. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-344 -->
