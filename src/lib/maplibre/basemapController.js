@@ -138,7 +138,7 @@ export function createBasemapController(map, opts = {}) {
       const prefixos = opts.prefixosNegocio || PREFIXOS_FONTES_NEGOCIO;
       for (const l of layers.slice(0, iSat)) {
         if (l.type === "background" || ehCamadaDeNegocio(l, prefixos)) continue;
-        const vis = l.layout?.visibility ?? "visible";
+        const vis = String(l.layout?.visibility ?? "visible");
         if (vis === "none") continue;
         if (!baseOculta.has(l.id)) baseOculta.set(l.id, vis);
         map.setLayoutProperty(l.id, "visibility", "none");
