@@ -449,7 +449,19 @@ export default function useMapRenderer(mapInstanceRef) {
       /** @type {Map<string, { x: number, y: number, w: number, h: number }>} */
       const rotulos = new Map();
       labelsRef.current.forEach((entry, id) => {
-        if (!alvo || alvo.has(id)) rotulos.set(id, caixa(entry.corpo));
+        if (alvo && !alvo.has(id)) return;
+        // D-PROD-351 (revisão Codex): durante o zoom a letra fica no tamanho antigo e o nome aparece ampliado na razão
+        // da fonte (`escalarNome`); a colisão mede a caixa como ela aparece, ampliada a partir da mesma origem
+        // (topo, com lote embaixo; centro, sem lote). No fim do zoom a letra é a real e a razão é 1.
+        const c = caixa(entry.corpo);
+        const fr = alvo && entry.fonte0 ? fontesRotuloPorZoom(zoomAgora).nome / entry.fonte0 : 1;
+        if (fr === 1) {
+          rotulos.set(id, c);
+          return;
+        }
+        const w = c.w * fr, h = c.h * fr;
+        const doTopo = entry.base === "";
+        rotulos.set(id, { x: c.x - (w - c.w) / 2, y: doTopo ? c.y : c.y - (h - c.h) / 2, w, h });
       });
       return { rotulos, obstaculos: obstaculosLotes };
     };
@@ -477,14 +489,19 @@ export default function useMapRenderer(mapInstanceRef) {
       }
       if (Number.isFinite(minX)) areas.set(id, { x: minX, y: minY, w: maxX - minX, h: maxY - minY });
     });
+    // D-PROD-351: o `getBoundingClientRect` do canvas antes de qualquer escrita (sem recalcular a página à toa).
+    const origem = tela.getBoundingClientRect?.() || { left: 0, top: 0 };
+    const zoomAgora = map.getZoom();
     labelsRef.current.forEach((entry, id) => {
-      if (!alvo || alvo.has(id)) entry.el.style.visibility = "hidden"; // mede sem pintar
+      if (alvo && !alvo.has(id)) return;
+      entry.el.style.visibility = "hidden"; // mede sem pintar
+      // fim do zoom: a letra assume o tamanho real deste zoom (durante o zoom, só ampliação; ver escalarNome)
+      if (!alvo) aplicarFonteRotulo(entry, zoomAgora);
     });
 
     // Ícones de lote são obstáculos dos nomes (D-PROD-126). Desenhados pelo mapa, não há elemento para medir: a caixa
     // é o ponto do pasto na tela + o deslocamento e o tamanho da imagem (D-PROD-349), na mesma origem dos nomes.
     // `dono`: o ícone do lote da própria área não conta contra o nome dela.
-    const origem = tela.getBoundingClientRect?.() || { left: 0, top: 0 };
     /** @type {Array<{ x: number, y: number, w: number, h: number, dono: string }>} */
     const obstaculosLotes = [];
     lotesRef.current.forEach((lote, id) => {
@@ -528,6 +545,20 @@ export default function useMapRenderer(mapInstanceRef) {
   };
 
   /**
+   * Tamanho real da letra do nome no zoom (D-PROD-129). Só no fim do zoom e ao criar/atualizar o nome; durante o zoom
+   * `escalarNome` amplia na razão `fontesRotuloPorZoom(z).nome / fonte0` (D-PROD-351).
+   * @param {any} entry @param {number} zoom
+   */
+  const aplicarFonteRotulo = (entry, zoom) => {
+    const f = fontesRotuloPorZoom(zoom);
+    if (entry.fonte0 === f.nome) return;
+    entry.titulo.style.fontSize = `${f.nome}px`;
+    entry.ha.style.fontSize = `${f.ha}px`;
+    entry.extra.style.fontSize = `${f.ha}px`;
+    entry.fonte0 = f.nome;
+  };
+
+  /**
    * Nome do tamanho do pasto (D-PROD-130): a folga do ponto cresce/encolhe com o
    * zoom (×2 por nível); o nome acompanha a cada quadro, para não sobrar para
    * fora do polígono. O ícone do lote não é tocado.
@@ -535,8 +566,11 @@ export default function useMapRenderer(mapInstanceRef) {
   const escalarNome = (/** @type {any} */ entry, /** @type {number} */ zoom) => {
     if (!entry?.corpo || !entry.tam) return;
     const raio = entry.raio0 ? entry.raio0 * Math.pow(2, zoom - entry.z0) : null;
-    const s = escalaRotulo(entry.tam.w, entry.tam.h, raio);
-    entry.corpo.style.transform = s < 1 ? `${entry.base || ""} scale(${s})`.trim() : entry.base || "";
+    // D-PROD-351: durante o zoom a letra não muda de tamanho de verdade (isso refazia o texto de todos os nomes a cada
+    // quadro): o nome já pronto é ampliado/reduzido na razão da fonte do D-PROD-129 (`fr`), e só então cabe no pasto.
+    const fr = entry.fonte0 ? fontesRotuloPorZoom(zoom).nome / entry.fonte0 : 1;
+    const s = fr * escalaRotulo(entry.tam.w * fr, entry.tam.h * fr, raio);
+    entry.corpo.style.transform = Math.abs(s - 1) > 0.001 ? `${entry.base || ""} scale(${s})`.trim() : entry.base || "";
   };
 
   /**
@@ -575,12 +609,7 @@ export default function useMapRenderer(mapInstanceRef) {
       }
     });
 
-    const aplicarFonte = (entry) => {
-      const f = fontesRotuloPorZoom(map.getZoom());
-      entry.titulo.style.fontSize = `${f.nome}px`;
-      entry.ha.style.fontSize = `${f.ha}px`;
-      entry.extra.style.fontSize = `${f.ha}px`;
-    };
+    const aplicarFonte = (entry) => aplicarFonteRotulo(entry, map.getZoom());
 
     // D-PROD-129: durante o zoom (cada quadro) a fonte acompanha suave e o
     // nível do nome (sigla/nome/ha) é revisto algumas vezes por segundo — não
@@ -589,7 +618,6 @@ export default function useMapRenderer(mapInstanceRef) {
       const h = () => {
         const z = map.getZoom();
         labelsRef.current.forEach((entry) => {
-          aplicarFonte(entry);
           escalarNome(entry, z);
         });
         arrumarDuranteZoom();
