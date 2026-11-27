@@ -134,6 +134,15 @@ vi.mock('@/lib/maplibre/lifecycle.js', async (importOriginal) => {
     },
   };
 });
+// D-PROD-364: a régua abre o editor do mapa só para medir (carregado sob demanda); aqui, um falso que mostra as props.
+vi.mock('@/components/mapa/MapaDesenho', () => ({
+  default: (p) => (
+    <div data-testid="regua-aberta" data-tipo={p.tipoDesenho} data-so-medir={String(!!p.soMedir)}>
+      <button type="button" onClick={() => p.onTrocarMedida?.('area')}>medir área</button>
+      <button type="button" onClick={p.onCancelar}>fechar régua</button>
+    </div>
+  ),
+}));
 vi.mock('@/components/mapa/useMapRenderer', () => {
   const registrar = (nome) => (...args) => { desenho.ultimo[nome] = args; };
   // Objeto ÚNICO: `clearAll` precisa ser estável (o init do mapa depende dele).
@@ -691,5 +700,23 @@ describe('BARRA-9 — D-PROD-333/359: botão redondo "+" na aba Pontos (novo pas
     await abrir();
     await tocar('Pontos');
     expect(novoPonto()).toBeInTheDocument();
+  });
+});
+
+describe('BARRA-10 — D-PROD-364: régua no Mapa Geral', () => {
+  it('aparece em qualquer aba, abre o editor só para medir (distância) e troca para área; fechar volta ao mapa', async () => {
+    await abrir();
+    const regua = () => screen.getByRole('button', { name: 'Medir no mapa' });
+    expect(regua(), 'na aba Lotes').toBeInTheDocument();
+    await act(async () => { fireEvent.click(regua()); });
+    const aberta = await screen.findByTestId('regua-aberta');
+    expect(aberta).toHaveAttribute('data-tipo', 'linha');
+    expect(aberta).toHaveAttribute('data-so-medir', 'true');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'medir área' })); });
+    expect(await screen.findByTestId('regua-aberta')).toHaveAttribute('data-tipo', 'area');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'fechar régua' })); });
+    expect(screen.queryByTestId('regua-aberta')).toBeNull();
+    await tocar('Pontos');
+    expect(regua(), 'na aba Pontos também').toBeInTheDocument();
   });
 });
