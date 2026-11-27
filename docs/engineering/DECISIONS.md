@@ -11146,12 +11146,12 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
     - O remendo do plugin (`scripts/app/remendar-google-maps.mjs`) ganha 4 pontos. O marcador nativo aceita a imagem `data:` (Android e iOS). O toque no marcador não centraliza o mapa nem abre balão (Android e iOS).
     - `src/lib/mapaNativo/marcadoresNativos.js`: a posição em px (centro ou topo + deslocamento) vira uma margem transparente que põe o ponto do mapa no meio da imagem, em px inteiros (âncora 0,5 × 0,5).
       - A troca por grupo põe o novo antes de tirar o velho, para não piscar.
-      - O nome é refeito no tamanho do zoom quando o mapa para, se mudou mais de 4%.
+      - O nome é refeito no tamanho do zoom quando o mapa para, se mudou mais de 4%. Se o mapa parar enquanto as imagens são preparadas, a troca confere o zoom ao terminar.
     - O toque no marcador abre o detalhe dele. No nome, abre o pasto.
     - O app usa os marcadores nativos a partir do APK código 9 (`numeroDoApk`, `@capacitor/app`). No APK 1.0.7 ou mais antigo, segue o `div` por cima do mapa. Por isso o `nativoMinimo` segue 5.
   - **No APK antigo e no site, sem tremor:** a câmera de cada quadro é usada uma vez por quadro da tela (`requestAnimationFrame`). A posição não é arredondada (`translate3d` com 2 casas, `posicaoDoMarcador.js`).
 - **Testes:**
-  - `mapaGoogleNomesD374.test.jsx` (16): posição, níveis, colocação do nome, margem da imagem, diff dos marcadores nativos, refazer no zoom, `syncLabels`, nível pela câmera, APK 1.0.8 com marcadores nativos e APK antigo com a camada.
+  - `mapaGoogleNomesD374.test.jsx` (17): posição, níveis, colocação do nome, margem da imagem, diff dos marcadores nativos, refazer no zoom (também quando o mapa para enquanto as imagens são preparadas), `syncLabels`, nível pela câmera, APK 1.0.8 com marcadores nativos e APK antigo com a camada.
   - `mapaGoogleCameraD373.test.js`: os 6 remendos e o APK 1.0.8.
   - `mapaGoogleAppMarcadoresD372.test.jsx` e `mapaGoogleMarcadoresD369.test.jsx`: `translate3d` e uma câmera por quadro.
 

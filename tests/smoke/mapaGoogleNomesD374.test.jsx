@@ -263,6 +263,29 @@ describe("G374-3 — os ícones como marcadores do mapa nativo", () => {
     expect(mapa.addMarkers).toHaveBeenCalledTimes(2);
     expect(mapa.addMarkers.mock.calls[1][0][0].iconSize.width).toBe(Math.round((60 * 15) / 14));
   });
+  it("o mapa parou num zoom novo enquanto as imagens eram preparadas: o nome é refeito no zoom de agora", async () => {
+    const mapa = { addMarkers: vi.fn(async (l) => l.map(() => "n")), removeMarkers: vi.fn(async () => {}) };
+    const camada = criarMarcadoresNativos(mapa);
+    camada.aoParar(14);
+    // a imagem do nome (com margem) demora: o mapa para no zoom 16 no meio
+    let soltar = () => {};
+    const ImagemRapida = globalThis.Image;
+    // @ts-ignore
+    globalThis.Image = class {
+      set src(_v) {
+        soltar = () => this.onload?.();
+      }
+    };
+    const feito = camada.definir("nomes", [{ id: "a1", lat: 0, lng: 0, url: "data:n", w: 60, h: 14, dy: 10, ancora: "topo", escala: (z) => z / 14 }]);
+    await new Promise((r) => setTimeout(r, 0));
+    camada.aoParar(16);
+    globalThis.Image = ImagemRapida;
+    soltar();
+    await feito;
+    await waitFor(() => expect(mapa.addMarkers).toHaveBeenCalledTimes(2));
+    // com a margem em px inteiros: 2 × a metade arredondada para cima
+    expect(mapa.addMarkers.mock.calls[1][0][0].iconSize.width).toBe(2 * Math.ceil((60 * 16) / 14 / 2));
+  });
 });
 
 describe("G374-4 — os nomes no mapa do Google pelo useMarcadoresGoogle", () => {

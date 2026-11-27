@@ -56,7 +56,7 @@
 
 ## Testes
 
-- `mapaGoogleNomesD374.test.jsx` (16, novo).
+- `mapaGoogleNomesD374.test.jsx` (17, novo).
 - `mapaGoogleCameraD373.test.js`: os 6 remendos e o APK 1.0.8.
 - `mapaGoogleAppMarcadoresD372.test.jsx` e `mapaGoogleMarcadoresD369.test.jsx`: `translate3d` e uma câmera por quadro.
 

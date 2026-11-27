@@ -168,8 +168,28 @@ export function criarMarcadoresNativos(mapa) {
       } catch {
         /* mapa fechado no meio */
       }
+      // o mapa parou num zoom novo enquanto as imagens eram preparadas: refaz no zoom de agora
+      if (vivo && zoom !== zoomDaTroca && seq[grupo] === minha) revisarGrupo(grupo);
     });
     return fila;
+  };
+
+  /**
+   * Refaz o grupo se o que muda de tamanho com o zoom (os nomes) mudou o bastante desde que ele foi posto.
+   * @param {string} grupo
+   */
+  const revisarGrupo = (grupo) => {
+    const lista = listas.get(grupo);
+    const comEscala = lista ? lista.filter((m) => m.escala) : [];
+    if (!lista || !comEscala.length) return;
+    const antes = zoomDoGrupo.get(grupo);
+    if (antes == null) return; // a primeira troca ainda não rodou: ela confere o zoom ao terminar
+    const mudou = comEscala.some((m) => {
+      const a = /** @type {any} */ (m.escala)(antes);
+      const b = /** @type {any} */ (m.escala)(zoom);
+      return a > 0 && Math.abs(b / a - 1) > DIFERENCA_REFAZER_NOME;
+    });
+    if (mudou) void definir(grupo, lista);
   };
 
   return {
@@ -186,17 +206,7 @@ export function criarMarcadoresNativos(mapa) {
     aoParar(z) {
       if (!Number.isFinite(z)) return;
       zoom = z;
-      for (const [grupo, lista] of listas) {
-        const comEscala = lista.filter((m) => m.escala);
-        if (!comEscala.length) continue;
-        const antes = zoomDoGrupo.get(grupo) ?? z;
-        const mudou = comEscala.some((m) => {
-          const a = /** @type {any} */ (m.escala)(antes);
-          const b = /** @type {any} */ (m.escala)(z);
-          return a > 0 && Math.abs(b / a - 1) > DIFERENCA_REFAZER_NOME;
-        });
-        if (mudou) void definir(grupo, lista);
-      }
+      for (const grupo of listas.keys()) revisarGrupo(grupo);
     },
     /** Tira todos os marcadores. */
     async limpar() {
