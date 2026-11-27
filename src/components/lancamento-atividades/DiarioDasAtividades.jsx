@@ -31,7 +31,7 @@ import {
 } from "@/lib/aberturaServicoRegras";
 import { RAIZ_CONSULTAS_ATIVIDADES, chaveApontamentos, itensDaLista, normalizarPaginaDeOpcoes, siglaDaProducao } from "@/lib/atividadeApontamentoRegras";
 import { capinsDoCadastro } from "@/lib/camposPorTipo";
-import { medidorDaResposta, textoDaLeituraVigente } from "@/lib/atividadeLinhasRegras";
+import { flagsDoTipoDaAtividade, medidorDaResposta, textoDaLeituraVigente } from "@/lib/atividadeLinhasRegras";
 import { areasDaAtividade } from "@/lib/atividadeAreasRegras";
 import { tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
@@ -324,6 +324,12 @@ export default function DiarioDasAtividades({
   const [emBreve, setEmBreve] = useState(/** @type {string | null} */ (null));
   /** D-PROD-334: a "Carga de insumo" (opção Insumo) na mesma janela; o botão do rodapé fica no lugar que ela indica. */
   const [insumoAberto, setInsumoAberto] = useState(false);
+  /**
+   * D-PROD-356: o Insumo (carga de insumo) só existe quando a operação da atividade permite produto (`permite_produto`,
+   * a mesma flag do menu "Só insumo" do mapa, `flagsDoTipoDaAtividade`). A flag fecha por padrão: enquanto as operações
+   * carregam (ou se a leitura delas falhou), não há Insumo; sem atividade, também não.
+   */
+  const permiteProduto = atividadeAtual ? flagsDoTipoDaAtividade(atividadeAtual, todosOsTipos).permiteProduto === true : false;
   /** A carga está sendo enviada: voltar e fechar ficam travados até a resposta. */
   const [cargaEnviando, setCargaEnviando] = useState(false);
   const [alvoRodapeCarga, setAlvoRodapeCarga] = useState(/** @type {HTMLElement | null} */ (null));
@@ -843,7 +849,7 @@ export default function DiarioDasAtividades({
   // ─── Títulos ────────────────────────────────────────────────────────
   const hectares = hectaresDaArea(area?.tamanho_hectares);
   const subDaArea = [area?.nome, hectares ? `${hectares} ha` : ""].filter(Boolean).join(" · ");
-  const carga = passo === "iniciado" && insumoAberto;
+  const carga = passo === "iniciado" && insumoAberto && permiteProduto;
   const tituloTexto = carga
     ? "Insumo"
     : passo === "iniciado"
@@ -1072,7 +1078,7 @@ export default function DiarioDasAtividades({
       ) : (
         <>
           <div className="b1-aberto-opcoes" role="list" aria-label="O que fazer no serviço">
-            {OPCOES_DO_SERVICO.map((o) => {
+            {OPCOES_DO_SERVICO.filter((o) => o.chave !== "insumo" || permiteProduto).map((o) => {
               const Icone = o.Icone;
               return (
                 <div key={o.chave} role="listitem" className={o.chave === "outros-custos" ? "b1-aberto-opcao--inteira" : undefined}>
