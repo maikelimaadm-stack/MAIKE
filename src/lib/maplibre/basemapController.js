@@ -62,11 +62,20 @@ export function provedorSatelite() {
 export function primeiraCamadaDeNegocio(map, prefixos = PREFIXOS_FONTES_NEGOCIO) {
   const layers = map.getStyle?.()?.layers || [];
   for (const l of layers) {
-    const src = typeof l.source === "string" ? l.source : "";
     if (l.id === SAT_LAYER_ID) continue;
-    if (prefixos.some((p) => src.startsWith(p) || String(l.id).startsWith(p))) return l.id;
+    if (ehCamadaDeNegocio(l, prefixos)) return l.id;
   }
   return undefined;
+}
+
+/**
+ * Camada do produto (pela fonte ou pelo id), nunca do estilo-base.
+ * @param {{ id: string, source?: unknown }} l
+ * @param {readonly string[]} [prefixos]
+ */
+export function ehCamadaDeNegocio(l, prefixos = PREFIXOS_FONTES_NEGOCIO) {
+  const src = typeof l.source === "string" ? l.source : "";
+  return prefixos.some((p) => src.startsWith(p) || String(l.id).startsWith(p));
 }
 
 /**
@@ -113,12 +122,49 @@ export function createBasemapController(map, opts = {}) {
     if (!disposed) opts.onState?.(estado);
   };
 
+  /**
+   * D-PROD-360: com o satélite pronto, o mapa de ruas que fica POR BAIXO dele é escondido. Ele não aparece (o
+   * satélite cobre a tela), mas continuava baixando, processando e desenhando ~110 camadas a cada passo do zoom.
+   * Escondidas, a fonte de ruas deixa de ser usada e o MapLibre para de pedir os tiles dela. Só as camadas abaixo
+   * do satélite, que não são de negócio nem o fundo; a visibilidade de cada uma é guardada e volta igual no Mapa.
+   * @type {Map<string, string>}
+   */
+  const baseOculta = new Map();
+  const ocultarEstiloBase = () => {
+    try {
+      const layers = map.getStyle?.()?.layers || [];
+      const iSat = layers.findIndex((l) => l.id === SAT_LAYER_ID);
+      if (iSat < 0) return;
+      const prefixos = opts.prefixosNegocio || PREFIXOS_FONTES_NEGOCIO;
+      for (const l of layers.slice(0, iSat)) {
+        if (l.type === "background" || ehCamadaDeNegocio(l, prefixos)) continue;
+        const vis = l.layout?.visibility ?? "visible";
+        if (vis === "none") continue;
+        if (!baseOculta.has(l.id)) baseOculta.set(l.id, vis);
+        map.setLayoutProperty(l.id, "visibility", "none");
+      }
+    } catch {
+      /* best-effort: no pior caso o mapa de ruas continua por baixo, como antes */
+    }
+  };
+  const mostrarEstiloBase = () => {
+    for (const [id, vis] of baseOculta) {
+      try {
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+      } catch {
+        /* ignore */
+      }
+    }
+    baseOculta.clear();
+  };
+
   const setSatVisivel = (visivel) => {
     try {
       if (map.getLayer(SAT_LAYER_ID)) map.setLayoutProperty(SAT_LAYER_ID, "visibility", visivel ? "visible" : "none");
     } catch {
       /* ignore */
     }
+    if (!visivel) mostrarEstiloBase();
   };
 
   const atualizarAtribuicao = () => {
@@ -216,6 +262,7 @@ export function createBasemapController(map, opts = {}) {
     prova.errosSeguidos = 0;
     if (estado.status === "carregando") {
       limparProvaTimer();
+      ocultarEstiloBase();
       emit({ basemapId: BASEMAP_IDS.SATELITE, status: "pronto", mensagem: null, atribuicao: estado.atribuicao || atribuicaoPadrao() });
       atualizarAtribuicao();
     }
@@ -248,6 +295,7 @@ export function createBasemapController(map, opts = {}) {
       setSatVisivel(true);
       if (mesmaFonte && map.isSourceLoaded?.(SAT_SOURCE_ID)) {
         prova.ok = 1;
+        ocultarEstiloBase();
         emit({ basemapId: BASEMAP_IDS.SATELITE, status: "pronto", mensagem: null, atribuicao: ATRIBUICAO_MAPTILER_TEXTO });
         return;
       }
@@ -299,6 +347,7 @@ export function createBasemapController(map, opts = {}) {
       // Mesma sessão já com tiles em cache do MapLibre: a fonte pode já estar carregada.
       if (mesmaSessao && map.isSourceLoaded?.(SAT_SOURCE_ID)) {
         prova.ok = 1;
+        ocultarEstiloBase();
         emit({ basemapId: BASEMAP_IDS.SATELITE, status: "pronto", mensagem: null, atribuicao: estado.atribuicao || ATRIBUICAO_GOOGLE });
         atualizarAtribuicao();
         return;

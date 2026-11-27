@@ -688,3 +688,84 @@ describe("GEO-11 — coordenadas e casos de borda", () => {
     expect(() => buildDesenhoCollection([{ lat: NaN, lng: 0 }], "area")).not.toThrow();
   });
 });
+
+describe("D-PROD-360 — com o satélite pronto, o mapa de ruas por baixo dele não é mais desenhado", () => {
+  beforeEach(() => vi.resetModules());
+  afterEach(() => vi.unstubAllEnvs());
+
+  const mapaComRuas = () => {
+    const map = fakeMap();
+    map.layers.splice(0, map.layers.length,
+      { id: "fundo", type: "background" },
+      { id: "agua", type: "fill", source: "openmaptiles" },
+      { id: "estrada", type: "line", source: "openmaptiles" },
+      { id: "ja-escondida", type: "line", source: "openmaptiles", layout: { visibility: "none" } },
+      { id: "nome-cidade", type: "symbol", source: "openmaptiles" },
+      { id: "mg-areas-fill", type: "fill", source: "mg-areas" },
+      { id: "mg-nomes", type: "symbol", source: "mg-nomes" },
+    );
+    // a visibilidade que o mapa devolve no getStyle acompanha o setLayoutProperty
+    const setLayout = map.setLayoutProperty;
+    map.setLayoutProperty = (id, k, v) => {
+      setLayout(id, k, v);
+      const l = map.layers.find((x) => x.id === id);
+      if (l) l.layout = { ...(l.layout || {}), visibility: v };
+    };
+    return map;
+  };
+
+  it("SR-01 escondidas só depois do primeiro tile; o fundo, o negócio e o que já estava escondido ficam; Mapa devolve igual", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "chave-teste");
+    const { createBasemapController } = await import("@/lib/maplibre/basemapController.js");
+    const { descartarSessoesMapTiles } = await import("@/lib/maplibre/googleMapTiles.js");
+    descartarSessoesMapTiles();
+    const fetchImpl = vi.fn(async (url) =>
+      String(url).includes("createSession") ? resp(200, { session: "SESS", expiry: "9999999999", tileWidth: 256 }) : resp(200, { copyright: "©X" })
+    );
+    const map = mapaComRuas();
+    const states = [];
+    const c = createBasemapController(/** @type {any} */ (map), { fetchImpl, onState: (s) => states.push(s) });
+    const vis = (id) => map.layers.find((l) => l.id === id)?.layout?.visibility ?? "visible";
+    c.setBasemap("satelite");
+    await vi.waitFor(() => expect(map.layout.get("maike-basemap-satelite")).toBe("visible"));
+    // carregando: as ruas continuam (até a primeira imagem do satélite chegar)
+    expect(vis("estrada")).toBe("visible");
+    map.fire("sourcedata", { sourceId: "maike-basemap-satelite", tile: {} });
+    expect(states.at(-1).status).toBe("pronto");
+    expect(["agua", "estrada", "nome-cidade"].map(vis)).toEqual(["none", "none", "none"]);
+    expect(["fundo", "mg-areas-fill", "mg-nomes", "maike-basemap-satelite"].map(vis)).toEqual(["visible", "visible", "visible", "visible"]);
+    // volta para Mapa: cada camada como estava (a que já estava escondida continua escondida)
+    c.setBasemap("ruas");
+    expect(["agua", "estrada", "nome-cidade"].map(vis)).toEqual(["visible", "visible", "visible"]);
+    expect(vis("ja-escondida")).toBe("none");
+    // satélite de novo, mesma sessão: escondidas outra vez
+    c.setBasemap("satelite");
+    await vi.waitFor(() => expect(map.layout.get("maike-basemap-satelite")).toBe("visible"));
+    map.fire("sourcedata", { sourceId: "maike-basemap-satelite", tile: {} });
+    expect(vis("estrada")).toBe("none");
+    c.dispose();
+  });
+
+  it("SR-02 satélite que falha devolve as ruas", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "chave-teste");
+    const { createBasemapController } = await import("@/lib/maplibre/basemapController.js");
+    const { descartarSessoesMapTiles } = await import("@/lib/maplibre/googleMapTiles.js");
+    descartarSessoesMapTiles();
+    const fetchImpl = vi.fn(async (url) =>
+      String(url).includes("createSession") ? resp(200, { session: "S9", expiry: "9999999999" }) : resp(200, { copyright: "©X" })
+    );
+    const map = mapaComRuas();
+    const states = [];
+    const c = createBasemapController(/** @type {any} */ (map), { fetchImpl, onState: (s) => states.push(s) });
+    const vis = (id) => map.layers.find((l) => l.id === id)?.layout?.visibility ?? "visible";
+    c.setBasemap("satelite");
+    await vi.waitFor(() => expect(map.layout.get("maike-basemap-satelite")).toBe("visible"));
+    map.fire("sourcedata", { sourceId: "maike-basemap-satelite", tile: {} });
+    expect(vis("estrada")).toBe("none");
+    map.fire("error", { sourceId: "maike-basemap-satelite", error: { status: 429 } });
+    expect(states.at(-1).status).toBe("erro");
+    expect(states.at(-1).basemapId).toBe("ruas");
+    expect(vis("estrada")).toBe("visible");
+    c.dispose();
+  });
+});

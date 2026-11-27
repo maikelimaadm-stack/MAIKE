@@ -27,6 +27,23 @@ const LIMITE_DE_TILES = 4000;
 
 let registrado = false;
 let gravacoesDesdeALimpeza = 0;
+/**
+ * D-PROD-360: a limpeza lê as imagens guardadas uma a uma (até 4.000). Ela não roda mais no meio do zoom: depois
+ * de 200 gravações fica marcada e só roda quando o mapa passa `MS_SOSSEGO_LIMPEZA` sem gravar imagem nova.
+ */
+export const MS_SOSSEGO_LIMPEZA = 20000;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let limpezaAgendada = null;
+let precisaLimpar = false;
+/** @param {() => number} agora */
+const adiarLimpeza = (agora) => {
+  if (limpezaAgendada) clearTimeout(limpezaAgendada);
+  limpezaAgendada = setTimeout(() => {
+    limpezaAgendada = null;
+    precisaLimpar = false;
+    void limparTilesAntigos(agora);
+  }, MS_SOSSEGO_LIMPEZA);
+};
 
 export const sateliteGuardadoDisponivel = () => {
   try {
@@ -99,8 +116,10 @@ export const guardarTile = async (url, dados, tipo, agora = Date.now) => {
     gravacoesDesdeALimpeza += 1;
     if (gravacoesDesdeALimpeza >= 200) {
       gravacoesDesdeALimpeza = 0;
-      await limparTilesAntigos(agora);
+      precisaLimpar = true;
     }
+    // cada imagem nova empurra a limpeza para depois: ela só roda com o mapa parado
+    if (precisaLimpar) adiarLimpeza(agora);
   } catch {
     // Guardar é conveniência: o tile já foi entregue ao mapa.
   }
