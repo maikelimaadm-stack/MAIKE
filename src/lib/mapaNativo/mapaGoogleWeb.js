@@ -14,10 +14,14 @@
  */
 import { loadGoogleMaps } from "@/lib/googleMaps";
 
+import { caixaDoMarcador, porNaCaixa } from "./posicaoDoMarcador.js";
+
 /**
  * Marcador numa imagem: posição, imagem já pronta (URL), tamanho em px da página, deslocamento do CENTRO da imagem
- * em relação ao ponto (px), ordem (maior por cima), título (dica do mouse) e o clique.
- * @typedef {{ id: string, lat: number, lng: number, url: string, w: number, h: number, dx?: number, dy?: number, z?: number, titulo?: string, onClick?: () => void }} MarcadorWeb
+ * em relação ao ponto (px), ordem (maior por cima), título (dica do mouse) e o clique. D-PROD-374: `escala` (o
+ * tamanho segue o zoom do MapLibre), `ancora` ("centro" ou "topo") e `semToque` (o nome do pasto: o clique passa
+ * para a área), ver `posicaoDoMarcador.js`.
+ * @typedef {{ id: string, lat: number, lng: number, url: string, w: number, h: number, dx?: number, dy?: number, z?: number, titulo?: string, onClick?: () => void, escala?: (zoom: number) => number, ancora?: "centro" | "topo", semToque?: boolean }} MarcadorWeb
  */
 
 /** @param {string} tipo "Satellite" | "Normal" (os nomes do plugin) */
@@ -53,13 +57,17 @@ function criarCamada(g) {
       for (const { m, el } of this.itens.values()) this.posicionar(proj, m, el);
     }
 
+    /** Zoom do MapLibre (o do Google − 1): a conta dos nomes é a do Mapa Geral. */
+    zoomML() {
+      const z = this.getMap?.()?.getZoom?.();
+      return Number.isFinite(z) ? z - 1 : 14;
+    }
+
     /** @param {any} proj @param {MarcadorWeb} m @param {HTMLImageElement} el */
     posicionar(proj, m, el) {
       const p = proj.fromLatLngToDivPixel(new g.LatLng(m.lat, m.lng));
       if (!p) return;
-      const x = Math.round(p.x + (m.dx || 0) - m.w / 2);
-      const y = Math.round(p.y + (m.dy || 0) - m.h / 2);
-      el.style.transform = `translate(${x}px, ${y}px)`;
+      porNaCaixa(el, caixaDoMarcador(m, p, this.zoomML()));
     }
 
     /**
@@ -101,8 +109,13 @@ function criarCamada(g) {
         it.m = m;
         const { el } = it;
         if (el.getAttribute("src") !== m.url) el.src = m.url;
-        el.style.width = `${m.w}px`;
-        el.style.height = `${m.h}px`;
+        if (!m.escala) {
+          el.style.width = `${m.w}px`;
+          el.style.height = `${m.h}px`;
+        }
+        // o nome do pasto não pega o clique: ele passa para a área por baixo
+        el.style.pointerEvents = m.semToque ? "none" : "";
+        el.style.cursor = m.semToque ? "" : "pointer";
         el.style.zIndex = String(m.z ?? 0);
         el.title = m.titulo || "";
         if (proj) this.posicionar(proj, m, el);
@@ -143,7 +156,41 @@ export async function criarMapaGoogleWeb({ element, config }) {
   };
   div.addEventListener("pointerdown", aoComecarGesto, true);
 
+  /**
+   * A câmera para os nomes dos pastos (D-PROD-374): zoom do MapLibre, ponto → px do mapa e o tamanho do mapa.
+   * @param {boolean} final o mapa parou
+   */
+  const camera = (final) => {
+    const proj = camada.getProjection?.();
+    const z = mapa.getZoom?.();
+    if (!proj || !Number.isFinite(z)) return null;
+    return {
+      zoom: z - 1,
+      projetar: (/** @type {number} */ lat, /** @type {number} */ lng) => proj.fromLatLngToContainerPixel(new g.LatLng(lat, lng)),
+      largura: div.clientWidth,
+      altura: div.clientHeight,
+      final,
+    };
+  };
+
   return {
+    /**
+     * Avisa a câmera: durante o zoom (`zoom_changed`) e quando o mapa para (`idle`). Devolve como desligar.
+     * @param {(camera: any) => void} cb
+     */
+    aoMudarCamera(cb) {
+      const avisar = (/** @type {boolean} */ final) => {
+        const c = camera(final);
+        if (c) cb(c);
+      };
+      const l1 = mapa.addListener("zoom_changed", () => avisar(false));
+      const l2 = mapa.addListener("idle", () => avisar(true));
+      avisar(true);
+      return () => {
+        l1?.remove?.();
+        l2?.remove?.();
+      };
+    },
     /** @param {string} tipo */
     async setMapType(tipo) {
       mapa.setMapTypeId(tipoDaApi(tipo));

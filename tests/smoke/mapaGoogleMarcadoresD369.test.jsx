@@ -208,7 +208,7 @@ describe("G369-2 — camada de marcadores", () => {
     mapa.definirMarcadores("supl", [{ id: "c1", lat: -0.01, lng: 0.02, url: "data:a", w: 40, h: 30, z: 500, titulo: "Cocho 1", onClick: clique }]);
     const [img] = imgs(el);
     // ponto em (20, 10) px; a imagem 40×30 centrada: canto em (0, -5)
-    expect(img.style.transform).toBe("translate(0px, -5px)");
+    expect(img.style.transform).toBe("translate3d(0.00px, -5.00px, 0)");
     expect(img.style.width).toBe("40px");
     expect(img.style.zIndex).toBe("500");
     // no celular, o dedo em cima do ícone não dá zoom na página: o gesto é do mapa
@@ -220,7 +220,7 @@ describe("G369-2 — camada de marcadores", () => {
     // deslocamento do lote (como o icon-offset do MapLibre)
     mapa.definirMarcadores("lotes", [{ id: "a1", lat: 0, lng: 0, url: "data:b", w: 44, h: 42, dx: 0, dy: -26, z: 1000 }]);
     const lote = imgs(el).find((i) => i.dataset.marcador === "lotes|a1");
-    expect(lote?.style.transform).toBe("translate(-22px, -47px)");
+    expect(lote?.style.transform).toBe("translate3d(-22.00px, -47.00px, 0)");
   });
 
   it("a roda do mouse e o arrasto em cima do marcador chegam ao mapa; o clique no marcador não abre a área por baixo", async () => {

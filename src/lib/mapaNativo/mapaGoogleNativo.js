@@ -12,6 +12,7 @@
  * o plugin nativo instalado (APK 1.0.6 em diante); no site, com a chave do Google configurada. Sem isso — APK antigo
  * recebendo a atualização automática, testes — nada muda: o Mapa Geral segue no MapLibre.
  */
+import { App } from "@capacitor/app";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 
 import { getGoogleMapsApiKey } from "@/config/runtimeConfig";
@@ -288,4 +289,22 @@ export function areaNoPonto(poligonos, lat, lng) {
     if (dentro && tag != null) return tag;
   }
   return null;
+}
+
+/**
+ * A partir deste número de APK (`versionCode`) o mapa nativo aceita a imagem `data:` nos marcadores (remendo
+ * D-PROD-374): os ícones do Mapa Geral viram marcadores do próprio mapa. APK 1.0.8 = código 9.
+ */
+export const APK_MARCADORES_NATIVOS = 9;
+
+/** O número do APK instalado (`versionCode`), ou 0 fora do app ou sem a informação. */
+export async function numeroDoApk() {
+  try {
+    if (!Capacitor.isNativePlatform()) return 0;
+    const info = await App.getInfo();
+    const n = Number(info?.build);
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
 }

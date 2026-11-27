@@ -9,6 +9,8 @@
  * pelo clique do mapa e é conferido aqui (`tocar`).
  */
 
+import { caixaDoMarcador, porNaCaixa } from "./posicaoDoMarcador.js";
+
 /**
  * @typedef {import('./mapaGoogleWeb.js').MarcadorWeb} Marcador
  * @typedef {(lat: number, lng: number) => ({ x: number, y: number } | null)} Projetar
@@ -22,25 +24,30 @@ export function criarCamadaDeImagens(div) {
   const itens = new Map();
   /** @type {Projetar | null} */
   let projetarAtual = null;
+  /** Zoom do MapLibre da última projeção (o tamanho dos nomes segue o zoom). */
+  let zoomAtual = 14;
 
-  /** Canto da imagem na tela, ou null sem projeção. @param {Marcador} m */
-  const canto = (m) => {
+  /** Caixa da imagem na tela, ou null sem projeção. @param {Marcador} m */
+  const caixa = (m) => {
     const p = projetarAtual?.(m.lat, m.lng);
-    if (!p) return null;
-    return { x: Math.round(p.x + (m.dx || 0) - m.w / 2), y: Math.round(p.y + (m.dy || 0) - m.h / 2) };
+    return p ? caixaDoMarcador(m, p, zoomAtual) : null;
   };
 
   /** @param {Marcador} m @param {HTMLImageElement} el */
   const posicionar = (m, el) => {
-    const c = canto(m);
-    if (c) el.style.transform = `translate(${c.x}px, ${c.y}px)`;
+    const c = caixa(m);
+    if (c) porNaCaixa(el, c);
   };
 
   return {
     itens,
-    /** Reposiciona todas as imagens com a projeção dada (ou a última). @param {Projetar} [projetar] */
-    posicionarTodos(projetar) {
+    /**
+     * Reposiciona todas as imagens com a projeção dada (ou a última).
+     * @param {Projetar} [projetar] @param {number} [zoom] zoom do MapLibre (o do Google − 1)
+     */
+    posicionarTodos(projetar, zoom) {
       if (projetar) projetarAtual = projetar;
+      if (Number.isFinite(zoom)) zoomAtual = /** @type {number} */ (zoom);
       for (const { m, el } of itens.values()) posicionar(m, el);
     },
     /**
@@ -65,7 +72,7 @@ export function criarCamadaDeImagens(div) {
           // A imagem não pega toque nenhum (D-PROD-373): todo toque vai para o mapa nativo, então a pinça e o arrasto
           // que começam em cima de um ícone mexem o mapa. O toque rápido num ícone chega pelo clique do mapa
           // (`tocar`, com o ponto na tela).
-          el.style.cssText = "position:absolute;left:0;top:0;pointer-events:none;user-select:none;-webkit-user-drag:none;";
+          el.style.cssText = "position:absolute;left:0;top:0;pointer-events:none;user-select:none;-webkit-user-drag:none;will-change:transform;";
           el.dataset.marcador = k;
           div.appendChild(el);
           it = { m, el };
@@ -74,8 +81,10 @@ export function criarCamadaDeImagens(div) {
         it.m = m;
         const { el } = it;
         if (el.getAttribute("src") !== m.url) el.src = m.url;
-        el.style.width = `${m.w}px`;
-        el.style.height = `${m.h}px`;
+        if (!m.escala) {
+          el.style.width = `${m.w}px`;
+          el.style.height = `${m.h}px`;
+        }
         el.style.zIndex = String(m.z ?? 0);
         el.title = m.titulo || "";
         posicionar(m, el);
@@ -90,9 +99,11 @@ export function criarCamadaDeImagens(div) {
       /** @type {Marcador | null} */
       let achado = null;
       for (const { m } of itens.values()) {
-        const c = canto(m);
+        // o nome do pasto não recebe toque (o toque é da área)
+        if (m.semToque || !m.onClick) continue;
+        const c = caixa(m);
         if (!c) continue;
-        const dentro = x >= c.x - folga && x <= c.x + m.w + folga && y >= c.y - folga && y <= c.y + m.h + folga;
+        const dentro = x >= c.x - folga && x <= c.x + c.w + folga && y >= c.y - folga && y <= c.y + c.h + folga;
         // empate de z-index: o de cima é o posto depois (a ordem do Map é a das imagens no div)
         if (dentro && (!achado || (m.z ?? 0) >= (achado.z ?? 0))) achado = m;
       }
