@@ -10321,4 +10321,33 @@ Vários itens ficavam presos para sempre, sem botão:
 
 > **Numeração:** a `main` (`471ad9c9d`) indicava `Próxima decisão: D-PROD-334`, reservada pela PR #424. Antes do merge, a #424 levou a D-PROD-334 (`dd8d4525a`) e a `main` passou a indicar `Próxima decisão: D-PROD-335`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-336. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-336 -->
+## D-PROD-337 — Sem internet, Grupo 2: sem travas escondidas e sem aviso que engana
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("Continue corrigindo bugs"), depois do Grupo 1 (D-PROD-335) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SEM-INTERNET-GRUPO2-D337-REPORT.md`](./SEM-INTERNET-GRUPO2-D337-REPORT.md)
+
+**Decisão.**
+1. **A espera por falta de rede acaba quando a rede volta.**
+   - Antes: com o celular mostrando sinal mas sem dados, as falhas se acumulavam e "Enviar agora" não mandava nada por até 10 min.
+   - Agora: a falha de rede fica marcada no item (`ultimo_erro.falha = 'rede'`). A volta da internet, a volta ao app, a abertura do app, "Enviar agora" e a sincronização nos dois sentidos liberam essa espera (`liberarEsperaDeRede`).
+   - A espera depois de erro do servidor continua.
+   - Uma espera maior que a maior possível é relógio do celular que voltou e não segura o item.
+2. **"Tudo sincronizado" só quando nada ficou no celular.**
+   - Antes: o cartão olhava só a baixa dos dados.
+   - Agora: com registros na fila (aguardando ou precisando de atenção), o fim mostra "N registros ficaram no celular".
+3. **A leitura do cocho parada não trava o cocho.**
+   - Antes: uma leitura recusada deixava os lançamentos do mesmo cocho "aguardando" para sempre.
+   - Agora: o tipo `independente` (leitura) não espera nem segura ninguém pelo recurso, nem na passada nem no envio direto.
+4. **O valor recusado não aparece como salvo.** A edição ou exclusão que o servidor recusou não é mais aplicada por cima da lista do servidor. Ela espera a pessoa decidir na janela Sincronização.
+5. **Cada fazenda vê só a sua fila no mapa.**
+   - Antes: a tarefa da fazenda A editada sem internet aparecia no mapa da fazenda B.
+   - Agora: a fila de cadastros informa a fazenda de cada item (`empresaId`), e o mapa usa só a fila da fazenda selecionada.
+6. **"Excluir" a tarefa criada no aparelho limpa tudo.** As fotos guardadas dela saem junto e o mapa relê na hora. Quando os cadastros feitos sem internet chegam ao servidor, o mapa também relê e tira a marca "aguardando envio".
+7. **Sessão vencida diz o motivo.** O item fica com o motivo "O acesso deste celular venceu: saia e entre de novo para enviar." Antes ficava "aguardando" sem explicação.
+
+**Fica para uma missão com mudança no servidor:**
+- A transferência do depósito que tentou subir com sinal fraco ainda some do histórico, porque a movimentação de estoque não guarda o código da operação.
+- A edição de cadastro com sinal fraco ainda dá erro em vez de ir para a fila. O PATCH precisa reconhecer o pedido repetido, senão a versão (D-PROD-316) acusaria um conflito falso.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indica D-PROD-336, mas a D-PROD-335 está nas PRs #425 (Grupo 1) e #426 (diário), e uma delas vai passar a D-PROD-336. Esta é a D-PROD-337 e o marcador passa a D-PROD-338. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-338 -->

@@ -222,6 +222,9 @@ const aplicarPendentes = (items, operacoes) => {
   const proximo = [...items];
 
   operacoes.forEach((operacao) => {
+    // D-PROD-337: a edição ou exclusão que o servidor RECUSOU não vale mais nas listas (ela espera a pessoa decidir na
+    // janela Sincronização). Antes o valor recusado continuava pintado por cima do servidor, como se estivesse salvo.
+    if (operacao.operation !== "create" && operacao.quarentena?.codigo === CODIGO_RECUSADO_PELO_SERVIDOR) return;
     if (operacao.operation === "create") {
       // D-PROD-307: o registro criado offline também fica no cache: sem isto aparecia duas vezes.
       const i = proximo.findIndex((item) => item?.id === operacao.data?.id);
@@ -1503,6 +1506,8 @@ export const listarItensDaFilaDeEntidades = async () =>
         tentativas: Number(item.tentativas_com_erro ?? 0) + (situacao === "recusado" ? 1 : 0),
         ultimaTentativaEm: item.quarentena?.em ?? item.ultimo_erro?.em ?? null,
         dados: item.data && typeof item.data === "object" ? item.data : null,
+        // D-PROD-337: a fazenda em que o registro foi feito (a edição nem sempre leva `empresa_id` nos dados).
+        empresaId: item.empresa_id ?? null,
       };
     });
 

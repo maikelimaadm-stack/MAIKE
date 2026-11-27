@@ -386,6 +386,7 @@ const resumoDoErro = (erro) => {
 };
 
 /** @param {number} tentativas */
+const ESPERA_MAXIMA_MS = ESPERAS_MS[ESPERAS_MS.length - 1];
 const esperaDepoisDe = (tentativas) => ESPERAS_MS[Math.min(Math.max(tentativas - 1, 0), ESPERAS_MS.length - 1)];
 
 /**
@@ -476,9 +477,12 @@ export const enviarOuGuardar = async (tipo, payload, opcoes = {}) => {
     return { estado: 'aguardando', operationId };
   }
   const naoConfirmado = (/** @type {string} */ id) => porId.get(id)?.estado !== 'enviado';
+  // D-PROD-337: tipo `independente` (a leitura de cocho) não espera nem segura ninguém pelo recurso. Antes, uma leitura
+  // parada ("precisa de atenção") fazia todo lançamento novo daquele cocho ficar "aguardando" para sempre.
+  const semDisputa = (/** @type {ItemDaFila} */ i) => def.independente === true || TIPOS.get(i.tipo)?.independente === true;
   const temQueEsperar =
     referencias.some(naoConfirmado) ||
-    itens.some((i) => i.estado !== 'enviado' && i.recursos.some((r) => recursos.includes(r))) ||
+    itens.some((i) => i.estado !== 'enviado' && !semDisputa(i) && i.recursos.some((r) => recursos.includes(r))) ||
     (podeGuardar && (await esperaPorFora(payload)));
 
   /**
@@ -659,6 +663,25 @@ export const agendarSincronizacao = (atrasoMs = 1500) => {
 /** D-PROD-307: alguém pediu uma passada enquanto outra rodava (registro novo, "tentar de novo"). */
 let pedidaDuranteAPassada = false;
 
+/**
+ * D-PROD-337 — a internet voltou, o app voltou à tela ou a pessoa tocou em "Enviar agora": o que esperava por FALTA
+ * DE REDE tenta já. Antes, depois de várias falhas (celular com sinal mas sem dados), "Enviar agora" não mandava
+ * nada por até 10 minutos. A espera depois de erro do SERVIDOR continua (não martelar um servidor com problema).
+ */
+export const liberarEsperaDeRede = () =>
+  exclusivo(async () => {
+    const fila = portaDaFila();
+    if (!fila || !sessao) return 0;
+    let liberados = 0;
+    for (const item of await fila.listar()) {
+      if (!eDaSessao(item) || item.estado !== 'pendente' || !(item.proxima_tentativa_em > 0)) continue;
+      if (item.ultimo_erro?.falha !== 'rede') continue;
+      await fila.gravar({ ...item, proxima_tentativa_em: 0 });
+      liberados += 1;
+    }
+    return liberados;
+  });
+
 export const sincronizar = () => {
   if (passadaEmCurso) {
     // A passada em curso já leu a fila: o que entrou agora só sairia na próxima (até 60 s).
@@ -706,7 +729,8 @@ const passada = async () => {
 
   /** @param {ItemDaFila} item */
   const parar = (item) => {
-    item.recursos.forEach((r) => recursosParados.add(r));
+    // D-PROD-337: o item `independente` (leitura de cocho) parado não segura o recurso (o cocho) dos outros.
+    if (TIPOS.get(item.tipo)?.independente !== true) item.recursos.forEach((r) => recursosParados.add(r));
     itensParados.add(item.id);
   };
 
@@ -757,11 +781,14 @@ const passada = async () => {
       parar(item);
       continue;
     }
-    if (item.recursos.some((r) => recursosParados.has(r)) || item.referencias.some((id) => itensParados.has(id))) {
+    const independenteDoRecurso = TIPOS.get(item.tipo)?.independente === true;
+    if ((!independenteDoRecurso && item.recursos.some((r) => recursosParados.has(r))) || item.referencias.some((id) => itensParados.has(id))) {
       parar(item);
       continue;
     }
-    if (item.proxima_tentativa_em > agora()) {
+    // D-PROD-337: uma espera maior que a maior possível é relógio do celular que voltou (estava adiantado quando a
+    // falha foi gravada): não segura o item por dias.
+    if (item.proxima_tentativa_em > agora() && item.proxima_tentativa_em <= agora() + ESPERA_MAXIMA_MS) {
       parar(item);
       continue;
     }
@@ -856,10 +883,21 @@ const passada = async () => {
       emitir();
     } catch (erro) {
       const tipoDeFalha = classificarFalhaDeEnvio(erro);
-      if (tipoDeFalha === 'sessao') return fim();
+      if (tipoDeFalha === 'sessao') {
+        // D-PROD-337: a sessão venceu (ou o servidor recusou o login): o item diz o motivo na janela Sincronização.
+        // Antes nada era gravado e a fila ficava "aguardando" sem explicação.
+        await gravarSeAindaNaFila({
+          ...item,
+          ultimo_erro: { codigo: 'SESSAO_VENCIDA', mensagem: 'O acesso deste celular venceu: saia e entre de novo para enviar.', em: new Date(agora()).toISOString(), falha: 'sessao' },
+        });
+        emitir();
+        return fim();
+      }
       const tentativas = item.tentativas + 1;
       if (tipoDeFalha === 'rede') {
-        await gravarSeAindaNaFila({ ...item, tentativas, proxima_tentativa_em: agora() + esperaDepoisDe(tentativas), ultimo_erro: resumoDoErro(erro) });
+        // D-PROD-337: a falha de REDE fica marcada (`falha: 'rede'`): quando a internet volta, ou a pessoa pede
+        // "Enviar agora", a espera acaba (`liberarEsperaDeRede`).
+        await gravarSeAindaNaFila({ ...item, tentativas, proxima_tentativa_em: agora() + esperaDepoisDe(tentativas), ultimo_erro: { ...resumoDoErro(erro), falha: 'rede' } });
         emitir();
         // Sem rede para um, sem rede para os outros: para a passada.
         return fim();

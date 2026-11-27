@@ -65,6 +65,18 @@ const emitir = (novo) => {
 /** @type {Promise<{ok: boolean, falhas: number, em: number|null}>|null} */
 let emCurso = null;
 
+/** Quantos registros desta sessão ainda não chegaram ao servidor (aguardando + precisa de atenção). */
+const quantosFicaramNoCelular = async () => {
+  try {
+    // Sob demanda: a fila única junta motor, cadastros e fotos (e quem a carrega já carregou este módulo).
+    const { lerFilaDeEnvio } = await import('@/services/sincronizacaoService');
+    const r = await lerFilaDeEnvio();
+    return Number(r?.aguardando ?? 0) + Number(r?.atencao ?? 0);
+  } catch {
+    return 0;
+  }
+};
+
 /**
  * Envia e depois baixa, mostrando a porcentagem.
  * @param {{ empresaId: string|null, aoAvancar?: (p: {titulo: string, feitas: number, total: number}) => void }} opcoes
@@ -77,7 +89,8 @@ export const sincronizarNosDoisSentidos = ({ empresaId, aoAvancar }) => {
   emCurso = (async () => {
     if (estado.ativo) emitir({ ativo: false, fase: null, titulo: '' });
     emitir({ ativo: true, fase: 'enviando', percentual: 2, titulo: 'Enviando o que foi feito no celular' });
-    await sincronizarTudo().catch(() => undefined);
+    // D-PROD-337: a internet voltou (ou o app abriu): o que esperava por falta de rede tenta já.
+    await sincronizarTudo({ jaEmVoltaDaRede: true }).catch(() => undefined);
     emitir({ percentual: FAIXAS_DA_SINCRONIA.envio[1], titulo: 'Baixando os dados do sistema' });
     /** @type {{ok: boolean, falhas: number, em: number|null}} */
     let r = { ok: false, falhas: 0, em: null };
@@ -90,8 +103,16 @@ export const sincronizarNosDoisSentidos = ({ empresaId, aoAvancar }) => {
         },
       });
     } finally {
-      const completo = r.ok;
-      emitir({ fase: completo ? 'pronto' : 'incompleto', percentual: 100, titulo: completo ? 'Tudo sincronizado' : 'Sincronizado em parte' });
+      // D-PROD-337: "Tudo sincronizado" só quando nada ficou no celular. Antes valia só a baixa: com registros parados
+      // na fila (sem rede no envio, recusados), o cartão dizia "Tudo sincronizado" e a pessoa ia embora.
+      const restantes = await quantosFicaramNoCelular();
+      const completo = r.ok && restantes === 0;
+      const titulo = completo
+        ? 'Tudo sincronizado'
+        : restantes > 0
+          ? `${restantes} ${restantes === 1 ? 'registro ficou' : 'registros ficaram'} no celular`
+          : 'Sincronizado em parte';
+      emitir({ fase: completo ? 'pronto' : 'incompleto', percentual: 100, titulo });
       esconder = setTimeout(() => {
         esconder = null;
         if (!emCurso) emitir({ ativo: false, fase: null, titulo: '' });
