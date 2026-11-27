@@ -292,7 +292,8 @@ describe("D-PROD-359 — tanque da fazenda (b)", () => {
     await abrirAbastecimento();
     // Um só Produto e um só local: já escolhidos (o Produto aparece pelo nome real do estoque).
     expect(await screen.findByTestId("abastecimento-frente-produto")).toHaveTextContent("Óleo diesel S10");
-    expect(screen.getByTestId("abastecimento-frente-disponivel")).toHaveTextContent("Disponível neste local: 8.420 L · Tanque diesel sede");
+    // O saldo dos locais chega depois do Produto (outra consulta): esperar, não ler na hora (falhava 2 em 5 na main).
+    expect(await screen.findByTestId("abastecimento-frente-disponivel")).toHaveTextContent("Disponível neste local: 8.420 L · Tanque diesel sede");
     // Um tanque só: a pergunta do tanque não aparece.
     expect(screen.queryByTestId("abastecimento-frente-tanque")).toBeNull();
     // Contador: o rótulo vem do medidor da máquina, e a última leitura vem do cadastro (1.100,0).

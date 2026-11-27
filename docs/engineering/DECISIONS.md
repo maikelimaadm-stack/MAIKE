@@ -10875,11 +10875,27 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-363 (362 é a etapa 2, PR #450). O marcador passa a D-PROD-364. Conferir antes do merge (regra A5).
 
+## D-PROD-364 — Cadastrar no mapa como no AgriWebb, etapa 4: régua para medir distância e área sem gravar
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário (o mapa como no AgriWebb) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`MAPA-CADASTRO-ETAPA4-D364-REPORT.md`](./MAPA-CADASTRO-ETAPA4-D364-REPORT.md)
+
+**Decisão.**
+1. **Botão "Medir no mapa"** (régua) na coluna da direita do Mapa Geral, em qualquer aba e sem permissão especial, porque só mede e não grava. Ele abre o editor do mapa no modo `soMedir`, carregado só quando a pessoa toca (`React.lazy`), para o Mapa Geral continuar leve.
+2. **Modo `soMedir` do editor** (`MapaDesenho`).
+   - Escolha **Distância · Área**.
+   - Mede ao vivo: o comprimento na distância; a área e o perímetro na área, já com ela aberta.
+   - Usa as mesmas ferramentas do cadastro: toque, mira (D-PROD-362), ímã, Editar e Mover.
+   - Sem Terminar/Salvar e sem formulário. Na área, só "Fechar área" para ajustar a forma fechada.
+   - Fechar a régua nunca pergunta, porque não há nada a perder. Fora da régua, o editor continua perguntando ao sair com desenho.
+3. **Sem internet:** funciona igual, porque só usa o mapa e o GPS do aparelho.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-364 (362 etapa 2, PR #450; 363 etapa 3, ainda local). O marcador passa a D-PROD-365. Conferir antes do merge (regra A5).
+
 ## D-PROD-366 — Mapa nativo do Google no app, etapa 1: satélite do Google e áreas, em teste por aparelho
 
 **Data:** 2026-11-27 · **Origem:** o proprietário comparou com o AgriWebb e pediu o mapa nativo do Google no Android e no iOS ("vamos usar o mapa nativo do google", "pode começar") · **Relatório:** [`MAPA-GOOGLE-NATIVO-ETAPA1-D366-REPORT.md`](./MAPA-GOOGLE-NATIVO-ETAPA1-D366-REPORT.md) · **Migration:** nenhuma · **APK:** 1.0.6 (código 7)
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-366: a `main` marca D-PROD-364, reservada pela PR #452, e a D-PROD-365 está reservada pela PR #453 (regra A5). O marcador da `main` fica com quem levar a 364 e a 365; esta PR não mexe nele.
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-366: a D-PROD-364 foi da PR #452 (cadastro no mapa, etapa 4) e a D-PROD-365 está reservada pela PR #453 (regra A5). O marcador da `main` fica com a PR #453, que leva a 365; esta PR não mexe nele.
 
 - **Problema:** o APK do AgriWebb usa o Google Maps nativo do Android (`com.google.android.gms.maps`, satélite e híbrido). O Google não cobra pelo mapa nativo (Maps SDK de Android e iOS), o SDK guarda as imagens já vistas e o mapa é desenhado em código nativo. O MAKGestão desenha o mapa numa página web dentro do app (MapLibre), com o satélite da Map Tiles API, que conta cada imagem baixada e não pode ser guardada no aparelho.
 - **Decisão:** o app passa a ter o mapa nativo do Google, pelo plugin oficial `@capacitor/google-maps` 8.0.1. O site continua no MapLibre, porque o Google Maps do navegador é cobrado. A troca é por etapas, e a etapa 1 fica atrás de uma escolha por aparelho:
@@ -10904,4 +10920,4 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - criação na vista salva, janela transparente e devolução, toque → área, vista gravada, enquadramento, troca de cor, estilo e tipo, falha;
   - a escolha no painel.
 
-<!-- Próxima decisão: D-PROD-364 -->
+<!-- Próxima decisão: D-PROD-365 -->
