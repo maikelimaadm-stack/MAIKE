@@ -538,7 +538,9 @@ export const lancamentosDoDia = (apontamentos, dia, fuso) => {
       monta("insumo", l, titulo, sem(l.produto?.nome), junta(quantidadeTexto(l.quantidade_lancamento ?? l.quantidade), sem(l.unidade_lancamento) || rotuloDaUnidade(l.unidade) || sem(l.unidade)));
     }
     for (const l of (ap.maquinas ?? []).filter(confirmada)) {
-      const sub = sem(l.bem?.nome) || sem(l.implemento?.nome);
+      // D-PROD-365: a linha com as duas leituras mostra "inicial → final" (a conta das horas); sem elas, o nome do bem.
+      const leituras = ehCanonico(l.leitura_inicial) && ehCanonico(l.leitura_final) ? `${formatarHorimetro(l.leitura_inicial)} → ${formatarHorimetro(l.leitura_final)}` : "";
+      const sub = leituras || sem(l.bem?.nome) || sem(l.implemento?.nome);
       monta("maquina", l, "Máquina", sub, junta(quantidadeTexto(l.quantidade_uso), sem(l.medidor_unidade)));
     }
     for (const l of (ap.mao_obra ?? []).filter(confirmada)) {
@@ -640,12 +642,31 @@ export const horasDaFrenteNoDia = (itens, chave, dia, horimetroInicial) => {
   if (lidosHoje.length === 0) return null;
   const maiorHoje = lidosHoje.reduce((maior, v) => (comparar(v, maior) > 0 ? v : maior));
 
-  /** @type {string | null} o último horímetro lido antes do dia (a base); sem ele, o inicial da abertura */
+  const base = baseDoHorimetroDaFrente(itens, chave, dia, horimetroInicial)?.horimetro ?? null;
+  if (base === null) return null;
+  if (comparar(maiorHoje, base) <= 0) return ZERO_HORAS;
+  return diferencaSegura(maiorHoje, base);
+};
+
+/**
+ * D-PROD-365: a BASE do horímetro da frente antes do dia `dia` — o MAIOR entre as leituras de dias anteriores (a leitura
+ * final das linhas de máquina confirmadas e o `[carga hor=…]` das cargas), o ENCERRAMENTO anterior da frente e as aberturas
+ * dela em dias anteriores; sem nada disso, o horímetro inicial da abertura. Só valores canônicos. `origem` diz de onde veio.
+ * É a lógica que `horasDaFrenteNoDia` sempre usou (movida para cá sem mudar o resultado).
+ * @param {unknown} itens os apontamentos da atividade (qualquer ordem)
+ * @param {string} chave a chave da frente (`chaveDaFrente`)
+ * @param {string} dia o "hoje" da fazenda (AAAA-MM-DD)
+ * @param {unknown} horimetroInicial o horímetro canônico da abertura da frente
+ * @returns {{ horimetro: string, origem: "lancamento" | "encerramento" | "abertura" } | null}
+ */
+export const baseDoHorimetroDaFrente = (itens, chave, dia, horimetroInicial) => {
+  const daFrente = apontamentosDaFrente(itens, chave);
+  /** @type {{ horimetro: string, origem: "lancamento" | "encerramento" | "abertura" } | null} */
   let base = null;
   for (const ap of daFrente) {
     if (ap?.status !== "CONFIRMADO" || !(String(ap.data_operacional ?? "") < dia)) continue;
     for (const v of horimetrosLidosNoApontamento(ap)) {
-      if (base === null || comparar(v, base) > 0) base = v;
+      if (base === null || comparar(v, base.horimetro) > 0) base = { horimetro: v, origem: "lancamento" };
     }
   }
   // D-PROD-352 (item 3): o ENCERRAMENTO anterior da frente também é leitura. A reabertura não traz horímetro, então sem ele
@@ -653,14 +674,28 @@ export const horasDaFrenteNoDia = (itens, chave, dia, horimetroInicial) => {
   // frente nesses dias entram pelo mesmo critério (o maior horímetro vence).
   for (const ap of naoCancelados(itens)) {
     if (!(String(ap.data_operacional ?? "") < dia)) continue;
-    const marcado = lerEncerramento(ap.observacao) ?? lerAbertura(ap.observacao);
+    const encerramento = lerEncerramento(ap.observacao);
+    const marcado = encerramento ?? lerAbertura(ap.observacao);
     if (!marcado || chaveDaFrente(marcado) !== chave || !ehCanonico(marcado.horimetro)) continue;
-    if (base === null || comparar(marcado.horimetro, base) > 0) base = marcado.horimetro;
+    if (base === null || comparar(marcado.horimetro, base.horimetro) > 0) base = { horimetro: marcado.horimetro, origem: encerramento ? "encerramento" : "abertura" };
   }
-  if (base === null) base = ehCanonico(horimetroInicial) ? /** @type {string} */ (horimetroInicial) : null;
-  if (base === null) return null;
-  if (comparar(maiorHoje, base) <= 0) return ZERO_HORAS;
-  return diferencaSegura(maiorHoje, base);
+  if (base === null && ehCanonico(horimetroInicial)) base = { horimetro: /** @type {string} */ (horimetroInicial), origem: "abertura" };
+  return base;
+};
+
+/**
+ * D-PROD-365: o último horímetro lido pela FRENTE, para a linha de máquina NOVA do dia (a inicial dela): o maior entre a
+ * base de `baseDoHorimetroDaFrente` e as leituras das linhas CONFIRMADAS da frente hoje (a 2ª linha do dia parte da 1ª,
+ * sem contar duas vezes). Só valores canônicos; `null` sem base.
+ * @param {unknown} itens @param {string} chave @param {string} dia @param {unknown} horimetroInicial
+ * @returns {{ horimetro: string, origem: "lancamento" | "encerramento" | "abertura" } | null}
+ */
+export const ultimoHorimetroLidoDaFrente = (itens, chave, dia, horimetroInicial) => {
+  let ultimo = baseDoHorimetroDaFrente(itens, chave, dia, horimetroInicial);
+  for (const v of confirmadosDoDia(apontamentosDaFrente(itens, chave), dia).flatMap(horimetrosLidosNoApontamento)) {
+    if (ultimo === null || comparar(v, ultimo.horimetro) > 0) ultimo = { horimetro: v, origem: "lancamento" };
+  }
+  return ultimo;
 };
 
 /**

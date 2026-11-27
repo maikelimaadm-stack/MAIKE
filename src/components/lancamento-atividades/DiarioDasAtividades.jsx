@@ -9,6 +9,7 @@ import { AvisoGestao, CampoTexto } from "@/components/gestao/GestaoFormParts";
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import CargaDeInsumo from "@/components/lancamento-atividades/CargaDeInsumo";
 import AbastecimentoDaFrente from "@/components/lancamento-atividades/AbastecimentoDaFrente";
+import MaquinaDaFrente from "@/components/lancamento-atividades/MaquinaDaFrente";
 import AtividadeComFrentes, { CartaoDaAtividade, diaCurto, tituloDaFrente } from "@/components/lancamento-atividades/AtividadeComFrentes";
 import { PainelEncerrarAtividade, PainelEncerrarFrente } from "@/components/lancamento-atividades/EncerramentoDeFrentes";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
@@ -89,7 +90,7 @@ const hectaresDaArea = (v) => {
  */
 const OPCOES_DO_SERVICO = Object.freeze([
   { chave: "insumo", titulo: "Insumo", sub: "Produto ou mistura no implemento, por carga", Icone: FlaskConical },
-  { chave: "maquina", titulo: "Máquina", sub: "Trocar implemento, problema ou parada, corrigir horímetro", Icone: Truck },
+  { chave: "maquina", titulo: "Máquina", sub: "Horas trabalhadas e horímetro do dia", Icone: Truck },
   { chave: "abastecimento", titulo: "Abastecimento", sub: "Diesel, litros e horímetro", Icone: Fuel },
   { chave: "trocar-pasto", titulo: "Trocar pasto", sub: "Horímetro de saída e de chegada", Icone: ArrowLeftRight },
   { chave: "mao-de-obra", titulo: "Mão de obra", sub: "Quem ajudou e as horas", Icone: User },
@@ -356,6 +357,13 @@ export default function DiarioDasAtividades({
   const [abastecimentoAberto, setAbastecimentoAberto] = useState(false);
   /** O abastecimento está sendo enviado: voltar e fechar ficam travados até a resposta. */
   const [abastecimentoEnviando, setAbastecimentoEnviando] = useState(false);
+  /**
+   * D-PROD-365: a opção "Máquina" (só as horas do dia) na mesma janela (`MaquinaDaFrente`). Aparece com a permissão de
+   * lançar apontamento e com a frente aberta; o botão "Salvar horas" fica no rodapé (portal, como o abastecimento).
+   */
+  const [maquinaAberta, setMaquinaAberta] = useState(false);
+  const [maquinaEnviando, setMaquinaEnviando] = useState(false);
+  const [alvoRodapeMaquina, setAlvoRodapeMaquina] = useState(/** @type {HTMLElement | null} */ (null));
   const [alvoRodapeAbastecimento, setAlvoRodapeAbastecimento] = useState(/** @type {HTMLElement | null} */ (null));
   /**
    * D-PROD-359: o registro do dia criado pelo abastecimento desta janela (a frente e o dia dele). Uma nova tentativa, sem a
@@ -381,6 +389,8 @@ export default function DiarioDasAtividades({
   const podeGravar = acoes?.lancarApontamento === true && Boolean(empresaId) && Boolean(fuso) && fusoOk;
   /** D-PROD-359: o Abastecimento da frente exige lançar apontamento E a permissão de criar abastecimento. */
   const podeAbastecer = podeGravar && acoesAbastecimento?.criar === true;
+  /** D-PROD-365: a opção Máquina (horas do dia) exige lançar apontamento e a frente aberta (não encerrada). */
+  const podeMaquina = podeGravar && Boolean(abertura?.bemId) && !frenteAtual?.encerrada;
   /**
    * "Encerrar atividade" conclui a atividade, e o backend exige EDITAR a atividade (`POST /atividades/:id/concluir`, `g.editar`):
    * sem isso, as frentes fechariam e a conclusão falharia. Mesma checagem do "Concluir" da Lançamento (`acoes.editar`).
@@ -401,6 +411,7 @@ export default function DiarioDasAtividades({
   /** Zera os painéis do passo (encerrar frente, encerrar atividade, o abastecimento da frente e "Em breve"). */
   const zerarPaineis = () => {
     setAbastecimentoAberto(false);
+    setMaquinaAberta(false);
     setEmBreve(null);
     setEncerrandoFrente(false);
     setEncerrandoAtividade(false);
@@ -915,6 +926,12 @@ export default function DiarioDasAtividades({
     await queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, atividadeId) });
     return String(id);
   };
+  /** D-PROD-365: as horas da máquina gravadas: volta ao serviço (a frente relida) e avisa o pai. @param {any} registro */
+  const aoSalvarMaquina = (registro) => {
+    setMaquinaAberta(false);
+    onGravou?.(registro);
+    void queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, atividadeId) });
+  };
   /** O abastecimento confirmado: volta ao serviço (a frente relida) e avisa o pai. A notificação de sucesso já saiu do fluxo. @param {any} registro */
   const aoSalvarAbastecimento = (registro) => {
     setAbastecimentoAberto(false);
@@ -929,8 +946,12 @@ export default function DiarioDasAtividades({
   const carga = passo === "iniciado" && insumoAberto && permiteProduto;
   /** D-PROD-359: o abastecimento da frente (na mesma janela); só com a frente aberta e a permissão. */
   const abastecimento = passo === "iniciado" && abastecimentoAberto && podeAbastecer && Boolean(abertura?.bemId) && !frenteAtual?.encerrada;
+  /** D-PROD-365: as horas da máquina (opção Máquina), na mesma janela; só com a frente aberta e a permissão. */
+  const maquina = passo === "iniciado" && maquinaAberta && podeMaquina && Boolean(frenteAtual);
   const tituloTexto = abastecimento
     ? "Abastecimento"
+    : maquina
+    ? "Máquina"
     : carga
     ? "Insumo"
     : passo === "iniciado"
@@ -944,7 +965,7 @@ export default function DiarioDasAtividades({
           : passo === "escolher"
             ? "Em andamento neste pasto"
             : "Nova atividade";
-  const subTitulo = abastecimento
+  const subTitulo = abastecimento || maquina
     ? [rotuloTipo, abertura?.bemNome].filter(Boolean).join(" · ")
     : carga
     ? [rotuloTipo, abertura?.implementoNome].filter(Boolean).join(" · ")
@@ -977,6 +998,18 @@ export default function DiarioDasAtividades({
         onClick={() => setAbastecimentoAberto(false)}
         disabled={abastecimentoEnviando}
         data-testid="abastecimento-voltar"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+      </button>
+    ) : maquina ? (
+      <button
+        type="button"
+        className="tb-btn tb-btn-icon tb-btn-sm b1-realizacao__voltar"
+        aria-label="Voltar ao serviço"
+        title="Voltar ao serviço"
+        onClick={() => setMaquinaAberta(false)}
+        disabled={maquinaEnviando}
+        data-testid="maquina-voltar"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
       </button>
@@ -1173,11 +1206,11 @@ export default function DiarioDasAtividades({
       ) : (
         <>
           <div className="b1-aberto-opcoes" role="list" aria-label="O que fazer no serviço">
-            {OPCOES_DO_SERVICO.filter((o) => (o.chave === "insumo" ? permiteProduto : o.chave !== "abastecimento" || (podeAbastecer && !frenteAtual?.encerrada))).map((o) => {
+            {OPCOES_DO_SERVICO.filter((o) => (o.chave === "insumo" ? permiteProduto : o.chave === "maquina" ? podeMaquina : o.chave !== "abastecimento" || (podeAbastecer && !frenteAtual?.encerrada))).map((o) => {
               const Icone = o.Icone;
               return (
                 <div key={o.chave} role="listitem" className={o.chave === "outros-custos" ? "b1-aberto-opcao--inteira" : undefined}>
-                  <button type="button" className="b1-aberto-opcao" onClick={() => (o.chave === "insumo" ? setInsumoAberto(true) : o.chave === "abastecimento" ? setAbastecimentoAberto(true) : setEmBreve(o.titulo))} data-testid={`servico-opcao-${o.chave}`}>
+                  <button type="button" className="b1-aberto-opcao" onClick={() => (o.chave === "insumo" ? setInsumoAberto(true) : o.chave === "abastecimento" ? setAbastecimentoAberto(true) : o.chave === "maquina" ? setMaquinaAberta(true) : setEmBreve(o.titulo))} data-testid={`servico-opcao-${o.chave}`}>
                     <span className="b1-aberto-opcao__icone" aria-hidden>
                       <Icone size={18} strokeWidth={1.75} />
                     </span>
@@ -1361,6 +1394,9 @@ export default function DiarioDasAtividades({
     ) : abastecimento ? (
       // D-PROD-359: o "Salvar abastecimento" (e, na revisão, Confirmar/Corrigir) é desenhado pelo próprio componente (portal).
       <div ref={setAlvoRodapeAbastecimento} className="contents" />
+    ) : maquina ? (
+      // D-PROD-365: o "Salvar horas" é desenhado pela própria MaquinaDaFrente, neste lugar (portal).
+      <div ref={setAlvoRodapeMaquina} className="contents" />
     ) : carga ? (
       // D-PROD-334: o "Salvar carga" é desenhado pela própria CargaDeInsumo, neste lugar (portal).
       <div ref={setAlvoRodapeCarga} className="contents" />
@@ -1389,7 +1425,7 @@ export default function DiarioDasAtividades({
     <B1Janela
       aberto
       onFechar={onFechar}
-      podeFechar={!enviando && !cargaEnviando && !abastecimentoEnviando}
+      podeFechar={!enviando && !cargaEnviando && !abastecimentoEnviando && !maquinaEnviando}
       aoPedirFechar={() => !alvoFolha?.querySelector(".mk-sheet-root")}
       titulo={titulo}
       antesDoTitulo={voltar}
@@ -1487,7 +1523,22 @@ export default function DiarioDasAtividades({
             onSalvo={aoSalvarAbastecimento}
           />
         ) : null}
-        {passo === "iniciado" && !lendoFrente && !carga && !abastecimento ? iniciado : null}
+        {passo === "iniciado" && !lendoFrente && frenteAtual && maquina ? (
+          <MaquinaDaFrente
+            atividadeId={String(atividadeId)}
+            atividadeAreaId={atividadeAreaId}
+            filtrarPorArea={areasDaAtividade(atividadeAtual).length > 1}
+            onEnviando={setMaquinaEnviando}
+            itens={apontamentosDaAtividade}
+            frente={{ chave: frenteAtual.chave, abertura: frenteAtual.abertura }}
+            hoje={hoje}
+            podeGravar={podeGravar}
+            escopo={escopo}
+            alvoRodape={alvoRodapeMaquina}
+            onSalvo={aoSalvarMaquina}
+          />
+        ) : null}
+        {passo === "iniciado" && !lendoFrente && !carga && !abastecimento && !maquina ? iniciado : null}
       </MobileSheetPortalCtx.Provider>
     </B1Janela>
   );

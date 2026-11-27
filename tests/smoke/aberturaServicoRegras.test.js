@@ -5,6 +5,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   aberturaDosApontamentos,
   apontamentosDaFrente,
+  ultimoHorimetroLidoDaFrente,
   chaveDaFrente,
   chaveDaProducaoEncerramento,
   frentesDosApontamentos,
@@ -901,5 +902,58 @@ describe("horasDaFrenteNoDia / textoDasHorasHoje (o \"Hoje\" do cartão da frent
     expect(textoDasHorasHoje("0.0000")).toBe("0 h");
     expect(textoDasHorasHoje(null)).toBe("Nada hoje");
     expect(textoDasHorasHoje(undefined)).toBe("Nada hoje");
+  });
+});
+
+describe("D-PROD-365 — o último horímetro lido pela frente (a inicial da linha de máquina do dia)", () => {
+  const DIA = "2026-11-26";
+  const ONTEM = "2026-11-25";
+  const FUSO = "America/Sao_Paulo";
+  const CHAVE = "bem-7|imp-2";
+  const ABRE = marcadorDaAbertura({ bemId: "bem-7", implementoId: "imp-2", bemNome: "Trator 12", implementoNome: "Pulverizador 2.000 L", horimetro: "3127.0", responsavelId: "usr-3", responsavelNome: "João" });
+  const ap = (id, dia, observacao, maquinas = []) => ({ id, data_operacional: dia, status: "CONFIRMADO", createdAt: `${dia}T09:00:00.000Z`, observacao, produtos: [], maquinas, mao_obra: [], servicos: [] });
+  /** Uma linha de máquina gravada (o servidor devolve as leituras e o uso). */
+  const linha = (id, inicial, final, dia = DIA) => ({
+    id,
+    status: "CONFIRMADO",
+    bem_id: "bem-7",
+    bem: { nome: "Trator 12" },
+    leitura_inicial: inicial,
+    leitura_final: final,
+    quantidade_uso: (Number(final) - Number(inicial)).toFixed(4),
+    medidor_unidade: "h",
+    createdAt: `${dia}T12:00:00.000Z`,
+  });
+
+  it("sem nada além da abertura: a base é a abertura (origem abertura)", () => {
+    expect(ultimoHorimetroLidoDaFrente([ap("a", ONTEM, ABRE)], CHAVE, DIA, "3127.0")).toEqual({ horimetro: "3127.0", origem: "abertura" });
+  });
+
+  it("a última leitura de máquina de HOJE vence a base: a 2ª linha do dia parte dela (origem lancamento)", () => {
+    const itens = [ap("a", ONTEM, ABRE), ap("b", DIA, ABRE, [linha("m1", "3127.0", "3131.5")])];
+    expect(ultimoHorimetroLidoDaFrente(itens, CHAVE, DIA, "3127.0")).toEqual({ horimetro: "3131.5", origem: "lancamento" });
+  });
+
+  it("o encerramento de um dia anterior é a base (origem encerramento)", () => {
+    const encerramento = marcadorDoEncerramento({ bemId: "bem-7", implementoId: "imp-2", horimetro: "3140.0", bemNome: "Trator 12", implementoNome: "Pulverizador 2.000 L" });
+    const itens = [ap("a", ONTEM, ABRE), ap("e", ONTEM, encerramento)];
+    expect(ultimoHorimetroLidoDaFrente(itens, CHAVE, DIA, "3127.0")).toEqual({ horimetro: "3140.0", origem: "encerramento" });
+  });
+
+  it("sem base nenhuma (nem abertura canônica) → null", () => {
+    expect(ultimoHorimetroLidoDaFrente([], CHAVE, DIA, "1.245,0")).toBeNull();
+  });
+
+  it("duas linhas no dia: as horas de hoje somam só a diferença de cada uma (a 1ª não entra de novo)", () => {
+    const itens = [ap("a", ONTEM, ABRE), ap("b", DIA, ABRE, [linha("m1", "3127.0", "3131.5"), linha("m2", "3131.5", "3135.0")])];
+    expect(horasDaFrenteNoDia(itens, CHAVE, DIA, "3127.0")).toBe("8.0000");
+  });
+
+  it("\"Lançado hoje\": a linha de máquina com as leituras mostra \"inicial → final\" e o uso; sem leituras, o nome do bem", () => {
+    const base = { id: "ap-x", data_operacional: DIA, status: "CONFIRMADO", createdAt: `${DIA}T09:00:00.000Z`, observacao: null, produtos: [], mao_obra: [], servicos: [] };
+    const [com] = lancamentosDoDia([{ ...base, maquinas: [linha("m1", "3127.0000", "3131.5000")] }], DIA, FUSO);
+    expect(com).toMatchObject({ tipo: "maquina", titulo: "Máquina", sub: "3.127,0 → 3.131,5", quantidade: "4,5 h" });
+    const [sem] = lancamentosDoDia([{ ...base, maquinas: [{ ...linha("m2", null, null), leitura_inicial: null, leitura_final: null, quantidade_uso: "5.0000" }] }], DIA, FUSO);
+    expect(sem).toMatchObject({ tipo: "maquina", sub: "Trator 12", quantidade: "5 h" });
   });
 });
