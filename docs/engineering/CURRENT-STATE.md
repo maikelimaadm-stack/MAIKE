@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-27 (missões ativas D-PROD-369 (mapa do Google, etapa 2: marcadores no site), D-PROD-368 (cadastro de produto, conversão de unidades), D-PROD-367 (cadastro no mapa, etapa 5), D-PROD-366 (mapa do Google no app e no site, etapa 1) e D-PROD-360 (mapa leve, etapa 5); antes D-PROD-364 (etapa 4), D-PROD-363 (etapa 3), D-PROD-362 (etapa 2), D-PROD-361 (etapa 1); antes D-PROD-358 e D-PROD-354 (mapa leve, etapa 4); antes D-PROD-357, D-PROD-355; antes missões ativas D-PROD-353 (mapa leve, etapa 3) e D-PROD-350 (celular compartilhado, PR #438); antes D-PROD-349 (mapa leve, etapa 2, PR #437), D-PROD-346, D-PROD-347 (mapa leve, PR #436) e D-PROD-348 (diário, PR #434); antes D-PROD-345, D-PROD-344, D-PROD-343, D-PROD-342, D-PROD-341 (diário, PR #426), D-PROD-340, D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-27 (missões ativas D-PROD-370 (cadastro de ponto simples), D-PROD-369 (mapa do Google, etapa 2: marcadores no site), D-PROD-368 (cadastro de produto, conversão de unidades), D-PROD-366 (mapa do Google no app e no site, etapa 1) e D-PROD-360 (mapa leve, etapa 5); antes D-PROD-367 (cadastro no mapa, etapa 5), D-PROD-364 (etapa 4), D-PROD-363 (etapa 3), D-PROD-362 (etapa 2), D-PROD-361 (etapa 1); antes D-PROD-358 e D-PROD-354 (mapa leve, etapa 4); antes D-PROD-357, D-PROD-355; antes missões ativas D-PROD-353 (mapa leve, etapa 3) e D-PROD-350 (celular compartilhado, PR #438); antes D-PROD-349 (mapa leve, etapa 2, PR #437), D-PROD-346, D-PROD-347 (mapa leve, PR #436) e D-PROD-348 (diário, PR #434); antes D-PROD-345, D-PROD-344, D-PROD-343, D-PROD-342, D-PROD-341 (diário, PR #426), D-PROD-340, D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -18,6 +18,14 @@ rollout pausado **D-PROD-41**)
 | App | sem APK novo; no app (mapa nativo) os marcadores ficam para uma etapa própria |
 | Relatório | [`MAPA-GOOGLE-ETAPA2-D369-REPORT.md`](./MAPA-GOOGLE-ETAPA2-D369-REPORT.md) |
 | Próximas | 3 nomes; 4 arrastar lote, piscar, linhas, localização, coloração, "Localizar"; marcadores no app |
+
+## Missão ativa (2026-11-27) — MAIKE-PONTO-SIMPLES: cocho e depósito sem instruções, avisos nem Observações (D-PROD-370)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-370**: o formulário do ponto sem textos de ajuda, sem caixas de aviso, sem Observações e sem os campos de alerta do cocho; rótulos mais claros; o que é gravado não muda |
+| Banco | sem migration; sem APK novo |
+| Relatório | [`PONTO-SIMPLES-D370-REPORT.md`](./PONTO-SIMPLES-D370-REPORT.md) |
 
 ## Missão ativa (2026-11-27) — MAIKE-PRODUTO-TELA-BASE1: "Conversão de unidades" no padrão Base1 (D-PROD-368)
 
@@ -40,7 +48,7 @@ rollout pausado **D-PROD-41**)
 | Relatório | [`MAPA-GOOGLE-NATIVO-ETAPA1-D366-REPORT.md`](./MAPA-GOOGLE-NATIVO-ETAPA1-D366-REPORT.md) |
 | Próximas | 2 marcadores; 3 nomes; 4 coloração, focos, arrastar lote, localização; depois vira o padrão e a Map Tiles API sai |
 
-## Missão ativa (2026-11-27) — MAIKE-MAPA-CADASTRO: etapa 5, KMZ e exclusão sem internet (D-PROD-367)
+## Missão anterior (2026-11-27) — MAIKE-MAPA-CADASTRO: etapa 5, KMZ e exclusão sem internet (D-PROD-367)
 
 | Item | Estado |
 |---|---|

@@ -11019,7 +11019,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 **Data:** 2026-11-27 · **Origem:** com a etapa 1 no ar e a Map Tiles API desligada pelo proprietário, o satélite do site só vem pelo mapa do Google, e ele mostrava só as áreas ("no meu mapa do google abriu assim porém não mostrou lotes etc essas coisas") · **Relatório:** [`MAPA-GOOGLE-ETAPA2-D369-REPORT.md`](./MAPA-GOOGLE-ETAPA2-D369-REPORT.md) · **Migration:** nenhuma · **APK:** nenhum (o site e a atualização automática)
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369: a D-PROD-368 foi da PR #456 e a D-PROD-370 está reservada pela PR #458 (regra A5). O marcador passa a D-PROD-370.
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369: a D-PROD-368 foi da PR #456 e a D-PROD-370 da PR #458; a PR #457, que tinha reservado a 369, foi fechada sem merge (regra A5). O marcador fica D-PROD-371.
 
 - **Problema:**
   - A versão web do plugin (D-PROD-366) não dá acesso ao mapa do Google e só põe marcador com a ponta embaixo, sem deslocamento em px nem ordem por marcador.
@@ -11035,4 +11035,27 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - marcadores no mapa nativo do app: o SDK nativo só aceita imagem de arquivo do app ou de endereço `https`, não a imagem desenhada na hora.
 - **Testes:** `mapaGoogleMarcadoresD369.test.jsx` (9, com `google.maps` falso), `mapaGoogleNativoD366.test.jsx` (21; o site agora sem o plugin), `mapaRotulosSemBagunca.test.js` (lê o ponto do lote em `itensDoMapaGeral.js`). Os 1.102 testes do mapa passam.
 
-<!-- Próxima decisão: D-PROD-370 -->
+## D-PROD-370 — Cadastro de ponto simples: cocho e depósito sem instruções, avisos nem Observações
+
+**Data:** 2026-11-27 · **Origem:** o proprietário: "no cadastro de novo ponto seja cocho ou depósito precisa ser algo simples e correto… não preciso de instruções de campos, não preciso de alertas… não preciso de campo de observações" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`PONTO-SIMPLES-D370-REPORT.md`](./PONTO-SIMPLES-D370-REPORT.md)
+
+**Decisão.** O formulário do ponto (`FormularioPonto`) passa a mostrar só o necessário.
+1. **Saíram da tela:**
+   - todos os textos de instrução embaixo dos campos (limite, estoque mínimo, dias de reposição, "Selecione uma ou mais áreas…");
+   - as caixas de aviso: "Área detectada", "Cadastre primeiro um depósito", "um local de estoque será criado", "Local de estoque atual" e "criado também na Gestão de Bebedouros";
+   - o aviso de estoque mínimo ≥ limite;
+   - o campo **Observações**;
+   - no cocho, os campos **Dias de alerta para reposição** e **Alerta sem lançamento**.
+2. **Nada muda no que é gravado nem no que o mapa calcula.**
+   - Os campos que saíram continuam indo com o valor que já tinham: no cocho novo, os padrões de 3 e 10 dias; no cocho editado e nas Observações, o que já estava gravado.
+   - As validações continuam as mesmas. O "Selecione o depósito vinculado ao cocho." explica quando falta depósito, e o próprio campo mostra "Nenhum depósito cadastrado".
+3. **Rótulos mais claros:**
+   - "Ponto de referência" → **Tipo do ponto**;
+   - "Limite operacional do cocho/depósito (kg)" → **Limite do cocho/depósito (kg)**, também nas mensagens;
+   - "Áreas vinculadas" → **Pastos do cocho**;
+   - "Pastos vinculados" → **Pastos do bebedouro**;
+   - "Depósito vinculado" → **Depósito de onde sai o produto**.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369; a 369 foi reservada pela PR #457 (e 366 e 368 pelas #454 e #456), e esta ficou com D-PROD-370. O marcador passa a D-PROD-371. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-371 -->

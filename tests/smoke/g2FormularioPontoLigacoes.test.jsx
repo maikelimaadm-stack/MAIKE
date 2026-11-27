@@ -122,7 +122,7 @@ const enviar = async () => {
   });
 };
 const trocarTipoPara = async (rotulo) => {
-  await act(async () => fireEvent.click(screen.getByRole('combobox', { name: /Ponto de referência/ })));
+  await act(async () => fireEvent.click(screen.getByRole('combobox', { name: /Tipo do ponto/ })));
   await act(async () => fireEvent.click(screen.getByRole('option', { name: rotulo })));
 };
 
@@ -162,7 +162,7 @@ describe('FormularioPonto — ligações (G2)', () => {
       { id: 'b9', empresa_id: 'emp-1', nome: 'COCHO 1', setor_id: 's2', pasto_id: 'a2', area_vinculada_ids: ['a2'], ativo: true },
     ]);
     const onSave = await montar({ id: 'p1', empresa_id: 'emp-1', nome: 'COCHO 1', tipo: 'COCHO' });
-    await waitFor(() => expect(campo('Limite operacional do cocho (kg)').value).toBe('100'));
+    await waitFor(() => expect(campo('Limite do cocho (kg)').value).toBe('100'));
     await enviar();
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const [, corpo] = svc.atualizarPontoSuplementacao.mock.calls.find(([id]) => id === 'c1');
@@ -171,7 +171,7 @@ describe('FormularioPonto — ligações (G2)', () => {
 
   it('F4 — o cocho criado a partir do ponto vai sem numero_ponto', async () => {
     const onSave = await montar({ id: 'p1', empresa_id: 'emp-1', nome: 'COCHO NOVO', tipo: 'COCHO', setor_id: 's1', area_vinculada_ids: ['a1'], area_vinculada_id: 'a1', deposito_origem_id: 'd1', capacidade_cocho_kg: '50', metragem_cocho_m: '3', cobertura_cocho: 'Coberto' });
-    await waitFor(() => expect(campo('Limite operacional do cocho (kg)').value).toBe('50'));
+    await waitFor(() => expect(campo('Limite do cocho (kg)').value).toBe('50'));
     await enviar();
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(svc.criarPontoSuplementacao).toHaveBeenCalledTimes(1);
@@ -184,7 +184,7 @@ describe('FormularioPonto — ligações (G2)', () => {
     ]);
     svc.verificarRemocaoSuplementacao.mockRejectedValue(new ApiError(API_ERROR_CODES.MAPA_DELETE_BLOCKED));
     await montar({ id: 'p1', empresa_id: 'emp-1', nome: 'DEP 1', tipo: 'DEPÓSITO', setor_id: 's1' });
-    await waitFor(() => expect(campo('Limite operacional do depósito (kg)').value).toBe('100'));
+    await waitFor(() => expect(campo('Limite do depósito (kg)').value).toBe('100'));
     await trocarTipoPara('PORTEIRA');
     await enviar();
     await waitFor(() => expect(svc.toastError).toHaveBeenCalled());
@@ -208,7 +208,7 @@ describe('FormularioPonto — ligações (G2)', () => {
 
   it('F7 — depósito novo leva o local no mesmo POST (sem local órfão se o depósito falhar)', async () => {
     const onSave = await montar({ id: 'p1', empresa_id: 'emp-1', nome: 'DEP NOVO', tipo: 'DEPÓSITO', setor_id: 's1', capacidade_cocho_kg: '100', estoque_minimo_kg: '10' });
-    await waitFor(() => expect(campo('Limite operacional do depósito (kg)').value).toBe('100'));
+    await waitFor(() => expect(campo('Limite do depósito (kg)').value).toBe('100'));
     await enviar();
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(svc.criarLocal).not.toHaveBeenCalled();
@@ -244,7 +244,7 @@ describe('FormularioPonto — ligações (G2)', () => {
     svc.listarPontosAtivos.mockResolvedValue([PONTO_1, PONTO_4]);
     await montar(PONTO_1);
     await waitFor(() => expect(campo('Nome do ponto').value).toBe('TESTE'));
-    expect(campo('Limite operacional do depósito (kg)').value).toBe('');
+    expect(campo('Limite do depósito (kg)').value).toBe('');
     await enviar();
     await act(async () => {});
     expect(svc.atualizarPontoSuplementacao.mock.calls.some(([id]) => id === 'd1')).toBe(false);
