@@ -214,8 +214,10 @@ describe('D-PROD-310 — a unidade de conversão na transferência sem internet'
   it('ET-09 a fila guarda a unidade e a quantidade digitada (aditivas), a edição reabre nelas e o envio sobe igual', async () => {
     const { estoque, motor } = await carregar();
     // Fila só deste teste: a limpeza do beforeEach pode ser bloqueada por uma conexão aberta de um teste anterior, e um
-    // item que sobrou dele (mesmo depósito) seguraria estes na ordem por recurso. A fila é por dono (D-PROD-295).
-    motor.definirSessaoDaFila({ cliente_id: 'cli_1', usuario_id: 'usr_et09' });
+    // item que sobrou dele (mesmo depósito) seguraria estes na ordem por recurso. D-PROD-350: o dono da fila é a CONTA
+    // (não mais a pessoa), então este teste usa uma conta própria, como o ET-05 a ET-08.
+    motor.definirSessaoDaFila({ cliente_id: 'cli_et09', usuario_id: 'usr_et09' });
+    (await import('@/lib/offline/offlineTenant')).setOfflineTenant('cli_et09');
     online = false;
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
