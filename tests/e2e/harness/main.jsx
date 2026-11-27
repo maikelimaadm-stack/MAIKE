@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { MemoryRouter } from "react-router-dom";
 import "../../../src/index.css";
 import MapaDesenho from "@/components/mapa/MapaDesenho";
+import CapturaGPSPoligono from "@/components/mapa/CapturaGPSPoligono";
 import MapaGeral from "@/pages/MapaGeral";
 import HistoricoMovimentacoes from "@/components/lotes/HistoricoMovimentacoes";
 import { AREAS } from "./dados.js";
@@ -30,6 +31,8 @@ function App() {
   // D-PROD-123 (H2): histórico por ocorrência, larguras 390/412/768/1440.
   if (cena === "historico") return <div style={{ padding: 8 }}><HistoricoMovimentacoes lotes={[{ id: "l1", nome: "Lote A", area_atual_id: "a1" }]} areaId="a1" /></div>;
   if (cena === "geral") return <div style={{ height: "100vh" }}><MapaGeral /></div>;
+  // D-PROD-363: captura por GPS (gravar caminhando), com a posição dada pelo Playwright.
+  if (cena === "captura") return <CapturaGPSPoligono tipo="area" onSalvar={(p) => { window.__E2E__.capturados = p; setFechado("salvo"); }} onCancelar={() => setFechado("cancelado")} />;
   if (fechado) return <div data-testid="harness-listagem">listagem ({fechado})</div>;
   // GEO-08: "editar-salva" reabre a última área gravada no store local.
   const editar = cena === "editar" ? AREAS[1] : cena === "editar-salva" ? lerAreasSalvas().at(-1) || null : null;
