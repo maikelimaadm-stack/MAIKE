@@ -10701,6 +10701,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - densidade 1, arrastar: 33 – 38 → 44 – 48 quadros/s; acima de 50 ms 40 – 71 → 3 – 4;
   - densidade do Pixel 7 (2,625), zoom: 5,5 – 6,7 → 8,8 – 10,1 quadros/s; p95 383 – 483 ms → 183 – 233 ms; estilo 12,6 – 16,4 s → 0 (o resto é o SwiftShader pintando na CPU); o "antes" perdia passos da rodinha (terminava em zoom 11,2 – 11,6 em vez de 11,46);
   - densidade do Pixel 7, arrastar: 9,4 – 11,4 → 12,4 – 13,1 quadros/s; estilo ≈ 4,3 – 5,4 s → 0,02 s.
+- **Revisão independente:** duas corridas de severidade baixa corrigidas. (1) Uma publicação que ainda esperava imagens quando o mapa era refeito (`clearAll` + mapa novo) escrevia os nomes velhos no mapa novo: agora ela confere se o objeto de estado ainda é o atual. (2) Uma publicação que ainda esperava imagens quando o texto mudava (por exemplo, a coloração do mapa) publicava nomes cuja imagem não estava no mapa: agora as imagens que ela publica contam como em uso. Testes N354-7 novos, que falham sem a correção.
 - **Riscos:** medir no tablet de verdade; conferir no app (Android/iOS) a letra Inter e a nitidez do texto reduzido; o primeiro desenho dos 200 nomes na abertura.
 
 <!-- Próxima decisão: D-PROD-355 -->

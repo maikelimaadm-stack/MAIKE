@@ -107,20 +107,27 @@ Os nomes aparecem nos mesmos pastos, com o mesmo nível, o mesmo texto, a mesma 
 
 ## Testes
 
-- Novo: `tests/smoke/nomesNoMapaD354.test.jsx` (27 testes):
+- Novo: `tests/smoke/nomesNoMapaD354.test.jsx` (29 testes):
   - N354-1: fonte e camadas, nenhum HTML, texto perigoso só pintado, ordem (por cima de tudo) e sem clique, nomes desligados;
   - N354-2: letra, cores, opacidade, alturas e centro das linhas, sem sombra; imagem por chave (texto + cores), refetch não redesenha nem republica, texto novo = imagem nova; linhas por nível;
   - N354-3: `icon-size` exponencial por paradas; parada = (letra ÷ 12) × encaixe, mínimo 60%; folga em px igual à projeção do mapa; acerto das paradas no zoom em que o mapa para; paradas por pasto na fonte; nada por quadro no zoom;
   - N354-4: nível global por colisão (tudo, só nome, sigla), com o lote de outro pasto como obstáculo e o do próprio pasto fora da conta; caixa do nome com e sem lote;
   - N354-5: revisão durante o zoom só pelos pastos na tela, a cada 120 ms no máximo, publica só se o nível muda; nenhum `getBoundingClientRect`;
   - N354-6: posição com e sem lote (`comLote` nos nomes, `comRotulo` nos lotes);
-  - N354-7: troca de estilo e `styleimagemissing`, poda, densidade da tela, espera da Inter, `clearAll`.
+  - N354-7: troca de estilo e `styleimagemissing`, poda, densidade da tela, espera da Inter, `clearAll`; publicação pendente quando o mapa é refeito ou quando o texto muda antes dela terminar (achados da revisão independente).
 - Reescritos para a forma nova, sem perder casos: `mapaRotulosSemBagunca` (renderer, D-PROD-128, D-PROD-129), `mapaLeveRotulosD347` (revisão sem DOM), `lotesNoMapaD349` (L349-3) e `maplibreAreasUnificacao` (V03).
 - `tests/smoke/helpers/canvasLotesFalso.js` guarda também o `globalAlpha`.
 - Harness e2e (`run-geo`, `run-geo2`, `run-webgl`, `run-satelite`, `run-perf`): leem os nomes da fonte `mg-nomes`.
 - No navegador (harness, WebGL real): troca satélite ↔ mapa mantém os 3 nomes desenhados (fonte, imagens e camadas), nenhum erro novo na página.
 - `npx vitest run tests/smoke`: 397 arquivos, 4.859 testes, todos passando.
 - `node scripts/gates/verify-all.mjs --pular=test:backend,test:smoke`: todas as etapas passaram (tipos sem dívida nova, `source-closure`, `lint`, `build`).
+
+## Revisão independente
+
+Uma revisão só de leitura achou duas corridas de severidade baixa. As duas foram corrigidas, cada uma com um teste que falha sem a correção.
+
+1. **Mapa refeito com uma publicação pendente.** O `clearAll` troca o objeto de estado dos nomes, e a publicação velha só conferia o número de sequência do objeto antigo. Se o mapa fosse refeito (nova tentativa) enquanto as imagens ainda eram desenhadas, ela escrevia os nomes velhos no mapa novo. Agora ela também confere se o objeto ainda é o atual.
+2. **Texto trocado com uma publicação pendente.** A publicação contava como "em uso" só as imagens dos textos novos. Se o texto mudasse antes de ela terminar (por exemplo, a coloração do mapa), ela publicava os textos antigos sem as imagens deles no mapa, e os nomes ficavam em branco até a arrumação seguinte. Agora as imagens que ela mesma publica também contam como em uso. A arrumação já agendada publica os textos novos e poda os antigos.
 
 ## O que falta / riscos
 

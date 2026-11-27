@@ -674,4 +674,62 @@ describe("N354-7 — troca de estilo, poda, densidade, letra e limpeza", () => {
     expect(feicoes(map)).toHaveLength(0);
     expect(map.handlers.some((h) => h[0] === "zoom")).toBe(false);
   });
+
+  it("publicação pendente quando o mapa é refeito (clearAll + mapa novo) não escreve os nomes velhos no mapa novo", async () => {
+    const mapa1 = mkMap();
+    const ref = { current: mapa1 };
+    const { result } = renderHook(() => useMapRenderer(/** @type {any} */ (ref)));
+    const r = result.current;
+    renderer = r;
+    r.syncLabels([A1], true, null, true);
+    await quadro(); // a revisão publicou; as imagens do A1 ainda estão sendo desenhadas
+    r.clearAll();
+    const mapa2 = mkMap();
+    ref.current = mapa2;
+    /** @type {string[]} */
+    const escritos = [];
+    const set = mapa2.data.set.bind(mapa2.data);
+    mapa2.data.set = (id, d) => {
+      if (id === NOMES_SOURCE_ID) escritos.push(...(d?.features || []).map((f) => f.properties.id));
+      return set(id, d);
+    };
+    r.syncLabels([A2], true, null, true);
+    await pronto();
+    expect(escritos).not.toContain("a1");
+    expect(feicoes(mapa2).map((f) => f.properties.id)).toEqual(["a2"]);
+  });
+
+  it("publicação pendente com o texto já trocado põe no mapa as imagens que ela usa (e não as poda)", async () => {
+    const { map, r } = montar();
+    renderer = r;
+    map.zoom = 11;
+    r.syncLabels([A1, A2], true, () => "velho", true);
+    await pronto();
+    expect(niveis(map)).toEqual(["sigla"]);
+    // a cada publicação e a cada poda: todo nome publicado tem a sua imagem no mapa
+    /** @type {string[]} */
+    const faltando = [];
+    const conferir = () => {
+      for (const f of feicoes(map)) if (!map.images.has(f.properties.imagem)) faltando.push(f.properties.imagem);
+    };
+    const set = map.data.set.bind(map.data);
+    map.data.set = (id, d) => {
+      const ret = set(id, d);
+      if (id === NOMES_SOURCE_ID) conferir();
+      return ret;
+    };
+    const remover = map.removeImage.getMockImplementation();
+    map.removeImage.mockImplementation((id) => {
+      const ret = remover(id);
+      conferir();
+      return ret;
+    });
+    map.zoom = 15;
+    disparar(map, "moveend");
+    await quadro(); // publicação do "tudo" esperando as imagens
+    r.syncLabels([A1, A2], true, () => "novo", true); // o texto extra muda antes dela terminar
+    await pronto();
+    expect(faltando).toEqual([]);
+    expect(porId(map, "a1").properties.texto).toBe("Pasto 1\nha 12,50\nnovo");
+  });
 });

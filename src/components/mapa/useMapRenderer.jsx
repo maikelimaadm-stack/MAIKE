@@ -418,8 +418,11 @@ export default function useMapRenderer(mapInstanceRef) {
     });
     const aplicar = () => {
       const m = getMap();
-      if (seq !== est.seq || !m) return;
-      const emUso = chavesImagensNomes();
+      // `clearAll` troca o objeto de estado: a publicação de antes dele não escreve no mapa novo
+      if (seq !== est.seq || nomesEstadoRef.current !== est || !m) return;
+      // o que esta publicação põe no mapa também está em uso, mesmo que `montarNomes` já tenha trocado os textos
+      // (a próxima arrumação, já agendada, publica os novos e poda estes)
+      const emUso = [...new Set([...chavesImagensNomes(), ...itens.map((i) => i.imagem)])];
       registrarImagensNomes(m, emUso, pr);
       est.nivel = nivel;
       // a imagem que falhou não entra (o nome não aparece até a próxima tentativa; não há reserva para um texto)
