@@ -3,6 +3,7 @@
  * Uso: npx vite --config tests/e2e/harness/vite.e2e.config.mjs  &&  node tests/e2e/harness/run-webgl.cjs
  * Saída: JSON de resultados + screenshots em docs/engineering/evidencias/maplibre-areas/.
  */
+// D-PROD-354: os nomes dos pastos são desenhados pelo mapa — lidos da fonte `mg-nomes` (window.__E2E_MAPS__, só no harness).
 const { chromium, devices } = require('playwright');
 const OUT = process.env.E2E_OUT || require('node:path').resolve(__dirname, '../../../docs/engineering/evidencias/maplibre-areas');
 const URL = process.env.E2E_URL || 'http://localhost:5199/';
@@ -18,9 +19,9 @@ const log = (...a) => console.log(...a);
     p.on('console', (m) => { if (m.type() === 'error') erros.push(m.text()); });
     await p.goto(URL + '?cena=geral');
     await p.waitForSelector('.maplibregl-canvas', { timeout: 30000 });
-    await p.waitForFunction(() => document.querySelectorAll('.mg-area-label').length >= 3, null, { timeout: 30000 });
+    await p.waitForFunction(() => ((m) => (m?.getStyle?.() && m.getSource('mg-nomes')?.serialize?.().data?.features) || [])((window.__E2E_MAPS__ || []).at(-1)).length >= 3, null, { timeout: 30000 });
     await p.waitForTimeout(2500);
-    res.geral_labels = await p.$$eval('.mg-area-label', (els) => els.map((e) => e.textContent));
+    res.geral_labels = await p.evaluate(() => ((m) => (m?.getStyle?.() && m.getSource('mg-nomes')?.serialize?.().data?.features) || [])((window.__E2E_MAPS__ || []).at(-1)).map((f) => f.properties.texto));
     res.geral_lotes = await p.$$eval('.mg-lote-count', (els) => els.map((e) => e.textContent));
     res.geral_marcadores = await p.$$eval('.mg-marker', (els) => els.length);
     res.geral_satelite_msg = await p.$$eval('[role=alert]', (els) => els.map((e) => e.textContent));
@@ -30,7 +31,7 @@ const log = (...a) => console.log(...a);
     // troca Mapa/Satélite (sem chave → erro honesto, mapa permanece)
     const sat = await p.$('button:has-text("Satélite")');
     if (sat) { await sat.click(); await p.waitForTimeout(800); }
-    res.geral_apos_satelite_labels = await p.$$eval('.mg-area-label', (els) => els.length);
+    res.geral_apos_satelite_labels = await p.evaluate(() => ((m) => (m?.getStyle?.() && m.getSource('mg-nomes')?.serialize?.().data?.features) || [])((window.__E2E_MAPS__ || []).at(-1)).length);
     res.geral_erros = erros.filter((e) => !/favicon|ERR_/.test(e)).slice(0, 8);
     await p.close();
   }
@@ -39,7 +40,7 @@ const log = (...a) => console.log(...a);
     const ctx = await b.newContext({ ...devices['iPhone 13'] });
     const p = await ctx.newPage();
     await p.goto(URL + '?cena=geral');
-    await p.waitForFunction(() => document.querySelectorAll('.mg-area-label').length >= 3, null, { timeout: 30000 });
+    await p.waitForFunction(() => ((m) => (m?.getStyle?.() && m.getSource('mg-nomes')?.serialize?.().data?.features) || [])((window.__E2E_MAPS__ || []).at(-1)).length >= 3, null, { timeout: 30000 });
     await p.waitForTimeout(2000);
     await p.screenshot({ path: OUT + '/geral-mobile-390.png' });
     res.geral_mobile_overflow = await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);

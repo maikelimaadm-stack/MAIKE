@@ -7,6 +7,7 @@
  *
  * Uso: npx vite --config tests/e2e/harness/vite.e2e.config.mjs ; node tests/e2e/harness/run-geo2.cjs
  */
+// D-PROD-354: os nomes dos pastos são desenhados pelo mapa — lidos da fonte `mg-nomes` (window.__E2E_MAPS__, só no harness).
 const { chromium } = require('playwright');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -110,12 +111,12 @@ async function preencherESalvar(p, { novo }) {
   {
     const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
     await p.goto(URL + '?cena=geral');
-    await p.waitForFunction(() => document.querySelectorAll('.mg-area-label').length >= 3, null, { timeout: 30000 });
+    await p.waitForFunction(() => ((m) => (m?.getStyle?.() && m.getSource('mg-nomes')?.serialize?.().data?.features) || [])((window.__E2E_MAPS__ || []).at(-1)).length >= 3, null, { timeout: 30000 });
     await idle(p);
     const snap = () => p.evaluate(() => {
       const m = window.__E2E_MAPS__.at(-1);
       return {
-        labels: [...document.querySelectorAll('.mg-area-label')].map((e) => e.firstChild.textContent),
+        labels: ((m) => (m?.getStyle?.() && m.getSource('mg-nomes')?.serialize?.().data?.features) || [])((window.__E2E_MAPS__ || []).at(-1)).map((f) => f.properties.nome),
         lotes: [...document.querySelectorAll('.mg-lote-count')].map((e) => e.textContent),
         fonteAreas: m.getSource('mg-areas').serialize().data.features.map((f) => f.properties.id),
         pintadas: [...new Set(m.queryRenderedFeatures({ layers: ['mg-areas-fill'] }).map((f) => f.properties.id))].sort(),
@@ -125,7 +126,7 @@ async function preencherESalvar(p, { novo }) {
     await p.evaluate(() => { window.__E2E_ATRASO__ = 1500; window.__E2E_EMPRESA__ = 'emp-b'; window.dispatchEvent(new Event('e2e-empresa')); });
     await p.waitForTimeout(400);
     R.GEO09_B_pendente = await snap();
-    await p.waitForFunction(() => [...document.querySelectorAll('.mg-area-label')].some((e) => e.textContent.includes('RETIRO B1')), null, { timeout: 15000 });
+    await p.waitForFunction(() => ((m) => (m?.getStyle?.() && m.getSource('mg-nomes')?.serialize?.().data?.features) || [])((window.__E2E_MAPS__ || []).at(-1)).some((f) => f.properties.nome.includes('RETIRO B1')), null, { timeout: 15000 });
     await p.waitForTimeout(1500);
     await idle(p);
     R.GEO09_B = await snap();
@@ -133,7 +134,7 @@ async function preencherESalvar(p, { novo }) {
     await p.evaluate(() => { window.__E2E_EMPRESA__ = 'emp-e2e'; window.dispatchEvent(new Event('e2e-empresa')); });
     await p.waitForTimeout(400);
     R.GEO09_A2_pendente = await snap();
-    await p.waitForFunction(() => document.querySelectorAll('.mg-area-label').length >= 3, null, { timeout: 15000 });
+    await p.waitForFunction(() => ((m) => (m?.getStyle?.() && m.getSource('mg-nomes')?.serialize?.().data?.features) || [])((window.__E2E_MAPS__ || []).at(-1)).length >= 3, null, { timeout: 15000 });
     await p.waitForTimeout(1200);
     await idle(p);
     R.GEO09_A2 = await snap();

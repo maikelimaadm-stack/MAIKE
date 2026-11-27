@@ -11,7 +11,9 @@
  * Saída: uma linha JSON por cenário (stdout). WebGL é SwiftShader (CPU): os números servem para COMPARAR antes × depois
  * na mesma máquina, não como tempo absoluto de um celular.
  * Variáveis: E2E_URL (padrão http://localhost:5199/), PERF_CPU (padrão 4), PERF_DPR (densidade de tela; padrão a do
- * Pixel 7, 2,625), PERF_FOCO (D-PROD-353: "Pontos" ou "Tarefas" toca no foco antes de medir; padrão Lotes). D-PROD-349: com a densidade do Pixel 7 o SwiftShader gasta quase todo o quadro pintando o mapa
+ * Pixel 7, 2,625), PERF_FOCO (D-PROD-353: "Pontos" ou "Tarefas" toca no foco antes de medir; padrão Lotes).
+ * D-PROD-354: os nomes dos pastos também são desenhados pelo mapa — esperados e contados pela fonte `mg-nomes`
+ * (`nomes_no_mapa`); aceita também o rótulo HTML antigo (.mg-area-label), para medir o "antes". D-PROD-349: com a densidade do Pixel 7 o SwiftShader gasta quase todo o quadro pintando o mapa
  * na CPU, e o arrastar fica em ≈ 9 quadros/s mesmo sem nenhum marcador HTML; PERF_DPR=1 mostra o custo da página.
  */
 const { chromium, devices } = require("playwright");
@@ -58,7 +60,16 @@ const resumo = (quadros) => {
     const dados = fonte?.serialize?.().data;
     return Array.isArray(dados?.features) ? dados.features.length : 0;
   };
-  await p.waitForFunction(() => document.querySelectorAll(".mg-area-label").length > 0, null, { timeout: 120000 });
+  const nomesNoMapa = () => {
+    const m = (window.__E2E_MAPS__ || []).at(-1);
+    const dados = m?.getStyle?.() && m.getSource("mg-nomes")?.serialize?.().data;
+    return Array.isArray(dados?.features) ? dados.features.length : 0;
+  };
+  await p.waitForFunction(
+    `document.querySelectorAll(".mg-area-label").length > 0 || (${nomesNoMapa})() > 0`,
+    null,
+    { timeout: 120000 },
+  );
   const tRotulos = Date.now() - t0;
   await p.waitForFunction(
     `document.querySelectorAll(".mg-lote-count").length > 0 || (${lotesNoMapa})() > 0`,
@@ -76,6 +87,7 @@ const resumo = (quadros) => {
   const contagem = await p.evaluate(`({
     marcadores_html: document.querySelectorAll(".maplibregl-marker").length,
     rotulos_html: document.querySelectorAll(".mg-area-label").length,
+    nomes_no_mapa: (${nomesNoMapa})(),
     lotes_html: document.querySelectorAll(".mg-lote-count").length,
     lotes_no_mapa: (${lotesNoMapa})(),
     pontos_no_mapa: ["mg-supl", "mg-pontos", "mg-tarefas"].reduce((s, id) => s + (${naFonte})(id), 0),

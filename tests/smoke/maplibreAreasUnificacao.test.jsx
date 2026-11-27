@@ -538,13 +538,20 @@ describe("V03 — renderer MapLibre preserva o contrato do Mapa Geral", () => {
     clickArea({ features: [{ properties: { id: "a1" } }], lngLat: { lat: 0, lng: 0 } });
     expect(onArea).toHaveBeenCalledWith(expect.objectContaining({ id: "a1" }), { lat: 0, lng: 0 });
 
+    // D-PROD-354: os nomes são desenhados pelo mapa (fonte mg-nomes); nenhum elemento HTML, texto só pintado no canvas
     r.syncLabels([area("a1"), area("a2", { nome: '<img src=x onerror="window.__x=1">' })], true, (a) => (a.id === "a1" ? "Ocupado 3d" : null), true);
-    const labels = map.container.querySelectorAll(".mg-area-label");
-    expect(labels).toHaveLength(2);
-    expect(labels[0].textContent).toContain("Área a1");
-    expect(labels[0].textContent).toContain("ha 12,50");
-    expect(labels[0].textContent).toContain("Ocupado 3d");
-    expect(labels[1].querySelector("img")).toBeNull();
+    for (let i = 0; i < 3; i += 1) {
+      await new Promise((res) => requestAnimationFrame(() => res(undefined)));
+      for (let j = 0; j < 8; j += 1) await new Promise((res) => setTimeout(res, 0));
+    }
+    expect(map.container.querySelector(".mg-area-label")).toBeNull();
+    const nomes = map.data.get("mg-nomes").features;
+    expect(nomes).toHaveLength(2);
+    // o mapa falso põe tudo no mesmo ponto (área sem tamanho na tela): o nível é a sigla, igual para os dois
+    expect(nomes[0].properties).toMatchObject({ id: "a1", nome: "Área a1", nivel: "sigla" });
+    expect(nomes[1].properties.nivel).toBe("sigla");
+    expect(nomes[1].properties.nome).toBe('<img src=x onerror="window.__x=1">');
+    expect(map.container.querySelector("img")).toBeNull();
     expect(/** @type {any} */ (window).__x).toBeUndefined();
 
     const onLotes = vi.fn();

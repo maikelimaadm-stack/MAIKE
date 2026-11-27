@@ -10,6 +10,8 @@
  * D-PROD-353 (pontos desenhados pelo mapa): URL http(s) "carrega" com 64 × 64 (ou falha, por `falharUrl`); uma figura
  * de outra origem pode SUJAR o canvas em que é desenhada (`sujarCom`), e daí em diante `getImageData` daquele canvas
  * lança, como no navegador; `measureText` mede 6 px por letra; caminho com `moveTo`/`lineTo`/`closePath`.
+ *
+ * D-PROD-354 (nomes dos pastos desenhados pelo mapa): guarda também o `globalAlpha` (a linha do "ha" a 95%).
  */
 import { vi } from "vitest";
 
@@ -98,7 +100,7 @@ export function instalarCanvasFalso() {
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(function () {
     const canvas = /** @type {HTMLCanvasElement} */ (this);
     /** @type {Record<string, any>} */
-    const estado = { font: "", fillStyle: "", strokeStyle: "", shadowColor: "", shadowBlur: 0, shadowOffsetX: 0, shadowOffsetY: 0, textAlign: "", textBaseline: "", lineWidth: 1 };
+    const estado = { font: "", fillStyle: "", strokeStyle: "", shadowColor: "", shadowBlur: 0, shadowOffsetX: 0, shadowOffsetY: 0, textAlign: "", textBaseline: "", lineWidth: 1, globalAlpha: 1 };
     const registrar = (nome) => (...args) => {
       chamadas.push({ nome, args, estado: { ...estado }, largura: canvas.width, altura: canvas.height });
     };
@@ -123,6 +125,8 @@ export function instalarCanvasFalso() {
       set textBaseline(v) { estado.textBaseline = v; },
       get lineWidth() { return estado.lineWidth; },
       set lineWidth(v) { estado.lineWidth = v; },
+      get globalAlpha() { return estado.globalAlpha; },
+      set globalAlpha(v) { estado.globalAlpha = v; },
       setTransform: registrar("setTransform"),
       clearRect: registrar("clearRect"),
       drawImage: (/** @type {any[]} */ ...args) => {

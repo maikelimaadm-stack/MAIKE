@@ -8,6 +8,7 @@
  * Uso: npx vite --config tests/e2e/harness/vite.e2e.config.mjs
  *      node tests/e2e/harness/run-geo.cjs
  */
+// D-PROD-354: os nomes dos pastos são desenhados pelo mapa — lidos da fonte `mg-nomes` (window.__E2E_MAPS__, só no harness).
 const { chromium, devices } = require('playwright');
 const zlib = require('node:zlib');
 const fs = require('node:fs');
@@ -253,7 +254,7 @@ async function idle(p) {
   {
     const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
     await p.goto(URL + '?cena=geral');
-    await p.waitForFunction(() => document.querySelectorAll('.mg-area-label').length >= 3, null, { timeout: 30000 });
+    await p.waitForFunction(() => ((m) => (m?.getStyle?.() && m.getSource('mg-nomes')?.serialize?.().data?.features) || [])((window.__E2E_MAPS__ || []).at(-1)).length >= 3, null, { timeout: 30000 });
     await idle(p);
     const info = await p.evaluate(() => {
       const m = window.__E2E_MAPS__.at(-1);

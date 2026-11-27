@@ -6,7 +6,7 @@
  *
  *  L349-1. Imagem por desenho + contagem: mesma chave = mesma imagem, sem desenhar de novo nem registrar de novo.
  *  L349-2. Contagem com milhar, cinza #6b7280, 9,5 px, negrito, na faixa CONTAGEM_TOPO_PCT, com halo branco.
- *  L349-3. Posição: [0,-26] sem nome embaixo, [0,-14] com nome (`comRotulo` na fonte); nomes mantêm PAR_LOTE.nome.
+ *  L349-3. Posição: [0,-26] sem nome embaixo, [0,-14] com nome (`comRotulo` na fonte); o nome 10 px abaixo do ponto.
  *  L349-4. Clique no lote abre os lotes e não a área por baixo; `hitArea` vê o lote.
  *  L349-5. Arrastar chama onDragLotes como o dragend antigo; clique curto não; sem permissão o mapa desliza.
  *  L349-6. Piscar só com alerta (e com identificador): estado `piscaApagado` só nesses lotes; a pintura da
@@ -43,6 +43,7 @@ import {
   limparCacheImagensLotes,
   MAX_TENTATIVAS_IMAGEM,
 } from "@/lib/maplibre/lotesNoMapa.js";
+import { NOMES_LOTE_LAYER_ID, NOMES_SOURCE_ID, limparCacheNomes } from "@/lib/maplibre/nomesNoMapa.js";
 import useMapRenderer from "@/components/mapa/useMapRenderer.jsx";
 import { acaoDoCliqueNoLote, deveComecarToqueLongo } from "@/domain/mapa/cliqueArea";
 import { esperarImagens, instalarCanvasFalso, svgDaUrl } from "./helpers/canvasLotesFalso.js";
@@ -182,6 +183,7 @@ let renderer = null;
 beforeEach(() => {
   marcadores.length = 0;
   limparCacheImagensLotes();
+  limparCacheNomes();
   canvas = instalarCanvasFalso();
   renderer = null;
 });
@@ -324,7 +326,7 @@ describe("L349-3 — posição do ícone com e sem nome embaixo", () => {
     expect(caixaDoLote({ x: 100, y: 200 }, true, { w: 44, h: 42 })).toEqual({ x: 78, y: 165, w: 44, h: 42 });
   });
 
-  it("com o nome do pasto ligado o lote vai para cima do nome; desligado, volta; o nome continua em PAR_LOTE.nome", async () => {
+  it("com o nome do pasto ligado o lote vai para cima do nome; desligado, volta; o nome continua 10 px abaixo do ponto", async () => {
     const { map, r } = montar();
     renderer = r;
     await r.syncLotes([pos("p1", "cat-touro", 3)], [AREA, AREA2], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
@@ -334,9 +336,13 @@ describe("L349-3 — posição do ícone com e sem nome embaixo", () => {
     await quadro();
     await quadro();
     expect(feicoes(map)[0].properties.comRotulo).toBe(true);
-    const nome = (id) => marcadores.find((m) => m.el.dataset?.area === id);
-    expect(nome("a1").offset).toEqual([0, 10]); // com lote: o nome embaixo do ícone
-    expect(nome("a2").offset).toEqual([0, 0]); // sem lote: o nome centrado no ponto
+    // D-PROD-354: o nome é desenhado pelo mapa; com lote, na camada do topo 10 px abaixo do ponto; sem lote, centrado
+    for (let i = 0; i < 10; i += 1) await new Promise((res) => setTimeout(res, 0));
+    const nomes = map.data.get(NOMES_SOURCE_ID).features;
+    expect(nomes.find((f) => f.properties.id === "a1").properties.comLote).toBe(true);
+    expect(nomes.find((f) => f.properties.id === "a2").properties.comLote).toBe(false);
+    expect(map.layers.find((l) => l.id === NOMES_LOTE_LAYER_ID).paint["icon-translate"]).toEqual([0, 10]);
+    expect(marcadores).toHaveLength(0);
 
     r.syncLabels([AREA, AREA2], false, null, true);
     await quadro();
@@ -345,10 +351,10 @@ describe("L349-3 — posição do ícone com e sem nome embaixo", () => {
 
   it("o ícone do lote é obstáculo dos nomes por caixa calculada (sem medir elemento de lote)", () => {
     const src = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
-    const corpo = src.slice(src.indexOf("const arrumarRotulos = (opcoes) =>"), src.indexOf("const escalarNome ="));
-    expect(corpo).toMatch(/caixaDoLote\(map\.project\(lote\.item\.lngLat\), labelsRef\.current\.has\(id\), lote\.tamanho\)/);
+    const corpo = src.slice(src.indexOf("const arrumarNomes = (opcoes) =>"), src.indexOf("const ultimoArrumarRef"));
+    expect(corpo).toMatch(/caixaDoLote\(map\.project\(lote\.item\.lngLat\), nomesRef\.current\.has\(id\), lote\.tamanho\)/);
     expect(corpo).toMatch(/dono: id/);
-    expect(corpo).toMatch(/return \{ rotulos, obstaculos: obstaculosLotes \};/);
+    expect(corpo).toMatch(/escolherModoRotulos\(itens, \{ tudo: obstaculosLotes, nome: obstaculosLotes \}\)/);
     expect(corpo).not.toMatch(/lote_area_/);
   });
 });
