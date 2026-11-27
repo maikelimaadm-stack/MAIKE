@@ -10685,7 +10685,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 **Data:** 2026-11-27 · **Origem:** proprietário, num tablet fraco: "arrastar ficou bom; o zoom ainda trava" · **Relatório:** [`MAPA-LEVE-D354-REPORT.md`](./MAPA-LEVE-D354-REPORT.md)
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-354 (regra A5). O marcador passa a D-PROD-355.
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-354 (regra A5). Com esta PR aberta, a `main` deixou a D-PROD-354 reservada para ela, deu a D-PROD-355 ao código do aparelho nos cadastros do mapa (PR #442) e passou a indicar `Próxima decisão: D-PROD-356`, que fica.
 
 - **Problema:** depois das etapas 1 a 3, o custo do zoom era quase todo dos ~200 nomes dos pastos, que ainda eram marcadores HTML: a cada quadro o navegador reposicionava e reescalava 200 elementos (recálculo de estilo ≈ 13 a 16 s e layout ≈ 3 s num zoom de 200 pastos).
 - **Decisão:** os nomes passam a ser desenhados pelo mapa, no padrão dos lotes e dos pontos (`src/lib/maplibre/nomesNoMapa.js`).
@@ -10704,4 +10704,18 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 - **Revisão independente:** duas corridas de severidade baixa corrigidas. (1) Uma publicação que ainda esperava imagens quando o mapa era refeito (`clearAll` + mapa novo) escrevia os nomes velhos no mapa novo: agora ela confere se o objeto de estado ainda é o atual. (2) Uma publicação que ainda esperava imagens quando o texto mudava (por exemplo, a coloração do mapa) publicava nomes cuja imagem não estava no mapa: agora as imagens que ela publica contam como em uso. Testes N354-7 novos, que falham sem a correção.
 - **Riscos:** medir no tablet de verdade; conferir no app (Android/iOS) a letra Inter e a nitidez do texto reduzido; o primeiro desenho dos 200 nomes na abertura.
 
-<!-- Próxima decisão: D-PROD-355 -->
+## D-PROD-355 — O código do aparelho também em área, ponto de referência, linha e setor: com o sinal fraco, nada em dobro
+
+**Data:** 2026-11-27 · **Origem:** pendência da sincronização (auditoria do servidor, D2), pedida pelo proprietário ("consegue ir resolvendo todos esses bugs sem parar?") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`ID-DO-APARELHO-CADASTROS-D355-REPORT.md`](./ID-DO-APARELHO-CADASTROS-D355-REPORT.md)
+
+**Decisão.**
+1. **A criação de área, ponto de referência, linha e setor aceita o id gerado no aparelho** (UUID, `criarComIdDoAparelho`, como o lote e o cocho na D-PROD-308):
+   - a mesma criação repetida devolve o registro já criado, com o mesmo número;
+   - o mesmo id em outra conta dá 409 `ID_DO_APARELHO_EM_USO`, sem dizer de quem;
+   - criado e depois excluído dá 409 `ID_DO_APARELHO_EXCLUIDO` e não recria;
+   - sem id, o servidor gera o id, como antes.
+2. **No app, as quatro portas pedem o id do aparelho** (`idDoAparelho: true`) e o mandam na criação. Antes, com o sinal fraco, a resposta da criação se perdia, o app mandava de novo e o servidor gravava um segundo registro.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`bafa269b2`) indicou D-PROD-353. A D-PROD-353 (mapa leve, etapa 3, PR #441) entrou antes e a D-PROD-354 está reservada pela PR #443 (mapa leve, etapa 4); esta passou a D-PROD-355. O marcador passa a D-PROD-356. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-356 -->

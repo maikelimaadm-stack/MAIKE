@@ -49,6 +49,7 @@
  * servidor recusaria para sempre.
  */
 
+import { eIdDoAparelho } from '@/lib/offline/idDoAparelho';
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import {
   createOfflineEntityAdapter,
@@ -159,7 +160,8 @@ export const operacoesNativas = Object.freeze({
   create: (dados) =>
     nativeRequest(
       CAMINHO,
-      { method: 'POST', body: corpoDeEnvio(dados, CAMPOS_DE_CRIACAO), autenticado: true },
+      // D-PROD-355: o id gerado no aparelho vai junto (repetir a criação devolve a mesma área).
+      { method: 'POST', body: { ...corpoDeEnvio(dados, CAMPOS_DE_CRIACAO), ...(eIdDoAparelho(/** @type {any} */ (dados)?.id) ? { id: /** @type {any} */ (dados).id } : {}) }, autenticado: true },
       ctx('createArea')
     ),
 
@@ -221,6 +223,8 @@ export const areaPastagemPort = createOfflineEntityAdapter({
   operations: operacoesNativas,
   enabled: offlineStorageDisponivel(),
   tenantScoped: true,
+  // D-PROD-355: nasce com o id definitivo (UUID); com o sinal fraco, repetir a criação não grava em dobro.
+  idDoAparelho: true,
 });
 
 // D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes

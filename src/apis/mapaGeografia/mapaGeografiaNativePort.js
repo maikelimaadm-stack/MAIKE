@@ -5,6 +5,7 @@
  * agregado. Sem fallback para a Base44.
  */
 
+import { eIdDoAparelho } from '@/lib/offline/idDoAparelho';
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import {
   createOfflineEntityAdapter,
@@ -117,7 +118,8 @@ const operacoesPonto = Object.freeze({
       '/pontos-referencia',
       {
         method: 'POST',
-        body: corpoDeEnvio(dados, CAMPOS_PONTO_CRIACAO),
+        // D-PROD-355: o id gerado no aparelho vai junto.
+        body: { ...corpoDeEnvio(dados, CAMPOS_PONTO_CRIACAO), ...(eIdDoAparelho(/** @type {any} */ (dados)?.id) ? { id: /** @type {any} */ (dados).id } : {}) },
         autenticado: true,
       },
       { operation: 'createPonto', resource: 'PontoReferencia' }
@@ -146,6 +148,8 @@ export const pontoReferenciaPort = createOfflineEntityAdapter({
   operations: operacoesPonto,
   enabled: offlineStorageDisponivel(),
   tenantScoped: true,
+  // D-PROD-355: nasce com o id definitivo (UUID).
+  idDoAparelho: true,
 });
 
 // ── LinhaGeografica ───────────────────────────────────────────────────────
@@ -179,7 +183,8 @@ const operacoesLinha = Object.freeze({
       '/linhas-geograficas',
       {
         method: 'POST',
-        body: corpoDeEnvio(dados, CAMPOS_LINHA_CRIACAO),
+        // D-PROD-355: o id gerado no aparelho vai junto.
+        body: { ...corpoDeEnvio(dados, CAMPOS_LINHA_CRIACAO), ...(eIdDoAparelho(/** @type {any} */ (dados)?.id) ? { id: /** @type {any} */ (dados).id } : {}) },
         autenticado: true,
       },
       { operation: 'createLinha', resource: 'LinhaGeografica' }
@@ -202,6 +207,8 @@ export const linhaGeograficaPort = createOfflineEntityAdapter({
   operations: operacoesLinha,
   enabled: offlineStorageDisponivel(),
   tenantScoped: true,
+  // D-PROD-355: nasce com o id definitivo (UUID).
+  idDoAparelho: true,
 });
 
 // D-PROD-294: leituras que as telas deste módulo fazem ao abrir — baixadas antes

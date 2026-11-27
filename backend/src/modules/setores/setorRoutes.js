@@ -35,6 +35,7 @@
  * naturalmente se alguém repassasse o objeto inteiro da tela.
  */
 
+import { SCHEMA_ID_DO_APARELHO } from '../../shared/idempotency/idDoAparelho.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
 import { listar, listarPagina, criar, atualizar } from './setorService.js';
@@ -84,7 +85,8 @@ const CRIAR_SCHEMA = {
     type: 'object',
     required: ['empresa_id', 'nome', 'tipo'],
     additionalProperties: false,
-    properties: { ...CAMPOS },
+    // D-PROD-355: o id gerado no aparelho (repetir a criação devolve o mesmo setor).
+    properties: { ...CAMPOS, id: SCHEMA_ID_DO_APARELHO },
   },
 };
 
