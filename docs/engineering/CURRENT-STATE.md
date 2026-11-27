@@ -9,6 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
+## Missão ativa (2026-11-27) — MAIKE-PRODUTO-TELA-BASE1: "Conversão de unidades" no padrão Base1 (D-PROD-368)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-368**: aba "Unidades" do produto vira "Conversão de unidades", com os campos do Base1; a unidade da quantidade por implemento ganha caixa própria |
+| Banco | sem migration |
+| Branch | `claude/produto-tela-base1` (PR em rascunho) |
+| Relatório | [`MAIKE-PRODUTO-TELA-BASE1-REPORT.md`](./MAIKE-PRODUTO-TELA-BASE1-REPORT.md) |
+| Próximas | estoque na unidade do cadastro (SC, UN, CX): proposta de emenda da Constituição para o proprietário aprovar |
+
 ## Missão ativa (2026-11-27) — MAIKE-MAPA-CADASTRO: etapa 5, KMZ e exclusão sem internet (D-PROD-367)
 
 | Item | Estado |
