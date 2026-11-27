@@ -17,6 +17,7 @@ import {
   zoomDoGoogle,
   zoomDoMapLibre,
 } from "@/lib/mapaNativo/mapaGoogleNativo.js";
+import { criarMapaGoogleWeb } from "@/lib/mapaNativo/mapaGoogleWeb.js";
 
 const CENTRO_PADRAO = { lat: -15.78, lng: -47.93 };
 /** Margem em volta da fazenda ao enquadrar (px da página). */
@@ -56,9 +57,10 @@ function abrirJanelaParaOMapa(el) {
  *   ativo?: boolean,
  *   onClickArea?: (area: any) => void,
  *   onFalha?: (erro: unknown) => void,
+ *   onMapa?: (mapa: any) => void,
  * }} props
  */
-export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregadas = true, mostrarAreas, corDaArea, estiloPasto, tipoMapa, empresaId, ativo = true, onClickArea, onFalha }) {
+export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregadas = true, mostrarAreas, corDaArea, estiloPasto, tipoMapa, empresaId, ativo = true, onClickArea, onFalha, onMapa }) {
   const elRef = useRef(/** @type {HTMLElement | null} */ (null));
   const mapaRef = useRef(/** @type {GoogleMap | null} */ (null));
   const idsRef = useRef(/** @type {string[]} */ ([]));
@@ -69,6 +71,8 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
   cliqueRef.current = onClickArea;
   const falhaRef = useRef(onFalha);
   falhaRef.current = onFalha;
+  const mapaProntoRef = useRef(onMapa);
+  mapaProntoRef.current = onMapa;
   const enquadrouRef = useRef(false);
   const tipoMapaInicialRef = useRef(tipoMapa);
   const [pronto, setPronto] = useState(false);
@@ -94,25 +98,30 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
         // um mapa nativo que ficou vivo de uma recarga no meio sai antes: o id novo apaga a única referência a ele
         await limparMapaGoogleOrfao();
         if (cancelado) return;
-        const mapa = await GoogleMap.create({
-          id: novoIdDoMapaGoogle(),
-          element: el,
-          // Android lê a chave do AndroidManifest (segredo do build do APK); o iOS e o site recebem aqui.
-          apiKey: (nativo ? getGoogleMapsIosKey() : null) || getGoogleMapsApiKey() || "",
-          forceCreate: true,
-          config: /** @type {any} */ (
-            configDoMapaGoogle(
-              { center: vista?.center || CENTRO_PADRAO, zoom: zoomDoGoogle(vista?.zoom ?? 14) },
-              tipoMapaInicialRef.current
-            )
-          ),
-        });
+        const config = configDoMapaGoogle(
+          { center: vista?.center || CENTRO_PADRAO, zoom: zoomDoGoogle(vista?.zoom ?? 14) },
+          tipoMapaInicialRef.current
+        );
+        // App: o mapa nativo do plugin. Site: a Maps JavaScript API direto (D-PROD-369), com os marcadores do Mapa Geral.
+        const mapa = /** @type {any} */ (
+          nativo
+            ? await GoogleMap.create({
+                id: novoIdDoMapaGoogle(),
+                element: el,
+                // Android lê a chave do AndroidManifest (segredo do build do APK); o iOS recebe aqui.
+                apiKey: getGoogleMapsIosKey() || getGoogleMapsApiKey() || "",
+                forceCreate: true,
+                config: /** @type {any} */ (config),
+              })
+            : await criarMapaGoogleWeb({ element: el, config })
+        );
         if (cancelado) {
           await mapa.destroy().catch(() => {});
           return;
         }
         mapaRef.current = mapa;
         registrarMapaGoogleAberto(mapa);
+        mapaProntoRef.current?.(mapa);
         await mapa.setOnPolygonClickListener((e) => {
           const area = areasPorIdRef.current.get(String(e?.tag));
           if (area) cliqueRef.current?.(area);
@@ -140,6 +149,7 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
       const mapa = mapaRef.current;
       mapaRef.current = null;
       registrarMapaGoogleAberto(null);
+      if (mapa) mapaProntoRef.current?.(null);
       mapa?.destroy().catch(() => {});
     };
   }, [empresaId]);
@@ -210,11 +220,12 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
     });
   }, [pronto, paraEnquadrar, areasCarregadas]);
 
-  return (
-    <capacitor-google-map
-      ref={elRef}
-      data-testid="mapa-geral-google"
-      style={{ display: "block", width: "100%", height: "100%" }}
-    />
+  // App: o elemento do plugin (ele abre o "buraco" para o mapa nativo). Site: um div comum (o elemento do plugin
+  // apaga o conteúdo quando volta à página, e o mapa do site mora dentro dele).
+  const estilo = { display: "block", width: "100%", height: "100%" };
+  return ehMapaGoogleNativo() ? (
+    <capacitor-google-map ref={elRef} data-testid="mapa-geral-google" style={estilo} />
+  ) : (
+    <div ref={/** @type {any} */ (elRef)} data-testid="mapa-geral-google" style={estilo} />
   );
 }

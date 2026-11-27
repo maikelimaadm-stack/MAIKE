@@ -11015,6 +11015,26 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 - **Migration:** nenhuma. **Constituição:** sem mudança.
 - **Testes:** `tests/smoke/produtoUnidadesConversao.test.jsx` com o nome novo da aba; os testes do cadastro de produtos passam (7 arquivos, 49 testes); capturas em 1280 e 390 px sem rolagem lateral.
 
+## D-PROD-369 — Mapa do Google no Mapa Geral, etapa 2: lotes, cochos, pontos e tarefas no site
+
+**Data:** 2026-11-27 · **Origem:** com a etapa 1 no ar e a Map Tiles API desligada pelo proprietário, o satélite do site só vem pelo mapa do Google, e ele mostrava só as áreas ("no meu mapa do google abriu assim porém não mostrou lotes etc essas coisas") · **Relatório:** [`MAPA-GOOGLE-ETAPA2-D369-REPORT.md`](./MAPA-GOOGLE-ETAPA2-D369-REPORT.md) · **Migration:** nenhuma · **APK:** nenhum (o site e a atualização automática)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369: a D-PROD-368 foi da PR #456 e a D-PROD-370 da PR #458; a PR #457, que tinha reservado a 369, foi fechada sem merge (regra A5). O marcador fica D-PROD-371.
+
+- **Problema:**
+  - A versão web do plugin (D-PROD-366) não dá acesso ao mapa do Google e só põe marcador com a ponta embaixo, sem deslocamento em px nem ordem por marcador.
+  - Os marcadores do Mapa Geral são centrados (cochos, pontos, tarefas) ou deslocados em px (o lote acima do centro do pasto, o identificador ao lado), numa ordem fixa.
+- **Decisão:**
+  - **Site:** o mapa do Google passa a ser a Maps JavaScript API direto, pelo carregador canônico do produto (`loadGoogleMaps`), em `src/lib/mapaNativo/mapaGoogleWeb.js`. O objeto tem os nomes de método do `GoogleMap` do plugin, então o `MapaGoogleNativo` segue um só. O app continua no mapa nativo do plugin.
+  - **Marcadores:** uma camada `OverlayView` com uma imagem por marcador, reposicionada a cada quadro: o centro da imagem no ponto mais o deslocamento do MapLibre, e a ordem dos z-index de antes (cocho 500 < ponto 800 < lote 1000 < lote com alerta < identificador < tarefa 2500 < Urgente 3000). O toque no marcador não passa para o mapa nem para a área.
+  - **Os mesmos marcadores:** o que vai em cada um (posição, imagem, título, clique) saiu do `useMapRenderer` para `src/lib/maplibre/itensDoMapaGeral.js`, usado pelo MapLibre e pelo `useMarcadoresGoogle`. A imagem é o mesmo desenho e o mesmo cache; no Google ela vira uma URL `data:` (convertida uma vez por chave).
+  - **Ligação:** o `MapaGeral` chama `syncLotes`, `syncPontos`, `syncPontosSuplementacao` e `syncTarefas` com os mesmos filtros, permissões, focos e cliques. Com o mapa do Google ligado, quem recebe é o `useMarcadoresGoogle`; senão, o MapLibre.
+- **Fica para depois:**
+  - nomes dos pastos (etapa 3);
+  - arrastar lote, piscar o identificador com alerta, linhas, localização, coloração e "Localizar" (etapa 4);
+  - marcadores no mapa nativo do app: o SDK nativo só aceita imagem de arquivo do app ou de endereço `https`, não a imagem desenhada na hora.
+- **Testes:** `mapaGoogleMarcadoresD369.test.jsx` (9, com `google.maps` falso), `mapaGoogleNativoD366.test.jsx` (21; o site agora sem o plugin), `mapaRotulosSemBagunca.test.js` (lê o ponto do lote em `itensDoMapaGeral.js`). Os 1.102 testes do mapa passam.
+
 ## D-PROD-370 — Cadastro de ponto simples: cocho e depósito sem instruções, avisos nem Observações
 
 **Data:** 2026-11-27 · **Origem:** o proprietário: "no cadastro de novo ponto seja cocho ou depósito precisa ser algo simples e correto… não preciso de instruções de campos, não preciso de alertas… não preciso de campo de observações" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`PONTO-SIMPLES-D370-REPORT.md`](./PONTO-SIMPLES-D370-REPORT.md)

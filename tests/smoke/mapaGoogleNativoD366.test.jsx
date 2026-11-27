@@ -63,6 +63,16 @@ vi.mock("@capacitor/google-maps", () => ({
   },
 }));
 
+// D-PROD-369: no site o mapa é a Maps JavaScript API direto (o mesmo mapa falso, sem o plugin)
+vi.mock("@/lib/mapaNativo/mapaGoogleWeb.js", () => ({
+  criarMapaGoogleWeb: vi.fn(async (opcoes) => {
+    if (falso.estado.falhar) throw new Error("sem chave");
+    falso.estado.criado = { ...opcoes, web: true };
+    falso.estado.mapa = falso.novoMapa();
+    return falso.estado.mapa;
+  }),
+}));
+
 import { corExibidaNoMapa } from "@/lib/maplibre/estiloAreas.js";
 import {
   CHAVE_PREFERENCIA,
@@ -366,6 +376,8 @@ describe("G366-3 — o mapa nativo no Mapa Geral", () => {
   });
 
   it("cada mapa criado tem um id novo (o destroy atrasado de um mapa velho não derruba o novo)", async () => {
+    plugin.nativo = true;
+    plugin.disponivel = true;
     const { unmount } = montar();
     await waitFor(() => expect(falso.estado.criado).not.toBeNull());
     const primeiro = falso.estado.criado.id;
@@ -374,14 +386,26 @@ describe("G366-3 — o mapa nativo no Mapa Geral", () => {
     await waitFor(() => expect(falso.estado.criado.id).not.toBe(primeiro));
   });
 
-  it("site: o mapa é desenhado dentro do elemento — a página não fica transparente; a chave é a do site", async () => {
+  it("site: a Maps JavaScript API direto (sem o plugin), desenhada dentro do elemento — a página não fica transparente", async () => {
+    const { GoogleMap } = await import("@capacitor/google-maps");
+    const { pai } = montar();
+    await waitFor(() => expect(falso.estado.mapa?.poligonos).toHaveLength(2));
+    expect(falso.estado.criado.web).toBe(true);
+    expect(falso.estado.criado.element.tagName.toLowerCase()).toBe("div");
+    expect(falso.estado.criado.config).toMatchObject({ mapTypeId: "satellite", gestureHandling: "greedy" });
+    expect(GoogleMap.create).not.toHaveBeenCalled();
+    expect(pai.style.background).toBe("rgb(255, 255, 255)");
+  });
+
+  it("app: o plugin nativo recebe a chave do iOS ou, sem ela, a do site", async () => {
+    plugin.nativo = true;
+    plugin.disponivel = true;
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "chave-site");
-    vi.stubEnv("VITE_GOOGLE_MAPS_IOS_KEY", "chave-ios");
     try {
-      const { pai } = montar();
+      montar();
       await waitFor(() => expect(falso.estado.mapa?.poligonos).toHaveLength(2));
       expect(falso.estado.criado.apiKey).toBe("chave-site");
-      expect(pai.style.background).toBe("rgb(255, 255, 255)");
+      expect(falso.estado.criado.web).toBeUndefined();
     } finally {
       vi.unstubAllEnvs();
     }
