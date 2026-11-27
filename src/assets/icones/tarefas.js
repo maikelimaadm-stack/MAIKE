@@ -14,7 +14,7 @@ export function svgIconeTarefa(prioridade) {
     ...ENCAIXE_FIGURA,
     y: ENCAIXE_FIGURA.y - 8.5,
     height: 64,
-  });
+  }, { corBorda: cor, espessuraBorda: 70 });
 }
 
 // Só quatro URLs em memória, independentemente da quantidade de tarefas/dias no mapa.

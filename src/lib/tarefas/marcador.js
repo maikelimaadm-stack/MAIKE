@@ -40,10 +40,10 @@ export function aplicarIndicadorTarefa(el, tarefa, hoje) {
   badge.textContent = indicador.texto;
   badge.setAttribute('aria-hidden', 'true');
   // Contador no canto superior, no mesmo selo do nível do cocho.
-  badge.style.cssText = estiloSeloPonto('#6b7280', '#ffffff', indicador.texto.length > 2 ? 5.5 : 7);
+  badge.style.cssText = estiloSeloPonto('#6b7280', '#ffffff', indicador.texto.length > 2 ? 6.5 : 8);
   Object.assign(badge.style, {
-    width: '11px', height: '11px', borderWidth: '1px',
-    left: 'calc(50% + 8px)', top: 'calc(50% - 9px)', boxShadow: 'none',
+    width: '13px', height: '13px', borderWidth: '1px',
+    left: 'calc(50% + 11px)', top: 'calc(50% - 9px)', boxShadow: 'none',
   });
   const descricao = `${tarefa.titulo || 'Tarefa'} — prioridade ${normalizarPrioridadeTarefa(tarefa.prioridade)} — ${indicador.descricao}`;
   el.title = descricao;
