@@ -355,7 +355,7 @@ describe("Diário das atividades — abertura", () => {
     await irAoServicoDaFrente();
     const esperado = [
       ["insumo", "Insumo", "Produto ou mistura no implemento, por carga"],
-      ["maquina", "Máquina", "Trocar implemento, problema ou parada, corrigir horímetro"],
+      ["maquina", "Máquina", "Horas trabalhadas e horímetro do dia"],
       ["abastecimento", "Abastecimento", "Diesel, litros e horímetro"],
       ["trocar-pasto", "Trocar pasto", "Horímetro de saída e de chegada"],
       ["mao-de-obra", "Mão de obra", "Quem ajudou e as horas"],
@@ -414,9 +414,10 @@ describe("Diário das atividades — abertura", () => {
   it("(h3) tocar uma opção mostra o painel \"Em breve\" na mesma janela; Voltar ao serviço volta", async () => {
     renderizar({ atividade: { id: "atv-9", tipo_atividade_id: "op-1" } });
     await irAoServicoDaFrente();
-    fireEvent.click(screen.getByTestId("servico-opcao-maquina"));
+    // A "Máquina" já abre a tela própria (D-PROD-365); o "Em breve" é da opção que ainda não existe ("Trocar pasto").
+    fireEvent.click(screen.getByTestId("servico-opcao-trocar-pasto"));
     const painel = screen.getByTestId("servico-em-breve");
-    expect(within(painel).getByText("Máquina")).toBeInTheDocument();
+    expect(within(painel).getByText("Trocar pasto")).toBeInTheDocument();
     expect(within(painel).getByText("Em breve: esta parte ainda vai ser feita.")).toBeInTheDocument();
     // Com o painel aberto, as opções somem e o rodapé só tem "Voltar ao serviço".
     expect(screen.queryByTestId("servico-opcao-insumo")).toBeNull();
@@ -424,7 +425,7 @@ describe("Diário das atividades — abertura", () => {
     expect(screen.getByTestId("servico-voltar")).toHaveTextContent("Voltar ao serviço");
     fireEvent.click(screen.getByTestId("servico-voltar"));
     expect(screen.queryByTestId("servico-em-breve")).toBeNull();
-    expect(screen.getByTestId("servico-opcao-maquina")).toBeInTheDocument();
+    expect(screen.getByTestId("servico-opcao-trocar-pasto")).toBeInTheDocument();
     expect(screen.getByTestId("servico-encerrar")).toBeInTheDocument();
   });
 
