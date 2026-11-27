@@ -10515,4 +10515,22 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** depois da D-PROD-344 (Fase 2). O marcador passa a D-PROD-346. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-346 -->
+## D-PROD-346 — Sincronização, Fase 4: com o app fechado, o Android avisa o que espera envio (APK 1.0.5)
+
+**Data:** 2026-11-27 · **Origem:** o proprietário pediu a Fase 4 ("Quero continue", "Não pare") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** 1.0.5 (código 6) · **Relatório:** [`SINCRONIZACAO-FASE4-D346-REPORT.md`](./SINCRONIZACAO-FASE4-D346-REPORT.md)
+
+**Decisão.**
+1. **Aviso com o app fechado, sem enviar sozinho.** As filas vivem dentro do app, e só o código do app sabe enviá-las na ordem certa, com idempotência e versão. Reescrever isso na parte nativa seria refazer a sincronização inteira, com risco alto.
+   - O plugin próprio `AvisoDeEnvio` (Java, em `android/app`) recebe do app a quantidade que ainda não chegou ao servidor: as que estão aguardando e as que precisam de atenção.
+   - Com algo pendente, o Android roda `AvisoDeEnvioWorker` a cada 15 minutos (WorkManager), só com internet. Se o app está fora de uso há pelo menos 10 minutos, aparece "N registros esperando envio — toque para enviar".
+   - O aviso é um só: substitui o anterior e não toca de novo. O toque abre o app, que envia na hora (o app já envia ao abrir e ao voltar).
+   - Com a fila vazia, o trabalho é cancelado e o aviso sai.
+   - A permissão de avisos (Android 13 em diante) é pedida na primeira pendência.
+2. **Ao sair do app, o que espera envio tenta já** (evento `pause`). Antes só tentava ao voltar. Isto chega pela atualização automática, também no APK 1.0.4.
+3. **O pacote novo continua chegando ao APK 1.0.4.** `app-version.json` ganha `nativoMinimo` (5). O código confere se o plugin existe (`Capacitor.isPluginAvailable`) e, sem ele (APK antigo, iPhone, web), não liga nada. Antes, subir o `versionCode` cortaria a atualização automática de quem não instalou o APK novo.
+
+**Ficou de fora, de propósito:** o envio de verdade com o app fechado, porque exigiria duplicar as filas na parte nativa. E o iPhone, que não tem o plugin e onde nada muda.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`a33ede1b6`) indicou D-PROD-346. O marcador passa a D-PROD-347. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-347 -->

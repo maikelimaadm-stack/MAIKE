@@ -73,4 +73,5 @@ O APK sai em `android/app/build/outputs/apk/release/app-release.apk` e instala p
 - Frontend novo chega sem instalar APK: a cada deploy da Vercel, `npm run app:pacote` publica `/app-atualizacao/ultima.json` e o pacote `.zip`.
 - O app confere ao abrir e ao voltar para a frente; baixa por baixo e aplica na **próxima abertura**. Se a versão nova não abrir, volta sozinho à anterior.
 - **Precisa de APK novo** só para mudança nativa (plugin novo, permissão, ícone): suba `versionCode` em `app-version.json`; pacotes com `nativoMinimo` maior que o APK instalado não são aplicados.
+- D-PROD-346: quando o pacote novo também roda no APK anterior (o código confere se o plugin nativo existe), `nativoMinimo` em `app-version.json` fica no `versionCode` anterior. Assim quem ainda não instalou o APK novo continua recebendo as atualizações. Exemplo: 1.0.5 (código 6) com `nativoMinimo: 5`.
 - Plugin `@capgo/capacitor-updater` em modo manual, sem servidor da Capgo (estatística e canais desligados).

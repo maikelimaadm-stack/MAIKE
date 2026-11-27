@@ -10,6 +10,7 @@ import { useBootSplash } from '@/lib/bootSplashContext';
 import { dadosNoFormatoAtual, estaSemInternet, situacaoDaBaixa, ultimaBaixaDosDados } from '@/services/dadosOfflineService';
 import { sincronizarNosDoisSentidos, deveSincronizarSozinho } from '@/services/sincronizacaoCompletaService';
 import { ligarEnvioDaSessao } from '@/services/sincronizacaoService';
+import { ligarAvisoDeEnvio } from '@/lib/app/avisoDeEnvio';
 import FilaDeEnvio from '@/components/offline/FilaDeEnvio';
 
 /** @type {React.ComponentType<any>} */ const DialogContent = DialogContentUi;
@@ -73,6 +74,8 @@ export default function DadosOffline() {
   const usuarioId = user?.id ? String(user.id) : null;
   useEffect(() => {
     ligarEnvioDaSessao(isAuthenticated && clienteId ? { clienteId, usuarioId } : null);
+    // D-PROD-346: com o app fechado, o Android avisa o que ainda espera envio (APK 1.0.5 em diante).
+    if (isAuthenticated && clienteId) ligarAvisoDeEnvio();
     return () => ligarEnvioDaSessao(null);
   }, [isAuthenticated, clienteId, usuarioId]);
 
