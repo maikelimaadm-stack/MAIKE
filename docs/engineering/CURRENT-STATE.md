@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-27 (missões ativas D-PROD-349 (mapa leve, etapa 2), D-PROD-346, D-PROD-347 (mapa leve, PR #436) e D-PROD-348 (diário, PR #434); antes D-PROD-345, D-PROD-344, D-PROD-343, D-PROD-342, D-PROD-341 (diário, PR #426), D-PROD-340, D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-27 (missão ativa D-PROD-350; antes D-PROD-349 (mapa leve, etapa 2), D-PROD-346, D-PROD-347 (mapa leve, PR #436) e D-PROD-348 (diário, PR #434); antes D-PROD-345, D-PROD-344, D-PROD-343, D-PROD-342, D-PROD-341 (diário, PR #426), D-PROD-340, D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -17,6 +17,13 @@ rollout pausado **D-PROD-41**)
 | Banco | sem migration; backend sem mudança |
 | Relatório | [`MAPA-LEVE-D347-REPORT.md`](./MAPA-LEVE-D347-REPORT.md) (seção D-PROD-351) |
 | Próximas | etapa 3 (pontos pelo mapa, em andamento); nomes desenhados pelo mapa |
+## Missão ativa (2026-11-27) — MAIKE-CELULAR-COMPARTILHADO: o pendente sobe com a conta da fazenda (D-PROD-350)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-350**: dono da fila do motor = conta da fazenda (como o AgriWebb); sair confere a fila na hora, tenta enviar e avisa o que ficou |
+| Banco | sem migration; sem APK novo |
+| Relatório | [`CELULAR-COMPARTILHADO-D350-REPORT.md`](./CELULAR-COMPARTILHADO-D350-REPORT.md) |
 
 ## Missão ativa (2026-11-27) — MAIKE-MAPA-LEVE: etapa 2, lotes desenhados pelo próprio mapa (D-PROD-349)
 

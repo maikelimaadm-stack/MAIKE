@@ -76,10 +76,13 @@ const servidor = () => {
 let motorDoTeste = null;
 const carregar = async () => {
   (await import('@/lib/auth/nativeTokenStorage')).setNativeToken('jwt.sintetico', { lembrar: true });
-  (await import('@/lib/offline/offlineTenant')).setOfflineTenant('cli_1');
+  // D-PROD-350: o dono da fila é a conta (não mais a pessoa): cada teste usa uma conta própria, para não ver o que
+  // sobrou do anterior no mesmo banco do aparelho.
+  const cliente = `cli_${Math.random().toString(36).slice(2, 8)}`;
+  (await import('@/lib/offline/offlineTenant')).setOfflineTenant(cliente);
   const motor = await import('@/lib/offline/sincronizacao/motorDeSincronizacao');
   motorDoTeste = motor;
-  motor.definirSessaoDaFila({ cliente_id: 'cli_1', usuario_id: `usr_${Math.random().toString(36).slice(2, 8)}` });
+  motor.definirSessaoDaFila({ cliente_id: cliente, usuario_id: 'usr_1' });
   const sup = await import('@/services/suplementacaoService');
   const estoque = await import('@/services/estoqueAguardandoEnvioService');
   const aguardando = await import('@/services/lancamentoCochoAguardandoService');

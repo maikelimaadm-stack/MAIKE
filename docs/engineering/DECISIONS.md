@@ -10609,11 +10609,26 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - imagens que nenhum lote usa saem do mapa e do cache (não com os lotes escondidos pelo filtro);
   - devicePixelRatio relido no `resize`.
 
+## D-PROD-350 — Celular de mais de uma pessoa: o que ficou para enviar sobe com a conta da fazenda (como o AgriWebb)
+
+**Data:** 2026-11-27 · **Origem:** o proprietário escolheu fazer como o AgriWebb ("faz assim, o AgriWebb funciona como?") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`CELULAR-COMPARTILHADO-D350-REPORT.md`](./CELULAR-COMPARTILHADO-D350-REPORT.md)
+
+**Como o AgriWebb faz** (lido no próprio app): os dados ficam por fazenda baixada no celular, não por pessoa. Ao sair, ele só lembra que vai precisar de internet para entrar de novo. Antes de tirar uma fazenda do celular, ele confere o que não foi sincronizado e avisa que isso seria descartado.
+
+**Decisão.**
+1. **O dono da fila do motor é a conta da fazenda (cliente), não a pessoa.** Isso vale para a leitura de cocho, o lançamento e a transferência. O que um peão lançou sem internet sobe quando qualquer pessoa da mesma conta entrar com internet. Antes esperava a mesma pessoa voltar, e podia nunca subir. A fila de cadastros já era assim. O registro de outra conta continua nunca indo com esta sessão. A pessoa que lançou continua gravada no item (`usuario_id`). No servidor, o registro fica com a conta de quem estava no celular na hora do envio.
+2. **Sair da conta com registros pendentes:**
+   - o app confere a fila na hora, não o número que a tela tinha;
+   - com internet, tenta enviar antes, por até 20 s;
+   - só então avisa quantos ficaram, com o texto certo: "ficam guardados aqui e sobem quando alguém desta fazenda entrar com internet". Antes dizia "só com esta mesma conta", o que só valia para parte da fila.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`dcc7d46a6`) indicou D-PROD-350. O marcador passa a D-PROD-351. Conferir antes do merge (regra A5).
+
 ## D-PROD-351 — Mapa leve: no zoom, o nome da área é ampliado, sem refazer o texto a cada quadro
 
 **Data:** 2026-11-27 · **Origem:** proprietário, testando num tablet fraco depois da D-PROD-349: "antes passar os dedos no mapa travava, agora não trava; o que pega ainda é apenas o zoom, que trava muito" · **Relatório:** [`MAPA-LEVE-D347-REPORT.md`](./MAPA-LEVE-D347-REPORT.md) (seção D-PROD-351)
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `dcc7d46a6` deu D-PROD-351 (a D-PROD-350 está reservada pela PR #438). O marcador fica para quem fizer merge por último.
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` `dcc7d46a6` deu D-PROD-351 (a D-PROD-350 está reservada pela PR #438). O marcador passa a D-PROD-352.
 
 - **Causa (perfil do zoom, 200 pastos):** a cada quadro do zoom, os 200 nomes mudavam o tamanho da letra (`fontesRotuloPorZoom`, D-PROD-129), e o navegador refazia o texto de todos. Também havia um `getBoundingClientRect` do canvas depois de escritas na revisão dos nomes.
 - **Decisão (visual igual no fim do zoom):** durante o zoom, `escalarNome` amplia o nome já pronto na razão `fontesRotuloPorZoom(z).nome / fonte0` e só então aplica o encaixe no pasto (D-PROD-130). O tamanho real da letra é aplicado no `arrumarRotulos` completo (fim do zoom) e ao criar o nome. O retângulo do canvas é lido antes de qualquer escrita.
@@ -10621,4 +10636,4 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 - **Diferença visível:** durante o zoom o nome é uma ampliação do texto, não o texto refeito (diferença de no máximo ¼ px na letra); no fim do zoom fica idêntico ao de antes.
 - **Próximo:** os nomes desenhados pelo próprio mapa (camadas `symbol`), que tiram o custo restante do zoom.
 
-<!-- Próxima decisão: D-PROD-350 -->
+<!-- Próxima decisão: D-PROD-352 -->

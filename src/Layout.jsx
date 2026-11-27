@@ -55,6 +55,7 @@ import { DEFAULT_MENU, PAGINAS_SO_ADMINISTRADOR, flattenMenuPages, findMenuItemB
 import { ACTION_LABELS, canAccessModule, canAccessPage, canPerformAction, detectPermissionAction, normalizePermissionRecord } from "@/lib/permissions";
 import { deveBloquearCliqueMenu } from "@/lib/menuNavigation";
 import { useFilaDeEnvio } from "@/hooks/useFilaDeEnvio";
+import { avisoDeSairComPendencias, pendentesAoSair } from "@/services/sairComPendencias";
 import { confirmar } from "@/lib/maikeConfirmar";
 
 const PRIMARY_PAGE = "MapaGeral";
@@ -282,10 +283,12 @@ function LayoutShell({ children, currentPageName }) {
   }, []);
   const naoEnviados = filaEnvio.aguardando + filaEnvio.atencao;
   const handleLogout = React.useCallback(async () => {
-    if (naoEnviados > 0) {
+    // D-PROD-350: confere a fila na hora (com internet, tenta enviar antes) e só então avisa o que ficou.
+    const ficam = naoEnviados > 0 ? await pendentesAoSair() : 0;
+    if (ficam > 0) {
       const ok = await confirmar({
         titulo: "Há registros não enviados",
-        descricao: `${naoEnviados} registro(s) feitos sem internet ainda não chegaram ao sistema. Eles ficam guardados neste celular e só serão enviados quando você entrar de novo com esta mesma conta.`,
+        descricao: avisoDeSairComPendencias(ficam),
         textoConfirmar: "Sair mesmo assim",
         perigo: true,
       });

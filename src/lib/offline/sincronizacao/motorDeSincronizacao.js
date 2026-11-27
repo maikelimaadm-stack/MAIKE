@@ -257,9 +257,14 @@ export const definirSessaoDaFila = (nova) => {
   emitir();
 };
 
-/** @param {ItemDaFila} item */
-const eDaSessao = (item) =>
-  Boolean(sessao) && item.cliente_id === sessao?.cliente_id && (item.usuario_id ?? null) === (sessao?.usuario_id ?? null);
+/**
+ * O registro é desta sessão? D-PROD-350: o dono é a CONTA da fazenda (cliente), não a pessoa — como no AgriWebb.
+ * O que um peão lançou sem internet sobe mesmo que outra pessoa da mesma conta entre no celular (antes esperava a
+ * mesma pessoa voltar, e podia nunca subir). Registro de outra conta continua nunca indo com esta sessão. A pessoa
+ * que lançou continua gravada no item (`usuario_id`).
+ * @param {ItemDaFila} item
+ */
+const eDaSessao = (item) => Boolean(sessao) && item.cliente_id === sessao?.cliente_id;
 
 const novoOperationId = () => {
   try {

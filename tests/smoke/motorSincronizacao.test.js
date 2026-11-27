@@ -297,20 +297,26 @@ describe('D-PROD-295 — operação ainda em processamento no servidor', () => {
 });
 
 describe('D-PROD-295 — dono da fila', () => {
-  it('MS-15 registro de outra fazenda ou de outro usuário nunca vai com esta sessão', async () => {
+  // D-PROD-350: o dono é a conta da fazenda, não a pessoa (como no AgriWebb). Antes o registro de outra pessoa da
+  // mesma conta esperava ela voltar a entrar, e podia nunca subir.
+  it('MS-15 registro de outra pessoa da mesma conta sobe com esta sessão; de outra conta, nunca', async () => {
     const s = servidorFalso();
     registrarTipoDeEnvio({ tipo: 'cocho.leitura', versao: 1, offline: true, enviar: s.enviar });
     temRede = false;
     await enviarOuGuardar('cocho.leitura', { de: 'usr_1' });
-    definirSessaoDaFila({ cliente_id: 'cli_1', usuario_id: 'usr_2' });
+    // Outra conta (outro cliente): nunca vê nem envia.
+    definirSessaoDaFila({ cliente_id: 'cli_2', usuario_id: 'usr_9' });
     temRede = true;
-    const resumo = await sincronizar();
+    let resumo = await sincronizar();
     expect(s.enviar).not.toHaveBeenCalled();
-    expect(resumo.aguardando).toBe(0); // não aparece para o usuário 2
-    definirSessaoDaFila({ cliente_id: 'cli_1', usuario_id: 'usr_1' });
-    expect((await registrosAguardandoDoTipo('cocho.leitura'))[0].payload).toEqual({ de: 'usr_1' });
-    await sincronizar();
+    expect(resumo.aguardando).toBe(0);
+    // Outra pessoa da mesma conta: o registro aparece e sobe.
+    definirSessaoDaFila({ cliente_id: 'cli_1', usuario_id: 'usr_2' });
+    resumo = await sincronizar();
     expect(s.enviar).toHaveBeenCalledTimes(1);
+    expect(resumo.aguardando).toBe(0);
+    const [item] = await fila.listar();
+    expect(item.usuario_id).toBe('usr_1'); // quem lançou continua gravado
   });
 
   it('MS-16 sem sessão (saiu da conta) nada é guardado nem enviado', async () => {
