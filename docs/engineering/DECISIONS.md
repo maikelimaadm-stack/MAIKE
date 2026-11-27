@@ -10624,4 +10624,21 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`dcc7d46a6`) indicou D-PROD-350. O marcador passa a D-PROD-351. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-351 -->
+## D-PROD-352 — Diário das atividades: acertos depois das frentes (horas, máquinas em campo, um caminho só, reabrir, produção)
+
+**Decisão.** Cinco acertos pequenos no Diário das atividades, todos só de tela (sem backend, sem migration, dados intactos), na ordem em que a D-PROD-348 os deixou como "limites conhecidos".
+
+**O que muda.**
+- **"Hoje" em horas.** O cartão da frente mostra as horas trabalhadas no dia ("4,5 h"; sem leitura, "Nada hoje"), não a contagem de lançamentos. `horasDaFrenteNoDia` (`aberturaServicoRegras.js`): com linhas de máquina do dia (leitura final − inicial), soma; senão, o maior horímetro lido hoje (`[carga hor=]` e leituras) menos o último lido antes do dia, ou o inicial da abertura. Medidor que anda para trás não entra.
+- **"N máquinas em campo" nos Detalhes da área.** A linha da atividade em andamento lê as frentes dela (mesma chave de cache do Diário) e mostra o texto de `textoDasMaquinasEmCampo`; lendo ou com erro, a linha fica como era.
+- **Um caminho só.** "+ Lançamento" (ação da atividade no mapa) abre o Diário na atividade; saíram "Diário das atividades" (repetia a mesma ação) e "Só insumo" (o Diário lança insumo pela carga). Na Lançamento de Atividades, "+ Lançamento" do card abre o Diário quando a atividade tem uma área só (`areaUnicaDaAtividade`); com várias áreas segue a Nova realização, que continua sendo o caminho de várias áreas e de reforma. "Só máquina / mão de obra / serviço de terceiro" ficam, porque essas opções ainda são "Em breve" no Diário.
+- **Reabrir frente.** A frente encerrada ganha o botão "Reabrir" (com permissão de lançar e atividade aberta), que grava um apontamento só com `[reabertura-servico bem= impl=]`. A frente está encerrada só se o ÚLTIMO marcador dela (abertura, encerramento ou reabertura, em ordem) for um encerramento. A reabertura não é lançamento do dia, não traz horímetro nem operador e mantém a abertura original no cartão.
+- **Produção exigida.** Se o servidor recusa o "Encerrar atividade" porque o tipo exige produção (`ATIVIDADE_EXIGIDA_PELO_TIPO`, campo `quantidade_produzida`), a atividade segue aberta e o painel mostra "Este tipo de atividade exige informar a produção. Informe a quantidade produzida para encerrar." com o campo da quantidade (unidade de produção da atividade, quando houver). A nova tentativa grava a produção num apontamento (uma vez só) e conclui de novo.
+
+**Riscos e limites.** O Insumo do Diário não confere `permite_produto` da operação (o "Só insumo" conferia). "+ Lançamento" numa área planejada agora abre o Diário (adicionar máquina inicia a área). Na Lançamento de Atividades, o "+ Lançar dia" da tabela e o ⚡ seguem pelo caminho antigo.
+
+**Testes.** `aberturaServicoRegras.test.js` (horas, reabertura e ordem dos marcadores), `diarioFrentes.test.jsx` (Reabrir, produção exigida, horas no cartão), `abaDetalhesMaquinasEmCampo.test.jsx`, `mapaAtividadeAcoes.test.jsx`, `lancamentoAtividades.test.jsx` (LD-3, LD-4), `atividadeAreas.test.jsx`, `encerramentoProducaoExigida.test.js`.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` indicou D-PROD-351, que a PR #439 (aberta) já usa; esta ficou com D-PROD-352 e o marcador passa a D-PROD-353.
+
+<!-- Próxima decisão: D-PROD-353 -->
