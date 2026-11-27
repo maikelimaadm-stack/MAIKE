@@ -825,7 +825,7 @@ describe("L349-9 — correções da revisão", () => {
     const press = src.slice(src.indexOf("const handlePressStart = (event) => {"), src.indexOf("const handlePressMove"));
     const zera = press.indexOf("longPressTriggeredRef.current = false;");
     const consulta = press.indexOf("rendererHitLoteRef.current?.(");
-    const regra = press.indexOf("deveComecarToqueLongo({ podeUsarTarefasMapa, selecionandoLocalTarefa, sobreLote })");
+    const regra = press.indexOf("deveComecarToqueLongo({ podeUsarTarefasMapa, selecionandoLocalTarefa, sobreLote, sobrePonto })");
     const arma = press.indexOf("longPressTimerRef.current = setTimeout(");
     expect(zera).toBeGreaterThan(-1);
     expect(consulta).toBeGreaterThan(zera);

@@ -194,6 +194,7 @@ export default function MapaGeral({ ativo = true } = {}) {
   const rendererEnsureRef = useRef(renderer.ensureLayers);
   const rendererHitRef = useRef(renderer.hitArea);
   const rendererHitLoteRef = useRef(renderer.hitLote);
+  const rendererHitPontoRef = useRef(renderer.hitPonto);
   const rendererEstiloRef = useRef(renderer.setEstiloPasto);
   rendererEstiloRef.current = renderer.setEstiloPasto;
   useEffect(() => {
@@ -201,6 +202,7 @@ export default function MapaGeral({ ativo = true } = {}) {
   }, [mapReady, estiloPasto]);
   rendererHitRef.current = renderer.hitArea;
   rendererHitLoteRef.current = renderer.hitLote;
+  rendererHitPontoRef.current = renderer.hitPonto;
   rendererEnsureRef.current = renderer.ensureLayers;
   const basemap = useBasemap(mapInstance, {
     inicial: BASEMAP_IDS.SATELITE,
@@ -1274,9 +1276,12 @@ export default function MapaGeral({ ativo = true } = {}) {
       if (!point) return;
       longPressTriggeredRef.current = false;
       // D-PROD-349: em cima do ícone de um lote o toque é do lote (abrir ou arrastar), não do lançamento de tarefa.
+      // D-PROD-352: o mesmo em cima de um cocho, ponto de referência ou tarefa (o toque abre o detalhe dele).
       const rect = mapElement.getBoundingClientRect();
-      const sobreLote = Boolean(rendererHitLoteRef.current?.({ x: point.x - rect.left, y: point.y - rect.top }));
-      if (!deveComecarToqueLongo({ podeUsarTarefasMapa, selecionandoLocalTarefa, sobreLote })) {
+      const noMapa = { x: point.x - rect.left, y: point.y - rect.top };
+      const sobreLote = Boolean(rendererHitLoteRef.current?.(noMapa));
+      const sobrePonto = Boolean(rendererHitPontoRef.current?.(noMapa));
+      if (!deveComecarToqueLongo({ podeUsarTarefasMapa, selecionandoLocalTarefa, sobreLote, sobrePonto })) {
         clearLongPress();
         longPressStartRef.current = null;
         return;

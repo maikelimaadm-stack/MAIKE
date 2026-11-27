@@ -251,13 +251,19 @@ export function pixelRatioDaTela() {
   return Number.isFinite(dpr) && dpr > 0 ? Math.min(4, Math.max(1, dpr)) : 1;
 }
 
-/** @param {string} url @returns {Promise<HTMLImageElement | null>} */
-function carregarFigura(url) {
+/**
+ * Figura carregada (uma por URL). URL que não é `data:`/`blob:` (ícone antigo gravado como link; o envio do app
+ * devolve `data:` URL — D-PROD-352) é pedida com CORS: sem ele, desenhar a figura sujaria o canvas e nenhum pixel
+ * poderia ser lido. Servidor sem CORS = figura que não carrega (o ponto fica com a reserva).
+ * @param {string} url @returns {Promise<HTMLImageElement | null>}
+ */
+export function carregarFigura(url) {
   let p = figuras.get(url);
   if (!p) {
     p = new Promise((resolve) => {
       if (typeof Image === "undefined") return resolve(null);
       const img = new Image();
+      if (!/^(data|blob):/i.test(String(url))) img.crossOrigin = "anonymous";
       img.onload = () => resolve(img);
       img.onerror = () => resolve(null);
       img.src = url;
@@ -265,6 +271,11 @@ function carregarFigura(url) {
     figuras.set(url, p);
   }
   return p;
+}
+
+/** Esquece a figura que não carregou: a próxima tentativa carrega de novo. @param {string} url */
+export function esquecerFigura(url) {
+  figuras.delete(url);
 }
 
 /**
@@ -296,7 +307,8 @@ function baseDaFigura(iconUrl, pixelRatio) {
 }
 
 /**
- * Canvas único de trabalho (`willReadFrequently`: a leitura dos pixels não passa pela GPU).
+ * Canvas único de trabalho (`willReadFrequently`: a leitura dos pixels não passa pela GPU). Também desenha as imagens
+ * dos pontos (D-PROD-352, `contextoDeDesenho`).
  * @param {number} largura @param {number} altura
  */
 function contexto(largura, altura) {
@@ -316,7 +328,7 @@ function contexto(largura, altura) {
  * base = centro + (ascendente − descendente) / 2 da fonte. Sem as métricas, "middle" dá o mesmo.
  * @param {CanvasRenderingContext2D} ctx @param {string} texto @param {number} centroY
  */
-function baseDoTexto(ctx, texto, centroY) {
+export function baseDoTexto(ctx, texto, centroY) {
   const m = ctx.measureText?.(texto);
   if (m && Number.isFinite(m.fontBoundingBoxAscent) && Number.isFinite(m.fontBoundingBoxDescent)) {
     ctx.textBaseline = "alphabetic";
@@ -332,10 +344,15 @@ function lerPixels(ctx, largura, altura) {
     const d = ctx.getImageData(0, 0, largura, altura);
     return { width: d.width, height: d.height, data: d.data };
   } catch {
-    // canvas "sujo" (figura de outra origem): sem pixels, sem imagem
+    // Canvas "sujo" (figura de outra origem): sem pixels, sem imagem. Um canvas sujo fica sujo para sempre: o de
+    // trabalho é trocado por um novo, senão nenhuma imagem depois desta sairia (D-PROD-352).
+    tela = null;
     return null;
   }
 }
+
+/** O canvas de trabalho e a leitura dos pixels, para as imagens dos pontos (D-PROD-352, `pontosNoMapa.js`). */
+export { contexto as contextoDeDesenho, lerPixels as lerPixelsDoCanvas };
 
 /**
  * Desenha o ícone do lote: a figura do motor (44 px de largura, altura sem achatar) e a contagem dentro dela, como o
@@ -496,10 +513,12 @@ function naFila(fn) {
 /**
  * Garante as imagens pedidas no cache. Devolve `null` se todas já estão prontas (o chamador segue sem esperar) ou a
  * promessa de quando ficarem. Uma chave só é desenhada uma vez, mesmo pedida várias vezes ao mesmo tempo.
+ * Usado pelos lotes e pelos pontos (D-PROD-352): o cache, a fila e o limite de tentativas são os mesmos.
  * @param {PedidoImagem[]} pedidos @param {number} pixelRatio
+ * @param {() => void} [aoFalhar] aviso (uma vez) de imagem que falhou; padrão: o dos lotes
  * @returns {Promise<void> | null}
  */
-export function garantirImagens(pedidos, pixelRatio) {
+export function garantirImagens(pedidos, pixelRatio, aoFalhar = avisarFalha) {
   /** @type {Promise<Raster | null>[]} */
   const esperar = [];
   for (const { chave, gerar } of pedidos) {
@@ -517,7 +536,7 @@ export function garantirImagens(pedidos, pixelRatio) {
             falhas.delete(k);
           } else {
             falhas.set(k, (falhas.get(k) || 0) + 1);
-            avisarFalha();
+            aoFalhar();
           }
           return r;
         });
@@ -591,9 +610,10 @@ const registradasDo = (map) => {
 
 /**
  * Põe (ou troca) uma imagem no estilo. Já está com o mesmo DPR: nada. Com outro DPR (a tela mudou): troca.
+ * Também para as imagens dos pontos (D-PROD-352, `porImagemNoMapa`).
  * @param {any} map @param {string} chave @param {Raster} r
  */
-function porImagem(map, chave, r) {
+export function porImagemNoMapa(map, chave, r) {
   const doMapa = registradasDo(map);
   try {
     const tem = typeof map.hasImage === "function" && map.hasImage(chave);
@@ -610,7 +630,7 @@ function porImagem(map, chave, r) {
 export function registrarReserva(map, pixelRatio) {
   if (typeof map?.addImage !== "function") return;
   const r = desenharImagemReserva(pixelRatio);
-  if (r) porImagem(map, IMAGEM_RESERVA, r);
+  if (r) porImagemNoMapa(map, IMAGEM_RESERVA, r);
 }
 
 /**
@@ -623,7 +643,7 @@ export function registrarImagens(map, chaves, pixelRatio) {
   registrarReserva(map, pixelRatio);
   for (const chave of chaves) {
     const r = imagemPronta(chave, pixelRatio);
-    if (r) porImagem(map, chave, r);
+    if (r) porImagemNoMapa(map, chave, r);
   }
 }
 
@@ -634,16 +654,18 @@ const ehImagemDeLote = (chave) => chave.startsWith("mg-lote|") || chave.startsWi
  * Tira do mapa e do cache as imagens de lote que nenhum lote usa mais (contagem que mudou, lote que saiu) e as de
  * outro DPR. As que ainda estão sendo desenhadas ficam (entram no cache e saem na próxima poda). Sem nenhum lote
  * (camada escondida pelo filtro) não poda: ao mostrar de novo, as imagens já estão prontas.
+ * Os pontos (D-PROD-352) podam só as do seu grupo, com `ehDoGrupo`.
  * @param {any} map @param {Set<string>} emUso @param {number} pixelRatio
+ * @param {(chave: string) => boolean} [ehDoGrupo] quais imagens esta poda pode tirar; padrão: as de lote
  * @returns {string[]} chaves tiradas do mapa
  */
-export function podarImagens(map, emUso, pixelRatio) {
+export function podarImagens(map, emUso, pixelRatio, ehDoGrupo = ehImagemDeLote) {
   if (!emUso.size) return [];
   /** @type {string[]} */
   const tiradas = [];
   const doMapa = map ? registradas.get(map) : null;
   doMapa?.forEach((_pr, chave) => {
-    if (!ehImagemDeLote(chave) || emUso.has(chave)) return;
+    if (!ehDoGrupo(chave) || emUso.has(chave)) return;
     try {
       if (typeof map.hasImage !== "function" || map.hasImage(chave)) map.removeImage?.(chave);
     } catch {
@@ -655,7 +677,7 @@ export function podarImagens(map, emUso, pixelRatio) {
   for (const k of [...prontas.keys()]) {
     const i = k.lastIndexOf("@");
     const chave = k.slice(0, i);
-    if (ehImagemDeLote(chave) && (!emUso.has(chave) || Number(k.slice(i + 1)) !== pixelRatio)) prontas.delete(k);
+    if (ehDoGrupo(chave) && (!emUso.has(chave) || Number(k.slice(i + 1)) !== pixelRatio)) prontas.delete(k);
   }
   return tiradas;
 }
@@ -780,8 +802,10 @@ export function criarPiscaIdent(getMap) {
  *   aoSoltar: (lngLat: { lat: number, lng: number }, areaId: string) => void,
  *   criarMarcador: (el: HTMLElement, offset: [number, number]) => any,
  *   pixelRatio: () => number,
+ *   coberto?: (ponto: { x: number, y: number }) => boolean,
  * }} opts
- * @returns {{ off: () => void, cancelarArrasto: () => void }}
+ *   `coberto(ponto)` (D-PROD-352): há algo clicável POR CIMA do lote nesse ponto (uma tarefa) — o toque é dele.
+ * @returns {{ off: () => void, cancelarArrasto: () => void, acabouDeArrastar: () => boolean }}
  */
 export function ligarInteracaoLotes(map, opts) {
   /** @type {null | { areaId: string, toque: boolean, inicio: { x: number, y: number }, origem: { x: number, y: number }, ancora: [number, number], ativo: boolean, marcador: any, lngLat: { lat: number, lng: number } | null }} */
@@ -896,9 +920,11 @@ export function ligarInteracaoLotes(map, opts) {
     a.marcador?.setLngLat([ll.lng, ll.lat]);
   };
 
+  const coberto = (/** @type {any} */ e) => Boolean(e?.point && opts.coberto?.(e.point));
   const aoPressionar = (/** @type {any} */ e) => {
     if (!opts.podeArrastar()) return;
     if (e?.points && e.points.length > 1) return;
+    if (coberto(e)) return; // uma tarefa por cima: o mapa desliza normalmente e o lote não sai do lugar
     const areaId = areaDe(e);
     if (!areaId || !e?.point) return;
     if (arrasto) terminar(false);
@@ -913,13 +939,13 @@ export function ligarInteracaoLotes(map, opts) {
   };
 
   const aoClicarCamada = (/** @type {any} */ e) => {
-    if (ignorarClique) return;
+    if (ignorarClique || coberto(e)) return;
     const areaId = areaDe(e);
     if (areaId) opts.aoClicar(areaId);
   };
   const aoEntrar = (/** @type {any} */ e) => {
     const c = canvas();
-    if (!c?.style) return;
+    if (!c?.style || coberto(e)) return;
     c.style.cursor = "pointer";
     const lote = opts.lote(areaDe(e) || "");
     if ("title" in c) c.title = lote?.nome || "";
@@ -939,6 +965,8 @@ export function ligarInteracaoLotes(map, opts) {
 
   return {
     cancelarArrasto: () => terminar(false),
+    // o clique que o navegador manda ao soltar um lote arrastado não abre o ponto que estiver ali (D-PROD-352)
+    acabouDeArrastar: () => ignorarClique || Boolean(arrasto?.ativo),
     off: () => {
       terminar(false);
       try {

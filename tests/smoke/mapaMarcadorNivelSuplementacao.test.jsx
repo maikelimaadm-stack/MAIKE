@@ -1,24 +1,26 @@
 /**
- * D-PROD-178 (MAPA-NIVEIS-COCHO-DEPOSITO-UX01) — marcador de cocho/depósito no
- * renderer REAL do Mapa Geral (`useMapRenderer`), com MapLibre falso.
+ * D-PROD-178 (MAPA-NIVEIS-COCHO-DEPOSITO-UX01) — cocho/depósito no renderer REAL do Mapa Geral (`useMapRenderer`),
+ * com MapLibre e canvas falsos. Desde a D-PROD-352 o cocho é desenhado pelo próprio mapa (fonte `mg-supl`, camada
+ * `symbol`), não é mais marcador HTML:
  *
- *  - `title` e `aria-label` do marcador = nome do ponto + " — " + o mesmo texto
- *    do nível (`indicador_titulo`, que vem do SSOT);
- *  - selo pequeno no canto: "?" cinza quando o nível é neutro (sem estimativa,
- *    período fechado, sem limite…) e "!" âmbar quando o depósito está acima do
- *    limite operacional; o selo é decorativo (`aria-hidden`) — o texto acessível
- *    é o `aria-label`;
- *  - o diff por `estado` inclui título e selo: quando o nível muda (virada do
- *    dia), o MESMO marcador troca ícone, título e selo; quando só o texto muda,
- *    o `<img>` é preservado; nível igual não mexe em nada;
- *  - o SVG não muda de modelo: o ícone é `urlIconeCocho/urlIconeDeposito` do
- *    `indicador_percentual` (já quantizado em 1% pelo SSOT).
+ *  - o `titulo` do ponto na fonte = nome do ponto + " — " + o mesmo texto do nível (`indicador_titulo`, que vem do
+ *    SSOT): é o que era o `title`/`aria-label` do marcador (vira o título do canvas no mouse; o detalhe que abre ao
+ *    tocar mostra o nível por extenso);
+ *  - selo pintado no canto da imagem: "?" cinza quando o nível é neutro (sem estimativa, período fechado, sem
+ *    limite…) e "!" âmbar quando o depósito está acima do limite operacional;
+ *  - o MESMO ponto da fonte (mesmo id) troca de imagem quando o nível muda (virada do dia); quando só o texto muda,
+ *    a imagem é a mesma (nada redesenhado); nível igual não mexe em nada;
+ *  - o SVG não muda de modelo: a figura é `urlIconeCocho/urlIconeDeposito` do `indicador_percentual` (já
+ *    quantizado em 1% pelo SSOT).
  */
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { urlIconeCocho } from '@/assets/icones/cocho-descoberto.js';
 import { urlIconeDeposito } from '@/assets/icones/deposito-sal.js';
 import { descreverMarcadorSuplementacao } from '@/lib/maplibre/mapaGeralRender.js';
+import { limparCacheImagensLotes } from '@/lib/maplibre/lotesNoMapa.js';
+import { CORES_SELO_SUPLEMENTACAO, SUPL_LAYER_ID, SUPL_SOURCE_ID } from '@/lib/maplibre/pontosNoMapa.js';
+import { instalarCanvasFalso } from './helpers/canvasLotesFalso.js';
 
 const marcadores = [];
 vi.mock('@/lib/maplibre/lifecycle.js', async (orig) => {
@@ -27,16 +29,11 @@ vi.mock('@/lib/maplibre/lifecycle.js', async (orig) => {
     constructor(opts) {
       this.el = opts.element;
       this.opts = opts;
-      this.handlers = {};
       this.removed = false;
       marcadores.push(this);
     }
-    setLngLat(ll) {
-      this.ll = Array.isArray(ll) ? { lng: ll[0], lat: ll[1] } : ll;
+    setLngLat() {
       return this;
-    }
-    getLngLat() {
-      return this.ll;
     }
     addTo(map) {
       map.container.appendChild(this.el);
@@ -46,10 +43,6 @@ vi.mock('@/lib/maplibre/lifecycle.js', async (orig) => {
       return this.el;
     }
     setOffset() {
-      return this;
-    }
-    on(ev, fn) {
-      this.handlers[ev] = fn;
       return this;
     }
     remove() {
@@ -69,18 +62,24 @@ vi.mock('@/lib/maplibre/lifecycle.js', async (orig) => {
 const mkMap = () => {
   const container = document.createElement('div');
   const handlers = [];
+  const images = new Map();
+  const canvas = document.createElement('canvas');
   return {
     container,
     data: new Map(),
     handlers,
+    images,
     getSource: () => undefined,
     addSource: () => {},
     getLayer: () => undefined,
     addLayer: () => {},
+    addImage: vi.fn((id, img, opts) => images.set(id, { img, opts })),
+    hasImage: (id) => images.has(id),
+    removeImage: vi.fn((id) => images.delete(id)),
     on: (...a) => handlers.push(a),
     off: () => {},
     getZoom: () => 15,
-    getCanvas: () => ({ style: {} }),
+    getCanvas: () => canvas,
     setFeatureState: vi.fn(),
     queryRenderedFeatures: () => [],
   };
@@ -103,9 +102,21 @@ const TXT_DEP_50 = 'Saldo de 150 kg: 50% do limite operacional de 300 kg.';
 
 const cocho = (extra) => ({ ...COCHO, indicador_neutro: false, ...extra });
 const deposito = (extra) => ({ ...DEPOSITO, indicador_neutro: false, indicador_alerta_excesso: false, ...extra });
-const marcadorDe = (nome) => marcadores.find((m) => !m.removed && String(m.el.title).startsWith(nome));
-const img = (m) => m.el.querySelector('img');
-const selo = (m) => m.el.querySelector('.mg-supl-selo');
+/** O cocho/depósito na fonte do mapa (D-PROD-352). */
+const pontoNaFonte = (map, id) => (map.data.get(SUPL_SOURCE_ID)?.features || []).find((f) => f.properties.id === id);
+/** Selos escritos na imagem ("?" ou "!"), na ordem. */
+const selosDesenhados = () => canvas.textos().filter((t) => t === '?' || t === '!');
+/** Clique na camada dos cochos. */
+const clicar = (map, id) => {
+  for (const h of map.handlers) if (h[0] === 'click' && h[1] === SUPL_LAYER_ID) h[2]({ point: { x: 0, y: 0 }, features: [{ properties: { id } }] });
+};
+
+let canvas;
+beforeEach(() => {
+  marcadores.length = 0;
+  limparCacheImagensLotes();
+  canvas = instalarCanvasFalso();
+});
 
 describe('descreverMarcadorSuplementacao (pura)', () => {
   it('título = nome — texto do nível; sem texto do nível, só o nome', () => {
@@ -122,106 +133,102 @@ describe('descreverMarcadorSuplementacao (pura)', () => {
   });
 });
 
-describe('useMapRenderer.syncPontosSuplementacao — nível no marcador (D-PROD-178)', () => {
-  it('cria com ícone do nível, title e aria-label do nível; sem selo quando há estimativa', async () => {
-    marcadores.length = 0;
-    const { r } = await montarRenderer();
-    r.syncPontosSuplementacao([cocho({ indicador_percentual: 1, indicador_titulo: TXT_100 })], true, [], vi.fn());
-    const m = marcadorDe('Cocho Norte');
-    expect(m).toBeTruthy();
-    expect(m.el.title).toBe(`Cocho Norte — ${TXT_100}`);
-    expect(m.el.getAttribute('aria-label'), 'aria-label definido ANTES do addTo (o MapLibre poria "Map marker")').toBe(`Cocho Norte — ${TXT_100}`);
-    expect(img(m).getAttribute('src')).toBe(urlIconeCocho(1, true));
-    expect(selo(m)).toBeNull();
+describe('useMapRenderer.syncPontosSuplementacao — nível no cocho desenhado pelo mapa (D-PROD-178, D-PROD-352)', () => {
+  it('cria com a figura do nível e o título do nível; sem selo quando há estimativa; nenhum marcador HTML', async () => {
+    const { r, map } = await montarRenderer();
+    await r.syncPontosSuplementacao([cocho({ indicador_percentual: 1, indicador_titulo: TXT_100 })], true, [], vi.fn());
+    const f = pontoNaFonte(map, 'c1');
+    expect(f).toBeTruthy();
+    expect(f.properties.titulo).toBe(`Cocho Norte — ${TXT_100}`);
+    expect(canvas.figurasCarregadas).toEqual([urlIconeCocho(1, true)]);
+    expect(map.images.has(f.properties.imagem)).toBe(true);
+    expect(selosDesenhados()).toEqual([]);
+    expect(marcadores).toHaveLength(0);
   });
 
-  it('virada do dia: o MESMO marcador troca ícone e título; nível igual não recria nada', async () => {
-    marcadores.length = 0;
-    const { r } = await montarRenderer();
+  it('virada do dia: o MESMO ponto troca figura e título; nível igual não redesenha nem republica', async () => {
+    const { r, map } = await montarRenderer();
     const onClick = vi.fn();
-    r.syncPontosSuplementacao([cocho({ indicador_percentual: 1, indicador_titulo: TXT_100 })], true, [], onClick);
-    const m = marcadorDe('Cocho Norte');
-    const imgAntes = img(m);
+    await r.syncPontosSuplementacao([cocho({ indicador_percentual: 1, indicador_titulo: TXT_100 })], true, [], onClick);
+    const antes = pontoNaFonte(map, 'c1');
+    const dados = map.data.get(SUPL_SOURCE_ID);
+    const desenhos = canvas.desenhos();
 
-    r.syncPontosSuplementacao([cocho({ indicador_percentual: 1, indicador_titulo: TXT_100 })], true, [], onClick);
-    expect(img(m), 'mesmo nível: <img> preservado').toBe(imgAntes);
+    await r.syncPontosSuplementacao([cocho({ indicador_percentual: 1, indicador_titulo: TXT_100 })], true, [], onClick);
+    expect(canvas.desenhos(), 'mesmo nível: nada redesenhado').toBe(desenhos);
+    expect(map.data.get(SUPL_SOURCE_ID), 'mesmo nível: fonte intacta').toBe(dados);
 
-    r.syncPontosSuplementacao([cocho({ indicador_percentual: 0.75, indicador_titulo: TXT_75 })], true, [], onClick);
-    expect(marcadores.filter((x) => !x.removed)).toHaveLength(1);
-    expect(m.removed).toBe(false);
-    expect(img(m).getAttribute('src')).toBe(urlIconeCocho(0.75, true));
-    expect(img(m).getAttribute('src')).not.toBe(urlIconeCocho(1, true));
-    expect(m.el.title).toBe(`Cocho Norte — ${TXT_75}`);
-    expect(m.el.getAttribute('aria-label')).toBe(`Cocho Norte — ${TXT_75}`);
+    await r.syncPontosSuplementacao([cocho({ indicador_percentual: 0.75, indicador_titulo: TXT_75 })], true, [], onClick);
+    expect(map.data.get(SUPL_SOURCE_ID).features).toHaveLength(1);
+    const depois = pontoNaFonte(map, 'c1');
+    expect(depois.properties.imagem).not.toBe(antes.properties.imagem);
+    expect(canvas.figurasCarregadas).toContain(urlIconeCocho(0.75, true));
+    expect(depois.properties.titulo).toBe(`Cocho Norte — ${TXT_75}`);
 
     // o clique entrega o ponto mais recente (o do nível novo)
-    m.el.click();
+    clicar(map, 'c1');
     expect(onClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'c1', indicador_percentual: 0.75 }));
   });
 
-  it('neutro ganha selo "?" cinza (decorativo); voltar a ter estimativa remove o selo', async () => {
-    marcadores.length = 0;
-    const { r } = await montarRenderer();
-    r.syncPontosSuplementacao([cocho({ indicador_percentual: 0.75, indicador_titulo: TXT_75 })], true, [], vi.fn());
-    const m = marcadorDe('Cocho Norte');
+  it('neutro ganha selo "?" cinza pintado na imagem; voltar a ter estimativa tira o selo', async () => {
+    const { r, map } = await montarRenderer();
+    await r.syncPontosSuplementacao([cocho({ indicador_percentual: 0.75, indicador_titulo: TXT_75 })], true, [], vi.fn());
 
-    r.syncPontosSuplementacao([cocho({ indicador_percentual: 0, indicador_neutro: true, indicador_titulo: TXT_SEM_PV })], true, [], vi.fn());
-    const s = selo(m);
-    expect(s).toBeTruthy();
-    expect(s.textContent).toBe('?');
-    expect(s.dataset.selo).toBe('neutro');
-    expect(s.getAttribute('aria-hidden')).toBe('true');
-    expect(s.style.pointerEvents).toBe('none');
-    expect(img(m).getAttribute('src')).toBe(urlIconeCocho(0, true));
-    expect(m.el.getAttribute('aria-label')).toBe(`Cocho Norte — ${TXT_SEM_PV}`);
-    expect(m.el.querySelectorAll('.mg-supl-selo')).toHaveLength(1);
+    await r.syncPontosSuplementacao([cocho({ indicador_percentual: 0, indicador_neutro: true, indicador_titulo: TXT_SEM_PV })], true, [], vi.fn());
+    const texto = canvas.chamadas.find((c) => c.nome === 'fillText' && c.args[0] === '?');
+    expect(texto.estado.fillStyle).toBe(CORES_SELO_SUPLEMENTACAO.neutro.texto);
+    expect(canvas.chamadas.find((c) => c.nome === 'arc' && c.estado.fillStyle === CORES_SELO_SUPLEMENTACAO.neutro.fundo)).toBeTruthy();
+    expect(canvas.figurasCarregadas).toContain(urlIconeCocho(0, true));
+    const f = pontoNaFonte(map, 'c1');
+    expect(f.properties.titulo).toBe(`Cocho Norte — ${TXT_SEM_PV}`);
+    expect(f.properties.imagem).toMatch(/\|neutro\|/);
 
-    r.syncPontosSuplementacao([cocho({ indicador_percentual: 0.5, indicador_titulo: 'Restante estimado: 100 kg de 200 kg (50%).' })], true, [], vi.fn());
-    expect(selo(m)).toBeNull();
-    expect(img(m).getAttribute('src')).toBe(urlIconeCocho(0.5, true));
+    canvas.chamadas.length = 0;
+    await r.syncPontosSuplementacao([cocho({ indicador_percentual: 0.5, indicador_titulo: 'Restante estimado: 100 kg de 200 kg (50%).' })], true, [], vi.fn());
+    expect(selosDesenhados()).toEqual([]);
+    expect(pontoNaFonte(map, 'c1').properties.imagem).not.toMatch(/neutro/);
+    expect(canvas.figurasCarregadas).toContain(urlIconeCocho(0.5, true));
   });
 
-  it('depósito acima do limite: ícone cheio (fração ≤ 1), selo "!" âmbar e 200% no título; só o texto mudando preserva o <img>', async () => {
-    marcadores.length = 0;
-    const { r } = await montarRenderer();
-    r.syncPontosSuplementacao([deposito({ indicador_percentual: 1, indicador_alerta_excesso: true, indicador_titulo: TXT_DEP_200 })], true, [], vi.fn());
-    const m = marcadorDe('Depósito Sede');
-    expect(img(m).getAttribute('src')).toBe(urlIconeDeposito(1, true));
-    expect(m.el.title).toBe(`Depósito Sede — ${TXT_DEP_200}`);
-    expect(m.el.getAttribute('aria-label')).toContain('200%');
-    expect(selo(m)?.textContent).toBe('!');
-    expect(selo(m)?.dataset.selo).toBe('excesso');
-    const imgAntes = img(m);
+  it('depósito acima do limite: figura cheia (fração ≤ 1), selo "!" âmbar e 200% no título; só o texto mudando não redesenha', async () => {
+    const { r, map } = await montarRenderer();
+    await r.syncPontosSuplementacao([deposito({ indicador_percentual: 1, indicador_alerta_excesso: true, indicador_titulo: TXT_DEP_200 })], true, [], vi.fn());
+    expect(canvas.figurasCarregadas).toEqual([urlIconeDeposito(1, true)]);
+    const f = pontoNaFonte(map, 'd1');
+    expect(f.properties.titulo).toBe(`Depósito Sede — ${TXT_DEP_200}`);
+    expect(f.properties.titulo).toContain('200%');
+    expect(selosDesenhados(), 'na imagem e na reserva').toEqual(['!', '!']);
+    expect(canvas.chamadas.find((c) => c.nome === 'fillText' && c.args[0] === '!').estado.fillStyle).toBe(CORES_SELO_SUPLEMENTACAO.excesso.texto);
+    expect(canvas.chamadas.find((c) => c.nome === 'arc' && c.estado.fillStyle === CORES_SELO_SUPLEMENTACAO.excesso.fundo)).toBeTruthy();
+    const desenhos = canvas.desenhos();
 
-    // Mesmo ícone (continua cheio), texto diferente: só título e selo mudam.
+    // Mesmo ícone (continua cheio), texto diferente: só o título muda; a imagem é a mesma.
     const TXT_DEP_150 = 'Saldo de 450 kg: 150% do limite operacional de 300 kg (150 kg acima).';
-    r.syncPontosSuplementacao([deposito({ indicador_percentual: 1, indicador_alerta_excesso: true, indicador_titulo: TXT_DEP_150 })], true, [], vi.fn());
-    expect(img(m), 'ícone igual: <img> preservado').toBe(imgAntes);
-    expect(m.el.title).toBe(`Depósito Sede — ${TXT_DEP_150}`);
-    expect(selo(m)?.textContent).toBe('!');
+    await r.syncPontosSuplementacao([deposito({ indicador_percentual: 1, indicador_alerta_excesso: true, indicador_titulo: TXT_DEP_150 })], true, [], vi.fn());
+    expect(canvas.desenhos(), 'figura igual: nada redesenhado').toBe(desenhos);
+    expect(pontoNaFonte(map, 'd1').properties.imagem).toBe(f.properties.imagem);
+    expect(pontoNaFonte(map, 'd1').properties.titulo).toBe(`Depósito Sede — ${TXT_DEP_150}`);
 
-    // Volta para dentro do limite: ícone novo, sem selo.
-    r.syncPontosSuplementacao([deposito({ indicador_percentual: 0.5, indicador_titulo: TXT_DEP_50 })], true, [], vi.fn());
-    expect(img(m).getAttribute('src')).toBe(urlIconeDeposito(0.5, true));
-    expect(selo(m)).toBeNull();
-    expect(m.el.getAttribute('aria-label')).toBe(`Depósito Sede — ${TXT_DEP_50}`);
+    // Volta para dentro do limite: figura nova, sem selo.
+    await r.syncPontosSuplementacao([deposito({ indicador_percentual: 0.5, indicador_titulo: TXT_DEP_50 })], true, [], vi.fn());
+    expect(canvas.figurasCarregadas).toContain(urlIconeDeposito(0.5, true));
+    expect(pontoNaFonte(map, 'd1').properties.imagem).not.toMatch(/excesso/);
+    expect(pontoNaFonte(map, 'd1').properties.titulo).toBe(`Depósito Sede — ${TXT_DEP_50}`);
   });
 
   it('sem dados de nível (formato antigo): título só com o nome, sem selo', async () => {
-    marcadores.length = 0;
-    const { r } = await montarRenderer();
-    r.syncPontosSuplementacao([{ id: 'c9', nome_ponto: 'Cocho', coordenadas: { lat: 0, lng: 0 } }], true, [], vi.fn());
-    const m = marcadorDe('Cocho');
-    expect(m.el.title).toBe('Cocho');
-    expect(m.el.getAttribute('aria-label')).toBe('Cocho');
-    expect(selo(m)).toBeNull();
+    const { r, map } = await montarRenderer();
+    await r.syncPontosSuplementacao([{ id: 'c9', nome_ponto: 'Cocho', coordenadas: { lat: 0, lng: 0 } }], true, [], vi.fn());
+    expect(pontoNaFonte(map, 'c9').properties.titulo).toBe('Cocho');
+    expect(selosDesenhados()).toEqual([]);
   });
 });
 
-describe('D-PROD-205 — farol da leitura de cocho no marcador', () => {
-  const farol = (m) => m.el.querySelector('.mg-supl-farol');
+describe('D-PROD-205 — farol da leitura de cocho no cocho desenhado pelo mapa', () => {
   const FAROL_VAZIO = { cor: 'vermelho', hex: '#dc2626', rotulo: 'Cocho vazio', texto: 'Leitura: Cocho vazio · Estrutura quebrada', avisos: 1 };
   const FAROL_CHEIO = { cor: 'azul', hex: '#2563eb', rotulo: 'Cocho cheio', texto: 'Leitura: Cocho cheio', avisos: 0 };
+  /** Cores do miolo das bolinhas do farol pintadas (raio 4). */
+  const farois = () => canvas.chamadas.filter((c) => c.nome === 'arc' && c.args[2] === 4).map((c) => c.estado.fillStyle);
 
   it('pura: o texto do farol entra no fim do título e a cor sai separada; sem farol, null', () => {
     expect(descreverMarcadorSuplementacao(cocho({ indicador_titulo: TXT_75, indicador_farol: FAROL_VAZIO }))).toEqual({
@@ -232,23 +239,23 @@ describe('D-PROD-205 — farol da leitura de cocho no marcador', () => {
     expect(descreverMarcadorSuplementacao(deposito({ indicador_titulo: TXT_DEP_50, indicador_farol: null })).farol).toBeNull();
   });
 
-  it('desenha o ponto do farol (decorativo) sem tirar o selo; troca de cor no MESMO marcador; sem farol, some', async () => {
-    marcadores.length = 0;
-    const { r } = await montarRenderer();
-    r.syncPontosSuplementacao([cocho({ indicador_percentual: 0, indicador_neutro: true, indicador_titulo: TXT_SEM_PV, indicador_farol: FAROL_VAZIO })], true, [], vi.fn());
-    const m = marcadorDe('Cocho Norte');
-    expect(farol(m).dataset.farol).toBe('vermelho');
-    expect(farol(m).getAttribute('aria-hidden')).toBe('true');
-    expect(selo(m).textContent, 'o selo "?" continua').toBe('?');
-    expect(m.el.getAttribute('aria-label')).toBe(`Cocho Norte — ${TXT_SEM_PV} · Leitura: Cocho vazio · Estrutura quebrada`);
+  it('pinta o farol sem tirar o selo; troca de cor no MESMO ponto; sem farol, some', async () => {
+    const { r, map } = await montarRenderer();
+    await r.syncPontosSuplementacao([cocho({ indicador_percentual: 0, indicador_neutro: true, indicador_titulo: TXT_SEM_PV, indicador_farol: FAROL_VAZIO })], true, [], vi.fn());
+    // a imagem do ponto e a reserva dele levam o farol
+    expect(farois()).toEqual(['#dc2626', '#dc2626']);
+    expect(selosDesenhados(), 'o selo "?" continua').toEqual(['?', '?']);
+    expect(pontoNaFonte(map, 'c1').properties.titulo).toBe(`Cocho Norte — ${TXT_SEM_PV} · Leitura: Cocho vazio · Estrutura quebrada`);
 
-    r.syncPontosSuplementacao([cocho({ indicador_percentual: 0, indicador_neutro: true, indicador_titulo: TXT_SEM_PV, indicador_farol: FAROL_CHEIO })], true, [], vi.fn());
-    expect(m.removed).toBe(false);
-    expect(m.el.querySelectorAll('.mg-supl-farol')).toHaveLength(1);
-    expect(farol(m).dataset.farol).toBe('azul');
+    canvas.chamadas.length = 0;
+    await r.syncPontosSuplementacao([cocho({ indicador_percentual: 0, indicador_neutro: true, indicador_titulo: TXT_SEM_PV, indicador_farol: FAROL_CHEIO })], true, [], vi.fn());
+    expect(map.data.get(SUPL_SOURCE_ID).features).toHaveLength(1);
+    expect(farois()).toContain('#2563eb');
+    expect(pontoNaFonte(map, 'c1').properties.imagem).toMatch(/#2563eb/);
 
-    r.syncPontosSuplementacao([cocho({ indicador_percentual: 0, indicador_neutro: true, indicador_titulo: TXT_SEM_PV, indicador_farol: null })], true, [], vi.fn());
-    expect(farol(m)).toBeNull();
-    expect(selo(m)).toBeTruthy();
+    canvas.chamadas.length = 0;
+    await r.syncPontosSuplementacao([cocho({ indicador_percentual: 0, indicador_neutro: true, indicador_titulo: TXT_SEM_PV, indicador_farol: null })], true, [], vi.fn());
+    expect(farois()).toEqual([]);
+    expect(selosDesenhados()).toEqual(['?', '?']);
   });
 });

@@ -20,6 +20,16 @@ import { parseVertex, parseVertices, toGeoJsonLineString, toGeoJsonPolygon } fro
 import { corExibidaNoMapa, paintAreaDestaque, paintAreaDivisa, paintAreaFill } from "./estiloAreas.js";
 import { pointInPolygonRing, safeCentroid } from "./taskLocationPicker.js";
 import { LOTES_IDENT_LAYER_ID, LOTES_LAYER_ID, LOTES_SOURCE_ID, ensureLotesLayers } from "./lotesNoMapa.js";
+import {
+  PONTOS_LAYER_ID,
+  PONTOS_SOURCE_ID,
+  SUPL_LAYER_ID,
+  SUPL_SOURCE_ID,
+  TAREFAS_LAYER_ID,
+  TAREFAS_SOURCE_ID,
+  ensureCamadasAbaixoDosLotes,
+  ensureCamadasAcimaDosLotes,
+} from "./pontosNoMapa.js";
 
 export const MG_SOURCE_IDS = Object.freeze({
   AREAS: "mg-areas",
@@ -27,8 +37,13 @@ export const MG_SOURCE_IDS = Object.freeze({
   USER: "mg-user",
   /** Lotes desenhados pelo mapa (D-PROD-349). */
   LOTES: LOTES_SOURCE_ID,
+  /** Cochos/depósitos, pontos de referência e tarefas desenhados pelo mapa (D-PROD-352). */
+  SUPL: SUPL_SOURCE_ID,
+  PONTOS: PONTOS_SOURCE_ID,
+  TAREFAS: TAREFAS_SOURCE_ID,
 });
 
+/** Camadas do Mapa Geral, na ordem em que são desenhadas (de baixo para cima). */
 export const MG_LAYER_IDS = Object.freeze({
   AREAS_FILL: "mg-areas-fill",
   AREAS_LINE: "mg-areas-line",
@@ -36,9 +51,13 @@ export const MG_LAYER_IDS = Object.freeze({
   LINHAS: "mg-linhas",
   USER_FILL: "mg-user-fill",
   USER_LINE: "mg-user-line",
+  /** D-PROD-352: cocho e ponto de referência abaixo dos lotes, tarefas acima (o z-index dos marcadores HTML antigos). */
+  SUPL: SUPL_LAYER_ID,
+  PONTOS: PONTOS_LAYER_ID,
   /** Ícone do lote com a contagem e, por cima, o identificador (D-PROD-349). */
   LOTES: LOTES_LAYER_ID,
   LOTES_IDENT: LOTES_IDENT_LAYER_ID,
+  TAREFAS: TAREFAS_LAYER_ID,
 });
 
 const vazio = () => ({ type: "FeatureCollection", features: [] });
@@ -517,7 +536,8 @@ export function aplicarEstiloPasto(map, estilo) {
 
 /**
  * Sources/layers do Mapa Geral — idempotente (reaplicável após setStyle).
- * Ordem: áreas (fill, divisa, destaque) → linhas → localização → lotes (D-PROD-349, por cima de tudo).
+ * Ordem: áreas (fill, divisa, destaque) → linhas → localização → cochos → pontos → lotes (D-PROD-349) → tarefas
+ * (D-PROD-352): a mesma ordem do z-index dos marcadores HTML de antes.
  * @param {any} map
  */
 export function ensureMgLayers(map) {
@@ -542,5 +562,7 @@ export function ensureMgLayers(map) {
   });
   layer({ id: MG_LAYER_IDS.USER_FILL, type: "fill", source: MG_SOURCE_IDS.USER, paint: { "fill-color": "#4285F4", "fill-opacity": 0.15 } });
   layer({ id: MG_LAYER_IDS.USER_LINE, type: "line", source: MG_SOURCE_IDS.USER, paint: { "line-color": "#4285F4", "line-opacity": 0.3, "line-width": 1 } });
+  ensureCamadasAbaixoDosLotes(map);
   ensureLotesLayers(map);
+  ensureCamadasAcimaDosLotes(map);
 }
