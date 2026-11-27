@@ -30,7 +30,6 @@ import FormularioAtividade from "@/components/lancamento-atividades/FormularioAt
 import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDeCampo";
 import { VerCustoContext, useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { podeVerCusto } from "@/lib/verCustoRegras";
-import JanelaLancamentoPorTipo, { lancamentoDoTipo } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
 import DiarioDoPasto from "@/components/mapa/detalhes-area/DiarioDoPasto";
 import { areaUnicaDaAtividade, areasDaAtividade, areasEmAndamento, rotuloDaAreaDaAtividade, textoDaColunaArea } from "@/lib/atividadeAreasRegras";
 import { situacaoDaAtividade, textoProgressoAreas } from "@/lib/atividadeFluxoCampo";
@@ -52,7 +51,7 @@ import { diaPorExtenso } from "@/lib/camposPorTipo";
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
-import { flagsDoTipoDaAtividade, formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
+import { formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
 import { comparar, ehCanonico } from "@/lib/dinheiroDecimal";
 import { ehDiaValido, formatarInstante } from "@/lib/diaCivil";
 import { confirmar } from "@/lib/maikeConfirmar";
@@ -327,7 +326,6 @@ function LancamentoAtividadesTela() {
   /** D-PROD-267: a Nova realização preenchida com o serviço (o fallback do "+ Lançamento") e o "Concluir" da linha. */
   const [lancandoDia, setLancandoDia] = useState(/** @type {any|null} */ (null));
   const [concluindoServico, setConcluindoServico] = useState(/** @type {any|null} */ (null));
-  const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', areaId?: string|null, chave: number } | null} */ (null));
   // Diário das atividades (D-PROD-341): a atividade lida e o pasto (a área) em que ele abre.
   const [diario, setDiario] = useState(/** @type {{ atividade: any, area: any, chave: number } | null} */ (null));
   const celular = useCelular();
@@ -421,7 +419,6 @@ function LancamentoAtividadesTela() {
     empresaAnterior.current = empresaId;
     closeForm();
     setDialogo(null);
-    setLancando(null);
     setRegistrando(false);
     setLancandoDia(null);
     setConcluindoServico(null);
@@ -763,26 +760,6 @@ function LancamentoAtividadesTela() {
   const alterarAtividade = (atividade) => {
     controller.handleEdit(atividade);
     controller.setIsEditing(true);
-  };
-
-  /**
-   * A janela do tipo (D-PROD-233) sobre a atividade: pelo ⚡ da lista (na lista do dia) ou pela tabela dos tipos da
-   * atividade aberta (D-PROD-234: "Inserir" e "+ Lançar" abrem nos Dados). D-PROD-249: pelo ⚡ de uma área (card "Áreas da
-   * atividade"), a janela abre FIXA naquela área; sem área, com o seletor das áreas em andamento.
-   * @param {any} atividade @param {string} tipo @param {'lista'|'dados'} [aba] @param {string|null} [areaId]
-   */
-  const lancarDoMenu = (atividade, tipo, aba = "lista", areaId = null) =>
-    setLancando({ atividade, tipo, aba, areaId: areaId ? String(areaId) : null, chave: Date.now() });
-
-  /**
-   * Escrita feita na janela por tipo (D-PROD-233): a lista (área executada) e o totalizador se relêem; o cabeçalho
-   * devolvido pelo servidor (com os totais recalculados) vai para o cache do detalhe.
-   * @param {any|null} atividade
-   */
-  const aoEscreverNaJanelaDoTipo = (atividade) => {
-    invalidarLista();
-    invalidarTotais();
-    if (atividade?.id) queryClient.setQueryData(chaveDetalhe(empresaId, String(atividade.id)), atividade);
   };
 
   /**
@@ -1135,7 +1112,6 @@ function LancamentoAtividadesTela() {
             cabecalho={cabecalhoDaAtividade(registroAberto)}
             avisos={avisosDaAtividade(registroAberto)}
             onAtividadeAtualizada={aoAtualizarAtividade}
-            onLancar={(tipo, aba, areaId) => lancarDoMenu(registroAberto, tipo, aba, areaId ?? null)}
             onFechar={() => controller.onViewModeChange("table")}
             onConcluir={podeConcluirAberta ? () => abrirDialogo("concluir", registroAberto) : null}
           />
@@ -1220,9 +1196,6 @@ function LancamentoAtividadesTela() {
     ) : null;
   const tiposDoRegistro = /** @type {any[]} */ (tipos).filter((t) => t?.ativo !== false);
   const areasDoRegistro = /** @type {any[]} */ (areas).filter((a) => a?.tipo_cultura !== "Infraestrutura");
-
-  const flagsDoLancando = lancando ? flagsDoTipoDaAtividade(lancando.atividade, /** @type {any[]} */ (tipos)) : null;
-  const tipoDoLancando = lancando ? lancamentoDoTipo(lancando.tipo) : null;
 
   return (
     // Os botões seguem a regra EXATA do servidor (permissão e status da
@@ -1372,20 +1345,6 @@ function LancamentoAtividadesTela() {
             hoje={hoje}
             onFechar={() => setConcluindoServico(null)}
             onConcluir={concluirServico}
-          />
-        ) : null}
-
-        {lancando && tipoDoLancando && flagsDoLancando ? (
-          <JanelaLancamentoPorTipo
-            key={lancando.chave}
-            atividade={lancando.atividade}
-            tipo={lancando.tipo}
-            acoes={acoes}
-            flags={flagsDoLancando}
-            escopo={escopo}
-            onFechar={() => setLancando(null)}
-            onAtividadeAtualizada={aoEscreverNaJanelaDoTipo}
-            areaInicial={lancando.areaId ?? null}
           />
         ) : null}
 

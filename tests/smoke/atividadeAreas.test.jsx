@@ -364,7 +364,6 @@ describe("FL — as duas telas da atividade (D-PROD-252)", () => {
   ];
   const montar = async (props = {}) => {
     const { default: FluxoPorArea } = await import("@/components/lancamento-atividades/FluxoPorArea");
-    const onLancar = vi.fn();
     comConsulta(
       <FluxoPorArea
         atividade={ATIVIDADE}
@@ -377,12 +376,10 @@ describe("FL — as duas telas da atividade (D-PROD-252)", () => {
         podeLancar
         podeGerir
         flags={{ permiteProduto: true, permiteImplemento: true, permiteMaoObra: false, permiteServico: false }}
-        onLancar={onLancar}
         onAtividadeAtualizada={() => {}}
         {...props}
       />,
     );
-    return { onLancar };
   };
   const sp = (/** @type {HTMLElement} */ el) => (el.textContent ?? "").replace(/\u00a0/g, " ");
 
@@ -398,9 +395,9 @@ describe("FL — as duas telas da atividade (D-PROD-252)", () => {
     expect(screen.queryByTestId("detalhe-area")).toBeNull();
   });
 
-  it("FL-2 — o nome da área abre a área: nome, atividade (sem repetir hectares e custo), os botões + (só o que o tipo permite) e UMA tabela dos lançamentos com o total; os botões chamam onLancar com a área; \"‹ Áreas\" volta", async () => {
+  it("FL-2 — o nome da área abre a área: nome, atividade (sem repetir hectares e custo), sem os botões + por tipo (D-PROD-376) e UMA tabela dos lançamentos com o total; \"‹ Áreas\" volta", async () => {
     const onAreaAberta = vi.fn();
-    const { onLancar } = await montar({ onAreaAberta });
+    await montar({ onAreaAberta });
     expect(onAreaAberta).toHaveBeenLastCalledWith(false);
     fireEvent.click(screen.getByTestId("area-p1-abrir"));
     // A casca esconde as abas e o "1 registro" enquanto uma área está aberta.
@@ -409,7 +406,8 @@ describe("FL — as duas telas da atividade (D-PROD-252)", () => {
     expect(screen.getByTestId("detalhe-area-atividade")).toHaveTextContent("COMBATE À CIGARRINHA");
     // Um total só (o do rodapé): o cabeçalho não repete hectares nem custo.
     expect(screen.queryByTestId("detalhe-area-resumo")).toBeNull();
-    expect(within(screen.getByTestId("escolher-registro")).getAllByRole("button").map((b) => b.textContent.trim())).toEqual(["Máquina", "Implemento", "Produto"]);
+    // D-PROD-376: sem a fileira de botões "+" por tipo; lançar é pelo Diário das atividades.
+    expect(screen.queryByTestId("escolher-registro")).toBeNull();
     expect(screen.getAllByRole("table")).toHaveLength(1);
     const tabela = screen.getByTestId("area-lancamentos-tabela");
     expect(tabela.querySelector("table.mg-grid")).toBeTruthy();
@@ -417,12 +415,6 @@ describe("FL — as duas telas da atividade (D-PROD-252)", () => {
     expect([...tabela.querySelectorAll("tbody tr")].map((tr) => tr.querySelector('[data-testid^="lancamento-"]')?.getAttribute("data-testid"))).toEqual(["lancamento-m1-tipo", "lancamento-x1-tipo"]);
     expect(sp(screen.getByTestId("area-lancamentos-total-valor"))).toBe("R$ 150,00");
     for (const t of ["ajustar-dia", "detalhe-area-aviso", "grupo-maquinas"]) expect(screen.queryByTestId(t)).toBeNull();
-    fireEvent.click(screen.getByTestId("escolher-produtos"));
-    expect(onLancar).toHaveBeenCalledWith("produtos", "dados", "p1");
-    fireEvent.click(screen.getByTestId("escolher-implemento"));
-    expect(onLancar).toHaveBeenLastCalledWith("maquinas", "dados", "p1");
-    // Abastecimento: sem a permissão da tela, o botão nem aparece.
-    expect(screen.queryByTestId("escolher-abastecimento")).toBeNull();
     fireEvent.click(screen.getByTestId("detalhe-area-voltar"));
     expect(screen.getByTestId("fluxo-por-area")).toBeTruthy();
     expect(onAreaAberta).toHaveBeenLastCalledWith(false);

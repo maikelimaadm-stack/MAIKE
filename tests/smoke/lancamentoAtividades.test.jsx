@@ -42,6 +42,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, fireEvent, waitFor, cleanup, within, act } from "@testing-library/react";
 import * as lucide from "lucide-react";
 import { API_FAKE, envelope, erroServidor, escolherOpcao, instalarBackendFake } from "./fixtures/gestaoBackendFake.js";
+import { JanelaDireta, abrirJanelaDireta } from "./helpers/janelaDiretaNoTeste.jsx";
+import { flagsDoTipoDaAtividade } from "@/lib/atividadeLinhasRegras";
 
 const notify = vi.hoisted(() => ({ notifyWarning: vi.fn(), notifySuccess: vi.fn(), notifyInfo: vi.fn(), notifyError: vi.fn() }));
 vi.mock("@/lib/maikeNotify", async (importOriginal) => ({ ...(await importOriginal()), ...notify }));
@@ -536,6 +538,7 @@ const montar = async () => {
   render(
     <QueryClientProvider client={novoCliente()}>
       <LancamentoAtividades />
+      <JanelaDireta />
     </QueryClientProvider>,
   );
 };
@@ -1771,25 +1774,18 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     expect(escritas()).toEqual([]);
   });
 
-  it("LA-RAIO-2 — o que registrar segue o tipo: produto, mão de obra e serviço; máquina sempre", async () => {
+  it("LA-RAIO-2 — sem os botões \"+\" por tipo na área (D-PROD-376); o que o tipo permite segue valendo, com a flag da atividade acima da lista de tipos", async () => {
     tiposSrv.listarTiposAtividade.mockResolvedValue([TIPO_T1_COM_TUDO, ...TIPOS.slice(1)]);
     await montarComLista();
     await waitFor(() => expect(tiposSrv.listarTiposAtividade).toHaveBeenCalled());
     await assentar();
     fireEvent.doubleClick(screen.getByTestId("atividade-numero-a1"));
     await screen.findByTestId("detalhe-area");
-    for (const id of ["maquinas", "implemento", "produtos", "mao-obra", "servicos"]) expect(screen.getByTestId(`escolher-${id}`)).toBeTruthy();
-    cleanup();
+    expect(screen.queryByTestId("escolher-registro")).toBeNull();
+    expect(flagsDoTipoDaAtividade(atividades.get("a1"), [TIPO_T1_COM_TUDO])).toEqual({ permiteProduto: true, permiteImplemento: true, permiteMaoObra: true, permiteServico: true });
     // A flag gravada na atividade vale sobre a da lista de tipos.
-    atividades.set("a1", { ...atividades.get("a1"), permite_produto: false, permite_servico: false, permite_mao_obra: true });
-    await montarComLista();
-    await assentar();
-    fireEvent.doubleClick(screen.getByTestId("atividade-numero-a1"));
-    await screen.findByTestId("detalhe-area");
-    expect(screen.getByTestId("escolher-maquinas")).toBeTruthy();
-    expect(screen.getByTestId("escolher-mao-obra")).toBeTruthy();
-    expect(screen.queryByTestId("escolher-produtos")).toBeNull();
-    expect(screen.queryByTestId("escolher-servicos")).toBeNull();
+    const comFlags = { ...atividades.get("a1"), permite_produto: false, permite_servico: false, permite_mao_obra: true };
+    expect(flagsDoTipoDaAtividade(comFlags, [TIPO_T1_COM_TUDO])).toMatchObject({ permiteProduto: false, permiteMaoObra: true, permiteServico: false });
   });
 
   it("LA-RAIO-3 — por permissão: só ver = só Abrir; sem a extra de lançar, nada de lançar; sem o fuso, só Abrir", async () => {
@@ -1822,11 +1818,14 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     expect(/** @type {HTMLInputElement} */ (within(form).getByLabelText(/^Nome da atividade/)).value).toBe("Cigarrinha Pasto 01");
   });
 
-  it("LA-RAIO-5 — + Máquina abre o formulário direto (um nível só, no dia de hoje), sem gravar nada; Cancelar fecha", async () => {
+  it("LA-RAIO-5 — a máquina abre o formulário direto (um nível só, no dia de hoje), sem gravar nada; Cancelar fecha", async () => {
     await montarComLista();
     fireEvent.doubleClick(screen.getByTestId("atividade-numero-a1"));
     await screen.findByTestId("atividade-aberta");
-    fireEvent.click(await screen.findByTestId("escolher-maquinas"));
+    await screen.findByTestId("detalhe-area");
+    // D-PROD-376: sem o "+ Máquina" na área; a janela (a mesma do mapa) é aberta direto.
+    expect(screen.queryByTestId("escolher-registro")).toBeNull();
+    act(() => abrirJanelaDireta("a1", "maquinas"));
     const janela = await screen.findByTestId("janela-tipo");
     expect(janela.querySelector(".mdl-t")).toHaveTextContent("Trabalho de máquinas");
     // Emenda 3: sem subtítulo (a área e a atividade estão no cabeçalho da tela) e o Dia na mesma grade, no grupo "Lançamento".

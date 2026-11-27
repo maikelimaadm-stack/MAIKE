@@ -25,7 +25,6 @@ import { areasDaAtividade, temAreas } from "@/lib/atividadeAreasRegras";
  *   podeGerir: boolean,
  *   podeInformarFeita?: boolean,
  *   flags: { permiteProduto?: boolean, permiteImplemento?: boolean, permiteMaoObra?: boolean, permiteServico?: boolean },
- *   onLancar: (tipo: string, aba: 'lista'|'dados', areaId: string|null) => void,
  *   onAtividadeAtualizada: (atividade: any) => void,
  *   telaInicial?: { nome: 'atividade' } | { nome: 'area', id: string|null } | null,
  *   onAreaAberta?: (aberta: boolean) => void,
@@ -43,7 +42,6 @@ export default function FluxoPorArea({
   podeGerir,
   podeInformarFeita = false,
   flags,
-  onLancar,
   onAtividadeAtualizada,
   telaInicial = null,
   onAreaAberta = () => {},
@@ -73,7 +71,6 @@ export default function FluxoPorArea({
         podeLancar={podeLancar}
         flags={flags}
         escopo={escopo}
-        onLancar={onLancar}
         onAtividadeAtualizada={onAtividadeAtualizada}
         onVoltar={
           comAreas

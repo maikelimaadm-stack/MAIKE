@@ -61,7 +61,6 @@ const JANELA_DO_TIPO = Object.freeze({
  *   podeLancar: boolean,
  *   flags: { permiteProduto?: boolean, permiteImplemento?: boolean, permiteMaoObra?: boolean, permiteServico?: boolean },
  *   escopo: string,
- *   onLancar?: (tipo: string, aba: 'lista'|'dados', areaId: string|null) => void,
  *   onAtividadeAtualizada: (atividade: any) => void,
  *   onVoltar: (() => void) | null,
  * }} props `area`: a área da atividade (null na atividade antiga, sem áreas). `podeLancar`: a atividade aberta com a permissão

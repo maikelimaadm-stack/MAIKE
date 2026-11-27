@@ -11172,4 +11172,19 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
     - `useLocalizacaoNoMapa` ganha `centrarEm`. O mapa do Google expõe `centrar`: no site, `setCenter`/`setZoom`; no app, `setCamera`.
 - **Testes:** `menuNavFreeze.test.jsx`: o GPS segue desligado com o Mapa Geral escondido, agora com o mapa pronto (MapLibre ou Google). `mapaGoogleLinhasD375.test.jsx` (6): linhas, círculo e ponto; o mapa do site (toque na linha com a `tag`, gesto no ícone, círculos, centrar, destruir); o app (linhas nativas e o toque, ponto nativo, círculo sem piscar, `setCamera`); "Localizar" no Google ou no MapLibre.
 
-<!-- Próxima decisão: D-PROD-376 -->
+## D-PROD-376 — Tela da área da atividade: saem os botões "+" por tipo
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário ("tem uma opção nova que fiz hoje e uma opção antiga … remover essa opção antiga"; escolheu "os '+' por tipo") · **Relatório:** [`AREA-ATIVIDADE-SEM-BOTOES-MAIS-D376-REPORT.md`](./AREA-ATIVIDADE-SEM-BOTOES-MAIS-D376-REPORT.md) · **Migration:** nenhuma · **APK:** nenhum novo (vai pela atualização automática)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-376. O marcador passa a D-PROD-377.
+
+- **Problema:** na tela de uma área da atividade aberta (Lançamento de atividades) havia dois caminhos para lançar: a fileira antiga de botões "+ Máquina / + Implemento / + Produto / + Mão de obra / + Serviço" (D-PROD-252) e o novo, o Diário das atividades com a opção Máquina da frente (D-PROD-365) e o abastecimento (D-PROD-359), que é o caminho único do "+ Lançamento" (D-PROD-356).
+- **Decisão:**
+  - Sai a fileira de botões "+" por tipo de `LancamentosDaArea`. A tabela dos lançamentos, o total e o ⚡ de cada linha (Editar, Cancelar, Abastecer) continuam iguais.
+  - Sai junto o que só esses botões usavam: o `onLancar` de `FluxoPorArea` e `AtividadeAberta`; na página, `lancarDoMenu`, o estado `lancando` e a `JanelaLancamentoPorTipo` montada por ela; e `opcoesDeRegistro` (com o teste FC-1).
+  - A `JanelaLancamentoPorTipo` continua: o mapa ainda a abre pelo "Só …" da área (`AcoesDaAtividadeDaArea`).
+  - Lançar numa atividade aberta segue pelo "+ Lançamento" (⚡ da linha, card e tabela): o Diário no pasto; sem pasto, a Nova realização (D-PROD-356).
+- **Efeito conhecido:** mão de obra e serviço, que no Diário ainda aparecem "Em breve", deixam de ter botão dentro da área aberta. Continuam pelo "Só …" do mapa e pela Nova realização.
+- **Testes:** `tests/smoke/helpers/janelaDiretaNoTeste.jsx` abre a janela do tipo direto, com as props do mapa, ao lado da tela e no mesmo QueryClient. Os testes do comportamento da janela (criar o dia, a rota da linha, repetir o envio, "Salvar e abastecer", celular) passam a usá-la. Os que contavam os botões agora conferem que a fileira não existe: `lancamentoAtividadesLinhas` (LL-JANELA-TIPO-4/7, LL-ABERTA-3/4), `lancamentoAtividades` (LA-RAIO-2, que passa a conferir `flagsDoTipoDaAtividade`, e LA-RAIO-5) e `atividadeAreas` (FL-2).
+
+<!-- Próxima decisão: D-PROD-377 -->

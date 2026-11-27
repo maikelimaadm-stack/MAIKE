@@ -49,13 +49,11 @@ const ABAS = Object.freeze([
  *   cabecalho: React.ReactNode,
  *   avisos?: React.ReactNode,
  *   onAtividadeAtualizada: (atividade: any) => void,
- *   onLancar: (tipo: string, aba: 'lista'|'dados', atividadeAreaId?: string|null) => void,
  *   onFechar: () => void,
  *   onConcluir?: (() => void) | null,
- * }} props `acoes`: as dos lançamentos (já com o status, a permissão e o fuso); `onLancar`: abre a janela do lançamento
- *   sobre esta atividade, presa na área. `onConcluir`: o Concluir da cabeça do celular (null = sem o botão).
+ * }} props `acoes`: as dos lançamentos (já com o status, a permissão e o fuso). `onConcluir`: o Concluir da cabeça do celular (null = sem o botão).
  */
-export default function AtividadeAberta({ atividade, empresaId, acoes, habilitado, cabecalho, avisos = null, onAtividadeAtualizada, onLancar, onFechar, onConcluir = null }) {
+export default function AtividadeAberta({ atividade, empresaId, acoes, habilitado, cabecalho, avisos = null, onAtividadeAtualizada, onFechar, onConcluir = null }) {
   const celular = useCelular();
   const { clienteId } = useAuth();
   const id = atividade?.id ? String(atividade.id) : null;
@@ -176,7 +174,6 @@ export default function AtividadeAberta({ atividade, empresaId, acoes, habilitad
           podeGerir={podeGerirAreas}
           podeInformarFeita={aberta && acoes?.editarApontamento === true && habilitado}
           flags={flags}
-          onLancar={onLancar}
           onAtividadeAtualizada={onAtividadeAtualizada}
           onAreaAberta={setEmArea}
         />

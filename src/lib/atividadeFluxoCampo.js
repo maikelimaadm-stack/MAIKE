@@ -117,26 +117,6 @@ export const textoDoQuePodeRegistrar = (tipo) => {
 };
 
 /**
- * Opções do "O que você quer registrar?", na ordem do campo.
- * Máquina sempre. Implemento, produto, mão de obra e serviço só se o tipo permitir.
- * Implemento abre o mesmo formulário da máquina (o implemento é escolhido junto com ela).
- * Abastecimento NÃO é opção (D-PROD-254, emenda 1): é feito pela máquina (a linha da máquina: "Salvar e abastecer" e o
- * "Abastecer" do ⚡ da linha).
- * @param {{ permiteProduto?: boolean, permiteMaoObra?: boolean, permiteServico?: boolean, permiteImplemento?: boolean }} flags
- */
-export const opcoesDeRegistro = (flags) => {
-  /** @type {Array<{ id: string, rotulo: string, detalhe: string }>} */
-  const lista = [
-    { id: LINHA_MAQUINA, rotulo: 'Máquina', detalhe: 'Trator, pulverizador e as horas de uso' },
-  ];
-  if (flags?.permiteImplemento) lista.push({ id: REGISTRO_IMPLEMENTO, rotulo: 'Implemento', detalhe: 'O que a máquina puxou: grade, plantadeira, carreta' });
-  if (flags?.permiteProduto) lista.push({ id: LINHA_PRODUTO, rotulo: 'Produto', detalhe: 'Veneno, adubo, semente, ração…' });
-  if (flags?.permiteMaoObra) lista.push({ id: LINHA_MAO_OBRA, rotulo: 'Mão de obra', detalhe: 'Pessoas que trabalharam no dia' });
-  if (flags?.permiteServico) lista.push({ id: LINHA_SERVICO, rotulo: 'Serviço', detalhe: 'Trabalho de terceiro, diária, frete' });
-  return lista;
-};
-
-/**
  * O tipo de atividade que representa ABASTECIMENTO (emenda 1 da D-PROD-254). O cadastro de tipos não tem categoria para
  * isso: vale o nome, pelo mesmo critério do desenho do tipo (`abastec` / `combust`, sem acento nem caixa) e do servidor
  * (`ehTipoAbastecimento`, que recusa o tipo em `POST /atividades/registrar`). Esses tipos ficam fora dos quadros de Manejos

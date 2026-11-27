@@ -51,6 +51,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, fireEvent, waitFor, cleanup, within, act } from "@testing-library/react";
 import { API_FAKE, envelope, erroServidor, instalarBackendFake } from "./fixtures/gestaoBackendFake.js";
 import { criarEstadoAbastecimentos, rotearAbastecimentos, semearAbastecimento } from "./fixtures/abastecimentosFakeCore.js";
+import { JanelaDireta, abrirJanelaDireta } from "./helpers/janelaDiretaNoTeste.jsx";
 
 const notify = vi.hoisted(() => ({ notifyWarning: vi.fn(), notifySuccess: vi.fn(), notifyInfo: vi.fn(), notifyError: vi.fn() }));
 vi.mock("@/lib/maikeNotify", async (importOriginal) => ({ ...(await importOriginal()), ...notify }));
@@ -715,6 +716,7 @@ const montar = async () => {
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
       <LancamentoAtividades />
+      <JanelaDireta />
     </QueryClientProvider>,
   );
   await screen.findByTestId("atividade-numero-a1");
@@ -2245,7 +2247,8 @@ describe("LL-TOTAIS — totalizador com o combustível (Fatia 5)", () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════
-// D-PROD-252 — o lançamento novo abre direto num formulário (um nível de janela) a partir dos botões "+" da tela da área
+// D-PROD-252 — o lançamento novo abre direto num formulário (um nível de janela). D-PROD-376: os botões "+" da tela da
+// área saíram; a janela (que o mapa ainda abre) é aberta direto pelo teste, com a tabela da área atrás.
 /** Abre a atividade (a de uma área só cai direto na tela da área) e espera a tabela dos lançamentos. @param {string} id */
 const naArea = async (id) => {
   if (!screen.queryByTestId("atividade-aberta")) {
@@ -2255,10 +2258,10 @@ const naArea = async (id) => {
   await screen.findByTestId("detalhe-area");
   await waitFor(() => expect(screen.queryByText("Lendo…")).toBeNull());
 };
-/** O botão "+" do tipo abre a janela do formulário. @param {string} id @param {string} botao */
+/** Abre a janela do formulário do tipo sobre a área aberta (D-PROD-376: sem os botões "+"). @param {string} id @param {string} botao */
 const abrirJanela = async (id, botao) => {
   await naArea(id);
-  fireEvent.click(await screen.findByTestId(`escolher-${botao}`));
+  act(() => abrirJanelaDireta(id, botao));
   const janela = await screen.findByTestId("janela-tipo");
   await waitFor(() => expect(within(janela).queryByTestId("janela-tipo-carregando")).toBeNull());
   await waitFor(() => expect(janela.querySelector("form")).toBeTruthy());
@@ -2410,9 +2413,8 @@ describe("LL-JANELA-TIPO — o lançamento novo direto, um nível só (D-PROD-25
     // Um total só: o do rodapé; o cabeçalho da área não repete hectares nem custo.
     expect(screen.queryByTestId("detalhe-area-resumo")).toBeNull();
     expect(screen.getByTestId("detalhe-area-atividade")).toHaveTextContent("Cigarrinha Pasto 01");
-    // Os botões "+" do tipo, numa fileira só, e nada de "O que você quer registrar?".
-    const botoes = within(screen.getByTestId("escolher-registro")).getAllByRole("button").map((b) => b.textContent.trim());
-    expect(botoes).toEqual(["Máquina", "Implemento", "Produto"]);
+    // D-PROD-376: sem a fileira de botões "+" por tipo (lançar é pelo Diário das atividades) e nada de "O que você quer registrar?".
+    expect(screen.queryByTestId("escolher-registro")).toBeNull();
     expect(screen.queryByText("O que você quer registrar?")).toBeNull();
     expect(screen.queryByTestId("ajustar-dia")).toBeNull();
   });
@@ -2461,22 +2463,21 @@ describe("LL-JANELA-TIPO — o lançamento novo direto, um nível só (D-PROD-25
     expect((apontamentosPorAtividade.get("a1") ?? []).filter((a) => a.data_operacional === HOJE)).toHaveLength(1);
   });
 
-  it("LL-JANELA-TIPO-7 — mão de obra e custo extra: cada botão abre o seu formulário; o custo extra novo cria o dia com `servicos[]`", async () => {
+  it("LL-JANELA-TIPO-7 — mão de obra e custo extra: cada tipo abre o seu formulário; o custo extra novo cria o dia com `servicos[]`", async () => {
     await montar();
     await naArea("a4");
-    const botoes = within(screen.getByTestId("escolher-registro")).getAllByRole("button").map((b) => b.textContent.trim());
-    expect(botoes).toEqual(["Máquina", "Mão de obra", "Serviço"]);
+    expect(screen.queryByTestId("escolher-registro")).toBeNull();
     // A tabela da área traz a mão de obra e o serviço do dia 12.
     expect(linhasDaArea()).toEqual(["mo1", "mo2", "sv1"].filter((id) => linhasDaArea().includes(id)));
     expect(within(linhaDoLancamento("mo1")).getByTestId("lancamento-mo1-item")).toHaveTextContent("José Silva");
-    fireEvent.click(screen.getByTestId("escolher-mao-obra"));
+    act(() => abrirJanelaDireta("a4", "mao-obra"));
     let janela = await screen.findByTestId("janela-tipo");
     expect(janela.querySelector(".mdl-t")).toHaveTextContent("Mão de obra");
     await waitFor(() => expect(janela.querySelector("form")).toBeTruthy());
     fireEvent.click(within(janela).getByTestId("janela-tipo-cancelar"));
     await waitFor(() => expect(screen.queryByTestId("janela-tipo")).toBeNull());
 
-    fireEvent.click(screen.getByTestId("escolher-servicos"));
+    act(() => abrirJanelaDireta("a4", "servicos"));
     janela = await screen.findByTestId("janela-tipo");
     expect(janela.querySelector(".mdl-t")).toHaveTextContent("Custos extras");
     await waitFor(() => expect(janela.querySelector("form")).toBeTruthy());
@@ -2536,6 +2537,7 @@ describe("LL-JANELA-TIPO — o lançamento novo direto, um nível só (D-PROD-25
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
         <LancamentoAtividades />
+        <JanelaDireta />
       </QueryClientProvider>,
     );
     await waitFor(() => expect(screen.getAllByTestId("b1-card").length).toBeGreaterThan(0));
@@ -2550,7 +2552,7 @@ describe("LL-JANELA-TIPO — o lançamento novo direto, um nível só (D-PROD-25
     expect(tabela.querySelector(".mg-grid-wrap")).toBeTruthy();
     expect(cabecalhosDaGrade(tabela)).toEqual(["Ações", "Tipo", "Valor", "Quantidade", "Item", "Dia"]);
     expect(document.querySelector(".b1-tipo-card")).toBeNull();
-    fireEvent.click(await screen.findByTestId("escolher-maquinas"));
+    act(() => abrirJanelaDireta("a1", "maquinas"));
     const janela = await screen.findByTestId("janela-tipo");
     expect(janela).toHaveAttribute("data-celular");
     expect(janela).toHaveClass("b1-janela__camada--tela-cheia");
@@ -2627,23 +2629,20 @@ describe("LL-ABERTA — atividade aberta no desenho do protótipo (D-PROD-234)",
     expect(screen.queryByTestId("linha-acoes-abastecimento-ab-1")).toBeNull();
   });
 
-  it("LL-ABERTA-3 — o tipo da atividade decide os botões \"+\": APLICAÇÃO tem máquina, implemento e produto; COLHEITA MANUAL, máquina, mão de obra e serviço", async () => {
+  it("LL-ABERTA-3 — sem os botões \"+\" por tipo (D-PROD-376): nem APLICAÇÃO nem COLHEITA MANUAL mostram a fileira; lançar é pelo Diário das atividades", async () => {
     await montar();
     await abrirAberta("a1");
-    const botoes = () => within(screen.getByTestId("escolher-registro")).getAllByRole("button").map((b) => b.textContent.trim());
-    expect(botoes()).toEqual(["Máquina", "Implemento", "Produto"]);
+    expect(screen.queryByTestId("escolher-registro")).toBeNull();
     // COLHEITA MANUAL (t3): pela navegação do registro.
     fireEvent.click(screen.getByRole("button", { name: "Próximo registro" }));
-    await waitFor(() => expect(screen.queryByTestId("escolher-produtos")).toBeNull());
-    fireEvent.click(screen.getByRole("button", { name: "Primeiro registro" }));
-    await waitFor(() => expect(screen.getByTestId("escolher-mao-obra")).toBeTruthy());
-    expect(botoes()).toEqual(["Máquina", "Mão de obra", "Serviço"]);
+    await screen.findByTestId("detalhe-area");
+    expect(screen.queryByTestId("escolher-registro")).toBeNull();
   });
 
-  it("LL-ABERTA-4 — o botão \"+ Implemento\" abre o mesmo formulário da máquina (o implemento se escolhe junto) e nada é gravado só por abrir", async () => {
+  it("LL-ABERTA-4 — implemento abre o mesmo formulário da máquina (o implemento se escolhe junto) e nada é gravado só por abrir", async () => {
     await montar();
     await abrirAberta("a1");
-    fireEvent.click(screen.getByTestId("escolher-implemento"));
+    act(() => abrirJanelaDireta("a1", "implemento"));
     const janela = await screen.findByTestId("janela-tipo");
     expect(janela).toHaveAttribute("data-tipo", "maquinas");
     await waitFor(() => expect(janela.querySelector("form")).toBeTruthy());

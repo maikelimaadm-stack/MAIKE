@@ -1,16 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { bemParaAbastecer, ehTipoAbastecimento, movimentosDaArea, opcoesDeRegistro, tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
+import { bemParaAbastecer, ehTipoAbastecimento, movimentosDaArea, tiposRegistraveisNaArea } from "@/lib/atividadeFluxoCampo";
 
 const maquina = (id, extra = {}) => ({ id, status: "CONFIRMADO", bem_id: "b1", bem: { codigo: "TP-02", nome: "Trator" }, custo_total: "100", ...extra });
 const ap = (id, area, dia, linhas = {}, extra = {}) => ({ id, status: "CONFIRMADO", atividade_area_id: area, data_operacional: dia, sequencia: 1, ...linhas, ...extra });
 
 describe("D-PROD-251 — fluxo de campo", () => {
-  it("FC-1 — implemento é opção própria, só se o tipo permite; abastecimento NUNCA é opção (é da máquina, emenda 1 da D-PROD-254)", () => {
-    const ids = (f) => opcoesDeRegistro(f).map((o) => o.id);
-    expect(ids({})).toEqual(["maquinas"]);
-    expect(ids({ permiteImplemento: true, permiteProduto: true })).toEqual(["maquinas", "implemento", "produtos"]);
-  });
-
   it("FC-2 — implemento tem grupo próprio, sem custo próprio: conta os usos e manda o custo para Máquinas", () => {
     const linhas = { maquinas: [maquina("m1", { implemento: { codigo: "GR-1", nome: "Grade" } }), maquina("m2")] };
     const grupos = movimentosDaArea([ap("ap1", "ar1", "2026-11-12", linhas)], "ar1", { maquinas: "200" });
