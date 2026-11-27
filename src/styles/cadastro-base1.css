@@ -2750,6 +2750,227 @@
     display: block;
   }
 }
+/* D-PROD-342 — a atividade e as frentes (máquina + implemento) do Diário das atividades. Os valores são os da maquete
+   aprovada (proposta-frentes): o cabeçalho verde é o mesmo do serviço aberto; o título de grupo usa o padrão do
+   "Lançado hoje" (.b1-aberto-secao), com o espaçamento da maquete. */
+.b1-ativ-topo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f3fdf6;
+  border: 1px solid #c9f2d4;
+}
+.b1-ativ-topo__l1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #141413;
+}
+.b1-ativ-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 12px;
+  font-size: 13px;
+  color: #141413;
+}
+.b1-ativ-meta > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.b1-ativ-meta i {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  color: #73726c;
+}
+.frente-grupo {
+  margin: 10px 2px 0;
+}
+.frente-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.frente-card {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 10px 10px 12px;
+  border: 1px solid #e7e5df;
+  border-radius: 12px;
+  background: #fff;
+  color: #141413;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.frente-card:not(:disabled):hover {
+  border-color: #40de63;
+  background: rgba(64, 222, 99, 0.06);
+}
+/* A frente encerrada não toca: sem hover, sem seta, com o ícone apagado. */
+.frente-card:disabled {
+  cursor: default;
+}
+.frente-card:disabled .frente-card__ic {
+  background: #f7f6f2;
+  color: #73726c;
+}
+.frente-card__ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(64, 222, 99, 0.14);
+  color: #15803d;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.frente-card__ic svg {
+  width: 18px;
+  height: 18px;
+}
+.frente-card__corpo {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.frente-card__l1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.frente-card__l1 strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: #141413;
+  line-height: 1.2;
+}
+.frente-card .b1-aberto-chip {
+  margin-left: auto;
+}
+.frente-card__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 10px;
+  font-size: 13px;
+  color: #141413;
+}
+.frente-card__grid > span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.frente-card__grid i {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  color: #73726c;
+}
+.frente-card .seta {
+  color: #a3a29c;
+  flex-shrink: 0;
+  align-self: center;
+}
+.frente-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 2px;
+  padding: 10px 12px;
+  border: 1px dashed #c9c8c2;
+  border-radius: 12px;
+  background: #fff;
+  color: #15803d;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.frente-add:hover {
+  border-color: #16a34a;
+  background: #f3fdf6;
+}
+.frente-add:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.frente-add__ic {
+  width: 22px;
+  height: 22px;
+  border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid currentColor;
+  flex-shrink: 0;
+}
+.frente-add__ic svg {
+  width: 14px;
+  height: 14px;
+}
+/* A lista "Em andamento neste pasto" mostra a seta também no celular (como na maquete). */
+.b1-aberto-opcoes--lista .b1-aberto-opcao__seta {
+  display: block;
+}
+/* Dica sob o campo (igual à leitura da máquina na abertura). */
+.b1-leitura-dica {
+  margin: -2px 2px 0;
+  font-size: 12.5px;
+  color: #73726c;
+  line-height: 1.35;
+}
+@media (max-width: 767px) {
+  .b1-ativ-topo__l1 {
+    font-size: 17px;
+  }
+  .b1-ativ-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    font-size: 14.5px;
+  }
+  .frente-card {
+    padding: 12px;
+  }
+  .frente-card__l1 strong {
+    font-size: 16.5px;
+  }
+  .frente-card__grid {
+    font-size: 14.5px;
+    gap: 6px 12px;
+  }
+  .frente-card .seta {
+    display: none;
+  }
+  .frente-card__ic {
+    width: 38px;
+    height: 38px;
+  }
+  .frente-add {
+    min-height: 52px;
+    font-size: 16px;
+  }
+  .b1-leitura-dica {
+    font-size: 13.5px;
+  }
+}
+
 /* D-PROD-332 — o valor escolhido na abertura (Trator 12, João Pereira) aparece como foi cadastrado, sem caixa alta. */
 .b1-aberto-janela .b1-form-embutido .mg-field :is(button, select, input, [role="combobox"]) {
   text-transform: none;

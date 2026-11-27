@@ -10437,4 +10437,30 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`471ad9c9d`) indicou D-PROD-334. A PR #424 (Insumo) reservou o 334, então esta correção é a D-PROD-341, e o marcador passa a D-PROD-342. A PR #428 (offline, Grupo 3) mergeou antes com a D-PROD-338 e a #429 com a D-PROD-340, por isso esta passou de 338 a 341.
 
-<!-- Próxima decisão: D-PROD-342 -->
+## D-PROD-342 — Diário das atividades: o modelo de frentes (uma atividade por pasto e tipo, máquinas dentro)
+
+**Decisão.** No pasto, cada tipo de atividade é UMA atividade (a atividade do pasto). As máquinas em campo são as FRENTES dela (máquina + implemento): cada frente tem a sua abertura, o horímetro inicial e final, o seu operador e os seus lançamentos. A frente continua sendo lida dos apontamentos (D-PROD-341, emenda); o que muda é que o encerramento também é um apontamento.
+
+**O que muda.**
+- **Passos do Diário.** `escolher` (Em andamento neste pasto): UM cartão por atividade, com "N máquinas em campo" e o início; tocar abre `atividade`. `atividade` (novo): o cabeçalho (Pasto, Início, Máquinas), um cartão por frente (máquina, implemento, operador, horímetro inicial e "Hoje"; a encerrada mostra "Encerrado" e o horímetro final e não toca), "Adicionar máquina" (abre `abrir` com o título "Adicionar máquina" e o tipo e a operação da atividade já escolhidos) e "Encerrar atividade". "Iniciar serviço" volta a `atividade`. Tocar numa frente aberta abre `iniciado`: o serviço dela (7 opções, "Lançado hoje" só com os lançamentos dela) e "Encerrar serviço".
+- **Encerrar serviço (uma frente).** Painel com "Horímetro final" obrigatório, que não pode ser menor que o inicial (pt-BR, como a abertura). Grava um apontamento do dia com a observação `[encerramento-servico bem=<id> impl=<id> hor=<decimal> bemn=<enc> impln=<enc>]`: ordem fixa; implemento e nomes opcionais; campo vazio não entra. O responsável da frente vai como operador. Depois a frente vira "Encerrado".
+- **Encerrar atividade.** Painel com o "Horímetro final" de cada frente aberta. Grava um encerramento por frente (na ordem do início), relê a atividade para pegar a `versao` e chama `concluirAtividade` com `data_conclusao` de hoje. Se uma máquina falha, para e diz qual. Se a conclusão falha depois dos encerramentos, avisa, e a nova tentativa só conclui: as frentes já encerradas não entram de novo.
+- **Trava de duplicidade.** A mesma máquina com o mesmo implemento não abre outra frente no pasto, aberta OU encerrada. Cada caso tem a sua mensagem.
+- **Leitura.** `frentesDosApontamentos` reconhece o encerramento: vale o encerramento com a mesma chave cujo dia é o da abertura mais recente da frente ou depois dela (uma máquina reaberta depois não é fechada pelo encerramento antigo). Novas funções em `aberturaServicoRegras.js`: `lerEncerramento`, `marcadorDoEncerramento`, `observacaoComEncerramento`, `validarEncerramento`, `resumoDasFrentes`, `textoDasMaquinasEmCampo`. `textoDaObservacao` tira também a linha de encerramento.
+
+**O que NÃO muda.** Sem backend, sem migration, dados intactos. A abertura continua sendo a linha `[abertura-servico …]`; o encerramento é um apontamento a mais, com uma linha na observação. Nenhuma tabela nova. Permissão, fuso e as rotas (`criarApontamento`, `concluirAtividade`, `registrarCampo`) são as que já existiam. O horímetro segue como texto na observação, como na abertura.
+
+**Limites conhecidos.**
+- A atividade nasce junto com a 1ª máquina: os tipos que exigem máquina pedem `bem_id` ao criar (`registrarCampo`). Por isso "Adicionar máquina" só existe depois da primeira.
+- "Hoje" do cartão conta lançamentos do dia, não horas.
+- Frente encerrada não reabre nesta atividade. Depois de concluída, a atividade sai da lista do pasto, e uma nova do mesmo tipo começa do zero.
+- Conclusão de um tipo que exige produção pode ser recusada pelo servidor. O aviso sai na tela com a mensagem dele, e as máquinas já encerradas ficam encerradas.
+- A lista "Atividades em andamento" dos Detalhes da área ainda não mostra "N máquinas em campo" (só o Diário mostra).
+
+**Testes.** `tests/smoke/diarioFrentes.test.jsx` (12 testes, (a) a (h): lista, passo da atividade, Adicionar máquina e as travas, serviço da frente, encerrar serviço, encerrar atividade com a falha no concluir, atividade sem frente, duplo clique). `diarioDasAtividades.test.jsx` e `diarioEmAndamentoNoPasto.test.jsx` foram ao passo novo, com as asserções do corpo enviado mantidas. `aberturaServicoRegras.test.js` cobre o encerramento. `lancamentoAtividades.test.jsx` (LD-1) cobre a atividade sem frente.
+
+**Correção no caminho.** O formulário de "Adicionar máquina" mostrava "já tem serviço aberto" também para a frente encerrada. Agora a frente encerrada tem a sua frase (`MSG_FRENTE_ENCERRADA`), no mesmo ponto em que a trava já decidia.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-342 na `main` (`6aa675672`). Esta entrada ficou com o D-PROD-342 e o marcador passa a D-PROD-343. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-343 -->
