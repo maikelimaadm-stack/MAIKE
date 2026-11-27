@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, ChevronLeft, Fuel, Pencil, Plus } from "lucide-react";
+import { Ban, ChevronLeft, Fuel, Pencil } from "lucide-react";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { useCelular } from "@/components/common/MobileSheet";
 import TabelaBase1 from "@/components/lancamento-atividades/TabelaBase1";
@@ -13,13 +13,12 @@ import {
   JanelaLinhaProduto,
   JanelaLinhaServico,
 } from "@/components/lancamento-atividades/JanelasDaLinha";
-import { BOTAO_PRIMARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import { useEmpresaRealSelecionadaId } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAcoesTelaAbastecimento } from "@/hooks/usePatrimonioSessao";
 import { QUERY_RAIZ_ABASTECIMENTOS } from "@/hooks/useFluxoAbastecimento";
 import { STATUS_AREA, rotuloDaAreaDaAtividade, totaisDaArea } from "@/lib/atividadeAreasRegras";
 import { chaveApontamentos } from "@/lib/atividadeApontamentoRegras";
-import { REGISTRO_IMPLEMENTO, bemParaAbastecer, opcoesDeRegistro } from "@/lib/atividadeFluxoCampo";
+import { bemParaAbastecer } from "@/lib/atividadeFluxoCampo";
 import { LINHA_ABASTECIMENTO, linhasDaArea, somaDasLinhas } from "@/lib/lancamentosDaAreaRegras";
 import { LINHA_MAO_OBRA, LINHA_MAQUINA, LINHA_PRODUTO, LINHA_SERVICO, chaveTotais, formatarMoedaAtividade, rotuloDaMaquinaDaLinha } from "@/lib/atividadeLinhasRegras";
 import { rotuloDaArea } from "@/lib/lancamentoAtividadesRegras";
@@ -39,14 +38,14 @@ const JANELA_DO_TIPO = Object.freeze({
 });
 
 /**
- * A tela de uma área da atividade (D-PROD-252, emendas 1 e 2): o "‹ Áreas" com o nome da área e o da atividade, a fileira de
- * botões "+" e UMA tabela Base1 (`TabelaBase1`, a grade da lista, sem cartão) com tudo o que foi lançado ali — Tipo · Dia ·
+ * A tela de uma área da atividade (D-PROD-252, emendas 1 e 2): o "‹ Áreas" com o nome da área e o da atividade e UMA
+ * tabela Base1 (`TabelaBase1`, a grade da lista, sem cartão) com tudo o que foi lançado ali — Tipo · Dia ·
  * Item · Quantidade · Valor e o ⚡ (no celular: Tipo · Valor · Quantidade · Item · Dia) — com o total no `<tfoot>`. O
  * implemento é texto da linha da máquina ("com GR-01"); o abastecimento é uma linha como as outras (dia, máquina, litros,
  * valor). O ⚡ da linha edita e cancela (as janelas de linha de sempre); o abastecimento se cancela na tela Abastecimentos.
  * Gravou o abastecimento: o aviso é o toast do app.
  *
- * Os botões "+" abrem a janela do lançamento (`onLancar`, um nível só). O abastecimento NÃO tem botão aqui (D-PROD-254,
+ * Sem botões "+" por tipo: lançar é pelo Diário das atividades (a opção Máquina da frente, D-PROD-365). O abastecimento NÃO tem botão aqui (D-PROD-254,
  * emenda 1): é da máquina — o ⚡ da linha da máquina tem "Abastecer" (a janela do abastecimento, com a máquina escolhida
  * e a revisão dentro) e a janela da máquina tem "Salvar e abastecer". O total (um só, no rodapé) vem do servidor (`por_area` dos totais); sem ele, a soma das linhas. Os hectares e o
  * R$/ha ficam na tabela de áreas e no Resumo das áreas, não aqui.
@@ -62,7 +61,7 @@ const JANELA_DO_TIPO = Object.freeze({
  *   podeLancar: boolean,
  *   flags: { permiteProduto?: boolean, permiteImplemento?: boolean, permiteMaoObra?: boolean, permiteServico?: boolean },
  *   escopo: string,
- *   onLancar: (tipo: string, aba: 'lista'|'dados', areaId: string|null) => void,
+ *   onLancar?: (tipo: string, aba: 'lista'|'dados', areaId: string|null) => void,
  *   onAtividadeAtualizada: (atividade: any) => void,
  *   onVoltar: (() => void) | null,
  * }} props `area`: a área da atividade (null na atividade antiga, sem áreas). `podeLancar`: a atividade aberta com a permissão
@@ -79,7 +78,6 @@ export default function LancamentosDaArea({
   podeLancar,
   flags,
   escopo,
-  onLancar,
   onAtividadeAtualizada,
   onVoltar,
 }) {
@@ -114,9 +112,6 @@ export default function LancamentosDaArea({
   const podeRegistrar = podeLancar && (!area || area.status === STATUS_AREA.EM_ANDAMENTO);
   const podeEditar = podeRegistrar && acoes?.editarApontamento === true;
   const podeCancelar = podeRegistrar && acoes?.cancelarApontamento === true;
-
-  /** @param {string} id */
-  const abrirRegistro = (id) => onLancar(id === REGISTRO_IMPLEMENTO ? LINHA_MAQUINA : id, "dados", areaId);
 
   const releer = () => {
     queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, atividadeId) });
@@ -184,8 +179,6 @@ export default function LancamentosDaArea({
     return undefined;
   };
 
-  const botoes = podeRegistrar ? opcoesDeRegistro(flags) : [];
-
   /** @type {any} */
   const JanelaDeEdicao = editando ? JANELA_DO_TIPO[/** @type {keyof typeof JANELA_DO_TIPO} */ (editando.tipo)] : null;
   const tabela = (
@@ -228,15 +221,6 @@ export default function LancamentosDaArea({
           {String(atividade?.nome ?? "")}
         </span>
       </div>
-      {botoes.length ? (
-        <div className="b1-tabela-tela__acoes" data-testid="escolher-registro">
-          {botoes.map((o) => (
-            <button key={o.id} type="button" className={BOTAO_PRIMARIO} onClick={() => abrirRegistro(o.id)} data-testid={`escolher-${o.id}`}>
-              <Plus className="h-4 w-4" aria-hidden /> {o.rotulo}
-            </button>
-          ))}
-        </div>
-      ) : null}
       {area && area.status === STATUS_AREA.PLANEJADA ? (
         <AvisoGestao tone="blue" testId="detalhe-area-a-iniciar">
           Esta área ainda não começou. Inicie a área pelo ⚡ da tabela de áreas para lançar nela.
