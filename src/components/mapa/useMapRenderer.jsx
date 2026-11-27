@@ -1,12 +1,15 @@
 /*
- * GUIA DE EDIÇÃO — MARCADORES DO MAPA: tamanho (baseSize) de pontos, cochos e tarefas; lotes em syncLotes; rótulos em syncLabels.
+ * GUIA DE EDIÇÃO — MARCADORES DO MAPA: lotes em syncLotes; cochos, pontos e tarefas em syncPontosSuplementacao, syncPontos e
+ * syncTarefas; rótulos em syncLabels.
  * Lotes desenhados pelo mapa (D-PROD-349): posição, contagem, identificador, piscar e arrastar em src/lib/maplibre/lotesNoMapa.js.
+ * Cochos, pontos e tarefas desenhados pelo mapa (D-PROD-353): tamanhos, selo, farol, indicador e ordem em src/lib/maplibre/pontosNoMapa.js.
  * Ícone do lote (D-PROD-191): o desenho, a largura (LARGURA_MARCADOR_PX) e a altura do número de cabeças (CONTAGEM_TOPO_PCT) vêm do código, em src/assets/icones/lotes.
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
 
-import { aplicarIndicadorTarefa } from "@/lib/tarefas/marcador";
+import { indicadorTarefa, tituloDoMarcadorTarefa } from "@/lib/tarefas/marcador";
 import { normalizarPrioridadeTarefa } from "@/lib/tarefas/prioridade";
+import { urlIconeTarefa } from "@/assets/icones/tarefas";
 import { useRef, useCallback } from "react";
 import { maplibregl, setSourceData } from "@/lib/maplibre/lifecycle.js";
 import { parseVertex, parseVertices } from "@/lib/geografia/coords.js";
@@ -25,7 +28,6 @@ import {
   ensureMgLayers,
   aplicarEstiloPasto,
   fontesRotuloPorZoom,
-  iconeSemAchatar,
   resolverIconeLote,
   resolverIconePonto,
   resolverIconeSuplementacao,
@@ -50,6 +52,26 @@ import {
   podarImagens,
   registrarImagens,
 } from "@/lib/maplibre/lotesNoMapa.js";
+import {
+  PONTOS_LAYER_ID,
+  PONTOS_SOURCE_ID,
+  SUPL_LAYER_ID,
+  SUPL_SOURCE_ID,
+  TAMANHO_PONTO_PX,
+  TAMANHO_SUPL_PX,
+  TAMANHO_TAREFA_PX,
+  TAREFAS_LAYER_ID,
+  TAREFAS_SOURCE_ID,
+  avisarFalhaPonto,
+  colecaoPontos,
+  haPontoNoPonto,
+  haTarefaNoPonto,
+  imagemDoGrupo,
+  ligarImagensFaltandoPontos,
+  ligarInteracaoPontos,
+  pedidosImagemPonto,
+  registrarImagensPontos,
+} from "@/lib/maplibre/pontosNoMapa.js";
 
 /**
  * Renderizador incremental do Mapa Geral sobre MapLibre (D-PROD-65).
@@ -58,7 +80,7 @@ import {
  * `syncPontos`, `syncLinhas`, `syncPontosSuplementacao`, `syncLotes`,
  * `syncTarefas`, `syncUserLocation`, `clearAll`), para que `MapaGeral` mantenha
  * filtros, permissões, painéis e ações. Áreas/linhas viram GeoJSON (estilo SSOT
- * com o editor); pontos, cochos, tarefas e nomes continuam DOM, sempre com
+ * com o editor); os nomes das áreas e a localização continuam DOM, sempre com
  * `textContent` e cleanup explícito.
  *
  * Lotes (D-PROD-349): desenhados pelo próprio mapa — fonte GeoJSON + camadas
@@ -66,7 +88,34 @@ import {
  * O ícone vem do código (D-PROD-191): `resolverIconeLote` monta a figura pela
  * Categoria de Manejo de cada posição do pasto e sempre devolve figura; a
  * `chave` do desenho vai na fonte (`desenho`) e na chave da imagem.
+ *
+ * Cochos/depósitos, pontos de referência (bebedouro incluído) e tarefas (D-PROD-353): também desenhados pelo mapa,
+ * cada grupo numa fonte e numa camada `symbol` (`pontosNoMapa.js`): a figura com o selo e o farol do cocho ou o
+ * indicador da tarefa já pintados na imagem; o clique chama os mesmos callbacks de antes.
  */
+
+/** Os três grupos de pontos desenhados pelo mapa (D-PROD-353): fonte, camada e prefixo das imagens. */
+const GRUPOS_PONTOS = Object.freeze({
+  supl: Object.freeze({ fonte: SUPL_SOURCE_ID, camada: SUPL_LAYER_ID, prefixo: "mg-supl" }),
+  pontos: Object.freeze({ fonte: PONTOS_SOURCE_ID, camada: PONTOS_LAYER_ID, prefixo: "mg-ponto" }),
+  tarefas: Object.freeze({ fonte: TAREFAS_SOURCE_ID, camada: TAREFAS_LAYER_ID, prefixo: "mg-tarefa" }),
+});
+/** @typedef {keyof typeof GRUPOS_PONTOS} NomeGrupo */
+/** @type {Record<string, NomeGrupo>} */
+const GRUPO_DA_CAMADA = { [SUPL_LAYER_ID]: "supl", [PONTOS_LAYER_ID]: "pontos", [TAREFAS_LAYER_ID]: "tarefas" };
+/** @type {NomeGrupo[]} */
+const NOMES_GRUPOS = ["supl", "pontos", "tarefas"];
+
+/**
+ * Estado de um grupo: o que está na fonte (por id: o item publicado e o objeto do app, para o clique entregar o mais
+ * novo), as imagens em uso, a ordem das chamadas (`seq`), o último conteúdo publicado e os últimos argumentos.
+ * @typedef {{ seq: number, porId: Map<string, { item: import('@/lib/maplibre/pontosNoMapa.js').ItemPonto, ref: any }>, emUso: string[], publicado: string, args: any[] | null, onClick: null | ((ref: any, item: import('@/lib/maplibre/pontosNoMapa.js').ItemPonto) => void) }} GrupoPontos
+ */
+/** Quanto um grupo espera as imagens antes de publicar com a reserva no que faltar (ms): o cache sai na hora, uma
+ * figura remota lenta não segura o grupo (D-PROD-353). */
+const MS_ESPERA_IMAGENS = 250;
+/** @returns {GrupoPontos} */
+const novoGrupo = () => ({ seq: 0, porId: new Map(), emUso: [], publicado: "", args: null, onClick: null });
 
 /**
  * Par ícone do lote (44 px) + nome embaixo, centrado no ponto da área, com
@@ -79,122 +128,6 @@ const PAR_LOTE = {
   icone: OFFSET_LOTE_COM_NOME_PX,
   nome: /** @type {[number, number]} */ ([0, 10]),
 };
-
-/** Elemento de marcador: ícone (sem achatar) ou círculo colorido. */
-function criarElementoMarcador({ iconUrl, baseSize, cor, titulo, raio = 20, forma = "circulo" }) {
-  const el = document.createElement("div");
-  el.className = "mg-marker";
-  el.style.cssText = "display:flex;align-items:center;justify-content:center;cursor:pointer;";
-  if (titulo) el.title = String(titulo);
-  const corpo = document.createElement("div");
-  corpo.className = "mg-marker-corpo";
-  el.appendChild(corpo);
-  aplicarCorpo(el, { iconUrl, baseSize, cor, raio, forma });
-  return el;
-}
-
-function aplicarCorpo(el, { iconUrl, baseSize, cor, raio = 20, forma = "circulo" }) {
-  const corpo = /** @type {HTMLDivElement} */ (el.querySelector(".mg-marker-corpo"));
-  if (!corpo) return;
-  const token = String(Math.random());
-  el.dataset.iconToken = token;
-  corpo.replaceChildren();
-  corpo.style.cssText = "";
-  const fallback = () => {
-    corpo.replaceChildren();
-    if (forma === "pin") {
-      corpo.style.cssText = `width:22px;height:30px;background:${cor};clip-path:path('M11 0C5 0 0 5 0 11c0 8 11 19 11 19s11-11 11-19C22 5 17 0 11 0z');border:0;`;
-      return;
-    }
-    const d = raio * 2;
-    corpo.style.cssText = `width:${d}px;height:${d}px;border-radius:9999px;background:${cor};border:3px solid #fff;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,.35);`;
-  };
-  if (!iconUrl) {
-    fallback();
-    return;
-  }
-  const img = document.createElement("img");
-  img.alt = "";
-  img.draggable = false;
-  img.style.cssText = `display:block;width:${baseSize}px;height:${baseSize}px;object-fit:contain;pointer-events:none;`;
-  img.onload = () => {
-    if (el.dataset.iconToken !== token) return;
-    const { width, height } = iconeSemAchatar(img.naturalWidth, img.naturalHeight, baseSize);
-    img.style.width = `${width}px`;
-    img.style.height = `${height}px`;
-  };
-  img.onerror = () => {
-    if (el.dataset.iconToken !== token) return;
-    fallback();
-  };
-  img.src = iconUrl;
-  corpo.appendChild(img);
-}
-
-/**
- * Cores do selo do cocho/depósito (D-PROD-178): "?" cinza (nível neutro) e
- * "!" âmbar (depósito acima do limite). Contraste do texto ≥ 4,5:1.
- */
-const CORES_SELO_SUPLEMENTACAO = Object.freeze({
-  neutro: { fundo: "#6b7280", texto: "#ffffff" },
-  excesso: { fundo: "#f59e0b", texto: "#1f2937" },
-});
-
-/**
- * Título, `aria-label` e selo do marcador de cocho/depósito. O `aria-label`
- * precisa existir antes do `addTo` (sem ele o MapLibre põe "Map marker"). O
- * selo é decorativo (`aria-hidden`): o que ele diz já está no `aria-label`.
- * Só recria o selo quando o tipo muda.
- * @param {any} entry
- * @param {string} titulo
- * @param {null | { tipo: "neutro" | "excesso", texto: string }} selo
- */
-function aplicarTextoESeloSuplementacao(entry, titulo, selo) {
-  const el = entry.el;
-  el.title = titulo;
-  if (titulo) el.setAttribute("aria-label", titulo);
-  else el.removeAttribute("aria-label");
-
-  const tipo = selo?.tipo ?? null;
-  if ((entry.selo?.dataset?.selo ?? null) === tipo) return;
-  entry.selo?.remove();
-  entry.selo = null;
-  if (!selo) return;
-  const cores = CORES_SELO_SUPLEMENTACAO[selo.tipo];
-  const s = document.createElement("span");
-  s.className = "mg-supl-selo";
-  s.dataset.selo = selo.tipo;
-  s.setAttribute("aria-hidden", "true");
-  s.textContent = selo.texto;
-  // Canto de cima à direita do ícone de 36 px, fora do fluxo: não mexe na âncora.
-  s.style.cssText =
-    `position:absolute;left:calc(50% + 13px);top:calc(50% - 14px);transform:translate(-50%,-50%);width:16px;height:16px;box-sizing:border-box;border-radius:9999px;border:2px solid #fff;background:${cores.fundo};color:${cores.texto};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;box-shadow:0 1px 2px rgba(0,0,0,.35);pointer-events:none;`;
-  el.appendChild(s);
-  entry.selo = s;
-}
-
-/**
- * D-PROD-205 — farol da leitura de cocho: ponto colorido no canto de BAIXO à
- * direita do ícone (o selo do nível fica no de cima). Decorativo (`aria-hidden`):
- * o texto do farol já está no `aria-label`. Só recria quando a cor muda.
- * @param {any} entry
- * @param {null | { cor: string, hex: string }} farol
- */
-function aplicarFarolSuplementacao(entry, farol) {
-  const cor = farol?.cor ?? null;
-  if ((entry.farol?.dataset?.farol ?? null) === cor) return;
-  entry.farol?.remove();
-  entry.farol = null;
-  if (!farol) return;
-  const f = document.createElement("span");
-  f.className = "mg-supl-farol";
-  f.dataset.farol = farol.cor;
-  f.setAttribute("aria-hidden", "true");
-  f.style.cssText =
-    `position:absolute;left:calc(50% + 13px);top:calc(50% + 12px);transform:translate(-50%,-50%);width:12px;height:12px;box-sizing:border-box;border-radius:9999px;border:2px solid #fff;background:${farol.hex};box-shadow:0 1px 2px rgba(0,0,0,.35);pointer-events:none;`;
-  entry.el.appendChild(f);
-  entry.farol = f;
-}
 
 function removerMarcador(entry) {
   if (!entry) return;
@@ -225,7 +158,7 @@ export default function useMapRenderer(mapInstanceRef) {
   const areasCallbacksRef = useRef({ onClick: null, onRightClick: null });
   const areasByIdRef = useRef(new Map());
   const linhasByIdRef = useRef(new Map());
-  const dataRef = useRef(/** @type {{ areas: any, linhas: any, user: any, lotes: any }} */ ({ areas: null, linhas: null, user: null, lotes: null }));
+  const dataRef = useRef(/** @type {{ areas: any, linhas: any, user: any, lotes: any, supl: any, pontos: any, tarefas: any }} */ ({ areas: null, linhas: null, user: null, lotes: null, supl: null, pontos: null, tarefas: null }));
   const labelZoomHandlerRef = useRef(/** @type {null | (() => void)} */ (null));
   const arrumarRef = useRef(/** @type {null | { handler: () => void, quadro: number }} */ (null));
   /**
@@ -235,7 +168,7 @@ export default function useMapRenderer(mapInstanceRef) {
    */
   const lotesRef = useRef(new Map());
   const lotesCallbacksRef = useRef(/** @type {{ onClickLotes: any, onDragLotes: any, canDragLotes: boolean }} */ ({ onClickLotes: null, onDragLotes: null, canDragLotes: false }));
-  const lotesHandlersRef = useRef(/** @type {null | { off: () => void }} */ (null));
+  const lotesHandlersRef = useRef(/** @type {null | { off: () => void, acabouDeArrastar?: () => boolean }} */ (null));
   const lotesSeqRef = useRef(0);
   const lotesConteudoRef = useRef("");
   const lotesPublicadoRef = useRef("");
@@ -245,6 +178,13 @@ export default function useMapRenderer(mapInstanceRef) {
   const syncLotesRef = useRef(/** @type {null | ((...a: any[]) => Promise<void>)} */ (null));
   const piscaRef = useRef(/** @type {null | ReturnType<typeof criarPiscaIdent>} */ (null));
   if (!piscaRef.current) piscaRef.current = criarPiscaIdent(() => mapInstanceRef.current);
+  /** Cochos, pontos e tarefas desenhados pelo mapa (D-PROD-353): um estado por grupo. */
+  const gruposRef = useRef(/** @type {Record<NomeGrupo, GrupoPontos>} */ ({ supl: novoGrupo(), pontos: novoGrupo(), tarefas: novoGrupo() }));
+  const pontosHandlersRef = useRef(/** @type {null | { off: () => void }} */ (null));
+  /** `resize` (densidade da tela nova): um só ouvinte refaz lotes e pontos. */
+  const densidadeRef = useRef(/** @type {null | { off: () => void }} */ (null));
+  /** As funções de sincronizar de cada grupo (refeitas quando a densidade da tela muda). */
+  const syncGruposRef = useRef(/** @type {Partial<Record<NomeGrupo, (...a: any[]) => Promise<void>>>} */ ({}));
 
   const estiloPastoRef = useRef("cheio");
 
@@ -273,13 +213,15 @@ export default function useMapRenderer(mapInstanceRef) {
     if (!map) return;
     ensureMgLayers(map);
     aplicarEstiloPasto(map, estiloPastoRef.current);
-    // Estilo novo (satélite ↔ mapa) vem sem as imagens dos lotes: repõe antes dos dados (D-PROD-349).
+    // Estilo novo (satélite ↔ mapa) vem sem as imagens dos lotes e dos pontos: repõe antes dos dados (D-PROD-349/350).
     registrarImagens(map, chavesImagensLotes(), pixelRatioRef.current);
+    registrarImagensPontos(map, NOMES_GRUPOS.flatMap((n) => gruposRef.current[n].emUso), pixelRatioRef.current);
     const d = dataRef.current;
     if (d.areas) setSourceData(map, MG_SOURCE_IDS.AREAS, d.areas);
     if (d.linhas) setSourceData(map, MG_SOURCE_IDS.LINHAS, d.linhas);
     if (d.user) setSourceData(map, MG_SOURCE_IDS.USER, d.user);
     if (d.lotes) setSourceData(map, MG_SOURCE_IDS.LOTES, d.lotes);
+    for (const n of NOMES_GRUPOS) if (d[n]) setSourceData(map, GRUPOS_PONTOS[n].fonte, d[n]);
   }, [mapInstanceRef]);
 
   const clearAll = useCallback(() => {
@@ -291,6 +233,16 @@ export default function useMapRenderer(mapInstanceRef) {
     lotesConteudoRef.current = "";
     lotesPublicadoRef.current = "";
     setSourceData(/** @type {any} */ (mapInstanceRef.current), MG_SOURCE_IDS.LOTES, { type: "FeatureCollection", features: [] });
+    // cochos, pontos e tarefas (D-PROD-353): imagens que ainda chegam não publicam mais nada
+    pontosHandlersRef.current?.off();
+    pontosHandlersRef.current = null;
+    densidadeRef.current?.off();
+    densidadeRef.current = null;
+    for (const n of NOMES_GRUPOS) {
+      const g = gruposRef.current[n];
+      gruposRef.current[n] = { ...novoGrupo(), seq: g.seq + 1 };
+      setSourceData(/** @type {any} */ (mapInstanceRef.current), GRUPOS_PONTOS[n].fonte, { type: "FeatureCollection", features: [] });
+    }
     markersRef.current.forEach(removerMarcador);
     markersRef.current.clear();
     labelsRef.current.forEach(removerMarcador);
@@ -320,7 +272,7 @@ export default function useMapRenderer(mapInstanceRef) {
     }
     areasByIdRef.current.clear();
     linhasByIdRef.current.clear();
-    dataRef.current = { areas: null, linhas: null, user: null, lotes: null };
+    dataRef.current = { areas: null, linhas: null, user: null, lotes: null, supl: null, pontos: null, tarefas: null };
   }, [mapInstanceRef]);
 
   // ─── Áreas (polígonos) ───
@@ -363,8 +315,8 @@ export default function useMapRenderer(mapInstanceRef) {
         map.getCanvas().style.cursor = "";
       };
       const onClick = (e) => {
-        // O clique no ícone do lote abre os lotes, não a área por baixo (D-PROD-349).
-        if (haLoteNoPonto(map, e.point)) return;
+        // O clique no ícone do lote (D-PROD-349) ou de um cocho, ponto ou tarefa (D-PROD-353) é dele, não da área por baixo.
+        if (haLoteNoPonto(map, e.point) || haPontoNoPonto(map, e.point)) return;
         const area = featureArea(e);
         if (!area) return;
         areasCallbacksRef.current.onClick?.(area, { lat: e.lngLat.lat, lng: e.lngLat.lng });
@@ -722,52 +674,146 @@ export default function useMapRenderer(mapInstanceRef) {
     popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: "260px" }).setLngLat(lngLat).setDOMContent(box).addTo(map);
   };
 
-  /** Marcador clicável (click não propaga ao mapa). */
-  const criarMarcadorClicavel = (spec, onClick, extra = {}) => {
-    const el = criarElementoMarcador(spec);
-    const handler = (ev) => {
-      ev.stopPropagation();
-      onClick?.();
+  // ─── Cochos, pontos e tarefas desenhados pelo mapa (D-PROD-353) ───
+
+  /** Um só ouvinte de `resize`: densidade da tela nova refaz as imagens dos lotes e dos pontos nela. */
+  const ligarDensidade = (/** @type {any} */ map) => {
+    if (densidadeRef.current) return;
+    const aoRedimensionar = () => {
+      const novo = pixelRatioDaTela();
+      if (novo === pixelRatioRef.current) return;
+      pixelRatioRef.current = novo;
+      if (lotesArgsRef.current) syncLotesRef.current?.(...lotesArgsRef.current);
+      for (const n of NOMES_GRUPOS) {
+        const args = gruposRef.current[n].args;
+        if (args) syncGruposRef.current[n]?.(...args);
+      }
     };
-    el.addEventListener("click", handler);
-    const marker = new maplibregl.Marker({ element: el, anchor: spec.forma === "pin" ? "bottom" : "center", ...extra });
-    return { el, marker, cleanup: () => el.removeEventListener("click", handler) };
+    map.on("resize", aoRedimensionar);
+    densidadeRef.current = {
+      off: () => {
+        try {
+          map.off("resize", aoRedimensionar);
+        } catch {
+          /* mapa já removido */
+        }
+      },
+    };
   };
 
-  // ─── Pontos de referência ───
+  /** Clique, cursor/título e imagens que faltam após troca de estilo dos pontos: ligados uma vez por mapa. */
+  const ligarPontos = (/** @type {any} */ map) => {
+    if (pontosHandlersRef.current) return;
+    const doGrupo = (/** @type {string} */ camada, /** @type {string} */ id) => {
+      const nome = GRUPO_DA_CAMADA[camada];
+      return nome ? { g: gruposRef.current[nome], it: gruposRef.current[nome].porId.get(id) } : null;
+    };
+    const interacao = ligarInteracaoPontos(map, {
+      aoClicar: (camada, id) => {
+        const achado = doGrupo(camada, id);
+        if (achado?.it) achado.g.onClick?.(achado.it.ref, achado.it.item);
+      },
+      titulo: (camada, id) => doGrupo(camada, id)?.it?.item.titulo || "",
+      // o clique que vem ao soltar um lote arrastado não abre o ponto onde o dedo parou
+      ignorarClique: () => Boolean(/** @type {any} */ (lotesHandlersRef.current)?.acabouDeArrastar?.()),
+    });
+    const desligarImagens = ligarImagensFaltandoPontos(map, () => pixelRatioRef.current);
+    ligarDensidade(map);
+    pontosHandlersRef.current = {
+      off: () => {
+        interacao.off();
+        desligarImagens();
+      },
+    };
+  };
+
+  /**
+   * Publica um grupo (D-PROD-353). O mapa id → objeto do app é trocado NA HORA (o clique entrega sempre o mais novo,
+   * mesmo com imagens ainda por desenhar). Depois:
+   *  1. as reservas (círculo da cor, sem rede) são desenhadas;
+   *  2. espera as imagens no máximo MS_ESPERA_IMAGENS (as do cache saem na hora) e publica: o que ainda falta aparece
+   *     com a reserva — uma figura remota lenta não segura o grupo;
+   *  3. quando as imagens que faltavam chegam, publica de novo (a lista do que falta mudou) e o mapa troca a reserva.
+   * Devolve a promessa de quando todas as imagens do grupo foram tentadas.
+   * @param {NomeGrupo} nome
+   * @param {Array<{ item: import('@/lib/maplibre/pontosNoMapa.js').ItemPonto, ref: any, pedidos: { imagem: import('@/lib/maplibre/lotesNoMapa.js').PedidoImagem, reserva: import('@/lib/maplibre/lotesNoMapa.js').PedidoImagem } }>} itens
+   */
+  const sincronizarGrupo = (nome, itens) => {
+    const map = getMap();
+    if (!map) return Promise.resolve();
+    ensureMgLayers(map);
+    ligarPontos(map);
+    const g = gruposRef.current[nome];
+    g.porId = new Map(itens.map((i) => [i.item.id, i]));
+    const { fonte, prefixo } = GRUPOS_PONTOS[nome];
+    const pr = pixelRatioRef.current;
+    const seq = ++g.seq;
+    const imagens = itens.map((i) => i.pedidos.imagem);
+    const reservas = itens.map((i) => i.pedidos.reserva);
+    const emUso = [...new Set([...imagens, ...reservas].map((p) => p.chave))];
+    /** Meia largura/altura do ícone visível da imagem que o mapa vai mostrar (a figura ou a reserva). */
+    const caixa = (/** @type {import('@/lib/maplibre/pontosNoMapa.js').ItemPonto} */ it) =>
+      /** @type {any} */ (imagemPronta(it.imagem, pr) || imagemPronta(it.reserva, pr))?.corpo || null;
+    const aplicar = () => {
+      const m = getMap();
+      if (seq !== g.seq || !m || gruposRef.current[nome] !== g) return;
+      registrarImagensPontos(m, emUso, pr);
+      // O que ainda não está pronto (pendente ou falhou) aparece com a reserva. Quando chegar, a lista muda e a fonte
+      // é publicada de novo (o mapa só troca a reserva pela imagem ao refazer os dados).
+      const faltando = emUso.filter((k) => !imagemPronta(k, pr));
+      g.emUso = emUso;
+      const fc = colecaoPontos(itens.map((i) => ({ ...i.item, caixa: caixa(i.item) })));
+      const conteudo = JSON.stringify([fc.features, faltando]);
+      if (conteudo !== g.publicado) {
+        g.publicado = conteudo;
+        dataRef.current[nome] = fc;
+        setSourceData(m, fonte, fc);
+      }
+      podarImagens(m, new Set(emUso), pr, imagemDoGrupo(prefixo));
+    };
+    const esperaReservas = garantirImagens(reservas, pr, avisarFalhaPonto);
+    const esperaImagens = garantirImagens(imagens, pr, avisarFalhaPonto);
+    if (!esperaReservas && !esperaImagens) {
+      aplicar();
+      return Promise.resolve();
+    }
+    const prazo = () => new Promise((r) => setTimeout(r, MS_ESPERA_IMAGENS));
+    return (esperaReservas || Promise.resolve())
+      .then(() => (esperaImagens ? Promise.race([esperaImagens, prazo()]) : null))
+      .then(() => {
+        aplicar();
+        return esperaImagens;
+      })
+      .then(() => {
+        if (esperaImagens) aplicar();
+      });
+  };
+
+  // ─── Pontos de referência (bebedouro incluído) ───
   const syncPontos = useCallback((pontos, show, iconesConfig, onClickPonto) => {
-    const prefix = "ponto_";
+    const g = gruposRef.current.pontos;
+    g.args = [pontos, show, iconesConfig, onClickPonto];
+    // Sem callback, o popup de antes (nome e tipo).
+    g.onClick = (p, item) => {
+      if (typeof onClickPonto === "function") onClickPonto(p);
+      else abrirPopup(item.lngLat, p.nome, p.tipo);
+    };
+    const pr = pixelRatioRef.current;
     const itens = [];
     if (show) {
       for (const ponto of pontos) {
         const c = parseVertex(ponto.coordenadas);
         if (!c) continue;
         const { iconUrl, cor } = resolverIconePonto(ponto, iconesConfig);
-        const key = prefix + ponto.id;
-        const estado = JSON.stringify([c.lat, c.lng, ponto.nome, iconUrl, cor]);
-        const ref = { ponto };
+        const { imagem, reserva } = pedidosImagemPonto("mg-ponto", { urls: iconUrl ? [iconUrl] : [], base: TAMANHO_PONTO_PX, cor }, pr);
         itens.push({
-          key,
-          lngLat: [c.lng, c.lat],
-          estado,
-          criar: () => {
-            const entry = criarMarcadorClicavel({ iconUrl, baseSize: 40, cor, titulo: ponto.nome }, () => {
-              const p = markersRef.current.get(key)?.ultimo?.ref?.ponto || ponto;
-              if (typeof onClickPonto === "function") onClickPonto(p);
-              else abrirPopup([c.lng, c.lat], p.nome, p.tipo);
-            });
-            entry.marker.getElement().style.zIndex = "800";
-            return entry;
-          },
-          atualizar: (entry) => {
-            entry.el.title = String(ponto.nome || "");
-            aplicarCorpo(entry.el, { iconUrl, baseSize: 40, cor });
-          },
-          ref,
+          item: { id: String(ponto.id), lngLat: /** @type {[number, number]} */ ([c.lng, c.lat]), imagem: imagem.chave, reserva: reserva.chave, titulo: String(ponto.nome || "") },
+          ref: ponto,
+          pedidos: { imagem, reserva },
         });
       }
     }
-    syncGrupo(prefix, itens);
+    return sincronizarGrupo("pontos", itens);
   }, [mapInstanceRef]);
 
   // ─── Linhas geográficas ───
@@ -782,7 +828,7 @@ export default function useMapRenderer(mapInstanceRef) {
     setSourceData(map, MG_SOURCE_IDS.LINHAS, fc);
     if (!linhasHandlersRef.current) {
       const onClick = (e) => {
-        if (haLoteNoPonto(map, e.point)) return;
+        if (haLoteNoPonto(map, e.point) || haPontoNoPonto(map, e.point)) return;
         const f = e.features?.[0];
         const linha = linhasByIdRef.current.get(String(f?.properties?.id ?? f?.id));
         if (!linha) return;
@@ -795,50 +841,29 @@ export default function useMapRenderer(mapInstanceRef) {
 
   // ─── Pontos de suplementação (cochos/depósitos) ───
   const syncPontosSuplementacao = useCallback((pontosSupl, show, iconesConfig, onClick) => {
-    const prefix = "supl_";
+    const g = gruposRef.current.supl;
+    g.args = [pontosSupl, show, iconesConfig, onClick];
+    g.onClick = (p) => onClick?.(p);
+    const pr = pixelRatioRef.current;
     const itens = [];
     if (show) {
       for (const ponto of pontosSupl) {
         const c = parseVertex(ponto.coordenadas);
         if (!c) continue;
         const { iconUrl, cor, categoria } = resolverIconeSuplementacao(ponto, iconesConfig);
-        // Nível no marcador (D-PROD-178): texto do SSOT no title/aria-label e selo.
+        // Nível no marcador (D-PROD-178/205): o texto do SSOT vai no título (fonte; título do canvas no mouse); o selo
+        // e o farol, pintados na imagem. Nível, selo ou farol diferentes = imagem diferente no MESMO ponto da fonte.
         const { titulo, selo, farol } = descreverMarcadorSuplementacao(ponto);
-        const baseSize = (categoria.includes("COCHO") || categoria.includes("DEPOSITO")) ? 36 : 40;
-        const corpoChave = JSON.stringify([iconUrl, baseSize, cor]);
-        const key = prefix + ponto.id;
-        const ref = { ponto };
+        const base = (categoria.includes("COCHO") || categoria.includes("DEPOSITO")) ? TAMANHO_SUPL_PX : TAMANHO_PONTO_PX;
+        const { imagem, reserva } = pedidosImagemPonto("mg-supl", { urls: iconUrl ? [iconUrl] : [], base, cor, selo, farol }, pr);
         itens.push({
-          key,
-          lngLat: [c.lng, c.lat],
-          // Título e selo entram no diff: quando o nível muda (virada do dia,
-          // lançamento, estoque) o MESMO marcador acompanha.
-          estado: JSON.stringify([c.lat, c.lng, iconUrl, categoria, titulo, selo?.tipo ?? null, farol?.cor ?? null]),
-          criar: () => {
-            const entry = criarMarcadorClicavel({ iconUrl, baseSize, cor, titulo }, () => {
-              const p = markersRef.current.get(key)?.ultimo?.ref?.ponto || ponto;
-              onClick?.(p);
-            });
-            entry.marker.getElement().style.zIndex = "500";
-            entry.corpoChave = corpoChave;
-            aplicarTextoESeloSuplementacao(entry, titulo, selo);
-            aplicarFarolSuplementacao(entry, farol);
-            return entry;
-          },
-          atualizar: (entry) => {
-            // Só o que mudou: trocar o <img> sem necessidade faz o ícone piscar.
-            if (entry.corpoChave !== corpoChave) {
-              aplicarCorpo(entry.el, { iconUrl, baseSize, cor });
-              entry.corpoChave = corpoChave;
-            }
-            aplicarTextoESeloSuplementacao(entry, titulo, selo);
-            aplicarFarolSuplementacao(entry, farol);
-          },
-          ref,
+          item: { id: String(ponto.id), lngLat: /** @type {[number, number]} */ ([c.lng, c.lat]), imagem: imagem.chave, reserva: reserva.chave, titulo },
+          ref: ponto,
+          pedidos: { imagem, reserva },
         });
       }
     }
-    syncGrupo(prefix, itens);
+    return sincronizarGrupo("supl", itens);
   }, [mapInstanceRef]);
 
   // ─── Lotes (agrupados por área) — desenhados pelo mapa (D-PROD-349) ───
@@ -887,25 +912,17 @@ export default function useMapRenderer(mapInstanceRef) {
       },
       criarMarcador: (el, offset) => new maplibregl.Marker({ element: el, anchor: "center", offset }),
       pixelRatio: pr,
+      // uma tarefa por cima do lote (D-PROD-353): o toque é da tarefa
+      coberto: (ponto) => haTarefaNoPonto(map, ponto),
     });
     const desligarImagens = ligarImagensFaltando(map, pr);
     // A densidade da tela mudou: imagens novas nessa densidade (mesmas chaves; `registrarImagens` troca as do mapa).
-    const aoRedimensionar = () => {
-      const novo = pixelRatioDaTela();
-      if (novo === pixelRatioRef.current) return;
-      pixelRatioRef.current = novo;
-      if (lotesArgsRef.current) syncLotesRef.current?.(...lotesArgsRef.current);
-    };
-    map.on("resize", aoRedimensionar);
+    ligarDensidade(map);
     lotesHandlersRef.current = {
+      acabouDeArrastar: interacao.acabouDeArrastar,
       off: () => {
         interacao.off();
         desligarImagens();
-        try {
-          map.off("resize", aoRedimensionar);
-        } catch {
-          /* mapa já removido */
-        }
       },
     };
   };
@@ -995,7 +1012,10 @@ export default function useMapRenderer(mapInstanceRef) {
 
   // ─── Tarefas ───
   const syncTarefas = useCallback((tarefasMapa, areas, iconesConfig, onClickTarefa, hoje) => {
-    const prefix = "tarefa_";
+    const g = gruposRef.current.tarefas;
+    g.args = [tarefasMapa, areas, iconesConfig, onClickTarefa, hoje];
+    g.onClick = (t) => onClickTarefa?.(t);
+    const pr = pixelRatioRef.current;
     const itens = [];
     for (const t of tarefasMapa) {
       let pos = parseVertex(t.coordenadas);
@@ -1005,32 +1025,31 @@ export default function useMapRenderer(mapInstanceRef) {
       }
       if (!pos) continue;
       const { iconUrl, cor } = resolverIconeTarefa(t, iconesConfig);
-      const key = prefix + t.id;
-      const ref = { tarefa: t };
-      const urgente = normalizarPrioridadeTarefa(t.prioridade) === "Urgente";
+      // Indicador do prazo pintado na imagem; o texto dele (prioridade, situação, prazo) é o título.
+      const ind = indicadorTarefa(t, hoje);
+      // Ícone enviado pela empresa que não carrega: o modelo local da prioridade (o `onerror` do marcador antigo).
+      const { imagem, reserva } = pedidosImagemPonto(
+        "mg-tarefa",
+        { urls: [iconUrl, urlIconeTarefa(t.prioridade)], base: TAMANHO_TAREFA_PX, cor, indicador: { texto: ind.texto, cor: ind.cor } },
+        pr
+      );
       itens.push({
-        key,
-        lngLat: [pos.lng, pos.lat],
-        estado: JSON.stringify([pos.lat, pos.lng, t.titulo, t.prioridade, t.status, t.data_prevista, hoje, iconUrl]),
-        ref,
-        criar: () => {
-          const entry = criarMarcadorClicavel({ iconUrl, baseSize: 40, cor, titulo: t.titulo }, () => {
-            onClickTarefa?.(markersRef.current.get(key)?.ultimo?.ref?.tarefa || t);
-          });
-          aplicarIndicadorTarefa(entry.el, t, hoje);
-          entry.marker.getElement().style.zIndex = urgente ? "3000" : "2500";
-          return entry;
+        item: {
+          id: String(t.id),
+          lngLat: /** @type {[number, number]} */ ([pos.lng, pos.lat]),
+          imagem: imagem.chave,
+          reserva: reserva.chave,
+          titulo: tituloDoMarcadorTarefa(t, hoje),
+          // Urgente por cima das outras tarefas (z-index 3000 × 2500 de antes)
+          urgente: normalizarPrioridadeTarefa(t.prioridade) === "Urgente",
         },
-        atualizar: (entry) => {
-          entry.el.title = String(t.titulo || "");
-          entry.marker.getElement().style.zIndex = urgente ? "3000" : "2500";
-          aplicarCorpo(entry.el, { iconUrl, baseSize: 40, cor });
-          aplicarIndicadorTarefa(entry.el, t, hoje);
-        },
+        ref: t,
+        pedidos: { imagem, reserva },
       });
     }
-    syncGrupo(prefix, itens);
+    return sincronizarGrupo("tarefas", itens);
   }, [mapInstanceRef]);
+  syncGruposRef.current = { supl: syncPontosSuplementacao, pontos: syncPontos, tarefas: syncTarefas };
 
   // ─── Localização do usuário ───
   const syncUserLocation = useCallback((userLocation, show) => {
@@ -1073,10 +1092,19 @@ export default function useMapRenderer(mapInstanceRef) {
     return Boolean(map) && haLoteNoPonto(map, point);
   }, [mapInstanceRef]);
 
-  /** Há área de negócio (ou lote em cima dela) sob o ponto (para o clique geral do mapa não duplicar o da área). */
+  /**
+   * Há cocho, ponto de referência ou tarefa sob o ponto (px do mapa)? O toque longo do Mapa Geral não começa em cima de
+   * um deles (D-PROD-353).
+   */
+  const hitPonto = useCallback((point) => {
+    const map = getMap();
+    return Boolean(map) && haPontoNoPonto(map, point);
+  }, [mapInstanceRef]);
+
+  /** Há área de negócio (ou lote, cocho, ponto ou tarefa em cima dela) sob o ponto (o clique geral do mapa não duplica o da área). */
   const hitArea = useCallback((point) => {
     const map = getMap();
-    if (map && haLoteNoPonto(map, point)) return true;
+    if (map && (haLoteNoPonto(map, point) || haPontoNoPonto(map, point))) return true;
     if (!map || !map.getLayer(MG_LAYER_IDS.AREAS_FILL)) return false;
     try {
       return map.queryRenderedFeatures(point, { layers: [MG_LAYER_IDS.AREAS_FILL] }).length > 0;
@@ -1085,5 +1113,5 @@ export default function useMapRenderer(mapInstanceRef) {
     }
   }, [mapInstanceRef]);
 
-  return { clearAll, ensureLayers, hitArea, hitLote, syncAreas, syncLabels, syncPontos, syncLinhas, syncPontosSuplementacao, syncLotes, syncTarefas, syncUserLocation, setEstiloPasto };
+  return { clearAll, ensureLayers, hitArea, hitLote, hitPonto, syncAreas, syncLabels, syncPontos, syncLinhas, syncPontosSuplementacao, syncLotes, syncTarefas, syncUserLocation, setEstiloPasto };
 }

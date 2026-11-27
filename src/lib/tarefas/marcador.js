@@ -19,6 +19,16 @@ export function indicadorTarefa(tarefa, hoje = hojeNoFuso(null)) {
   return { texto, cor, descricao: `${situacao}, ${descricaoPrazo}` };
 }
 
+/**
+ * Texto da tarefa no mapa (título e texto para leitor de tela): título — prioridade — situação e prazo. O mesmo no
+ * marcador DOM (`aplicarIndicadorTarefa`) e na tarefa desenhada pelo Mapa Geral (D-PROD-353).
+ * @param {{ titulo?: string, prioridade?: string, status?: string, data_prevista?: string | null }} tarefa
+ * @param {string | null} [hoje]
+ */
+export function tituloDoMarcadorTarefa(tarefa, hoje) {
+  return `${tarefa.titulo || 'Tarefa'} — prioridade ${normalizarPrioridadeTarefa(tarefa.prioridade)} — ${indicadorTarefa(tarefa, hoje).descricao}`;
+}
+
 /** Complemento DOM: não grava status, não depende da rede e não altera o ícone cadastrado.
  * @param {HTMLElement} el
  * @param {{ titulo?: string, prioridade?: string, status?: string, data_prevista?: string | null }} tarefa
@@ -36,7 +46,7 @@ export function aplicarIndicadorTarefa(el, tarefa, hoje) {
   badge.textContent = indicador.texto;
   badge.setAttribute('aria-hidden', 'true');
   badge.style.cssText = `position:absolute;right:-7px;bottom:4px;min-width:22px;height:22px;padding:0 2px;box-sizing:border-box;border-radius:999px;border:2px solid #fff;background:${indicador.cor};color:#fff;display:flex;align-items:center;justify-content:center;font:700 10px/1 Arial,sans-serif;pointer-events:none;`;
-  const descricao = `${tarefa.titulo || 'Tarefa'} — prioridade ${normalizarPrioridadeTarefa(tarefa.prioridade)} — ${indicador.descricao}`;
+  const descricao = tituloDoMarcadorTarefa(tarefa, hoje);
   el.title = descricao;
   el.setAttribute('aria-label', descricao);
   // URL enviada pelo usuário continua valendo; falha de download usa o modelo local.
