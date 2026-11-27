@@ -10651,12 +10651,17 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - Ordem = z-index de antes: cocho < ponto < lote < identificador < tarefa; Urgente por cima das outras tarefas (`symbol-sort-key`). A localização continua HTML, por cima de tudo.
   - Clique pela camada, com os callbacks de antes. Só age quem está por cima no ponto tocado (`iconeNoTopo`): tarefa sobre lote abre a tarefa (o lote não abre nem arrasta). A área e a linha por baixo não abrem. `hitArea` e o novo `hitPonto` enxergam os pontos; o toque longo não começa em cima deles (`deveComecarToqueLongo` com `sobrePonto`). O clique ao soltar um lote arrastado não abre o ponto embaixo.
   - O `title`/`aria-label` vira o `titulo` do ponto na fonte e aparece como título do canvas no mouse.
-- **Diferenças registradas:** o nome do pasto (HTML) fica por cima do ponto quando se encostam; bordas e texto podem variar meio pixel; a área de toque é a imagem inteira (um pouco maior: o selo e o indicador agora contam); o leitor de tela não lê mais o nível do cocho no mapa — o texto está no detalhe que abre ao tocar.
+- **Diferenças registradas:** o nome do pasto (HTML) fica por cima do ponto quando se encostam; bordas e texto podem variar meio pixel; o leitor de tela não lê mais o nível do cocho no mapa — o texto está no detalhe que abre ao tocar.
 - **Resultado (200 pastos, CPU 4×, densidade 1, antes e depois alternados):**
   - foco Pontos: arrastar 31 – 33 → 36 – 37 quadros/s; quadros acima de 50 ms ≈ 88 → 29 – 51; recálculo de estilo ≈ 5,9 s → ≈ 4,3 s;
   - foco Tarefas: arrastar ≈ 36 → ≈ 40 quadros/s; quadros acima de 50 ms ≈ 50 → ≈ 22;
   - foco Lotes (só 50 pontos saíram do HTML): dentro do ruído;
   - densidade do Pixel 7: arrastar igual (≈ 11 quadros/s, limitado pela pintura do SwiftShader); zoom quase igual (o custo são os nomes).
 - **Riscos:** medir em celular de verdade; conferir no app (Android/iOS) que o canvas lê os SVGs; ícone antigo gravado como link de outro servidor sem CORS aparece como o círculo da cor (o envio do app grava `data:` URL).
+- **Correções da revisão independente (antes do merge):**
+  - a figura do ponto é carregada fora da fila de desenho (a fila é a mesma dos lotes), com tempo-limite de 8 s; a falha de um link é lembrada por 2 minutos; o grupo publica em no máximo 250 ms com a reserva no que faltar e troca quando a imagem chega;
+  - sobrepostos abrem o de cima: a Urgente e o lote com alerta vão no fim dos dados (o MapLibre devolve o clique na ordem inversa dos dados) e o `iconeNoTopo` escolhe o de maior prioridade;
+  - o clique entrega o objeto novo na hora, mesmo com a imagem nova pendente;
+  - o toque na margem transparente da imagem é da área por baixo (meia largura/altura do ícone visível na fonte); a área de toque volta a ser a de antes.
 
 <!-- Próxima decisão: D-PROD-353 -->

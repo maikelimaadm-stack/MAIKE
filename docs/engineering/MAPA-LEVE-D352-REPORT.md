@@ -25,12 +25,16 @@ Como ficou:
   A imagem é simétrica em volta do centro do ícone, então a âncora `center` da camada cai no mesmo ponto da âncora do marcador.
 - **Cache.** A chave da imagem é o que ela desenha: figura (um resumo da URL), tamanho, cor, selo, farol e indicador. Pontos iguais dividem a imagem, e a mesma chave nunca é desenhada de novo. O cache, a fila em fatias de 8 ms e o limite de 3 tentativas são os mesmos dos lotes (`garantirImagens`). As imagens que nenhum ponto do grupo usa saem do mapa e do cache (não quando o grupo está escondido pelo filtro). Na troca satélite ↔ mapa, voltam pelo `ensureLayers` e pelo `styleimagemissing`.
 - **Reserva.** Cada ponto tem uma reserva (`coalesce`): o círculo da cor com o mesmo selo, farol ou indicador, desenhado sem figura. Vale quando a figura não carrega ou quando o canvas fica "sujo".
-  - Ícone gravado como link `http(s)` (outra origem) é pedido com CORS. Se o servidor não aceitar, a figura não carrega e o ponto fica com a reserva. Não quebra nada: um canvas sujo é trocado por um novo, e o próximo desenho (lote ou ponto) sai normal.
+  - Ícone gravado como link `http(s)` (outra origem) é pedido com CORS. Se o servidor não aceitar, ou não responder em 8 s, a figura não carrega e o ponto fica com a reserva. Não quebra nada: um canvas sujo é trocado por um novo, e o próximo desenho (lote ou ponto) sai normal.
+  - A figura é carregada **fora** da fila de desenho: uma figura lenta não segura os lotes nem os outros pontos. A falha de um link é lembrada por 2 minutos: N pontos com o mesmo ícone fazem um download só, e a tentativa pulada não conta para o limite de 3.
+  - O grupo espera as imagens no máximo 250 ms. O que ainda faltar aparece com a reserva e é trocado quando a imagem chega.
   - Tarefa com ícone enviado que não carrega usa o modelo local da prioridade, como o `onerror` do marcador antigo.
 - **Ordem.** A mesma do z-index de antes: localização (HTML) > tarefa Urgente > tarefa > lote com alerta > lote > ponto > cocho.
   - camadas: cocho, ponto, lote, identificador do lote, tarefa;
   - Urgente por cima das outras tarefas pelo `symbol-sort-key`.
-- **Clique.** Cada camada chama o callback de sempre (`onClick` do cocho, `onClickPonto`, `onClickTarefa`) com o objeto mais novo. Ponto sem callback abre o popup de antes (nome e tipo).
+- **Clique.** Cada camada chama o callback de sempre (`onClick` do cocho, `onClickPonto`, `onClickTarefa`) com o objeto mais novo — trocado na hora de cada sincronização, mesmo com a imagem nova ainda por desenhar. Ponto sem callback abre o popup de antes (nome e tipo).
+  - Só conta o toque no ícone visível: a imagem tem margem transparente (por causa do selo, do farol ou do indicador), e o toque nessa margem é da área por baixo. A fonte leva a meia largura e a meia altura do ícone (`hw`, `hh`); folga de 2 px.
+  - Dois ícones sobrepostos na mesma camada: abre o desenhado por cima (a tarefa Urgente; nos lotes, o com alerta). Os dados vão nessa ordem e o `iconeNoTopo` escolhe o de maior prioridade.
   - Só age quem está **por cima** no ponto tocado (`iconeNoTopo`): tarefa em cima do lote abre a tarefa (o lote não abre nem arrasta); lote em cima do ponto abre o lote.
   - A área e a linha por baixo não abrem (`haPontoNoPonto`). O `hitArea` enxerga os pontos, e o novo `hitPonto` também.
   - O toque longo (lançar tarefa) não começa em cima de um ponto (`deveComecarToqueLongo` com `sobrePonto`).
@@ -91,6 +95,7 @@ Arquivos:
 - Na densidade do Pixel 7 o arrastar não muda (≈ 11 quadros/s), pelo mesmo motivo da etapa 2: o SwiftShader pinta o mapa na CPU, e quase todo o quadro vai nisso. O recálculo de estilo caiu ≈ 15%.
 - **Zoom na densidade 2,625:** o "depois" contou metade dos quadros do "antes" no mesmo roteiro (≈ 190 × ≈ 385): a duração do gesto variou entre as rodadas. A proporção de quadros acima de 50 ms ficou parecida (≈ 52% × ≈ 56%). Não leve o 5,3 → 6 quadros/s como ganho certo.
 - Abertura: os pontos aparecem quando as imagens deles ficam prontas, junto com os lotes (≈ 5,4 – 5,9 s até os lotes nas duas versões, com a máquina carregada).
+- Os números acima foram medidos antes das correções da revisão (abaixo). As correções mudam quando a figura é carregada e a ordem dos dados, não o desenho no arrastar; não medi de novo.
 
 ## Visual: o que ficou diferente
 
@@ -106,7 +111,7 @@ Figura, selo, farol, indicador, contorno, tamanho e posição saem iguais. O que
 - **Meio pixel.** As bordas diferem em até 1 pixel da tela (o marcador HTML arredondava a posição; a camada não). O "?" do selo e o texto do indicador podem ficar ½ px mais altos ou mais baixos: a suavização do texto do canvas é um pouco diferente da do HTML.
 - **O nome do pasto fica por cima.** O que o mapa desenha fica abaixo de tudo que continua HTML. O nome do pasto, quando encosta num cocho, ponto ou tarefa, agora fica por cima dele (antes o marcador cobria o nome). O mesmo com o texto de atribuição do mapa e os botões, que agora ficam por cima de um ponto que encosta neles.
 - **Lote e ponto voltam à ordem de antes da etapa 2.** Na etapa 2 um bebedouro em cima de um lote cobria o lote (HTML sobre o canvas). Agora o lote fica por cima do ponto e do cocho, e a tarefa por cima do lote, como antes da etapa 2.
-- **Área de toque.** A área clicável é a imagem inteira, com as sobras transparentes: no cocho com selo, ≈ 50 × 52 px (antes, 34 × 36, o selo não era clicável); na tarefa, 50 × 40 (antes, 36 × 40). Ficou um pouco maior, nunca menor.
+- **Área de toque.** Igual à de antes: o ícone visível (34 × 36 no cocho, 36 × 40 na tarefa), com 2 px de folga. O selo, o farol e o indicador não são clicáveis, como antes (eram `pointer-events: none`).
 - **Ordem entre ladrilhos.** "Urgente por cima" vale dentro de um mesmo ladrilho do mapa (`symbol-sort-key`), não entre ladrilhos.
 - **Âncora "pin".** O marcador antigo tinha uma forma "pin" com âncora embaixo, mas nenhuma chamada usava: todos os pontos já eram ancorados no centro. Continua assim.
 
@@ -131,7 +136,7 @@ Fica registrado como diferença: quem usa leitor de tela não ouve mais o nível
   - poda e troca de estilo; `clearAll`; título no mouse.
 - Reescritos para a fonte e a camada, sem perder casos: `mapaMarcadorNivelSuplementacao` (nível, selo, farol, virada do dia) e `maplibreAreasUnificacao` (V03 e a ordem das camadas). `lotesNoMapaD349` confere a regra nova do toque longo.
 - `tests/smoke/helpers/canvasLotesFalso.js`: data URL `charset=utf-8`, URL externa (carrega, falha ou suja o canvas), `measureText` e caminho com `closePath`.
-- `npx vitest run tests/smoke` (já sobre a `main` com a PR #438): 394 arquivos, 4.765 testes, todos passando. `node scripts/gates/verify-all.mjs --pular=test:backend,test:smoke`: todas as etapas passaram (tipos sem dívida nova, source-closure).
+- `npx vitest run tests/smoke` (já sobre a `main` com a PR #438, depois das correções da revisão): 394 arquivos, 4.770 testes, todos passando. `node scripts/gates/verify-all.mjs --pular=test:backend,test:smoke`: todas as etapas passaram (tipos sem dívida nova, source-closure).
 - No navegador (harness, WebGL real, celular emulado com toque): tocar no cocho abre o detalhe do cocho; tocar no bebedouro abre o detalhe do bebedouro; tocar na tarefa abre a tarefa; tocar no pasto fora do ponto abre a área. Nenhum erro na página.
 
 ## O que falta / riscos
@@ -139,5 +144,17 @@ Fica registrado como diferença: quem usa leitor de tela não ouve mais o nível
 - **Aparelho de verdade.** Medir no celular e conferir no app (Android e iOS) que o canvas lê os pixels dos SVGs do cocho, do depósito e da tarefa.
 - **Ícones antigos com link de outro servidor.** O envio de ícone do app devolve a imagem como `data:` URL (`/arquivos/upload`), que não tem problema de origem. Um ícone antigo gravado como link `http(s)` de outro servidor, sem `Access-Control-Allow-Origin`, aparece como o círculo da cor (na tarefa, o modelo local da prioridade). Antes ele aparecia. Sem internet, esse link também não carrega (antes podia vir do cache do navegador).
 - **Leitor de tela.** Ver "Acessibilidade".
-- **Abertura.** Os pontos aparecem só depois que as imagens deles estão prontas (como os lotes): na primeira abertura, uma fração de segundo depois dos nomes.
+- **Abertura.** Os pontos aparecem quando as imagens deles ficam prontas, em no máximo ≈ 250 ms; o que demorar mais aparece com a reserva (o círculo da cor) e troca quando chegar. Numa abertura lenta pode aparecer o círculo por um instante.
+- **Ícone que voltou.** Um link que falhou só é tentado de novo depois de 2 minutos (e até 3 vezes na sessão).
 - **Próxima etapa:** os nomes das áreas, que são o custo do zoom e o último grupo grande em HTML.
+
+## Revisão independente e correções
+
+Uma revisão de código (somente leitura) achou quatro pontos; os quatro foram corrigidos (commit `a5dc1c950`):
+
+1. **(alta) Figura remota lenta travava a fila de desenho.** A figura do ponto era baixada dentro da fila, que é uma só para lotes e pontos; e cada grupo só publicava com todas as imagens. Agora a figura é carregada fora da fila (só o desenho entra nela), com tempo-limite de 8 s; a falha de um link é lembrada por 2 minutos (um download para N pontos com o mesmo ícone); e o grupo publica em no máximo 250 ms, com a reserva no que faltar. Teste: uma figura que nunca responde não atrasa os lotes nem os outros pontos.
+2. **(média) Clique em sobrepostos abria o de baixo.** O `symbol-sort-key` põe a Urgente (e o lote com alerta) por cima, mas o MapLibre devolve o clique na ordem inversa dos dados. Agora os dados vão na ordem de desenho, e o `iconeNoTopo` escolhe o de maior prioridade.
+3. **(baixa-média) Clique entregava o objeto velho** enquanto as imagens novas eram desenhadas. Agora o mapa id → objeto é trocado na hora.
+4. **(baixa) Área de toque maior que o ícone.** O toque na margem transparente agora é da área por baixo.
+
+Conferido de novo no navegador (harness, WebGL real, toque): cocho, bebedouro, tarefa e área abrem o detalhe certo; o toque no canto do selo do cocho (fora do ícone) abre a área.
