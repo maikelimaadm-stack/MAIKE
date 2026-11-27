@@ -10373,4 +10373,21 @@ Vários itens ficavam presos para sempre, sem botão:
 
 > **Numeração:** a `main` (`0b482ce35`) indica `Próxima decisão: D-PROD-338`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-339. A D-PROD-336 continua com a PR #426. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-339 -->
+## D-PROD-340 — Fechar o cadastro do mapa não derruba o app; o "+" de Pontos na coluna da direita, sem a lista no meio
+
+**Data:** 2026-11-27 · **Origem:** defeitos relatados pelo proprietário: "quando eu clico em cadastrar ponto … leva para o mapa de cadastro e depois volta" e "quando eu abro o mapa, eu vou fechar de cadastro … ele trava tudo", na web e no app. Os dois foram reproduzidos num navegador real (Chromium + WebGL) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`CADASTRO-MAPA-FECHAR-D340-REPORT.md`](./CADASTRO-MAPA-FECHAR-D340-REPORT.md)
+
+**Decisão.**
+1. **`setSourceData` não lança com o mapa já removido.**
+   - O que acontecia: ao fechar o editor do cadastro (`MapaDesenho`), a limpeza do cursor e a do arrasto rodavam DEPOIS da limpeza que remove o mapa (o React desmonta os efeitos na ordem em que foram declarados). Nesse ponto, `map.getSource` lançava.
+   - Por que virava tela branca: o app não tem ErrorBoundary, então o React desmontava a raiz inteira. Era o "trava tudo".
+   - Quando acontecia:
+     - sempre, ao fechar uma área ou linha nova;
+     - ao fechar um ponto já marcado, caso que ficou alcançável com a D-PROD-333, em que o toque só marca o ponto.
+   - O que muda: a leitura da fonte dentro de `setSourceData` fica protegida, e isso vale para todos os mapas que usam essa função.
+2. **O "+" (Novo ponto) da aba Pontos fica DENTRO da coluna da direita**, acima de Atualizar, Localizar e Mover. Fica como `acimaDaPilha` no `MapaControlesMobile`. Antes ele ficava por baixo dessa coluna: só uma faixa de 14 px pegava o toque, e o resto caía em "Atualizar mapa".
+3. **Aberto pelo "+", o cadastro já nasce no editor de ponto.** O estado inicial vem de `?novo=ponto`. Ao fechar, ele volta direto ao Mapa Geral. Antes, a lista do cadastro aparecia por um instante na ida e na volta, e parecia que a tela ia e voltava.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indica D-PROD-339 na `main` (`db40842a6`, depois da #428). A PR #426 (diário, outra sessão) perdeu de novo o número para uma PR mergeada antes (agora a D-PROD-338) e deve passar à 339. Para não colidir, esta é a **D-PROD-340**, e o marcador passa a D-PROD-341. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-341 -->
