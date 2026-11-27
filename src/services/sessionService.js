@@ -153,7 +153,44 @@ export const RAZOES_DE_SESSAO_DO_PRODUTO = RAZOES_DE_SESSAO;
  * @param {{login: string, senha: string, lembrar?: boolean}} credenciais
  * @returns {Promise<{usuario: object, clienteId: string, trocaSenhaObrigatoria?: undefined} | {trocaSenhaObrigatoria: true, usuario?: undefined, clienteId?: undefined}>}
  */
-export const entrarComSessaoNativa = (credenciais) => loginNativo(credenciais);
+export const entrarComSessaoNativa = async (credenciais) => {
+  const resultado = await loginNativo(credenciais);
+  if (resultado?.usuario && resultado?.clienteId) await trocarDonoDasCopias(resultado.clienteId, resultado.usuario).catch(() => {});
+  return resultado;
+};
+
+const CHAVE_DONO_DAS_COPIAS = (/** @type {string} */ tenant) => `maike_copias_dono:${tenant}`;
+
+/**
+ * D-PROD-338 — as leituras guardadas para usar sem internet (e a cópia do mapa) são do USUÁRIO que entrou, não só do
+ * cliente. Antes eram guardadas por cliente e só apagadas no "Sair": quando a sessão era recusada (senha trocada,
+ * acesso vencido) nada saía, e outra pessoa que entrasse no mesmo celular via, sem internet, as listas da anterior
+ * (inclusive as que só um administrador vê). Entrou outra pessoa: as cópias do cliente saem antes de ela usar o app.
+ * @param {string} tenant @param {{ id?: string, login?: string, email?: string }} usuario
+ */
+const trocarDonoDasCopias = async (tenant, usuario) => {
+  const dono = String(usuario?.id ?? usuario?.login ?? usuario?.email ?? '');
+  if (!dono) return;
+  let anterior = null;
+  try {
+    anterior = localStorage.getItem(CHAVE_DONO_DAS_COPIAS(tenant));
+  } catch {
+    return;
+  }
+  if (anterior && anterior !== dono) {
+    await Promise.all([esquecerRespostasDoTenant(tenant).catch(() => {}), esquecerCacheDoTenant(tenant).catch(() => {})]);
+    try {
+      localStorage.removeItem(`maike_dados_offline_em:${tenant}`);
+    } catch {
+      // ignora
+    }
+  }
+  try {
+    localStorage.setItem(CHAVE_DONO_DAS_COPIAS(tenant), dono);
+  } catch {
+    // ignora
+  }
+};
 
 /**
  * Troca obrigatória da senha temporária (S04-P2). Não cria sessão: no sucesso a

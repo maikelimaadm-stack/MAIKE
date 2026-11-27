@@ -10350,4 +10350,27 @@ Vários itens ficavam presos para sempre, sem botão:
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indica D-PROD-336, mas a D-PROD-335 está nas PRs #425 (Grupo 1) e #426 (diário), e uma delas vai passar a D-PROD-336. Esta é a D-PROD-337 e o marcador passa a D-PROD-338. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-338 -->
+## D-PROD-338 — Sem internet, Grupo 3: os limites (ordem, armazenamento, fotos, usuários, fazendas)
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário ("Vamos continuar nas partes de offline, de ajuste, de bug, correções de bug") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SEM-INTERNET-GRUPO3-D338-REPORT.md`](./SEM-INTERNET-GRUPO3-D338-REPORT.md)
+
+**Decisão.**
+1. **A fila de cadastros anda na ordem em que os itens entraram.** A ordem passa a ser a chave crescente do armazenamento, não a hora do celular. Antes, com o relógio corrigido para trás, o lote podia subir antes da área que ele cita.
+2. **Armazenamento cheio não finge que salvou.**
+   - Na criação sem internet, a fila é gravada antes da cópia.
+   - Na edição, a cópia volta ao valor de antes quando a fila não grava.
+   - Nos dois casos a tela recebe o erro. Antes o registro aparecia como salvo sem estar em fila nenhuma.
+3. **Guardar a foto no celular nunca derruba o salvar da tarefa.** `guardarFotosDaTarefa` não lança mais e devolve quantas fotos couberam. As que não couberam viram aviso. Antes a tela mostrava "Erro ao salvar tarefa", e salvar de novo criava outra tarefa.
+4. **A foto é conferida na hora da escolha.**
+   - A foto HEIC é recusada com uma explicação.
+   - A foto sem tipo ganha o tipo pela extensão.
+   - Arquivo que não é foto é recusado.
+   - A foto é reduzida já na escolha, então a guardada sem internet também fica pequena.
+   - A soma das fotos (salvas, guardadas no celular e novas) não passa de 3,5 MB. O servidor aceita 4 MB por tarefa.
+   - As miniaturas são liberadas ao sair do formulário.
+5. **As cópias de leitura são de quem entrou.** Quando outra pessoa entra no mesmo celular, as cópias de leitura e a cópia do mapa daquele cliente são apagadas antes de ela usar o app. Antes ficavam até alguém tocar em "Sair", e a pessoa seguinte via, sem internet, as listas da anterior, inclusive as que só um administrador vê.
+6. **Trocar de fazenda sem internet não mostra tudo vazio.** As listas do servidor são do cliente inteiro. Sem cópia própria da fazenda selecionada, a lista usa os registros dela (pelo `empresa_id`) que estão nas cópias das outras fazendas.
+
+> **Numeração:** a `main` (`0b482ce35`) indica `Próxima decisão: D-PROD-338`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-339. A D-PROD-336 continua com a PR #426. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-339 -->

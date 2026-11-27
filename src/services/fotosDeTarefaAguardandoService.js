@@ -42,10 +42,27 @@ const avisar = () => {
  */
 export const guardarFotosDaTarefa = async (tarefaId, arquivos) => {
   if (!tarefaId || !Array.isArray(arquivos) || arquivos.length === 0) return 0;
-  for (const arquivo of arquivos) await saveTarefaImageOffline(chaveDa(tarefaId), arquivo);
-  avisar();
-  return arquivos.length;
+  // D-PROD-338: nunca lança. A tarefa já foi gravada quando as fotos são guardadas: um erro aqui (armazenamento do
+  // celular cheio, arquivo que não abre) fazia a tela mostrar "Erro ao salvar tarefa" com o formulário aberto, e
+  // salvar de novo criava OUTRA tarefa. Devolve quantas couberam; quem chama avisa das que ficaram de fora.
+  let guardadas = 0;
+  for (const arquivo of arquivos) {
+    try {
+      await saveTarefaImageOffline(chaveDa(tarefaId), arquivo);
+      guardadas += 1;
+    } catch {
+      // a próxima pode caber (uma foto grande que não coube não impede uma pequena)
+    }
+  }
+  if (guardadas > 0) avisar();
+  return guardadas;
 };
+
+/** D-PROD-338: o aviso das fotos que não couberam no celular (a tarefa foi salva). @param {number} perdidas */
+export const avisoDeFotosQueNaoCouberam = (perdidas) =>
+  perdidas > 0
+    ? `${perdidas === 1 ? 'Uma foto não coube' : `${perdidas} fotos não couberam`} no celular e não foi guardada. A tarefa foi salva: libere espaço e adicione a foto de novo.`
+    : null;
 
 /**
  * As fotos guardadas da tarefa (para mostrar e abrir): `{ chave, nome, tipo, conteudo }`.
