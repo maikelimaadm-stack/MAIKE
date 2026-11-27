@@ -1,4 +1,5 @@
 import { CORES_PRIORIDADE_TAREFA } from "@/lib/tarefas/prioridade";
+import { versaoVista } from "@/lib/offline/versaoVista";
 import React, { useEffect, useState } from "react";
 import { Check, CircleX, ClipboardList, FileText, History, MapPin, MessageSquare, MessageSquarePlus, Plus, Repeat, SquarePen, Trash2 } from "lucide-react";
 import { atualizarTarefa, excluirTarefa } from "@/services/tarefasMapaService";
@@ -209,7 +210,15 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
   useEffect(() => {
     const aoEnviar = (/** @type {any} */ evento) => {
       const nova = (evento?.detail?.tarefas ?? []).find((t) => t?.id && t.id === tarefa?.id);
-      if (nova) setCurrentTarefa((atual) => ({ ...atual, fotos: Array.isArray(nova.fotos) ? nova.fotos : atual?.fotos }));
+      // D-PROD-358: e a versão nova (a foto que subiu mudou a tarefa no servidor); senão a edição seguinte nesta tela
+      // daria um falso "alterado por outra pessoa".
+      if (nova) {
+        setCurrentTarefa((atual) => ({
+          ...atual,
+          fotos: Array.isArray(nova.fotos) ? nova.fotos : atual?.fotos,
+          ...(typeof nova.updated_date === 'string' && !nova._isOffline ? { updated_date: nova.updated_date } : {}),
+        }));
+      }
     };
     window.addEventListener(EVENTO_TAREFA_COM_FOTOS_ENVIADAS, aoEnviar);
     return () => window.removeEventListener(EVENTO_TAREFA_COM_FOTOS_ENVIADAS, aoEnviar);
@@ -309,6 +318,8 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
         id,
         {
           ...finalData,
+          // D-PROD-358: a versão da tarefa que a pessoa viu; o servidor só grava se ela ainda está nela.
+          ...versaoVista(currentTarefa),
           historico_evento: evento,
           historico_descricao: descricao,
           historico_data_evento: new Date().toISOString(),
@@ -370,6 +381,7 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
         const evento = novoStatus === "Concluída" ? "Conclusão" : novoStatus === "Cancelada" ? "Cancelamento" : "Mudança de Status";
         registroAtualizado = await atualizarTarefa(currentTarefa.id, {
           ...payload,
+          ...versaoVista(currentTarefa),
           historico_evento: evento,
           historico_descricao: eventoDescricao || `Status alterado para ${novoStatus}.`,
           historico_data_evento: dataEventoIso,
