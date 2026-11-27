@@ -7,6 +7,7 @@
  *  (d) atividade planejada (não está em andamento) → não lê os apontamentos e não mostra o trecho;
  *  (e) leitura com erro → a linha fica como era (só o "Feito …");
  *  (f) a chave de cache é a do Diário (`chaveApontamentos`): uma leitura por atividade.
+ *  (g) D-PROD-369: com permissão de lançar, a linha da atividade em andamento é o botão que abre o Diário (sem menu).
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -36,7 +37,7 @@ const RESUMO = {
   area_id: "area-A",
   mes: "2026-11",
   atividades: [
-    { atividade_id: "at-1", numero: 10, nome: "Aplicação · nov/26", tipo_atividade_nome: "Aplicação de defensivo", area_status: "EM_ANDAMENTO", area_planejada: "22.0000", area_executada: "12.0000", data_inicio: "2026-11-02", data_prevista_fim: "2026-11-30" },
+    { atividade_id: "at-1", numero: 10, nome: "Aplicação · nov/26", tipo_atividade_nome: "Aplicação de defensivo", status: "ABERTA", area_status: "EM_ANDAMENTO", area_planejada: "22.0000", area_executada: "12.0000", data_inicio: "2026-11-02", data_prevista_fim: "2026-11-30" },
     { atividade_id: "at-3", numero: 12, nome: "Roçada · dez/26", tipo_atividade_nome: "Roçada", area_status: "PLANEJADA", area_planejada: "22.0000", area_executada: "0.0000", data_inicio: "2026-12-01", data_prevista_fim: "2026-12-10" },
   ],
   custos: null,
@@ -120,6 +121,14 @@ describe("D-PROD-348 (item 2) — máquinas em campo na linha da atividade em an
     await new Promise((r) => setTimeout(r, 0));
     expect(linha).not.toHaveTextContent("máquina");
     expect(linha).toHaveTextContent("Feito 12 de 22 ha");
+  });
+
+  it("(g) com permissão de lançar, a linha da atividade em andamento é o botão que abre o Diário (sem menu)", async () => {
+    renderizar();
+    const linha = await screen.findByTestId("area-atividade-at-1");
+    expect(linha.tagName).toBe("BUTTON");
+    expect(linha).not.toHaveAttribute("aria-haspopup");
+    expect(document.querySelectorAll("[role='menuitem']")).toHaveLength(0);
   });
 
   it("(f) a leitura usa a chave de cache do Diário (uma chamada por atividade em andamento)", async () => {

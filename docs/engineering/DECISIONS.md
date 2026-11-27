@@ -10936,4 +10936,31 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-364, mas a PR #452 (mapa, etapa 4) já a reservou; esta ficou com D-PROD-365 e o marcador passa a D-PROD-366. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-368 -->
+## D-PROD-369 — Mapa: tocar na atividade abre o Diário; sem o menu das janelas antigas
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário (o Diário é o único caminho de lançar na atividade; a "abertura antiga" não pode mais aparecer no toque) · **Branch:** `feat/mapa-atividade-sem-menu` · **Migration:** nenhuma · **APK:** a conferir (só front-end e lib)
+
+**Decisão.** Nos Detalhes da área do Mapa (aba Manejos), a atividade em andamento tem um único caminho de lançar: o Diário das atividades do pasto (`DiarioDoPasto`), já na atividade. O menu de ações por cima da linha (D-PROD-278) sai.
+
+1. **Tocar na linha abre o Diário direto**, sem menu. A linha é um botão simples com chevron e só é tocável com a permissão de lançar apontamento. Sem ela, a linha fica só de leitura.
+2. **As janelas antigas de UM lançamento** (`JanelaLancamentoPorTipo`, presas nesta área) ficam numa fileira discreta logo abaixo da linha, com ações curtas, só para o que o Diário ainda não cobre:
+   - "Só mão de obra" e "Só serviço de terceiro": quando a operação da atividade permite;
+   - "Só insumo": só numa atividade SEM máquina (o tipo não exige máquina e não há frente aberta lida), porque o Diário exige máquina, horímetro e responsável na abertura. Com máquina, o insumo é do Diário.
+   - "Só máquina" sai: o Diário tem a opção Máquina (horas do dia dentro da frente, D-PROD-365).
+3. **"Finalizar"**, numa atividade SEM máquina com dia lançado na área, segue o diálogo da lista (`DialogoConcluirServico`). Numa atividade COM máquina, o encerramento é o do Diário ("Encerrar serviço").
+4. **Sem máquina** quer dizer: o tipo da atividade não exige máquina (`exige_maquina`, na lista de tipos) e as frentes foram lidas e nenhuma está aberta. Enquanto a lista de tipos ou as frentes não chegaram, as ações secundárias não aparecem.
+
+**O que muda.**
+- `AcoesDaAtividadeDaArea.jsx` expõe `podeAbrirDiario`, `abrirDiario` e `acoesSecundariasDe(linha, frentes)`. O `gruposDe` (menu) sai da aba.
+- `AbaDetalhesDaArea.jsx` deixa de usar o `B1MenuAcoesDaLinha` nesta tela. O componente continua nas outras telas.
+- CSS: uma classe nova (`mk-da13-acoes`), a fileira com quebra de linha no celular, sem rolagem horizontal.
+
+**O que NÃO muda.** Backend, banco, rotas e migrations. As janelas antigas e o diálogo de finalizar são os mesmos; só deixam de ser abertos por um menu. "Abrir atividade" continua fora.
+
+**Riscos e limites.** "Só mão de obra" e "Só serviço de terceiro" seguem nas janelas antigas porque o Diário ainda não os cobre; quando o Diário cobrir, saem daqui. Uma atividade com máquina só mostra essas duas ações (e não "Só insumo") enquanto o Diário não tiver mão de obra e serviço.
+
+**Testes.** `mapaAtividadeAcoes.test.jsx` (tocar abre o Diário direto, sem menu; sem permissão a linha não é tocável; atividade com máquina sem "Só insumo", "Só máquina" nem "Finalizar", mas com "Só mão de obra" e "Só serviço de terceiro" quando a operação permite; atividade sem máquina com "Só insumo" e "Finalizar"; "Só insumo" e "Só mão de obra" abrem a janela de um lançamento presa nesta área; "Finalizar" usa a versão do detalhe e relê o resumo). `abaDetalhesMaquinasEmCampo.test.jsx` (as frentes na linha, sem mudança de comportamento; o caso (g) confere que a linha da atividade em andamento é o botão que abre o Diário, sem menu).
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-368, mas a PR #456 (conversão de unidades) já a reservou; esta ficou com D-PROD-369 e o marcador passa a D-PROD-370. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-370 -->

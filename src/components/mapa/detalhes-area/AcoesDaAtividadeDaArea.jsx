@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { CircleCheck, Plus } from "lucide-react";
 import DialogoConcluirServico from "@/components/lancamento-atividades/DialogoConcluirServico";
 import JanelaLancamentoPorTipo, { lancamentoDoTipo, lancamentosPermitidos } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { useAuth } from "@/lib/AuthContext";
+import { resumoDasFrentes } from "@/lib/aberturaServicoRegras";
 import { RAIZ_CONSULTAS_ATIVIDADES } from "@/lib/atividadeApontamentoRegras";
 import { STATUS_AREA, areasDaAtividade } from "@/lib/atividadeAreasRegras";
-import { LINHA_MAO_OBRA, LINHA_MAQUINA, LINHA_PRODUTO, LINHA_SERVICO, flagsDoTipoDaAtividade } from "@/lib/atividadeLinhasRegras";
+import { LINHA_MAO_OBRA, LINHA_PRODUTO, LINHA_SERVICO, flagsDoTipoDaAtividade } from "@/lib/atividadeLinhasRegras";
 import { acoesDaAtividade, mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { QUERY_ATIVIDADES_DA_AREA } from "@/lib/registroDeCampoRegras";
@@ -19,44 +19,45 @@ import { lerAtividadeParaAcoes } from "./lerAtividadeParaAcoes";
 export { lerAtividadeParaAcoes };
 
 /**
- * MAIKE-MAPA-ATIVIDADE-ACOES (D-PROD-278) — as ações rápidas de uma atividade em andamento, tocada nos Detalhes da área do
- * Mapa ("Atividades em andamento"): as MESMAS do Lançamento de Atividades, sem refazer tudo pela "Nova realização".
+ * MAIKE-MAPA-ATIVIDADE-ACOES (D-PROD-278) e MAIKE-MAPA-ATIVIDADE-SEM-MENU (D-PROD-369) — as ações de uma atividade em
+ * andamento, nos Detalhes da área do Mapa ("Atividades em andamento"). O único caminho de lançar é o Diário:
  *
- *  - "+ Lançamento" (o "+ Lançar dia" de antes): o Diário das atividades do pasto (`DiarioDoPasto`) já na atividade — o
- *    mesmo caminho da pílula "Manejos" (um só caminho para lançar numa atividade em andamento, D-PROD-348);
- *  - "Só máquina", "Só mão de obra", "Só insumo", "Só serviço de terceiro": a janela de UM lançamento
- *    (`JanelaLancamentoPorTipo`, D-PROD-233/252) presa NESTA área; só os que a operação permite (`flagsDoTipoDaAtividade`)
- *    e só com a área em andamento na atividade (a janela recusa as outras). O "Só insumo" fica MESMO com o diário: a
- *    atividade SEM máquina não abre o diário (ele exige máquina, horímetro e responsável na abertura), e este é o único
- *    caminho de lançar insumo nela. Máquina, mão de obra e serviço de terceiro ainda são "Em breve" no diário;
- *  - "Concluir": o mesmo diálogo da linha da lista (`DialogoConcluirServico`), só com dia lançado na área.
+ *  - TOCAR NA LINHA abre o Diário das atividades do pasto (`DiarioDoPasto`) já na atividade (`abrirDiario`). Sem o menu
+ *    das janelas antigas por cima. Só com a permissão de lançar apontamento (`podeAbrirDiario`);
+ *  - as janelas antigas de UM lançamento (`JanelaLancamentoPorTipo`, D-PROD-233/252), presas NESTA área, ficam numa
+ *    fileira discreta dentro da própria linha (`acoesSecundariasDe`), só para o que o Diário ainda não cobre:
+ *      · "Só mão de obra" e "Só serviço de terceiro": só quando a operação permite;
+ *      · "Só insumo": só numa atividade SEM máquina (o tipo não exige máquina e não há frente aberta lida), porque o Diário
+ *        exige máquina, horímetro e responsável na abertura. Com máquina, o insumo é do Diário;
+ *    "Só máquina" saiu: o Diário tem a opção Máquina (horas do dia dentro da frente);
+ *  - "Finalizar", numa atividade SEM máquina e com dia lançado na área: o mesmo diálogo da lista
+ *    (`DialogoConcluirServico`). Numa atividade COM máquina, o encerramento é o do Diário ("Encerrar serviço").
  *
  * As permissões são as da lista (`acoesDaAtividade`, o fuso da fazenda = `podeGravar`): lançar pede `lancarApontamento`,
- * concluir pede `editar`. Sem nenhuma ação, a linha não é tocável. O resumo da área traz a atividade "leve": no toque de
- * uma ação, lê-se a atividade inteira (`GET /atividades/:id`: versão, operação, áreas) e, da lista filtrada pela área, o
- * `andamento` (o que a lista do Lançamento de Atividades passa às mesmas janelas). Depois de gravar, o resumo da área
- * (atividades e custos) e as consultas da tela de atividades se relêem. "Abrir atividade" fica de fora: a tela de
- * atividades não abre uma atividade pelo endereço.
+ * concluir pede `editar`. Sem permissão de lançar, a linha não é tocável. O resumo da área traz a atividade "leve": no toque,
+ * lê-se a atividade inteira (`GET /atividades/:id`: versão, operação, áreas) e, da lista filtrada pela área, o `andamento`.
+ * Depois de gravar, o resumo da área e as consultas da tela de atividades se relêem. "Abrir atividade" fica de fora.
  */
 
-/**
- * As ações por tipo, com o rótulo do mapa ("Só …"), na ordem do pedido do dono. O insumo fica aqui mesmo com o Diário:
- * o diário exige máquina, horímetro e responsável na abertura, então uma atividade SEM máquina só lança insumo por esta
- * janela (sem ela, não há caminho nenhum).
- */
+/** As janelas antigas de UM lançamento, pelo tipo, com o rótulo do mapa ("Só …"), na ordem da fileira. */
 const SO_DO_TIPO = Object.freeze(
   /** @type {Record<string, string>} */ ({
-    [LINHA_MAQUINA]: "Só máquina",
     [LINHA_MAO_OBRA]: "Só mão de obra",
     [LINHA_PRODUTO]: "Só insumo",
     [LINHA_SERVICO]: "Só serviço de terceiro",
   }),
 );
-const ORDEM_DO_TIPO = [LINHA_MAQUINA, LINHA_MAO_OBRA, LINHA_PRODUTO, LINHA_SERVICO];
+const ORDEM_DO_TIPO = [LINHA_MAO_OBRA, LINHA_PRODUTO, LINHA_SERVICO];
 
 /**
  * @param {{ area: any, tipos: any[] }} p `tipos`: as operações ativas (as que os Detalhes da área já leem).
- * @returns {{ gruposDe: (linha: any) => Array<Array<{ key: string, label: string, icon?: React.ReactNode, onSelect: () => void }>> | null, janelas: React.ReactNode, buscando: boolean }}
+ * @returns {{
+ *   podeAbrirDiario: (linha: any) => boolean,
+ *   abrirDiario: (linha: any) => void,
+ *   acoesSecundariasDe: (linha: any, frentes: any[] | null) => Array<{ key: string, rotulo: string, onSelect: () => void }>,
+ *   janelas: React.ReactNode,
+ *   buscando: boolean,
+ * }}
  */
 export function useAcoesDaAtividadeDaArea({ area, tipos }) {
   const queryClient = useQueryClient();
@@ -92,40 +93,49 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
     }
   };
 
+  /** A linha é tocável só com a permissão de lançar apontamento (e a fazenda com fuso). @param {any} linha */
+  const podeAbrirDiario = (linha) => {
+    if (!podeGravar || !linha?.atividade_id) return false;
+    return acoesDaAtividade({ id: linha.atividade_id, status: linha.status }, acoes).lancarApontamento === true;
+  };
+
+  /** Tocar na linha: o Diário das atividades do pasto, já na atividade (um caminho só). @param {any} linha */
+  const abrirDiario = (linha) => {
+    if (!podeAbrirDiario(linha)) return;
+    void abrir(linha, "diario");
+  };
+
   /**
-   * Os grupos do menu de UMA linha do resumo (a mesma regra da lista); `null` = a linha não é tocável.
-   * @param {any} linha
+   * As janelas antigas de UM lançamento e o "Finalizar" da linha (ver o cabeçalho). Lista vazia = nada a mostrar.
+   * `frentes`: as frentes lidas da atividade (`frentesDosApontamentos`), ou nulo quando não foram lidas.
+   * @param {any} linha @param {any[] | null} frentes
    */
-  const gruposDe = (linha) => {
-    if (!podeGravar || !linha?.atividade_id) return null;
+  const acoesSecundariasDe = (linha, frentes) => {
+    if (!podeGravar || !linha?.atividade_id) return [];
     const ac = acoesDaAtividade({ id: linha.atividade_id, status: linha.status }, acoes);
     const emAndamentoNaArea = linha.area_status === STATUS_AREA.EM_ANDAMENTO;
-    const lancar = ac.lancarApontamento
-      ? [
-          // "+ Lançamento" = o Diário das atividades do pasto, já na atividade (D-PROD-348: um caminho só). É a mesma entrada
-          // da pílula "Manejos" do rodapé (o DiarioDoPasto).
-          { key: "lancar-dia", label: "+ Lançamento", icon: <Plus size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "diario") },
-          ...(emAndamentoNaArea
-            ? lancamentosPermitidos(flagsDoTipoDaAtividade(linha, tipos))
-                .filter((l) => SO_DO_TIPO[l.tipo])
-                .slice()
-                .sort((a, b) => ORDEM_DO_TIPO.indexOf(a.tipo) - ORDEM_DO_TIPO.indexOf(b.tipo))
-                .map((l) => ({
-                  key: `so-${l.tipo}`,
-                  label: SO_DO_TIPO[l.tipo],
-                  icon: <l.Icone size={16} strokeWidth={1.75} />,
-                  onSelect: () => void abrir(linha, "tipo", l.tipo),
-                }))
-            : []),
-        ]
-      : [];
-    // "Concluir" só com dia lançado na área (a lista só mostra o botão no serviço em andamento).
-    const concluir =
-      ac.concluir && (emAndamentoNaArea || Boolean(linha.ultimo_dia))
-        ? [{ key: "concluir", label: "Finalizar", icon: <CircleCheck size={16} strokeWidth={1.75} />, onSelect: () => void abrir(linha, "concluir") }]
+    // O tipo da atividade na lista de tipos: sem ele (ainda carregando, ou fora da lista), nada de janela antiga.
+    const doTipo = (Array.isArray(tipos) ? tipos : []).find((t) => t && String(t.id) === String(linha.tipo_atividade_id ?? ""));
+    if (!doTipo) return [];
+    // Atividade SEM máquina: o tipo não exige máquina E as frentes foram lidas e não há nenhuma aberta.
+    const semMaquina = doTipo.exige_maquina !== true && Array.isArray(frentes) && resumoDasFrentes(frentes).abertas === 0;
+
+    const lancar = [];
+    if (ac.lancarApontamento && emAndamentoNaArea) {
+      const permitidos = lancamentosPermitidos(flagsDoTipoDaAtividade(linha, tipos))
+        .filter((l) => ORDEM_DO_TIPO.includes(l.tipo))
+        .filter((l) => l.tipo !== LINHA_PRODUTO || semMaquina)
+        .sort((a, b) => ORDEM_DO_TIPO.indexOf(a.tipo) - ORDEM_DO_TIPO.indexOf(b.tipo));
+      for (const l of permitidos) {
+        lancar.push({ key: `so-${l.tipo}`, rotulo: SO_DO_TIPO[l.tipo], onSelect: () => void abrir(linha, "tipo", l.tipo) });
+      }
+    }
+    // "Finalizar" só numa atividade sem máquina, com dia lançado na área (a regra da lista). Com máquina, o Diário encerra.
+    const finalizar =
+      semMaquina && ac.concluir && (emAndamentoNaArea || Boolean(linha.ultimo_dia))
+        ? [{ key: "concluir", rotulo: "Finalizar", onSelect: () => void abrir(linha, "concluir") }]
         : [];
-    const grupos = [lancar, concluir];
-    return grupos.some((g) => g.length) ? grupos : null;
+    return [...lancar, ...finalizar];
   };
 
   /** "Concluir": `POST /atividades/:id/concluir` com o último dia; a recusa volta ao diálogo (ele mostra a frase). @param {string} dia @param {Array<{ atividade_area_id: string, hectares: string }>} [areas] */
@@ -158,7 +168,7 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
       />
     );
   } else if (aberta?.modo === "diario") {
-    // O mesmo diário da pílula "Manejos" e do "+ Lançamento" (DiarioDoPasto); ele já relê o resumo da área depois de gravar.
+    // O mesmo diário da pílula "Manejos" (DiarioDoPasto); ele já relê o resumo da área depois de gravar.
     janelas = <DiarioDoPasto key={`diario-${aberta.chave}`} area={area} tipos={tipos} atividade={aberta.atividade} onFechar={fechar} />;
   } else if (aberta?.modo === "concluir") {
     janelas = (
@@ -166,5 +176,5 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
     );
   }
 
-  return { gruposDe, janelas, buscando };
+  return { podeAbrirDiario, abrirDiario, acoesSecundariasDe, janelas, buscando };
 }

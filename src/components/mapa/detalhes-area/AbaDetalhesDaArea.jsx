@@ -1,9 +1,8 @@
 import React from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Sprout } from "lucide-react";
-import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { VerCustoContext, useVerCusto } from "@/components/lancamento-atividades/VerCusto";
-import { Cartao, Celula, Chip, Grade, Linha, SecaoDetalhe, Vazio } from "@/components/mapa/detalhes-lote/blocos";
+import { Acao, Cartao, Celula, Chip, Grade, Linha, SecaoDetalhe, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { podeVerCusto } from "@/lib/verCustoRegras";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
@@ -30,10 +29,10 @@ import "@/styles/mk-dp-area-v13.css";
  * MAIKE-ENTREGA3 (D-PROD-276): com uma reforma ABERTA na área (o resumo traz as reformas), o cartão da área mostra
  * "Em reforma desde 10/09" (o início previsto; ainda no futuro, "Reforma prevista para 10/09") e o nome dela embaixo.
  *
- * MAIKE-MAPA-ATIVIDADE-ACOES (D-PROD-278): com permissão de lançar ou de concluir, a linha da atividade é tocável e abre o
- * menu das ações rápidas (o do ⚡ da lista: janela presa à linha no computador, folha de baixo no celular) — "+ Lançamento"
- * (o Diário das atividades do pasto, já na atividade), "Só máquina / mão de obra / serviço de terceiro" (presos nesta área) e "Concluir"
- * (`AcoesDaAtividadeDaArea`). Sem permissão, a linha fica como era (só leitura).
+ * MAIKE-MAPA-ATIVIDADE-SEM-MENU (D-PROD-369): com permissão de lançar, tocar na linha da atividade abre direto o Diário das
+ * atividades do pasto, já na atividade (sem menu por cima). Logo abaixo da linha, uma fileira discreta de ações curtas
+ * ("Só mão de obra", "Só serviço de terceiro" e, na atividade sem máquina, "Só insumo" e "Finalizar") abre as janelas antigas de
+ * UM lançamento, presas nesta área (`AcoesDaAtividadeDaArea`). Sem permissão, a linha fica só de leitura.
  *
  * MAIKE-AREA-V13 (D-PROD-289): a mesma aba agora serve três seções (`secao`), cada uma com um assunto só, no visual v13
  * dos Detalhes do Lote — "detalhes" (o cartão da área e um resumo de uma linha de Manejos e Custos, que leva à aba),
@@ -141,7 +140,7 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
   // D-PROD-276: a reforma aberta da área (a mais antiga).
   const reformas = verAtividades && resumo.isSuccess && Array.isArray(resumo.data?.planejamentos) ? resumo.data.planejamentos : [];
   const emReforma = textoDaReformaNaArea(reformas, hoje);
-  // D-PROD-278: as ações rápidas da atividade tocada.
+  // D-PROD-278 / D-PROD-369: a linha abre o Diário; as janelas antigas de um lançamento ficam na fileira da linha.
   const acoesDaAtividade = useAcoesDaAtividadeDaArea({ area, tipos });
   const pronto = verAtividades && resumo.isSuccess;
 
@@ -156,38 +155,36 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
           sub: subDaAtividadeComMaquinas(a, frentesPorAtividade.get(String(a.atividade_id)) ?? null),
           valor: <Chip tom={s.tom}>{s.rotulo}</Chip>,
         };
-        const grupos = acoesDaAtividade.gruposDe(a);
-        const linha = !grupos ? (
-          <Linha {...props} data-testid={`area-atividade-${a.atividade_id}`} />
-        ) : (
-          <B1MenuAcoesDaLinha
-            rotulo={`Ações da atividade ${a.numero != null ? `nº ${a.numero}` : a.nome}`}
-            titulo={[a.numero != null ? `Nº ${a.numero}` : "", a.nome].filter(Boolean).join(" · ")}
-            subtitulo={subDaAtividade(a)}
-            grupos={grupos}
-            testId={`area-atividade-${a.atividade_id}`}
-            gatilho={(b) => (
-              <Linha
-                {...props}
-                {...b}
-                // No computador o Popover põe o clique; no celular ele já vem (a folha de baixo).
-                onClick={b.onClick ?? (() => {})}
-                chevron
-                aria-busy={acoesDaAtividade.buscando || undefined}
-                title="Ações da atividade"
-              />
-            )}
-          />
-        );
         const pct = proporcaoFeita(a);
+        const secundarias = acoesDaAtividade.acoesSecundariasDe(a, frentesPorAtividade.get(String(a.atividade_id)) ?? null);
         return (
           <div key={a.atividade_id} className="mk-da13-ativ">
-            {linha}
+            {acoesDaAtividade.podeAbrirDiario(a) ? (
+              <Linha
+                {...props}
+                chevron
+                onClick={() => acoesDaAtividade.abrirDiario(a)}
+                aria-busy={acoesDaAtividade.buscando || undefined}
+                title="Abrir o diário da atividade"
+                data-testid={`area-atividade-${a.atividade_id}`}
+              />
+            ) : (
+              <Linha {...props} data-testid={`area-atividade-${a.atividade_id}`} />
+            )}
             {pct == null ? null : (
               <span className={`mk-da13-prog mk-da13-prog--${s.tom}`} aria-hidden="true">
                 <i style={{ width: `${pct}%` }} />
               </span>
             )}
+            {secundarias.length ? (
+              <div className="mk-da13-acoes" data-testid={`area-atividade-${a.atividade_id}-acoes`}>
+                {secundarias.map((acao) => (
+                  <Acao key={acao.key} onClick={acao.onSelect} disabled={acoesDaAtividade.buscando}>
+                    {acao.rotulo}
+                  </Acao>
+                ))}
+              </div>
+            ) : null}
           </div>
         );
       })}

@@ -93,3 +93,11 @@
 .mk-dp .mk-da13-cor--servicos {
   background: #f59e0b;
 }
+
+/* Ações curtas da atividade (D-PROD-369): a fileira logo abaixo da linha; quebra de linha no celular, sem rolagem. */
+.mk-dp .mk-da13-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  padding: 0 12px 10px 48px;
+}
