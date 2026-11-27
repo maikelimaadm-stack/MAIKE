@@ -11170,6 +11170,6 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
     - A cada leitura nova, o círculo novo entra antes de o velho sair, para não piscar.
   - **"Localizar":** com o mapa do Google aberto, o GPS liga com ele e o "Localizar" centraliza nele no mesmo zoom de antes (18 do MapLibre, 19 do Google).
     - `useLocalizacaoNoMapa` ganha `centrarEm`. O mapa do Google expõe `centrar`: no site, `setCenter`/`setZoom`; no app, `setCamera`.
-- **Testes:** `mapaGoogleLinhasD375.test.jsx` (6): linhas, círculo e ponto; o mapa do site (toque na linha com a `tag`, gesto no ícone, círculos, centrar, destruir); o app (linhas nativas e o toque, ponto nativo, círculo sem piscar, `setCamera`); "Localizar" no Google ou no MapLibre.
+- **Testes:** `menuNavFreeze.test.jsx`: o GPS segue desligado com o Mapa Geral escondido, agora com o mapa pronto (MapLibre ou Google). `mapaGoogleLinhasD375.test.jsx` (6): linhas, círculo e ponto; o mapa do site (toque na linha com a `tag`, gesto no ícone, círculos, centrar, destruir); o app (linhas nativas e o toque, ponto nativo, círculo sem piscar, `setCamera`); "Localizar" no Google ou no MapLibre.
 
 <!-- Próxima decisão: D-PROD-376 -->

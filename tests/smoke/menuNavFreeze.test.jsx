@@ -33,7 +33,9 @@ describe('NAV — AppRouteContent: Outlet + Mapa Geral vivo e inerte (D-PROD-305
     expect(outlet).toMatch(/naMapa \? null : <Outlet \/>/);
     const mapa = codigoDe('src/pages/MapaGeral.jsx');
     // Escondido: sem GPS; ao voltar, ajusta o tamanho; ao sair, fecha as janelas (portais).
-    expect(mapa).toMatch(/ativo: ativo && mapReady/);
+    // D-PROD-375: o mapa pronto é o do Google quando ele está aberto; escondido, o GPS desliga do mesmo jeito
+    expect(mapa).toMatch(/ativo: ativo && mapaProntoParaLocalizar/);
+    expect(mapa).toMatch(/const mapaProntoParaLocalizar = mapaGoogle \? Boolean\(mapaGoogleWeb\) : mapReady;/);
     expect(mapa).toContain('map.resize()');
     expect(mapa).toMatch(/if \(ativo\) return;\s*setShowDetalhesLote\(false\)/);
   });
