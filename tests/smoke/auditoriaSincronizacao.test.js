@@ -172,7 +172,8 @@ describe('D-PROD-307 B — fila antiga: recusa não trava, nada em dobro', () =>
     expect(fila.atencao).toBe(1);
     expect(fila.aguardando).toBe(0);
     const [item] = fila.itens;
-    expect(item).toMatchObject({ estado: 'atencao', rotulo: 'Alteração de categoria manejo' });
+    // D-PROD-328: o rótulo leva o nome do registro, para a pessoa reconhecer o que é.
+    expect(item).toMatchObject({ estado: 'atencao', rotulo: 'Alteração de categoria manejo: x' });
     expect(item.ultimo_erro.mensagem).toBeTruthy();
     expect(await servico.dependentesDoRegistro(item.id)).toEqual([]);
 

@@ -554,3 +554,23 @@
 }
 .mk-mapa-nova-tarefa:disabled { opacity: 0.75; cursor: progress; }
 .mk-mapa-nova-tarefa:focus-visible { outline: 2px solid #166534; outline-offset: 2px; }
+
+/* D-PROD-333/340 — o "+" redondo da aba Pontos (novo ponto): dentro da coluna da direita (.mk-mapa-dir), logo acima
+   de Atualizar/Localizar/Mover. Solto no mapa (position absolute) ele ficava por baixo da coluna. */
+.mk-mapa-novo-ponto {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: #3fbf5f;
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 6px 18px rgba(15, 23, 42, 0.22);
+  pointer-events: auto;
+  cursor: pointer;
+}
+.mk-mapa-novo-ponto:focus-visible { outline: 2px solid #166534; outline-offset: 2px; }

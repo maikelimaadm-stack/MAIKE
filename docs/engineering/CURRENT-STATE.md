@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-26 (missão ativa D-PROD-326; antes D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-27 (missão ativa D-PROD-340; antes D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,7 +9,97 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-26) — MAIKE-MAPA-FILTROS-POR-ABA: cada aba com as suas camadas e os seus filtros (D-PROD-326)
+## Missão ativa (2026-11-27) — MAIKE-CADASTRO-MAPA-FECHAR: fechar o cadastro do mapa não derruba o app (D-PROD-340)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-340**: `setSourceData` não lança com o mapa removido (fim da tela branca ao fechar o cadastro); o "+" de Pontos fica dentro da coluna da direita; aberto pelo "+", o cadastro nasce no editor e volta direto ao Mapa Geral |
+| Banco | sem migration; backend sem mudança |
+| Relatório | [`CADASTRO-MAPA-FECHAR-D340-REPORT.md`](./CADASTRO-MAPA-FECHAR-D340-REPORT.md) |
+| Próximas | ErrorBoundary nas rotas (um erro numa tela não derruba o app todo); os dois itens com mudança no servidor; GPS |
+
+## Missão anterior (2026-11-27) — MAIKE-SEM-INTERNET-GRUPO3: os limites (D-PROD-338)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-338**: a fila de cadastros na ordem de entrada; o armazenamento cheio não finge que salvou; a foto que não cabe no celular não duplica a tarefa; a foto é conferida na escolha (HEIC, tipo, 3,5 MB por tarefa); as cópias de leitura saem quando outra pessoa entra; trocar de fazenda sem internet mostra os registros dela |
+| Banco | sem migration; backend sem mudança |
+| Relatório | [`SEM-INTERNET-GRUPO3-D338-REPORT.md`](./SEM-INTERNET-GRUPO3-D338-REPORT.md) |
+| Próximas | os dois itens com mudança no servidor (histórico da transferência e edição com sinal fraco); os defeitos do "+" e do travamento ao fechar o cadastro; GPS |
+
+## Missão anterior (2026-11-26) — MAIKE-SEM-INTERNET-GRUPO2: sem travas escondidas e sem aviso que engana (D-PROD-337)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-337**: a espera de rede acaba quando a rede volta; "Tudo sincronizado" só sem nada na fila; a leitura do cocho parada não trava o cocho; o valor recusado não aparece como salvo; cada fazenda vê só a sua fila no mapa; "Excluir" a tarefa leva as fotos; a sessão vencida diz o motivo |
+| Banco | sem migration; backend sem mudança |
+| Relatório | [`SEM-INTERNET-GRUPO2-D337-REPORT.md`](./SEM-INTERNET-GRUPO2-D337-REPORT.md) |
+| Próximas | Grupo 3 (limites) e os dois itens que pedem mudança no servidor; GPS |
+
+## Missão anterior (2026-11-26) — MAIKE-SEM-INTERNET-GRUPO1: nada se perde, nada duplica, nenhuma foto se apaga (D-PROD-335)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-335**: cochos e depósitos sobem depois de o app reabrir; a fila de cadastros roda uma passada por vez, e o item em envio fica intocável; o lote manda a versão; as fotos de tarefa são somadas no servidor; o lançamento do cocho que tentou subir não some |
+| Banco | sem migration. Backend: `fotos_adicionar` no PATCH da tarefa; `operation_id` gravado no lançamento do cocho |
+| Relatório | [`SEM-INTERNET-GRUPO1-D335-REPORT.md`](./SEM-INTERNET-GRUPO1-D335-REPORT.md), com a varredura inteira e os Grupos 2 e 3 pendentes |
+| Próximas | Grupo 2 (travas e avisos enganosos) e Grupo 3 (limites), a escolher com o proprietário |
+
+## Missão anterior (2026-11-26) — MAIKE-CADASTRO-MAPA-CELULAR: o cadastro do mapa no celular (D-PROD-333)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-333**: o cadastro do mapa abre no satélite com o ponto azul; as listas não fecham o formulário lateral; "+" redondo na aba Pontos abre o cadastro de ponto; "Usar minha localização" põe o ponto no GPS e "Continuar" abre o formulário |
+| Banco | sem migration; backend sem mudança |
+| Relatório | [`CADASTRO-MAPA-CELULAR-D333-REPORT.md`](./CADASTRO-MAPA-CELULAR-D333-REPORT.md) |
+| Próximas | a escolher com o proprietário |
+
+## Missão anterior (2026-11-26) — MAIKE-SINCRONIA-NO-MEIO: a sincronização num cartão no meio da tela (D-PROD-331)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-331**: o andamento da sincronização num cartão no meio da tela (círculo grande, %, etapa), sem fundo escuro; toque abre a "Sincronização"; ✓ no fim e some |
+| Banco | sem migration; backend sem mudança |
+| Relatório | [`SINCRONIZACAO-NO-MEIO-D331-REPORT.md`](./SINCRONIZACAO-NO-MEIO-D331-REPORT.md) |
+| Próximas | a escolher com o proprietário |
+
+## Missão anterior (2026-11-26) — MAIKE-TAREFA-SEM-INTERNET-MAPA-FOTO: tarefa sem internet no mapa e foto com sinal fraco (D-PROD-330)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-330**: a tarefa feita sem internet aparece no mapa (a fila por cima da cópia do mapa); com o sinal fraco, a foto que não sobe fica guardada e a tarefa salva |
+| Banco | sem migration; backend sem mudança |
+| Relatório | [`TAREFA-SEM-INTERNET-MAPA-FOTO-D330-REPORT.md`](./TAREFA-SEM-INTERNET-MAPA-FOTO-D330-REPORT.md) |
+| Próximas | D-PROD-331 (a sincronização no meio da tela) |
+
+## Missão anterior (2026-11-26) — MAIKE-SINCRONIA-DOIS-SENTIDOS: sincronização automática nos dois sentidos com o círculo (D-PROD-329)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-329**: ao voltar a internet (e ao abrir depois de 10 min), o app envia e depois baixa, com a porcentagem num círculo pequeno no canto; tocar abre a "Sincronização" |
+| Banco | sem migration; backend sem mudança |
+| Relatório | [`SINCRONIZACAO-DOIS-SENTIDOS-D329-REPORT.md`](./SINCRONIZACAO-DOIS-SENTIDOS-D329-REPORT.md) |
+| Próximas | a escolher com o proprietário |
+
+## Missão anterior (2026-11-26) — MAIKE-FILA-UNICA: fila única da sincronização (D-PROD-328)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-328**: uma lista com tudo que espera envio (cochos/depósitos, cadastros, tarefas e fotos), com situação, motivo e detalhes; "Ver detalhes", "Tentar de novo" e "Excluir" em todo item; foto e tarefa antiga param depois de 3 falhas |
+| Banco | sem migration; backend sem mudança |
+| Relatório | [`FILA-UNICA-SINCRONIZACAO-D328-REPORT.md`](./FILA-UNICA-SINCRONIZACAO-D328-REPORT.md) |
+| Próximas | sincronização automática nos dois sentidos com o círculo de porcentagem no canto |
+
+## Missão anterior (2026-11-26) — MAIKE-TAREFA-FOTO-SALVA: tarefa com foto salva (D-PROD-327)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-327**: a foto da tarefa é reduzida no celular (1600 px, JPEG) antes de subir; as rotas da tarefa aceitam até 4 MB (antes 1 MB, e a tarefa com foto voltava 413) |
+| Banco | sem migration |
+| Relatório | [`TAREFA-FOTO-SALVA-D327-REPORT.md`](./TAREFA-FOTO-SALVA-D327-REPORT.md) |
+| Próximas | fila única de sincronização (ver detalhes, tentar de novo, excluir); sincronização automática nos dois sentidos com o círculo de porcentagem no canto |
+
+## Missão anterior (2026-11-26) — MAIKE-MAPA-FILTROS-POR-ABA: cada aba com as suas camadas e os seus filtros (D-PROD-326)
 
 | Item | Estado |
 |---|---|

@@ -53,6 +53,8 @@ const CAMPOS_HISTORICO_MAPA = Object.freeze({
 const CAMPOS_LANCAMENTO_ATUALIZACAO = Object.freeze({
   ...Object.fromEntries(Object.entries(CAMPOS_LANCAMENTO_CRIACAO).filter(([campo]) => campo !== 'empresa_id')),
   ...CAMPOS_HISTORICO_MAPA,
+  // D-PROD-335: fotos para SOMAR às que a tarefa já tem no servidor (a foto tirada sem internet que sobe depois).
+  fotos_adicionar: { type: 'array', minItems: 1, maxItems: 50, items: { type: 'string', minLength: 1 } },
 });
 
 const CAMPOS_LANCAMENTO_CRIACAO_COM_HISTORICO = Object.freeze({
@@ -137,6 +139,13 @@ const LISTAR_HISTORICO_SCHEMA = {
 /** @param {unknown} corpo @returns {Record<string, unknown>} */
 const corpoValidado = (corpo) => /** @type {Record<string, unknown>} */ (corpo);
 
+/**
+ * D-PROD-327: as fotos vão dentro da tarefa (endereço `data:`), e o padrão do Fastify (1 MB) recusava a tarefa com
+ * uma foto só. 4 MB fica abaixo do teto da função serverless (4,5 MB), como no upload (D-PROD-79); o app reduz cada
+ * foto (~300 KB) antes de subir.
+ */
+const LIMITE_CORPO_TAREFA = 4 * 1024 * 1024;
+
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarLancamentoTarefaRoutes = async (app) => {
   app.get('/lancamentos-tarefa', { onRequest: [app.autenticar] }, async (request) => {
@@ -146,7 +155,7 @@ export const registrarLancamentoTarefaRoutes = async (app) => {
 
   app.post(
     '/lancamentos-tarefa',
-    { onRequest: [app.autenticar], preHandler: [GUARDAS.tarefa], schema: CRIAR_LANCAMENTO_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [GUARDAS.tarefa], bodyLimit: LIMITE_CORPO_TAREFA, schema: CRIAR_LANCAMENTO_SCHEMA },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const lancamento = await criar(request.contexto, corpoValidado(request.body));
@@ -156,7 +165,7 @@ export const registrarLancamentoTarefaRoutes = async (app) => {
 
   app.patch(
     '/lancamentos-tarefa/:id',
-    { onRequest: [app.autenticar], preHandler: [GUARDAS.tarefa], schema: ATUALIZAR_LANCAMENTO_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [GUARDAS.tarefa], bodyLimit: LIMITE_CORPO_TAREFA, schema: ATUALIZAR_LANCAMENTO_SCHEMA },
     async (request) => {
       exigirAuthContext(request.contexto.auth);
       const { id } = /** @type {{id: string}} */ (request.params);

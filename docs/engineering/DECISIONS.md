@@ -10085,4 +10085,309 @@ Origem `ajuste_estoque` (`ajuste_sobra`, `ajuste_falta`, `estorno_ajuste_sobra`,
 
 > **Numeração:** a `main` indica `Próxima decisão: D-PROD-326` depois da D-PROD-325 (PR #414), que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-327. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-327 -->
+## D-PROD-327 — Tarefa com foto salva: a foto é reduzida no celular e o servidor aceita a tarefa com fotos
+
+**Data:** 2026-11-26 · **Origem:** teste do proprietário ("tarefas sem imagens ela salva e com imagem não salva") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFA-FOTO-SALVA-D327-REPORT.md`](./TAREFA-FOTO-SALVA-D327-REPORT.md)
+
+**Causa.** A foto vai dentro da tarefa, como endereço `data:` devolvido por `/arquivos/upload`. A foto da câmera tem de 2 a 5 MB, e as rotas da tarefa (`POST` e `PATCH /lancamentos-tarefa`) usavam o limite padrão do Fastify, de 1 MB. Com isso, a tarefa com foto voltava 413 e não era gravada, e a foto grande passava também do limite do próprio upload. Sem internet, a mesma foto ficava tentando subir para sempre.
+
+**Decisão.**
+- O app reduz a foto antes de subir (`src/lib/imagens/reduzirFoto.js`):
+  - o lado maior passa a no máximo 1600 px, em JPEG com qualidade 0,75;
+  - foto já pequena (até 400 KB e dentro do tamanho) sobe como está;
+  - sem canvas, com imagem que o aparelho não abre ou quando a reduzida não fica menor, sobe a original (nunca piora).
+- A redução vale para todo envio de foto de tarefa (`enviarAnexo` em `tarefasMapaService`): na hora, a guardada sem internet (D-PROD-324) e a da fila antiga.
+- As rotas `POST` e `PATCH /lancamentos-tarefa` aceitam até 4 MB, abaixo do teto da função serverless (4,5 MB), como no upload (D-PROD-79). Com as fotos reduzidas, cabem cerca de 10 por tarefa.
+- No smoke, o jsdom passa a se comportar como aparelho sem canvas (`getContext` devolve `null`), sem o aviso "Not implemented".
+
+> **Numeração:** a `main` (`727a8ac61`) indica `Próxima decisão: D-PROD-327`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-328. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-328 — Fila única da sincronização: tudo que espera envio, com o que aconteceu, e nada preso sem saída
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("as filas de sincronização está confuso demais e outra tem uma fila que não sai de jeito algum … as filas eu tenho como ver o que aconteceu e excluir ele ou tentar repetir o lançamento") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`FILA-UNICA-SINCRONIZACAO-D328-REPORT.md`](./FILA-UNICA-SINCRONIZACAO-D328-REPORT.md)
+
+**Problema.** Havia três filas no aparelho, e a janela "Sincronização" mostrava só parte delas:
+- O motor (cochos, depósitos) aparecia.
+- Da fila antiga de cadastros, só os recusados apareciam; o resto era um número.
+- As tarefas e fotos guardadas não apareciam.
+
+Vários itens ficavam presos para sempre, sem botão:
+- foto ou tarefa recusada pelo servidor, que tentava de novo sem fim e sem aparecer;
+- registro do motor "confirmando" (tentou e o servidor não respondeu);
+- exclusão retida da fila antiga;
+- cadastro esperando, que só aparecia como número.
+
+**Decisão.**
+- Uma **fila única** (`lerFilaDeEnvio` em `sincronizacaoService`) junta as quatro origens:
+  - `motor`;
+  - `cadastro:<n>`, a fila antiga, agora **toda** ela, com `listarItensDaFilaDeEntidades`;
+  - `foto:<tarefa>`, as fotos de uma tarefa;
+  - `tarefa-antiga:<chave>`.
+
+  Cada item tem:
+  - rótulo com o nome do registro;
+  - "Feito em";
+  - situação: aguardando, confirmando, esperando outro registro ou precisa de atenção;
+  - motivo, em palavras simples;
+  - tentativas com erro e a última tentativa;
+  - o conteúdo em linhas simples (`detalhesDoConteudo`, sem campos internos nem fotos em `data:`).
+- Todo item tem **Ver detalhes**, **Excluir** (com confirmação e o aviso do que acontece) e **Tentar de novo**. O único caso sem "Tentar de novo" é o retido pela regra da entidade, como a exclusão que só pode ser feita com internet.
+  - Excluir uma **criação** da fila antiga leva junto as alterações do mesmo registro e tira o registro do aparelho.
+  - O registro do motor "confirmando" também pode sair (`descartarDaFila(id, { mesmoSemResposta: true })`), com o aviso de que pode já ter chegado ao sistema. O id do aparelho impede a duplicata.
+  - Continua a regra da D-PROD-311: com um registro posterior que depende deste, exclui-se primeiro o mais recente.
+- O **último erro** fica guardado no item:
+  - na fila antiga: `ultimo_erro`, também nos erros passageiros;
+  - nas fotos e nas tarefas antigas: `tentativas` e `ultimo_erro`.
+- Foto e tarefa antiga que falham **3 vezes** com resposta do servidor param de tentar sozinhas e pedem a pessoa. Falta de rede ou sessão vencida não conta.
+- Primeiro aparece o que precisa da pessoa, depois o resto, do mais antigo para o mais novo.
+
+> **Numeração:** depois da D-PROD-327 (PR #417), a `main` indica `Próxima decisão: D-PROD-328`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-329. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-329 — Sincronização automática nos dois sentidos, com a porcentagem num círculo no canto
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("a sincronização tem que ser automática ao voltar, tanto sincronizando os dados do sistema para o apk e do apk para o sistema, tem que aparecer uma tela de progresso de porcentagem redondo"); escolha dele: "Círculo pequeno no canto" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-DOIS-SENTIDOS-D329-REPORT.md`](./SINCRONIZACAO-DOIS-SENTIDOS-D329-REPORT.md)
+
+**Problema.** Ao voltar a internet, o app só **enviava**. A **baixa** (sistema → celular) só rodava se a última tinha mais de 6 h. Nenhuma porcentagem aparecia: só o aviso de texto "Enviando N registros…" e a barra dentro da janela, no "Sincronizar agora".
+
+**Decisão.**
+- `sincronizarNosDoisSentidos` (`src/services/sincronizacaoCompletaService.js`) faz, nesta ordem:
+  1. **envia** o que está no celular (`sincronizarTudo`);
+  2. **baixa** do sistema mapa, cadastros e telas (`baixarDadosParaOffline`).
+
+  Uma de cada vez: quem pede durante uma recebe a mesma. O andamento sai em porcentagem (`EVENTO_PROGRESSO_DA_SINCRONIA`): envio 0–25 %, mapa 25–55 %, cadastros 55–80 %, telas 80–100 %. A porcentagem só sobe.
+- **Quando sincroniza sozinho**, no app do celular já preparado (`deveSincronizarSozinho`):
+  - quando a internet **volta**, sempre;
+  - ao **abrir ou voltar** ao app, se a última baixa tem mais de 10 min;
+  - com o app aberto, a cada 6 h;
+  - com os dados no formato antigo, na hora.
+
+  No navegador nada é automático. O "Sincronizar agora" da janela usa a mesma função.
+- **Círculo pequeno no canto** (`CirculoDeSincronizacao`):
+  - fica embaixo, à direita, acima dos cartões do mapa e abaixo das janelas;
+  - mostra a porcentagem enquanto sincroniza, e a pessoa continua usando o app;
+  - tocar abre a janela "Sincronização";
+  - no fim mostra ✓, ou ! se parte não veio, e some em 2,5 s.
+- Com o círculo na tela, o aviso de texto não repete "Enviando…" nem "Tudo enviado". O aviso de "precisa de atenção" continua.
+
+> **Numeração:** depois da D-PROD-328 (PR #418), a `main` indica `Próxima decisão: D-PROD-329`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-330. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-330 — Tarefa sem internet: aparece no mapa, e a foto não derruba a tarefa com o sinal fraco
+
+**Data:** 2026-11-26 · **Origem:** teste do proprietário, sem internet: "a parte da imagem ainda de tarefa não funciona … quando eu lanço a tarefa aparece na listagem mas não no mapa" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`TAREFA-SEM-INTERNET-MAPA-FOTO-D330-REPORT.md`](./TAREFA-SEM-INTERNET-MAPA-FOTO-D330-REPORT.md)
+
+**Causas.**
+- **Mapa.** O mapa lê as tarefas da cópia do servidor (`mapaCacheService`, chave `tarefas`), sem a fila de cadastros. A tarefa criada sem internet fica na fila, por isso aparecia só na lista, que lê a porta da entidade com a fila.
+- **Foto.** O app só guardava a foto quando `navigator.onLine` dizia "sem internet". No campo, com sinal fraco ou Wi-Fi sem dados, o celular "acha" que tem internet: o envio da foto falhava sem resposta e a tarefa inteira dava erro, antes mesmo de chegar à fila.
+
+**Decisão.**
+- **Mapa.** A leitura da chave `tarefas` passa a aplicar a fila de cadastros por cima da cópia do servidor (`comTarefasDaFila`, a mesma "visão do que espera envio" da D-PROD-296):
+  - a criação entra com "Pendente" e `_isOffline`;
+  - a alteração se mistura à tarefa;
+  - a exclusão tira a tarefa;
+  - o recusado pelo servidor não entra.
+
+  O cruzamento é pelo id do aparelho, sem buraco nem duplicata. Continua valendo o filtro de sempre: só tarefas com ponto, abertas e desta fazenda.
+- **Foto.** `enviarOuSepararFotos` (em `fotosDeTarefaAguardandoService`):
+  - sem internet, todas as fotos ficam guardadas;
+  - com internet, tenta subir uma por uma; se uma falha por falta de rede (`classificarFalhaDeEnvio` = "rede"), ela e as seguintes ficam guardadas no aparelho e sobem sozinhas depois (D-PROD-324), e a tarefa salva do mesmo jeito;
+  - a recusa do servidor continua sendo erro.
+
+  Vale para a criação e a edição no painel e para a edição pelos detalhes.
+
+> **Numeração:** a `main` (`08eb45f91`) indica `Próxima decisão: D-PROD-330`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-331. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-331 — A sincronização num cartão no meio da tela (o app continua livre)
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("a sincronização tem que aparecer no meio da tela"); escolha dele: "Cartão no meio, app livre" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-NO-MEIO-D331-REPORT.md`](./SINCRONIZACAO-NO-MEIO-D331-REPORT.md)
+
+**Decisão.** O círculo pequeno do canto (D-PROD-329) vira um **cartão no meio da tela**, ainda no componente `CirculoDeSincronizacao`.
+- O cartão traz:
+  - o círculo grande com a porcentagem;
+  - o título "Sincronizando";
+  - a etapa ("Enviando o que foi feito no celular", "Baixando: Cadastros"…).
+- Não há fundo escuro: a pessoa continua mexendo no app em volta.
+- Tocar no cartão abre a janela "Sincronização".
+- No fim, o cartão mostra ✓ e "Tudo sincronizado" (ou ! e "Sincronizado em parte") e some sozinho.
+- O resto da D-PROD-329 (quando sincroniza, a ordem envio → baixa, a porcentagem) não muda.
+
+> **Numeração:** depois da D-PROD-330 (PR #421), a `main` indica `Próxima decisão: D-PROD-331`, que é esta; o marcador passa a D-PROD-332. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-332 — Diário das atividades, parte 1: abertura do serviço (tipo → máquina, implemento, horímetro e responsável), do zero
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário (maquete v4 "Diário das atividades"): começar o serviço pelo pasto, com a máquina, o implemento, o horímetro inicial e o responsável · **Branch:** `feat/atividades-abertura` · **Migration:** nenhuma · **Relatório:** [`ATIVIDADES-ABERTURA-REPORT.md`](./ATIVIDADES-ABERTURA-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`0df374b61`, com as D-PROD-325 a 331) indica D-PROD-332, que é esta; o marcador passa a D-PROD-333. Conferir de novo antes do merge (regra A5).
+
+- **Problema:** o "Iniciar atividade" e o "Diário da máquina" eram duas janelas separadas, e o começo do serviço pedia a Nova realização inteira (áreas, insumos, equipe) antes de a máquina ser registrada.
+- **Decisão — um botão, um diário do zero:** a área (Detalhes, Manejos) tem um botão só, "Diário das atividades". O diário novo (`DiarioDasAtividades`) faz só a **abertura** nesta parte:
+  1. **Tipo:** os 7 tipos fixos em cartões (como a Nova realização);
+  2. **Abrir:** Máquina \*, Implemento (opcional), Horímetro inicial \* e Responsável \*; com mais de uma operação do tipo, a **Operação** \* vem antes (com uma só, ela é usada sozinha; com nenhuma, aviso e o botão não envia);
+  3. **Serviço iniciado:** o cabeçalho do serviço (tipo, máquina, implemento, responsável, pasto e horímetro inicial). Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia **não** estão aqui: chegam nas próximas etapas.
+- **Decisão — a abertura acontece ao INICIAR um serviço:** com uma atividade em andamento no pasto, o botão abre direto no cabeçalho dela; sem ela, abre no tipo.
+- **Decisão — horímetro:** o campo é pt-BR (ponto = milhar, vírgula = decimal). Na troca de máquina, vem preenchido com a última leitura até hoje (`obterMedidorDoBem`); a pessoa pode mudar. Digitando, a leitura não sobrescreve mais, salvo ao trocar de máquina. Não há "hora de início".
+- **Decisão — guardar sem migration:** a abertura vai como PRIMEIRA LINHA da observação do apontamento do dia, no formato `[abertura-servico bem=… impl=… hor=… resp=… bemn=… impln=… respn=…]` (`src/lib/aberturaServicoRegras.js`). Os nomes vão `encodeURIComponent`; campo vazio sai da linha; o texto depois da linha é da pessoa e é preservado.
+  - **Limite:** é texto. Editar a linha à mão pode apagá-la, e a tela então mostra "Abertura não registrada neste serviço". Os números reais do horímetro (inicial e final, por máquina) chegam com o "Encerrar o dia", em tabela própria, numa etapa futura.
+- **Decisão — envio:** um só, `registrarCampo` (`POST /atividades/registrar`), com `area_id`, `tipo_atividade_id`, `data_operacional` (hoje na fazenda), `operador_usuario_id` (o responsável) e a observação com a linha. O servidor acha ou abre a atividade e cria o apontamento do dia. Sem id de volta, a tela avisa e não avança.
+- **Permissão:** só com `lancarApontamento` e fuso configurado; senão, o mesmo aviso da Nova realização.
+- **Fora:** a Nova realização (`RegistroDeCampo`) e o "Diário da máquina" (`DiarioDaMaquina`) continuam no código, sem a entrada no pasto. O "Diário da máquina" da linha de ação (`AcoesDaAtividadeDaArea`) não mudou.
+- **Emenda — tela do serviço aberto (maquete 05):** o passo "Serviço iniciado" deixa de ser um cabeçalho com "em breve" e vira a tela 05 da maquete v4 (`05-servico-aberto-menu-*`). Continua o cabeçalho verde (tipo e "● Aberto", máquina, implemento, responsável, pasto e horímetro inicial). Abaixo:
+  1. **Sete opções em cartões**, duas colunas no celular e no desktop (a última, "Outros custos", ocupa a linha): Insumo, Máquina, Abastecimento, Trocar pasto, Mão de obra, Serviço de terceiro e Outros custos, cada uma com ícone (lucide), título e linha de apoio da maquete. No desktop, aparece a seta. São `<button>` com `data-testid` `servico-opcao-<chave>`.
+  2. **"Lançado hoje"**: as LINHAS CONFIRMADAS de hoje (produto, máquina, mão de obra e serviço de terceiro), na ordem do horário no fuso da fazenda, com a quantidade e a unidade ("1.000 L", "8 h"). Vêm das rotas que já existem: `listarApontamentos` (a lista já traz `produtos`, `maquinas`, `mao_obra` e `servicos`), filtrada por `confirmadosDoDia`; a regra é `lancamentosDoDia` (`src/lib/aberturaServicoRegras.js`). Sem apontamento de hoje, "Nada lançado ainda". O "Abastecimento" ainda não aparece na lista: o apontamento não traz os abastecimentos (vêm de outro cadastro).
+  3. **Sem R$ nem custo** em tela nenhuma desta parte: a tela de campo não mostra valor.
+  4. **Opções e "Encerrar serviço" são "Em breve" por enquanto:** tocar numa opção (ou em "Encerrar serviço") troca o corpo da janela por um painel com o título e o texto "Em breve: esta parte ainda vai ser feita.", e o rodapé mostra só "Voltar ao serviço". Não há pop-up nem rota nova. O "Encerrar serviço" da tela 05 é o botão do rodapé; o "Fechar" antigo saiu (o ✕ fecha a janela).
+  5. Depois de "Iniciar serviço", o apontamento novo entra na lista (invalidação da consulta). A abertura gravada continua sendo a fonte do cabeçalho; sem ela, o cabeçalho lê a da consulta.
+
+- **Emenda — correções da abertura (review Codex):** três correções de P2 na abertura, sem migration e sem mudar a numeração:
+  1. **Plantio pede o capim:** no Plantio de pastagem, a tela 02 mostra "Capim" (`abertura-capim`), depois do Responsável, obrigatório ("Escolha o capim."). As opções são as culturas ATIVAS de pastagem/capineira do cadastro (`listarCulturas` + `capinsDoCadastro`). O envio leva `plantio: { cultura_id }` e só isso (forma, cobertura e consórcio ficam de fora). Nos outros tipos o campo não aparece nem vai no envio. O capim não entra na observação nem no cabeçalho. Trocar de tipo limpa o capim.
+  2. **Máquina no contrato, sem linha de uso:** `POST /atividades/registrar` aceita `bem_id` opcional. Ele vira o `bem_id` da atividade CRIADA (ordem: `bem_id`, depois a 1ª linha de `maquinas[]`, depois nulo) e NÃO cria linha de uso; a tela de abertura não envia `maquinas`. Vale a validação do `abrirNa` (inexistente, inativo ou de outra fazenda → 422, como sempre). O `bem_id` entra no fingerprint só quando vem (sem ele, o fingerprint é o de antes, byte a byte; sem bump de versão). **Fallback:** o front tenta com `bem_id`; se o servidor recusar o campo desconhecido (`REQUEST_VALIDATION_FAILED`, `unknown_field`, campo `bem_id`, lido por `ehCampoDesconhecido` com `lerErroGestao`), repete UMA vez sem `bem_id` (`enviarAbertura`, dentro da tela, não no `registrarCampo` compartilhado). A máquina continua na observação. Limite: sem o backend novo, a atividade nasce sem `bem_id`, e tipo com `exige_maquina` continua recusado (422) até o deploy.
+  3. **Todas as páginas das opções:** máquinas, implementos e operadores são lidos com `lerTodasAsPaginas` (segue `next_cursor` enquanto `has_more`, até 40 páginas), não só a 1ª de 50 itens.
+  - **Migration:** nenhuma (`Atividade.bem_id` já existe). **Testes:** `tests/smoke/aberturaServicoRegras.test.js` (`validarAbertura` com capim, `lerTodasAsPaginas`, `ehCampoDesconhecido`), `tests/smoke/diarioDasAtividades.test.jsx` (capim, plantio, `bem_id` sem `maquinas`, páginas, fallback) e `backend/tests/atividadeRegistro.test.mjs` (`bem_id` sem linha de uso, `bem_id` com `maquinas[]`, `bem_id` inexistente → 422). Os de backend pedem `DATABASE_URL` (CI).
+
+## D-PROD-333 — O cadastro do mapa no celular: igual ao Mapa Geral, "+" na aba Pontos e "Usar minha localização"
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário, com as imagens aprovadas ("Pode implementar por favor") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`CADASTRO-MAPA-CELULAR-D333-REPORT.md`](./CADASTRO-MAPA-CELULAR-D333-REPORT.md)
+
+**Decisão.**
+1. **O mapa do cadastro (áreas, pontos e linhas) fica igual ao Mapa Geral.**
+   - Abre no satélite.
+   - Mostra o ponto azul da localização com o círculo da precisão real, usando o mesmo GPS do Mapa Geral (`useLocalizacaoNoMapa`, alta precisão, o ponto anda junto). O hook novo é `useMinhaLocalizacaoNoEditor`.
+   - O botão de localizar do topo centraliza nessa posição.
+2. **Tocar numa lista do formulário lateral não fecha mais o formulário.**
+   - As listas do celular (`B1Select` → `MobileSheet`) abriam fora do painel lateral, e o toque nelas contava como "fora" e fechava o painel.
+   - Agora elas abrem num lugar dentro do painel (`MobileSheetPortalCtx`, o mesmo arranjo do painel de filtros do Mapa Geral). Isso vale nos três formulários.
+   - Com uma lista aberta, o Esc fecha só a lista.
+3. **Botão redondo "+" ("Novo ponto") na aba Pontos do Mapa Geral.**
+   - Leva direto ao cadastro de ponto (`/mapacadastro?novo=ponto`), sem escolher nada no Cadastro do Mapa.
+   - Aparece só para quem pode cadastrar no mapa (`pec-mapa-cadastro`, ação `novo`, ou acesso total).
+   - O pedido sai do endereço depois de usado. Fechar o editor volta ao Mapa Geral.
+4. **No cadastro de ponto, tocar no mapa só marca o ponto.**
+   - O botão redondo azul "Usar minha localização" põe o ponto na posição do GPS e centraliza nela.
+   - A pessoa pode arrastar o ponto, tocar de novo e desfazer.
+   - O botão de baixo passa a se chamar "Continuar" e é ele que abre o formulário. Antes, o toque abria o formulário na hora.
+
+> **Numeração:** nasceu D-PROD-332 (a `main` `0df374b61` indicava `Próxima decisão: D-PROD-332`). Antes do merge, a `main` deu a D-PROD-332 ao diário das atividades, parte 1 (PR #420, `2361f850f`) e passou a indicar `Próxima decisão: D-PROD-333`, que é esta (`node scripts/dev/proxima-decisao.mjs`, regra A5); o marcador passa a D-PROD-334.
+
+## D-PROD-334 — Diário das atividades: Insumo por carga (a "Carga de insumo" do serviço aberto)
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário (maquete v4, tela 06 "Insumo"): o insumo colocado no implemento é contado por carga, não por "jato" · **Branch:** `feat/atividades-insumo` · **Migration:** nenhuma · **Backend:** sem mudança · **Relatório:** [`ATIVIDADES-INSUMO-REPORT.md`](./ATIVIDADES-INSUMO-REPORT.md)
+
+> **Numeração:** a `main` (com a D-PROD-333 da PR #423 já mesclada) indica `Próxima decisão: D-PROD-334`, que é esta; o marcador passa a D-PROD-335. Conferir de novo antes do merge (regra A5).
+
+- **Problema:** a opção "Insumo" do serviço aberto ainda abria o painel "Em breve". Além disso, a palavra "jato" aparecia na tela; para o operador, o que conta é a carga colocada no implemento.
+- **Decisão — a carga, não o jato:** a tela se chama **"Carga de insumo"**, com o título "Carga N" (numerada por serviço e por dia: a próxima é a maior carga das linhas de produto CONFIRMADAS de hoje, mais 1; `proximaCarga`). Só a PALAVRA visível mudou. O campo que a carga usa no fio é o `jato` que a linha de produto já tem (D-PROD-283/293): o nome do campo não muda, e a linha de "Lançado hoje" diz "Insumo · Carga N".
+- **Decisão — a unidade é a do cadastro, sem conversão:** a unidade aparece como rótulo fixo, somente leitura, ao lado da quantidade (L, ou kg para o produto cujo estoque é em quilos; o rótulo vem de `rotuloDaUnidade`). Não há seletor de unidade nem conversão (D-PROD-310 não se aplica aqui): a quantidade digitada já é na unidade de estoque.
+- **Decisão — Mistura é vários produtos reais na mesma carga:** não existe cadastro de "misturas de insumo" no sistema (a Formulação é de suplementação e tem outra permissão). Então "Mistura" são **dois ou mais produtos** dentro da MESMA carga, cada um com o seu produto, o seu local e a sua quantidade (até 10 blocos). Todas as linhas gravam o mesmo número de carga.
+- **Decisão — horímetro opcional por carga:** um campo só por carga, no fim. Preenchido, o valor canônico vai no marcador `[carga hor=<valor>]` no início da OBSERVAÇÃO de cada linha da carga (`marcadorDaCarga`, `lerCarga`, `src/lib/cargaInsumoRegras.js`). Sem migration. **Não há conferência de salto** contra a leitura da máquina nesta tela.
+- **Decisão — gravação pelas rotas que já existem:**
+  - com o apontamento CONFIRMADO de hoje, `adicionarLinha("produtos", …)` UMA linha por produto, em sequência (a `versao` de cada resposta vai para a seguinte);
+  - sem ele (serviço aberto em dia anterior), UM `criarApontamento` com `produtos[]` e, quando a atividade tem áreas, o `atividade_area_id` do pasto.
+  - **Estoque:** só o servidor baixa (o motor de estoque físico). O cliente não calcula nem grava saldo. O produto que controla lote **não tem tela de lote aqui**: o servidor aplica o FEFO na baixa.
+- **Decisão — a Mistura não é atômica na sequência:** com o apontamento de hoje, cada produto é uma chamada. O progresso (produtos já gravados DEFINITIVAMENTE e a última `versao`) fica num ref. Na retentativa de um envio incerto, o que já saiu não é reenviado e a pendente vai com o mesmo corpo e a mesma `versao`. Numa falha no meio, a tela diz "N de M produtos já foram lançados na Carga X; revise e salve de novo para lançar os restantes", tira do formulário os produtos que já saíram e mantém o número da carga. "Consultar" relê o dia: o que já aparece gravado com o número da carga conta como gravado. (Com o `criarApontamento`, a gravação é atômica.)
+- **Decisão — escolha do local:** um local com saldo, sozinho; mais de um, entra o de MAIOR disponível, e aparece o campo "Local do estoque" para trocar. Sem saldo, o aviso de sempre, sem liberar o envio.
+- **Fora:** a sobra (o que sobrou do produto no implemento, a devolução ao estoque) fica para depois, com a sua própria decisão. Também fica para depois a conferência do horímetro da carga contra a máquina, e a tela de lote.
+- **Permissão e fuso:** os mesmos da abertura (`lancarApontamento` e fuso configurado).
+- **Sem backend e sem migration.** Testes: `tests/smoke/diarioDasAtividades.test.jsx` (opção Insumo, unidade, gravação, Mistura, saldo insuficiente, horímetro e a seta de voltar) e `tests/smoke/cargaInsumoRegras.test.js` (a próxima carga, o marcador, as linhas e o local).
+
+- **Revisão do Codex (PR #424):** (1) atividade com VÁRIAS áreas: o destino e a numeração da carga são só do apontamento de hoje DO PASTO aberto (`atividade_area_id`); sem ele, `criarApontamento` cria o do pasto; (2) mexer no formulário depois de uma falha esquece o envio guardado (`esquecerUltimo`), e a pendência pergunta antes de abandonar um envio incerto; (3) enquanto a carga sai, o voltar e o fechar da janela ficam travados.
+
+## D-PROD-335 — Sem internet, Grupo 1: nada se perde, nada duplica, nenhuma foto se apaga
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("Verifique os bugs offiline"). A varredura achou 21 defeitos confirmados, e ele escolheu corrigir primeiro o Grupo 1 ("Grupo 1 primeiro (Recomendado)") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SEM-INTERNET-GRUPO1-D335-REPORT.md`](./SEM-INTERNET-GRUPO1-D335-REPORT.md)
+
+**Decisão.** São seis correções; os Grupos 2 e 3 ficam para depois e estão no relatório.
+
+1. **Quem envia carrega antes da passada.**
+   - O que estava errado: o lançamento e o cancelamento do cocho e a transferência e o cancelamento do depósito só se registravam no motor quando a tela de um lote ou de um cocho carregava. O mesmo valia para as portas de Marca, Unidade, Categoria e Tipo de atividade. Depois de o Android fechar o app, a passada deixava esses registros parados (e mostrava "Tudo sincronizado").
+   - O que muda: a passada confere se a fila tem algo que ninguém sabe enviar (`temTipoSemRegistroNaFila`, `temEntidadeSemPortaNaFila`) e, nesse caso, carrega esses módulos antes de enviar (`prepararTiposDeEnvio`).
+2. **Uma passada por vez na fila de cadastros.** `syncOfflineEntityQueue` passa a fazer uma passada só por vez: quem pede durante uma passada recebe ela e mais uma volta em seguida. Antes, duas passadas ao mesmo tempo criavam o cadastro duas vezes no servidor.
+3. **Item em envio é intocável.**
+   - Na fila de cadastros: uma edição ou exclusão feita enquanto a criação do registro vai ao servidor (`EM_ENVIO`) vira um item próprio, depois dela. Antes, ela entrava no item que já estava subindo e se perdia, ou o apagava e o registro voltava.
+   - A edição nova também não entra numa edição recusada.
+   - No motor: o resultado do envio só é gravado se o item ainda está na fila. Antes, "Excluir" feito durante o envio era desfeito e o registro ia assim mesmo.
+4. **Lote manda a versão.** A edição do lote leva `versao_esperada` (D-PROD-316), que a porta descartava. Sem ela, a edição feita sem internet apagava, sem aviso, o que outra pessoa tinha mudado.
+5. **Fotos de tarefa são somadas no servidor.**
+   - `PATCH /lancamentos-tarefa/:id` aceita `fotos_adicionar`. O servidor trava a tarefa e soma essas fotos às que ela tem, sem repetir; com `fotos` junto, a soma é sobre a lista enviada.
+   - A passada das fotos manda só as novas. Antes ela mandava a lista inteira lida da cópia do aparelho, e uma cópia antiga ou de outra fazenda apagava as fotos da tarefa.
+   - A passada também:
+     - pula a foto excluída durante o envio;
+     - espera a criação ou edição da tarefa que está na fila;
+     - só apaga a foto do aparelho com a resposta do servidor.
+   - Quando a foto sobe, a tela de detalhes aberta passa a mostrá-la.
+   - Uma edição aberta antes não a apaga (`atualizarTarefa(..., { fotosDaTela })`). Se a pessoa tirar a foto de propósito, ela sai.
+6. **O lançamento do cocho que tentou subir não some.**
+   - O servidor grava `operation_id` no lançamento, fora do fingerprint, então o replay não muda.
+   - O lançamento que tentou subir sem resposta continua na lista com e sem internet, até a lista do servidor trazer o mesmo código.
+   - Antes ele sumia sempre que o celular dizia ter internet, e a pessoa lançava de novo.
+
+> **Numeração:** a `main` (`471ad9c9d`) indicava `Próxima decisão: D-PROD-334`, reservada pela PR #424. Antes do merge, a #424 levou a D-PROD-334 (`dd8d4525a`) e a `main` passou a indicar `Próxima decisão: D-PROD-335`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-336. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-337 — Sem internet, Grupo 2: sem travas escondidas e sem aviso que engana
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("Continue corrigindo bugs"), depois do Grupo 1 (D-PROD-335) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SEM-INTERNET-GRUPO2-D337-REPORT.md`](./SEM-INTERNET-GRUPO2-D337-REPORT.md)
+
+**Decisão.**
+1. **A espera por falta de rede acaba quando a rede volta.**
+   - Antes: com o celular mostrando sinal mas sem dados, as falhas se acumulavam e "Enviar agora" não mandava nada por até 10 min.
+   - Agora: a falha de rede fica marcada no item (`ultimo_erro.falha = 'rede'`). A volta da internet, a volta ao app, a abertura do app, "Enviar agora" e a sincronização nos dois sentidos liberam essa espera (`liberarEsperaDeRede`).
+   - A espera depois de erro do servidor continua.
+   - Uma espera maior que a maior possível é relógio do celular que voltou e não segura o item.
+2. **"Tudo sincronizado" só quando nada ficou no celular.**
+   - Antes: o cartão olhava só a baixa dos dados.
+   - Agora: com registros na fila (aguardando ou precisando de atenção), o fim mostra "N registros ficaram no celular".
+3. **A leitura do cocho parada não trava o cocho.**
+   - Antes: uma leitura recusada deixava os lançamentos do mesmo cocho "aguardando" para sempre.
+   - Agora: o tipo `independente` (leitura) não espera nem segura ninguém pelo recurso, nem na passada nem no envio direto.
+4. **O valor recusado não aparece como salvo.** A edição ou exclusão que o servidor recusou não é mais aplicada por cima da lista do servidor. Ela espera a pessoa decidir na janela Sincronização.
+5. **Cada fazenda vê só a sua fila no mapa.**
+   - Antes: a tarefa da fazenda A editada sem internet aparecia no mapa da fazenda B.
+   - Agora: a fila de cadastros informa a fazenda de cada item (`empresaId`), e o mapa usa só a fila da fazenda selecionada.
+6. **"Excluir" a tarefa criada no aparelho limpa tudo.** As fotos guardadas dela saem junto e o mapa relê na hora. Quando os cadastros feitos sem internet chegam ao servidor, o mapa também relê e tira a marca "aguardando envio".
+7. **Sessão vencida diz o motivo.** O item fica com o motivo "O acesso deste celular venceu: saia e entre de novo para enviar." Antes ficava "aguardando" sem explicação.
+
+**Fica para uma missão com mudança no servidor:**
+- A transferência do depósito que tentou subir com sinal fraco ainda some do histórico, porque a movimentação de estoque não guarda o código da operação.
+- A edição de cadastro com sinal fraco ainda dá erro em vez de ir para a fila. O PATCH precisa reconhecer o pedido repetido, senão a versão (D-PROD-316) acusaria um conflito falso.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indica D-PROD-336, mas a D-PROD-335 está nas PRs #425 (Grupo 1) e #426 (diário), e uma delas vai passar a D-PROD-336. Esta é a D-PROD-337 e o marcador passa a D-PROD-338. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-338 — Sem internet, Grupo 3: os limites (ordem, armazenamento, fotos, usuários, fazendas)
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário ("Vamos continuar nas partes de offline, de ajuste, de bug, correções de bug") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SEM-INTERNET-GRUPO3-D338-REPORT.md`](./SEM-INTERNET-GRUPO3-D338-REPORT.md)
+
+**Decisão.**
+1. **A fila de cadastros anda na ordem em que os itens entraram.** A ordem passa a ser a chave crescente do armazenamento, não a hora do celular. Antes, com o relógio corrigido para trás, o lote podia subir antes da área que ele cita.
+2. **Armazenamento cheio não finge que salvou.**
+   - Na criação sem internet, a fila é gravada antes da cópia.
+   - Na edição, a cópia volta ao valor de antes quando a fila não grava.
+   - Nos dois casos a tela recebe o erro. Antes o registro aparecia como salvo sem estar em fila nenhuma.
+3. **Guardar a foto no celular nunca derruba o salvar da tarefa.** `guardarFotosDaTarefa` não lança mais e devolve quantas fotos couberam. As que não couberam viram aviso. Antes a tela mostrava "Erro ao salvar tarefa", e salvar de novo criava outra tarefa.
+4. **A foto é conferida na hora da escolha.**
+   - A foto HEIC é recusada com uma explicação.
+   - A foto sem tipo ganha o tipo pela extensão.
+   - Arquivo que não é foto é recusado.
+   - A foto é reduzida já na escolha, então a guardada sem internet também fica pequena.
+   - A soma das fotos (salvas, guardadas no celular e novas) não passa de 3,5 MB. O servidor aceita 4 MB por tarefa.
+   - As miniaturas são liberadas ao sair do formulário.
+5. **As cópias de leitura são de quem entrou.** Quando outra pessoa entra no mesmo celular, as cópias de leitura e a cópia do mapa daquele cliente são apagadas antes de ela usar o app. Antes ficavam até alguém tocar em "Sair", e a pessoa seguinte via, sem internet, as listas da anterior, inclusive as que só um administrador vê.
+6. **Trocar de fazenda sem internet não mostra tudo vazio.** As listas do servidor são do cliente inteiro. Sem cópia própria da fazenda selecionada, a lista usa os registros dela (pelo `empresa_id`) que estão nas cópias das outras fazendas.
+
+> **Numeração:** a `main` (`0b482ce35`) indica `Próxima decisão: D-PROD-338`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-339. A D-PROD-336 continua com a PR #426. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-340 — Fechar o cadastro do mapa não derruba o app; o "+" de Pontos na coluna da direita, sem a lista no meio
+
+**Data:** 2026-11-27 · **Origem:** defeitos relatados pelo proprietário: "quando eu clico em cadastrar ponto … leva para o mapa de cadastro e depois volta" e "quando eu abro o mapa, eu vou fechar de cadastro … ele trava tudo", na web e no app. Os dois foram reproduzidos num navegador real (Chromium + WebGL) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`CADASTRO-MAPA-FECHAR-D340-REPORT.md`](./CADASTRO-MAPA-FECHAR-D340-REPORT.md)
+
+**Decisão.**
+1. **`setSourceData` não lança com o mapa já removido.**
+   - O que acontecia: ao fechar o editor do cadastro (`MapaDesenho`), a limpeza do cursor e a do arrasto rodavam DEPOIS da limpeza que remove o mapa (o React desmonta os efeitos na ordem em que foram declarados). Nesse ponto, `map.getSource` lançava.
+   - Por que virava tela branca: o app não tem ErrorBoundary, então o React desmontava a raiz inteira. Era o "trava tudo".
+   - Quando acontecia:
+     - sempre, ao fechar uma área ou linha nova;
+     - ao fechar um ponto já marcado, caso que ficou alcançável com a D-PROD-333, em que o toque só marca o ponto.
+   - O que muda: a leitura da fonte dentro de `setSourceData` fica protegida, e isso vale para todos os mapas que usam essa função.
+2. **O "+" (Novo ponto) da aba Pontos fica DENTRO da coluna da direita**, acima de Atualizar, Localizar e Mover. Fica como `acimaDaPilha` no `MapaControlesMobile`. Antes ele ficava por baixo dessa coluna: só uma faixa de 14 px pegava o toque, e o resto caía em "Atualizar mapa".
+3. **Aberto pelo "+", o cadastro já nasce no editor de ponto.** O estado inicial vem de `?novo=ponto`. Ao fechar, ele volta direto ao Mapa Geral. Antes, a lista do cadastro aparecia por um instante na ida e na volta, e parecia que a tela ia e voltava.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indica D-PROD-339 na `main` (`db40842a6`, depois da #428). A PR #426 (diário, outra sessão) perdeu de novo o número para uma PR mergeada antes (agora a D-PROD-338) e deve passar à 339. Para não colidir, esta é a **D-PROD-340**, e o marcador passa a D-PROD-341. Conferir de novo antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-341 -->

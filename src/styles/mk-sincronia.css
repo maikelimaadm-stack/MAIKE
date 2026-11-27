@@ -1,0 +1,50 @@
+/* D-PROD-329 / D-PROD-331 — a sincronização num cartão no MEIO da tela: sem fundo escuro (o app continua livre em
+   volta), acima do mapa e dos cartões, abaixo das janelas (z-index 50). */
+.mk-circulo-sincronia {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 45;
+  width: min(220px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 16px 16px;
+  border: 0;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
+  cursor: pointer;
+  text-align: center;
+}
+.mk-circulo-sincronia__anel {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.mk-circulo-sincronia__anel > svg {
+  position: absolute;
+  inset: 0;
+}
+.mk-circulo-sincronia__texto {
+  position: relative;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+.mk-circulo-sincronia__titulo {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.mk-circulo-sincronia__etapa {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.3;
+}

@@ -1,9 +1,9 @@
 import { CORES_PRIORIDADE_TAREFA } from "@/lib/tarefas/prioridade";
 import React, { useEffect, useState } from "react";
 import { Check, CircleX, ClipboardList, FileText, History, MapPin, MessageSquare, MessageSquarePlus, Plus, Repeat, SquarePen, Trash2 } from "lucide-react";
-import { atualizarTarefa, enviarAnexo, excluirTarefa } from "@/services/tarefasMapaService";
+import { atualizarTarefa, excluirTarefa } from "@/services/tarefasMapaService";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
-import { excluirFotoGuardada, guardarFotosDaTarefa } from "@/services/fotosDeTarefaAguardandoService";
+import { excluirFotoGuardada, guardarFotosDaTarefa, enviarOuSepararFotos, EVENTO_TAREFA_COM_FOTOS_ENVIADAS, avisoDeFotosQueNaoCouberam } from "@/services/fotosDeTarefaAguardandoService";
 import useFotosGuardadasDaTarefa from "@/hooks/useFotosGuardadasDaTarefa";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -204,6 +204,17 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
     setCurrentTarefa(tarefa);
   }, [tarefa]);
 
+  // D-PROD-335: a foto guardada subiu com a tela aberta: ela sai da galeria "aguardando envio" e entra nas fotos da
+  // tarefa (antes sumia da tela, e editar em seguida a apagava do servidor).
+  useEffect(() => {
+    const aoEnviar = (/** @type {any} */ evento) => {
+      const nova = (evento?.detail?.tarefas ?? []).find((t) => t?.id && t.id === tarefa?.id);
+      if (nova) setCurrentTarefa((atual) => ({ ...atual, fotos: Array.isArray(nova.fotos) ? nova.fotos : atual?.fotos }));
+    };
+    window.addEventListener(EVENTO_TAREFA_COM_FOTOS_ENVIADAS, aoEnviar);
+    return () => window.removeEventListener(EVENTO_TAREFA_COM_FOTOS_ENVIADAS, aoEnviar);
+  }, [tarefa?.id]);
+
   const { data: historico = [], isLoading: loadingHistorico, isError: erroHistorico, error: causaErroHistorico, refetch: refetchHistorico } = useQuery({
     queryKey: ["historico-tarefa-detalhe", currentTarefa.id],
     queryFn: async () => {
@@ -269,13 +280,8 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
     mutationFn: async ({ id, data, pendingImageFiles = [] }) => {
       // D-PROD-324: sem internet a alteração vai para a fila e as fotos novas ficam guardadas no aparelho (sobem
       // sozinhas quando a internet voltar).
-      const guardar = pendingImageFiles.length > 0 && typeof navigator !== "undefined" && navigator.onLine === false;
-      // Upload de novas imagens antes de salvar
-      const uploadedUrls = [];
-      for (const file of guardar ? [] : pendingImageFiles) {
-        const { file_url } = await enviarAnexo({ file });
-        uploadedUrls.push(file_url);
-      }
+      // D-PROD-330: com o sinal fraco (o envio da foto falha por falta de rede), a foto também fica guardada.
+      const { urls: uploadedUrls, paraGuardar } = await enviarOuSepararFotos(pendingImageFiles);
       const finalData = uploadedUrls.length > 0
         ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] }
         : data;
@@ -299,14 +305,20 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
       mudouStatus ?
       `Status alterado para ${finalData.status}.` :
       "Tarefa editada.";
-      const atualizada = await atualizarTarefa(id, {
-        ...finalData,
-        historico_evento: evento,
-        historico_descricao: descricao,
-        historico_data_evento: new Date().toISOString(),
-      });
-      if (guardar) await guardarFotosDaTarefa(id, pendingImageFiles);
-      return atualizada;
+      const atualizada = await atualizarTarefa(
+        id,
+        {
+          ...finalData,
+          historico_evento: evento,
+          historico_descricao: descricao,
+          historico_data_evento: new Date().toISOString(),
+        },
+        // D-PROD-335: a foto que subiu sozinha enquanto a tela estava aberta não é apagada.
+        { fotosDaTela: currentTarefa?.fotos }
+      );
+      // D-PROD-338: as fotos que não couberam no celular viram aviso (a tarefa já foi salva).
+      const guardadas = paraGuardar.length ? await guardarFotosDaTarefa(id, paraGuardar) : 0;
+      return { ...atualizada, _fotosPerdidas: paraGuardar.length - guardadas };
     },
     onSuccess: (updated) => {
       // Otimista no mapa e nas listas
@@ -318,9 +330,12 @@ export default function DetalhesTarefaMapa({ tarefa, onSaved, onRequestSelectLoc
       queryClient.invalidateQueries({ queryKey: ["tarefas-mapa"] });
       queryClient.invalidateQueries({ queryKey: ["gestao-tarefas-unificada"] });
       queryClient.invalidateQueries({ queryKey: ["historico-tarefa-detalhe", updated.id] });
-      setCurrentTarefa(updated);
+      const { _fotosPerdidas: fotosPerdidas, ...semMarca } = updated ?? {};
+      setCurrentTarefa(semMarca);
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Tarefa atualizada.");
+      const avisoFotos = avisoDeFotosQueNaoCouberam(fotosPerdidas ?? 0);
+      if (avisoFotos) toast.warning(avisoFotos);
       setShowEdit(false);
       onSaved?.(updated);
     },

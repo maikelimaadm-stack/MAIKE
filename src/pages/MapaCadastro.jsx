@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { cn } from "@/lib/utils";
 import FormularioArea, { FORMULARIO_AREA_ID } from "../components/mapa/FormularioArea";
 import FormularioPonto, { FORMULARIO_PONTO_ID } from "../components/mapa/FormularioPonto";
@@ -72,9 +74,13 @@ const verticesDoItem = (item) => item?.coordenadas?.coords?.map((c) => ({ lat: c
  * para áreas, as ações em lote (setor, cor, códigos).
  */
 export default function MapaCadastro() {
-  const [modo, setModo] = useState("listagem");
-  const [abaAtiva, setAbaAtiva] = useState("areas");
-  const [tipoDesenho, setTipoDesenho] = useState(null);
+  // D-PROD-340: aberto pelo "+" da aba Pontos (`?novo=ponto`), já nasce no editor de ponto — antes a lista do cadastro
+  // aparecia por um instante antes do editor (e de novo ao voltar), e parecia que a tela ia e voltava.
+  const [parametros, setParametros] = useSearchParams();
+  const [abertoPeloMais] = useState(() => parametros.get("novo") === "ponto");
+  const [modo, setModo] = useState(abertoPeloMais ? "mapa" : "listagem");
+  const [abaAtiva, setAbaAtiva] = useState(abertoPeloMais ? "pontos" : "areas");
+  const [tipoDesenho, setTipoDesenho] = useState(abertoPeloMais ? "ponto" : null);
   const [usarGPS, setUsarGPS] = useState(false);
   const [itemEditando, setItemEditando] = useState(null);
   const [showImportarAreas, setShowImportarAreas] = useState(false);
@@ -85,6 +91,9 @@ export default function MapaCadastro() {
   const queryClient = useQueryClient();
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const empresaAnteriorRef = useRef(empresaSelecionadaId);
+  const navigate = useNavigate();
+  // D-PROD-333: aberto pelo botão "+" do Mapa Geral (aba Pontos): ao terminar ou cancelar, volta para o mapa.
+  const voltarAoMapaGeralRef = useRef(false);
 
   useEffect(() => {
     const anterior = empresaAnteriorRef.current;
@@ -185,11 +194,31 @@ export default function MapaCadastro() {
   };
 
   const voltarParaLista = () => {
+    // D-PROD-340: aberto pelo "+": volta direto ao Mapa Geral, sem mostrar a lista do cadastro no meio do caminho.
+    if (voltarAoMapaGeralRef.current) {
+      voltarAoMapaGeralRef.current = false;
+      navigate(createPageUrl("MapaGeral"));
+      return;
+    }
     setModo("listagem");
     setTipoDesenho(null);
     setUsarGPS(false);
     setItemEditando(null);
   };
+
+  // D-PROD-333: `?novo=ponto` (o botão "+" da aba Pontos do Mapa Geral) abre direto a marcação de um ponto novo.
+  useEffect(() => {
+    if (parametros.get("novo") !== "ponto") return;
+    voltarAoMapaGeralRef.current = true;
+    setAbaAtiva("pontos");
+    setTipoDesenho("ponto");
+    setUsarGPS(false);
+    setItemEditando(null);
+    setModo("mapa");
+    const resto = new URLSearchParams(parametros);
+    resto.delete("novo");
+    setParametros(resto, { replace: true });
+  }, [parametros, setParametros]);
 
   const carregarAreas = useCallback(() => mapaService.listarAreasAtivas(empresaSelecionadaId), [empresaSelecionadaId]);
   const carregarLinhas = useCallback(() => mapaService.listarLinhasAtivas(empresaSelecionadaId), [empresaSelecionadaId]);

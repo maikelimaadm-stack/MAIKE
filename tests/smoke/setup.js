@@ -43,6 +43,11 @@ if (typeof URL !== 'undefined' && typeof URL.createObjectURL !== 'function') {
 if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL !== 'function') {
   URL.revokeObjectURL = () => {};
 }
+// jsdom não desenha em canvas (sem o pacote `canvas`, getContext só avisa "Not implemented" no console):
+// o smoke se comporta como um aparelho sem canvas — a redução da foto (D-PROD-327) sobe a original.
+if (typeof HTMLCanvasElement !== 'undefined') {
+  HTMLCanvasElement.prototype.getContext = () => null;
+}
 
 beforeEach(() => {
   erros.length = 0;

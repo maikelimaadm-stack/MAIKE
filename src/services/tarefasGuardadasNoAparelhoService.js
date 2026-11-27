@@ -23,11 +23,15 @@ import {
   putPendingTarefa,
 } from '@/components/offline/IndexedDBManager';
 import { registrarPassadaExtra } from '@/lib/offline/sincronizacao/gatilhosDeSincronizacao';
+import { classificarFalhaDeEnvio } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { eIdDoAparelho, novoIdDoAparelho } from '@/lib/offline/idDoAparelho';
 import { atualizarTarefa, criarTarefa, enviarAnexo } from '@/services/tarefasMapaService';
 
 /** Campos de controle do armazenamento antigo (não vão ao servidor). */
-const CONTROLE = ['_offlineId', '_action', '_offlineTimestamp', '_id_do_aparelho', '_fotos_enviadas'];
+const CONTROLE = ['_offlineId', '_action', '_offlineTimestamp', '_id_do_aparelho', '_fotos_enviadas', '_tentativas', '_ultimo_erro'];
+
+/** D-PROD-328: depois de tantas falhas com resposta do servidor, para de tentar sozinha e pede a pessoa. */
+export const TENTATIVAS_DA_TAREFA_GUARDADA = 3;
 
 /** @param {Record<string, any>} item */
 const semControle = (item) => Object.fromEntries(Object.entries(item).filter(([k]) => !CONTROLE.includes(k)));
@@ -88,17 +92,81 @@ export const enviarTarefasGuardadasNoAparelho = async () => {
   let enviadas = 0;
   let ficaram = 0;
   for (const item of [...itens].sort((a, b) => String(a._offlineTimestamp ?? '').localeCompare(String(b._offlineTimestamp ?? '')))) {
+    // D-PROD-328: a que já falhou várias vezes espera a pessoa ("Tentar de novo" na fila única).
+    if (Number(item._tentativas ?? 0) >= TENTATIVAS_DA_TAREFA_GUARDADA) {
+      ficaram += 1;
+      continue;
+    }
     try {
       await enviarUma(item);
       enviadas += 1;
-    } catch {
+    } catch (erro) {
       ficaram += 1;
+      const falha = classificarFalhaDeEnvio(erro);
+      if (falha !== 'rede' && falha !== 'sessao') {
+        // Relê: as fotos podem ter subido nesta tentativa (`_fotos_enviadas`).
+        const atual = (await getPendingTarefas().catch(() => [])).find((t) => t._offlineId === item._offlineId) ?? item;
+        await putPendingTarefa({
+          ...atual,
+          _tentativas: Number(atual._tentativas ?? 0) + 1,
+          _ultimo_erro: { mensagem: String(/** @type {any} */ (erro)?.message || 'Não foi possível enviar.').slice(0, 300), em: new Date().toISOString() },
+        }).catch(() => undefined);
+      }
     }
   }
   if (enviadas > 0 && typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('atualizar-mapa'));
   }
   return { enviadas, ficaram };
+};
+
+/**
+ * D-PROD-328 — as tarefas do armazenamento antigo, para a fila única da janela "Sincronização".
+ * @returns {Promise<Array<{ chave: string|number, titulo: string, operacao: 'create'|'update', criado_em: string|null,
+ *   situacao: 'aguardando'|'atencao', tentativas: number, motivo: string|null, ultimaTentativaEm: string|null,
+ *   fotos: number, dados: Record<string, unknown> }>>}
+ */
+export const listarTarefasGuardadasNoAparelho = async () => {
+  let itens = [];
+  try {
+    itens = await getPendingTarefas();
+  } catch {
+    return [];
+  }
+  const lista = [];
+  for (const item of itens) {
+    const tentativas = Number(item._tentativas ?? 0);
+    const fotos = Array.isArray(item._fotos_enviadas) ? item._fotos_enviadas.length : (await getTarefaImagesOffline(item._offlineId).catch(() => [])).length;
+    lista.push({
+      chave: item._offlineId,
+      titulo: String(item.titulo || 'Tarefa'),
+      operacao: /** @type {'create'|'update'} */ (item._action === 'update' ? 'update' : 'create'),
+      criado_em: item._offlineTimestamp ?? null,
+      situacao: /** @type {'aguardando'|'atencao'} */ (tentativas >= TENTATIVAS_DA_TAREFA_GUARDADA || (item._action === 'update' && !item.id) ? 'atencao' : 'aguardando'),
+      tentativas,
+      motivo: item._action === 'update' && !item.id ? 'Não dá para saber qual tarefa esta alteração muda.' : (item._ultimo_erro?.mensagem ?? null),
+      ultimaTentativaEm: item._ultimo_erro?.em ?? null,
+      fotos,
+      dados: semControle(item),
+    });
+  }
+  return lista;
+};
+
+/** D-PROD-328 — "Tentar de novo": zera as falhas e envia já. @param {string|number} chave */
+export const tentarDeNovoTarefaGuardada = async (chave) => {
+  const item = (await getPendingTarefas().catch(() => [])).find((t) => t._offlineId === chave);
+  if (!item) return false;
+  await putPendingTarefa({ ...item, _tentativas: 0 });
+  await enviarTarefasGuardadasNoAparelho();
+  return true;
+};
+
+/** D-PROD-328 — "Excluir": a tarefa (e as fotos dela) saem do aparelho sem ir ao sistema. @param {string|number} chave */
+export const excluirTarefaGuardadaNoAparelho = async (chave) => {
+  for (const img of await getTarefaImagesOffline(chave).catch(() => [])) await deleteTarefaImageOffline(img._imgId);
+  await deletePendingTarefa(chave);
+  return true;
 };
 
 registrarPassadaExtra(enviarTarefasGuardadasNoAparelho);

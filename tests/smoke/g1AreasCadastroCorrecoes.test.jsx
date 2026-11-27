@@ -9,6 +9,7 @@
  *  - no registro do cadastro, Cancelar desfaz o digitado e o cabeçalho mostra o nome salvo.
  */
 import React from "react";
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeAll, afterEach, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup, act, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -280,7 +281,7 @@ describe("Registro do Cadastro de Áreas (TelaCadastroMapa)", () => {
     const { default: MapaCadastro } = await import("@/pages/MapaCadastro");
     render(
       <QueryClientProvider client={novoQc()}>
-        <MapaCadastro />
+        <MemoryRouter><MapaCadastro /></MemoryRouter>
       </QueryClientProvider>,
     );
     await screen.findByText("PASTO 1");

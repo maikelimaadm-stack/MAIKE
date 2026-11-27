@@ -2461,6 +2461,394 @@
   }
 }
 
+/* ─── Diário das atividades (D-PROD-332): cartão com a linha de apoio, título com subtítulo, a abertura e o cabeçalho ─── */
+.b1-realizacao__cartao .cartao-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #73726c;
+  line-height: 1.2;
+}
+.b1-realizacao__cartao[aria-pressed="true"] .cartao-sub {
+  color: #15803d;
+}
+.b1-realizacao__titulo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.b1-realizacao__titulo-sub {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #73726c;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.b1-realizacao .mdl-h > .b1-realizacao__voltar {
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+.b1-realizacao .b1-aberto-topo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f3fdf6;
+  border: 1px solid #c9f2d4;
+}
+.b1-aberto-topo__l1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #141413;
+}
+.b1-aberto-chip {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: #15803d;
+  background: #fff;
+  border: 1px solid #c9f2d4;
+  border-radius: 99px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+.b1-aberto-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px 12px;
+  font-size: 13px;
+  color: #141413;
+  min-width: 0;
+}
+.b1-aberto-grid > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.b1-aberto-grid__rotulo {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  color: #73726c;
+}
+.b1-aberto-horimetro {
+  font-size: 13px;
+  font-weight: 600;
+  color: #141413;
+  background: #fff;
+  border: 1px solid #e4f5e9;
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+.b1-aberto-breve {
+  margin: 8px 2px 0;
+  font-size: 13px;
+  color: #73726c;
+}
+@media (max-width: 767px) {
+  .b1-realizacao__cartao .cartao-sub {
+    font-size: 12px;
+  }
+  .b1-realizacao__cartao:has(.cartao-sub) {
+    min-height: 102px;
+  }
+  .b1-aberto-topo__l1 {
+    font-size: 17px;
+  }
+  .b1-aberto-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    font-size: 14.5px;
+  }
+  .b1-aberto-horimetro {
+    font-size: 14.5px;
+  }
+  .b1-aberto-breve {
+    font-size: 15px;
+  }
+}
+/* D-PROD-332 (emenda, tela 05) — o serviço aberto: as 7 opções em duas colunas (a última ocupa a linha), "Lançado hoje"
+   e o painel "Em breve". Celular é o padrão; no desktop, o título e a linha de apoio ficam menores e aparece a seta. */
+.b1-aberto-opcoes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.b1-aberto-opcoes > div {
+  min-width: 0;
+}
+.b1-aberto-opcao--inteira {
+  grid-column: 1 / -1;
+}
+.b1-aberto-opcao {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  min-height: 64px;
+  padding: 10px 8px 10px 10px;
+  border: 1px solid #e7e5df;
+  border-radius: 12px;
+  background: #fff;
+  color: #141413;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+.b1-aberto-opcao:hover {
+  border-color: #40de63;
+  background: rgba(64, 222, 99, 0.06);
+}
+.b1-aberto-opcao:focus-visible {
+  outline: 2px solid #15803d;
+  outline-offset: 2px;
+}
+.b1-aberto-opcao__icone {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: rgba(64, 222, 99, 0.14);
+  color: #15803d;
+}
+.b1-aberto-opcao__texto {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.b1-aberto-opcao__titulo {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.b1-aberto-opcao__sub {
+  font-size: 12.5px;
+  color: #73726c;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.b1-aberto-opcao__seta {
+  display: none;
+  flex-shrink: 0;
+  color: #73726c;
+}
+.b1-aberto-secao {
+  margin: 14px 2px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e7e5df;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #73726c;
+}
+.b1-aberto-lancados {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.b1-aberto-lancado {
+  display: grid;
+  grid-template-columns: 44px 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 2px;
+  border-bottom: 1px solid #efeee9;
+  font-size: 14px;
+  color: #141413;
+}
+.b1-aberto-lancado__hora {
+  font-size: 13px;
+  color: #73726c;
+  font-variant-numeric: tabular-nums;
+}
+.b1-aberto-lancado__icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(64, 222, 99, 0.14);
+  color: #15803d;
+}
+.b1-aberto-lancado__texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.b1-aberto-lancado__texto > strong {
+  font-weight: 700;
+}
+.b1-aberto-lancado__sub {
+  font-size: 12.5px;
+  color: #73726c;
+  overflow-wrap: anywhere;
+}
+.b1-aberto-lancado__qtd {
+  font-size: 14px;
+  white-space: nowrap;
+}
+.b1-aberto-vazio {
+  margin: 10px 2px 0;
+  font-size: 13px;
+  color: #73726c;
+}
+.b1-aberto-painel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid #e7e5df;
+  border-radius: 12px;
+  background: #fff;
+}
+.b1-aberto-painel__titulo {
+  font-size: 16px;
+  font-weight: 700;
+  color: #141413;
+}
+.b1-aberto-painel .b1-aberto-breve {
+  margin: 0;
+}
+/* A ação única do rodapé do serviço aberto ("Encerrar serviço" / "Voltar ao serviço"): à direita no desktop, como na maquete. */
+.b1-aberto-rodape-unico {
+  margin-left: auto;
+}
+@media (min-width: 768px) {
+  .b1-aberto-opcao {
+    align-items: center;
+  }
+  .b1-aberto-opcao__titulo {
+    font-size: 13.5px;
+  }
+  .b1-aberto-opcao__sub {
+    font-size: 12px;
+  }
+  .b1-aberto-opcao__seta {
+    display: block;
+  }
+}
+/* D-PROD-332 — o valor escolhido na abertura (Trator 12, João Pereira) aparece como foi cadastrado, sem caixa alta. */
+.b1-aberto-janela .b1-form-embutido .mg-field :is(button, select, input, [role="combobox"]) {
+  text-transform: none;
+}
+/* D-PROD-332 — no celular a abertura é "do operador" (maquete v4): rodapé com os botões lado a lado, campos e letras
+   maiores. Só nesta janela (`b1-aberto-janela`); as outras janelas Base1 não mudam. */
+@media (max-width: 767px) {
+  .cadastro-b1 .b1-aberto-janela .b1-janela__rodape {
+    gap: 6px;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  }
+  .cadastro-b1 .b1-aberto-janela .b1-janela__rodape .tb-btn {
+    flex: 1 1 0;
+    height: 50px;
+    padding: 0 8px;
+    font-size: 16px;
+    font-weight: 600;
+    justify-content: center;
+  }
+  .b1-aberto-janela .b1-form-embutido {
+    --mg-field-h: 58px;
+  }
+  .b1-aberto-janela .b1-form-embutido .mg-field input,
+  .b1-aberto-janela .b1-form-embutido .mg-field button {
+    font-size: 18px;
+  }
+}
+
+/* D-PROD-334 — a "Carga de insumo" (maquete 06), na janela do serviço aberto. Os seletores NÃO levam `.b1-realizacao` nem
+   `--mg-field-h` (o teste de campo conta essa variável); a altura da caixa da unidade é fixa. */
+.b1-aberto-janela .b1-carga-cab {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f3fdf6;
+  border: 1px solid #c9f2d4;
+}
+.b1-aberto-janela .b1-carga-cab strong {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1c1b18;
+}
+.b1-aberto-janela .b1-carga-cab span {
+  font-size: 12.5px;
+  color: #73726c;
+}
+.b1-aberto-janela .b1-carga-modo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.b1-aberto-janela .b1-carga-modo button {
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid #e7e5df;
+  background: #fff;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #1c1b18;
+  cursor: pointer;
+}
+.b1-aberto-janela .b1-carga-modo button.on {
+  border-color: #16a34a;
+  background: #f3fdf6;
+  color: #15803d;
+}
+.b1-aberto-janela .b1-carga-nota {
+  margin: 0;
+  font-size: 12.5px;
+  color: #73726c;
+}
+.b1-aberto-janela .b1-carga-qtd {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+.b1-aberto-janela .b1-carga-un {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: #16a34a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+@media (max-width: 767px) {
+  .b1-aberto-janela .b1-carga-cab strong {
+    font-size: 18px;
+  }
+  .b1-aberto-janela .b1-carga-modo button {
+    height: 46px;
+    font-size: 15.5px;
+  }
+  .b1-aberto-janela .b1-carga-nota {
+    font-size: 13.5px;
+  }
+  .b1-aberto-janela .b1-carga-un {
+    font-size: 14px;
+  }
+}
+
 .cadastro-b1 .b1-tipo-cab {
   display: flex;
   flex-direction: column;

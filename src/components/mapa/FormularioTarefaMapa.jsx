@@ -19,6 +19,8 @@ import VisualizadorDeFotos from "@/components/tarefas/VisualizadorDeFotos";
 import { ROTULO_FOTO_GUARDADA } from "@/components/tarefas/FotosTarefaGaleria";
 import useFotosGuardadasDaTarefa from "@/hooks/useFotosGuardadasDaTarefa";
 import { excluirFotoGuardada } from "@/services/fotosDeTarefaAguardandoService";
+import { reduzirFoto } from "@/lib/imagens/reduzirFoto";
+import { avisoDeFotosDemais, conferirFotoEscolhida, fotosCabemNaTarefa } from "@/lib/imagens/fotosDaTarefa";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
@@ -130,6 +132,10 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
   const [pendingImageFiles, setPendingImageFiles] = useState([]); // File[] aguardando upload
   const [previewUrls, setPreviewUrls] = useState([]); // URLs de preview local
+  // D-PROD-338: as miniaturas das fotos novas são liberadas ao sair do formulário (antes ficavam na memória).
+  const previewUrlsRef = useRef(previewUrls);
+  previewUrlsRef.current = previewUrls;
+  useEffect(() => () => previewUrlsRef.current.forEach((u) => URL.revokeObjectURL(u)), []);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -141,13 +147,33 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     return () => { window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
   }, []);
 
-  const handleImageSelect = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    setPendingImageFiles((prev) => [...prev, ...files]);
-    const urls = files.map((f) => URL.createObjectURL(f));
-    setPreviewUrls((prev) => [...prev, ...urls]);
+  /**
+   * D-PROD-338: a foto é conferida e reduzida NA HORA da escolha. O formato que o sistema não aceita (HEIC) e a foto
+   * que não cabe na tarefa avisam já, em vez de a tarefa dar erro ao salvar (ou a foto ficar "precisa de atenção"
+   * para sempre sem internet). Reduzida aqui, a foto guardada no celular sem internet também fica pequena.
+   */
+  const handleImageSelect = async (e) => {
+    const escolhidas = Array.from(e.target.files || []);
     e.target.value = '';
+    if (!escolhidas.length) return;
+    const aceitas = [];
+    for (const arquivo of escolhidas) {
+      const conferida = conferirFotoEscolhida(arquivo);
+      if (conferida.ok === false) {
+        toast.error(conferida.motivo);
+        continue;
+      }
+      const reduzida = await reduzirFoto(conferida.arquivo);
+      const cabe = fotosCabemNaTarefa({ salvas: formData.fotos || [], guardadas: fotosGuardadas, novas: [...pendingImageFiles, ...aceitas, reduzida] });
+      if (!cabe.cabe) {
+        toast.error(avisoDeFotosDemais(cabe.total));
+        break;
+      }
+      aceitas.push(reduzida);
+    }
+    if (!aceitas.length) return;
+    setPendingImageFiles((prev) => [...prev, ...aceitas]);
+    setPreviewUrls((prev) => [...prev, ...aceitas.map((f) => URL.createObjectURL(f))]);
   };
 
   const removeNewImage = (index) => {
@@ -325,6 +351,12 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     e.preventDefault();
     if (isSubmitting) return;
     if (!validateForm()) return;
+    // D-PROD-338: a conta final (as fotos da tarefa podem ter mudado desde a escolha).
+    const cabe = fotosCabemNaTarefa({ salvas: formData.fotos || [], guardadas: fotosGuardadas, novas: pendingImageFiles });
+    if (!cabe.cabe) {
+      toast.error(avisoDeFotosDemais(cabe.total));
+      return;
+    }
 
     setIsSubmitting(true);
     try {

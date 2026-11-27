@@ -6,10 +6,10 @@ import { EVENTO_FOTOS_DE_TAREFA, listarFotosGuardadasDaTarefa } from '@/services
  * um endereço local (`blob:`) para a miniatura e a tela cheia. Relê quando uma foto é guardada, enviada ou excluída
  * e libera os endereços antigos.
  * @param {string | null | undefined} tarefaId
- * @returns {Array<{ chave: number|string, url: string, nome: string }>}
+ * @returns {Array<{ chave: number|string, url: string, nome: string, tamanho: number }>}
  */
 export default function useFotosGuardadasDaTarefa(tarefaId) {
-  const [fotos, setFotos] = useState(/** @type {Array<{ chave: number|string, url: string, nome: string }>} */ ([]));
+  const [fotos, setFotos] = useState(/** @type {Array<{ chave: number|string, url: string, nome: string, tamanho: number }>} */ ([]));
 
   useEffect(() => {
     let vivo = true;
@@ -36,7 +36,8 @@ export default function useFotosGuardadasDaTarefa(tarefaId) {
       const prontas = lidas.map((f) => {
         const url = typeof URL.createObjectURL === 'function' ? URL.createObjectURL(new Blob([f.conteudo], { type: f.tipo })) : '';
         if (url) enderecos.push(url);
-        return { chave: f.chave, url, nome: f.nome };
+        // D-PROD-338: o tamanho entra na conta do que cabe na tarefa.
+        return { chave: f.chave, url, nome: f.nome, tamanho: Number(f.conteudo?.byteLength ?? 0) };
       });
       setFotos(prontas);
     };

@@ -20,9 +20,10 @@ import {
   syncOfflineEntityQueue,
   contarPendenciasDaFilaDeEntidades,
   idsComCriacaoPendenteNaFilaDeEntidades,
+  temEntidadeSemPortaNaFila,
 } from '@/lib/offline/offlineEntityRuntime';
 import { naVezDaSincronia } from './vezDaSincronia.js';
-import { sincronizar, resumoDaFila, definirEsperaDeFora, EVENTO_FILA_DE_ENVIO } from './motorDeSincronizacao.js';
+import { sincronizar, resumoDaFila, definirEsperaDeFora, EVENTO_FILA_DE_ENVIO, temTipoSemRegistroNaFila, liberarEsperaDeRede } from './motorDeSincronizacao.js';
 
 // D-PROD-308: registro do motor que cita um cadastro criado no aparelho (cocho, lote) ainda
 // na fila antiga espera essa criação chegar ao servidor — senão iria antes e seria recusado.
@@ -50,17 +51,49 @@ let iniciado = false;
 /** @type {Promise<void>|null} */
 let emCurso = null;
 
+/**
+ * D-PROD-335 — quem sabe enviar cada registro precisa estar carregado ANTES da passada. Os tipos de envio do
+ * cocho (lançamento, cancelamento) e do depósito (transferência e cancelamento) e as portas de cadastros como
+ * Marca, Unidade, Categoria e Tipo de atividade só se registram quando o módulo deles carrega (as telas carregam
+ * sob demanda, D-PROD-304). Depois de o Android fechar o app, nada disso estava carregado: a passada deixava os
+ * lançamentos do cocho parados (e os cadastros travavam a fila antiga) até alguém abrir a tela de um lote.
+ * Só carrega quando a fila tem algo que ninguém sabe enviar (o app continua leve na abertura).
+ */
+const carregarQuemEnvia = () =>
+  Promise.all([
+    import('@/services/suplementacaoService'),
+    import('@/services/suplementacaoEstoqueService'),
+    import('@/services/suplementacaoCancelamentoService'),
+    import('@/apis/offline').then((m) => m.carregarTodasAsPortas()),
+  ]).then(() => undefined);
+
+export const prepararTiposDeEnvio = async () => {
+  try {
+    const [faltaTipo, faltaPorta] = await Promise.all([temTipoSemRegistroNaFila(), temEntidadeSemPortaNaFila()]);
+    if (faltaTipo || faltaPorta) await carregarQuemEnvia();
+  } catch {
+    // sem carregar, o item fica na fila (como antes) e a próxima passada tenta de novo
+  }
+};
+
 const estaOnline = () => (typeof navigator === 'undefined' ? true : navigator.onLine !== false);
 
 /**
  * Uma passada pelas duas filas. Pedidos durante a passada recebem a mesma.
  * Nunca lança: falha de envio fica registrada no próprio item.
  */
-export const sincronizarTudo = () => {
+/**
+ * @param {{ jaEmVoltaDaRede?: boolean }} [opcoes] `jaEmVoltaDaRede`: a internet voltou, o app voltou à tela ou a pessoa
+ *   pediu "Enviar agora" — o que esperava por falta de rede tenta já (D-PROD-337).
+ */
+export const sincronizarTudo = (opcoes = {}) => {
+  if (opcoes.jaEmVoltaDaRede) void liberarEsperaDeRede().catch(() => 0);
   if (!emCurso) {
     // D-PROD-307: na vez — nunca junto com uma baixa de dados (`vezDaSincronia`).
     emCurso = naVezDaSincronia(async () => {
       if (!estaOnline()) return;
+      if (opcoes.jaEmVoltaDaRede) await liberarEsperaDeRede().catch(() => 0);
+      await prepararTiposDeEnvio();
       let segurados = 0;
       try {
         segurados = (await sincronizar())?.seguradosPorFora ?? 0;
@@ -68,7 +101,15 @@ export const sincronizarTudo = () => {
         // o item guarda o motivo; a próxima passada tenta de novo
       }
       try {
-        if ((await contarPendenciasDaFilaDeEntidades()) > 0) await syncOfflineEntityQueue();
+        const antes = await contarPendenciasDaFilaDeEntidades();
+        if (antes > 0) {
+          await syncOfflineEntityQueue();
+          // D-PROD-337: cadastros (tarefas, pontos, áreas…) feitos sem internet chegaram ao servidor: o mapa relê e
+          // tira a marca "aguardando envio" (antes ela ficava até a pessoa atualizar o mapa).
+          if ((await contarPendenciasDaFilaDeEntidades()) < antes && typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+          }
+        }
       } catch {
         // idem
       }
@@ -118,19 +159,20 @@ export const iniciarSincronizacaoAutomatica = () => {
     }
   });
   window.addEventListener('online', () => {
-    setTimeout(() => void sincronizarTudo(), 1000);
+    setTimeout(() => void sincronizarTudo({ jaEmVoltaDaRede: true }), 1000);
   });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') void sincronizarTudo();
+    if (document.visibilityState === 'visible') void sincronizarTudo({ jaEmVoltaDaRede: true });
   });
   if (isAppNativo()) {
     App.addListener('resume', () => {
-      void sincronizarTudo();
+      void sincronizarTudo({ jaEmVoltaDaRede: true });
     }).catch(() => {});
   }
   setInterval(async () => {
     if (estaOnline() && (await temAlgoEsperando())) void sincronizarTudo();
   }, INTERVALO_MS);
 
-  setTimeout(() => void sincronizarTudo(), 3000);
+  // Abriu o app: o que esperava por falta de rede tenta já (D-PROD-337).
+  setTimeout(() => void sincronizarTudo({ jaEmVoltaDaRede: true }), 3000);
 };
