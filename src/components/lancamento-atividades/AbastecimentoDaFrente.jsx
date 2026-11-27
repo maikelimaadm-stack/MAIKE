@@ -182,7 +182,7 @@ export default function AbastecimentoDaFrente({
   const trocarOrigem = (origem) => {
     if (ocupado) return;
     if (origem === ORIGEM_EXTERNO) mudar({ origem: ORIGEM_EXTERNO, local_estoque_id: null }, ["local_estoque_id"]);
-    else mudar({ origem: ORIGEM_ESTOQUE, custo_total: "" }, ["custo_total"]);
+    else mudar({ origem: ORIGEM_ESTOQUE, custo_total: "", referencia_externa: "" }, ["custo_total", "referencia_externa"]);
   };
 
   /** "Salvar abastecimento": valida, cria/acha o registro do dia, pede a prévia e confirma direto (sem bloqueio). */
