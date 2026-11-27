@@ -72,6 +72,8 @@ const DetalhesBebedouro = componenteSobDemanda(() => import("../components/bebed
 const TarefasMapaPanel = componenteSobDemanda(() => import("../components/mapa/TarefasMapaPanel"));
 const DetalhesTarefaMapa = componenteSobDemanda(() => import("../components/mapa/DetalhesTarefaMapa"));
 const MapaInsights = componenteSobDemanda(() => import("../components/mapa/MapaInsights"));
+/** Linhas escondidas no mapa do Google (D-PROD-375): a mesma lista vazia a cada render, sem refazer as linhas. */
+const SEM_LINHAS = Object.freeze([]);
 
 
 /**
@@ -1225,10 +1227,15 @@ export default function MapaGeral({ ativo = true } = {}) {
   // permissão ter caído (D-PROD-137, PREF-04/PREF-07).
   // D-PROD-302: GPS de alta precisão, sempre atualizado com a camada ligada: o PONTO
   // anda junto com a pessoa; o mapa fica onde ela deixou ("Localizar" centraliza uma vez).
+  // D-PROD-375: no mapa do Google, o GPS liga com ele aberto e o "Localizar" centraliza nele (zoom 18 do MapLibre).
+  const centrarNoGoogleRef = useRef(/** @type {null | ((p: any) => void)} */ (null));
+  centrarNoGoogleRef.current = mapaGoogle && typeof mapaGoogleWeb?.centrar === 'function' ? (p) => mapaGoogleWeb.centrar(p.lat, p.lng, 18) : null;
+  const mapaProntoParaLocalizar = mapaGoogle ? Boolean(mapaGoogleWeb) : mapReady;
   const localizacao = useLocalizacaoNoMapa({
     mapInstanceRef,
-    ativo: ativo && mapReady && mapaGeralPermissions.visualizar_localizacao === true && showUserLocation,
+    ativo: ativo && mapaProntoParaLocalizar && mapaGeralPermissions.visualizar_localizacao === true && showUserLocation,
     aoErro: (mensagem) => toast.error(mensagem),
+    centrarEm: centrarNoGoogleRef,
   });
   // Posição do aparelho não pertence a escopo nenhum.
   useEffect(() => {
@@ -1254,6 +1261,11 @@ export default function MapaGeral({ ativo = true } = {}) {
     });
     return () => window.cancelAnimationFrame(id);
   }, [ativo, mapReady]);
+
+  // D-PROD-375: o toque na linha do mapa do Google mostra o nome e o tipo (no MapLibre, um balão no ponto)
+  const mostrarLinhaNoGoogle = useCallback((linha) => {
+    toast(linha?.nome || 'Linha', linha?.tipo ? { description: linha.tipo } : undefined);
+  }, []);
 
   const handleLocate = useCallback(() => {
     if (!podeLocalizarRef.current || !navigator.geolocation) return;
@@ -1585,7 +1597,10 @@ export default function MapaGeral({ ativo = true } = {}) {
           ativo={ativo}
           onClickArea={handleClickArea}
           onFalha={falhaDoMapaGoogle}
-          onMapa={setMapaGoogleWeb} /> :
+          onMapa={setMapaGoogleWeb}
+          linhas={mapaGeralPermissions.visualizar_linhas && showLinhas ? linhas : SEM_LINHAS}
+          onClickLinha={mostrarLinhaNoGoogle}
+          localizacao={mapaGeralPermissions.visualizar_localizacao && showUserLocation ? userLocation : null} /> :
         <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: 'var(--mk-sup-fundo)', touchAction: 'none', isolation: 'isolate', visibility: aguardandoEnquadrar ? 'hidden' : 'visible' }} />
         }
 

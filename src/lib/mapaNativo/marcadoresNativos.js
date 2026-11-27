@@ -115,7 +115,8 @@ export function criarMarcadoresNativos(mapa) {
       iconUrl: img.url,
       iconSize: { width: img.w, height: img.h },
       iconAnchor: { x: img.w / 2, y: img.h / 2 },
-      zIndex: m.semToque ? Z_NOME_NATIVO : m.z ?? 0,
+      // o nome por baixo dos ícones; quem pede outra ordem no app (o ponto azul) usa `zNativo`
+      zIndex: m.zNativo ?? (m.semToque ? Z_NOME_NATIVO : m.z ?? 0),
     };
   };
 
