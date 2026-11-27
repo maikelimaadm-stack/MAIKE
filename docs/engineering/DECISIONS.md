@@ -10875,4 +10875,20 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-363 (362 é a etapa 2, PR #450). O marcador passa a D-PROD-364. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-364 -->
+## D-PROD-364 — Cadastrar no mapa como no AgriWebb, etapa 4: régua para medir distância e área sem gravar
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário (o mapa como no AgriWebb) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`MAPA-CADASTRO-ETAPA4-D364-REPORT.md`](./MAPA-CADASTRO-ETAPA4-D364-REPORT.md)
+
+**Decisão.**
+1. **Botão "Medir no mapa"** (régua) na coluna da direita do Mapa Geral, em qualquer aba e sem permissão especial, porque só mede e não grava. Ele abre o editor do mapa no modo `soMedir`, carregado só quando a pessoa toca (`React.lazy`), para o Mapa Geral continuar leve.
+2. **Modo `soMedir` do editor** (`MapaDesenho`).
+   - Escolha **Distância · Área**.
+   - Mede ao vivo: o comprimento na distância; a área e o perímetro na área, já com ela aberta.
+   - Usa as mesmas ferramentas do cadastro: toque, mira (D-PROD-362), ímã, Editar e Mover.
+   - Sem Terminar/Salvar e sem formulário. Na área, só "Fechar área" para ajustar a forma fechada.
+   - Fechar a régua nunca pergunta, porque não há nada a perder. Fora da régua, o editor continua perguntando ao sair com desenho.
+3. **Sem internet:** funciona igual, porque só usa o mapa e o GPS do aparelho.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-364 (362 etapa 2, PR #450; 363 etapa 3, ainda local). O marcador passa a D-PROD-365. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-365 -->
