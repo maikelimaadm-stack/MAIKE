@@ -14,8 +14,8 @@ Este documento é um índice dos arquivos reais do sistema. As tabelas indicam *
 | Tamanho dos bois no mapa | `src/assets/icones/lotes/quadradinho.js` → `LARGURA_MARCADOR_PX` (44) |
 | Tamanho dos cochos, depósitos e tarefas no mapa | `src/components/mapa/useMapRenderer.jsx` → `baseSize` nas funções `syncPontosSuplementacao`, `syncTarefas` |
 | Número de cabeças: tamanho da letra | `src/lib/maplibre/contagemLote.js` → `FONTE_CONTAGEM_PX` |
-| Número de cabeças: posição e cor | Altura: centro da faixa reservada à contagem, `CONTAGEM_TOPO_PCT` (`src/assets/icones/lotes/index.js`, calculado de `CARD_FRAC` e `FAIXA_CONTAGEM`). Cor e centro na horizontal: o `badge` em `syncLotes` (`left:50%`, `color:#6b7280`) |
-| Avisos dos bois no canto superior direito | `useMapRenderer.jsx` → `ind.style.cssText` em `syncLotes` |
+| Número de cabeças: posição e cor | Altura: centro da faixa reservada à contagem, `CONTAGEM_TOPO_PCT` (`src/assets/icones/lotes/index.js`, calculado de `CARD_FRAC` e `FAIXA_CONTAGEM`). Cor (`#6b7280`), halo e centro na horizontal: `desenharImagemLote` em `src/lib/maplibre/lotesNoMapa.js` (a contagem é escrita na imagem do lote, D-PROD-348) |
+| Avisos dos bois no canto superior direito | `src/lib/maplibre/lotesNoMapa.js` → `desenharImagemIdent`, `DIAMETRO_IDENT_PX`, `DESLOC_IDENT_PX`; piscar: `PISCAR_MS`, `OPACIDADE_PISCAR` |
 | Nomes dos pastos e hectares: tamanho | `src/lib/maplibre/mapaGeralRender.js` → `fontesRotuloPorZoom` |
 | Nomes dos pastos: aparência e posição | `useMapRenderer.jsx` → `syncLabels` e atualização dos rótulos |
 | Cores e linhas das áreas/cercas | `src/lib/maplibre/estiloAreas.js` e funções `paint*` em `mapaGeralRender.js` |
@@ -81,17 +81,17 @@ As imagens publicadas são assets com URLs versionadas. Para trocar a imagem ofi
 
 ## 3. Tamanhos e posições dos marcadores
 
-Arquivo: `src/components/mapa/useMapRenderer.jsx`.
+Arquivo: `src/components/mapa/useMapRenderer.jsx`; os lotes (desenhados pelo próprio mapa desde a D-PROD-348), em `src/lib/maplibre/lotesNoMapa.js`.
 
 | Elemento | Referência no código |
 | --- | --- |
-| Gado/lotes | `LARGURA_MARCADOR_PX` (44), em `src/assets/icones/lotes/quadradinho.js`, usado por `syncLotes` |
+| Gado/lotes | `LARGURA_MARCADOR_PX` (44), em `src/assets/icones/lotes/quadradinho.js`, usado por `desenharImagemLote` (`lotesNoMapa.js`) |
 | Cochos e depósitos | `baseSize` de 36, em `syncPontosSuplementacao` |
 | Pontos de referência | `baseSize: 40`, em `syncPontos` |
 | Tarefas | `baseSize: 40`, em `syncTarefas`; selo DOM de 22 px independente do desenho |
-| Deslocamento do gado em relação ao ponto | `OFFSET_LOTE_PX = [0, -26]` |
-| Contagem dentro do ícone do gado | `left:50%`, `top: CONTAGEM_TOPO_PCT%` (centro da faixa reservada, ≈ 73,46%), com `translate(-50%,-50%)` |
-| Avisos no alto à direita do gado | `left:calc(50% + 22px)`, `top:calc(50% - 24px)` |
+| Deslocamento do gado em relação ao ponto | `OFFSET_LOTE_PX = [0, -26]`; com o nome do pasto embaixo, `OFFSET_LOTE_COM_NOME_PX = [0, -14]` (`lotesNoMapa.js`, `icon-offset` da camada `mg-lotes`) |
+| Contagem dentro do ícone do gado | no meio da largura, a `CONTAGEM_TOPO_PCT` da altura (centro da faixa reservada, ≈ 73,46%), escrita no canvas em `desenharImagemLote` |
+| Avisos no alto à direita do gado | `DESLOC_IDENT_PX = [22, -24]` a partir do centro do ícone (camada `mg-lotes-ident`) |
 | Selo neutro/excesso de suplementação | Função `aplicarTextoESeloSuplementacao` e seu `style.cssText` |
 
 Altere o tamanho tanto na criação quanto na atualização do marcador quando houver duas chamadas. A função `iconeSemAchatar` em `mapaGeralRender.js` preserva a proporção: `baseSize` é o tamanho de referência, não uma ordem para esticar a imagem em um quadrado.
@@ -107,7 +107,7 @@ O gado tem moldura própria: o "quadradinho" branco com ponteira, em `src/assets
 ## 4. Letras, nomes e números
 
 - Cabeças: `FONTE_CONTAGEM_PX = 9.5` em `src/lib/maplibre/contagemLote.js`. A formatação dos milhares também está nesse arquivo.
-- Cor, peso, família e sombra da contagem: `badge.style.cssText` em `syncLotes`.
+- Cor, peso, família e halo da contagem: `desenharImagemLote` em `src/lib/maplibre/lotesNoMapa.js` (não há `text-field` do mapa: o estilo sem internet não tem fonte de letras).
 - Tamanho de nomes/hectares por zoom: `fontesRotuloPorZoom` em `mapaGeralRender.js`. O código interpola o tamanho conforme o zoom; os hectares ficam menores.
 - Cor, sombra e família dos rótulos de áreas: criação dos elementos em `useMapRenderer.jsx`.
 - Organização/escala dos rótulos: `escalaRotulo` e regras de espaço disponível em `mapaGeralRender.js`/`useMapRenderer.jsx`.

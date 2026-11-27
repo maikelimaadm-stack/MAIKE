@@ -10528,4 +10528,33 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - durante o zoom, a revisão mexe só nos pastos que estão na tela (com folga de ¼); o `moveend` revê todos, como antes.
 - **Resultado (200 pastos, CPU 4×):** zoom de 2,5 → 8,5 quadros/s; layout no gesto de 36 s → 0,05 s; quadro mais lento de 1,2 s → 0,22 s. Arrastar sem mudança (≈ 9 quadros/s): o custo que resta são os ~400 marcadores HTML reposicionados a cada quadro — próximas etapas (pontos e lotes desenhados pelo próprio mapa).
 
-<!-- Próxima decisão: D-PROD-348 -->
+## D-PROD-348 — Mapa leve, etapa 2: lotes desenhados pelo próprio mapa
+
+**Data:** 2026-11-27 · **Origem:** proprietário, continuação da D-PROD-347: "sempre tentando ao máximo deixar igual o atual" · **Relatório:** [`MAPA-LEVE-D348-REPORT.md`](./MAPA-LEVE-D348-REPORT.md)
+
+> **Numeração:** a branch de base (etapa 1) indicava `Próxima decisão: D-PROD-348`, que é esta. **Atenção:** a `origin/main` já deu a D-PROD-348 ao Diário das atividades (outra sessão) e indica D-PROD-349 (`node scripts/dev/proxima-decisao.mjs`). Antes do merge, esta decisão precisa ser renumerada (regra A5).
+
+- **Problema:** depois da etapa 1, o arrastar continuava pesado. Com 200 pastos, cada quadro reposicionava ~400 marcadores HTML (lotes e nomes) e recalculava o estilo deles.
+- **Decisão:** o ícone do lote deixa de ser marcador HTML e passa a ser desenhado pelo mapa.
+  - Fonte GeoJSON `mg-lotes`, com a camada `symbol` `mg-lotes` (ícone) e, por cima, a `mg-lotes-ident` (identificador). Elas ficam acima das áreas e linhas, nunca somem por colisão e são recriadas com as outras camadas (`ensureMgLayers`).
+  - A imagem é a mesma figura do motor (D-PROD-191) com a contagem escrita dentro, num canvas no `devicePixelRatio`:
+    - mesma posição, cor, letra e halo;
+    - milhar com ponto;
+    - sem `text-field`: o estilo sem internet não tem fonte de letras.
+  - Cache por desenho + contagem: a mesma chave nunca é redesenhada. Na troca de estilo, as imagens voltam pelo `ensureLayers` e pelo `styleimagemissing`.
+  - Posição pelo atributo `comRotulo` da fonte: `[0,-26]` sozinho, `[0,-14]` com o nome embaixo. Para desviar do lote, os nomes usam caixas calculadas (ponto na tela + deslocamento + tamanho), sem medir elemento.
+  - Clique pela camada. O clique na área ou na linha por baixo é ignorado quando há lote no ponto, e o `hitArea` enxerga o lote.
+  - Arrastar pelos eventos da camada: o mapa não desliza, uma cópia HTML aparece só durante o arrasto, e `onDragLotes` recebe os mesmos argumentos de antes. Abaixo de 4 px é clique.
+  - Piscar do alerta: `icon-opacity` da camada do identificador, todos juntos.
+- **Fica em HTML nesta etapa:** nomes das áreas, pontos, cochos, tarefas e localização. Por isso o lote agora fica abaixo deles quando se encostam.
+- **Resultado (200 pastos, CPU 4×):**
+  - recálculo de estilo no arrastar: ≈ 9,5 s → ≈ 5 s;
+  - na densidade 1, o arrastar foi de 21 para 33 quadros/s;
+  - na densidade do Pixel 7, ≈ 9 → ≈ 10 quadros/s. Ali o harness é limitado pela pintura do mapa na CPU (SwiftShader), mesmo sem nenhum marcador HTML;
+  - o zoom quase não muda: o custo dele são os nomes.
+- **Riscos:**
+  - medir em celular de verdade;
+  - conferir no app (Android e iOS) que o canvas lê os pixels da figura SVG;
+  - imagens por contagem acumulam na sessão.
+
+<!-- Próxima decisão: D-PROD-349 -->
