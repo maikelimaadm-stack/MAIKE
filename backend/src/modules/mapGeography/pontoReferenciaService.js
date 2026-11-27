@@ -1,4 +1,5 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { consultarMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { exigirVersaoEsperada, separarVersaoEsperada } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
@@ -80,6 +81,16 @@ export const listar = async (contexto) => {
   const auth = exigirAuthContext(contexto?.auth);
   const registros = await listarPontos(auth.clienteId);
   return registros.map(comoPontoPublico);
+};
+
+/**
+ * D-PROD-345 — o que mudou nos pontos de referência desde a última sincronização do aparelho (como o cocho, D-PROD-309).
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{desde?: string, cursor?: string, limite?: number}} query
+ */
+export const mudancas = async (contexto, query) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  return consultarMudancas({ clienteId: auth.clienteId, query, modelo: 'pontoReferencia', entidadeAuditoria: 'PontoReferencia', publico: comoPontoPublico });
 };
 
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {Record<string, unknown>} entrada */

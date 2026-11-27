@@ -4,6 +4,7 @@
  */
 
 import { SCHEMA_VERSAO_ESPERADA } from '../../shared/sincronizacao/versaoDoRegistro.js';
+import { schemaMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import {
   listar as listarIcones,
@@ -12,12 +13,14 @@ import {
 } from './configuracaoIconeService.js';
 import {
   listar as listarPontos,
+  mudancas as mudancasDosPontos,
   criar as criarPonto,
   atualizar as atualizarPonto,
   excluir as excluirPonto,
 } from './pontoReferenciaService.js';
 import {
   listar as listarLinhas,
+  mudancas as mudancasDasLinhas,
   criar as criarLinha,
   atualizar as atualizarLinha,
 } from './linhaGeograficaService.js';
@@ -276,6 +279,12 @@ export const registrarMapGeographyRoutes = async (app) => {
     return listarPontos(request.contexto);
   });
 
+  // D-PROD-345: o que mudou desde a última sincronização (mesma permissão da listagem).
+  app.get('/pontos-referencia/mudancas', { onRequest: [app.autenticar], schema: schemaMudancas() }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    return mudancasDosPontos(request.contexto, /** @type {any} */ (request.query ?? {}));
+  });
+
   app.post(
     '/pontos-referencia',
     { onRequest: [app.autenticar], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'novo')], bodyLimit: LIMITE_CORPO_ICONE, schema: CRIAR_PONTO_SCHEMA },
@@ -310,6 +319,12 @@ export const registrarMapGeographyRoutes = async (app) => {
   app.get('/linhas-geograficas', { onRequest: [app.autenticar] }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     return listarLinhas(request.contexto);
+  });
+
+  // D-PROD-345: o que mudou desde a última sincronização (mesma permissão da listagem).
+  app.get('/linhas-geograficas/mudancas', { onRequest: [app.autenticar], schema: schemaMudancas() }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    return mudancasDasLinhas(request.contexto, /** @type {any} */ (request.query ?? {}));
   });
 
   app.post(

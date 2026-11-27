@@ -11,6 +11,7 @@ import {
   offlineStorageDisponivel,
 } from '@/lib/offline/offlineEntityRuntime';
 import { registrarLeiturasOffline } from '@/lib/offline/leiturasOffline';
+import { ordemPorCriacaoCrescente, registrarListaIncremental } from '@/lib/offline/sincronizacaoIncremental';
 
 const valorDeEnvio = (valor) => {
   if (valor === undefined) return undefined;
@@ -210,3 +211,7 @@ registrarLeiturasOffline([
   '/linhas-geograficas',
   '/pontos-referencia',
 ]);
+
+// D-PROD-345: as listas inteiras (sem filtros) sincronizam só o que mudou desde a última vez.
+registrarListaIncremental('/pontos-referencia', { mudancas: '/pontos-referencia/mudancas', ordem: ordemPorCriacaoCrescente });
+registrarListaIncremental('/linhas-geograficas', { mudancas: '/linhas-geograficas/mudancas', ordem: ordemPorCriacaoCrescente });

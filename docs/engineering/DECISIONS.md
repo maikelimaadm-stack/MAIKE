@@ -10494,4 +10494,25 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** depois da D-PROD-343 (Fase 1). O marcador passa a D-PROD-345. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-345 -->
+## D-PROD-345 — Sincronização, Fase 3: pontos de referência, linhas e tarefas baixam só o que mudou
+
+**Data:** 2026-11-27 · **Origem:** plano de sincronização aprovado pelo proprietário; auditoria da baixa (H1: quase tudo vinha inteiro a cada sincronização) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SINCRONIZACAO-FASE3-D345-REPORT.md`](./SINCRONIZACAO-FASE3-D345-REPORT.md)
+
+**Decisão.**
+1. **`GET /pontos-referencia/mudancas`, `/linhas-geograficas/mudancas` e `/lancamentos-tarefa/mudancas`** seguem o mesmo contrato da D-PROD-309 (`consultarMudancas`):
+   - `desde`, cursor e páginas;
+   - a mesma forma pública da listagem;
+   - as exclusões vêm da auditoria;
+   - a mesma permissão da listagem;
+   - o tenant vem do auth_context.
+   A linha não é excluída: sai com `ativo: false`, que volta como item alterado.
+2. **O app registra as três listas como incrementais**, cada uma com a ordem da listagem do servidor:
+   - pontos e linhas: criação crescente;
+   - tarefas: alteração decrescente.
+   `nativeRequest` junta pelo id com a cópia do aparelho, e quem chama não percebe diferença. Nas tarefas, que trazem as fotos dentro e cresciam a cada baixa, é o ganho maior.
+3. **A área fica de fora de propósito.** A listagem da área traz a ocupação (o gado dentro), que muda com as movimentações sem mudar a área. Uma lista "só o que mudou" mostraria a ocupação velha.
+4. **Índice:** `PontoReferencia` e `LinhaGeografica` não têm `(cliente_id, updatedAt)`, e a consulta usa `(cliente_id, …)` e ordena. Com poucos registros por cliente, a diferença é pequena. Se crescer, uma migration futura cria os dois índices; esta missão não cria. `LancamentoTarefa` já tem o índice.
+
+> **Numeração:** depois da D-PROD-344 (Fase 2). O marcador passa a D-PROD-346. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-346 -->

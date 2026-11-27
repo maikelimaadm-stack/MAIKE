@@ -2,6 +2,7 @@
  * Serviço de LancamentoTarefa e histórico (P5.3, D-PROD-49).
  */
 
+import { consultarMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { exigirVersaoEsperada, pedidoJaAplicado, separarVersaoEsperada } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { exigirLotesNaoExcluidos } from '../../shared/lotes/loteVivo.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -329,6 +330,17 @@ export const listar = async (contexto) => {
   const auth = exigirAuthContext(contexto?.auth);
   const registros = await listarLancamentos(auth.clienteId);
   return registros.map(comoLancamentoPublico);
+};
+
+/**
+ * D-PROD-345 — o que mudou nas tarefas desde a última sincronização do aparelho. A lista inteira traz as fotos dentro
+ * de cada tarefa e crescia a cada baixa; agora vem só o que mudou.
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{desde?: string, cursor?: string, limite?: number}} query
+ */
+export const mudancas = async (contexto, query) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  return consultarMudancas({ clienteId: auth.clienteId, query, modelo: 'lancamentoTarefa', entidadeAuditoria: 'LancamentoTarefa', publico: comoLancamentoPublico });
 };
 
 /**

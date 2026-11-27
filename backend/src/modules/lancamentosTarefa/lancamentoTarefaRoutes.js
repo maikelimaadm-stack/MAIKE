@@ -2,11 +2,13 @@
  * Rotas de LancamentoTarefa e histórico (P5.3, D-PROD-49).
  */
 
+import { schemaMudancas } from '../../shared/sincronizacao/mudancasIncrementais.js';
 import { SCHEMA_VERSAO_ESPERADA } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { SCHEMA_ID_DO_APARELHO } from '../../shared/idempotency/idDoAparelho.js';
 import {
   listar,
+  mudancas,
   criar,
   atualizar,
   excluir,
@@ -153,6 +155,12 @@ export const registrarLancamentoTarefaRoutes = async (app) => {
   app.get('/lancamentos-tarefa', { onRequest: [app.autenticar] }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     return listar(request.contexto);
+  });
+
+  // D-PROD-345: o que mudou desde a última sincronização (mesma permissão da listagem).
+  app.get('/lancamentos-tarefa/mudancas', { onRequest: [app.autenticar], schema: schemaMudancas() }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    return mudancas(request.contexto, /** @type {any} */ (request.query ?? {}));
   });
 
   app.post(
