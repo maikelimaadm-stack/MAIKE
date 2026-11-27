@@ -84,7 +84,8 @@ function criarCamada(g) {
           el.draggable = false;
           // `touch-action: none`: a pinça e o arrasto com o dedo em cima do ícone são do mapa; sem isso o navegador do
           // celular dava zoom na página inteira
-          el.style.cssText = "position:absolute;left:0;top:0;cursor:pointer;touch-action:none;user-select:none;-webkit-user-drag:none;";
+          el.style.cssText = "position:absolute;left:0;top:0;cursor:pointer;user-select:none;-webkit-user-drag:none;";
+          el.style.touchAction = "none";
           el.dataset.marcador = k;
           // A roda do mouse, o arrasto e a pinça em cima do marcador continuam do mapa (como no MapLibre): só o
           // clique é do marcador. O Google não usa o clique do DOM para o polígono: quem decide se o clique no
