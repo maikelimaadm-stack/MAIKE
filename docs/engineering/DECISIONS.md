@@ -10833,4 +10833,28 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-361 (359 na `main`, 360 reservado pela PR #448). O marcador passa a D-PROD-362. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-362 -->
+## D-PROD-362 — Cadastrar no mapa como no AgriWebb, etapa 2: mira no centro, seguir minha posição e seta de direção
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário (cadastrar no mapa como no AgriWebb, "movendo o ponto ou clicando para redirecionar na minha localização") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`MAPA-CADASTRO-ETAPA2-D362-REPORT.md`](./MAPA-CADASTRO-ETAPA2-D362-REPORT.md)
+
+**Decisão.**
+1. **Mira fixa no centro** (botão ⌖ "Mira no centro", na coluna da direita do editor).
+   - A pessoa move o mapa por baixo da mira e toca **"Marcar aqui"**, um botão verde grande acima da barra de baixo.
+   - No dedo é mais preciso que tocar no lugar, porque o dedo cobre o ponto.
+   - O que "Marcar aqui" faz vem de `acaoDaMira` (`src/lib/maplibre/miraDoEditor.js`):
+     - no ponto, marca (ou move) o ponto no centro;
+     - no pasto ou linha em desenho, põe o próximo vértice, com o mesmo ímã e o mesmo fechamento do toque;
+     - com um vértice escolhido (Editar → tocar no ponto), leva esse vértice para a mira ("Levar ponto N para a mira");
+     - pasto fechado sem vértice escolhido: o botão fica cinza, com a dica de como escolher.
+   - Tudo entra no desfazer.
+   - Com a mira ligada, o toque no mapa só move o mapa, para não criar ponto sem querer. As medidas sobem para não cobrir a mira.
+2. **Seguir minha posição** (botão ➤). Cada leitura nova do GPS recentra o mapa, sem mudar o zoom. Com a mira ligada, ela fica em cima de onde a pessoa está, e "Marcar aqui" marca o lugar onde ela pisa. Arrastar o mapa com o dedo para de seguir, como no AgriWebb. O Mapa Geral continua sem seguir: lá o proprietário quer só o ponto andando (D-PROD-302).
+3. **Seta de direção no ponto azul.** A seta mostra para onde o celular aponta (`useRumoDoAparelho`):
+   - vem da bússola, por `deviceorientationabsolute` no Android e `webkitCompassHeading` no iPhone;
+   - andando (≥ 0,7 m/s), o rumo do GPS vale mais (`rumo`/`velocidade` passam a vir em `PosicaoGps`);
+   - sem bússola nem rumo, a seta some.
+4. **Sem internet:** nada muda no caminho de gravar. A mira só escolhe o lugar, e o cadastro segue o mesmo caminho (cópia local + fila com `versao_esperada`).
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-362 (361 é a etapa 1, PR #449). O marcador passa a D-PROD-363. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-363 -->
