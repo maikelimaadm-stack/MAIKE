@@ -1,4 +1,5 @@
 import "@/styles/mapa-cadastro-formularios.css";
+import { versaoVista } from "@/lib/offline/versaoVista";
 import React, { useEffect, useState } from "react";
 import { listarTodasLinhas, criarLinha, atualizarLinha } from "@/services/mapaService";
 import { useMutation } from "@tanstack/react-query";
@@ -62,7 +63,7 @@ export default function FormularioLinha({
         return atualizarLinha(item.id, {
           ...data,
           // D-PROD-344: a versão da linha que a pessoa abriu; o servidor só grava se ela ainda está nela.
-          ...(item.updated_date ? { versao_esperada: item.updated_date } : {}),
+          ...versaoVista(item),
           ...(vertices.length >= 2 ? { comprimento_metros: comprimentoMetros(vertices) } : {}),
           coordenadas: {
             coords: toPersistedCoords(coordenadasGPS || coordenadas || item.coordenadas?.coords),

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { versaoVista } from "@/lib/offline/versaoVista";
 import { listarSetoresAtivos, criarArea, atualizarArea } from "@/services/mapaService";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
@@ -148,7 +149,7 @@ export default function FormularioArea({
         return atualizarArea(item.id, {
           ...data,
           // D-PROD-344: a versão da área que a pessoa abriu; o servidor só grava se ela ainda está nela.
-          ...(item.updated_date ? { versao_esperada: item.updated_date } : {}),
+          ...versaoVista(item),
           coordenadas: {
             coords: toPersistedCoords(coordenadasGPS || coordenadas || item.coordenadas?.coords),
             cor: data.cor,

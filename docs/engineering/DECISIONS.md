@@ -10709,11 +10709,22 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-357 (354 reservado pela PR #443, 355 da PR #442, 356 reservado pela PR #444). O marcador passa a D-PROD-358. Conferir antes do merge (regra A5).
 
+## D-PROD-358 — A tela da tarefa manda a versão que a pessoa viu (sem falso "alterado por outra pessoa")
+
+**Data:** 2026-11-27 · **Origem:** pendência da D-PROD-344 (o servidor já conferia, a tela não mandava), pedida pelo proprietário · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`VERSAO-NA-TAREFA-D358-REPORT.md`](./VERSAO-NA-TAREFA-D358-REPORT.md)
+
+**Decisão.**
+1. **A tela de detalhes da tarefa e a lista de tarefas mandam `versao_esperada`** ao salvar a edição e ao mudar o status. O registro só de histórico não confere, como na D-PROD-344. Antes, duas pessoas editando a mesma tarefa, uma delas sem internet, apagavam a edição uma da outra sem aviso.
+2. **A foto que sobe com a tela aberta atualiza a versão da tela.** O aviso das fotos enviadas (D-PROD-335) passa a levar também o `updated_date` da tarefa. A lista guarda essa versão para o formulário aberto. Era isso que segurava a D-PROD-344: sem esse cuidado, a edição seguinte daria um falso conflito.
+3. **A cópia montada sem internet não manda versão** (`versaoVista`: `_isOffline` → nada). A hora dela é local, e mandá-la daria um falso conflito depois que a fila sobe. A fila sem internet já cuida da ordem (D-PROD-316). A mesma regra passa a valer nos formulários de área, ponto e linha (D-PROD-344).
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-358 (356 reservado pela PR #444, 357 pela PR #445). O marcador passa a D-PROD-359. Conferir antes do merge (regra A5).
+
 ## D-PROD-356 — Caminho único do Diário: "+ Lançamento" em toda a Lançamento de Atividades, e Insumo só com `permite_produto`
 
 **Data:** 2026-11-27 · **Origem:** acerto do caminho único do Diário das atividades (fecha os limites da D-PROD-352)
 
-> **Numeração:** D-PROD-354 (PR aberta), D-PROD-355 e D-PROD-357 já estão na `main`; esta é a D-PROD-356, reservada para a PR #444 e o marcador continua D-PROD-358 (a D-PROD-357 é das fotos sem internet, já na `main`).
+> **Numeração:** D-PROD-354 (PR aberta), D-PROD-355 e D-PROD-357 já estão na `main`; esta é a D-PROD-356, reservada para a PR #444 e o marcador continua D-PROD-359 (a 357 e a 358 já estão na `main`).
 
 **Decisão.** Dois acertos de tela, sem backend, sem migration e sem mudança de dados.
 
@@ -10727,4 +10738,4 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 **Testes.** `lancamentoAtividades.test.jsx` (LD-1, LD-2, LD-2b, LD-5 a LD-9, LA-RAIO-1), `diarioDasAtividades.test.jsx` (fixture com `permite_produto`; bloco m1 a m6 do Insumo).
 
-<!-- Próxima decisão: D-PROD-358 -->
+<!-- Próxima decisão: D-PROD-359 -->
