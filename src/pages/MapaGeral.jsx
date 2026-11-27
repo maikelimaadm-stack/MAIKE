@@ -57,6 +57,10 @@ import { useFiltroDoAssistente } from "@/hooks/useFiltroDoAssistente";
 import { casarNomes } from "@/domain/assistente/filtroTela";
 import { mensagemFalhaMapa, navegadorTemWebGL, MENSAGEM_WEBGL_DESLIGADO } from "@/lib/maplibre/falhaWebGL";
 import { componenteSobDemanda } from "@/lib/paginaSobDemanda.jsx";
+import { fecharMapaGoogleAberto, gravarPreferenciaMapaGoogle, limparMapaGoogleOrfao, temMapaGoogle, usarMapaGoogle } from "@/lib/mapaNativo/mapaGoogleNativo.js";
+
+/** D-PROD-366: o mapa do Google (nativo no app, Maps JavaScript API no site) só é carregado quando ligado. */
+const MapaGoogleNativo = componenteSobDemanda(() => import("@/components/mapa/MapaGoogleNativo.jsx"));
 
 // D-PROD-304: as janelas de detalhe e os painéis só carregam quando abertos (o mapa abre mais leve).
 const DetalhesLote = componenteSobDemanda(() => import("../components/mapa/DetalhesLote"));
@@ -83,6 +87,10 @@ export default function MapaGeral({ ativo = true } = {}) {
   const [mapEpoch, setMapEpoch] = useState(0);
   const [mapInstance, setMapInstance] = useState(null);
   const [mapType, setMapTypeState] = useState('satellite');
+  // D-PROD-366: mapa do Google (no app o nativo, com o plugin no APK; no site o Maps JavaScript API) + escolha do
+  // aparelho. Decidido ao abrir a página:
+  // trocar a escolha recarrega a página.
+  const [mapaGoogle] = useState(() => usarMapaGoogle());
   const [prefShowAreas, setShowAreas] = useState(true);
   const [prefShowPontos, setShowPontos] = useState(true);
   const [prefShowLinhas, setShowLinhas] = useState(true);
@@ -490,7 +498,7 @@ export default function MapaGeral({ ativo = true } = {}) {
     placeholderData: []
   });
 
-  const { data: areasBase = [], refetch: refetchAreas } = useQuery(createMapaQuery('areas'));
+  const { data: areasBase = [], refetch: refetchAreas, isPlaceholderData: areasAindaCarregando } = useQuery(createMapaQuery('areas'));
   const { data: pontos = [], refetch: refetchPontosRef } = useQuery(createMapaQuery('pontos'));
   const { data: bebedouros = [] } = useBebedouros(empresaSelecionadaId);
   const { data: pontosSuplementacao = [], refetch: refetchPontosSupl } = useQuery(createMapaQuery('pontosSuplementacao'));
@@ -1087,6 +1095,29 @@ export default function MapaGeral({ ativo = true } = {}) {
     setShowDetalhesArea(true);
   }, [selecionandoLocalTarefa, handleSelectTaskLocation, mapaGeralPermissions]);
 
+  // D-PROD-366: ligar/desligar o mapa do Google (no app só com o plugin no APK); a troca recarrega a página.
+  // O mapa nativo é destruído ANTES de recarregar: recarregar não roda a limpeza do React e ele ficaria vivo atrás da
+  // página, pegando os toques daquele pedaço da tela.
+  const alternarMapaGoogle = useCallback(async () => {
+    gravarPreferenciaMapaGoogle(!mapaGoogle);
+    await fecharMapaGoogleAberto();
+    window.location.reload();
+  }, [mapaGoogle]);
+  // O mapa do Google não abriu (sem chave, sem Google Play Services, Maps JavaScript API desligado…): volta ao mapa de sempre.
+  const falhaDoMapaGoogle = useCallback(() => {
+    gravarPreferenciaMapaGoogle(false);
+    toast.error('O mapa do Google não abriu. Voltando ao mapa de sempre.');
+    window.setTimeout(async () => {
+      await fecharMapaGoogleAberto();
+      window.location.reload();
+    }, 1500);
+  }, []);
+  // Sem o mapa do Google: um mapa nativo que tenha ficado vivo de antes (app recarregado no meio) é destruído
+  // (com ele ligado, o próprio MapaGoogleNativo destrói o órfão antes de criar o mapa novo).
+  useEffect(() => {
+    if (!mapaGoogle) void limparMapaGoogleOrfao();
+  }, [mapaGoogle]);
+
   const handleRightClickArea = useCallback((area, coords) => {
     if (selecionandoLocalTarefa) {
       handleSelectTaskLocation(coords, area);
@@ -1487,7 +1518,7 @@ export default function MapaGeral({ ativo = true } = {}) {
     <div className="mk-mapa mk-mapa--v13 relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-white" translate="no">
         {/* Controles Mobile */}
         <MapaControlesMobile
-          mapType={mapTypeEfetivo} setMapType={setMapType}
+          mapType={mapaGoogle ? mapType : mapTypeEfetivo} setMapType={setMapType}
           onRefresh={handleRefresh} onLocate={handleLocate}
           /* Mover e Localizar só com a permissão que os faz funcionar: sem ela o
              toque só mudaria uma preferência gravada que o usuário não vê (PREF-04). */
@@ -1519,10 +1550,11 @@ export default function MapaGeral({ ativo = true } = {}) {
           onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return;setShowFiltros(true);}}
           painel={
           <MapaVisualizacao
-            mapType={mapTypeEfetivo} setMapType={setMapType}
+            mapType={mapaGoogle ? mapType : mapTypeEfetivo} setMapType={setMapType}
             estiloPasto={estiloPasto} setEstiloPasto={setEstiloPasto}
             modoColoracao={modoColoracao} setModoColoracao={setModoColoracao}
-            podeColorir={podeColorir} />
+            podeColorir={podeColorir}
+            mapaGoogle={temMapaGoogle() ? { ligado: mapaGoogle, alternar: alternarMapaGoogle } : null} />
           } />
 
       <div className="mk-mapa-area relative min-h-0 w-full flex-1">
@@ -1533,7 +1565,21 @@ export default function MapaGeral({ ativo = true } = {}) {
         }
         {/* `isolation: isolate` confina o z-index dos marcadores (até 10000) ao
             mapa: sem isso eles atravessavam janelas e pop-ups abertos por cima. */}
+        {mapaGoogle ?
+        <MapaGoogleNativo
+          areas={areasFiltradas}
+          areasDaFazenda={areas}
+          areasCarregadas={!areasAindaCarregando}
+          mostrarAreas={mapaGeralPermissions.visualizar_areas && showAreas}
+          corDaArea={getAreaColor}
+          estiloPasto={estiloPasto}
+          tipoMapa={mapType}
+          empresaId={empresaSelecionadaId}
+          ativo={ativo}
+          onClickArea={handleClickArea}
+          onFalha={falhaDoMapaGoogle} /> :
         <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: 'var(--mk-sup-fundo)', touchAction: 'none', isolation: 'isolate', visibility: aguardandoEnquadrar ? 'hidden' : 'visible' }} />
+        }
 
         <BasemapAtribuicao atribuicao={basemap.atribuicao} status={basemap.status} mensagem={basemap.mensagem} onRetry={basemap.retry} />
 
@@ -1604,7 +1650,7 @@ export default function MapaGeral({ ativo = true } = {}) {
         </>
         }
 
-        {!mapReady && mapLoadError &&
+        {!mapaGoogle && !mapReady && mapLoadError &&
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 max-w-md bg-white px-6 py-4 rounded-lg shadow-2xl border border-amber-300">
             <div className="font-semibold text-slate-800 text-sm mb-1">Mapa indisponível</div>
             <p className="text-xs text-slate-600">{mapLoadError}</p>
@@ -1612,7 +1658,7 @@ export default function MapaGeral({ ativo = true } = {}) {
           </div>
         }
 
-        {!mapReady && !mapLoadError &&
+        {!mapaGoogle && !mapReady && !mapLoadError &&
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
             <div className="flex items-center gap-3">
               <div className="animate-spin w-6 h-6 border-4 border-emerald-600 border-t-transparent rounded-full" />

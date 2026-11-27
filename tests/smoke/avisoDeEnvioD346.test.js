@@ -78,7 +78,9 @@ describe('D-PROD-346 — aviso de envio pendente', () => {
 
   it('AE-03 o pacote novo continua chegando ao APK 1.0.4', async () => {
     const versao = JSON.parse(readFileSync('app-version.json', 'utf8'));
-    expect(versao).toMatchObject({ versionName: '1.0.5', versionCode: 6, nativoMinimo: 5 });
+    // D-PROD-366: o app passou a 1.0.6 (mapa nativo do Google); o pacote continua aceito pelo APK 1.0.4 (código 5).
+    expect(versao.versionCode).toBeGreaterThanOrEqual(6);
+    expect(versao.nativoMinimo).toBe(5);
     const { nativoMinimo } = await import('../../scripts/app/versao-do-pacote.mjs');
     expect(nativoMinimo()).toBe(5);
   });

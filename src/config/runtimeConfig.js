@@ -133,6 +133,21 @@ const lerMapTilerKey = () => {
 /** @returns {string|null} */
 export const getMapTilerKey = () => lerMapTilerKey();
 
+/**
+ * Chave do Google Maps SDK do iOS (D-PROD-366): o mapa nativo do iPhone recebe a chave pelo código (no Android ela
+ * vai no AndroidManifest, no build do APK). Restrita ao bundle do app no Google Cloud.
+ */
+const lerGoogleMapsIosKey = () => {
+  try {
+    return normalizarEnv(import.meta.env.VITE_GOOGLE_MAPS_IOS_KEY);
+  } catch {
+    return null;
+  }
+};
+
+/** @returns {string|null} */
+export const getGoogleMapsIosKey = () => lerGoogleMapsIosKey();
+
 /** @returns {boolean} */
 export const isAssistenteLigado = () => lerAssistenteLigado() === 'true';
 
