@@ -1454,6 +1454,32 @@ describe("LA-PORTA — porta por allowlist e service sem fazenda", () => {
     expect(montarCaminhoOpcoes("operadores", { empresa_id: "emp-1", q: "jo", natureza: "MAQUINA" })).toBe("/atividades-opcoes/operadores?empresa_id=emp-1&q=jo");
   });
 
+  // D-PROD-341: a máquina da abertura vai em `bem_id` (a atividade criada). A porta descartava o campo em silêncio.
+  it("LA-PORTA-BEM — o registro de campo leva `bem_id` no corpo (a máquina da atividade) e continua descartando o que não é do contrato", async () => {
+    const { operacoesNativas } = await import("@/apis/atividades/lancamentoAtividadePort.js");
+    await operacoesNativas.registrar({
+      empresa_id: "emp-1",
+      area_id: "ar1",
+      tipo_atividade_id: "t1",
+      data_operacional: HOJE,
+      bem_id: "bem-7",
+      observacao: "[abertura-servico]",
+      operador_usuario_id: "usr-3",
+      maquinas: [],
+      cliente_id: "outro-tenant",
+    });
+    expect(ultimaEscrita().path).toBe("/atividades/registrar");
+    expect(ultimaEscrita().body).toEqual({
+      empresa_id: "emp-1",
+      area_id: "ar1",
+      tipo_atividade_id: "t1",
+      data_operacional: HOJE,
+      bem_id: "bem-7",
+      observacao: "[abertura-servico]",
+      operador_usuario_id: "usr-3",
+    });
+  });
+
   it("LA-PORTA-3 — paridade: cada allowlist da porta é exatamente o corpo fechado da rota do servidor (o PATCH sem a empresa, que lá é opcional)", async () => {
     const porta = await import("@/apis/atividades/lancamentoAtividadePort.js");
     /** Chaves de um `Object.freeze({ chave: SCHEMA, … })` da fonte. @param {string} fonte @param {string} nome */
@@ -2424,5 +2450,45 @@ describe("LA-E2E — ajustes do teste de ponta a ponta da Entrega 2 (D-PROD-274)
     await montarComLista();
     const daManutencao = await abrir("a9");
     expect(within(daManutencao).queryByTestId("atividade-pasto-liberado")).toBeNull();
+  });
+});
+
+describe("LA-DIARIO — a ação de linha \"Diário das atividades\" (D-PROD-341)", () => {
+  // Uma atividade com um pasto EM ANDAMENTO (o servidor traz `areas[]`): a ação do ⚡ abre o diário do pasto.
+  const COM_PASTO_EM_ANDAMENTO = {
+    ...ATV_A1,
+    areas: [{ id: "aa1", area_id: "ar1", ordem: 1, status: "EM_ANDAMENTO", area: { id: "ar1", numero_area: "01", nome: "Pasto 01" } }],
+  };
+
+  it("LD-1 — o ⚡ traz \"Diário das atividades\" (nunca \"Diário da máquina\") e abre o novo diário no pasto em andamento", async () => {
+    sessao.permissao = permissaoCom({ ...ACOES_PADRAO, ...EXTRAS });
+    atividades.set("a1", COM_PASTO_EM_ANDAMENTO);
+    await montarComLista();
+    await assentar();
+    const itens = await itensDoRaio("a1");
+    expect(itens).toContain("Diário das atividades");
+    expect(itens.join("|")).not.toMatch(/Diário da máquina/);
+    expect(screen.queryByTestId("diario-maquina")).toBeNull();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Diário das atividades" }));
+    const diario = await screen.findByTestId("diario-atividades");
+    expect(diario).toBeTruthy();
+    // Sem abertura no servidor, o diário vai ao formulário da abertura do tipo (o da atividade), no pasto dela.
+    await waitFor(() => expect(within(diario).getByTestId("diario-atividades-titulo")).toHaveTextContent("Nova atividade de"));
+    expect(within(diario).getByTestId("diario-atividades-titulo")).toHaveTextContent("Pasto 01");
+    expect(screen.queryByTestId("diario-maquina")).toBeNull();
+  });
+
+  it("LD-2 — sem permissão de lançar, ou sem pasto em andamento, a ação não aparece", async () => {
+    sessao.permissao = permissaoCom(ACOES_PADRAO);
+    atividades.set("a1", COM_PASTO_EM_ANDAMENTO);
+    await montarComLista();
+    expect(await itensDoRaio("a1")).not.toContain("Diário das atividades");
+    cleanup();
+
+    sessao.permissao = permissaoCom({ ...ACOES_PADRAO, ...EXTRAS });
+    atividades.set("a1", ATV_A1);
+    await montarComLista();
+    expect(await itensDoRaio("a1")).not.toContain("Diário das atividades");
   });
 });

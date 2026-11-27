@@ -1,13 +1,11 @@
-import React, { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Sprout } from "lucide-react";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
-import DiarioDasAtividades from "@/components/lancamento-atividades/DiarioDasAtividades";
 import { VerCustoContext, useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { Cartao, Celula, Chip, Grade, Linha, SecaoDetalhe, Vazio } from "@/components/mapa/detalhes-lote/blocos";
 import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda } from "@/hooks/useLancamentoAtividadesSessao";
 import { podeVerCusto } from "@/lib/verCustoRegras";
-import { RAIZ_CONSULTAS_ATIVIDADES } from "@/lib/atividadeApontamentoRegras";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
 import { formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
 import { formatarDiaAtividade } from "@/lib/lancamentoAtividadesRegras";
@@ -15,9 +13,7 @@ import { QUERY_ATIVIDADES_DA_AREA, rotuloDoMesCurto } from "@/lib/registroDeCamp
 import { STATUS_AREA } from "@/lib/atividadeAreasRegras";
 import { textoDaReformaNaArea } from "@/lib/reformaRegras";
 import { definirFazendaDaTela, obterResumoDaArea } from "@/services/lancamentoAtividadesService";
-import { notifyWarning } from "@/lib/maikeNotify";
-import { mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
-import { lerAtividadeParaAcoes, useAcoesDaAtividadeDaArea } from "./AcoesDaAtividadeDaArea";
+import { useAcoesDaAtividadeDaArea } from "./AcoesDaAtividadeDaArea";
 
 import "@/styles/mk-dp-detalhes-v13.css";
 import "@/styles/mk-dp-area-v13.css";
@@ -98,13 +94,6 @@ export default function AbaDetalhesDaArea(props) {
 function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos = [], secao = "detalhes", onIrAba }) {
   const empresaId = useEmpresaRealSelecionadaId();
   const verCusto = useVerCusto();
-  const queryClient = useQueryClient();
-  const acoesTela = useAcoesTelaAtividades();
-  const { fusoOk } = useFusoDaFazenda(empresaId);
-  // D-PROD-332: "Diário das atividades" — o diário deste pasto (com a atividade em andamento, se houver; senão, do tipo).
-  const [abrindoDiario, setAbrindoDiario] = useState(false);
-  const [diarioAberto, setDiarioAberto] = useState(/** @type {{ atividade: any, chave: number } | null} */ (null));
-  const podeIniciar = Boolean(empresaId) && fusoOk && acoesTela.lancarApontamento === true;
   definirFazendaDaTela(empresaId);
   const resumo = useQuery({
     queryKey: [QUERY_ATIVIDADES_DA_AREA, "resumo", empresaId, area.id],
@@ -175,50 +164,12 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
     <Vazio icone={Sprout}>Nenhuma atividade nesta área agora.</Vazio>
   );
 
-  // D-PROD-332: com uma atividade EM ANDAMENTO nesta área, o diário abre nela (lida como as ações da atividade); sem ela,
-  // abre no tipo para começar uma nova.
-  const atividadeEmAndamento = atividades.find((a) => a.area_status === STATUS_AREA.EM_ANDAMENTO) ?? null;
-  const abrirDiario = async () => {
-    if (abrindoDiario) return;
-    if (!atividadeEmAndamento) {
-      setDiarioAberto({ atividade: null, chave: Date.now() });
-      return;
-    }
-    setAbrindoDiario(true);
-    try {
-      const atividade = await lerAtividadeParaAcoes(String(atividadeEmAndamento.atividade_id), String(area.id));
-      setDiarioAberto({ atividade, chave: Date.now() });
-    } catch (erro) {
-      notifyWarning("Não foi possível abrir o diário", mensagemDeErroAtividade(erro, "Confira a conexão e tente de novo."));
-    } finally {
-      setAbrindoDiario(false);
-    }
-  };
-  const janelaDiario = diarioAberto ? (
-    <DiarioDasAtividades
-      key={`diario-${diarioAberto.chave}`}
-      area={area}
-      tipos={tipos}
-      atividade={diarioAberto.atividade}
-      onFechar={() => setDiarioAberto(null)}
-      onGravou={() => {
-        void queryClient.invalidateQueries({ queryKey: [QUERY_ATIVIDADES_DA_AREA] });
-        void queryClient.invalidateQueries({ queryKey: [RAIZ_CONSULTAS_ATIVIDADES] });
-      }}
-    />
-  ) : null;
-
+  // D-PROD-341: o diário das atividades (a pílula "Manejos" do rodapé e a ação de linha) é o DiarioDoPasto; não há botão aqui.
   if (secao === "manejos") {
     return (
       <div className="mk-dp-area-organizada mk-dp-d13">
-        {pronto && podeIniciar ? (
-          <button type="button" className="tb-btn tb-btn-green" data-testid="area-diario-atividades" onClick={() => void abrirDiario()} disabled={abrindoDiario}>
-            Diário das atividades
-          </button>
-        ) : null}
         {pronto ? <SecaoDetalhe titulo="Em andamento e planejado">{listaDeAtividades}</SecaoDetalhe> : null}
         {acoesDaAtividade.janelas}
-        {janelaDiario}
       </div>
     );
   }

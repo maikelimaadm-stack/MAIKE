@@ -205,7 +205,8 @@ function BlocoDeProduto({ atividadeId, bloco, indice, modo, erros, bloqueado, po
  *   atividadeAreaId: string | null,   // a área (pasto) da atividade, quando ela tem áreas
  *   filtrarPorArea?: boolean,         // a atividade tem VÁRIAS áreas: destino e numeração só do apontamento deste pasto
  *   onEnviando?: (enviando: boolean) => void, // a carga está saindo (o pai trava o voltar e o fechar)
- *   apontamentos: any[],              // os apontamentos da atividade (a lista da consulta)
+ *   apontamentos: any[],              // os apontamentos DESTE serviço (a frente, quando a atividade tem várias); a lista da consulta
+ *   observacaoDoApontamento?: string | null, // D-PROD-341 (frentes): a linha de abertura da frente; vai na observação do apontamento que a carga CRIA
  *   hoje: string,                     // o "hoje" da fazenda (AAAA-MM-DD)
  *   implementoNome: string,
  *   podeGravar: boolean,
@@ -214,7 +215,20 @@ function BlocoDeProduto({ atividadeId, bloco, indice, modo, erros, bloqueado, po
  *   onSalvo: (resposta: any) => void,
  * }} props
  */
-export default function CargaDeInsumo({ atividadeId, atividadeAreaId, filtrarPorArea = false, onEnviando = undefined, apontamentos, hoje, implementoNome, podeGravar, escopo, alvoRodape, onSalvo }) {
+export default function CargaDeInsumo({
+  atividadeId,
+  atividadeAreaId,
+  filtrarPorArea = false,
+  onEnviando = undefined,
+  apontamentos,
+  observacaoDoApontamento = null,
+  hoje,
+  implementoNome,
+  podeGravar,
+  escopo,
+  alvoRodape,
+  onSalvo,
+}) {
   const queryClient = useQueryClient();
   const empresaId = useEmpresaRealSelecionadaId();
   // Atividade com várias áreas: o destino (e a numeração) é só o apontamento DESTE pasto.
@@ -272,7 +286,13 @@ export default function CargaDeInsumo({ atividadeId, atividadeAreaId, filtrarPor
     if (!apontamentoId) {
       const resposta = /** @type {any} */ (await criarApontamento(
         arg.atividadeId,
-        { data_operacional: arg.dia, ...(arg.atividadeAreaId ? { atividade_area_id: arg.atividadeAreaId } : {}), produtos: pendentes.map((/** @type {any} */ i) => i.corpo) },
+        {
+          data_operacional: arg.dia,
+          ...(arg.atividadeAreaId ? { atividade_area_id: arg.atividadeAreaId } : {}),
+          // D-PROD-341 (frentes): o apontamento novo fica na frente certa (a linha de abertura dela na observação).
+          observacao: arg.observacao,
+          produtos: pendentes.map((/** @type {any} */ i) => i.corpo),
+        },
         { escopo, retentativa },
       ));
       const norma = normalizarRespostaDeEscrita(resposta);
@@ -363,6 +383,7 @@ export default function CargaDeInsumo({ atividadeId, atividadeAreaId, filtrarPor
       atividadeId,
       atividadeAreaId,
       dia,
+      observacao: observacaoDoApontamento ?? null,
       itens: pendentes.map((b, i) => ({ produtoId: String(b.produto.id), corpo: corpos[i] })),
       apontamentoId: p.apontamentoId ?? (apontamentoDia?.id != null ? String(apontamentoDia.id) : null),
       versao: p.apontamentoId ? p.versao : (apontamentoDia?.versao ?? null),

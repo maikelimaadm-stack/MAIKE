@@ -31,7 +31,7 @@ import JanelaRegistroDeCampo from "@/components/lancamento-atividades/RegistroDe
 import { VerCustoContext, useVerCusto } from "@/components/lancamento-atividades/VerCusto";
 import { podeVerCusto } from "@/lib/verCustoRegras";
 import JanelaLancamentoPorTipo, { lancamentoDoTipo } from "@/components/lancamento-atividades/JanelaLancamentoPorTipo";
-import DiarioDaMaquina from "@/components/lancamento-atividades/DiarioDaMaquina";
+import DiarioDoPasto from "@/components/mapa/detalhes-area/DiarioDoPasto";
 import { areasDaAtividade, areasEmAndamento, rotuloDaAreaDaAtividade, textoDaColunaArea } from "@/lib/atividadeAreasRegras";
 import { situacaoDaAtividade, textoProgressoAreas } from "@/lib/atividadeFluxoCampo";
 import {
@@ -328,8 +328,8 @@ function LancamentoAtividadesTela() {
   const [lancandoDia, setLancandoDia] = useState(/** @type {any|null} */ (null));
   const [concluindoServico, setConcluindoServico] = useState(/** @type {any|null} */ (null));
   const [lancando, setLancando] = useState(/** @type {{ atividade: any, tipo: string, aba: 'lista'|'dados', areaId?: string|null, chave: number } | null} */ (null));
-  // Diário da máquina (D-PROD-314): a atividade e a área (pasto) em que ele abre.
-  const [diario, setDiario] = useState(/** @type {{ atividade: any, areaId: string, areaNome: string, chave: number } | null} */ (null));
+  // Diário das atividades (D-PROD-341): a atividade lida e o pasto (a área) em que ele abre.
+  const [diario, setDiario] = useState(/** @type {{ atividade: any, area: any, chave: number } | null} */ (null));
   const celular = useCelular();
   const { clienteId } = useAuth();
   // Escopo da pendência de `operation_id` (cliente e login): o mesmo da lista de lançamentos.
@@ -794,13 +794,13 @@ function LancamentoAtividadesTela() {
     const ac = acoesDaAtividade(a, acoes);
     const gravar = podeGravar && Number.isInteger(a?.versao);
     const abrirItem = [{ key: "abrir", label: "Abrir atividade", icon: <List size={16} strokeWidth={1.75} />, onSelect: () => controller.handleEdit(a) }];
-    // Diário da máquina: numa atividade ABERTA com pasto em andamento, abre no primeiro deles (só com permissão de lançar).
+    // Diário das atividades (D-PROD-341): numa atividade ABERTA com pasto em andamento, abre no primeiro deles (só com permissão de lançar).
     const pastoEmAndamento = gravar && ac.lancarApontamento ? areasEmAndamento(a)[0] ?? null : null;
     const diarioItem = pastoEmAndamento
       ? [
           {
             key: "diario",
-            label: "Diário da máquina",
+            label: "Diário das atividades",
             icon: <Tractor size={16} strokeWidth={1.75} />,
             onSelect: () => void abrirDiario(a, pastoEmAndamento),
           },
@@ -820,11 +820,20 @@ function LancamentoAtividadesTela() {
     return [abrirItem, diarioItem, /** @type {any[]} */ (gerir)];
   };
 
-  /** Abre o diário da máquina da atividade no pasto dado (a atividade lida inteira, com as áreas). @param {any} a @param {any} pasto */
+  /**
+   * Abre o Diário das atividades (o mesmo do mapa, `DiarioDoPasto`) da atividade no pasto dado: a atividade lida inteira,
+   * e a área no formato que o diário lê (id, nome e, se o servidor trouxer, o tamanho).
+   * @param {any} a @param {any} pasto
+   */
   const abrirDiario = async (a, pasto) => {
     try {
       const atividade = await obterAtividade(String(a.id));
-      setDiario({ atividade, areaId: String(pasto.area_id ?? pasto.area?.id ?? ""), areaNome: rotuloDaAreaDaAtividade(pasto), chave: Date.now() });
+      const area = {
+        id: String(pasto.area_id ?? pasto.area?.id ?? ""),
+        nome: rotuloDaAreaDaAtividade(pasto),
+        tamanho_hectares: pasto.area?.tamanho_hectares ?? undefined,
+      };
+      setDiario({ atividade, area, chave: Date.now() });
     } catch (erro) {
       notifyWarning("Não foi possível abrir o diário", mensagemDeErroAtividade(erro, "Confira a conexão e tente de novo."));
     }
@@ -1362,14 +1371,13 @@ function LancamentoAtividadesTela() {
         ) : null}
 
         {diario ? (
-          <DiarioDaMaquina
+          <DiarioDoPasto
             key={`diario-${diario.chave}`}
+            area={diario.area}
             atividade={diario.atividade}
-            areaId={diario.areaId}
-            areaNome={diario.areaNome}
             tipos={/** @type {any[]} */ (tipos)}
             onFechar={() => setDiario(null)}
-            onGravou={() => {
+            aoGravar={() => {
               invalidarLista();
               invalidarTotais();
             }}

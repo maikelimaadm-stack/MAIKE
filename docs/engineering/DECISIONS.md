@@ -10390,4 +10390,51 @@ Vários itens ficavam presos para sempre, sem botão:
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indica D-PROD-339 na `main` (`db40842a6`, depois da #428). A PR #426 (diário, outra sessão) perdeu de novo o número para uma PR mergeada antes (agora a D-PROD-338) e deve passar à 339. Para não colidir, esta é a **D-PROD-340**, e o marcador passa a D-PROD-341. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-341 -->
+## D-PROD-341 — Abertura do Diário das atividades: pasto com serviço antigo e máquina no envio
+
+**Causa (defeito 1).** Um pasto com uma atividade EM ANDAMENTO que não tem a linha `[abertura-servico ...]` na observação dos apontamentos (as criadas pelo fluxo antigo, como Gradagem e Combate à cigarrinha) abria o Diário direto no cabeçalho, com "Abertura não registrada neste serviço.". Não havia tela de tipo nem de abertura, então o usuário não conseguia iniciar nada.
+
+**Correção.**
+- Com a atividade recebida, lida a abertura com sucesso e sem ela, o Diário vai ao passo "abrir" com o tipo fixo e a operação da atividade já escolhidos (`tipoFixoDaOperacao`, `operacaoEscolhidaId`). Uma linha de ajuda diz "Este pasto já tem o serviço <nome> em andamento, sem abertura. Preencha para iniciar.".
+- Enquanto a abertura carrega, aparece só "Carregando…" (sem cabeçalho nem menu). Com abertura gravada, começa no cabeçalho como antes. Se a leitura falhar, o comportamento de antes continua.
+- "Iniciar serviço" manda o `tipo_atividade_id` da atividade aberta. O servidor reaproveita essa atividade e grava o apontamento de abertura nela.
+- Voltar leva ao passo "tipo". A mensagem "Abertura não registrada neste serviço." saiu (ficou sem uso).
+
+**Causa (defeito 2).** `bem_id` não estava em `CAMPOS_DO_REGISTRO_DE_CAMPO` (`src/apis/atividades/lancamentoAtividadePort.js`), então `registrar()` o descartava antes do envio. A atividade criada ficava sem máquina, só com ela na observação, contra o que a D-PROD-332 (emenda) diz. Não havia outro filtro no caminho (`registrarCampo` → `registerAtividadeDeCampo` → porta).
+
+**Correção.** `bem_id` entra na allowlist, com comentário. O backend não muda: ele já aceita `bem_id`. Sem migration.
+
+**Testes.** `tests/smoke/diarioDasAtividades.test.jsx` (f2 e f3: o formulário com o tipo e a operação do serviço, e o `tipo_atividade_id` no envio; 1: "Carregando…" sem cabeçalho; 3: falha na leitura mantém o cabeçalho) e `tests/smoke/lancamentoAtividades.test.jsx` (LA-PORTA-BEM: `registrar()` leva `bem_id` no corpo).
+
+**Escolher atividade em andamento (pedido do dono, mesma entrada).** Com uma ou mais atividades abertas no pasto (as de `atividades` do resumo da área cujo `area_status` não é CONCLUIDA, ou seja, EM_ANDAMENTO ou PLANEJADA), o Diário abre na tela "Em andamento neste pasto": uma lista com o nome, o início (dd/mm) e a etiqueta "Com abertura" ou "Sem abertura", e o botão "Nova atividade", que leva à tela do tipo. A etiqueta vem dos apontamentos de cada atividade (uma consulta por linha; "…" enquanto lê). Tocar numa linha lê a atividade inteira (`lerAtividadeParaAcoes`, passado ao diário como `lerAtividade`, para o diário não importar a pasta do mapa): com abertura, vai ao cabeçalho do serviço; sem ela, cai no formulário de abertura do defeito 1 (tipo e operação já escolhidos). Sem atividade aberta, abre no tipo, como antes. Do tipo, o Voltar volta à lista. Quando o tipo escolhido já tem uma atividade aberta no pasto, aparece "Já existe <nome> em andamento neste pasto: iniciar entra nela." (só aviso, não bloqueia). Testes: `tests/smoke/diarioEmAndamentoNoPasto.test.jsx` (7) e `tests/smoke/diarioFase2.test.jsx` (a lista pela aba, sem ler no clique).
+
+**Uma abertura por máquina + implemento (frentes, pedido do dono).** Vários tratores e implementos trabalham no mesmo pasto, no mesmo tipo de atividade, ao mesmo tempo. Cada um precisa do seu serviço aberto, com a sua abertura (máquina, implemento, horímetro, responsável), lançado separado. **Decisão:** a frente é o conjunto de apontamentos de UMA atividade cuja linha de abertura tem a mesma chave `bemId|implementoId` (implemento vazio vale como chave própria). Não há atividade nova: o servidor já reaproveita a atividade aberta do tipo e área e grava um apontamento por chamada, então cada "Iniciar serviço" vira um apontamento com a abertura da sua frente, dentro da mesma atividade. Sem backend e sem migration (`chaveDaFrente`, `frentesDosApontamentos` e `apontamentosDaFrente` em `aberturaServicoRegras.js`; `aberturaDosApontamentos` não mudou).
+
+No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (máquina + implemento, responsável, início). Tocar abre só aquela frente: o cabeçalho, o "Lançado hoje" e a carga usam só os apontamentos dela, e a numeração da carga e o "apontamento de hoje" são por frente. A carga que cria o apontamento do dia leva a linha de abertura da frente na observação, então o dia seguinte continua na frente certa. "Nova atividade" do mesmo tipo com outra máquina ou implemento envia normalmente e entra como mais uma frente (o aviso diz isso). A trava: a mesma máquina com o mesmo implemento não abre uma segunda frente no pasto; não envia, o botão fica desabilitado e a ajuda manda tocar no serviço na lista.
+
+**Como casa com o modelo futuro:** uma atividade por área e tipo, com várias frentes dentro, cada uma com a sua abertura, horímetro, responsável, insumo e encerramento. A frente já é a unidade que o modelo vai guardar; hoje a chave mora na observação do apontamento, depois terá registro próprio.
+
+**Limites:** "Encerrar serviço" ainda é "Em breve", então uma frente aberta não fecha. Frentes não aparecem fora do Diário: o Lançamento de Atividades continua vendo uma atividade só. Apontamentos de dias anteriores gravados antes desta emenda (sem a linha de abertura) não entram em frente nenhuma. Uma atividade aberta parada há mais de 30 dias segue respondendo 409 `ATIVIDADE_SERVICO_PARADO`, e o Diário não grava (a escolha fica na Nova realização).
+
+**Revisão do Codex (PR #426, P1):** continuar uma atividade sem abertura, com mais de uma atividade aberta do mesmo tipo no pasto, deixava o servidor escolher a mais recente, e a abertura podia cair em outra. Agora não envia (aviso e botão desabilitado): conclua uma delas e tente de novo.
+
+**Testes:** `aberturaServicoRegras.test.js` (frentes), `diarioEmAndamentoNoPasto.test.jsx` (b, c, e, f, f2, g, g2), `diarioDasAtividades.test.jsx` (carga por frente, d1 e d2).
+
+**Uma entrada só (pedido do dono).** Os Detalhes da área tinham três entradas de diário: a pílula "Manejos" do rodapé (abria a "Nova realização"), o botão verde "Diário das atividades" no topo da aba Manejos (D-PROD-332, PR #420) e a ação de linha "Diário da máquina" (a tela antiga `DiarioDaMaquina`). Agora a entrada é uma só, o "Diário das atividades" (`DiarioDoPasto`), aberto pela pílula "Manejos" do rodapé e pela ação de linha, que passa a se chamar "Diário das atividades". Religadas: a pílula "Manejos" (antes `JanelaRegistroDeCampo`) e a ação de linha (antes `DiarioDaMaquina`). Removida: o botão do topo da aba Manejos. Os arquivos `DiarioDaMaquina.jsx` e `RegistroDeCampo.jsx` continuam: a página Lançamento de Atividades segue usando os dois. Nos Detalhes da área, a "Nova realização" ainda abre pela ação de linha "+ Lançamento" (presa à atividade, D-PROD-278); só a pílula "Manejos" deixou de abri-la. Sem migration e sem backend. (Esta frase sobre a página foi superada pela "Organização das entradas" abaixo: a página deixou de usar a `DiarioDaMaquina`.)
+
+**Organização das entradas (pedido do dono, mesma D-PROD-341).** Lista final das entradas do diário:
+1. Pílula "Manejos" do rodapé da área (Detalhes da área): `DiarioDoPasto` sem atividade (lista "Em andamento neste pasto" ou, sem atividade aberta, o tipo).
+2. Ação de linha "Diário das atividades" da atividade em andamento na área (⚡ na aba Manejos): `DiarioDoPasto` com a atividade.
+3. Ação de linha "Diário das atividades" na página Lançamento de Atividades (⚡ de atividade ABERTA com pasto em andamento; abre no primeiro pasto em andamento): `DiarioDoPasto` com a atividade lida. A lista da página relê ao gravar (prop `aoGravar`).
+
+*Religado e removido:* a ação "Diário da máquina" da página virou "Diário das atividades" e abre o `DiarioDoPasto`; a `DiarioDaMaquina` saiu da página (import e uso). Não há mais "Diário da máquina" em menu nenhum. Os arquivos da tela antiga (`DiarioDaMaquina.jsx`, `DiarioSecoes.jsx`, `implementoRegras.js`, `diarioMaquinaService.js` e seus testes) foram removidos porque ficaram sem uso (o gate `source-closure` exige); `RegistroDeCampo.jsx`, a porta, o backend (rotas do diário da máquina), as tabelas e os dados ficam intactos.
+
+*Sobrou e por quê:*
+- "Nova realização" (`RegistroDeCampo`): na página (criar pela barra e pelos cartões dos 7 tipos) e nos Detalhes da área (ação "+ Lançamento" e "Só <tipo>"). É o lançamento completo por área e tipo (máquina, mão de obra, insumo, serviço); o diário ainda não cobre isso (no serviço aberto, "Encerrar serviço" e as outras opções seguem "Em breve").
+- "Planejar" e "Nova atividade" da página: planejamento da atividade, não registro de campo.
+- Pílula "Manejos" e a ação de linha da área abrem o mesmo diário por caminhos diferentes (no rodapé, sem atividade escolhida; na linha, com ela). Ficam as duas porque a lista do dono as nomeia. Se o dono quiser uma só, a ação de linha de `AcoesDaAtividadeDaArea.jsx` sai numa linha: é decisão dele.
+- "Iniciar serviço" é o botão de dentro do diário, não uma entrada. "Iniciar atividade" não existe mais no código.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`471ad9c9d`) indicou D-PROD-334. A PR #424 (Insumo) reservou o 334, então esta correção é a D-PROD-341, e o marcador passa a D-PROD-342. A PR #428 (offline, Grupo 3) mergeou antes com a D-PROD-338 e a #429 com a D-PROD-340, por isso esta passou de 338 a 341.
+
+<!-- Próxima decisão: D-PROD-342 -->
