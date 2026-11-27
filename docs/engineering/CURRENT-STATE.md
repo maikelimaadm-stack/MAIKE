@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-27 (missões ativas D-PROD-371 (estoque na unidade do cadastro, UE-1), D-PROD-370 (cadastro de ponto simples), D-PROD-369 (mapa do Google, etapa 2: marcadores no site), D-PROD-368 (cadastro de produto, conversão de unidades), D-PROD-366 (mapa do Google no app e no site, etapa 1) e D-PROD-360 (mapa leve, etapa 5); antes D-PROD-367 (cadastro no mapa, etapa 5), D-PROD-364 (etapa 4), D-PROD-363 (etapa 3), D-PROD-362 (etapa 2), D-PROD-361 (etapa 1); antes D-PROD-358 e D-PROD-354 (mapa leve, etapa 4); antes D-PROD-357, D-PROD-355; antes missões ativas D-PROD-353 (mapa leve, etapa 3) e D-PROD-350 (celular compartilhado, PR #438); antes D-PROD-349 (mapa leve, etapa 2, PR #437), D-PROD-346, D-PROD-347 (mapa leve, PR #436) e D-PROD-348 (diário, PR #434); antes D-PROD-345, D-PROD-344, D-PROD-343, D-PROD-342, D-PROD-341 (diário, PR #426), D-PROD-340, D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-27 (missões ativas D-PROD-371 (estoque na unidade do cadastro, UE-1), D-PROD-372 (mapa do Google no app: marcadores), D-PROD-370 (cadastro de ponto simples), D-PROD-369 (mapa do Google, etapa 2: marcadores no site), D-PROD-368 (cadastro de produto, conversão de unidades), D-PROD-366 (mapa do Google no app e no site, etapa 1) e D-PROD-360 (mapa leve, etapa 5); antes D-PROD-367 (cadastro no mapa, etapa 5), D-PROD-364 (etapa 4), D-PROD-363 (etapa 3), D-PROD-362 (etapa 2), D-PROD-361 (etapa 1); antes D-PROD-358 e D-PROD-354 (mapa leve, etapa 4); antes D-PROD-357, D-PROD-355; antes missões ativas D-PROD-353 (mapa leve, etapa 3) e D-PROD-350 (celular compartilhado, PR #438); antes D-PROD-349 (mapa leve, etapa 2, PR #437), D-PROD-346, D-PROD-347 (mapa leve, PR #436) e D-PROD-348 (diário, PR #434); antes D-PROD-345, D-PROD-344, D-PROD-343, D-PROD-342, D-PROD-341 (diário, PR #426), D-PROD-340, D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -18,6 +18,16 @@ rollout pausado **D-PROD-41**)
 | Branch | `claude/estoque-unidade-cadastro` (sobre `claude/produto-tela-base1`) |
 | Documentos | [SPEC](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md) · [relatório UE-1](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-UE1-REPORT.md) · [runbook](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-RUNBOOK-RELEASE.md) |
 | Próximas | **UE-2**: financeiro, linha de produto da atividade, transferência e telas do estoque em qualquer unidade · **UE-3**: cocho, depósito e formulação pelo "kg por unidade de estoque", sem a trava |
+
+## Missão ativa (2026-11-27) — MAIKE-MAPA-GOOGLE: lotes, cochos, pontos e tarefas no mapa do Google do app (D-PROD-372)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-372**: no app, os mesmos ícones do sistema num `div` por cima do mapa nativo, posicionados pela câmera; somem enquanto o mapa se mexe e voltam quando ele para; o toque fora do ícone é do mapa |
+| Banco | sem migration |
+| App | sem APK novo (atualização automática); APK atual 1.0.6 |
+| Relatório | [`MAPA-GOOGLE-APP-MARCADORES-D372-REPORT.md`](./MAPA-GOOGLE-APP-MARCADORES-D372-REPORT.md) |
+| Próximas | 3 nomes dos pastos; 4 arrastar lote, piscar, linhas, localização, coloração, "Localizar"; 5 testes com o proprietário; 6 vira o padrão |
 
 ## Missão ativa (2026-11-27) — MAIKE-MAPA-GOOGLE: etapa 2, lotes, cochos, pontos e tarefas no mapa do Google do site (D-PROD-369)
 

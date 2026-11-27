@@ -11035,6 +11035,8 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - marcadores no mapa nativo do app: o SDK nativo só aceita imagem de arquivo do app ou de endereço `https`, não a imagem desenhada na hora.
 - **Testes:** `mapaGoogleMarcadoresD369.test.jsx` (9, com `google.maps` falso), `mapaGoogleNativoD366.test.jsx` (21; o site agora sem o plugin), `mapaRotulosSemBagunca.test.js` (lê o ponto do lote em `itensDoMapaGeral.js`). Os 1.102 testes do mapa passam.
 
+> **Adendo (2026-11-27, depois do merge):** no teste do proprietário, a roda do mouse em cima de um marcador não dava zoom. A camada usava `OverlayView.preventMapHitsAndGesturesFrom`, que corta também a roda, o arrasto e a pinça. Agora só o clique é do marcador: a roda, o arrasto e a pinça chegam ao mapa, como no MapLibre. Para a área por baixo não abrir junto, o clique no polígono gerado por um gesto que começou num marcador é ignorado (cada gesto novo no mapa diz se começou num marcador; a primeira versão, por tempo, prendia o clique numa área logo depois de arrastar a partir de um ícone). No celular, pelo navegador, a pinça em cima de um ícone dava zoom na página: o ícone ganhou `touch-action: none`. Teste novo em `mapaGoogleMarcadoresD369.test.jsx` (10 testes).
+
 ## D-PROD-370 — Cadastro de ponto simples: cocho e depósito sem instruções, avisos nem Observações
 
 **Data:** 2026-11-27 · **Origem:** o proprietário: "no cadastro de novo ponto seja cocho ou depósito precisa ser algo simples e correto… não preciso de instruções de campos, não preciso de alertas… não preciso de campo de observações" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`PONTO-SIMPLES-D370-REPORT.md`](./PONTO-SIMPLES-D370-REPORT.md)
@@ -11060,7 +11062,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 ## D-PROD-371 — Estoque na unidade do cadastro do produto (UE-1)
 
-> **Numeração:** nasceu D-PROD-369 nesta branch (a SPEC e a emenda foram aprovadas com esse número). Antes do merge, a `main` deu a D-PROD-369 ao mapa do Google, etapa 2 (PR #459), e a D-PROD-370 ao cadastro de ponto simples (PR #458), e passou a indicar `Próxima decisão: D-PROD-371`, que é esta; o marcador passa a D-PROD-372. O número não está no `migration.sql` (só no manifesto), então o checksum não muda. A aprovação da emenda (2026-11-27) foi dada com o número D-PROD-369; é a mesma decisão.
+> **Numeração:** nasceu D-PROD-369 nesta branch (a SPEC e a emenda foram aprovadas com esse número). Antes do merge, a `main` deu a D-PROD-369 ao mapa do Google, etapa 2 (PR #459), e a D-PROD-370 ao cadastro de ponto simples (PR #458), e passou a indicar `Próxima decisão: D-PROD-371`, que é esta; o marcador passa a D-PROD-372; depois a `main` deu a D-PROD-372 ao mapa do Google no app (#462), e o marcador passa a D-PROD-373. O número não está no `migration.sql` (só no manifesto), então o checksum não muda. A aprovação da emenda (2026-11-27) foi dada com o número D-PROD-369; é a mesma decisão.
 
 **Data:** 2026-11-27 · **Origem:** pedido do proprietário ("a unidade de estoque para a conversão tem que ser a unidade do cadastro principal"; escolha "Estoque na unidade que eu escolher"; "Aprovo a emenda"; cocho e depósito: "Usar a conversão para KG") · **Branch:** `claude/estoque-unidade-cadastro` · **Migration:** `20261127200000_estoque_unidade_cadastro` (CONTRACT condicionado, **não aplicada em produção**) · **SPEC:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md) · **Relatório:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-UE1-REPORT.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-UE1-REPORT.md) · **Runbook:** [`MAIKE-ESTOQUE-UNIDADE-CADASTRO-RUNBOOK-RELEASE.md`](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-RUNBOOK-RELEASE.md)
 
@@ -11079,4 +11081,25 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-371 (a D-PROD-368 é a da PR #456, base desta branch; a PR #458 reserva a D-PROD-370). O marcador passa a D-PROD-370. O número não está no `migration.sql`, então renumerar não muda o checksum. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-372 -->
+## D-PROD-372 — Mapa do Google no app: lotes, cochos, pontos e tarefas no mapa nativo
+
+**Data:** 2026-11-27 · **Origem:** o proprietário testou o APK 1.0.6 ("no aplicativo apk ainda não aparecem os lotes") e escolheu os mesmos ícones do sistema ("é melhor deixar do jeito que está o nosso, não quero mudar") · **Relatório:** [`MAPA-GOOGLE-APP-MARCADORES-D372-REPORT.md`](./MAPA-GOOGLE-APP-MARCADORES-D372-REPORT.md) · **Migration:** nenhuma · **APK:** nenhum (chega pela atualização automática)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-372: a D-PROD-371 está reservada pela PR #460 (regra A5). O marcador passa a D-PROD-373.
+
+- **Problema:** no app, o mapa do Google é o nativo do plugin. O SDK nativo só aceita imagem de marcador de arquivo do app ou de endereço `https`, não a imagem desenhada na hora: o lote com a contagem e o identificador, o cocho com o nível e o farol.
+- **Opções levadas ao proprietário:**
+  - ícones do Google: gravados no APK, acompanham o mapa ao arrastar, mas sem a parte que muda (contagem, nível, farol, identificador), e com APK novo;
+  - os mesmos ícones do sistema por cima do mapa nativo, que somem enquanto o mapa se mexe e voltam no lugar quando ele para, sem APK novo.
+  - **Escolha:** os mesmos ícones.
+- **Decisão:**
+  - **Camada:** um `div` por cima do mapa nativo (`src/lib/mapaNativo/camadaDeImagens.js`), com as mesmas imagens, posições, ordem e cliques do site (`useMarcadoresGoogle`, `itensDoMapaGeral`).
+  - **Posição:** vem da câmera que o plugin entrega quando o mapa para (`onCameraIdle`). A projeção é Web Mercator no zoom do Google, com o centro da câmera no meio do elemento e girada pelo rumo (`projetarNaCamera`). Mapa inclinado não tem projeção plana, e os ícones ficam escondidos.
+  - **Movimento:** no `onCameraMoveStarted`, a camada some; no `onCameraIdle`, volta reposicionada. O plugin não avisa quadro a quadro.
+  - **Toque:** o `div` tem `pointer-events: none`, então o toque vai para o mapa nativo; só a imagem pega o toque, e abre o mesmo detalhe. O plugin decide quem recebe o toque pelo `elementFromPoint`. A imagem tem `touch-action: none`.
+  - **Ligação:** o `MapaGoogleNativo` entrega ao `MapaGeral` um `definirMarcadores` da camada, e não o mapa nativo. O `useMarcadoresGoogle` é o mesmo do site.
+  - **Ordem dentro do mapa:** o elemento do mapa do Google tem `isolation: isolate`, no app e no site, como o MapLibre. Os z-index dos marcadores (500 a 3000) não passam por cima da barra, do resumo e das janelas do Mapa Geral (achado da revisão automática).
+- **Fica para depois:** os nomes dos pastos (etapa 3) e o resto da etapa 4.
+- **Testes:** `mapaGoogleAppMarcadoresD372.test.jsx` (7: projeção, camada, componente no app e no site), `mapaGoogleNativoD366.test.jsx` (o mapa falso ganha `setOnCameraMoveStartedListener`).
+
+<!-- Próxima decisão: D-PROD-373 -->
