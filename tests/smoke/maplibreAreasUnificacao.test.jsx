@@ -463,6 +463,10 @@ vi.mock("@/lib/maplibre/lifecycle.js", async (orig) => {
     getElement() {
       return this.el;
     }
+    setOffset(o) {
+      this.offset = o;
+      return this;
+    }
     on(ev, fn) {
       this.handlers[ev] = fn;
       return this;

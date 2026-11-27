@@ -215,6 +215,11 @@ export function caixaDoLote(ponto, comRotulo, tamanho = TAMANHO_PADRAO_LOTE) {
 
 /** @type {Map<string, Promise<HTMLImageElement | null>>} */
 const figuras = new Map();
+/**
+ * Figura já pintada no tamanho da tela, uma por desenho e DPR: o SVG é rasterizado uma vez e cada contagem só copia.
+ * @type {Map<string, Promise<{ canvas: HTMLCanvasElement | null, w: number, h: number }>>}
+ */
+const bases = new Map();
 /** @type {Map<string, Raster | null>} */
 const prontas = new Map();
 /** @type {Map<string, Promise<Raster | null>>} */
@@ -225,6 +230,7 @@ let tela = null;
 /** Esquece as imagens já desenhadas (troca de tela/DPR; testes). */
 export function limparCacheImagensLotes() {
   figuras.clear();
+  bases.clear();
   prontas.clear();
   pendentes.clear();
   tela = null;
@@ -248,6 +254,34 @@ function carregarFigura(url) {
       img.src = url;
     });
     figuras.set(url, p);
+  }
+  return p;
+}
+
+/**
+ * A figura do motor pintada no tamanho da tela (44 px de largura, altura sem achatar), no DPR.
+ * @param {string} iconUrl @param {number} pixelRatio
+ */
+function baseDaFigura(iconUrl, pixelRatio) {
+  const k = `${pixelRatio}|${iconUrl}`;
+  let p = bases.get(k);
+  if (!p) {
+    p = carregarFigura(iconUrl).then((fig) => {
+      const { width: w, height: h } = fig
+        ? iconeSemAchatar(fig.naturalWidth, fig.naturalHeight, LARGURA_MARCADOR_PX)
+        : { width: TAMANHO_PADRAO_LOTE.w, height: TAMANHO_PADRAO_LOTE.h };
+      if (!fig || typeof document === "undefined") return { canvas: null, w, h };
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(w * pixelRatio));
+      canvas.height = Math.max(1, Math.round(h * pixelRatio));
+      // na CPU, como o canvas de trabalho: copiar entre os dois não passa pela GPU
+      const ctx = /** @type {CanvasRenderingContext2D | null} */ (canvas.getContext("2d", { willReadFrequently: true }));
+      if (!ctx) return { canvas: null, w, h };
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      ctx.drawImage(fig, 0, 0, w, h);
+      return { canvas, w, h };
+    });
+    bases.set(k, p);
   }
   return p;
 }
@@ -302,16 +336,14 @@ function lerPixels(ctx, largura, altura) {
  * @returns {Promise<Raster | null>}
  */
 export async function desenharImagemLote({ iconUrl, texto, pixelRatio }) {
-  const fig = await carregarFigura(iconUrl);
-  const { width: w, height: h } = fig
-    ? iconeSemAchatar(fig.naturalWidth, fig.naturalHeight, LARGURA_MARCADOR_PX)
-    : { width: TAMANHO_PADRAO_LOTE.w, height: TAMANHO_PADRAO_LOTE.h };
+  const base = await baseDaFigura(iconUrl, pixelRatio);
+  const { w, h } = base;
   const largura = Math.max(1, Math.round(w * pixelRatio));
   const altura = Math.max(1, Math.round(h * pixelRatio));
   const ctx = contexto(largura, altura);
   if (!ctx) return null;
+  if (base.canvas) ctx.drawImage(base.canvas, 0, 0);
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  if (fig) ctx.drawImage(fig, 0, 0, w, h);
   ctx.font = `700 ${FONTE_CONTAGEM_PX}px ${FONTE_FAMILIA}`;
   ctx.textAlign = "center";
   const x = w / 2;
@@ -415,6 +447,28 @@ export function pedidoImagemIdent(ident, pixelRatio) {
 /** @param {string} chave @param {number} pixelRatio */
 const chaveCache = (chave, pixelRatio) => `${chave}@${pixelRatio}`;
 
+/** Uma fatia de desenho; passou disso, devolve a vez ao navegador (nada de tarefa longa ao abrir 200 pastos). */
+const FATIA_MS = 8;
+let fila = /** @type {Promise<unknown>} */ (Promise.resolve());
+let inicioFatia = -Infinity;
+const agora = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
+/**
+ * Desenha uma imagem por vez, em fatias de FATIA_MS: entre uma fatia e outra o navegador pinta e atende o toque.
+ * @template T @param {() => Promise<T>} fn @returns {Promise<T>}
+ */
+function naFila(fn) {
+  const p = fila.then(async () => {
+    if (agora() - inicioFatia > FATIA_MS) {
+      await new Promise((r) => setTimeout(r, 0));
+      inicioFatia = agora();
+    }
+    return fn();
+  });
+  fila = p.catch(() => null);
+  return p;
+}
+
 /**
  * Garante as imagens pedidas no cache. Devolve `null` se todas já estão prontas (o chamador segue sem esperar) ou a
  * promessa de quando ficarem. Uma chave só é desenhada uma vez, mesmo pedida várias vezes ao mesmo tempo.
@@ -429,7 +483,7 @@ export function garantirImagens(pedidos, pixelRatio) {
     if (prontas.has(k)) continue;
     let p = pendentes.get(k);
     if (!p) {
-      p = gerar()
+      p = naFila(gerar)
         .catch(() => null)
         .then((r) => {
           prontas.set(k, r);

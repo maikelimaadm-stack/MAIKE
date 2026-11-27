@@ -464,7 +464,7 @@ describe("L348-6 — piscar do alerta", () => {
   const opacidades = (map) => map.setPaintProperty.mock.calls.filter((c) => c[0] === LOTES_IDENT_LAYER_ID && c[1] === "icon-opacity").map((c) => c[2]);
 
   it("com alerta e piscar ligado: o identificador alterna 1 ↔ 0,2 a cada 550 ms; para ao tirar o alerta", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     const { map, r } = montar();
     renderer = r;
     await r.syncLotes(comAlerta(), [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, true);
@@ -485,7 +485,7 @@ describe("L348-6 — piscar do alerta", () => {
   });
 
   it("sem alerta, ou com o piscar desligado, ou sem identificador: nada pisca", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     const { map, r } = montar();
     renderer = r;
     await r.syncLotes(comAlerta({ alertas: [] }), [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, true);
@@ -500,7 +500,7 @@ describe("L348-6 — piscar do alerta", () => {
   it("a opacidade pisca só os que têm `piscar` e some no arrasto; clearAll para o piscar", async () => {
     const [, ident] = camadasLotes();
     expect(ident.paint["icon-opacity"]).toEqual(["case", ["boolean", ["feature-state", "arrastando"], false], 0, ["boolean", ["get", "piscar"], false], 1, 1]);
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     const { map, r } = montar();
     await r.syncLotes(comAlerta(), [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, true);
     r.clearAll();
