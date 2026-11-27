@@ -12,7 +12,7 @@
  */
 import { readFileSync } from "node:fs";
 import { renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 vi.mock("@/lib/googleMaps", () => ({ loadGoogleMaps: vi.fn(async () => {}) }));
 
@@ -293,6 +293,31 @@ describe("G369-3 — lotes, cochos, pontos e tarefas no mapa do Google do site",
     expect(aoCocho).toHaveBeenCalledWith(cocho);
     expect(aoPonto).toHaveBeenCalledWith(ponto);
     expect(aTarefa).toHaveBeenCalledWith(tarefas[1]);
+  });
+
+  it("figura remota lenta: o grupo sai com a reserva em até 250 ms e é publicado de novo quando ela chega", async () => {
+    const lotes = await import("@/lib/maplibre/lotesNoMapa.js");
+    const garantir = /** @type {any} */ (lotes.garantirImagens);
+    const pronta = /** @type {any} */ (lotes.imagemPronta);
+    let chegou = false;
+    let soltar = () => {};
+    const figura = new Promise((r) => (soltar = () => { chegou = true; r(undefined); }));
+    // 1ª chamada: as reservas (prontas); 2ª: as figuras (lenta)
+    garantir.mockImplementationOnce(() => null).mockImplementationOnce(() => figura);
+    const r40 = { imagem: { width: 80, height: 80, data: new Uint8ClampedArray(4) }, pixelRatio: 2, w: 40, h: 40 };
+    const antes = pronta.getMockImplementation();
+    pronta.mockImplementation((chave) => (String(chave).startsWith("mg-ponto-res") || chegou ? r40 : null));
+    onTestFinished(() => pronta.mockImplementation(antes));
+    const definirMarcadores = vi.fn();
+    const { result } = renderHook(() => useMarcadoresGoogle({ definirMarcadores }));
+    const ponto = { id: "p1", nome: "Porteira", icone_url: "https://exemplo.invalid/porteira.png", coordenadas: { lat: -15, lng: -47 } };
+    const p = result.current.syncPontos([ponto], true, [], vi.fn());
+    await new Promise((r) => setTimeout(r, 300));
+    expect(definirMarcadores).toHaveBeenCalledTimes(1);
+    expect(definirMarcadores.mock.calls[0][1][0].id).toBe("p1");
+    soltar();
+    await p;
+    expect(definirMarcadores).toHaveBeenCalledTimes(2);
   });
 
   it("sem o mapa do site (abrindo) ou no mapa nativo do app (sem `definirMarcadores`): nada", async () => {

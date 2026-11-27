@@ -11033,6 +11033,6 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - nomes dos pastos (etapa 3);
   - arrastar lote, piscar o identificador com alerta, linhas, localização, coloração e "Localizar" (etapa 4);
   - marcadores no mapa nativo do app: o SDK nativo só aceita imagem de arquivo do app ou de endereço `https`, não a imagem desenhada na hora.
-- **Testes:** `mapaGoogleMarcadoresD369.test.jsx` (8, com `google.maps` falso), `mapaGoogleNativoD366.test.jsx` (21; o site agora sem o plugin), `mapaRotulosSemBagunca.test.js` (lê o ponto do lote em `itensDoMapaGeral.js`). Os 1.102 testes do mapa passam.
+- **Testes:** `mapaGoogleMarcadoresD369.test.jsx` (9, com `google.maps` falso), `mapaGoogleNativoD366.test.jsx` (21; o site agora sem o plugin), `mapaRotulosSemBagunca.test.js` (lê o ponto do lote em `itensDoMapaGeral.js`). Os 1.102 testes do mapa passam.
 
 <!-- Próxima decisão: D-PROD-370 -->

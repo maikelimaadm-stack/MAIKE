@@ -25,6 +25,8 @@ export const ORDEM_GOOGLE = Object.freeze({ supl: 500, pontos: 800, lote: 1000, 
 
 /** Imagens já convertidas em URL, por chave e densidade (a conversão é feita uma vez). */
 const urls = new Map();
+/** Quanto um grupo de pontos espera as figuras antes de sair com a reserva no que faltar (ms), como no MapLibre. */
+export const MS_ESPERA_IMAGENS = 250;
 /** Passou disso, o cache de URLs recomeça (as imagens em uso são refeitas na próxima publicação). */
 const MAX_URLS = 600;
 
@@ -84,9 +86,9 @@ export default function useMarcadoresGoogle(mapa) {
 
     /**
      * Desenha o que falta e publica o grupo; uma chamada mais nova descarta a anterior.
-     * @param {string} grupo @param {any[]} pedidos @param {() => any[]} montar @param {() => void} [aoFalhar]
+     * @param {string} grupo @param {any[]} pedidos @param {() => any[]} montar @param {() => void} [aoFalhar] @param {any[]} [reservas]
      */
-    const publicar = (grupo, pedidos, montar, aoFalhar) => {
+    const publicar = (grupo, pedidos, montar, aoFalhar, reservas = []) => {
       if (!temMarcadores) return Promise.resolve();
       const seq = proximo(grupo);
       const pr = pixelRatioDaTela();
@@ -94,28 +96,41 @@ export default function useMarcadoresGoogle(mapa) {
         if (seqRef.current[grupo] !== seq) return;
         mapa.definirMarcadores(grupo, montar().filter(Boolean));
       };
-      const espera = garantirImagens(pedidos, pr, aoFalhar);
-      if (!espera) {
+      // Como o `sincronizarGrupo` do MapLibre: as reservas (desenhadas na hora) primeiro; as figuras esperam no máximo
+      // MS_ESPERA_IMAGENS. Uma figura remota lenta não segura o grupo: ele sai com a reserva e é publicado de novo quando
+      // ela chega.
+      const esperaReservas = reservas.length ? garantirImagens(reservas, pr, aoFalhar) : null;
+      const esperaImagens = garantirImagens(pedidos, pr, aoFalhar);
+      if (!esperaReservas && !esperaImagens) {
         aplicar();
         return Promise.resolve();
       }
-      return espera.then(aplicar);
+      const prazo = () => new Promise((r) => setTimeout(r, MS_ESPERA_IMAGENS));
+      return (esperaReservas || Promise.resolve())
+        .then(() => (esperaImagens && reservas.length ? Promise.race([esperaImagens, prazo()]) : esperaImagens))
+        .then(() => {
+          aplicar();
+          return reservas.length ? esperaImagens : null;
+        })
+        .then(() => {
+          if (esperaImagens && reservas.length) aplicar();
+        });
     };
 
     /** Cochos, pontos ou tarefas: a figura ou, sem ela, a reserva (o ponto nunca some). */
     const publicarPontos = (/** @type {string} */ grupo, /** @type {import('@/lib/maplibre/itensDoMapaGeral.js').PontoNoMapa[]} */ itens, /** @type {(ref: any, item: any) => number} */ ordem, /** @type {(ref: any) => void} */ aoClicar) => {
       const pr = pixelRatioDaTela();
-      const pedidos = itens.flatMap((i) => [i.pedidos.reserva, i.pedidos.imagem]);
       return publicar(
         grupo,
-        pedidos,
+        itens.map((i) => i.pedidos.imagem),
         () =>
           itens.map(({ item, ref }) => {
             const pronta = imagemPronta(item.imagem, pr);
             const r = pronta || imagemPronta(item.reserva, pr);
             return marcador({ id: item.id, lngLat: item.lngLat, r, chave: pronta ? item.imagem : item.reserva, z: ordem(ref, item), titulo: item.titulo, onClick: () => aoClicar(ref) });
           }),
-        avisarFalhaPonto
+        avisarFalhaPonto,
+        itens.map((i) => i.pedidos.reserva)
       );
     };
 

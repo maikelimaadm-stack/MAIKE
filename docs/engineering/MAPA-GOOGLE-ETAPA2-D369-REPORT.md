@@ -42,11 +42,12 @@ O `MapaGeral` chama `syncLotes`, `syncPontos`, `syncPontosSuplementacao` e `sync
 
 ## Testes
 
-- `tests/smoke/mapaGoogleMarcadoresD369.test.jsx`, 8 testes com um `google.maps` falso:
+- `tests/smoke/mapaGoogleMarcadoresD369.test.jsx`, 9 testes com um `google.maps` falso:
   - mapa, tipo, enquadramento, câmera parada e destruição;
   - polígonos com a `tag`;
   - posição, ordem, título, clique e troca por grupo dos marcadores;
   - lote com identificador e alerta, cocho, ponto e tarefa com a ordem e o clique certos;
+  - figura remota lenta: o grupo sai com a reserva em até 250 ms e é publicado de novo quando ela chega (achado da revisão automática);
   - nada sem o mapa do site;
   - os dois mapas usam `itensDoMapaGeral`.
 - `tests/smoke/mapaGoogleNativoD366.test.jsx`: 21 testes. O site agora cria o mapa sem o plugin, e o app segue pelo plugin com a chave.
