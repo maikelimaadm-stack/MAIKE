@@ -557,6 +557,17 @@ export const liberarExclusaoOfflineRetida = async (filaId) => {
 };
 
 /**
+ * D-PROD-342 — o servidor respondeu que o registro não existe (404 / `*_NOT_FOUND`)?
+ * @param {unknown} erro
+ */
+export const registroJaNaoExiste = (erro) => {
+  const e = /** @type {any} */ (erro);
+  const codigo = String(e?.cause?.code ?? e?.code ?? "");
+  const status = Number(e?.cause?.status ?? e?.status ?? e?.response?.status ?? 0);
+  return status === 404 || /(^|_)NOT_FOUND$/.test(codigo);
+};
+
+/**
  * Cria as operações offline de **uma** entidade.
  *
  * @param {object} p
@@ -593,6 +604,8 @@ export const liberarExclusaoOfflineRetida = async (filaId) => {
  *        repetir a criação devolve o mesmo registro. Com internet, se a criação não
  *        chega a uma resposta (rede caiu, servidor fora), ela vai para a fila com o
  *        MESMO id (sem duplicar) em vez de voltar erro para a tela.
+ * @param {"fila"|"erro"} [p.edicaoSemResposta] D-PROD-342: a edição feita com internet que fica sem
+ *        resposta vai para a fila ("fila", padrão) ou volta como erro para quem chamou ("erro").
  * @param {OfflineEntityStorage} [p.storage]
  * @returns {object} objeto com as mesmas chaves de `operations`
  */
@@ -606,6 +619,10 @@ export const createOfflineEntityAdapter = ({
   criacao = "fila",
   adotarFilaSemDono = false,
   idDoAparelho = false,
+  // D-PROD-342: edição sem resposta (sinal fraco) vai para a fila ("fila") ou volta como erro ("erro"). "erro" para as
+  // entidades que o motor de sincronização grava em passos (o fechamento do período do cocho: o motor tenta o
+  // lançamento inteiro de novo; na fila antiga ele iria fora de ordem, depois de um cancelamento, por exemplo).
+  edicaoSemResposta = "fila",
   storage,
 }) => {
   if (typeof entityName !== "string" || !entityName) {
@@ -795,18 +812,21 @@ export const createOfflineEntityAdapter = ({
       // (a cópia do aparelho tem uma versão local, e a ordem das duas edições se mantém), e a fila é
       // enviada em seguida.
       const edicaoNaFila = estaOnline() ? await edicaoPendenteDe(entityName, recordId, tenantId) : null;
+      /** D-PROD-342: a edição foi ao servidor e a resposta se perdeu (pode já estar lá). */
+      let edicaoJaTentada = false;
       if (estaOnline() && !edicaoNaFila && !(await criacaoPendenteDe(recordId, tenantId))) {
         let atualizado = null;
         try {
           atualizado = await operations.update(recordId, versaoEsperada ? { ...dados, [CAMPO_VERSAO_ESPERADA]: versaoEsperada } : dados);
         } catch (erro) {
-          // D-PROD-341: sem resposta (sinal fraco, Wi-Fi sem dados, sessão vencida): a edição vai para a fila, como a
+          // D-PROD-342: sem resposta (sinal fraco, Wi-Fi sem dados, sessão vencida): a edição vai para a fila, como a
           // criação (D-PROD-308), em vez de dar erro e a pessoa ter de refazer. Se ela chegou ao servidor e só a resposta
           // se perdeu, a repetição não é conflito: o servidor reconhece a mesma edição já aplicada (`pedidoJaAplicado`).
           // Recusa ou erro do servidor (com resposta) continua voltando para a tela.
           const falha = classificarFalhaDeEnvio(erro);
           const semResposta = falha === "rede" || falha === "sessao";
-          if (!semResposta || (tenantScoped && !tenantId)) throw erro;
+          if (edicaoSemResposta !== "fila" || !semResposta || (tenantScoped && !tenantId)) throw erro;
+          edicaoJaTentada = true;
         }
         if (atualizado) {
           await atualizarCache(
@@ -854,7 +874,9 @@ export const createOfflineEntityAdapter = ({
               item.data?.id === recordId &&
               (tenantId === undefined || (item.cliente_id ?? null) === tenantId)
           );
-          if (criacaoPendente && !estaSendoEnviado(criacaoPendente)) {
+          // D-PROD-342: a criação que já foi tentada sem resposta pode estar gravada no servidor, que devolve o que
+          // tem ao receber o mesmo id de novo — a edição somada a ela se perderia. Vai como item próprio, depois.
+          if (criacaoPendente && !criacaoPendente.ja_tentado && !estaSendoEnviado(criacaoPendente)) {
             await porta.atualizarNaFila(criacaoPendente.id, { data: registro });
             emitirMudancaDeFila();
             return registro;
@@ -871,7 +893,7 @@ export const createOfflineEntityAdapter = ({
               data: dados,
             });
             emitirMudancaDeFila();
-            syncOfflineEntityQueue().catch(() => undefined);
+            if (estaOnline()) syncOfflineEntityQueue().catch(() => undefined);
             return registro;
           }
         }
@@ -902,6 +924,18 @@ export const createOfflineEntityAdapter = ({
           });
           emitirMudancaDeFila();
           syncOfflineEntityQueue().catch(() => undefined);
+        } else if (atualizacaoPendente?.ja_tentado) {
+          // D-PROD-342: a edição na fila já foi ao servidor sem resposta (pode já estar lá, mudando a versão). Juntar a
+          // correção nela faria a repetição levar a versão velha com valores NOVOS: conflito com ela mesma, sem saída.
+          // A correção vai como item próprio, depois dela, sem versão (é a continuação da mesma pessoa).
+          await enfileirar(porta, {
+            entity_name: entityName,
+            empresa_id: empresaId,
+            ...carimboDeTenant(tenantScoped, tenantId),
+            operation: "update",
+            record_id: recordId,
+            data: dados,
+          });
         } else if (atualizacaoPendente) {
           // D-PROD-316: a versão que vale é a da PRIMEIRA edição na fila (a que a pessoa viu do
           // servidor); a desta foi lida da cópia do aparelho, já com a edição anterior aplicada.
@@ -918,6 +952,7 @@ export const createOfflineEntityAdapter = ({
             operation: "update",
             record_id: recordId,
             data: versaoEsperada ? { ...dados, [CAMPO_VERSAO_ESPERADA]: versaoEsperada } : dados,
+            ...(edicaoJaTentada ? { ja_tentado: true } : {}),
           });
         }
 
@@ -1350,7 +1385,15 @@ const passarPelaFilaDeEntidades = async (onProgress) => {
 
       if (item.operation === "delete") {
         const alvo = mapaDeIds[item.record_id] || item.record_id;
-        if (!isOfflineId(alvo)) await operations.delete(alvo);
+        if (!isOfflineId(alvo)) {
+          try {
+            await operations.delete(alvo);
+          } catch (erroDaExclusao) {
+            // D-PROD-342: o registro já não existe no servidor (a exclusão chegou numa tentativa sem resposta, ou
+            // outra pessoa excluiu): o que a exclusão pedia já está feito — não fica "precisa de atenção".
+            if (!registroJaNaoExiste(erroDaExclusao)) throw erroDaExclusao;
+          }
+        }
         await atualizarCache(
           storage,
           item.entity_name,
@@ -1399,7 +1442,9 @@ const passarPelaFilaDeEntidades = async (onProgress) => {
       if (falha === "servidor" && tentativasComErro < TENTATIVAS_COM_ERRO_DO_SERVIDOR) {
         await storage.atualizarNaFila(item.id, { tentativas_com_erro: tentativasComErro, ultimo_erro: ultimoErro }).catch(() => undefined);
       } else if (falha !== "recusado") {
-        await storage.atualizarNaFila(item.id, { ultimo_erro: ultimoErro }).catch(() => undefined);
+        // D-PROD-342: sem resposta (rede), o pedido pode ter chegado ao servidor. O item passa a contar como já
+        // tentado: a edição seguinte não entra mais nele (iria junto de algo que o servidor talvez já gravou).
+        await storage.atualizarNaFila(item.id, { ultimo_erro: ultimoErro, ...(falha === "rede" ? { ja_tentado: true } : {}) }).catch(() => undefined);
       }
       if (falha === "recusado" || tentativasComErro >= TENTATIVAS_COM_ERRO_DO_SERVIDOR) {
         if (item.operation === "update") edicoesRecusadas.add(chaveDaEdicao(item));

@@ -8,8 +8,13 @@
  * VR-04 versão em formato inválido → 400, nada gravado
  * VR-05 mudança feita pelo servidor (sem PATCH) também muda a versão
  * VR-06 outro tenant: 404, não vaza a versão nem quem alterou
- * VR-07 (D-PROD-341) a MESMA edição repetida com a versão de antes (resposta perdida com o sinal fraco) não é conflito
+ * VR-07 (D-PROD-342) a MESMA edição repetida com a versão de antes (resposta perdida com o sinal fraco) não é conflito
  *       (lote e cocho); uma edição diferente com a versão velha continua 409
+ * VR-08 (D-PROD-342) o reconhecimento da repetição compara pelo tipo gravado: texto como texto ("01" ≠ "1" e a chave
+ *       de 44 dígitos não vira número), coordenadas com as chaves em outra ordem e número com mais casas que a coluna
+ *       guarda contam como a mesma edição
+ * VR-09 (D-PROD-342) a mesma edição da tarefa repetida não grava outra linha no histórico; um registro só de
+ *       histórico (sem campos) continua gravando
  */
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -167,5 +172,58 @@ describe('D-PROD-316 — versão do registro', () => {
     assert.equal(pRepetida.statusCode, 200, pRepetida.body);
     const pOutra = await req('PATCH', `/pontos-suplementacao/${cocho.id}`, c.token, { nome_ponto: 'OUTRO', versao_esperada: cocho.updated_date });
     assert.equal(pOutra.statusCode, 409, pOutra.body);
+  });
+
+  test('VR-08 a repetição é reconhecida pelo tipo gravado', async () => {
+    const c = await conta();
+    const lote = await criarLote(c, 'G');
+    await esperar();
+    // Outro aparelho grava nome "1"; este, com a versão velha, manda "01": é outra edição → conflito.
+    const b = await req('PATCH', `/lotes/${lote.id}`, c.token, { nome: '1', versao_esperada: lote.updated_date });
+    assert.equal(b.statusCode, 200, b.body);
+    const a = await req('PATCH', `/lotes/${lote.id}`, c.token, { nome: '01', versao_esperada: lote.updated_date });
+    assert.equal(a.statusCode, 409, a.body);
+    assert.equal((await prisma().lote.findFirst({ where: { id: lote.id } })).nome, '1');
+
+    const cocho = await criarPonto(c);
+    await esperar();
+    const edicao = { coordenadas: { lng: -47.1, lat: -15.2 }, capacidade_cocho_kg: 1500.12345 };
+    const p1 = await req('PATCH', `/pontos-suplementacao/${cocho.id}`, c.token, { ...edicao, versao_esperada: cocho.updated_date });
+    assert.equal(p1.statusCode, 200, p1.body);
+    const repetida = await req('PATCH', `/pontos-suplementacao/${cocho.id}`, c.token, {
+      coordenadas: { lat: -15.2, lng: -47.1 },
+      capacidade_cocho_kg: 1500.12345,
+      versao_esperada: cocho.updated_date,
+    });
+    assert.equal(repetida.statusCode, 200, repetida.body);
+    const outra = await req('PATCH', `/pontos-suplementacao/${cocho.id}`, c.token, { capacidade_cocho_kg: 1500.2, versao_esperada: cocho.updated_date });
+    assert.equal(outra.statusCode, 409, outra.body);
+  });
+
+  test('VR-09 a mesma edição da tarefa repetida não grava outro histórico', async () => {
+    const c = await conta();
+    const criada = await req('POST', '/lancamentos-tarefa', c.token, { empresa_id: c.empresa.id, titulo: 'CERCA', status: 'Pendente' });
+    assert.equal(criada.statusCode, 201, criada.body);
+    const id = criada.json().id;
+    const linhas = () => prisma().historicoLancamentoTarefa.count({ where: { tarefa_id: id } });
+    const antes = await linhas();
+    const conclusao = { status: 'Concluída', historico_evento: 'Conclusão', historico_descricao: 'Concluída no campo.' };
+    const r1 = await req('PATCH', `/lancamentos-tarefa/${id}`, c.token, conclusao);
+    assert.equal(r1.statusCode, 200, r1.body);
+    assert.equal(await linhas(), antes + 1);
+    // A resposta se perdeu e o aparelho manda de novo: o mesmo resultado, sem outra "Conclusão".
+    const r2 = await req('PATCH', `/lancamentos-tarefa/${id}`, c.token, conclusao);
+    assert.equal(r2.statusCode, 200, r2.body);
+    assert.equal(await linhas(), antes + 1);
+    // A foto que subiu duas vezes também não repete o histórico.
+    const foto = { fotos_adicionar: ['https://f/campo.jpg'], historico_evento: 'Edição', historico_descricao: 'Foto enviada.' };
+    await req('PATCH', `/lancamentos-tarefa/${id}`, c.token, foto);
+    await req('PATCH', `/lancamentos-tarefa/${id}`, c.token, foto);
+    assert.equal(await linhas(), antes + 2);
+    // Registro só de histórico (sem campos): cada um vale.
+    const registro = { historico_evento: 'Registro', historico_descricao: 'Cerca arrumada' };
+    await req('PATCH', `/lancamentos-tarefa/${id}`, c.token, registro);
+    await req('PATCH', `/lancamentos-tarefa/${id}`, c.token, registro);
+    assert.equal(await linhas(), antes + 4);
   });
 });

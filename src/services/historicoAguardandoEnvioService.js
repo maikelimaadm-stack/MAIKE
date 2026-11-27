@@ -19,7 +19,7 @@
 import { mostrarComoAguardando as mostraComoAguardando, registrosDoAparelhoDoTipo } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { TIPO_LANCAMENTO_COCHO, TIPO_TRANSFERENCIA_DEPOSITO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
 
-/** D-PROD-341: no máximo uma confirmação pedida a cada tanto (o histórico é relido muitas vezes). */
+/** D-PROD-342: no máximo uma confirmação pedida a cada tanto (o histórico é relido muitas vezes). */
 const INTERVALO_DA_CONFIRMACAO_MS = 20_000;
 let confirmacaoPedidaEm = 0;
 /** Pede uma passada já (sob demanda: o histórico não carrega a sincronização inteira). */
@@ -90,14 +90,16 @@ export const movimentacoesAguardandoEnvio = async (empresaId = null) => {
       continue;
     }
     if (r.estado === 'atencao') continue;
-    // D-PROD-341: a que tentou subir sem receber a resposta (sinal fraco) continua no histórico, marcada "confirmando",
-    // e a confirmação é pedida na hora (o servidor deduplica pelo código da operação: a repetição devolve a que já foi
-    // feita, sem baixar de novo). Antes ela sumia sempre que o celular dizia ter internet, e a pessoa transferia de novo.
-    const confirmando = !mostraComoAguardando(r);
-    if (confirmando) pedirConfirmacao();
+    // D-PROD-342: a que tentou subir sem receber a resposta (sinal fraco), com internet, não aparece (a lista do
+    // servidor pode já tê-la, sem como casar — apareceria duas vezes), mas a confirmação é pedida NA HORA: o servidor
+    // deduplica pelo código da operação e devolve a que já fez, que volta ao histórico com os ids reais em segundos.
+    // Antes ela ficava fora até a passada seguinte (até 1 min) e a pessoa transferia de novo.
+    if (!mostraComoAguardando(r)) {
+      pedirConfirmacao();
+      continue;
+    }
     const comum = {
       ...base(p, r),
-      ...(confirmando ? { _confirmando: true } : {}),
       local_estoque_destino: p?.local_destino_id ?? null,
       local_destino: p?.local_destino_nome ?? null,
       movimentacao_grupo_id: `${PREFIXO_AGUARDANDO}${r.operationId}`,
@@ -136,12 +138,13 @@ export const movimentacoesAguardandoEnvio = async (empresaId = null) => {
       continue;
     }
     if (r.estado === 'atencao') continue;
-    // D-PROD-341: idem para a baixa do cocho que tentou subir sem resposta.
-    const baixaConfirmando = !mostraComoAguardando(r);
-    if (baixaConfirmando) pedirConfirmacao();
+    // D-PROD-342: idem para a baixa do cocho que tentou subir sem resposta.
+    if (!mostraComoAguardando(r)) {
+      pedirConfirmacao();
+      continue;
+    }
     lista.push({
       ...base(p.saida, r),
-      ...(baixaConfirmando ? { _confirmando: true } : {}),
       id: `${PREFIXO_AGUARDANDO}${r.operationId}:baixa`,
       tipo_movimentacao: 'Saída',
       tipo_detalhado: 'suplementacao',
