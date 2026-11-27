@@ -45,6 +45,19 @@ O APK sai em `android/app/build/outputs/apk/release/app-release.apk` e instala p
 
 `npm run app:build` atualiza `ios/`. O build do iOS (IPA) só roda num Mac com Xcode: abrir `ios/App/App.xcworkspace`, escolher a equipe de assinatura e rodar no aparelho ou exportar.
 
+## Mapa do Google (D-PROD-366)
+
+O Mapa Geral tem o mapa do Google pelo plugin oficial `@capacitor/google-maps`. No app Android e iOS é o mapa **nativo**: o Google não cobra e o SDK guarda as imagens já vistas, como no AgriWebb. No site é a versão web do mesmo plugin (Maps JavaScript API), cobrada por abertura do mapa e não por imagem.
+
+- **Etapa 1 (em teste):**
+  - Mostra o satélite do Google com as áreas (cores e estilo do Mapa Geral), e o toque na área abre o detalhe.
+  - Liga em Mapa Geral → Visualização → "Mapa do Google (teste)", por aparelho. No app, só aparece a partir do APK 1.0.6.
+  - Se o mapa não abrir, o app avisa e volta ao mapa de sempre.
+- **Chave:** a `VITE_GOOGLE_MAPS_API_KEY` (Vercel e segredos do GitHub) serve o site, o Android e o iPhone.
+  - Para o app, ela não pode ter a restrição de aplicativo "Sites". Use "Nenhuma", com restrição de API, cotas diárias e alerta de orçamento.
+  - Opcional: `GOOGLE_MAPS_ANDROID_KEY` (chave própria do Android, restrita ao pacote e à SHA-1 que o build mostra) e `VITE_GOOGLE_MAPS_IOS_KEY`.
+- **Sem internet:** o Google mostra o que já guardou, sem baixar área inteira.
+
 ## Permissões
 
 - Android (`AndroidManifest.xml`): internet, localização (GPS do mapa: ponto, área e "onde estou") e câmera (fotos dos formulários). O Android pergunta na primeira vez que a função é usada.
