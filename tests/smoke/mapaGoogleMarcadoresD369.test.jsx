@@ -211,8 +211,9 @@ describe("G369-2 — camada de marcadores", () => {
     expect(img.style.transform).toBe("translate(0px, -5px)");
     expect(img.style.width).toBe("40px");
     expect(img.style.zIndex).toBe("500");
+    // no celular, o dedo em cima do ícone não dá zoom na página: o gesto é do mapa
+    expect(img.style.touchAction).toBe("none");
     expect(img.title).toBe("Cocho 1");
-    expect(/** @type {any} */ (globalThis).google.maps.OverlayView.preventMapHitsAndGesturesFrom).toHaveBeenCalledWith(img);
     img.click();
     expect(clique).toHaveBeenCalledTimes(1);
 
@@ -220,6 +221,31 @@ describe("G369-2 — camada de marcadores", () => {
     mapa.definirMarcadores("lotes", [{ id: "a1", lat: 0, lng: 0, url: "data:b", w: 44, h: 42, dx: 0, dy: -26, z: 1000 }]);
     const lote = imgs(el).find((i) => i.dataset.marcador === "lotes|a1");
     expect(lote?.style.transform).toBe("translate(-22px, -47px)");
+  });
+
+  it("a roda do mouse e o arrasto em cima do marcador chegam ao mapa; o clique no marcador não abre a área por baixo", async () => {
+    const { el, estado, mapa } = await novoMapaWeb();
+    const aArea = vi.fn();
+    await mapa.setOnPolygonClickListener(aArea);
+    await mapa.addPolygons([{ paths: [{ lat: 0, lng: 0 }], tag: "a1" }]);
+    mapa.definirMarcadores("supl", [{ id: "c1", lat: 0, lng: 0, url: "data:a", w: 40, h: 40, z: 500, onClick: vi.fn() }]);
+    const [img] = imgs(el);
+    // o mapa ouve no próprio div: a roda e o arrasto que começam no marcador precisam chegar lá (antes o
+    // preventMapHitsAndGesturesFrom os parava, e o zoom com o mouse em cima de um ícone não funcionava)
+    const noMapa = vi.fn();
+    estado.mapa.div.addEventListener("wheel", noMapa);
+    estado.mapa.div.addEventListener("pointerdown", noMapa);
+    img.dispatchEvent(new Event("wheel", { bubbles: true }));
+    img.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    expect(noMapa).toHaveBeenCalledTimes(2);
+    expect(/** @type {any} */ (globalThis).google.maps.OverlayView.preventMapHitsAndGesturesFrom).not.toHaveBeenCalled();
+    // o Google dispara o clique do polígono do gesto que começou no marcador: é ignorado, por mais que se segure
+    estado.poligonos[0].disparar("click");
+    expect(aArea).not.toHaveBeenCalled();
+    // o próximo gesto começa fora do marcador (mesmo logo depois de um arrasto a partir dele): a área abre
+    estado.mapa.div.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    estado.poligonos[0].disparar("click");
+    expect(aArea).toHaveBeenCalledTimes(1);
   });
 
   it("troca por grupo: o que saiu some, o resto é atualizado no mesmo elemento; os outros grupos ficam", async () => {

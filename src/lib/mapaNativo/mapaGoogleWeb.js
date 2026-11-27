@@ -82,10 +82,14 @@ function criarCamada(g) {
           const el = document.createElement("img");
           el.alt = "";
           el.draggable = false;
+          // `touch-action: none`: a pinça e o arrasto com o dedo em cima do ícone são do mapa; sem isso o navegador do
+          // celular dava zoom na página inteira
           el.style.cssText = "position:absolute;left:0;top:0;cursor:pointer;user-select:none;-webkit-user-drag:none;";
+          el.style.touchAction = "none";
           el.dataset.marcador = k;
-          // o toque no marcador não vira clique nem arrasto do mapa (nem abre a área por baixo)
-          g.OverlayView.preventMapHitsAndGesturesFrom?.(el);
+          // A roda do mouse, o arrasto e a pinça em cima do marcador continuam do mapa (como no MapLibre): só o
+          // clique é do marcador. O Google não usa o clique do DOM para o polígono: quem decide se o clique no
+          // polígono é do marcador é o gesto que o começou (`gestoNoMarcador`, no mapa).
           el.addEventListener("click", (e) => {
             e.stopPropagation();
             this.itens.get(k)?.m.onClick?.();
@@ -128,6 +132,16 @@ export async function criarMapaGoogleWeb({ element, config }) {
   let aoClicarPoligono = null;
   const camada = criarCamada(g);
   camada.setMap(mapa);
+  // Cada gesto (mouse, dedo ou caneta) que começa no mapa diz se começou num marcador; o clique no polígono que esse
+  // gesto gerar é ignorado. Um arrasto que saiu do marcador não gera clique, e o próximo gesto, fora dele, libera a
+  // área de novo; segurar o marcador por quanto tempo for não deixa a área abrir junto.
+  let gestoNoMarcador = false;
+  /** @param {PointerEvent} e */
+  const aoComecarGesto = (e) => {
+    const alvo = /** @type {any} */ (e.target);
+    gestoNoMarcador = Boolean(alvo?.closest?.("[data-marcador]"));
+  };
+  div.addEventListener("pointerdown", aoComecarGesto, true);
 
   return {
     /** @param {string} tipo */
@@ -139,7 +153,11 @@ export async function criarMapaGoogleWeb({ element, config }) {
       return lista.map(({ tag, ...opcoes }) => {
         const id = String(proximoId++);
         const p = new g.Polygon({ ...opcoes, map: mapa });
-        p.addListener("click", () => aoClicarPoligono?.({ polygonId: id, tag }));
+        p.addListener("click", () => {
+          // o gesto começou num marcador: o clique é dele (ele já abriu o detalhe dele), não da área por baixo
+          if (gestoNoMarcador) return;
+          aoClicarPoligono?.({ polygonId: id, tag });
+        });
         poligonos.set(id, p);
         return id;
       });
@@ -176,6 +194,7 @@ export async function criarMapaGoogleWeb({ element, config }) {
       camada.definir(grupo, lista);
     },
     async destroy() {
+      div.removeEventListener("pointerdown", aoComecarGesto, true);
       ouvintes.forEach((o) => o.remove?.());
       poligonos.forEach((p) => p.setMap(null));
       poligonos.clear();
