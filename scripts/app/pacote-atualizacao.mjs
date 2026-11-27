@@ -11,7 +11,8 @@
  * O app confere `ultima.json` ao abrir e ao voltar para a frente; versão nova
  * com `nativoMinimo` <= versionCode instalado é baixada e aplicada na próxima
  * abertura (rollback automático se não abrir). Mudança nativa (plugin novo,
- * permissão) sobe `versionCode` em app-version.json: aí só APK novo aplica.
+ * permissão) sobe `versionCode` em app-version.json: aí só APK novo aplica — a não ser que o pacote rode também no APK
+ * anterior: aí `nativoMinimo` fica no código anterior (D-PROD-346).
  *
  * Variáveis: APP_MAIKE_API_URL (padrão https://www.makgestao.com);
  * VITE_GOOGLE_MAPS_API_KEY vem do ambiente do build (a mesma do site).
