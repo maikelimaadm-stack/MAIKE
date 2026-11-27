@@ -10,13 +10,22 @@
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import { getOfflineTenant } from '@/lib/offline/offlineTenant';
-import { listarCaminhosGuardados } from '@/lib/offline/respostasOffline';
+import { esquecerResposta, listarCaminhosGuardados } from '@/lib/offline/respostasOffline';
+import { classificarFalhaDeEnvio } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { baixarEntidadesParaOffline } from '@/lib/offline/offlineEntityRuntime';
 import { leiturasOfflineRegistradas } from '@/lib/offline/leiturasOffline';
-import { API_ERROR_CODES } from '../_core/ApiError.js';
 
 /** Leituras ao mesmo tempo ao baixar (D-PROD-294: preparo mais rápido). */
 const CONCORRENCIA = 8;
+
+/**
+ * D-PROD-343: tantas leituras seguidas sem resposta e a baixa das telas para (as que faltam contam como falha). No
+ * Wi-Fi sem dados, cada uma esperava 20 s: centenas de caminhos levavam minutos, com o envio esperando a vez.
+ */
+export const PARAR_APOS_FALHAS_DE_REDE_SEGUIDAS = 6;
+
+/** O servidor diz que o registro não existe (404 / `*_NOT_FOUND`). @param {unknown} erro */
+const naoExisteMais = (erro) => /(^|_)NOT_FOUND$/.test(String(/** @type {any} */ (erro)?.cause?.code ?? ''));
 
 /**
  * D-PROD-301 — todas as portas de módulo. Cada porta registra as suas leituras
@@ -36,24 +45,44 @@ export const carregarTodasAsPortas = async () => {
  * resposta fica guardada (o `nativeRequest` guarda toda leitura). Nenhum
  * caminho é montado aqui. Sem permissão para uma tela (403) não é falha.
  *
+ * D-PROD-343:
+ *  - falha é também o erro do servidor (5xx) e a sessão recusada (401), não só a falta de rede: antes a parte
+ *    aparecia como "baixada" sem ter vindo;
+ *  - o que o servidor diz que não existe mais (404) sai do aparelho (antes o lote excluído abria sem internet);
+ *  - depois de {@link PARAR_APOS_FALHAS_DE_REDE_SEGUIDAS} faltas de rede seguidas, para.
+ *
  * @param {string|null} empresaId
  * @param {(p: {feitas: number, total: number}) => void} [aoAvancar]
  * @returns {Promise<{total: number, ok: number, falhas: number}>}
  */
 export const baixarLeiturasDasTelas = async (empresaId, aoAvancar) => {
   await carregarTodasAsPortas();
-  const guardadas = await listarCaminhosGuardados(getOfflineTenant());
+  const tenant = getOfflineTenant();
+  const guardadas = await listarCaminhosGuardados(tenant);
   const caminhos = [...new Set([...leiturasOfflineRegistradas(empresaId), ...guardadas])];
   let feitas = 0;
   let falhas = 0;
+  let semRedeSeguidas = 0;
   const fila = [...caminhos];
   const trabalhar = async () => {
     while (fila.length) {
+      if (semRedeSeguidas >= PARAR_APOS_FALHAS_DE_REDE_SEGUIDAS) {
+        falhas += fila.length;
+        feitas += fila.length;
+        fila.length = 0;
+        aoAvancar?.({ feitas, total: caminhos.length });
+        return;
+      }
       const caminho = /** @type {string} */ (fila.shift());
       try {
         await nativeRequest(caminho, { autenticado: true, somenteRede: true }, { operation: 'baixarLeituraOffline', resource: 'DadosOffline' });
+        semRedeSeguidas = 0;
       } catch (erro) {
-        if (/** @type {any} */ (erro)?.code === API_ERROR_CODES.PROVIDER_UNAVAILABLE) falhas += 1;
+        const falha = classificarFalhaDeEnvio(erro);
+        if (falha === 'rede') semRedeSeguidas += 1;
+        else semRedeSeguidas = 0;
+        if (naoExisteMais(erro)) await esquecerResposta(tenant, caminho);
+        else if (falha !== 'recusado') falhas += 1;
       }
       feitas += 1;
       aoAvancar?.({ feitas, total: caminhos.length });

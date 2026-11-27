@@ -85,9 +85,20 @@ export const guardarResposta = async (tenant, caminho, corpo, extra = undefined)
   // D-PROD-309: `extra.marca` (instante do servidor da última sincronização incremental) e
   // `extra.formato` vão junto; uma leitura comum (sem `extra`) apaga a marca — a próxima
   // sincronização incremental começa do zero, nunca de uma marca que não bate com o corpo.
-  await comLoja('readwrite', (loja) =>
-    loja.put({ chave: chaveDe(tenant, caminho), tenant, caminho, corpo, em: Date.now(), ...(extra ?? {}) })
-  );
+  const novo = { chave: chaveDe(tenant, caminho), tenant, caminho, corpo, em: Date.now(), ...(extra ?? {}) };
+  // D-PROD-343: a resposta que chega por último nem sempre é a mais nova. A leitura lenta da sincronização, que saiu
+  // ANTES de a tela reler depois de salvar, chegava depois e apagava o registro novo da cópia. Com as duas horas de
+  // pedido, fica a do pedido mais recente (na mesma transação: ninguém grava no meio).
+  await comLoja('readwrite', (loja) => {
+    const pedidoNovo = Number(extra?.pedido_em);
+    if (!Number.isFinite(pedidoNovo)) return loja.put(novo);
+    const atual = loja.get(novo.chave);
+    atual.onsuccess = () => {
+      const pedidoAtual = Number(atual.result?.pedido_em);
+      if (!(Number.isFinite(pedidoAtual) && pedidoAtual > pedidoNovo)) loja.put(novo);
+    };
+    return undefined;
+  });
   await podarSePreciso();
 };
 
@@ -118,6 +129,15 @@ export const listarCaminhosGuardados = async (tenant) => {
     await comLoja('readonly', (loja) => loja.index('tenant').getAll(IDBKeyRange.only(tenant)))
   );
   return Array.isArray(registros) ? registros.map((r) => r.caminho) : [];
+};
+
+/**
+ * D-PROD-343: apaga a resposta guardada de um caminho (o servidor diz que aquilo não existe mais). Nunca lança.
+ * @param {string|null} tenant @param {string} caminho
+ */
+export const esquecerResposta = async (tenant, caminho) => {
+  if (!tenant || !caminho) return;
+  await comLoja('readwrite', (loja) => loja.delete(chaveDe(tenant, caminho)));
 };
 
 /** Apaga as respostas do tenant (logout). Nunca lança. */

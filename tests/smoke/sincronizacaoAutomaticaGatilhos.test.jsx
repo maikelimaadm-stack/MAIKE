@@ -1,7 +1,8 @@
 /**
  * D-PROD-329 — quando a janela "Sincronização" sincroniza sozinha (no app do celular, já preparado):
  *
- * SA-01 a internet voltou: envia e baixa na hora (mesmo com a última baixa recente)
+ * SA-01 a internet voltou: envia e baixa na hora; D-PROD-343: só se a última baixa tem mais de 3 min (com o sinal
+ *       piscando, cada volta baixava tudo de novo; o ENVIO na volta da rede é dos gatilhos e não espera)
  * SA-02 abriu o app há pouco da última baixa: não repete; voltou ao app depois de 10 min: sincroniza
  * SA-03 no navegador (não é o app): nada automático
  */
@@ -40,10 +41,13 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe('D-PROD-329 — sincronização automática', () => {
-  it('SA-01 a internet voltou: sincroniza na hora', async () => {
+  it('SA-01 a internet voltou: sincroniza na hora (se a última baixa tem mais de 3 min)', async () => {
     ultima = Date.now() - 60_000;
     render(<DadosOffline />);
     expect(sincronizar, 'abriu agora há pouco da última: não repete').not.toHaveBeenCalled();
+    await act(async () => { window.dispatchEvent(new Event('online')); });
+    expect(sincronizar, 'baixou há 1 min: não baixa tudo de novo').not.toHaveBeenCalled();
+    ultima = Date.now() - 4 * 60_000;
     await act(async () => { window.dispatchEvent(new Event('online')); });
     expect(sincronizar).toHaveBeenCalledTimes(1);
     expect(sincronizar.mock.calls[0][0]).toMatchObject({ empresaId: 'emp-1' });
