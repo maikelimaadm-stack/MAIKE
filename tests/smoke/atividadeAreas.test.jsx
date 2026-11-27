@@ -395,7 +395,7 @@ describe("FL — as duas telas da atividade (D-PROD-252)", () => {
     expect(screen.queryByTestId("detalhe-area")).toBeNull();
   });
 
-  it("FL-2 — o nome da área abre a área: nome, atividade (sem repetir hectares e custo), sem os botões + por tipo (D-PROD-376) e UMA tabela dos lançamentos com o total; \"‹ Áreas\" volta", async () => {
+  it("FL-2 — o nome da área abre a área: nome, atividade (sem repetir hectares e custo), sem os botões + por tipo (D-PROD-377) e UMA tabela dos lançamentos com o total; \"‹ Áreas\" volta", async () => {
     const onAreaAberta = vi.fn();
     await montar({ onAreaAberta });
     expect(onAreaAberta).toHaveBeenLastCalledWith(false);
@@ -406,7 +406,7 @@ describe("FL — as duas telas da atividade (D-PROD-252)", () => {
     expect(screen.getByTestId("detalhe-area-atividade")).toHaveTextContent("COMBATE À CIGARRINHA");
     // Um total só (o do rodapé): o cabeçalho não repete hectares nem custo.
     expect(screen.queryByTestId("detalhe-area-resumo")).toBeNull();
-    // D-PROD-376: sem a fileira de botões "+" por tipo; lançar é pelo Diário das atividades.
+    // D-PROD-377: sem a fileira de botões "+" por tipo; lançar é pelo Diário das atividades.
     expect(screen.queryByTestId("escolher-registro")).toBeNull();
     expect(screen.getAllByRole("table")).toHaveLength(1);
     const tabela = screen.getByTestId("area-lancamentos-tabela");

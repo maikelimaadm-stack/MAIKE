@@ -1,7 +1,7 @@
 /**
  * A janela do lançamento por tipo (`JanelaLancamentoPorTipo`, D-PROD-233/252) aberta direto no teste.
  *
- * Os botões "+" por tipo da tela da área saíram (D-PROD-376): na tela de Lançamento de atividades, lançar é pelo
+ * Os botões "+" por tipo da tela da área saíram (D-PROD-377): na tela de Lançamento de atividades, lançar é pelo
  * Diário das atividades. A janela continua viva no mapa (o "Só …" da área, `AcoesDaAtividadeDaArea`), então os testes
  * do comportamento dela (criar o dia, a rota da linha, repetir o envio, "Salvar e abastecer") abrem a janela por aqui,
  * com as mesmas props que o mapa passa, montada AO LADO da tela, no mesmo QueryClient: o que ela grava relê a tabela da

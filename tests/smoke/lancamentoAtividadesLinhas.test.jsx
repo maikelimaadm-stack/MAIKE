@@ -2247,7 +2247,7 @@ describe("LL-TOTAIS — totalizador com o combustível (Fatia 5)", () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════
-// D-PROD-252 — o lançamento novo abre direto num formulário (um nível de janela). D-PROD-376: os botões "+" da tela da
+// D-PROD-252 — o lançamento novo abre direto num formulário (um nível de janela). D-PROD-377: os botões "+" da tela da
 // área saíram; a janela (que o mapa ainda abre) é aberta direto pelo teste, com a tabela da área atrás.
 /** Abre a atividade (a de uma área só cai direto na tela da área) e espera a tabela dos lançamentos. @param {string} id */
 const naArea = async (id) => {
@@ -2258,7 +2258,7 @@ const naArea = async (id) => {
   await screen.findByTestId("detalhe-area");
   await waitFor(() => expect(screen.queryByText("Lendo…")).toBeNull());
 };
-/** Abre a janela do formulário do tipo sobre a área aberta (D-PROD-376: sem os botões "+"). @param {string} id @param {string} botao */
+/** Abre a janela do formulário do tipo sobre a área aberta (D-PROD-377: sem os botões "+"). @param {string} id @param {string} botao */
 const abrirJanela = async (id, botao) => {
   await naArea(id);
   act(() => abrirJanelaDireta(id, botao));
@@ -2413,7 +2413,7 @@ describe("LL-JANELA-TIPO — o lançamento novo direto, um nível só (D-PROD-25
     // Um total só: o do rodapé; o cabeçalho da área não repete hectares nem custo.
     expect(screen.queryByTestId("detalhe-area-resumo")).toBeNull();
     expect(screen.getByTestId("detalhe-area-atividade")).toHaveTextContent("Cigarrinha Pasto 01");
-    // D-PROD-376: sem a fileira de botões "+" por tipo (lançar é pelo Diário das atividades) e nada de "O que você quer registrar?".
+    // D-PROD-377: sem a fileira de botões "+" por tipo (lançar é pelo Diário das atividades) e nada de "O que você quer registrar?".
     expect(screen.queryByTestId("escolher-registro")).toBeNull();
     expect(screen.queryByText("O que você quer registrar?")).toBeNull();
     expect(screen.queryByTestId("ajustar-dia")).toBeNull();
@@ -2629,7 +2629,7 @@ describe("LL-ABERTA — atividade aberta no desenho do protótipo (D-PROD-234)",
     expect(screen.queryByTestId("linha-acoes-abastecimento-ab-1")).toBeNull();
   });
 
-  it("LL-ABERTA-3 — sem os botões \"+\" por tipo (D-PROD-376): nem APLICAÇÃO nem COLHEITA MANUAL mostram a fileira; lançar é pelo Diário das atividades", async () => {
+  it("LL-ABERTA-3 — sem os botões \"+\" por tipo (D-PROD-377): nem APLICAÇÃO nem COLHEITA MANUAL mostram a fileira; lançar é pelo Diário das atividades", async () => {
     await montar();
     await abrirAberta("a1");
     expect(screen.queryByTestId("escolher-registro")).toBeNull();

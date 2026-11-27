@@ -1,6 +1,6 @@
-# Tela da área da atividade sem os botões "+" por tipo (D-PROD-376)
+# Tela da área da atividade sem os botões "+" por tipo (D-PROD-377)
 
-**Data:** 2026-11-27 · **Decisão:** [D-PROD-376](./DECISIONS.md) · **Migration:** nenhuma · **APK:** nenhum novo
+**Data:** 2026-11-27 · **Decisão:** [D-PROD-377](./DECISIONS.md) · **Migration:** nenhuma · **APK:** nenhum novo
 
 ## Pedido
 

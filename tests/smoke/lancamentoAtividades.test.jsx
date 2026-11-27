@@ -1774,7 +1774,7 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     expect(escritas()).toEqual([]);
   });
 
-  it("LA-RAIO-2 — sem os botões \"+\" por tipo na área (D-PROD-376); o que o tipo permite segue valendo, com a flag da atividade acima da lista de tipos", async () => {
+  it("LA-RAIO-2 — sem os botões \"+\" por tipo na área (D-PROD-377); o que o tipo permite segue valendo, com a flag da atividade acima da lista de tipos", async () => {
     tiposSrv.listarTiposAtividade.mockResolvedValue([TIPO_T1_COM_TUDO, ...TIPOS.slice(1)]);
     await montarComLista();
     await waitFor(() => expect(tiposSrv.listarTiposAtividade).toHaveBeenCalled());
@@ -1823,7 +1823,7 @@ describe("LA-RAIO — menu ⚡ por linha e Concluir com resumo (D-PROD-232)", ()
     fireEvent.doubleClick(screen.getByTestId("atividade-numero-a1"));
     await screen.findByTestId("atividade-aberta");
     await screen.findByTestId("detalhe-area");
-    // D-PROD-376: sem o "+ Máquina" na área; a janela (a mesma do mapa) é aberta direto.
+    // D-PROD-377: sem o "+ Máquina" na área; a janela (a mesma do mapa) é aberta direto.
     expect(screen.queryByTestId("escolher-registro")).toBeNull();
     act(() => abrirJanelaDireta("a1", "maquinas"));
     const janela = await screen.findByTestId("janela-tipo");

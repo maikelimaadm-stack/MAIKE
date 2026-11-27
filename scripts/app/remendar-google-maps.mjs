@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Remendos no plugin `@capacitor/google-maps` (D-PROD-373, D-PROD-374), aplicados no `postinstall`.
+ * Remendos no plugin `@capacitor/google-maps` (D-PROD-373, D-PROD-374, D-PROD-376), aplicados no `postinstall`.
+ *
+ * D-PROD-376: o mapa avisa cada passo da câmera à camada nativa do Mapa Geral (`MaikeCamera`, um arquivo novo no plugin).
  *
  * D-PROD-374: o marcador nativo aceita a imagem `data:` (base64), para os ícones do Mapa Geral serem marcadores do
  * próprio mapa (andam colados nele). Antes o SDK só aceitava arquivo do app ou `https`.
@@ -24,6 +26,29 @@ const PLUGIN = join(RAIZ, "node_modules", "@capacitor", "google-maps");
 export const MARCA = "MAIKE D-PROD-373: onCameraMove";
 export const MARCA_DATA = "MAIKE D-PROD-374: imagem data:";
 export const MARCA_TOQUE = "MAIKE D-PROD-374: toque no marcador";
+export const MARCA_CAMADA = "MAIKE D-PROD-376: camada do Mapa Geral";
+
+/**
+ * D-PROD-376: o gancho da câmera para a camada nativa do Mapa Geral (`CamadaDoMapaView.java`, no app). O plugin chama
+ * `MaikeCamera.mexeu()` a cada passo da câmera; o app põe em `aoMexer` o "desenhe de novo" da camada. Em Java para o
+ * app (Java) e o plugin (Kotlin) enxergarem a mesma classe.
+ */
+export const ARQUIVO_GANCHO = "android/src/main/java/com/capacitorjs/plugins/googlemaps/MaikeCamera.java";
+export const GANCHO = `package com.capacitorjs.plugins.googlemaps;
+
+/** ${MARCA_CAMADA}: o mapa avisa cada passo da câmera (a camada desenha junto). */
+public final class MaikeCamera {
+    /** O que o app quer a cada passo da câmera (na thread da tela), ou null. */
+    public static volatile Runnable aoMexer;
+
+    private MaikeCamera() {}
+
+    public static void mexeu() {
+        Runnable r = aoMexer;
+        if (r != null) r.run();
+    }
+}
+`;
 
 export const REMENDOS = [
   {
@@ -116,7 +141,31 @@ export const REMENDOS = [
         return true
     }`,
   },
+  // D-PROD-376: a cada passo da câmera, a camada nativa do Mapa Geral desenha de novo (logo depois do remendo D-PROD-373)
+  {
+    marca: MARCA_CAMADA,
+    arquivo: "android/src/main/java/com/capacitorjs/plugins/googlemaps/CapacitorGoogleMap.kt",
+    ancora: `        // ${MARCA} (a câmera a cada quadro, para os marcadores do Mapa Geral andarem junto com o mapa)\n`,
+    inserir: `        // ${MARCA} (a câmera a cada quadro, para os marcadores do Mapa Geral andarem junto com o mapa)
+        // ${MARCA_CAMADA} (desenha junto com a câmera)
+        MaikeCamera.mexeu()
+`,
+  },
 ];
+
+/**
+ * Põe o gancho da câmera (D-PROD-376) no plugin instalado em `pasta`, se ele não está lá igual.
+ * @param {string} [pasta]
+ * @returns {"criado" | "ja-criado" | "sem-plugin"}
+ */
+export function criarGancho(pasta = PLUGIN) {
+  const raiz = join(pasta, "android", "src", "main", "java", "com", "capacitorjs", "plugins", "googlemaps");
+  if (!existsSync(raiz)) return "sem-plugin";
+  const caminho = join(pasta, ARQUIVO_GANCHO);
+  if (existsSync(caminho) && readFileSync(caminho, "utf8") === GANCHO) return "ja-criado";
+  writeFileSync(caminho, GANCHO);
+  return "criado";
+}
 
 /**
  * Aplica os remendos no plugin instalado em `pasta`. Devolve o que aconteceu com cada arquivo.
@@ -137,6 +186,7 @@ export function remendar(pasta = PLUGIN) {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   if (!existsSync(PLUGIN)) process.exit(0); // instalação sem o plugin: nada a fazer
+  if (criarGancho() === "criado") console.log(`[remendar-google-maps] ${ARQUIVO_GANCHO}: criado`);
   for (const r of remendar()) {
     if (r.estado === "sem-ancora") console.warn(`[remendar-google-maps] o ponto de remendo sumiu em ${r.arquivo}: o plugin mudou de versão?`);
     else if (r.estado === "remendado") console.log(`[remendar-google-maps] ${r.arquivo}: remendado`);
