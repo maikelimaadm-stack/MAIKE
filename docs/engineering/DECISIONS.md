@@ -10857,4 +10857,22 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-362 (361 é a etapa 1, PR #449). O marcador passa a D-PROD-363. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-363 -->
+## D-PROD-363 — Cadastrar no mapa como no AgriWebb, etapa 3: caminhar com o GPS gravando o contorno sozinho
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário (cadastrar pastos e linhas como no AgriWebb, também sem internet) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`MAPA-CADASTRO-ETAPA3-D363-REPORT.md`](./MAPA-CADASTRO-ETAPA3-D363-REPORT.md)
+
+**Decisão.**
+1. **Gravar caminhando** na captura por GPS de pasto e de linha (`CapturaGPSPoligono`), como o "walk the boundary" do AgriWebb.
+   - Gravando, cada leitura do GPS com precisão ≤ 25 m e a ≥ 5 m do último ponto vira ponto (`deveGravar`, `src/lib/maplibre/gravacaoCaminhando.js`).
+   - Leitura velha ou ruim não grava, e a tela avisa "Sinal do GPS fraco".
+   - **Pausar/Continuar**; **Canto** marca um canto exato no meio da gravação; **Terminar** enxuga a trilha.
+   - Antes, só dava para tocar "Marcar ponto N" em cada canto, e isso continua disponível.
+2. **Enxugar a trilha** (`simplificarTrilha`, Douglas-Peucker em metros, tolerância 1,5 m). Tira os pontos no meio das retas e mantém a primeira, a última e os cantos marcados à mão (`fixo`, que não vai ao servidor). Confirmar no meio da gravação termina e enxuga antes de salvar.
+3. **Tela acesa enquanto grava** (`navigator.wakeLock`): com a tela apagada, o celular para o GPS do app.
+4. **A captura abre no satélite** com o controle do editor (`useBasemap`). No app, o satélite fica guardado para usar sem internet (D-PROD-294). Antes ela abria nas ruas, e o satélite usava o provedor antigo ("Satélite não configurado"). Os **pastos e linhas já cadastrados** aparecem por baixo da trilha.
+5. **A captura abre no `body`** (portal). Ela é aberta de dentro do formulário lateral, e a janela com `transform` podia cortá-la.
+6. **Sem internet:** a gravação usa só o GPS do aparelho. O pasto ou a linha salvos seguem o caminho de sempre: cópia local + fila, com o id do aparelho (D-PROD-355).
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-363 (362 é a etapa 2, PR #450). O marcador passa a D-PROD-364. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-364 -->
