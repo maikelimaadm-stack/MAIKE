@@ -1440,14 +1440,16 @@ export default function MapaGeral({ ativo = true } = {}) {
   }, [modoColoracao, camadasFoco, uaPorAreaMap, situacaoPastoMap, getAreaEfetiva]);
 
   useEffect(() => {
-    if (!mapReady) return;
-    renderer.syncLabels(
+    // MapLibre ou, com o mapa do Google ligado, os nomes do Google (D-PROD-374): os mesmos argumentos
+    const alvo = mapaGoogle ? marcadoresGoogle : mapReady ? renderer : null;
+    if (!alvo) return;
+    alvo.syncLabels(
       areasFiltradas,
       mapaGeralPermissions.visualizar_areas && mapaGeralPermissions.visualizar_nomes_areas && showNomesAreas && showAreas,
       modoColoracao === 'ua_ha' || modoColoracao === 'situacao_pasto' || camadasFoco.lotacaoNoRotulo ? getLabelExtraText : null,
       showHectaresAreas
     );
-  }, [areasFiltradas, showNomesAreas, showAreas, showHectaresAreas, mapReady, modoColoracao, camadasFoco, getLabelExtraText, mapaGeralPermissions.visualizar_areas, mapaGeralPermissions.visualizar_nomes_areas]);
+  }, [areasFiltradas, showNomesAreas, showAreas, showHectaresAreas, mapReady, mapaGoogle, marcadoresGoogle, modoColoracao, camadasFoco, getLabelExtraText, mapaGeralPermissions.visualizar_areas, mapaGeralPermissions.visualizar_nomes_areas]);
   // Filtrar pontos de referência: ocultar tipo "Cocho" quando cochos/suplementação estão ocultos
   const pontosFiltrados = useMemo(() => {
     return pontos.filter((p) => {

@@ -65,6 +65,9 @@ vi.mock("@capacitor/google-maps", () => ({
 import { criarCamadaDeImagens, projetarNaCamera } from "@/lib/mapaNativo/camadaDeImagens.js";
 import MapaGoogleNativo from "@/components/mapa/MapaGoogleNativo.jsx";
 
+/** Espera um quadro da tela. */
+const quadro = () => new Promise((r) => requestAnimationFrame(() => r(undefined)));
+
 beforeEach(() => {
   plugin.nativo = true;
   plugin.movimento = null;
@@ -117,7 +120,7 @@ describe("G372-2 — camada de imagens", () => {
     camada.definir("lotes", [{ id: "a1", lat: 0, lng: 0, url: "data:x", w: 44, h: 42, dx: 0, dy: -26, z: 1000, onClick: noLote }]);
     camada.definir("supl", [{ id: "c1", lat: 0, lng: 0, url: "data:y", w: 36, h: 36, z: 500, onClick: noCocho }]);
     const [lote, cocho] = div.querySelectorAll("img");
-    expect(lote.style.transform).toBe("translate(78px, 3px)");
+    expect(lote.style.transform).toBe("translate3d(78.00px, 3.00px, 0)");
     expect(lote.style.zIndex).toBe("1000");
     // D-PROD-373: todo toque é do mapa nativo (a pinça em cima do ícone dá zoom)
     expect(lote.style.pointerEvents).toBe("none");
@@ -144,7 +147,7 @@ describe("G372-2 — camada de imagens", () => {
     expect(t1).not.toHaveBeenCalled();
     camada.definir("tarefas", []);
     camada.posicionarTodos(() => ({ x: 0, y: 0 }));
-    expect(cocho.style.transform).toBe("translate(-18px, -18px)");
+    expect(cocho.style.transform).toBe("translate3d(-18.00px, -18.00px, 0)");
     camada.definir("lotes", []);
     expect(div.querySelectorAll("img")).toHaveLength(1);
     camada.limpar();
@@ -175,17 +178,28 @@ describe("G372-3 — os marcadores no mapa nativo do app", () => {
 
     // o mapa começa a mexer e avisa a câmera a cada quadro: os ícones ficam à vista e acompanham
     act(() => falso.mapa.ouvintes.mexeu({ isGesture: true }));
-    act(() => plugin.movimento({ mapId: "mapa-1", latitude: -15, longitude: -47, zoom: 15, bearing: 0, tilt: 0 }));
+    // a câmera de cada quadro da tela (as rajadas do Android viram uma só por quadro: o ícone não treme)
+    await act(async () => {
+      plugin.movimento({ mapId: "mapa-1", latitude: 10, longitude: 10, zoom: 15, bearing: 0, tilt: 0 });
+      plugin.movimento({ mapId: "mapa-1", latitude: -15, longitude: -47, zoom: 15, bearing: 0, tilt: 0 });
+      await quadro();
+    });
     expect(camadaEl.style.visibility).toBe("visible");
     // jsdom não mede: largura e altura 0 → o centro da câmera fica no canto (0, 0)
-    expect(img.style.transform).toBe("translate(-22px, -21px)");
+    expect(img.style.transform).toBe("translate3d(-22.00px, -21.00px, 0)");
     act(() => falso.mapa.ouvintes.mexeu({ isGesture: true }));
     expect(camadaEl.style.visibility).toBe("visible");
     // evento de outro mapa: ignorado
-    act(() => plugin.movimento({ mapId: "outro", latitude: 10, longitude: 10, zoom: 15 }));
-    expect(img.style.transform).toBe("translate(-22px, -21px)");
+    await act(async () => {
+      plugin.movimento({ mapId: "outro", latitude: 10, longitude: 10, zoom: 15 });
+      await quadro();
+    });
+    expect(img.style.transform).toBe("translate3d(-22.00px, -21.00px, 0)");
     // inclinado: escondido
-    act(() => plugin.movimento({ mapId: "mapa-1", latitude: -15, longitude: -47, zoom: 15, bearing: 0, tilt: 45 }));
+    await act(async () => {
+      plugin.movimento({ mapId: "mapa-1", latitude: -15, longitude: -47, zoom: 15, bearing: 0, tilt: 45 });
+      await quadro();
+    });
     expect(camadaEl.style.visibility).toBe("hidden");
   });
 
@@ -215,7 +229,10 @@ describe("G372-3 — os marcadores no mapa nativo do app", () => {
     const noLote = vi.fn();
     act(() => alvo.definirMarcadores("lotes", [{ id: "a1", lat: -15.005, lng: -46.995, url: "data:x", w: 44, h: 42, z: 1000, onClick: noLote }]));
     // a câmera centrada no lote (jsdom: elemento 0 × 0, centro no canto 0,0)
-    act(() => plugin.movimento({ mapId: "mapa-1", latitude: -15.005, longitude: -46.995, zoom: 15, bearing: 0, tilt: 0 }));
+    await act(async () => {
+      plugin.movimento({ mapId: "mapa-1", latitude: -15.005, longitude: -46.995, zoom: 15, bearing: 0, tilt: 0 });
+      await quadro();
+    });
     // toque em cima do lote: o lote, não a área
     act(() => falso.mapa.ouvintes.toque({ latitude: -15.005, longitude: -46.995 }));
     expect(noLote).toHaveBeenCalledTimes(1);

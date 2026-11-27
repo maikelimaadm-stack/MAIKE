@@ -11126,4 +11126,33 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - `mapaGoogleAppMarcadoresD372.test.jsx` (9): toque no ícone de cima, ícones a cada quadro, APK antigo, toque no ícone ou na área, polígonos não clicáveis.
   - `mapaGoogleNativoD366.test.jsx`: o mapa falso ganha `setOnMapClickListener`.
 
-<!-- Próxima decisão: D-PROD-374 -->
+## D-PROD-374 — Mapa do Google: nomes dos pastos (etapa 3) e, no app, os ícones como marcadores do próprio mapa; APK 1.0.8
+
+**Data:** 2026-11-27 · **Origem:** etapa 3 do mapa do Google (nomes dos pastos) e o teste do proprietário no APK 1.0.7: "só fica tremendo os ícones, mas isso você ajusta junto com os nomes" e "eles tremem e não acompanham, por quê?" · **Relatório:** [`MAPA-GOOGLE-ETAPA3-NOMES-D374-REPORT.md`](./MAPA-GOOGLE-ETAPA3-NOMES-D374-REPORT.md) · **Migration:** nenhuma · **APK:** 1.0.8 (código 9), `nativoMinimo` 5
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-374. O marcador passa a D-PROD-375.
+
+- **Problema:**
+  - O mapa do Google não mostrava os nomes dos pastos.
+  - No app, os ícones ficam num `div` por cima do mapa nativo e dependem da câmera que o Android manda para a página. Ela chega com atraso e em rajadas, então os ícones andam atrás do mapa e tremem. O arredondamento para o px inteiro piorava o tremor.
+- **Decisão:**
+  - **Nomes dos pastos (site e app):** com as mesmas regras do MapLibre (D-PROD-126/129/130/354), em `src/lib/mapaNativo/nomesGoogle.js`.
+    - Os mesmos três níveis ("tudo", "nome", "sigla"), e o nível é o mesmo para todos os pastos, escolhido por colisão e por caber no pasto. Os ícones de lote contam como obstáculos.
+    - O tamanho segue o zoom (`tamanhoNoZoom`).
+    - Sem lote, o nome fica centrado no ponto. Com lote, o topo do nome fica 10 px abaixo do ponto e o lote sobe (`OFFSET_LOTE_COM_NOME_PX`).
+    - O nome não pega o toque: o toque passa para o pasto.
+    - O `MapaGeral` chama `syncLabels` no mapa do Google com os mesmos argumentos do MapLibre. O nível é revisto a cada câmera (`aoMudarCamera`): durante o movimento, só pelos pastos à vista e no máximo a cada 120 ms; quando o mapa para, por todos.
+  - **Ícones nativos no app (APK 1.0.8):** os lotes, cochos, pontos, tarefas e nomes viram marcadores do próprio mapa nativo e andam colados nele. São os mesmos ícones do sistema.
+    - O remendo do plugin (`scripts/app/remendar-google-maps.mjs`) ganha 4 pontos. O marcador nativo aceita a imagem `data:` (Android e iOS). O toque no marcador não centraliza o mapa nem abre balão (Android e iOS).
+    - `src/lib/mapaNativo/marcadoresNativos.js`: a posição em px (centro ou topo + deslocamento) vira uma margem transparente que põe o ponto do mapa no meio da imagem, em px inteiros (âncora 0,5 × 0,5).
+      - A troca por grupo põe o novo antes de tirar o velho, para não piscar.
+      - O nome é refeito no tamanho do zoom quando o mapa para, se mudou mais de 4%. Se o mapa parar enquanto as imagens são preparadas, a troca confere o zoom ao terminar.
+    - O toque no marcador abre o detalhe dele. No nome, abre o pasto.
+    - O app usa os marcadores nativos a partir do APK código 9 (`numeroDoApk`, `@capacitor/app`). No APK 1.0.7 ou mais antigo, segue o `div` por cima do mapa. Por isso o `nativoMinimo` segue 5.
+  - **No APK antigo e no site, sem tremor:** a câmera de cada quadro é usada uma vez por quadro da tela (`requestAnimationFrame`). A posição não é arredondada (`translate3d` com 2 casas, `posicaoDoMarcador.js`).
+- **Testes:**
+  - `mapaGoogleNomesD374.test.jsx` (17): posição, níveis, colocação do nome, margem da imagem, diff dos marcadores nativos, refazer no zoom (também quando o mapa para enquanto as imagens são preparadas), `syncLabels`, nível pela câmera, APK 1.0.8 com marcadores nativos e APK antigo com a camada.
+  - `mapaGoogleCameraD373.test.js`: os 6 remendos e o APK 1.0.8.
+  - `mapaGoogleAppMarcadoresD372.test.jsx` e `mapaGoogleMarcadoresD369.test.jsx`: `translate3d` e uma câmera por quadro.
+
+<!-- Próxima decisão: D-PROD-375 -->

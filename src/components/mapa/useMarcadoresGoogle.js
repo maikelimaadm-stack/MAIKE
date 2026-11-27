@@ -4,11 +4,14 @@
  * pontosNoMapa.js); a posição e a ordem, das constantes daqui (iguais às camadas do MapLibre). A camada que mostra
  * as imagens fica em src/lib/mapaNativo/mapaGoogleWeb.js.
  */
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { itensDaSuplementacao, itensDasTarefas, itensDosLotes, itensDosPontos } from "@/lib/maplibre/itensDoMapaGeral.js";
+import { NIVEIS, colocacaoDoNome, montarNomes, nivelDosNomes } from "@/lib/mapaNativo/nomesGoogle.js";
+import { avisarFalhaNome, esperarFonteDosNomes, pedidoImagemNome } from "@/lib/maplibre/nomesNoMapa.js";
 import {
   DESLOC_IDENT_PX,
+  OFFSET_LOTE_COM_NOME_PX,
   OFFSET_LOTE_PX,
   desenharImagemReserva,
   garantirImagens,
@@ -21,7 +24,9 @@ import { avisarFalhaPonto } from "@/lib/maplibre/pontosNoMapa.js";
  * Ordem dos marcadores (maior por cima), a mesma das camadas do MapLibre e dos z-index de antes:
  * cocho 500 < ponto 800 < lote 1000 (com alerta por cima) < identificador < tarefa 2500 < tarefa Urgente 3000.
  */
-export const ORDEM_GOOGLE = Object.freeze({ supl: 500, pontos: 800, lote: 1000, loteComAlerta: 1001, ident: 1002, tarefa: 2500, urgente: 3000 });
+export const ORDEM_GOOGLE = Object.freeze({ supl: 500, pontos: 800, lote: 1000, loteComAlerta: 1001, ident: 1002, tarefa: 2500, urgente: 3000, nome: 4000 });
+/** Durante o movimento o nível dos nomes é revisto no máximo a cada tanto (ms), só pelos pastos à vista (D-PROD-347). */
+export const MS_NIVEL_NO_MOVIMENTO = 120;
 
 /** Imagens já convertidas em URL, por chave e densidade (a conversão é feita uma vez). */
 const urls = new Map();
@@ -58,14 +63,19 @@ export function urlDaImagem(r, chave) {
 
 /**
  * Marcador de uma imagem pronta, ou null se não há imagem.
- * @param {{ id: string, lngLat: [number, number], r: any, chave: string, dx?: number, dy?: number, z: number, titulo?: string, onClick?: () => void }} p
+ * @param {{ id: string, lngLat: [number, number], r: any, chave: string, dx?: number, dy?: number, z: number, titulo?: string, onClick?: () => void, escala?: (zoom: number) => number, ancora?: "centro" | "topo", semToque?: boolean }} p
  * @returns {import('@/lib/mapaNativo/mapaGoogleWeb.js').MarcadorWeb | null}
  */
-function marcador({ id, lngLat, r, chave, dx = 0, dy = 0, z, titulo, onClick }) {
+function marcador({ id, lngLat, r, chave, dx = 0, dy = 0, z, titulo, onClick, escala, ancora, semToque }) {
   if (!r) return null;
   const url = urlDaImagem(r, chave);
   if (!url) return null;
-  return { id, lat: lngLat[1], lng: lngLat[0], url, w: r.w, h: r.h, dx, dy, z, titulo, onClick };
+  /** @type {import('@/lib/mapaNativo/mapaGoogleWeb.js').MarcadorWeb} */
+  const m = { id, lat: lngLat[1], lng: lngLat[0], url, w: r.w, h: r.h, dx, dy, z, titulo, onClick };
+  if (escala) m.escala = escala;
+  if (ancora) m.ancora = ancora;
+  if (semToque) m.semToque = true;
+  return m;
 }
 
 /**
@@ -74,13 +84,22 @@ function marcador({ id, lngLat, r, chave, dx = 0, dy = 0, z, titulo, onClick }) 
  * permissões e cliques. Sem o mapa do Google do site (ainda abrindo, ou o mapa nativo do app, que não tem
  * `definirMarcadores`), não faz nada.
  *
- * Ainda não (próximas etapas): nomes dos pastos, arrastar lote, piscar o identificador do lote com alerta.
+ * D-PROD-374: os nomes dos pastos (`syncLabels`), com o nível revisto a cada câmera (`aoMudarCamera` do mapa).
+ * Ainda não: arrastar lote, piscar o identificador do lote com alerta.
  * @param {any} mapa o objeto de `criarMapaGoogleWeb` (ou null)
  */
 export default function useMarcadoresGoogle(mapa) {
   const seqRef = useRef(/** @type {Record<string, number>} */ ({}));
+  // nomes dos pastos (D-PROD-374): os nomes, o nível de agora, a última câmera e os ícones de lote (obstáculos)
+  const nomesRef = useRef(/** @type {Map<string, import('@/lib/mapaNativo/nomesGoogle.js').NomeDoPasto>} */ (new Map()));
+  const nivelRef = useRef(/** @type {import('@/lib/mapaNativo/nomesGoogle.js').NivelNome} */ ("tudo"));
+  const cameraRef = useRef(/** @type {import('@/lib/mapaNativo/nomesGoogle.js').CameraNomes | null} */ (null));
+  const lotesInfoRef = useRef(/** @type {Map<string, { lat: number, lng: number, tamanho: { w: number, h: number } }>} */ (new Map()));
+  const argsLotesRef = useRef(/** @type {any[] | null} */ (null));
+  const seqNomesRef = useRef(0);
+  const ultimaRevisaoRef = useRef(0);
 
-  return useMemo(() => {
+  const api = useMemo(() => {
     const temMarcadores = Boolean(mapa && typeof mapa.definirMarcadores === "function");
     const proximo = (/** @type {string} */ grupo) => (seqRef.current[grupo] = (seqRef.current[grupo] || 0) + 1);
 
@@ -134,28 +153,60 @@ export default function useMarcadoresGoogle(mapa) {
       );
     };
 
-    return {
+    /**
+     * Publica os nomes no nível dado (ou no da última câmera). Os três níveis de cada pasto ficam desenhados, para a
+     * troca de nível não esperar desenho.
+     * @param {import('@/lib/mapaNativo/nomesGoogle.js').NivelNome} [nivelDado]
+     */
+    const publicarNomes = (nivelDado) => {
+      const nomes = nomesRef.current;
+      const camera = cameraRef.current;
+      const nivel = nivelDado || (camera && nomes.size ? nivelDosNomes(nomes, camera, lotesInfoRef.current) : nivelRef.current);
+      nivelRef.current = nivel;
+      const pr = pixelRatioDaTela();
+      const pedidos = [];
+      for (const n of nomes.values()) for (const nv of NIVEIS) if (n.niveis[nv].linhas.length) pedidos.push(pedidoImagemNome(n.niveis[nv].linhas, pr));
+      return publicar(
+        "nomes",
+        pedidos,
+        () =>
+          [...nomes.values()].map((n) => {
+            const c = colocacaoDoNome(n, nivel, lotesInfoRef.current.has(n.id));
+            if (!c.linhas.length) return null;
+            return marcador({ id: n.id, lngLat: [n.lng, n.lat], r: imagemPronta(c.chave, pr), chave: c.chave, dy: c.dy, z: ORDEM_GOOGLE.nome, escala: c.escala, ancora: c.ancora, semToque: true });
+          }),
+        avisarFalhaNome
+      );
+    };
+
+    const api = {
       /** Mesmos argumentos do `useMapRenderer.syncLotes` (arrastar e piscar ficam para depois). */
       syncLotes(lotesFiltrados, areas, show, categoriasManejo, onClickLotes, _onDragLotes, _canDragLotes, blinkAlerts = false) {
         if (!temMarcadores) return Promise.resolve();
+        argsLotesRef.current = [lotesFiltrados, areas, show, categoriasManejo, onClickLotes, _onDragLotes, _canDragLotes, blinkAlerts];
         const pr = pixelRatioDaTela();
         const { itens, pedidos } = itensDosLotes({ lotesFiltrados, areas, show, categoriasManejo, blinkAlerts, pixelRatio: pr });
         return publicar("lotes", pedidos, () => {
           const lista = [];
+          /** @type {Map<string, { lat: number, lng: number, tamanho: { w: number, h: number } }>} */
+          const info = new Map();
           for (const [areaId, l] of itens) {
             const { item } = l;
             // a imagem que falhou: o círculo verde (a reserva do MapLibre)
             const pronta = imagemPronta(item.imagem, pr);
             const r = pronta || desenharImagemReserva(pr);
             const aoClicar = () => onClickLotes?.(l.lotesNaArea);
+            // pasto com nome: o par ícone + nome (o ícone sobe, D-PROD-128/349)
+            const [dx, dy] = nomesRef.current.has(areaId) ? OFFSET_LOTE_COM_NOME_PX : OFFSET_LOTE_PX;
+            if (r) info.set(areaId, { lat: item.lngLat[1], lng: item.lngLat[0], tamanho: { w: r.w, h: r.h } });
             lista.push(
               marcador({
                 id: areaId,
                 lngLat: item.lngLat,
                 r,
                 chave: pronta ? item.imagem : "mg-lote-reserva",
-                dx: OFFSET_LOTE_PX[0],
-                dy: OFFSET_LOTE_PX[1],
+                dx,
+                dy,
                 z: item.alerta ? ORDEM_GOOGLE.loteComAlerta : ORDEM_GOOGLE.lote,
                 onClick: aoClicar,
               })
@@ -167,14 +218,18 @@ export default function useMarcadoresGoogle(mapa) {
                   lngLat: item.lngLat,
                   r: imagemPronta(item.ident, pr),
                   chave: item.ident,
-                  dx: OFFSET_LOTE_PX[0] + DESLOC_IDENT_PX[0],
-                  dy: OFFSET_LOTE_PX[1] + DESLOC_IDENT_PX[1],
+                  dx: dx + DESLOC_IDENT_PX[0],
+                  dy: dy + DESLOC_IDENT_PX[1],
                   z: ORDEM_GOOGLE.ident,
                   onClick: aoClicar,
                 })
               );
             }
           }
+          // quais pastos têm lote mudou: os nomes desses pastos mudam de lugar (embaixo do ícone)
+          const mudou = [...info.keys()].sort().join(",") !== [...lotesInfoRef.current.keys()].sort().join(",");
+          lotesInfoRef.current = info;
+          if (mudou && nomesRef.current.size) queueMicrotask(() => void publicarNomes());
           return lista;
         });
       },
@@ -194,6 +249,51 @@ export default function useMarcadoresGoogle(mapa) {
         const itens = itensDasTarefas({ tarefasMapa, areas, iconesConfig, hoje, pixelRatio: pixelRatioDaTela() });
         return publicarPontos("tarefas", itens, (_t, item) => (item.urgente ? ORDEM_GOOGLE.urgente : ORDEM_GOOGLE.tarefa), (t) => onClickTarefa?.(t));
       },
+      /**
+       * Nomes dos pastos (D-PROD-374), mesmos argumentos do `useMapRenderer.syncLabels`. Espera a letra Inter (como o
+       * MapLibre) antes de medir; o nível sai da última câmera.
+       */
+      syncLabels(areas, show, extraTextFn, showHectares = true) {
+        if (!temMarcadores) return Promise.resolve();
+        const seq = ++seqNomesRef.current;
+        const montar = () => {
+          if (seq !== seqNomesRef.current) return Promise.resolve();
+          const antes = nomesRef.current;
+          nomesRef.current = show ? montarNomes(areas, { extraTextFn, showHectares }) : new Map();
+          // quais pastos têm nome mudou: os lotes desses pastos mudam de posição (o par ícone + nome)
+          const chaves = (/** @type {Map<string, any>} */ m) => [...m.keys()].sort().join(",");
+          if (chaves(antes) !== chaves(nomesRef.current) && argsLotesRef.current) {
+            void api.syncLotes(.../** @type {[any, any, any, any, any, any, any, any]} */ (argsLotesRef.current));
+          }
+          return publicarNomes();
+        };
+        const espera = esperarFonteDosNomes();
+        return espera ? espera.then(montar) : montar();
+      },
+      /**
+       * A câmera mudou (o mapa avisa): durante o movimento o nível é revisto só pelos pastos à vista e no máximo a cada
+       * MS_NIVEL_NO_MOVIMENTO; quando o mapa para, por todos. Só publica se o nível mudou (o tamanho no zoom é a
+       * `escala` do marcador).
+       * @param {import('@/lib/mapaNativo/nomesGoogle.js').CameraNomes & { final?: boolean }} camera
+       */
+      revisarNomes(camera) {
+        cameraRef.current = camera;
+        if (!temMarcadores || !nomesRef.current.size) return;
+        const agora = typeof performance !== "undefined" ? performance.now() : Date.now();
+        if (!camera.final && agora - ultimaRevisaoRef.current < MS_NIVEL_NO_MOVIMENTO) return;
+        ultimaRevisaoRef.current = agora;
+        const nivel = nivelDosNomes(nomesRef.current, camera, lotesInfoRef.current, { soNaTela: !camera.final });
+        if (nivel !== nivelRef.current) void publicarNomes(nivel);
+      },
     };
+    return api;
   }, [mapa]);
+
+  // o mapa avisa a câmera (zoom, projeção, tamanho da tela): o nível dos nomes é revisto
+  useEffect(() => {
+    if (!mapa?.aoMudarCamera) return undefined;
+    return mapa.aoMudarCamera((/** @type {any} */ camera) => api.revisarNomes(camera));
+  }, [mapa, api]);
+
+  return api;
 }

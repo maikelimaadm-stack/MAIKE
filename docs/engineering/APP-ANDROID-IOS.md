@@ -61,6 +61,10 @@ O Mapa Geral tem o mapa do Google pelo plugin oficial `@capacitor/google-maps`. 
   - Os lotes, cochos, pontos e tarefas ficam por cima do mapa nativo, com os mesmos ícones do sistema.
   - A partir do APK 1.0.7, o mapa nativo avisa a câmera a cada quadro e os ícones andam junto ao arrastar e ao dar zoom. No APK 1.0.6, eles somem durante o movimento.
   - O aviso a cada quadro vem de um remendo no plugin (`scripts/app/remendar-google-maps.mjs`), aplicado no `postinstall`, antes do `cap sync` e do build. Ao subir a versão do `@capacitor/google-maps`, conferir o teste `mapaGoogleCameraD373`.
+- **Ícones e nomes como marcadores do mapa (D-PROD-374):**
+  - A partir do APK 1.0.8 (código 9), os ícones e os nomes dos pastos são marcadores do próprio mapa nativo e andam colados nele, sem tremer.
+  - O remendo também faz o marcador aceitar a imagem `data:` e faz o toque no marcador não centralizar o mapa.
+  - No APK 1.0.7 ou mais antigo, os ícones continuam no `div` por cima do mapa.
 
 ## Permissões
 
