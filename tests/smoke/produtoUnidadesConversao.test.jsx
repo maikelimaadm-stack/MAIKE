@@ -2,7 +2,7 @@
  * D-PROD-288 — telas das unidades de conversão do produto:
  *  UC-1. o formulário do produto não mostra preço de custo, preço de venda, local de estoque nem o bloco de consumo;
  *        o código interno é só leitura;
- *  UC-2. a aba "Unidades" lista as conversões com a prévia ("1 SACO = 25 KG", "1 G = 0,001 KG") e envia a lista;
+ *  UC-2. a aba "Conversão de unidades" lista as conversões com a prévia ("1 SACO = 25 KG", "1 G = 0,001 KG") e envia a lista;
  *  UC-3. a unidade de estoque não pode ser conversão (erro na tela, nada enviado);
  *  UC-4. entrada/saída/ajuste oferecem as conversões e mostram a equivalência ("10 SACO = 250 kg"); a conta é a do
  *        servidor (multiplica/divide, 4 casas);
@@ -58,10 +58,10 @@ describe('UC — cadastro do produto', () => {
     expect(codigo.value).toBe('7');
   });
 
-  it('UC-2 — aba Unidades: prévia e envio da lista', () => {
+  it('UC-2 — aba Conversão de unidades: prévia e envio da lista', () => {
     const onSubmit = vi.fn();
     montar({ onSubmit, isEditing: true, initialData: PRODUTO });
-    fireEvent.click(screen.getByRole('tab', { name: 'Unidades' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Conversão de unidades' }));
     expect(screen.getByTestId('produto-unidade-0-previa').textContent).toContain('1 SACO = 25 KG');
     expect(screen.getByTestId('produto-unidade-1-previa').textContent).toContain('1 G = 0,001 KG');
     fireEvent.click(screen.getByTestId('produto-unidade-adicionar'));

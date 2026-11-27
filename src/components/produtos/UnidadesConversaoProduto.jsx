@@ -1,11 +1,12 @@
 import React from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import B1Select from "@/components/cadastro/base1/B1Select";
 import { parseDecimalPtBR } from "@/domain/numeroPtBR";
 
 /**
- * D-PROD-288 — seção "Unidades" do cadastro do produto: a lista de unidades de conversão da unidade de estoque.
+ * D-PROD-288 — seção "Conversão de unidades" do cadastro do produto: a lista de unidades de conversão da unidade de estoque.
  * Cada linha: unidade (sigla), Multiplica/Divide, fator, uso em compra e em saída, e a prévia em linguagem simples
  * ("1 SACO = 25 KG"). O servidor confere de novo (sigla, fator > 0, divide ≤ 10000, nunca a unidade de estoque);
  * unidade já usada em lançamento, tirada da lista, fica desativada em vez de apagada.
@@ -75,7 +76,7 @@ export default function UnidadesConversaoProduto({ linhas, onChange, unidadeEsto
   const mudar = (i, patch) => onChange(linhas.map((l, k) => (k === i ? { ...l, ...patch } : l)));
   const bloqueado = readOnly || disabled;
   return (
-    <section className="col-span-12 min-w-0" data-testid="produto-unidades-conversao" aria-label="Unidades de conversão">
+    <section className="col-span-12 min-w-0" data-testid="produto-unidades-conversao" aria-label="Conversão de unidades">
       <p className="mb-2 text-[12px] text-[var(--mg-text-2,#475569)]">
         Saldo e custo ficam sempre em <strong>{unidadeEstoque}</strong>. Aqui você cadastra as outras unidades usadas nos lançamentos, por
         exemplo SACO que multiplica 25 (1 SACO = 25 KG) ou G que divide 1000 (1 G = 0,001 KG).
@@ -83,35 +84,32 @@ export default function UnidadesConversaoProduto({ linhas, onChange, unidadeEsto
       {linhas.length === 0 ? (
         <p className="mb-2 text-[12px] text-slate-600" data-testid="produto-unidades-vazio">Nenhuma unidade de conversão.</p>
       ) : null}
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-3">
         {linhas.map((l, i) => {
           const previa = previaDaConversao(l, unidadeEstoque);
           const e = (/** @type {string} */ c) => erros[`${i}.${c}`];
           return (
-            <li key={l.id ?? `nova-${i}`} className="rounded border border-[var(--mg-border,#e2e8f0)] p-2" data-testid={`produto-unidade-${i}`}>
-              <div className="grid grid-cols-12 gap-x-2 gap-y-2 items-end">
-                <label className="col-span-6 sm:col-span-3 min-w-0 text-[12px]">
-                  <span className="block font-semibold">Unidade</span>
+            <li key={l.id ?? `nova-${i}`} className="rounded-[10px] border border-[var(--mg-border,#e2e8f0)] p-3" data-testid={`produto-unidade-${i}`}>
+              <div className="mg-b1-form-grid w-full min-w-0">
+                <B1Field label="Unidade" span={3} required hasValue={Boolean(l.sigla)} locked={readOnly} disabled={disabled} error={e("sigla")}>
                   <input
                     type="text"
                     value={l.sigla}
                     maxLength={8}
                     onChange={(ev) => mudar(i, { sigla: ev.target.value.toUpperCase() })}
                     placeholder="SACO"
-                    className={`${B1_FIELD_CTL_CLS} w-full uppercase`}
+                    className={`${B1_FIELD_CTL_CLS} uppercase`}
                     readOnly={bloqueado}
                     aria-invalid={Boolean(e("sigla"))}
                     aria-label={`Unidade ${i + 1}`}
                     data-testid={`produto-unidade-${i}-sigla`}
                   />
-                  {e("sigla") ? <span className="text-red-700" role="alert">{e("sigla")}</span> : null}
-                </label>
-                <label className="col-span-6 sm:col-span-3 min-w-0 text-[12px]">
-                  <span className="block font-semibold">Conta</span>
+                </B1Field>
+                <B1Field label="Conta" span={3} hasValue locked={readOnly} disabled={disabled}>
                   <B1Select
                     value={l.operacao}
                     onChange={(ev) => mudar(i, { operacao: ev.target.value })}
-                    className={`${B1_FIELD_CTL_CLS} w-full`}
+                    className={B1_FIELD_CTL_CLS}
                     disabled={bloqueado}
                     aria-label={`Multiplica ou divide (unidade ${i + 1})`}
                     data-testid={`produto-unidade-${i}-operacao`}
@@ -119,46 +117,51 @@ export default function UnidadesConversaoProduto({ linhas, onChange, unidadeEsto
                     <option value="MULTIPLICA">Multiplica</option>
                     <option value="DIVIDE">Divide</option>
                   </B1Select>
-                </label>
-                <label className="col-span-6 sm:col-span-2 min-w-0 text-[12px]">
-                  <span className="block font-semibold">Fator</span>
+                </B1Field>
+                <B1Field label="Fator" span={2} required hasValue={Boolean(String(l.fator ?? "").trim())} locked={readOnly} disabled={disabled} error={e("fator")} fieldClassName="b1-campo--num">
                   <input
                     type="text"
                     inputMode="decimal"
                     value={l.fator}
                     onChange={(ev) => mudar(i, { fator: ev.target.value.replace(/[^0-9.,]/g, "") })}
                     placeholder="25"
-                    className={`${B1_FIELD_CTL_CLS} w-full text-right tabular-nums`}
+                    className={`${B1_FIELD_CTL_CLS} text-right tabular-nums`}
                     readOnly={bloqueado}
                     aria-invalid={Boolean(e("fator"))}
                     aria-label={`Fator ${i + 1}`}
                     data-testid={`produto-unidade-${i}-fator`}
                   />
-                  {e("fator") ? <span className="text-red-700" role="alert">{e("fator")}</span> : null}
-                </label>
-                <fieldset className="col-span-6 sm:col-span-3 min-w-0 text-[12px]">
-                  <legend className="font-semibold">Usar em</legend>
-                  <label className="mr-3 inline-flex items-center gap-1 min-h-[32px]">
-                    <input type="checkbox" checked={l.uso_compra !== false} disabled={bloqueado} onChange={(ev) => mudar(i, { uso_compra: ev.target.checked })} data-testid={`produto-unidade-${i}-compra`} />
-                    Compra
-                  </label>
-                  <label className="inline-flex items-center gap-1 min-h-[32px]">
-                    <input type="checkbox" checked={l.uso_venda !== false} disabled={bloqueado} onChange={(ev) => mudar(i, { uso_venda: ev.target.checked })} data-testid={`produto-unidade-${i}-saida`} />
-                    Saída
-                  </label>
-                  {e("uso") ? <span className="block text-red-700" role="alert">{e("uso")}</span> : null}
-                </fieldset>
-                <div className="col-span-12 sm:col-span-1 flex justify-end">
-                  {!bloqueado ? (
-                    <button type="button" className="tb-btn" onClick={() => onChange(linhas.filter((_, k) => k !== i))} aria-label={`Remover a unidade ${i + 1}`} data-testid={`produto-unidade-${i}-remover`}>
-                      <Trash2 size={14} aria-hidden />
-                    </button>
-                  ) : null}
-                </div>
-                <p className="col-span-12 text-[12px] font-semibold text-[var(--mg-text,#0f172a)]" role="status" data-testid={`produto-unidade-${i}-previa`}>
+                </B1Field>
+                <B1ChaveRow
+                  label="Compra"
+                  span={2}
+                  checked={l.uso_compra !== false}
+                  onChange={bloqueado ? undefined : (v) => mudar(i, { uso_compra: v })}
+                  disabled={bloqueado}
+                  ariaLabel={`Usar a unidade ${i + 1} na compra`}
+                  dataField={`produto-unidade-${i}-compra`}
+                />
+                <B1ChaveRow
+                  label="Saída"
+                  span={2}
+                  checked={l.uso_venda !== false}
+                  onChange={bloqueado ? undefined : (v) => mudar(i, { uso_venda: v })}
+                  disabled={bloqueado}
+                  ariaLabel={`Usar a unidade ${i + 1} na saída`}
+                  dataField={`produto-unidade-${i}-saida`}
+                />
+              </div>
+              {e("uso") ? <p className="mt-1 text-[12px] text-red-700" role="alert">{e("uso")}</p> : null}
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className="min-w-0 text-[13px] font-semibold text-[var(--mg-text,#0f172a)]" role="status" data-testid={`produto-unidade-${i}-previa`}>
                   {previa || "—"}
                   {l.ativa === false ? <span className="ml-2 font-normal text-amber-800">(desativada: já usada em lançamento)</span> : null}
                 </p>
+                {!bloqueado ? (
+                  <button type="button" className="tb-btn" onClick={() => onChange(linhas.filter((_, k) => k !== i))} aria-label={`Remover a unidade ${i + 1}`} data-testid={`produto-unidade-${i}-remover`}>
+                    <Trash2 size={14} aria-hidden /> Remover
+                  </button>
+                ) : null}
               </div>
             </li>
           );

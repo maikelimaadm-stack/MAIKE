@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-27 (missões ativas D-PROD-369 (mapa do Google, etapa 2: marcadores no site), D-PROD-367 (cadastro no mapa, etapa 5), D-PROD-366 (mapa do Google no app e no site, etapa 1) e D-PROD-360 (mapa leve, etapa 5); antes D-PROD-364 (etapa 4), D-PROD-363 (etapa 3), D-PROD-362 (etapa 2), D-PROD-361 (etapa 1); antes D-PROD-358 e D-PROD-354 (mapa leve, etapa 4); antes D-PROD-357, D-PROD-355; antes missões ativas D-PROD-353 (mapa leve, etapa 3) e D-PROD-350 (celular compartilhado, PR #438); antes D-PROD-349 (mapa leve, etapa 2, PR #437), D-PROD-346, D-PROD-347 (mapa leve, PR #436) e D-PROD-348 (diário, PR #434); antes D-PROD-345, D-PROD-344, D-PROD-343, D-PROD-342, D-PROD-341 (diário, PR #426), D-PROD-340, D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-27 (missões ativas D-PROD-369 (mapa do Google, etapa 2: marcadores no site), D-PROD-368 (cadastro de produto, conversão de unidades), D-PROD-367 (cadastro no mapa, etapa 5), D-PROD-366 (mapa do Google no app e no site, etapa 1) e D-PROD-360 (mapa leve, etapa 5); antes D-PROD-364 (etapa 4), D-PROD-363 (etapa 3), D-PROD-362 (etapa 2), D-PROD-361 (etapa 1); antes D-PROD-358 e D-PROD-354 (mapa leve, etapa 4); antes D-PROD-357, D-PROD-355; antes missões ativas D-PROD-353 (mapa leve, etapa 3) e D-PROD-350 (celular compartilhado, PR #438); antes D-PROD-349 (mapa leve, etapa 2, PR #437), D-PROD-346, D-PROD-347 (mapa leve, PR #436) e D-PROD-348 (diário, PR #434); antes D-PROD-345, D-PROD-344, D-PROD-343, D-PROD-342, D-PROD-341 (diário, PR #426), D-PROD-340, D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -18,6 +18,16 @@ rollout pausado **D-PROD-41**)
 | App | sem APK novo; no app (mapa nativo) os marcadores ficam para uma etapa própria |
 | Relatório | [`MAPA-GOOGLE-ETAPA2-D369-REPORT.md`](./MAPA-GOOGLE-ETAPA2-D369-REPORT.md) |
 | Próximas | 3 nomes; 4 arrastar lote, piscar, linhas, localização, coloração, "Localizar"; marcadores no app |
+
+## Missão ativa (2026-11-27) — MAIKE-PRODUTO-TELA-BASE1: "Conversão de unidades" no padrão Base1 (D-PROD-368)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-368**: aba "Unidades" do produto vira "Conversão de unidades", com os campos do Base1; a unidade da quantidade por implemento ganha caixa própria |
+| Banco | sem migration |
+| Branch | `claude/produto-tela-base1` (PR em rascunho) |
+| Relatório | [`MAIKE-PRODUTO-TELA-BASE1-REPORT.md`](./MAIKE-PRODUTO-TELA-BASE1-REPORT.md) |
+| Próximas | estoque na unidade do cadastro (SC, UN, CX): proposta de emenda da Constituição para o proprietário aprovar |
 
 ## Missão ativa (2026-11-27) — MAIKE-MAPA-GOOGLE: etapa 1, mapa do Google no app (nativo) e no site, em teste (D-PROD-366)
 

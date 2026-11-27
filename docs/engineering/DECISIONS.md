@@ -11001,11 +11001,25 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-364, mas a PR #452 (mapa, etapa 4) já a reservou; esta ficou com D-PROD-365 e o marcador passa a D-PROD-366. Conferir antes do merge (regra A5).
 
+## D-PROD-368 — Cadastro de produto: "Conversão de unidades" no padrão Base1
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário ("a tela tá bugada, os campos não seguem o padrão do modelo Base1"; a aba "Unidades" precisa de outro nome) · **Branch:** `claude/produto-tela-base1` · **Relatório:** [`MAIKE-PRODUTO-TELA-BASE1-REPORT.md`](./MAIKE-PRODUTO-TELA-BASE1-REPORT.md)
+
+- **Contexto:** a aba "Unidades" (D-PROD-288) montava cada conversão com rótulos soltos em cima de controles crus: os campos ficavam um embaixo do outro, o valor desalinhado ("MULTIPLICA" no meio da linha, o fator na ponta), as caixas de Compra/Saída fora do padrão e a lixeira solta. Na aba "Unidade de Estoque", a "Quantidade por implemento cheio" punha o seletor kg/L dentro da mesma caixa, e o rótulo ficava por cima dele.
+- **Decisão:**
+  - A aba passa a se chamar **"Conversão de unidades"** (escolha do proprietário).
+  - Cada conversão usa os campos do Base1 (`B1Field`): Unidade, Conta e Fator, mais as chaves Compra e Saída (`B1ChaveRow`). Embaixo ficam a prévia ("1 SC = 25 KG") e o botão "Remover". No computador, a grade do Base1 segue com 4 campos por linha.
+  - A unidade da "Quantidade por implemento cheio" ganha uma caixa própria ("Unidade do implemento").
+  - Só a tela muda: o que é enviado ao servidor e as regras são os mesmos.
+- **Fora:** guardar o estoque na unidade escolhida no cadastro (SC, UN, CX), que o proprietário também pediu. Exige emenda da Constituição e vai em missão e PR próprias, depois da aprovação da proposta.
+- **Migration:** nenhuma. **Constituição:** sem mudança.
+- **Testes:** `tests/smoke/produtoUnidadesConversao.test.jsx` com o nome novo da aba; os testes do cadastro de produtos passam (7 arquivos, 49 testes); capturas em 1280 e 390 px sem rolagem lateral.
+
 ## D-PROD-369 — Mapa do Google no Mapa Geral, etapa 2: lotes, cochos, pontos e tarefas no site
 
 **Data:** 2026-11-27 · **Origem:** com a etapa 1 no ar e a Map Tiles API desligada pelo proprietário, o satélite do site só vem pelo mapa do Google, e ele mostrava só as áreas ("no meu mapa do google abriu assim porém não mostrou lotes etc essas coisas") · **Relatório:** [`MAPA-GOOGLE-ETAPA2-D369-REPORT.md`](./MAPA-GOOGLE-ETAPA2-D369-REPORT.md) · **Migration:** nenhuma · **APK:** nenhum (o site e a atualização automática)
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369: a D-PROD-368 está reservada pela PR #456 e a D-PROD-370 pela PR #458 (regra A5). O marcador da `main` (D-PROD-368) fica.
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369: a D-PROD-368 foi da PR #456 e a D-PROD-370 está reservada pela PR #458 (regra A5). O marcador passa a D-PROD-370.
 
 - **Problema:**
   - A versão web do plugin (D-PROD-366) não dá acesso ao mapa do Google e só põe marcador com a ponta embaixo, sem deslocamento em px nem ordem por marcador.
@@ -11021,4 +11035,4 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - marcadores no mapa nativo do app: o SDK nativo só aceita imagem de arquivo do app ou de endereço `https`, não a imagem desenhada na hora.
 - **Testes:** `mapaGoogleMarcadoresD369.test.jsx` (8, com `google.maps` falso), `mapaGoogleNativoD366.test.jsx` (21; o site agora sem o plugin), `mapaRotulosSemBagunca.test.js` (lê o ponto do lote em `itensDoMapaGeral.js`). Os 1.102 testes do mapa passam.
 
-<!-- Próxima decisão: D-PROD-368 -->
+<!-- Próxima decisão: D-PROD-370 -->
