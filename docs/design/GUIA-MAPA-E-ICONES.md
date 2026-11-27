@@ -88,7 +88,7 @@ Arquivo: `src/components/mapa/useMapRenderer.jsx`.
 | Gado/lotes | `LARGURA_MARCADOR_PX` (44), em `src/assets/icones/lotes/quadradinho.js`, usado por `syncLotes` |
 | Cochos e depósitos | `baseSize` de 36, em `syncPontosSuplementacao` |
 | Pontos de referência | `baseSize: 40`, em `syncPontos` |
-| Tarefas | `baseSize: 40`, em `syncTarefas`; selo DOM de 22 px independente do desenho |
+| Tarefas | `TAMANHO_TAREFA_MAPA_PX` (26 px); somente contador superior de 13 px |
 | Deslocamento do gado em relação ao ponto | `OFFSET_LOTE_PX = [0, -26]` |
 | Contagem dentro do ícone do gado | `left:50%`, `top: CONTAGEM_TOPO_PCT%` (centro da faixa reservada, ≈ 73,46%), com `translate(-50%,-50%)` |
 | Avisos no alto à direita do gado | `left:calc(50% + 22px)`, `top:calc(50% - 24px)` |
@@ -181,14 +181,21 @@ Guia específico do ícone do lote: [src/assets/icones/lotes/README.md](../../sr
 - `src/lib/tarefas/prioridade.js`: nomes e cores compartilhados por formulário, detalhes, resumo e mapa.
   **Baixa** (cinza, um sinal), **Média** (azul, dois sinais), **Alta** (âmbar, três sinais) e **Urgente**
   (vermelho, exclamação). O nome legado **Normal** vira **Média**; Urgente não vira Alta.
-- `src/assets/icones/tarefas.js`: moldura quadrada arredondada com ponteira e fundo branco, SVG nativo.
+- `src/assets/icones/tarefas.js`: moldura redonda original com ponteira, fundo branco, a mesma geometria do cocho/depósito
+  (`montarPontoRedondo` em `src/assets/icones/pontos/redondo.js`). A tarefa usa a cor da prioridade no símbolo interno e na borda mais grossa (70 unidades no desenho original).
   São só quatro URLs locais em cache. Não dependem de upload, API ou imagem externa.
 - `src/lib/tarefas/marcador.js`: selo separado do ícone (inclusive quando o desenho é um upload).
   Dias até o prazo; no dia, `0d`; depois dele, dias de atraso. Acima de 99, `99+` e o valor completo na descrição.
-  Pendente: cinza; em andamento: azul; atrasada: vermelho. Sem prazo: `…` ou `▶`, respectivamente.
-  Encerradas: `✓` verde ou `×` cinza, sem contador de atraso. O filtro do mapa continua mostrando só abertas.
+  O selo é cinza, sem bolinha inferior de status. Sem prazo: `…` (pendente) ou `▶` (andamento).
+  Encerradas: `✓` ou `×`, sem contador de atraso. O filtro do mapa continua mostrando só abertas.
 - O dia vem do `useDiaCivil` da fazenda. A virada do dia, mudança de prazo ou status atualiza o selo no mesmo
   marcador; título/`aria-label` informam prioridade, andamento e prazo completo. O toque abre os detalhes.
 - Tanto o mapa geral quanto o seletor de localização usam o mesmo resolver e o mesmo indicador.
 - Backend: `backend/src/modules/lancamentosTarefa/lancamentoTarefaService.js` aceita Urgente no contrato HTTP.
   A coluna já é texto de 32 caracteres: não há migration nem alteração de registros existentes.
+
+
+O estilo-base dos selos vem de `src/lib/maplibre/marcadoresVisuais.js`. A tarefa tem escala própria compacta
+em `src/lib/tarefas/marcador.js`: imagem de 26 px e contador de 13 px, borda de 1 px e sem sombra.
+Cocho e depósito mantêm suas próprias medidas. O desenho da tarefa preserva a folga no viewBox.
+Na tarefa, somente os dias ficam no selo superior cinza, deslocado 3 px para a direita; a situação é descrita no título e nos detalhes, sem farol inferior.

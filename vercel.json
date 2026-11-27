@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != main ] || { [ -n \"$VERCEL_GIT_PREVIOUS_SHA\" ] && git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- . ':!docs' ':!tests' ':!backend/tests' ':!.github' ':!*.md'; }",
+  "ignoreCommand": "mk_r=$VERCEL_GIT_COMMIT_REF; [ \"$mk_r\" != main ] && [ \"$mk_r\" != codex/tarefas-tamanho-pontos ] || { [ -n \"$VERCEL_GIT_PREVIOUS_SHA\" ] && git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- . ':!docs' ':!tests' ':!backend/tests' ':!.github' ':!*.md'; }",
   "buildCommand": "npm run prisma:generate && npm run build && npm run app:pacote",
   "installCommand": "npm ci",
   "framework": "vite",

@@ -19,11 +19,19 @@ export const ENCAIXE_FIGURA = {
   height: 47,
 };
 
-/** Monta a moldura original e uma figura independente, sem mudar suas proporções. */
-export function montarPontoRedondo(desenho, viewBox, encaixe = ENCAIXE_FIGURA) {
+/** Monta a moldura original e uma figura independente, sem mudar suas proporções.
+ * @param {string} desenho @param {string} viewBox
+ * @param {{ x: number, y: number, width: number, height: number }} [encaixe]
+ * @param {{ corBorda?: string, espessuraBorda?: number }} [aparencia]
+ */
+export function montarPontoRedondo(desenho, viewBox, encaixe = ENCAIXE_FIGURA, aparencia = {}) {
+  const corBorda = aparencia.corBorda || COR_BORDA_REDONDO;
+  const espessuraBorda = aparencia.espessuraBorda ?? 15;
   const figura = `<svg data-figura-ponto="" x="${encaixe.x}" y="${encaixe.y}" width="${encaixe.width}" height="${encaixe.height}" viewBox="${viewBox}" preserveAspectRatio="xMidYMid meet">${desenho}</svg>`;
   const moldura = REDONDO_ORIGINAL_SVG
-    .replace(/stroke="#ffffff"/g, `stroke="${COR_BORDA_REDONDO}"`)
-    .replace(/stroke:\s*rgb\(255,\s*255,\s*255\)/g, `stroke: ${COR_BORDA_REDONDO}`);
+    .replace(/stroke="#ffffff"/g, `stroke="${corBorda}"`)
+    .replace(/stroke:\s*rgb\(255,\s*255,\s*255\)/g, `stroke: ${corBorda}`)
+    .replace(/stroke-width="15"/g, `stroke-width="${espessuraBorda}"`)
+    .replace(/stroke-width:\s*15(?=;)/g, `stroke-width: ${espessuraBorda}`);
   return moldura.replace(/(<svg[^>]*>)([\s\S]*)(<\/svg>)/, (_, inicio, fundo, fim) => `${inicio}<g data-fundo-ponto="">${fundo}</g>${figura}${fim}`);
 }

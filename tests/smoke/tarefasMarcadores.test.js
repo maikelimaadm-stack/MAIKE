@@ -41,6 +41,8 @@ describe('Marcadores de tarefas: prioridade independente do prazo/status', () =>
     expect(el.querySelector('[data-indicador-tarefa]').textContent).toBe('3d');
     aplicarIndicadorTarefa(el, { ...t, status: 'Em Andamento' }, '2026-11-30');
     expect(el.querySelectorAll('[data-indicador-tarefa]')).toHaveLength(1);
+    expect(el.querySelectorAll('[data-status-tarefa]')).toHaveLength(0);
+    expect(el.querySelector('[data-indicador-tarefa]').style.background).toBe('rgb(107, 114, 128)');
     expect(el.getAttribute('aria-label')).toContain('Urgente — Em andamento, 1 dia(s) de atraso');
     img.dispatchEvent(new Event('error'));
     expect(img.src).toBe(urlIconeTarefa('Urgente'));
