@@ -24,6 +24,7 @@
   - IA-01 a IA-03 falham no servidor antigo.
 - `tests/smoke/idDoAparelhoCadastrosD355.test.js`, IC-01 e IC-02: as portas pedem e mandam o id.
 - Os testes do servidor de área, cultura, ocupação, mapa, setor, versão e mudanças passam.
+- `tests/smoke/depositoTransferenciaOffline.test.js` ET-09: falhava de vez em quando, em 1 de 5 rodadas aqui e também no GitHub. O teste se isolava pela pessoa (`usr_et09`) dentro da mesma conta dos testes anteriores (`cli_1`). Desde a D-PROD-350, o dono da fila é a conta, e ele às vezes via o que sobrou deles. Agora usa uma conta própria, como o ET-05 a ET-08, e passou em 8 de 8 rodadas. O que o teste confere não mudou.
 - `test:smoke`: 4741 de 4741.
 - Os gates passam.
 
