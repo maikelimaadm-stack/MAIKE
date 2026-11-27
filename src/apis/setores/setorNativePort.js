@@ -133,6 +133,17 @@ export const corpoDeEnvio = (dados, permitidos) => {
 };
 
 /** Operações online, sem offline nenhum. Exportadas para teste direto. */
+/**
+ * D-PROD-353 — o corpo da criação: a lista literal de campos e, só se for UUID do aparelho, o `id` (o `offline_…`
+ * antigo e os metadados nunca vão). @param {Record<string, unknown>} dados
+ */
+const corpoDeCriacao = (dados) => {
+  const corpo = corpoDeEnvio(dados, CAMPOS_DE_CRIACAO);
+  const id = /** @type {any} */ (dados)?.id;
+  if (eIdDoAparelho(id)) corpo.id = id;
+  return corpo;
+};
+
 export const operacoesNativas = Object.freeze({
   /** @returns {Promise<unknown>} */
   list: () => nativeRequest(CAMINHO, { autenticado: true }, ctx('listSetores')),
@@ -149,7 +160,7 @@ export const operacoesNativas = Object.freeze({
     nativeRequest(
       CAMINHO,
       // D-PROD-353: o id gerado no aparelho vai junto (repetir a criação devolve o mesmo setor).
-      { method: 'POST', body: { ...corpoDeEnvio(dados, CAMPOS_DE_CRIACAO), ...(eIdDoAparelho(/** @type {any} */ (dados)?.id) ? { id: /** @type {any} */ (dados).id } : {}) }, autenticado: true },
+      { method: 'POST', body: corpoDeCriacao(dados), autenticado: true },
       ctx('createSetor')
     ),
 
