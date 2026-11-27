@@ -10,7 +10,7 @@ import { lerAtividadeParaAcoes } from "./lerAtividadeParaAcoes";
 
 /**
  * O "Diário das atividades" dos Detalhes da área do Mapa (D-PROD-332, D-PROD-341): é a ÚNICA entrada de diário no mapa —
- * a pílula "Manejos" do rodapé e a ação de linha "Diário das atividades" das atividades em andamento abrem este componente.
+ * a pílula "Manejos" do rodapé e a ação "+ Lançamento" da linha das atividades em andamento abrem este componente.
  *
  * Fino: lê o resumo da área com a MESMA chave da aba (cache compartilhado) para montar a lista "Em andamento neste pasto"
  * e entrega o resto ao `DiarioDasAtividades`. O passo inicial do diário é decidido na montagem, então, enquanto o resumo

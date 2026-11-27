@@ -2814,6 +2814,19 @@
   appearance: none;
   -webkit-appearance: none;
 }
+.frente-item {
+  position: relative;
+}
+/* D-PROD-352: "Reabrir" da frente encerrada, dentro do cartão (no canto de baixo à direita). */
+.frente-card.frente-card--com-acao {
+  padding-bottom: 56px;
+}
+.frente-item > .frente-reabrir {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  min-height: 34px;
+}
 .frente-card:not(:disabled):hover {
   border-color: #40de63;
   background: rgba(64, 222, 99, 0.06);
