@@ -1,6 +1,7 @@
 import React from "react";
 import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
-import { CampoTexto } from "@/components/gestao/GestaoFormParts";
+import { AvisoGestao, CampoTexto } from "@/components/gestao/GestaoFormParts";
+import { BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 import { formatarHorimetro } from "@/lib/aberturaServicoRegras";
 import { tituloDaFrente } from "@/components/lancamento-atividades/AtividadeComFrentes";
 
@@ -41,11 +42,33 @@ export function PainelEncerrarFrente({ abertura, horimetroFinal, erro = undefine
 }
 
 /**
- * O painel "Encerrar atividade": com frentes abertas, o "Horímetro final" de cada uma (obrigatório, com a dica do inicial);
- * sem nenhuma, só a pergunta de confirmação.
- * @param {{ nome: string, abertas: Array<{ chave: string, abertura: any }>, valores: Record<string, string>, erros: Record<string, string>, readOnly: boolean, onChange: (chave: string, valor: string) => void }} props
+ * O painel "Encerrar atividade": enquanto as frentes são lidas, "Carregando…"; se a leitura falhou, o aviso e "Tentar de novo"
+ * (sem horímetro, sem confirmação). Lidas: com frentes abertas, o "Horímetro final" de cada uma (obrigatório, com a dica do
+ * inicial); sem nenhuma, só a pergunta de confirmação.
+ * @param {{ nome: string, abertas: Array<{ chave: string, abertura: any }>, lendo?: boolean, erroLeitura?: boolean, onTentarLeitura?: () => void, valores: Record<string, string>, erros: Record<string, string>, readOnly: boolean, onChange: (chave: string, valor: string) => void }} props
  */
-export function PainelEncerrarAtividade({ nome, abertas, valores, erros, readOnly, onChange }) {
+export function PainelEncerrarAtividade({ nome, abertas, lendo = false, erroLeitura = false, onTentarLeitura = undefined, valores, erros, readOnly, onChange }) {
+  if (lendo) {
+    return (
+      <section className="b1-aberto-painel" aria-label="Encerrar atividade" data-testid="atividade-encerrar-painel">
+        <strong className="b1-aberto-painel__titulo">Encerrar atividade</strong>
+        <p role="status" className="b1-aberto-breve" data-testid="atividade-encerrar-lendo">
+          Carregando as máquinas desta atividade…
+        </p>
+      </section>
+    );
+  }
+  if (erroLeitura) {
+    return (
+      <section className="b1-aberto-painel" aria-label="Encerrar atividade" data-testid="atividade-encerrar-painel">
+        <strong className="b1-aberto-painel__titulo">Encerrar atividade</strong>
+        <AvisoGestao testId="atividade-encerrar-erro-leitura">Não foi possível ler as máquinas desta atividade. Tente de novo antes de encerrar.</AvisoGestao>
+        <button type="button" className={BOTAO_SECUNDARIO} onClick={onTentarLeitura} disabled={readOnly} data-testid="atividade-encerrar-tentar">
+          Tentar de novo
+        </button>
+      </section>
+    );
+  }
   return (
     <section className="b1-aberto-painel" aria-label="Encerrar atividade" data-testid="atividade-encerrar-painel">
       <strong className="b1-aberto-painel__titulo">Encerrar atividade</strong>

@@ -47,6 +47,7 @@ vi.mock("@/services/lancamentoAtividadesService", async (importOriginal) => ({
 }));
 
 import DiarioDasAtividades from "@/components/lancamento-atividades/DiarioDasAtividades";
+import { mesCurto } from "@/components/lancamento-atividades/AtividadeComFrentes";
 import { lerAbertura, marcadorDaAbertura, marcadorDoEncerramento } from "@/lib/aberturaServicoRegras";
 import * as servico from "@/services/lancamentoAtividadesService";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
@@ -207,7 +208,7 @@ describe("D-PROD-342 — o passo \"Em andamento neste pasto\" (a) e o passo da a
     expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Em andamento neste pasto");
     const cartao = screen.getByTestId("diario-atividade-aberta-at-1");
     await waitFor(() => expect(cartao).toHaveTextContent("2 máquinas em campo"));
-    expect(cartao).toHaveTextContent("Aplicação · nov/26");
+    expect(cartao).toHaveTextContent("Aplicação de defensivo · nov/26");
     expect(cartao).toHaveTextContent("Início 02/11");
     expect(within(cartao).getByTestId("diario-atividade-aberta-etiqueta-at-1")).toHaveTextContent("Em andamento");
     expect(screen.getAllByTestId(/^diario-atividade-aberta-at-/)).toHaveLength(1);
@@ -241,6 +242,9 @@ describe("D-PROD-342 — Adicionar máquina e a trava de frente duplicada (c)", 
     await abrirAtividade();
     await adicionarMaquina();
     expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Adicionar máquina");
+    // D-PROD-342 (item 1): a operação é a da atividade — sem o campo "Operação" e sem a frase "Já existe …" (só vale no tipo).
+    expect(screen.queryByTestId("abertura-operacao")).toBeNull();
+    expect(screen.queryByTestId("abertura-ja-existe")).toBeNull();
     await escolherOpcao(screen.getByRole("combobox", { name: "Máquina" }), "Trator 10");
     fireEvent.change(screen.getByTestId("abertura-horimetro"), { target: { value: "900" } });
     await escolherOpcao(screen.getByRole("combobox", { name: "Responsável" }), "Maria Souza");
@@ -440,5 +444,88 @@ describe("D-PROD-342 — duplo clique (h)", () => {
     liberar();
     expect(await screen.findByTestId("atividade-passo")).toBeInTheDocument();
     expect(servico.criarApontamento).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("D-PROD-342 — acertos de rótulo, cartão e encerramento (itens 2, 3 e 5)", () => {
+  it("(r1) o cabeçalho do serviço e o \"Encerrar serviço\" usam o NOME DO TIPO da atividade (Gradeação), não o tipo fixo (Preparo do solo)", async () => {
+    renderizar({ atividade: { id: "at-1", tipo_atividade_id: "op-g", tipo_atividade_nome: "Gradeação", nome: "Gradeação · nov/26", data_inicio: "2026-11-20", versao: 7 } });
+    expect(await screen.findByTestId("atividade-passo")).toBeInTheDocument();
+    expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Gradeação");
+    const iniciado = await abrirFrente("bem-7|imp-2");
+    expect(within(iniciado).getByText("Gradeação")).toBeInTheDocument();
+    expect(within(iniciado).queryByText("Preparo do solo")).toBeNull();
+    expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Gradeação · Hoje · 26/11");
+    fireEvent.click(screen.getByTestId("servico-encerrar"));
+    expect(screen.getByTestId("servico-encerrar-painel")).toBeInTheDocument();
+    expect(screen.getByTestId("diario-atividades-titulo")).toHaveTextContent("Gradeação · Hoje · 26/11");
+    expect(screen.getByTestId("diario-atividades-titulo")).not.toHaveTextContent("Preparo do solo");
+  });
+
+  it("(r2) o cartão da atividade no pasto: \"Gradeação · nov/26\" (tipo e mês de início); sem tipo, o nome da atividade", () => {
+    renderizar({
+      atividadesAbertas: [
+        { ...ATIVIDADE_SEM_FRENTE, tipo_atividade_nome: "Gradeação", nome: "Gradagem · nov/26" },
+        { atividade_id: "at-3", nome: "Pasto de inverno", tipo_atividade_id: "op-g", data_inicio: "2026-05-03", area_status: "PLANEJADA" },
+      ],
+    });
+    expect(screen.getByTestId("diario-atividade-aberta-at-2")).toHaveTextContent("Gradeação · nov/26");
+    expect(screen.getByTestId("diario-atividade-aberta-at-2")).not.toHaveTextContent("Gradagem");
+    expect(screen.getByTestId("diario-atividade-aberta-at-3")).toHaveTextContent("Pasto de inverno");
+  });
+
+  it("(r3) o mês do cartão é mmm/aa em pt-BR minúsculo, a partir de data_inicio", () => {
+    expect(mesCurto("2026-11-20")).toBe("nov/26");
+    expect(mesCurto("2026-05-03")).toBe("mai/26");
+    expect(mesCurto("2026-08-01")).toBe("ago/26");
+    expect(mesCurto("")).toBe("");
+    expect(mesCurto("2026-13-01")).toBe("");
+  });
+
+  it("(i) \"Encerrar atividade\" fica DESABILITADO enquanto as frentes são lidas; lidas, o painel traz os horímetros", async () => {
+    let liberar = () => {};
+    const gate = new Promise((r) => {
+      liberar = r;
+    });
+    servico.listarApontamentos.mockImplementation(async (id) => {
+      await gate;
+      return { items: [...(store[id] ?? [])] };
+    });
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    fireEvent.click(screen.getByTestId("diario-atividade-aberta-at-1"));
+    await screen.findByTestId("atividade-passo");
+    expect(screen.getByTestId("atividade-carregando")).toBeInTheDocument();
+    expect(screen.getByTestId("atividade-encerrar")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("atividade-encerrar"));
+    expect(screen.queryByTestId("atividade-encerrar-painel")).toBeNull();
+
+    await act(async () => liberar());
+    await waitFor(() => expect(screen.getByTestId("atividade-encerrar")).toBeEnabled());
+    fireEvent.click(screen.getByTestId("atividade-encerrar"));
+    expect(screen.getByTestId(`atividade-encerrar-horimetro-${encodeURIComponent("bem-7|imp-2")}`)).toBeInTheDocument();
+    expect(screen.getByTestId("atividade-encerrar-confirmar")).toBeEnabled();
+  });
+
+  it("(j) falha ao ler as frentes: o painel pede para TENTAR DE NOVO, confirmar fica desabilitado, e só depois de ler os horímetros entram", async () => {
+    let falha = true;
+    servico.listarApontamentos.mockImplementation(async (id) => {
+      if (falha) throw new Error("rede");
+      return { items: [...(store[id] ?? [])] };
+    });
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    fireEvent.click(screen.getByTestId("diario-atividade-aberta-at-1"));
+    await screen.findByTestId("atividade-erro-leitura");
+    fireEvent.click(screen.getByTestId("atividade-encerrar"));
+    expect(screen.getByTestId("atividade-encerrar-erro-leitura")).toHaveTextContent("Tente de novo");
+    expect(screen.queryByTestId(/^atividade-encerrar-horimetro-/)).toBeNull();
+    expect(screen.getByTestId("atividade-encerrar-confirmar")).toBeDisabled();
+    expect(servico.criarApontamento).not.toHaveBeenCalled();
+    expect(servico.concluirAtividade).not.toHaveBeenCalled();
+
+    falha = false;
+    fireEvent.click(screen.getByTestId("atividade-encerrar-tentar"));
+    await waitFor(() => expect(screen.getByTestId(`atividade-encerrar-horimetro-${encodeURIComponent("bem-7|imp-2")}`)).toBeInTheDocument());
+    expect(screen.queryByTestId("atividade-encerrar-erro-leitura")).toBeNull();
+    expect(screen.getByTestId("atividade-encerrar-confirmar")).toBeEnabled();
   });
 });

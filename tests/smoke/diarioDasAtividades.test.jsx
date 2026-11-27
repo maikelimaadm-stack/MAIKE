@@ -288,12 +288,14 @@ describe("Diário das atividades — abertura", () => {
     expect(lerAbertura(dados.observacao)).toMatchObject({ bemId: "bem-7", responsavelId: "usr-3", horimetro: "1245.0" });
   });
 
-  it("(f3) D-PROD-341: com duas operações do tipo, a Operação já vem com a do serviço aberto (e o envio leva o id dela)", async () => {
+  it("(f3) D-PROD-342: \"Adicionar máquina\" com duas operações do tipo NÃO mostra o campo Operação; o envio leva o tipo da atividade", async () => {
     servico.listarApontamentos.mockResolvedValue({ items: [{ id: "ap-1", data_operacional: "2026-11-26", status: "CONFIRMADO", observacao: "Só texto" }] });
     renderizar({ tipos: [OPERACAO_APLICACAO, OPERACAO_APLICACAO_2], atividade: { id: "atv-9", tipo_atividade_id: "op-2" } });
     fireEvent.click(await screen.findByTestId("atividade-adicionar-maquina"));
     await screen.findByTestId("abertura-form");
-    expect(screen.getByTestId("abertura-operacao")).toBeInTheDocument();
+    // A operação é a da atividade: sem o campo "Operação" e sem a frase "Já existe …".
+    expect(screen.queryByTestId("abertura-operacao")).toBeNull();
+    expect(screen.queryByTestId("abertura-ja-existe")).toBeNull();
     expect(screen.getByTestId("abertura-servico-existente")).toHaveTextContent("Aplicação de adubo foliar");
     await escolher(screen.getByRole("combobox", { name: "Máquina" }), "Trator 12");
     await escolher(screen.getByRole("combobox", { name: "Responsável" }), "João Pereira");

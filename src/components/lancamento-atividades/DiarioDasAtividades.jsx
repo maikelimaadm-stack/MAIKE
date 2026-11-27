@@ -183,11 +183,21 @@ export default function DiarioDasAtividades({
   const pedirOperacao = operacoes.length > 1;
   const semOperacao = tipoFixo !== "" && operacoes.length === 0;
   const [operacaoEscolhidaId, setOperacaoEscolhidaId] = useState("");
-  // Com uma operação só, ela é usada sem perguntar; com mais de uma, vale a escolhida.
-  const operacaoId = operacoes.length === 1 ? String(operacoes[0].id) : operacaoEscolhidaId;
-  const rotuloTipo = tipoFixo ? rotuloDoTipoFixo(tipoFixo) : atividadeAtual?.tipo_atividade_nome ?? atividadeAtual?.nome ?? "";
+  /** D-PROD-342: o formulário foi aberto por "Adicionar máquina" (a atividade `atividadeAtual` é o destino). */
+  const [adicionandoA, setAdicionandoA] = useState(false);
+  // Na "Adicionar máquina" a operação é a da atividade (sem campo). Fora dela, com uma operação só, ela é usada sem
+  // perguntar; com mais de uma, vale a escolhida.
+  const operacaoId = adicionandoA && atividadeAtual?.tipo_atividade_id != null
+    ? String(atividadeAtual.tipo_atividade_id)
+    : operacoes.length === 1 ? String(operacoes[0].id) : operacaoEscolhidaId;
+  /** O tipo FIXO do formulário (a categoria, como "Preparo do solo"): o título "Nova atividade de …" do caminho novo. */
+  const rotuloDoTipo = tipoFixo ? rotuloDoTipoFixo(tipoFixo) : "";
+  /** D-PROD-342: o rótulo da atividade aberta é o NOME DO TIPO dela (como "Gradeação"); sem ele, o tipo fixo. */
+  const rotuloTipo = atividadeAtual?.tipo_atividade_nome || rotuloDoTipo || atividadeAtual?.nome || "";
   /** D-PROD-342: o nome da atividade (o tipo, como "Gradeação"), para o título e os textos do passo `atividade`. */
   const nomeDaAtividade = atividadeAtual?.tipo_atividade_nome || atividadeAtual?.nome || rotuloTipo;
+  /** A Operação aparece só no caminho novo (tipo → abrir) e quando há mais de uma do tipo. */
+  const pedirOperacaoNoForm = pedirOperacao && !adicionandoA;
 
   // ─── Campos da abertura ─────────────────────────────────────────────
   const [bemId, setBemId] = useState("");
@@ -203,8 +213,6 @@ export default function DiarioDasAtividades({
   const enviandoRef = useRef(false);
   /** D-PROD-341: o nome do serviço que já está aberto no pasto sem abertura (a linha de ajuda do formulário; "" = não é o caso). */
   const [nomeServicoExistente, setNomeServicoExistente] = useState("");
-  /** D-PROD-342: o formulário foi aberto por "Adicionar máquina" (a atividade `atividadeAtual` é o destino). */
-  const [adicionandoA, setAdicionandoA] = useState(false);
   /** D-PROD-341 (frentes): a frente (máquina + implemento) do serviço aberto; `null` = nenhuma escolhida. */
   const [frenteChave, setFrenteChave] = useState(/** @type {string | null} */ (null));
   /** D-PROD-342: o painel "Encerrar serviço" do passo `iniciado` (e o seu horímetro final). */
@@ -451,7 +459,8 @@ export default function DiarioDasAtividades({
     setResponsavelId("");
     setCulturaId("");
     setErros({});
-    setOperacaoEscolhidaId(operacaoDaAtividade ? String(operacaoDaAtividade.id) : "");
+    // A operação é a da atividade (o `tipo_atividade_id` dela): o POST leva esse id, e o campo Operação não aparece.
+    setOperacaoEscolhidaId(atividadeAtual?.tipo_atividade_id != null ? String(atividadeAtual.tipo_atividade_id) : "");
     // Sem frente nenhuma (o serviço do fluxo antigo), a linha de ajuda diz que o serviço já está aberto sem abertura.
     setNomeServicoExistente(frentes.length === 0 ? String(operacaoDaAtividade?.nome_tipo ?? nomeDaAtividade) : "");
     setAdicionandoA(true);
@@ -517,7 +526,7 @@ export default function DiarioDasAtividades({
       return;
     }
     const plantio = tipoFixo === "PLANTIO";
-    const novosErros = validarAbertura({ operacaoId, pedirOperacao, bemId, horimetro, responsavelId, pedirCapim: plantio, culturaId });
+    const novosErros = validarAbertura({ operacaoId, pedirOperacao: pedirOperacaoNoForm, bemId, horimetro, responsavelId, pedirCapim: plantio, culturaId });
     setErros(novosErros);
     if (Object.keys(novosErros).length) {
       notifyWarning("Atenção", "Revise os campos destacados.");
@@ -645,7 +654,7 @@ export default function DiarioDasAtividades({
   };
 
   const abrirEncerrarAtividade = () => {
-    if (enviando) return;
+    if (enviando || apontamentosLidos.isPending) return;
     setHorimetrosFim({});
     setErrosFim({});
     setEncerrandoAtividade(true);
@@ -721,7 +730,7 @@ export default function DiarioDasAtividades({
         : passo === "abrir"
           ? adicionandoA
             ? "Adicionar máquina"
-            : `Nova atividade de ${rotuloTipo}`
+            : `Nova atividade de ${rotuloDoTipo}`
           : passo === "escolher"
             ? "Em andamento neste pasto"
             : "Nova atividade";
@@ -812,7 +821,7 @@ export default function DiarioDasAtividades({
         void iniciarServico();
       }}
     >
-      {pedirOperacao ? (
+      {pedirOperacaoNoForm ? (
         <CampoEscolha
           label="Operação"
           required
@@ -1041,6 +1050,9 @@ export default function DiarioDasAtividades({
     <PainelEncerrarAtividade
       nome={nomeDaAtividade}
       abertas={frentesAbertas}
+      lendo={apontamentosLidos.isPending}
+      erroLeitura={apontamentosLidos.isError}
+      onTentarLeitura={() => void apontamentosLidos.refetch()}
       valores={horimetrosFim}
       erros={errosFim}
       readOnly={enviando}
@@ -1050,6 +1062,8 @@ export default function DiarioDasAtividades({
       }}
     />
   ) : null;
+  /** D-PROD-342: "Encerrar atividade" só confirma com as frentes LIDAS (sem leitura, não há horímetro a conferir). */
+  const frentesLidas = apontamentosLidos.isSuccess;
 
   const rodape =
     passo === "tipo" ? (
@@ -1087,13 +1101,13 @@ export default function DiarioDasAtividades({
           <button type="button" className={BOTAO_SECUNDARIO} onClick={() => setEncerrandoAtividade(false)} disabled={enviando} data-testid="atividade-encerrar-cancelar">
             Cancelar
           </button>
-          <button type="button" className={BOTAO_PRIMARIO} onClick={() => void encerrarAtividade()} disabled={!podeGravar || enviando} data-testid="atividade-encerrar-confirmar">
+          <button type="button" className={BOTAO_PRIMARIO} onClick={() => void encerrarAtividade()} disabled={!podeGravar || enviando || !frentesLidas} data-testid="atividade-encerrar-confirmar">
             {enviando ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
             {enviando ? "Encerrando…" : "Encerrar atividade"}
           </button>
         </>
       ) : (
-        <button type="button" className={`${BOTAO_SECUNDARIO} b1-aberto-rodape-unico`} onClick={abrirEncerrarAtividade} disabled={enviando} data-testid="atividade-encerrar">
+        <button type="button" className={`${BOTAO_SECUNDARIO} b1-aberto-rodape-unico`} onClick={abrirEncerrarAtividade} disabled={enviando || apontamentosLidos.isPending} data-testid="atividade-encerrar">
           <Square className="h-4 w-4" aria-hidden />
           Encerrar atividade
         </button>
@@ -1153,7 +1167,7 @@ export default function DiarioDasAtividades({
                 {`Este pasto já tem o serviço ${nomeServicoExistente} em andamento, sem abertura. Preencha para iniciar.`}
               </p>
             ) : null}
-            {avisoJaExiste}
+            {adicionandoA ? null : avisoJaExiste}
             {motivoTrava ? (
               <p className="b1-realizacao__ajuda" data-testid="abertura-trava">
                 {motivoTrava}

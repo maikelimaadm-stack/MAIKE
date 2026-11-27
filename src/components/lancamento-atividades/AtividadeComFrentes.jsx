@@ -17,6 +17,15 @@ export const diaCurto = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(String(iso ?? "")) 
 /** "26/11/2026" a partir do dia ISO (AAAA-MM-DD); sem dia, "". @param {unknown} iso */
 const diaComAno = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(String(iso ?? "")) ? `${String(iso).slice(8, 10)}/${String(iso).slice(5, 7)}/${String(iso).slice(0, 4)}` : "");
 
+const MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+/** "nov/26" a partir do dia ISO (AAAA-MM-DD), em pt-BR minúsculo; sem dia válido, "". @param {unknown} iso */
+export const mesCurto = (iso) => {
+  const m = /^(\d{4})-(\d{2})-\d{2}$/.exec(String(iso ?? ""));
+  const mes = m ? Number(m[2]) : 0;
+  return mes >= 1 && mes <= 12 ? `${MESES_CURTOS[mes - 1]}/${String(m?.[1]).slice(2)}` : "";
+};
+
 /** O título de uma frente: a máquina, com " + " e o implemento quando há um. @param {any} abertura */
 export const tituloDaFrente = (abertura) => {
   const bem = abertura?.bemNome || "Máquina";
@@ -84,7 +93,9 @@ export function CartaoDaFrente({ id, frente, lancamentosHoje, ocupado, onAbrir }
  */
 export function CartaoDaAtividade({ atividade, frentes, ocupado, onTocar }) {
   const id = String(atividade.atividade_id);
-  const nome = atividade.nome || atividade.tipo_atividade_nome || "Atividade";
+  // D-PROD-342: o título é o TIPO da atividade e o mês de início ("Gradeação · nov/26"); sem tipo, o nome dela como antes.
+  const tipo = atividade.tipo_atividade_nome;
+  const nome = tipo ? [tipo, mesCurto(atividade.data_inicio)].filter(Boolean).join(" · ") : atividade.nome || "Atividade";
   const Icone = iconeDoTipoAtividade({ nome_tipo: atividade.tipo_atividade_nome ?? atividade.nome });
   const maquinas = frentes ? textoDasMaquinasEmCampo(resumoDasFrentes(frentes).abertas) : "";
   const inicio = diaCurto(atividade.data_inicio);

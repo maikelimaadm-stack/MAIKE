@@ -132,7 +132,8 @@ describe("Diário das atividades — Em andamento neste pasto (D-PROD-341)", () 
     expect(screen.queryByTestId("diario-atividades-tipos")).toBeNull();
     // D-PROD-342: um cartão por ATIVIDADE. A com frente mostra as máquinas em campo; a planejada, "Sem máquina em campo".
     const primeira = await screen.findByTestId("diario-atividade-aberta-at-1");
-    expect(primeira).toHaveTextContent("Aplicação · nov/26");
+    // D-PROD-342 (item 3): o título é o TIPO da atividade e o mês de início.
+    expect(primeira).toHaveTextContent("Aplicação de defensivo · nov/26");
     expect(primeira).toHaveTextContent("Início 02/11");
     expect(within(primeira).getByTestId("diario-atividade-aberta-etiqueta-at-1")).toHaveTextContent("Em andamento");
     await waitFor(() => expect(primeira).toHaveTextContent("1 máquina em campo"));
