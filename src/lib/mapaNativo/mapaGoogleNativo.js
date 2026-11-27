@@ -17,7 +17,8 @@ import { Capacitor } from "@capacitor/core";
 import { getGoogleMapsApiKey } from "@/config/runtimeConfig";
 
 import { parseVertices } from "@/lib/geografia/coords.js";
-import { COR_LINHA_AREA, OPACIDADE_FILL_AREA } from "@/lib/maplibre/estiloAreas.js";
+import { COR_LINHA_AREA, OPACIDADE_FILL_AREA, corExibidaNoMapa } from "@/lib/maplibre/estiloAreas.js";
+import { corDaAreaNoMapaGeral } from "@/lib/maplibre/mapaGeralRender.js";
 
 /** Nome com que o plugin `@capacitor/google-maps` se registra. */
 export const PLUGIN_MAPA_GOOGLE = "CapacitorGoogleMaps";
@@ -113,23 +114,41 @@ export function estiloDoPoligono(estilo, cor) {
 }
 
 /**
+ * Escala das medidas em px (linha, margem) para o mapa do Google: o Android as lê em pixels FÍSICOS da tela; o iOS e o
+ * navegador, em pontos (px da página).
+ */
+export function escalaDoMapaGoogle() {
+  try {
+    if (Capacitor.getPlatform() === "android") return Math.max(1, Number(globalThis.devicePixelRatio) || 1);
+  } catch {
+    /* fora do app */
+  }
+  return 1;
+}
+
+/**
  * Polígonos do Google para as áreas do Mapa Geral. Área sem contorno válido (menos de 3 vértices) fica de fora, como
- * no MapLibre. `tag` = id da área: o toque no polígono devolve a área.
+ * no MapLibre. `tag` = id da área: o toque no polígono devolve a área. A cor é a mesma do MapLibre: a da coloração
+ * escolhida ou, sem ela (modo padrão), a cor salva da área, com o mesmo clareamento de 5%, sempre `#rrggbb` (o
+ * Android não aceita `#abc` nem `rgb(...)`).
  * @param {any[]} areas
  * @param {(area: any) => string | null | undefined} corDaArea
  * @param {string} [estilo]
+ * @param {number} [escala] px físicos por px (Android)
  */
-export function poligonosDasAreas(areas, corDaArea, estilo) {
+export function poligonosDasAreas(areas, corDaArea, estilo, escala = 1) {
   /** @type {Array<{ paths: Array<{ lat: number, lng: number }>, fillColor: string, fillOpacity: number, strokeColor: string, strokeWeight: number, clickable: boolean, tag: string }>} */
   const saida = [];
   for (const area of areas || []) {
     const pontos = parseVertices(area?.coordenadas?.coords);
     if (pontos.length < 3 || area?.id == null) continue;
-    const cor = (corDaArea && corDaArea(area)) || COR_AREA_PADRAO;
+    const cor = corExibidaNoMapa(corDaAreaNoMapaGeral(area, corDaArea));
+    const traco = estiloDoPoligono(estilo, cor);
     saida.push({
       paths: pontos.map((p) => ({ lat: p.lat, lng: p.lng })),
       fillColor: cor,
-      ...estiloDoPoligono(estilo, cor),
+      ...traco,
+      strokeWeight: traco.strokeWeight * escala,
       clickable: true,
       tag: String(area.id),
     });
@@ -161,7 +180,78 @@ export function caixaDosPoligonos(poligonos) {
 
 /**
  * Mesma chave de "vista salva" do Mapa Geral (centro e zoom por fazenda): abrir no mapa do Google ou no MapLibre
- * começa no mesmo lugar.
+ * começa no mesmo lugar. O zoom gravado é o do MapLibre (ladrilhos de 512 px), um nível abaixo do zoom do Google
+ * (256 px) para a mesma escala na tela.
  * @param {string | null | undefined} empresaId
  */
 export const chaveDaVistaSalva = (empresaId) => `mapa_geral_view_${empresaId || "default"}`;
+/** @param {number} zoomMapLibre */
+export const zoomDoGoogle = (zoomMapLibre) => zoomMapLibre + 1;
+/** @param {number} zoomGoogle */
+export const zoomDoMapLibre = (zoomGoogle) => zoomGoogle - 1;
+
+// ——— ciclo de vida do mapa nativo ———
+// O mapa nativo continua vivo atrás da WebView se a página recarregar sem `destroy()` (recarregar não roda a limpeza
+// do React): ele seguiria pegando os toques daquele retângulo. Por isso o mapa aberto fica registrado aqui, a troca
+// da escolha o destrói antes de recarregar, e o id do último mapa criado fica guardado para destruir um órfão na
+// abertura seguinte.
+
+const CHAVE_ULTIMO_ID = "mk_mapa_google_ultimo_id";
+let contadorDeMapas = 0;
+/** @type {{ destroy: () => Promise<void> } | null} */
+let mapaAberto = null;
+
+/** Id novo para cada mapa criado (um `destroy` atrasado de um mapa velho não derruba o novo). */
+export function novoIdDoMapaGoogle() {
+  contadorDeMapas += 1;
+  const id = `mk-mapa-geral-google-${Date.now()}-${contadorDeMapas}`;
+  try {
+    localStorage.setItem(CHAVE_ULTIMO_ID, id);
+  } catch {
+    /* sem armazenamento */
+  }
+  return id;
+}
+
+/** @param {{ destroy: () => Promise<void> } | null} mapa */
+export function registrarMapaGoogleAberto(mapa) {
+  mapaAberto = mapa;
+}
+
+/** Destrói o mapa aberto (antes de recarregar a página). */
+export async function fecharMapaGoogleAberto() {
+  const mapa = mapaAberto;
+  mapaAberto = null;
+  try {
+    await mapa?.destroy();
+  } catch {
+    /* já destruído */
+  }
+  try {
+    localStorage.removeItem(CHAVE_ULTIMO_ID);
+  } catch {
+    /* sem armazenamento */
+  }
+}
+
+/** Na abertura sem o mapa do Google: destrói um mapa nativo que ficou vivo de antes (app recarregado no meio). */
+export async function limparMapaGoogleOrfao() {
+  let id = null;
+  try {
+    id = localStorage.getItem(CHAVE_ULTIMO_ID);
+  } catch {
+    id = null;
+  }
+  if (!id || !ehMapaGoogleNativo() || !temMapaGoogle()) return;
+  try {
+    const cap = /** @type {any} */ (Capacitor);
+    if (typeof cap.nativePromise === "function") await cap.nativePromise(PLUGIN_MAPA_GOOGLE, "destroy", { id });
+  } catch {
+    /* não havia mapa com esse id */
+  }
+  try {
+    localStorage.removeItem(CHAVE_ULTIMO_ID);
+  } catch {
+    /* sem armazenamento */
+  }
+}

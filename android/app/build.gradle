@@ -5,8 +5,8 @@ def versaoDoApp = new groovy.json.JsonSlurper().parse(rootProject.file('../app-v
 // Assinatura fixa: a chave e a senha vêm do ambiente e nunca entram no repositório.
 def chaveDoApp = System.getenv('MAKGESTAO_KEYSTORE')
 def senhaDoApp = System.getenv('MAKGESTAO_KEYSTORE_PASSWORD')
-// D-PROD-366: chave do Google Maps SDK for Android (mapa nativo); vazia = o mapa nativo não abre e o app segue no
-// mapa de sempre.
+// D-PROD-366: chave do Google Maps SDK for Android (mapa nativo). Sem ela o mapa do Google não carrega (fica cinza);
+// o workflow não publica APK sem a chave.
 def chaveDoMapaGoogle = System.getenv('GOOGLE_MAPS_ANDROID_KEY') ?: ''
 
 android {

@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-27 (missões ativas D-PROD-366 (mapa nativo do Google, etapa 1), D-PROD-364 (cadastro no mapa, etapa 4) e D-PROD-360 (mapa leve, etapa 5); antes D-PROD-363 (etapa 3), D-PROD-362 (etapa 2), D-PROD-361 (etapa 1); antes D-PROD-358 e D-PROD-354 (mapa leve, etapa 4); antes D-PROD-357, D-PROD-355; antes missões ativas D-PROD-353 (mapa leve, etapa 3) e D-PROD-350 (celular compartilhado, PR #438); antes D-PROD-349 (mapa leve, etapa 2, PR #437), D-PROD-346, D-PROD-347 (mapa leve, PR #436) e D-PROD-348 (diário, PR #434); antes D-PROD-345, D-PROD-344, D-PROD-343, D-PROD-342, D-PROD-341 (diário, PR #426), D-PROD-340, D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-27 (missões ativas D-PROD-366 (mapa do Google no app e no site, etapa 1), D-PROD-364 (cadastro no mapa, etapa 4) e D-PROD-360 (mapa leve, etapa 5); antes D-PROD-363 (etapa 3), D-PROD-362 (etapa 2), D-PROD-361 (etapa 1); antes D-PROD-358 e D-PROD-354 (mapa leve, etapa 4); antes D-PROD-357, D-PROD-355; antes missões ativas D-PROD-353 (mapa leve, etapa 3) e D-PROD-350 (celular compartilhado, PR #438); antes D-PROD-349 (mapa leve, etapa 2, PR #437), D-PROD-346, D-PROD-347 (mapa leve, PR #436) e D-PROD-348 (diário, PR #434); antes D-PROD-345, D-PROD-344, D-PROD-343, D-PROD-342, D-PROD-341 (diário, PR #426), D-PROD-340, D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -9,16 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-27) — MAIKE-MAPA-GOOGLE-NATIVO: etapa 1, satélite do Google e áreas no app, em teste (D-PROD-366)
+## Missão ativa (2026-11-27) — MAIKE-MAPA-GOOGLE: etapa 1, mapa do Google no app (nativo) e no site, em teste (D-PROD-366)
 
 | Item | Estado |
 |---|---|
-| Decisão | **D-PROD-366**: mapa nativo do Google no app (`@capacitor/google-maps` 8.0.1), atrás da escolha "Mapa do Google (teste)" por aparelho; satélite do Google, áreas com as cores e o estilo do Mapa Geral, toque na área abre o detalhe; site segue no MapLibre |
+| Decisão | **D-PROD-366**: mapa do Google no Mapa Geral pelo `@capacitor/google-maps` 8.0.1 — nativo no app Android/iOS (grátis), Maps JavaScript API no site (por abertura); atrás da escolha "Mapa do Google (teste)"; satélite e áreas com as cores do Mapa Geral; toque abre o detalhe |
 | Banco | sem migration |
-| App | **APK 1.0.6 (código 7)**, `nativoMinimo` 5: o pacote novo roda no APK antigo sem o mapa do Google |
-| Chaves | segredo `GOOGLE_MAPS_ANDROID_KEY` (obrigatório para publicar o APK); `VITE_GOOGLE_MAPS_IOS_KEY` (iPhone) |
+| App | **APK 1.0.6 (código 7)**, `nativoMinimo` 5 |
+| Chave | uma só: `VITE_GOOGLE_MAPS_API_KEY` (Vercel e GitHub), sem a restrição "Sites" para servir o app |
 | Relatório | [`MAPA-GOOGLE-NATIVO-ETAPA1-D366-REPORT.md`](./MAPA-GOOGLE-NATIVO-ETAPA1-D366-REPORT.md) |
-| Próximas | 2 marcadores (lotes, cochos, pontos, tarefas); 3 nomes dos pastos; 4 coloração, focos, arrastar lote, localização; depois vira o padrão |
+| Próximas | 2 marcadores; 3 nomes; 4 coloração, focos, arrastar lote, localização; depois vira o padrão e a Map Tiles API sai |
 
 ## Missão ativa (2026-11-27) — MAIKE-MAPA-CADASTRO: etapa 4, régua (D-PROD-364)
 

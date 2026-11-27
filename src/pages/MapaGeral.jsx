@@ -57,7 +57,7 @@ import { useFiltroDoAssistente } from "@/hooks/useFiltroDoAssistente";
 import { casarNomes } from "@/domain/assistente/filtroTela";
 import { mensagemFalhaMapa, navegadorTemWebGL, MENSAGEM_WEBGL_DESLIGADO } from "@/lib/maplibre/falhaWebGL";
 import { componenteSobDemanda } from "@/lib/paginaSobDemanda.jsx";
-import { gravarPreferenciaMapaGoogle, temMapaGoogle, usarMapaGoogle } from "@/lib/mapaNativo/mapaGoogleNativo.js";
+import { fecharMapaGoogleAberto, gravarPreferenciaMapaGoogle, limparMapaGoogleOrfao, temMapaGoogle, usarMapaGoogle } from "@/lib/mapaNativo/mapaGoogleNativo.js";
 
 /** D-PROD-366: o mapa do Google (nativo no app, Maps JavaScript API no site) só é carregado quando ligado. */
 const MapaGoogleNativo = componenteSobDemanda(() => import("@/components/mapa/MapaGoogleNativo.jsx"));
@@ -1096,16 +1096,26 @@ export default function MapaGeral({ ativo = true } = {}) {
   }, [selecionandoLocalTarefa, handleSelectTaskLocation, mapaGeralPermissions]);
 
   // D-PROD-366: ligar/desligar o mapa do Google (no app só com o plugin no APK); a troca recarrega a página.
-  const alternarMapaGoogle = useCallback(() => {
+  // O mapa nativo é destruído ANTES de recarregar: recarregar não roda a limpeza do React e ele ficaria vivo atrás da
+  // página, pegando os toques daquele pedaço da tela.
+  const alternarMapaGoogle = useCallback(async () => {
     gravarPreferenciaMapaGoogle(!mapaGoogle);
+    await fecharMapaGoogleAberto();
     window.location.reload();
   }, [mapaGoogle]);
   // O mapa do Google não abriu (sem chave, sem Google Play Services, Maps JavaScript API desligado…): volta ao mapa de sempre.
   const falhaDoMapaGoogle = useCallback(() => {
     gravarPreferenciaMapaGoogle(false);
     toast.error('O mapa do Google não abriu. Voltando ao mapa de sempre.');
-    window.setTimeout(() => window.location.reload(), 1500);
+    window.setTimeout(async () => {
+      await fecharMapaGoogleAberto();
+      window.location.reload();
+    }, 1500);
   }, []);
+  // Sem o mapa do Google: um mapa nativo que tenha ficado vivo de antes (app recarregado no meio) é destruído.
+  useEffect(() => {
+    if (!mapaGoogle) void limparMapaGoogleOrfao();
+  }, [mapaGoogle]);
 
   const handleRightClickArea = useCallback((area, coords) => {
     if (selecionandoLocalTarefa) {
@@ -1562,6 +1572,7 @@ export default function MapaGeral({ ativo = true } = {}) {
           estiloPasto={estiloPasto}
           tipoMapa={mapType}
           empresaId={empresaSelecionadaId}
+          ativo={ativo}
           onClickArea={handleClickArea}
           onFalha={falhaDoMapaGoogle} /> :
         <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: 'var(--mk-sup-fundo)', touchAction: 'none', isolation: 'isolate', visibility: aguardandoEnquadrar ? 'hidden' : 'visible' }} />
@@ -1636,7 +1647,7 @@ export default function MapaGeral({ ativo = true } = {}) {
         </>
         }
 
-        {!mapReady && mapLoadError &&
+        {!mapaGoogle && !mapReady && mapLoadError &&
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 max-w-md bg-white px-6 py-4 rounded-lg shadow-2xl border border-amber-300">
             <div className="font-semibold text-slate-800 text-sm mb-1">Mapa indisponível</div>
             <p className="text-xs text-slate-600">{mapLoadError}</p>
@@ -1644,7 +1655,7 @@ export default function MapaGeral({ ativo = true } = {}) {
           </div>
         }
 
-        {!mapReady && !mapLoadError &&
+        {!mapaGoogle && !mapReady && !mapLoadError &&
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white px-6 py-4 rounded-lg shadow-2xl">
             <div className="flex items-center gap-3">
               <div className="animate-spin w-6 h-6 border-4 border-emerald-600 border-t-transparent rounded-full" />

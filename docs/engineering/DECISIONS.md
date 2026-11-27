@@ -10891,33 +10891,69 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-364 (362 etapa 2, PR #450; 363 etapa 3, ainda local). O marcador passa a D-PROD-365. Conferir antes do merge (regra A5).
 
-## D-PROD-366 — Mapa nativo do Google no app, etapa 1: satélite do Google e áreas, em teste por aparelho
+## D-PROD-366 — Mapa do Google no Mapa Geral, etapa 1: nativo no app, Maps JavaScript API no site, em teste por aparelho
 
-**Data:** 2026-11-27 · **Origem:** o proprietário comparou com o AgriWebb e pediu o mapa nativo do Google no Android e no iOS ("vamos usar o mapa nativo do google", "pode começar") · **Relatório:** [`MAPA-GOOGLE-NATIVO-ETAPA1-D366-REPORT.md`](./MAPA-GOOGLE-NATIVO-ETAPA1-D366-REPORT.md) · **Migration:** nenhuma · **APK:** 1.0.6 (código 7)
+**Data:** 2026-11-27 · **Origem:** o proprietário comparou com o AgriWebb e com o MAKGESTAO antigo e pediu o mapa do Google no app (Android e iOS) e no site ("vamos usar o mapa nativo do google", "já ajuste assim o meu mapa do aplicativo e da web") · **Relatório:** [`MAPA-GOOGLE-NATIVO-ETAPA1-D366-REPORT.md`](./MAPA-GOOGLE-NATIVO-ETAPA1-D366-REPORT.md) · **Migration:** nenhuma · **APK:** 1.0.6 (código 7)
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-366: a D-PROD-364 foi da PR #452 (cadastro no mapa, etapa 4) e a D-PROD-365 está reservada pela PR #453 (regra A5). O marcador da `main` fica com a PR #453, que leva a 365; esta PR não mexe nele.
 
-- **Problema:** o APK do AgriWebb usa o Google Maps nativo do Android (`com.google.android.gms.maps`, satélite e híbrido). O Google não cobra pelo mapa nativo (Maps SDK de Android e iOS), o SDK guarda as imagens já vistas e o mapa é desenhado em código nativo. O MAKGestão desenha o mapa numa página web dentro do app (MapLibre), com o satélite da Map Tiles API, que conta cada imagem baixada e não pode ser guardada no aparelho.
-- **Decisão:** o app passa a ter o mapa nativo do Google, pelo plugin oficial `@capacitor/google-maps` 8.0.1. O site continua no MapLibre, porque o Google Maps do navegador é cobrado. A troca é por etapas, e a etapa 1 fica atrás de uma escolha por aparelho:
-  1. **Escolha:** Mapa Geral → Visualização → "Mapa do Google (teste)". Ela só aparece com o plugin instalado (APK 1.0.6). APK antigo recebendo o pacote novo, site e testes seguem no MapLibre. Trocar a escolha recarrega a página.
-  2. **O que o mapa do Google mostra:** satélite do Google (foto limpa, `Satellite`) ou mapa (`Normal`), conforme o tipo do Mapa Geral. As áreas são polígonos com as cores da coloração escolhida e o estilo do pasto (Cheio 78%, Suave 40%, Contorno 8% com a divisa na cor da área). O toque na área abre o mesmo detalhe. A vista (centro e zoom) usa a mesma chave do MapLibre; sem vista salva, enquadra a fazenda.
-  3. **A página fica transparente em volta do mapa:** o plugin põe o mapa nativo atrás da WebView, então os fundos entre o mapa e a raiz ficam transparentes e voltam ao sair. Os botões e painéis por cima continuam recebendo o toque, porque o plugin confere o elemento sob o dedo.
-  4. **Falha:** se o mapa do Google não abrir (sem chave, sem Google Play Services), o app avisa, desliga a escolha e volta ao mapa de sempre.
-  5. **Chaves:**
-     - Android: segredo `GOOGLE_MAPS_ANDROID_KEY`, que vai no `AndroidManifest` pelo `build.gradle`. A publicação do APK exige a chave, porque o mapa nativo sem chave fecha o app; a PR só avisa.
-     - O workflow mostra a impressão SHA-1 do certificado, para restringir a chave no Google Cloud.
-     - iPhone: `VITE_GOOGLE_MAPS_IOS_KEY`, passada pelo código; na falta dela, a do site.
-  6. **iOS:** o pacote Swift do plugin entrou em `ios/App/CapApp-SPM/Package.swift`. O app de iPhone só é gerado num Mac com Xcode.
+- **Problema:**
+  - O satélite do Mapa Geral é o MapLibre com a Map Tiles API do Google, que conta **cada imagem** baixada (faixa grátis de 100 mil por mês) e não deixa guardar imagem no aparelho. O consumo estava chegando à cobrança.
+  - O APK do AgriWebb usa o Google Maps **nativo** do Android (`com.google.android.gms.maps`). O Google não cobra pelo mapa nativo e o SDK guarda as imagens já vistas.
+  - O MAKGESTAO antigo e o outro sistema mostrado pelo proprietário usam o Google Maps **do navegador** (Maps JavaScript API), que conta **aberturas de mapa** (faixa grátis de cerca de 10 mil por mês), não imagens.
+- **Decisão:** o Mapa Geral passa a ter o mapa do Google, pelo plugin oficial `@capacitor/google-maps` 8.0.1. Um código só serve os dois lados:
+  - no app Android/iOS, o mapa **nativo**;
+  - no site, a versão web do mesmo plugin (**Maps JavaScript API**).
+  As etapas seguintes (marcadores, nomes, coloração) valem para os dois. A troca é por etapas; a etapa 1 fica atrás de uma escolha por aparelho:
+  1. **Escolha:** Mapa Geral → Visualização → "Mapa do Google (teste)".
+     - No app, só aparece com o plugin instalado (APK 1.0.6). No site, com a chave do Google configurada.
+     - APK antigo recebendo o pacote novo e testes seguem no MapLibre. Trocar a escolha recarrega a página.
+  2. **O que o mapa do Google mostra:**
+     - satélite do Google (foto limpa) ou mapa, conforme o tipo do Mapa Geral, já na criação;
+     - as áreas como polígonos, com **a mesma cor do MapLibre**: a da coloração ou, no modo padrão, a cor salva da área, com o mesmo clareamento de 5%, sempre `#rrggbb`;
+     - o estilo do pasto: Cheio 78%, Suave 40%, Contorno 8% com a divisa na cor da área;
+     - o toque na área abre o mesmo detalhe;
+     - no site, um dedo arrasta (`greedy`), sem os botões e ícones clicáveis do Google.
+  3. **Vista:**
+     - centro e zoom ficam na mesma chave do MapLibre, com o zoom convertido: Google = MapLibre + 1, porque os ladrilhos são de 256 contra 512 px;
+     - sem vista salva, enquadra a fazenda; sem áreas, grava a vista como está.
+  4. **App — mapa atrás da página:**
+     - o plugin põe o mapa nativo atrás da WebView. Com o Mapa Geral à vista, os fundos entre o mapa e a raiz ficam transparentes e o mapa recebe o toque;
+     - escondido (D-PROD-305), os fundos voltam e o mapa larga o toque (`disableTouch`);
+     - os botões e painéis por cima continuam com o toque, porque o plugin confere o elemento sob o dedo;
+     - os avisos "Carregando mapa salvo…" e "Mapa indisponível" do MapLibre não aparecem com o mapa do Google.
+  5. **Ciclo de vida:**
+     - cada mapa criado tem um id novo;
+     - a troca da escolha **destrói o mapa antes de recarregar**, porque recarregar não roda a limpeza do React e o mapa nativo ficaria pegando os toques;
+     - o id do último mapa fica guardado, e um mapa órfão é destruído na abertura seguinte;
+     - as trocas de polígonos rodam uma de cada vez, e a seguinte tira o que a anterior pôs.
+  6. **Unidades no Android:** linha e margem multiplicadas pela densidade da tela, porque o Android as lê em pixels físicos.
+  7. **Falha:** se o mapa do Google não abrir, o app avisa, desliga a escolha, destrói o mapa e volta ao mapa de sempre.
+  8. **Chaves:** uma chave só, a `VITE_GOOGLE_MAPS_API_KEY`, que já está na Vercel e nos segredos do GitHub, serve o site, o Android e o iPhone.
+     - Android: vai ao `AndroidManifest` pelo `build.gradle`. Na falta de `GOOGLE_MAPS_ANDROID_KEY`, o workflow usa essa.
+     - iPhone: vai pelo código. Na falta de `VITE_GOOGLE_MAPS_IOS_KEY`, usa essa.
+     - Para o app, ela **não pode** estar restrita a "Sites" (referrer HTTP). Restrita assim, o mapa do Google fica cinza no app e a pessoa volta ao mapa de sempre.
+     - O workflow mostra a impressão SHA-1 do certificado, para quem preferir uma chave própria restrita ao app.
+  9. **iOS:** o pacote Swift do plugin entrou em `ios/App/CapApp-SPM/Package.swift`. O app de iPhone só é gerado num Mac com Xcode.
 - **Próximas etapas:**
   - 2: lotes, cochos, pontos e tarefas como marcadores, com as imagens das etapas 2 e 3 do mapa leve.
   - 3: nomes dos pastos, com as imagens da etapa 4.
-  - 4: coloração por situação, forragem e farol; focos; arrastar lote; minha localização.
-  - Depois disso, a escolha vira o padrão do app.
+  - 4: coloração por situação, forragem e farol; focos; arrastar lote; minha localização; local da tarefa pelo toque no mapa.
+  - Depois disso, o mapa do Google vira o padrão no app e no site e a Map Tiles API sai.
   - O editor de áreas continua no MapLibre até haver pedido.
-- **Testes:** `tests/smoke/mapaGoogleNativoD366.test.jsx`, com o plugin falso:
-  - polígonos e estilos;
-  - caixa, tipo e escolha (sem plugin nunca liga);
-  - criação na vista salva, janela transparente e devolução, toque → área, vista gravada, enquadramento, troca de cor, estilo e tipo, falha;
+- **Revisão independente:** um crítico e três altos corrigidos:
+  - toques presos depois de desligar (o destroy antes de recarregar e a limpeza do órfão);
+  - aviso "Carregando…" fixo no centro;
+  - áreas cinza no modo padrão;
+  - polígonos órfãos em trocas seguidas.
+  E também: mapa nativo visível e pegando toques em outras telas (`ativo`); destroy atrasado derrubando o mapa novo (id por mapa); zoom ±1; unidades do Android; tipo do mapa na criação; vista sem áreas.
+- **Testes:** `tests/smoke/mapaGoogleNativoD366.test.jsx`, 18 testes com o plugin falso:
+  - cor igual à do MapLibre (modo padrão sem cinza, `#rrggbb`), estilos, escala do Android;
+  - caixa e tipo; escolha no app (só com o plugin) e no site (só com a chave); opções de criação;
+  - vista salva com o zoom convertido, janela transparente, toque → área, vista gravada, enquadramento;
+  - trocas sem polígono órfão; `ativo`; destroy antes de recarregar; id novo por mapa;
+  - no site, a página não fica transparente e a chave é a do site; falha;
   - a escolha no painel.
+  O teste AE-03 (D-PROD-346) passou a conferir `nativoMinimo` 5 em vez da versão exata do app.
 
 <!-- Próxima decisão: D-PROD-365 -->

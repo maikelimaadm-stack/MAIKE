@@ -12,7 +12,7 @@ import React from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const plugin = vi.hoisted(() => ({ disponivel: false, nativo: false }));
+const plugin = vi.hoisted(() => ({ disponivel: false, nativo: false, plataforma: "web" }));
 vi.mock("@capacitor/core", async (orig) => {
   const real = /** @type {any} */ (await orig());
   return {
@@ -20,6 +20,7 @@ vi.mock("@capacitor/core", async (orig) => {
     Capacitor: {
       ...real.Capacitor,
       isNativePlatform: () => plugin.nativo,
+      getPlatform: () => plugin.plataforma,
       isPluginAvailable: (nome) => plugin.disponivel && nome === "CapacitorGoogleMaps",
     },
   };
@@ -42,6 +43,8 @@ const falso = vi.hoisted(() => {
       removePolygons: vi.fn(async function (ids) { this.removidos.push(ids); }),
       fitBounds: vi.fn(async function (caixa) { this.caixa = caixa; }),
       setOnPolygonClickListener: vi.fn(async (cb) => { ouvintes.poligono = cb; }),
+      enableTouch: vi.fn(async () => {}),
+      disableTouch: vi.fn(async () => {}),
       setOnCameraIdleListener: vi.fn(async (cb) => { ouvintes.camera = cb; }),
       destroy: vi.fn(async function () { this.destruido = true; }),
     };
@@ -59,8 +62,11 @@ vi.mock("@capacitor/google-maps", () => ({
   },
 }));
 
+import { corExibidaNoMapa } from "@/lib/maplibre/estiloAreas.js";
 import {
   CHAVE_PREFERENCIA,
+  escalaDoMapaGoogle,
+  fecharMapaGoogleAberto,
   caixaDosPoligonos,
   estiloDoPoligono,
   gravarPreferenciaMapaGoogle,
@@ -91,17 +97,35 @@ beforeEach(() => {
   falso.estado.criado = null;
   falso.estado.mapa = null;
   falso.estado.falhar = false;
+  plugin.plataforma = "web";
   localStorage.clear();
 });
 afterEach(() => vi.clearAllMocks());
 
 describe("G366-1 — polígonos das áreas", () => {
-  it("cor do Mapa Geral (reserva cinza), estilo Cheio por padrão, `tag` = id; área sem contorno fica de fora", () => {
-    const p = poligonosDasAreas([A1, A2, SEM_CONTORNO], cor, "cheio");
-    expect(p.map((x) => x.tag)).toEqual(["a1", "a2"]);
-    expect(p[0]).toMatchObject({ fillColor: "#22c55e", fillOpacity: 0.78, strokeColor: "#ffffff", strokeWeight: 1, clickable: true });
-    expect(p[1].fillColor).toBe("#94a3b8");
+  it("a mesma cor do MapLibre: a da coloração ou, sem ela, a salva da área (clareada 5%, sempre #rrggbb); `tag` = id; área sem contorno fica de fora", () => {
+    const A2_COM_COR = { ...A2, coordenadas: { ...A2.coordenadas, cor: "#abc" } };
+    const p = poligonosDasAreas([A1, A2, SEM_CONTORNO, A2_COM_COR], cor, "cheio");
+    expect(p.map((x) => x.tag)).toEqual(["a1", "a2", "a2"]);
+    expect(p[0]).toMatchObject({ fillColor: corExibidaNoMapa("#22c55e"), fillOpacity: 0.78, strokeColor: "#ffffff", strokeWeight: 1, clickable: true });
+    // modo padrão (coloração sem cor): a cor salva, ou o azul de reserva do Mapa Geral — não o cinza
+    expect(p[1].fillColor).toBe(corExibidaNoMapa("#61aad9"));
+    expect(p[2].fillColor).toMatch(/^#[0-9a-f]{6}$/);
     expect(p[0].paths).toEqual([{ lat: -15, lng: -47 }, { lat: -15, lng: -46.99 }, { lat: -15.01, lng: -46.99 }, { lat: -15.01, lng: -47 }]);
+  });
+
+  it("Android: a linha em pixels físicos (× densidade); iOS e site em px", () => {
+    const dpr = window.devicePixelRatio;
+    Object.defineProperty(window, "devicePixelRatio", { value: 3, configurable: true });
+    try {
+      plugin.plataforma = "android";
+      expect(escalaDoMapaGoogle()).toBe(3);
+      expect(poligonosDasAreas([A1], cor, "cheio", escalaDoMapaGoogle())[0].strokeWeight).toBe(3);
+      plugin.plataforma = "ios";
+      expect(escalaDoMapaGoogle()).toBe(1);
+    } finally {
+      Object.defineProperty(window, "devicePixelRatio", { value: dpr, configurable: true });
+    }
   });
 
   it("Suave 40%, Contorno 8% com a divisa na cor da área (os mesmos do MapLibre)", () => {
@@ -201,7 +225,8 @@ describe("G366-3 — o mapa nativo no Mapa Geral", () => {
     const { onClickArea, unmount, pai } = montar();
     await waitFor(() => expect(falso.estado.mapa?.poligonos).toHaveLength(2));
     const mapa = falso.estado.mapa;
-    expect(falso.estado.criado.config).toMatchObject({ center: { lat: -15.1, lng: -47.2 }, zoom: 14, mapTypeId: "satellite", gestureHandling: "greedy" });
+    // zoom do Google = zoom do MapLibre + 1 (ladrilhos de 256 × 512 px): a mesma escala na tela
+    expect(falso.estado.criado.config).toMatchObject({ center: { lat: -15.1, lng: -47.2 }, zoom: 15, mapTypeId: "satellite", gestureHandling: "greedy" });
     expect(falso.estado.criado.element.tagName.toLowerCase()).toBe("capacitor-google-map");
     expect(mapa.tipo).toBe("Satellite");
     // vista salva: não enquadra de novo
@@ -213,7 +238,7 @@ describe("G366-3 — o mapa nativo no Mapa Geral", () => {
     expect(onClickArea).toHaveBeenCalledWith(A2);
 
     act(() => mapa.ouvintes.camera({ latitude: -15.3, longitude: -47.4, zoom: 16 }));
-    expect(JSON.parse(localStorage.getItem("mapa_geral_view_e1") || "{}")).toEqual({ center: { lat: -15.3, lng: -47.4 }, zoom: 16 });
+    expect(JSON.parse(localStorage.getItem("mapa_geral_view_e1") || "{}")).toEqual({ center: { lat: -15.3, lng: -47.4 }, zoom: 15 });
 
     unmount();
     expect(mapa.destruido).toBe(true);
@@ -233,8 +258,8 @@ describe("G366-3 — o mapa nativo no Mapa Geral", () => {
     rerender(
       <MapaGoogleNativo areas={[A1, A2]} mostrarAreas corDaArea={() => "#ef4444"} estiloPasto="contorno" tipoMapa="roadmap" empresaId="e1" />
     );
-    await waitFor(() => expect(mapa.poligonos[0]?.strokeColor).toBe("#ef4444"));
-    expect(mapa.removidos.at(-1)).toEqual(["p1", "p2"]);
+    await waitFor(() => expect(mapa.poligonos[0]?.strokeColor).toBe(corExibidaNoMapa("#ef4444")));
+    expect(mapa.removidos[0]).toEqual(["p1", "p2"]);
     expect(mapa.tipo).toBe("Normal");
     rerender(<MapaGoogleNativo areas={[A1, A2]} mostrarAreas={false} corDaArea={cor} tipoMapa="roadmap" empresaId="e1" />);
     await waitFor(() => expect(mapa.removidos).toHaveLength(2));
@@ -246,6 +271,57 @@ describe("G366-3 — o mapa nativo no Mapa Geral", () => {
     const { onFalha } = montar();
     await waitFor(() => expect(onFalha).toHaveBeenCalledTimes(1));
   });
+  it("trocas seguidas de cor e estilo não deixam polígono velho no mapa (uma troca de cada vez)", async () => {
+    const { rerender } = montar();
+    await waitFor(() => expect(falso.estado.mapa?.poligonos).toHaveLength(2));
+    const mapa = falso.estado.mapa;
+    const vivos = new Set(["p1", "p2"]);
+    mapa.addPolygons.mockImplementation(async function (lista) {
+      await new Promise((r) => setTimeout(r, 5));
+      this.poligonos = lista;
+      const ids = lista.map((_, i) => `n${mapa.addPolygons.mock.calls.length}-${i}`);
+      ids.forEach((id) => vivos.add(id));
+      return ids;
+    });
+    mapa.removePolygons.mockImplementation(async (ids) => { ids.forEach((id) => vivos.delete(id)); });
+    for (const c of ["#111111", "#222222", "#333333"]) {
+      rerender(<MapaGoogleNativo areas={[A1, A2]} mostrarAreas corDaArea={() => c} estiloPasto="cheio" tipoMapa="satellite" empresaId="e1" />);
+    }
+    await waitFor(() => expect(mapa.poligonos[0]?.fillColor).toBe(corExibidaNoMapa("#333333")));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(vivos.size).toBe(2);
+  });
+
+  it("app: fora do Mapa Geral (escondido, D-PROD-305) o fundo volta e o mapa larga o toque; de volta, reabre", async () => {
+    plugin.nativo = true;
+    plugin.disponivel = true;
+    const { pai, rerender } = montar();
+    await waitFor(() => expect(pai.style.background).toBe("transparent"));
+    const mapa = falso.estado.mapa;
+    rerender(<MapaGoogleNativo areas={[A1, A2]} mostrarAreas corDaArea={cor} tipoMapa="satellite" empresaId="e1" ativo={false} />);
+    await waitFor(() => expect(mapa.disableTouch).toHaveBeenCalled());
+    expect(pai.style.background).toBe("rgb(255, 255, 255)");
+    rerender(<MapaGoogleNativo areas={[A1, A2]} mostrarAreas corDaArea={cor} tipoMapa="satellite" empresaId="e1" ativo />);
+    await waitFor(() => expect(pai.style.background).toBe("transparent"));
+    expect(mapa.enableTouch).toHaveBeenCalled();
+  });
+
+  it("antes de recarregar a página o mapa aberto é destruído (o mapa nativo não fica vivo atrás da página)", async () => {
+    montar();
+    await waitFor(() => expect(falso.estado.mapa?.poligonos).toHaveLength(2));
+    await fecharMapaGoogleAberto();
+    expect(falso.estado.mapa.destruido).toBe(true);
+  });
+
+  it("cada mapa criado tem um id novo (o destroy atrasado de um mapa velho não derruba o novo)", async () => {
+    const { unmount } = montar();
+    await waitFor(() => expect(falso.estado.criado).not.toBeNull());
+    const primeiro = falso.estado.criado.id;
+    unmount();
+    montar();
+    await waitFor(() => expect(falso.estado.criado.id).not.toBe(primeiro));
+  });
+
   it("site: o mapa é desenhado dentro do elemento — a página não fica transparente; a chave é a do site", async () => {
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "chave-site");
     vi.stubEnv("VITE_GOOGLE_MAPS_IOS_KEY", "chave-ios");
