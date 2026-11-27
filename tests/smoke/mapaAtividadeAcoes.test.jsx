@@ -2,7 +2,8 @@
  * MAIKE-MAPA-ATIVIDADE-ACOES (D-PROD-278) — nos Detalhes da área do Mapa, a atividade em andamento é tocável e abre as
  * ações rápidas da atividade: "+ Lançamento" (o Diário das atividades do pasto já na atividade — o mesmo da pílula
  * "Manejos", um caminho só, D-PROD-348), "Só máquina / mão de obra / serviço de terceiro" (a janela de um lançamento presa
- * nesta área; só os que a operação permite; "Só insumo" saiu, o diário lança o insumo) e "Concluir". Sem permissão, a linha
+ * nesta área; só os que a operação permite, "Só insumo" inclusive: é o caminho de insumo numa atividade SEM máquina, que o
+ * diário não abre) e "Concluir". Sem permissão, a linha
  * não é tocável. As janelas são substituídas por marcadores com as props recebidas (o comportamento delas tem os próprios
  * testes); a atividade inteira vem do detalhe + a linha da lista.
  */
@@ -136,18 +137,41 @@ describe("D-PROD-278 — ações da atividade nos Detalhes da área", () => {
     expect(linha).toHaveAttribute("aria-haspopup", "menu");
     await abrirMenu("at-1");
     // As operações chegam junto com o resumo: o menu aberto acompanha.
-    // D-PROD-348: um caminho só — o "+ Lançamento" é o diário; não há um segundo item de diário nem "Só insumo".
+    // D-PROD-348: um caminho só — o "+ Lançamento" é o diário; não há um segundo item de diário. Sem produto na operação, sem "Só insumo".
     await waitFor(() => expect(rotulosDoMenu("at-1")).toEqual(["+ Lançamento", "Só máquina", "Só mão de obra", "Finalizar"]));
     expect(rotulosDoMenu("at-1")).not.toContain("Abrir atividade");
     expect(rotulosDoMenu("at-1")).not.toContain("Diário das atividades");
   });
 
-  it("\"Só insumo\" sai do menu mesmo com a operação que permite produto: o diário lança o insumo", async () => {
+  it("\"Só insumo\" fica de fora quando a operação não permite produto", async () => {
+    renderizar();
+    await abrirMenu("at-1");
+    await waitFor(() => expect(rotulosDoMenu("at-1")).toContain("Só mão de obra"));
+    expect(rotulosDoMenu("at-1")).not.toContain("Só insumo");
+  });
+
+  it("\"Só insumo\" volta ao menu quando a operação permite produto (é o caminho de insumo numa atividade SEM máquina)", async () => {
     atividades.tipos.mockResolvedValue(TIPOS.map((t) => (t.id === "t-grad" ? { ...t, permite_produto: true } : t)));
     renderizar();
     await abrirMenu("at-1");
     await waitFor(() => expect(rotulosDoMenu("at-1")).toContain("Só mão de obra"));
-    expect(rotulosDoMenu("at-1")).toEqual(["+ Lançamento", "Só máquina", "Só mão de obra", "Finalizar"]);
+    // Na ordem do menu: máquina, mão de obra, insumo (o serviço de terceiro não é permitido por este tipo).
+    expect(rotulosDoMenu("at-1")).toEqual(["+ Lançamento", "Só máquina", "Só mão de obra", "Só insumo", "Finalizar"]);
+    // "Diário das atividades" continua fora: "+ Lançamento" é a única entrada do diário.
+    expect(rotulosDoMenu("at-1")).not.toContain("Diário das atividades");
+  });
+
+  it("\"Só insumo\" abre a janela de UM lançamento de produtos presa nesta área", async () => {
+    atividades.tipos.mockResolvedValue(TIPOS.map((t) => (t.id === "t-grad" ? { ...t, permite_produto: true } : t)));
+    renderizar();
+    await abrirMenu("at-1");
+    await waitFor(() => expect(rotulosDoMenu("at-1")).toContain("Só insumo"));
+    clicarItem("at-1", "Só insumo");
+    const janela = await screen.findByTestId("janela-tipo");
+    expect(janela).toHaveAttribute("data-atividade", "at-1");
+    expect(janela).toHaveAttribute("data-tipo", "produtos");
+    expect(janela).toHaveAttribute("data-area", "aa-1");
+    expect(screen.queryByTestId("janela-diario")).toBeNull();
   });
 
   it("área planejada na atividade: só o \"+ Lançar dia\"", async () => {

@@ -21,9 +21,11 @@ import {
   lancamentosDoDia,
   lerTodasAsPaginas,
   marcadorDaAbertura,
+  marcadorDaProducaoEncerramento,
   marcadorDaReabertura,
   marcadorDoEncerramento,
   parseHorimetroPtBr,
+  producaoEncerramentoGravada,
   validarAbertura,
   validarEncerramento,
 } from "@/lib/aberturaServicoRegras";
@@ -239,6 +241,12 @@ export default function DiarioDasAtividades({
    * recusa) não grava a mesma produção de novo: o concluir é que se repete.
    */
   const producaoGravadaRef = useRef(/** @type {string | null} */ (null));
+  /**
+   * D-PROD-352 (item 2): a chave da produção gravada por esta tentativa (a observação `[producao-encerramento chave=…]`). Ela
+   * fica enquanto a produção não for confirmada; uma nova tentativa usa a MESMA chave, e a releitura da lista acha a linha
+   * se a resposta do servidor se perdeu. Zera quando a conclusão é recusada pela produção e quando a atividade conclui.
+   */
+  const producaoChaveRef = useRef(/** @type {{ atividadeId: string, chave: string } | null} */ (null));
 
   // ─── Opções (só no passo da abertura) ───────────────────────────────
   // D-PROD-332 (emenda): as opções vêm TODAS as páginas (`lerTodasAsPaginas`), não só a 1ª de 50.
@@ -721,13 +729,30 @@ export default function DiarioDasAtividades({
     setErroProducao("");
     setEncerrandoAtividade(true);
   };
-  /** D-PROD-348 (item 5): a quantidade produzida gravada como apontamento do dia (sem operador, sem linhas), como o encerramento. */
-  const gravarProducao = (id, quantidade) =>
-    criarApontamento(String(id), {
+  /** D-PROD-352 (item 2): a chave da produção desta tentativa (a mesma em todas as tentativas até a produção ser confirmada). */
+  const chaveDaProducao = (id) => {
+    if (producaoChaveRef.current?.atividadeId !== id) {
+      const aleatoria = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+      producaoChaveRef.current = { atividadeId: id, chave: aleatoria };
+    }
+    return producaoChaveRef.current.chave;
+  };
+  /**
+   * D-PROD-348 (item 5): a quantidade produzida gravada como apontamento do dia (sem operador, sem linhas), como o encerramento.
+   * D-PROD-352 (item 2): antes de gravar, relê a lista FRESCA; se a linha com a chave desta tentativa já está lá (a resposta
+   * do POST anterior se perdeu), não grava de novo: a produção conta como gravada. Sem isso, o servidor somaria em dobro.
+   */
+  const gravarProducao = async (id, quantidade) => {
+    const chave = chaveDaProducao(id);
+    const lista = await queryClient.fetchQuery({ queryKey: chaveApontamentos(empresaId, id), queryFn: () => listarApontamentos(id), staleTime: 0 });
+    if (producaoEncerramentoGravada(itensDaLista(lista), chave)) return;
+    await criarApontamento(String(id), {
       data_operacional: hoje,
       ...(atividadeAreaId && areasDaAtividade(atividadeAtual).length > 1 ? { atividade_area_id: atividadeAreaId } : {}),
       quantidade_produzida_dia: quantidade,
+      observacao: marcadorDaProducaoEncerramento(chave),
     });
+  };
   /**
    * "Encerrar atividade": lê as frentes de novo (as já encerradas saem), valida o horímetro final de cada aberta e grava um
    * encerramento por frente, em sequência (para no primeiro erro, dizendo qual máquina). Depois lê a atividade (a `versao`)
@@ -791,6 +816,7 @@ export default function DiarioDasAtividades({
         // a quantidade. A produção gravada nesta tentativa não vale mais (a recusa diz que a soma é zero): a próxima grava.
         if (ehProducaoExigida(erro)) {
           producaoGravadaRef.current = null;
+          producaoChaveRef.current = null;
           await queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, id) });
           setErroProducao("");
           setProducaoExigida(true);
@@ -802,6 +828,7 @@ export default function DiarioDasAtividades({
         return;
       }
       await queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, id) });
+      producaoChaveRef.current = null;
       onGravou?.(resposta);
       notifySuccess("Sucesso", "Atividade encerrada.");
       onFechar();

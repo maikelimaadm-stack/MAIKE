@@ -662,6 +662,10 @@ describe("D-PROD-348 — reabrir uma frente encerrada (item 4)", () => {
 const erroDeProducao = () =>
   Object.assign(new Error("recusado"), { code: "ATIVIDADE_EXIGIDA_PELO_TIPO", details: { entidade: "atividade", field: "quantidade_produzida", reason: "exige_producao" } });
 const TEXTO_PRODUCAO = "Este tipo de atividade exige informar a produção. Informe a quantidade produzida para encerrar.";
+/** D-PROD-352 (item 2): a observação da produção, uma só linha `[producao-encerramento chave=…]`. */
+const CHAVE_DA_PRODUCAO = /^\[producao-encerramento chave=[^\s\]]+\]$/;
+/** As chamadas de criarApontamento que são a PRODUÇÃO (o encerramento não leva quantidade_produzida_dia). */
+const chamadasDeProducao = () => servico.criarApontamento.mock.calls.filter(([, d]) => d.quantidade_produzida_dia !== undefined);
 
 /** Na atividade com as duas frentes abertas: "Encerrar atividade", os dois horímetros finais e "Encerrar atividade" (confirmar). */
 const encerrarAtividadeComDuasFrentes = async () => {
@@ -718,7 +722,7 @@ describe("D-PROD-348 — o tipo exige produção: a recusa do concluir (item 5)"
     expect(servico.concluirAtividade).toHaveBeenCalledTimes(1);
   });
 
-  it("(p4) quantidade informada: grava o apontamento com quantidade_produzida_dia de hoje (sem observação), e conclui de novo com a versão atual", async () => {
+  it("(p4) quantidade informada: grava o apontamento com quantidade_produzida_dia de hoje e a chave da tentativa, e conclui de novo com a versão atual", async () => {
     servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
     const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
     await encerrarAtividadeComDuasFrentes();
@@ -727,7 +731,7 @@ describe("D-PROD-348 — o tipo exige produção: a recusa do concluir (item 5)"
 
     await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
     const producao = servico.criarApontamento.mock.calls[2];
-    expect(producao).toEqual(["at-1", { data_operacional: "2026-11-26", quantidade_produzida_dia: "1250.5" }]);
+    expect(producao).toEqual(["at-1", { data_operacional: "2026-11-26", quantidade_produzida_dia: "1250.5", observacao: expect.stringMatching(CHAVE_DA_PRODUCAO) }]);
     expect(servico.concluirAtividade).toHaveBeenCalledTimes(2);
     expect(servico.concluirAtividade.mock.calls[1]).toEqual(["at-1", { versao: 7, data_conclusao: "2026-11-26" }]);
     expect(notifySuccess).toHaveBeenCalledWith("Sucesso", "Atividade encerrada.");
@@ -755,5 +759,73 @@ describe("D-PROD-348 — o tipo exige produção: a recusa do concluir (item 5)"
     await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
     expect(screen.queryByTestId("atividade-encerrar-producao")).toBeNull();
     expect(servico.criarApontamento).toHaveBeenCalledTimes(2);
+  });
+
+  // D-PROD-352 (item 2): a produção leva a chave da tentativa, e uma nova tentativa não a grava em dobro.
+  it("(p7a) a 1ª gravação da produção leva a observação [producao-encerramento chave=…], uma linha só", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
+    const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+    fireEvent.change(await screen.findByTestId("atividade-encerrar-producao"), { target: { value: "500" } });
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
+
+    const producoes = chamadasDeProducao();
+    expect(producoes).toHaveLength(1);
+    expect(producoes[0][1].observacao).toMatch(CHAVE_DA_PRODUCAO);
+    expect(producoes[0][1].observacao.split("\n")).toHaveLength(1);
+  });
+
+  it("(p7b) a resposta do POST da produção se perdeu (o servidor JÁ gravou): a nova tentativa NÃO grava de novo e conclui", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
+    const gravaDeVerdade = servico.criarApontamento.getMockImplementation();
+    servico.criarApontamento.mockImplementation(async (atividadeId, dados) => {
+      if (dados.quantidade_produzida_dia === undefined) return gravaDeVerdade(atividadeId, dados);
+      // O servidor grava, mas a resposta se perde: o POST rejeita e a lista seguinte já traz o apontamento com a chave.
+      store[atividadeId].push(ap(`ap-prod-${store[atividadeId].length}`, dados.data_operacional, dados.observacao));
+      throw new Error("rede");
+    });
+    const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+    fireEvent.change(await screen.findByTestId("atividade-encerrar-producao"), { target: { value: "500" } });
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    await waitFor(() => expect(notifyWarning).toHaveBeenCalledWith("Não foi possível encerrar a atividade", expect.stringContaining("A produção não foi lançada")));
+    expect(onFechar).not.toHaveBeenCalled();
+    expect(chamadasDeProducao()).toHaveLength(1);
+
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
+    // Nenhum POST de produção a mais: a releitura achou a chave e a produção conta como gravada.
+    expect(chamadasDeProducao()).toHaveLength(1);
+    expect(servico.concluirAtividade).toHaveBeenCalledTimes(2);
+    expect(notifySuccess).toHaveBeenCalledWith("Sucesso", "Atividade encerrada.");
+  });
+
+  it("(p7c) a falha que NÃO gravou: a nova tentativa grava de novo, com a MESMA chave", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
+    const gravaDeVerdade = servico.criarApontamento.getMockImplementation();
+    let falhou = false;
+    servico.criarApontamento.mockImplementation(async (atividadeId, dados) => {
+      if (dados.quantidade_produzida_dia !== undefined && !falhou) {
+        falhou = true;
+        throw new Error("rede");
+      }
+      return gravaDeVerdade(atividadeId, dados);
+    });
+    const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+    fireEvent.change(await screen.findByTestId("atividade-encerrar-producao"), { target: { value: "500" } });
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    await waitFor(() => expect(notifyWarning).toHaveBeenCalledWith("Não foi possível encerrar a atividade", expect.stringContaining("A produção não foi lançada")));
+    expect(onFechar).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
+    const producoes = chamadasDeProducao();
+    expect(producoes).toHaveLength(2);
+    // As duas tentativas (a que falhou e a que gravou) usam a mesma chave.
+    expect(producoes[1][1].observacao).toMatch(CHAVE_DA_PRODUCAO);
+    expect(producoes[1][1].observacao).toBe(producoes[0][1].observacao);
+    expect(servico.concluirAtividade).toHaveBeenCalledTimes(2);
   });
 });

@@ -7,7 +7,7 @@ import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId, useFusoDaFazenda }
 import { useAuth } from "@/lib/AuthContext";
 import { RAIZ_CONSULTAS_ATIVIDADES } from "@/lib/atividadeApontamentoRegras";
 import { STATUS_AREA, areasDaAtividade } from "@/lib/atividadeAreasRegras";
-import { LINHA_MAO_OBRA, LINHA_MAQUINA, LINHA_SERVICO, flagsDoTipoDaAtividade } from "@/lib/atividadeLinhasRegras";
+import { LINHA_MAO_OBRA, LINHA_MAQUINA, LINHA_PRODUTO, LINHA_SERVICO, flagsDoTipoDaAtividade } from "@/lib/atividadeLinhasRegras";
 import { acoesDaAtividade, mensagemDeErroAtividade } from "@/lib/lancamentoAtividadesRegras";
 import { notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { QUERY_ATIVIDADES_DA_AREA } from "@/lib/registroDeCampoRegras";
@@ -24,10 +24,11 @@ export { lerAtividadeParaAcoes };
  *
  *  - "+ Lançamento" (o "+ Lançar dia" de antes): o Diário das atividades do pasto (`DiarioDoPasto`) já na atividade — o
  *    mesmo caminho da pílula "Manejos" (um só caminho para lançar numa atividade em andamento, D-PROD-348);
- *  - "Só máquina", "Só mão de obra", "Só serviço de terceiro": a janela de UM lançamento
+ *  - "Só máquina", "Só mão de obra", "Só insumo", "Só serviço de terceiro": a janela de UM lançamento
  *    (`JanelaLancamentoPorTipo`, D-PROD-233/252) presa NESTA área; só os que a operação permite (`flagsDoTipoDaAtividade`)
- *    e só com a área em andamento na atividade (a janela recusa as outras). "Só insumo" saiu: o diário lança o insumo
- *    pela carga (a opção Insumo do serviço). Máquina, mão de obra e serviço de terceiro ainda são "Em breve" no diário;
+ *    e só com a área em andamento na atividade (a janela recusa as outras). O "Só insumo" fica MESMO com o diário: a
+ *    atividade SEM máquina não abre o diário (ele exige máquina, horímetro e responsável na abertura), e este é o único
+ *    caminho de lançar insumo nela. Máquina, mão de obra e serviço de terceiro ainda são "Em breve" no diário;
  *  - "Concluir": o mesmo diálogo da linha da lista (`DialogoConcluirServico`), só com dia lançado na área.
  *
  * As permissões são as da lista (`acoesDaAtividade`, o fuso da fazenda = `podeGravar`): lançar pede `lancarApontamento`,
@@ -39,17 +40,19 @@ export { lerAtividadeParaAcoes };
  */
 
 /**
- * As ações por tipo, com o rótulo do mapa ("Só …"), na ordem do pedido do dono. O insumo (`LINHA_PRODUTO`) não está aqui:
- * o Diário das atividades já o lança (a carga do serviço), então "Só insumo" duplicava o diário e saiu.
+ * As ações por tipo, com o rótulo do mapa ("Só …"), na ordem do pedido do dono. O insumo fica aqui mesmo com o Diário:
+ * o diário exige máquina, horímetro e responsável na abertura, então uma atividade SEM máquina só lança insumo por esta
+ * janela (sem ela, não há caminho nenhum).
  */
 const SO_DO_TIPO = Object.freeze(
   /** @type {Record<string, string>} */ ({
     [LINHA_MAQUINA]: "Só máquina",
     [LINHA_MAO_OBRA]: "Só mão de obra",
+    [LINHA_PRODUTO]: "Só insumo",
     [LINHA_SERVICO]: "Só serviço de terceiro",
   }),
 );
-const ORDEM_DO_TIPO = [LINHA_MAQUINA, LINHA_MAO_OBRA, LINHA_SERVICO];
+const ORDEM_DO_TIPO = [LINHA_MAQUINA, LINHA_MAO_OBRA, LINHA_PRODUTO, LINHA_SERVICO];
 
 /**
  * @param {{ area: any, tipos: any[] }} p `tipos`: as operações ativas (as que os Detalhes da área já leem).

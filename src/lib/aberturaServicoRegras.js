@@ -20,7 +20,9 @@ import { lerCarga } from "./cargaInsumoRegras.js";
  * D-PROD-348: o início da linha de marcador (abertura, encerramento OU reabertura de serviço), com o fechamento `]` e a
  * quebra de linha (ou o fim do texto). Os prefixos são diferentes, então uma linha nunca é lida como outra.
  */
-const LINHA_DO_MARCADOR = /^\[(?:abertura|encerramento|reabertura)-servico[^\]\n]*\](?:\r?\n|$)/;
+const LINHA_DO_MARCADOR = /^\[(?:(?:abertura|encerramento|reabertura)-servico|producao-encerramento)[^\]\n]*\](?:\r?\n|$)/;
+/** D-PROD-352 (item 2): a linha da produção gravada no encerramento, `[producao-encerramento chave=<chave>]`. */
+const CONTEUDO_DA_PRODUCAO = /^\[producao-encerramento((?: [a-z]+=[^\s\]]*)*)\](?:\r?\n|$)/;
 /** O início da linha de abertura, com o fechamento `]` e a quebra de linha (ou o fim do texto). */
 const LINHA_DA_ABERTURA = /^\[abertura-servico[^\]\n]*\](?:\r?\n|$)/;
 /** A linha inteira, com os pares `chave=valor` (só a 1ª linha conta). */
@@ -108,8 +110,8 @@ export const lerAbertura = (observacao) => {
 };
 
 /**
- * O texto da pessoa numa observação: tudo menos a primeira linha de marcador, abertura ou encerramento (sem ela, a
- * observação inteira). D-PROD-348: a linha de encerramento também sai.
+ * O texto da pessoa numa observação: tudo menos a primeira linha de marcador (abertura, encerramento, reabertura ou a
+ * produção do encerramento, D-PROD-352; sem ela, a observação inteira).
  * @param {unknown} observacao
  */
 export const textoDaObservacao = (observacao) => {
@@ -403,6 +405,35 @@ export const apontamentosDaFrente = (itens, chave) =>
   });
 
 /**
+ * D-PROD-352 (item 2): a observação da produção gravada no "Encerrar atividade" (um apontamento SÓ com a quantidade
+ * produzida). A chave é a da TENTATIVA de encerramento: gravada uma vez, uma nova tentativa que ache essa linha na lista
+ * não grava a produção de novo (o servidor soma `quantidade_produzida_dia`, então dobraria).
+ * @param {string} chave
+ * @returns {string}
+ */
+export const marcadorDaProducaoEncerramento = (chave) => `[producao-encerramento chave=${encodeURIComponent(texto(chave))}]`;
+
+/**
+ * A chave da linha de produção de uma observação, ou `null` sem linha (ou com a chave vazia). Só a 1ª linha conta.
+ * @param {unknown} observacao
+ * @returns {string | null}
+ */
+export const chaveDaProducaoEncerramento = (observacao) => {
+  const m = CONTEUDO_DA_PRODUCAO.exec(String(observacao ?? ""));
+  if (!m) return null;
+  return decodificar(paresDaLinha(m[1]).chave) || null;
+};
+
+/**
+ * D-PROD-352 (item 2): se a lista de apontamentos (qualquer ordem) já tem a produção com essa chave, não cancelada. Sem
+ * chave, `false`.
+ * @param {unknown} itens
+ * @param {string | null} chave
+ * @returns {boolean}
+ */
+export const producaoEncerramentoGravada = (itens, chave) => Boolean(chave) && naoCancelados(itens).some((ap) => chaveDaProducaoEncerramento(ap.observacao) === chave);
+
+/**
  * D-PROD-348: os erros do encerramento por campo (vazio = válido). O horímetro final é o TEXTO do campo (pt-BR) e não
  * pode ser menor que o inicial da frente. O inicial pode vir canônico (a abertura guarda assim) ou, se não for, a
  * comparação é pulada. Igual ao inicial é válido.
@@ -616,6 +647,15 @@ export const horasDaFrenteNoDia = (itens, chave, dia, horimetroInicial) => {
     for (const v of horimetrosLidosNoApontamento(ap)) {
       if (base === null || comparar(v, base) > 0) base = v;
     }
+  }
+  // D-PROD-352 (item 3): o ENCERRAMENTO anterior da frente também é leitura. A reabertura não traz horímetro, então sem ele
+  // a frente reaberta hoje partiria da abertura antiga (1000 em vez de 1050). Só de dia ANTES de hoje; as aberturas da mesma
+  // frente nesses dias entram pelo mesmo critério (o maior horímetro vence).
+  for (const ap of naoCancelados(itens)) {
+    if (!(String(ap.data_operacional ?? "") < dia)) continue;
+    const marcado = lerEncerramento(ap.observacao) ?? lerAbertura(ap.observacao);
+    if (!marcado || chaveDaFrente(marcado) !== chave || !ehCanonico(marcado.horimetro)) continue;
+    if (base === null || comparar(marcado.horimetro, base) > 0) base = marcado.horimetro;
   }
   if (base === null) base = ehCanonico(horimetroInicial) ? /** @type {string} */ (horimetroInicial) : null;
   if (base === null) return null;
