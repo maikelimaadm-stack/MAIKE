@@ -449,7 +449,19 @@ export default function useMapRenderer(mapInstanceRef) {
       /** @type {Map<string, { x: number, y: number, w: number, h: number }>} */
       const rotulos = new Map();
       labelsRef.current.forEach((entry, id) => {
-        if (!alvo || alvo.has(id)) rotulos.set(id, caixa(entry.corpo));
+        if (alvo && !alvo.has(id)) return;
+        // D-PROD-351 (revisão Codex): durante o zoom a letra fica no tamanho antigo e o nome aparece ampliado na razão
+        // da fonte (`escalarNome`); a colisão mede a caixa como ela aparece, ampliada a partir da mesma origem
+        // (topo, com lote embaixo; centro, sem lote). No fim do zoom a letra é a real e a razão é 1.
+        const c = caixa(entry.corpo);
+        const fr = alvo && entry.fonte0 ? fontesRotuloPorZoom(zoomAgora).nome / entry.fonte0 : 1;
+        if (fr === 1) {
+          rotulos.set(id, c);
+          return;
+        }
+        const w = c.w * fr, h = c.h * fr;
+        const doTopo = entry.base === "";
+        rotulos.set(id, { x: c.x - (w - c.w) / 2, y: doTopo ? c.y : c.y - (h - c.h) / 2, w, h });
       });
       return { rotulos, obstaculos: obstaculosLotes };
     };
