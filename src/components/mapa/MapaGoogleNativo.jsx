@@ -6,6 +6,8 @@ import { lerVisaoSalva } from "@/lib/maplibre/mapaGeralRender.js";
 import {
   caixaDosPoligonos,
   chaveDaVistaSalva,
+  configDoMapaGoogle,
+  ehMapaGoogleNativo,
   poligonosDasAreas,
   tipoDoMapaGoogle,
 } from "@/lib/mapaNativo/mapaGoogleNativo.js";
@@ -31,8 +33,9 @@ function abrirJanelaParaOMapa(el) {
 }
 
 /**
- * Mapa Geral no Google Maps nativo do Android/iOS (D-PROD-366, etapa 1): satélite do Google, áreas com as cores e o
- * estilo do Mapa Geral, toque na área abre o mesmo detalhe. A vista (centro e zoom) usa a mesma chave do MapLibre.
+ * Mapa Geral no Google Maps (D-PROD-366, etapa 1): nativo no app Android/iOS, Maps JavaScript API no site. Satélite do
+ * Google, áreas com as cores e o estilo do Mapa Geral, toque na área abre o mesmo detalhe. A vista (centro e zoom)
+ * usa a mesma chave do MapLibre.
  *
  * @param {{
  *   areas: any[],
@@ -55,6 +58,7 @@ export default function MapaGoogleNativo({ areas, mostrarAreas, corDaArea, estil
   const falhaRef = useRef(onFalha);
   falhaRef.current = onFalha;
   const enquadrouRef = useRef(false);
+  const tipoMapaInicialRef = useRef(tipoMapa);
   const [pronto, setPronto] = useState(false);
 
   // cria o mapa uma vez por fazenda
@@ -62,7 +66,9 @@ export default function MapaGoogleNativo({ areas, mostrarAreas, corDaArea, estil
     const el = elRef.current;
     if (!el) return undefined;
     let cancelado = false;
-    const fecharJanela = abrirJanelaParaOMapa(el);
+    const nativo = ehMapaGoogleNativo();
+    // só o mapa nativo fica atrás da página; no site o mapa é desenhado dentro do próprio elemento
+    const fecharJanela = nativo ? abrirJanelaParaOMapa(el) : () => {};
     let vista = null;
     try {
       vista = lerVisaoSalva(localStorage.getItem(chaveDaVistaSalva(empresaId)));
@@ -75,10 +81,10 @@ export default function MapaGoogleNativo({ areas, mostrarAreas, corDaArea, estil
         const mapa = await GoogleMap.create({
           id: ID_DO_MAPA,
           element: el,
-          // Android lê a chave do AndroidManifest (segredo GOOGLE_MAPS_ANDROID_KEY no build do APK); o iOS recebe aqui.
-          apiKey: getGoogleMapsIosKey() || getGoogleMapsApiKey() || "",
+          // Android lê a chave do AndroidManifest (segredo do build do APK); o iOS e o site recebem aqui.
+          apiKey: (nativo ? getGoogleMapsIosKey() : null) || getGoogleMapsApiKey() || "",
           forceCreate: true,
-          config: { center: vista?.center || CENTRO_PADRAO, zoom: vista?.zoom ?? 15 },
+          config: /** @type {any} */ (configDoMapaGoogle({ center: vista?.center || CENTRO_PADRAO, zoom: vista?.zoom ?? 15 }, tipoMapaInicialRef.current)),
         });
         if (cancelado) {
           await mapa.destroy();

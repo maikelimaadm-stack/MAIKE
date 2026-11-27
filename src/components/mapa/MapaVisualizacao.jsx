@@ -74,7 +74,7 @@ export default function MapaVisualizacao({ mapType, setMapType, estiloPasto, set
           ))}
         </div>
         {mapaGoogle ? (
-          // D-PROD-366: mapa nativo do Google no app (etapa 1, em teste). Só aparece com o plugin instalado no APK.
+          // D-PROD-366: mapa do Google (etapa 1, em teste). No app só com o plugin no APK; no site, com a chave do Google.
           <button
             type="button"
             role="switch"

@@ -66,9 +66,10 @@ import {
   gravarPreferenciaMapaGoogle,
   lerPreferenciaMapaGoogle,
   poligonosDasAreas,
-  temMapaGoogleNativo,
+  configDoMapaGoogle,
+  temMapaGoogle,
   tipoDoMapaGoogle,
-  usarMapaGoogleNativo,
+  usarMapaGoogle,
 } from "@/lib/mapaNativo/mapaGoogleNativo.js";
 import MapaGoogleNativo from "@/components/mapa/MapaGoogleNativo.jsx";
 import MapaVisualizacao from "@/components/mapa/MapaVisualizacao.jsx";
@@ -123,17 +124,50 @@ describe("G366-2 — caixa, tipo do mapa e escolha do aparelho", () => {
     expect(tipoDoMapaGoogle("roadmap")).toBe("Normal");
   });
 
-  it("sem o plugin (site, APK antigo) o mapa do Google nunca liga, mesmo com a escolha gravada", () => {
+  it("app: só com o plugin no APK (APK antigo nunca liga, mesmo com a escolha gravada)", () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "chave-site");
+    try {
+      gravarPreferenciaMapaGoogle(true);
+      expect(localStorage.getItem(CHAVE_PREFERENCIA)).toBe("1");
+      expect(lerPreferenciaMapaGoogle()).toBe(true);
+      plugin.nativo = true;
+      plugin.disponivel = false;
+      expect(temMapaGoogle()).toBe(false);
+      expect(usarMapaGoogle()).toBe(false);
+      plugin.disponivel = true;
+      expect(usarMapaGoogle()).toBe(true);
+      gravarPreferenciaMapaGoogle(false);
+      expect(usarMapaGoogle()).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("site: com a chave do Google (Maps JavaScript API); sem a chave, nunca", () => {
     gravarPreferenciaMapaGoogle(true);
-    expect(localStorage.getItem(CHAVE_PREFERENCIA)).toBe("1");
-    expect(lerPreferenciaMapaGoogle()).toBe(true);
-    expect(temMapaGoogleNativo()).toBe(false);
-    expect(usarMapaGoogleNativo()).toBe(false);
-    plugin.nativo = true;
-    plugin.disponivel = true;
-    expect(usarMapaGoogleNativo()).toBe(true);
-    gravarPreferenciaMapaGoogle(false);
-    expect(usarMapaGoogleNativo()).toBe(false);
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "");
+    try {
+      expect(temMapaGoogle()).toBe(false);
+      expect(usarMapaGoogle()).toBe(false);
+      vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "chave-site");
+      expect(temMapaGoogle()).toBe(true);
+      expect(usarMapaGoogle()).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("criação: satélite ou mapa, um dedo arrasta no celular, sem os botões e ícones do Google", () => {
+    expect(configDoMapaGoogle({ center: { lat: -15, lng: -47 }, zoom: 14 }, "satellite")).toEqual({
+      center: { lat: -15, lng: -47 },
+      zoom: 14,
+      mapTypeId: "satellite",
+      gestureHandling: "greedy",
+      disableDefaultUI: true,
+      clickableIcons: false,
+      keyboardShortcuts: false,
+    });
+    expect(configDoMapaGoogle({ center: { lat: 0, lng: 0 }, zoom: 3 }, "roadmap").mapTypeId).toBe("roadmap");
   });
 });
 
@@ -160,12 +194,14 @@ describe("G366-3 — o mapa nativo no Mapa Geral", () => {
     return { ...r, pai, onClickArea, onFalha };
   };
 
-  it("abre na vista salva da fazenda, no satélite, com as áreas; toque no polígono abre a área; vista gravada ao parar", async () => {
+  it("app: abre na vista salva da fazenda, no satélite, com as áreas; toque no polígono abre a área; vista gravada ao parar", async () => {
+    plugin.nativo = true;
+    plugin.disponivel = true;
     localStorage.setItem("mapa_geral_view_e1", JSON.stringify({ center: { lat: -15.1, lng: -47.2 }, zoom: 14 }));
     const { onClickArea, unmount, pai } = montar();
     await waitFor(() => expect(falso.estado.mapa?.poligonos).toHaveLength(2));
     const mapa = falso.estado.mapa;
-    expect(falso.estado.criado.config).toMatchObject({ center: { lat: -15.1, lng: -47.2 }, zoom: 14 });
+    expect(falso.estado.criado.config).toMatchObject({ center: { lat: -15.1, lng: -47.2 }, zoom: 14, mapTypeId: "satellite", gestureHandling: "greedy" });
     expect(falso.estado.criado.element.tagName.toLowerCase()).toBe("capacitor-google-map");
     expect(mapa.tipo).toBe("Satellite");
     // vista salva: não enquadra de novo
@@ -209,6 +245,18 @@ describe("G366-3 — o mapa nativo no Mapa Geral", () => {
     falso.estado.falhar = true;
     const { onFalha } = montar();
     await waitFor(() => expect(onFalha).toHaveBeenCalledTimes(1));
+  });
+  it("site: o mapa é desenhado dentro do elemento — a página não fica transparente; a chave é a do site", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "chave-site");
+    vi.stubEnv("VITE_GOOGLE_MAPS_IOS_KEY", "chave-ios");
+    try {
+      const { pai } = montar();
+      await waitFor(() => expect(falso.estado.mapa?.poligonos).toHaveLength(2));
+      expect(falso.estado.criado.apiKey).toBe("chave-site");
+      expect(pai.style.background).toBe("rgb(255, 255, 255)");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

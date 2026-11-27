@@ -1,15 +1,20 @@
 /**
- * Mapa do Google nativo no app Android/iOS (D-PROD-366, etapa 1).
+ * Mapa do Google no Mapa Geral, no app e no site (D-PROD-366, etapa 1).
  *
- * O Google não cobra pelo mapa nativo dos SDKs de Android e iOS (Maps SDK), e o próprio SDK guarda as imagens já
- * vistas no aparelho: é o mapa do AgriWebb. No site o mapa continua o MapLibre (o Google Maps do navegador é cobrado).
+ * - App Android/iOS: o mapa NATIVO do Google (Maps SDK). O Google não cobra por ele e o próprio SDK guarda as imagens
+ *   já vistas no aparelho: é o mapa do AgriWebb.
+ * - Site: o Google Maps do navegador (Maps JavaScript API), pela versão web do mesmo plugin. É cobrado por ABERTURA
+ *   do mapa (arrastar e dar zoom não contam), com uma faixa grátis por mês: é o mapa do MAKGESTAO antigo. A Map Tiles
+ *   API, que o MapLibre usa hoje, conta cada imagem.
  *
  * Etapa 1: só as áreas (polígonos com as cores do Mapa Geral) sobre o satélite do Google, e o toque na área abre o
- * mesmo detalhe. Fica atrás de uma escolha do próprio aparelho ("Mapa do Google (teste)") e só aparece com o plugin
- * nativo instalado (APK 1.0.6 em diante). Sem o plugin — APK antigo recebendo a atualização automática, site,
- * testes — nada muda: o Mapa Geral segue no MapLibre.
+ * mesmo detalhe. Fica atrás de uma escolha do próprio aparelho ("Mapa do Google (teste)"). No app ela só aparece com
+ * o plugin nativo instalado (APK 1.0.6 em diante); no site, com a chave do Google configurada. Sem isso — APK antigo
+ * recebendo a atualização automática, testes — nada muda: o Mapa Geral segue no MapLibre.
  */
 import { Capacitor } from "@capacitor/core";
+
+import { getGoogleMapsApiKey } from "@/config/runtimeConfig";
 
 import { parseVertices } from "@/lib/geografia/coords.js";
 import { COR_LINHA_AREA, OPACIDADE_FILL_AREA } from "@/lib/maplibre/estiloAreas.js";
@@ -21,10 +26,23 @@ export const CHAVE_PREFERENCIA = "mk_mapa_google_nativo";
 /** Cor de reserva da área sem cor (a mesma do MapLibre). */
 export const COR_AREA_PADRAO = "#94a3b8";
 
-/** O app tem o mapa nativo do Google (plugin instalado no APK)? */
-export function temMapaGoogleNativo() {
+/** Roda no app Android/iOS (mapa nativo) e não no navegador? */
+export function ehMapaGoogleNativo() {
   try {
-    return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable(PLUGIN_MAPA_GOOGLE);
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * O mapa do Google pode abrir aqui? No app: o plugin nativo está no APK. No site: a chave do Google está configurada
+ * (a mesma do satélite; precisa do "Maps JavaScript API" ligado nela).
+ */
+export function temMapaGoogle() {
+  try {
+    if (Capacitor.isNativePlatform()) return Capacitor.isPluginAvailable(PLUGIN_MAPA_GOOGLE);
+    return getGoogleMapsApiKey() !== null;
   } catch {
     return false;
   }
@@ -49,9 +67,28 @@ export function gravarPreferenciaMapaGoogle(ligado) {
   }
 }
 
-/** O Mapa Geral usa o mapa do Google agora (plugin no aparelho e escolha ligada). */
-export function usarMapaGoogleNativo() {
-  return temMapaGoogleNativo() && lerPreferenciaMapaGoogle();
+/** O Mapa Geral usa o mapa do Google agora (pode abrir aqui e a escolha está ligada). */
+export function usarMapaGoogle() {
+  return temMapaGoogle() && lerPreferenciaMapaGoogle();
+}
+
+/**
+ * Opções do mapa na criação. No site (Maps JavaScript API): arrastar com um dedo no celular (`greedy`; o padrão pede
+ * dois dedos), sem os botões e ícones clicáveis do Google por cima da barra do Mapa Geral. O mapa nativo ignora as
+ * opções que não conhece.
+ * @param {{ center: { lat: number, lng: number }, zoom: number }} vista
+ * @param {string} tipo "satellite" | "roadmap"
+ */
+export function configDoMapaGoogle(vista, tipo) {
+  return {
+    center: vista.center,
+    zoom: vista.zoom,
+    mapTypeId: tipo === "satellite" ? "satellite" : "roadmap",
+    gestureHandling: "greedy",
+    disableDefaultUI: true,
+    clickableIcons: false,
+    keyboardShortcuts: false,
+  };
 }
 
 /**

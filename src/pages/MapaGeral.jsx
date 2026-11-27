@@ -57,9 +57,9 @@ import { useFiltroDoAssistente } from "@/hooks/useFiltroDoAssistente";
 import { casarNomes } from "@/domain/assistente/filtroTela";
 import { mensagemFalhaMapa, navegadorTemWebGL, MENSAGEM_WEBGL_DESLIGADO } from "@/lib/maplibre/falhaWebGL";
 import { componenteSobDemanda } from "@/lib/paginaSobDemanda.jsx";
-import { gravarPreferenciaMapaGoogle, temMapaGoogleNativo, usarMapaGoogleNativo } from "@/lib/mapaNativo/mapaGoogleNativo.js";
+import { gravarPreferenciaMapaGoogle, temMapaGoogle, usarMapaGoogle } from "@/lib/mapaNativo/mapaGoogleNativo.js";
 
-/** D-PROD-366: o mapa nativo do Google só é carregado quando ligado (o site nunca baixa esse pedaço). */
+/** D-PROD-366: o mapa do Google (nativo no app, Maps JavaScript API no site) só é carregado quando ligado. */
 const MapaGoogleNativo = componenteSobDemanda(() => import("@/components/mapa/MapaGoogleNativo.jsx"));
 
 // D-PROD-304: as janelas de detalhe e os painéis só carregam quando abertos (o mapa abre mais leve).
@@ -87,9 +87,10 @@ export default function MapaGeral({ ativo = true } = {}) {
   const [mapEpoch, setMapEpoch] = useState(0);
   const [mapInstance, setMapInstance] = useState(null);
   const [mapType, setMapTypeState] = useState('satellite');
-  // D-PROD-366: mapa nativo do Google no app (plugin no APK + escolha do aparelho). Decidido ao abrir a página:
+  // D-PROD-366: mapa do Google (no app o nativo, com o plugin no APK; no site o Maps JavaScript API) + escolha do
+  // aparelho. Decidido ao abrir a página:
   // trocar a escolha recarrega a página.
-  const [mapaGoogle] = useState(() => usarMapaGoogleNativo());
+  const [mapaGoogle] = useState(() => usarMapaGoogle());
   const [prefShowAreas, setShowAreas] = useState(true);
   const [prefShowPontos, setShowPontos] = useState(true);
   const [prefShowLinhas, setShowLinhas] = useState(true);
@@ -1094,15 +1095,15 @@ export default function MapaGeral({ ativo = true } = {}) {
     setShowDetalhesArea(true);
   }, [selecionandoLocalTarefa, handleSelectTaskLocation, mapaGeralPermissions]);
 
-  // D-PROD-366: ligar/desligar o mapa do Google (só aparece com o plugin no APK); a troca recarrega a página.
+  // D-PROD-366: ligar/desligar o mapa do Google (no app só com o plugin no APK); a troca recarrega a página.
   const alternarMapaGoogle = useCallback(() => {
     gravarPreferenciaMapaGoogle(!mapaGoogle);
     window.location.reload();
   }, [mapaGoogle]);
-  // O mapa do Google não abriu (sem chave, sem Google Play Services…): volta ao mapa de sempre.
+  // O mapa do Google não abriu (sem chave, sem Google Play Services, Maps JavaScript API desligado…): volta ao mapa de sempre.
   const falhaDoMapaGoogle = useCallback(() => {
     gravarPreferenciaMapaGoogle(false);
-    toast.error('O mapa do Google não abriu neste aparelho. Voltando ao mapa de sempre.');
+    toast.error('O mapa do Google não abriu. Voltando ao mapa de sempre.');
     window.setTimeout(() => window.location.reload(), 1500);
   }, []);
 
@@ -1542,7 +1543,7 @@ export default function MapaGeral({ ativo = true } = {}) {
             estiloPasto={estiloPasto} setEstiloPasto={setEstiloPasto}
             modoColoracao={modoColoracao} setModoColoracao={setModoColoracao}
             podeColorir={podeColorir}
-            mapaGoogle={temMapaGoogleNativo() ? { ligado: mapaGoogle, alternar: alternarMapaGoogle } : null} />
+            mapaGoogle={temMapaGoogle() ? { ligado: mapaGoogle, alternar: alternarMapaGoogle } : null} />
           } />
 
       <div className="mk-mapa-area relative min-h-0 w-full flex-1">
