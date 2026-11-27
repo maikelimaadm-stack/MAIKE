@@ -1,7 +1,7 @@
 import "@/styles/mapa-cadastro-formularios.css";
 /* global google */
 import { versaoVista } from "@/lib/offline/versaoVista";
-import React, { useEffect, useId, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   listarIconesPorTipoEntidade,
   listarTodosPontosSuplementacao,
@@ -31,7 +31,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/cadastro/base1/SelectDoMotor";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { Check, X } from "lucide-react";
@@ -61,27 +60,17 @@ import { DENSIDADE_BASE1 } from "@/components/cadastro/base1/B1Field";
 const FL = LancField;
 
 /**
- * D-PROD-178: `capacidade_cocho_kg` (cocho e depósito) é o LIMITE OPERACIONAL —
- * o máximo recomendado pelo proprietário, que pode ser menor que a capacidade
- * física (esta não é armazenada). Mesmo campo e mesmo payload; mudam só os
- * nomes na tela. `estoque_minimo_kg` (depósito) é o gatilho de reposição.
+ * D-PROD-178: `capacidade_cocho_kg` (cocho e depósito) é o LIMITE — o máximo recomendado pelo proprietário, que pode
+ * ser menor que a capacidade física (esta não é armazenada). `estoque_minimo_kg` (depósito) é o gatilho de reposição.
+ *
+ * D-PROD-369: o cadastro de ponto ficou simples, como o proprietário pediu: sem textos de instrução embaixo dos
+ * campos, sem caixas de aviso, sem Observações e, no cocho, sem os campos de alerta (dias de reposição e sem
+ * lançamento). Os valores desses campos continuam indo como estavam (padrão 3 e 10 dias no cocho novo; o que já
+ * estava gravado no cocho editado), então nada muda no que o mapa calcula.
  */
-const AJUDA_LIMITE_OPERACIONAL = "Máximo recomendado que você define (pode ser menor que a capacidade física, por exemplo no período chuvoso). Usado para mostrar a ocupação e o excesso.";
-const AJUDA_ESTOQUE_MINIMO = "Abaixo deste saldo o mapa avisa para repor.";
-// O mínimo é o gatilho de reposição e o limite é o máximo recomendado: um
-// mínimo maior ou igual ao limite faz o depósito pedir reposição e acusar
-// excesso ao mesmo tempo. É só um AVISO (não bloqueia o salvar): a regra de
-// cadastro não muda nesta missão e pontos antigos continuam editáveis.
 const MSG_LIGACAO_PENDENTE = "A ligação deste ponto com o cocho/depósito ainda está carregando. Aguarde um instante e salve de novo (se continuar, recarregue a página). Nada foi alterado.";
 const MSG_LIGACAO_AMBIGUA = "Há mais de um cocho/depósito com o mesmo nome deste ponto nesta fazenda e não foi possível saber qual é o dele. Nada foi alterado.";
 const MSG_TROCA_COM_HISTORICO = "Não é possível trocar o tipo deste ponto: o cocho/depósito dele tem histórico (leituras, lançamentos ou estoque). Nada foi alterado.";
-const AVISO_MINIMO_ACIMA_DO_LIMITE = "Atenção: o estoque mínimo está igual ou acima do limite operacional; o mapa vai pedir reposição e acusar excesso ao mesmo tempo.";
-/**
- * O `Input` do shadcn é um forwardRef em JS, sem tipos de props: aqui ele é
- * tipado com os atributos do `<input>` (é o que ele repassa) para os campos com
- * texto de ajuda ligado por `aria-describedby`.
- */
-const InputComAjuda = /** @type {React.ComponentType<React.InputHTMLAttributes<HTMLInputElement>>} */ (/** @type {unknown} */ (Input));
 
 
 function ProdutoSuplementacaoSelect({ value, onChange }) {
@@ -161,7 +150,6 @@ export default function FormularioPonto({
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
   const registro = layout === "registro";
-  const [areaDetectada, setAreaDetectada] = useState(null);
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
   const [mostrarSelecaoAreasMapa, setMostrarSelecaoAreasMapa] = useState(false);
   const [mostrarSelecaoDepositoMapa, setMostrarSelecaoDepositoMapa] = useState(false);
@@ -171,11 +159,6 @@ export default function FormularioPonto({
   const [formData, setFormData] = useState(createEmptyForm());
   const [selecionouSetorManualmente, setSelecionouSetorManualmente] = useState(false);
   const [selecionouAreasManualmente, setSelecionouAreasManualmente] = useState(false);
-  const idAjudaLimiteCocho = useId();
-  const idAjudaReposicao = useId();
-  const idAjudaLimiteDeposito = useId();
-  const idAjudaEstoqueMinimo = useId();
-  const idAvisoEstoqueMinimo = useId();
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones", empresaSelecionadaId],
@@ -368,7 +351,6 @@ export default function FormularioPonto({
     }
 
     if (detectada) {
-      setAreaDetectada(detectada);
       setFormData((prev) => {
         const proximasMudancas = {};
         const areaIds = Array.isArray(prev.area_vinculada_ids) ? prev.area_vinculada_ids : [];
@@ -388,8 +370,6 @@ export default function FormularioPonto({
 
         return Object.keys(proximasMudancas).length ? { ...prev, ...proximasMudancas } : prev;
       });
-    } else {
-      setAreaDetectada(null);
     }
   }, [coordenadasGPS, coordenadas, areas, selecionouSetorManualmente, selecionouAreasManualmente, tipoAtual, item]);
 
@@ -397,9 +377,6 @@ export default function FormularioPonto({
 
   const ehCocho = normalizeText(formData.tipo).includes("COCHO");
   const ehDeposito = normalizeText(formData.tipo).includes("DEPOSITO");
-  const limiteDepositoKg = parseFloat(formData.capacidade_cocho_kg);
-  const minimoDepositoKg = parseFloat(formData.estoque_minimo_kg);
-  const minimoAcimaDoLimite = ehDeposito && Number.isFinite(limiteDepositoKg) && Number.isFinite(minimoDepositoKg) && limiteDepositoKg > 0 && minimoDepositoKg >= limiteDepositoKg;
   const ehBebedouro = normalizeText(formData.tipo).includes("BEBEDOURO");
   const areasDoSetor = formData.setor_id ? getAreasBySetor(formData.setor_id) : [];
 
@@ -643,7 +620,7 @@ export default function FormularioPonto({
     }
 
     if (ehCocho && !formData.capacidade_cocho_kg) {
-      toast.error("Informe o limite operacional do cocho em kg.");
+      toast.error("Informe o limite do cocho em kg.");
       return;
     }
 
@@ -660,7 +637,7 @@ export default function FormularioPonto({
     }
 
     if (ehDeposito && !formData.capacidade_cocho_kg) {
-      toast.error("Informe o limite operacional do depósito em kg.");
+      toast.error("Informe o limite do depósito em kg.");
       return;
     }
 
@@ -764,18 +741,16 @@ export default function FormularioPonto({
           <FL label="Nome do ponto" required><Input value={formData.nome} onChange={(e) => setFormData((prev) => ({ ...prev, nome: e.target.value }))} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" required /></FL>
           <FL label="Sigla"><Input value={formData.sigla} onChange={(e) => setFormData((prev) => ({ ...prev, sigla: e.target.value }))} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" maxLength={10} /></FL>
         </div>
-        <FL label="Ponto de referência" required>
+        <FL label="Tipo do ponto" required>
           <Select value={tipoSelecionado} onValueChange={(value) => {const opcao = tiposPonto.find((tipo) => tipo.valor === value);if (opcao) setFormData((prev) => ({ ...prev, configuracao_icone_id: opcao.iconeId, tipo: opcao.categoria }));}}>
             <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o tipo do ponto" /></SelectTrigger>
             <SelectContent>{tiposPonto.map((opcao) => <SelectItem key={opcao.valor} value={opcao.valor} className="text-xs">{opcao.categoria}</SelectItem>)}</SelectContent>
           </Select>
         </FL>
-        <FL label="Observações"><Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} rows={3} className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
 
         {ehCocho &&
             <div className="mk-mapa-form__secao space-y-3 border-t pt-3">
             <div className="text-xs font-semibold text-slate-700">Dados do Cocho</div>
-            {areaDetectada && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Área detectada: {areaDetectada.nome}</div>}
 
             <div className="mk-mapa-form__grid grid grid-cols-1 lg:grid-cols-2 gap-3">
               <FL label="Setor" required>
@@ -792,10 +767,9 @@ export default function FormularioPonto({
                 </Select>
               </FL>
               <div className="space-y-1 lg:col-span-2">
-                <Label className="text-xs">Áreas vinculadas *</Label>
+                <Label className="text-xs">Pastos do cocho *</Label>
                 <div className="rounded-lg border border-slate-200 p-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <p className="text-[11px] text-slate-500">Selecione uma ou mais áreas que consomem neste mesmo cocho.</p>
+                  <div className="flex items-center justify-end gap-2 flex-wrap">
                     <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setMostrarSelecaoAreasMapa(true)}>Selecionar no mapa</Button>
                   </div>
                   <div className="flex flex-col gap-1.5 max-h-20 overflow-y-auto pr-1">
@@ -819,14 +793,14 @@ export default function FormularioPonto({
 
               <div className="space-y-1 lg:col-span-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <Label className="text-xs">Depósito vinculado *</Label>
+                  <Label className="text-xs">Depósito de onde sai o produto *</Label>
                   <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setMostrarSelecaoDepositoMapa(true)}>Selecionar no mapa</Button>
                 </div>
                 <div className="rounded-md border border-slate-300">
                   <Select value={formData.deposito_origem_id || "__none__"} onValueChange={(value) => setFormData((prev) => ({ ...prev, deposito_origem_id: value === "__none__" ? "" : value }))}>
                     <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione o depósito" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__" className="text-xs">Selecione o depósito</SelectItem>
+                      <SelectItem value="__none__" className="text-xs">{depositosDisponiveis.length ? "Selecione o depósito" : "Nenhum depósito cadastrado"}</SelectItem>
                       {depositosDisponiveis.map((deposito) => <SelectItem key={deposito.id} value={deposito.id} className="text-xs">{deposito.nome_ponto}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -836,12 +810,9 @@ export default function FormularioPonto({
               <FL label="Produto padrão">
                 <ProdutoSuplementacaoSelect value={formData.produto_padrao} onChange={(value) => setFormData((prev) => ({ ...prev, produto_padrao: value }))} />
               </FL>
-              <div className="space-y-1.5">
-                <FL label="Limite operacional do cocho (kg)" required>
-                  <InputComAjuda type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} aria-describedby={idAjudaLimiteCocho} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-                </FL>
-                <p id={idAjudaLimiteCocho} className="px-1 text-[11px] leading-snug text-slate-500">{AJUDA_LIMITE_OPERACIONAL}</p>
-              </div>
+              <FL label="Limite do cocho (kg)" required>
+                <Input type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+              </FL>
               <FL label="Metragem do cocho (m)" required>
                 <Input type="number" step="0.01" value={formData.metragem_cocho_m} onChange={(e) => setFormData((prev) => ({ ...prev, metragem_cocho_m: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
               </FL>
@@ -854,25 +825,14 @@ export default function FormularioPonto({
                   </SelectContent>
                 </Select>
               </FL>
-              <div className="space-y-1.5">
-                <FL label="Dias de alerta para reposição">
-                  <InputComAjuda type="number" min="0" step="1" value={formData.dias_alerta_reposicao} onChange={(e) => setFormData((prev) => ({ ...prev, dias_alerta_reposicao: e.target.value }))} placeholder="3" aria-describedby={idAjudaReposicao} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-                </FL>
-                <p id={idAjudaReposicao} className="px-1 text-[11px] leading-snug text-slate-500">Avisa quando o saldo estimado durar este número de dias ou menos. Não muda o percentual de saldo.</p>
-              </div>
-              <FL label="Alerta sem lançamento (dias)">
-                <Input type="number" value={formData.alerta_sem_lancamento_dias} onChange={(e) => setFormData((prev) => ({ ...prev, alerta_sem_lancamento_dias: e.target.value }))} placeholder="10" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-              </FL>
             </div>
 
-            {depositosDisponiveis.length === 0 && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Cadastre primeiro um ponto do tipo depósito para vincular este cocho.</div>}
           </div>
             }
 
         {ehBebedouro &&
             <div className="mk-mapa-form__secao space-y-3 border-t pt-3">
             <div className="text-xs font-semibold text-slate-700">Dados do Bebedouro</div>
-            {areaDetectada && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Área detectada: {areaDetectada.nome}</div>}
             <div className="mk-mapa-form__grid grid grid-cols-1 lg:grid-cols-2 gap-3">
               <FL label="Setor" required>
                 <Select value={formData.setor_id || '__none__'} onValueChange={(value) => {
@@ -888,10 +848,9 @@ export default function FormularioPonto({
                 </Select>
               </FL>
               <div className="space-y-1 lg:col-span-2">
-                <Label className="text-xs">Pastos vinculados *</Label>
+                <Label className="text-xs">Pastos do bebedouro *</Label>
                 <div className="rounded-lg border border-slate-200 p-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <p className="text-[11px] text-slate-500">Selecione um ou mais pastos atendidos por este mesmo bebedouro.</p>
+                  <div className="flex items-center justify-end gap-2 flex-wrap">
                     <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => setMostrarSelecaoAreasMapa(true)}>Selecionar no mapa</Button>
                   </div>
                   <div className="flex flex-col gap-1.5 max-h-20 overflow-y-auto pr-1">
@@ -934,14 +893,12 @@ export default function FormularioPonto({
                 <Input type="number" value={formData.dias_inspecao_personalizado} onChange={(e) => setFormData((prev) => ({ ...prev, dias_inspecao_personalizado: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
               </FL>
             </div>
-            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">Ao salvar, este ponto será criado também no módulo de Gestão de Bebedouros.</div>
           </div>
             }
 
         {ehDeposito &&
             <div className="mk-mapa-form__secao space-y-3 border-t pt-3">
             <div className="text-xs font-semibold text-slate-700">Depósito de Suplementação</div>
-            <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] px-3 py-2 text-xs text-slate-700">Ao salvar este ponto, um local de estoque será criado automaticamente para uso exclusivo dos produtos de suplementação.</div>
             <div className="mk-mapa-form__grid grid grid-cols-1 lg:grid-cols-2 gap-3">
               <FL label="Setor" required>
                 <Select value={formData.setor_id || '__none__'} onValueChange={(value) => setFormData((prev) => ({ ...prev, setor_id: value === '__none__' ? '' : value }))}>
@@ -952,21 +909,13 @@ export default function FormularioPonto({
                   </SelectContent>
                 </Select>
               </FL>
-              <div className="space-y-1.5">
-                <FL label="Limite operacional do depósito (kg)" required>
-                  <InputComAjuda type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} aria-describedby={idAjudaLimiteDeposito} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-                </FL>
-                <p id={idAjudaLimiteDeposito} className="px-1 text-[11px] leading-snug text-slate-500">{AJUDA_LIMITE_OPERACIONAL}</p>
-              </div>
-              <div className="space-y-1.5">
-                <FL label="Estoque mínimo (kg)" required>
-                  <InputComAjuda type="number" step="0.01" value={formData.estoque_minimo_kg} onChange={(e) => setFormData((prev) => ({ ...prev, estoque_minimo_kg: e.target.value }))} aria-describedby={minimoAcimaDoLimite ? `${idAjudaEstoqueMinimo} ${idAvisoEstoqueMinimo}` : idAjudaEstoqueMinimo} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-                </FL>
-                <p id={idAjudaEstoqueMinimo} className="px-1 text-[11px] leading-snug text-slate-500">{AJUDA_ESTOQUE_MINIMO}</p>
-                {minimoAcimaDoLimite && <p id={idAvisoEstoqueMinimo} className="px-1 text-[11px] font-medium leading-snug text-amber-800">{AVISO_MINIMO_ACIMA_DO_LIMITE}</p>}
-              </div>
+              <FL label="Limite do depósito (kg)" required>
+                <Input type="number" step="0.01" value={formData.capacidade_cocho_kg} onChange={(e) => setFormData((prev) => ({ ...prev, capacidade_cocho_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+              </FL>
+              <FL label="Estoque mínimo (kg)" required>
+                <Input type="number" step="0.01" value={formData.estoque_minimo_kg} onChange={(e) => setFormData((prev) => ({ ...prev, estoque_minimo_kg: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+              </FL>
             </div>
-            {pontoSuplementacaoExistente?.local_estoque_nome && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Local de estoque atual: {pontoSuplementacaoExistente.local_estoque_nome}</div>}
           </div>
             }
 

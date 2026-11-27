@@ -10911,4 +10911,27 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-367 (363 e 364 são as etapas 3 e 4, PRs #451 e #452; 365 e 366 estão reservados pelas PRs #453 e #454). O marcador passa a D-PROD-368. Conferir antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-368 -->
+## D-PROD-369 — Cadastro de ponto simples: cocho e depósito sem instruções, avisos nem Observações
+
+**Data:** 2026-11-27 · **Origem:** o proprietário: "no cadastro de novo ponto seja cocho ou depósito precisa ser algo simples e correto… não preciso de instruções de campos, não preciso de alertas… não preciso de campo de observações" · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`PONTO-SIMPLES-D369-REPORT.md`](./PONTO-SIMPLES-D369-REPORT.md)
+
+**Decisão.** O formulário do ponto (`FormularioPonto`) passa a mostrar só o necessário.
+1. **Saíram da tela:**
+   - todos os textos de instrução embaixo dos campos (limite, estoque mínimo, dias de reposição, "Selecione uma ou mais áreas…");
+   - as caixas de aviso: "Área detectada", "Cadastre primeiro um depósito", "um local de estoque será criado", "Local de estoque atual" e "criado também na Gestão de Bebedouros";
+   - o aviso de estoque mínimo ≥ limite;
+   - o campo **Observações**;
+   - no cocho, os campos **Dias de alerta para reposição** e **Alerta sem lançamento**.
+2. **Nada muda no que é gravado nem no que o mapa calcula.**
+   - Os campos que saíram continuam indo com o valor que já tinham: no cocho novo, os padrões de 3 e 10 dias; no cocho editado e nas Observações, o que já estava gravado.
+   - As validações continuam as mesmas. O "Selecione o depósito vinculado ao cocho." explica quando falta depósito, e o próprio campo mostra "Nenhum depósito cadastrado".
+3. **Rótulos mais claros:**
+   - "Ponto de referência" → **Tipo do ponto**;
+   - "Limite operacional do cocho/depósito (kg)" → **Limite do cocho/depósito (kg)**, também nas mensagens;
+   - "Áreas vinculadas" → **Pastos do cocho**;
+   - "Pastos vinculados" → **Pastos do bebedouro**;
+   - "Depósito vinculado" → **Depósito de onde sai o produto**.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-369 (365, 366 e 368 reservados pelas PRs #453, #454 e #456). O marcador passa a D-PROD-370. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-370 -->
