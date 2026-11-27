@@ -796,15 +796,28 @@ export const createOfflineEntityAdapter = ({
       // enviada em seguida.
       const edicaoNaFila = estaOnline() ? await edicaoPendenteDe(entityName, recordId, tenantId) : null;
       if (estaOnline() && !edicaoNaFila && !(await criacaoPendenteDe(recordId, tenantId))) {
-        const atualizado = await operations.update(recordId, versaoEsperada ? { ...dados, [CAMPO_VERSAO_ESPERADA]: versaoEsperada } : dados);
-        await atualizarCache(
-          porta,
-          entityName,
-          empresaId,
-          (items) => items.map((item) => (item.id === atualizado.id ? { ...item, ...atualizado } : item)),
-          tenantId
-        );
-        return atualizado;
+        let atualizado = null;
+        try {
+          atualizado = await operations.update(recordId, versaoEsperada ? { ...dados, [CAMPO_VERSAO_ESPERADA]: versaoEsperada } : dados);
+        } catch (erro) {
+          // D-PROD-341: sem resposta (sinal fraco, Wi-Fi sem dados, sessão vencida): a edição vai para a fila, como a
+          // criação (D-PROD-308), em vez de dar erro e a pessoa ter de refazer. Se ela chegou ao servidor e só a resposta
+          // se perdeu, a repetição não é conflito: o servidor reconhece a mesma edição já aplicada (`pedidoJaAplicado`).
+          // Recusa ou erro do servidor (com resposta) continua voltando para a tela.
+          const falha = classificarFalhaDeEnvio(erro);
+          const semResposta = falha === "rede" || falha === "sessao";
+          if (!semResposta || (tenantScoped && !tenantId)) throw erro;
+        }
+        if (atualizado) {
+          await atualizarCache(
+            porta,
+            entityName,
+            empresaId,
+            (items) => items.map((item) => (item.id === atualizado.id ? { ...item, ...atualizado } : item)),
+            tenantId
+          );
+          return atualizado;
+        }
       }
 
       /** D-PROD-338: como o registro estava na cópia, para desfazer se a fila não gravar (armazenamento cheio). */

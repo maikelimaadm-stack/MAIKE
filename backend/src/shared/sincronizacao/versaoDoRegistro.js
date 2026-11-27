@@ -58,17 +58,46 @@ export const ultimaAlteracao = async (tx, clienteId, entidade, entidadeId) => {
   return { alterado_por_id: a.usuario_id ?? null, alterado_por_nome: u?.nome || u?.login || null, alterado_em: iso(a.createdAt) };
 };
 
+/** Valor comparável: datas em ISO, números (inclusive Decimal) como número, vazio como null. @param {unknown} v */
+const comparavel = (v) => {
+  if (v === undefined || v === null || v === '') return null;
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v === 'object' && v !== null && typeof (/** @type {any} */ (v).toNumber) === 'function') return /** @type {any} */ (v).toNumber();
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string' && v.trim() !== '' && /^-?\d+(\.\d+)?$/.test(v.trim())) return Number(v);
+  if (typeof v === 'object') return JSON.stringify(v);
+  return v;
+};
+
+/**
+ * D-PROD-341 — a edição pedida JÁ ESTÁ no registro? (cada campo pedido igual ao atual)
+ *
+ * Com o sinal fraco, a edição pode chegar ao servidor e a resposta se perder; o aparelho a guarda e manda de novo com a
+ * mesma `versao_esperada`. A primeira gravação mudou a versão, e a repetição levava 409 como se outra pessoa tivesse
+ * alterado. Quando o registro já está exatamente como a edição pede, não há conflito: quem alterou foi ela mesma.
+ * Pedido vazio nunca conta como aplicado.
+ * @param {Record<string, unknown>} registro @param {Record<string, unknown>|null|undefined} pedido
+ */
+export const pedidoJaAplicado = (registro, pedido) => {
+  const campos = Object.keys(pedido ?? {});
+  if (!campos.length) return false;
+  return campos.every((c) => comparavel(/** @type {any} */ (pedido)[c]) === comparavel(registro?.[c]));
+};
+
 /**
  * Exige que o registro ainda esteja na versão que a pessoa viu. Sem versão esperada, nada a conferir.
  * @param {any} tx
- * @param {{ clienteId: string, entidade: string, registro: { id: string, updatedAt?: unknown }, versaoEsperada: string|null, rotulo: string }} a
- * `rotulo`: o nome do registro na mensagem ("o lote", "o cocho").
+ * @param {{ clienteId: string, entidade: string, registro: { id: string, updatedAt?: unknown }, versaoEsperada: string|null, rotulo: string,
+ *   pedido?: Record<string, unknown> }} a
+ * `rotulo`: o nome do registro na mensagem ("o lote", "o cocho"). `pedido`: os campos que a edição grava (D-PROD-341: se o
+ * registro já está assim, a repetição da mesma edição não é conflito).
  * @throws 409 `REGISTRO_VERSAO_CONFLITO` (nada gravado)
  */
 export const exigirVersaoEsperada = async (tx, a) => {
   if (!a.versaoEsperada) return;
   const atual = versaoDe(a.registro);
   if (atual && iso(a.versaoEsperada) === atual) return;
+  if (pedidoJaAplicado(/** @type {any} */ (a.registro), a.pedido)) return;
   const ultima = await ultimaAlteracao(tx, a.clienteId, a.entidade, a.registro.id);
   const quem = ultima.alterado_por_nome ? ` por ${ultima.alterado_por_nome}` : '';
   throw new AppError('REGISTRO_VERSAO_CONFLITO', `${a.rotulo} foi alterado${quem} depois que você abriu; abra de novo e refaça a alteração; nada foi gravado`, {

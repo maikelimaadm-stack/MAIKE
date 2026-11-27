@@ -8,6 +8,8 @@
  * VR-04 versão em formato inválido → 400, nada gravado
  * VR-05 mudança feita pelo servidor (sem PATCH) também muda a versão
  * VR-06 outro tenant: 404, não vaza a versão nem quem alterou
+ * VR-07 (D-PROD-341) a MESMA edição repetida com a versão de antes (resposta perdida com o sinal fraco) não é conflito
+ *       (lote e cocho); uma edição diferente com a versão velha continua 409
  */
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -140,5 +142,30 @@ describe('D-PROD-316 — versão do registro', () => {
     const r = await req('PATCH', `/lotes/${lote.id}`, b.token, { nome: 'E1', versao_esperada: lote.updated_date });
     assert.equal(r.statusCode, 404, r.body);
     assert.equal(r.json().details?.alterado_por_nome, undefined);
+  });
+
+  test('VR-07 a mesma edição repetida (resposta perdida) não é conflito; outra edição com a versão velha é', async () => {
+    const c = await conta();
+    const lote = await criarLote(c, 'F');
+    await esperar();
+    const r1 = await req('PATCH', `/lotes/${lote.id}`, c.token, { nome: 'F1', versao_esperada: lote.updated_date });
+    assert.equal(r1.statusCode, 200, r1.body);
+    await esperar();
+    // O aparelho não recebeu a resposta e manda a mesma edição de novo, com a versão de antes.
+    const repetida = await req('PATCH', `/lotes/${lote.id}`, c.token, { nome: 'F1', versao_esperada: lote.updated_date });
+    assert.equal(repetida.statusCode, 200, repetida.body);
+    assert.equal(repetida.json().nome, 'F1');
+    // Outra edição com a versão velha: alguém (a própria edição anterior) mudou o lote → conflito, como antes.
+    const outra = await req('PATCH', `/lotes/${lote.id}`, c.token, { nome: 'F2', versao_esperada: lote.updated_date });
+    assert.equal(outra.statusCode, 409, outra.body);
+
+    const cocho = await criarPonto(c);
+    await esperar();
+    const p1 = await req('PATCH', `/pontos-suplementacao/${cocho.id}`, c.token, { nome_ponto: 'COCHO NOVO', versao_esperada: cocho.updated_date });
+    assert.equal(p1.statusCode, 200, p1.body);
+    const pRepetida = await req('PATCH', `/pontos-suplementacao/${cocho.id}`, c.token, { nome_ponto: 'COCHO NOVO', versao_esperada: cocho.updated_date });
+    assert.equal(pRepetida.statusCode, 200, pRepetida.body);
+    const pOutra = await req('PATCH', `/pontos-suplementacao/${cocho.id}`, c.token, { nome_ponto: 'OUTRO', versao_esperada: cocho.updated_date });
+    assert.equal(pOutra.statusCode, 409, pOutra.body);
   });
 });

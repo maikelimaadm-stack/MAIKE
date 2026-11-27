@@ -452,7 +452,8 @@ export const atualizar = async (contexto, id, entrada) => {
     // Lote excluído logicamente (MAIKE-LOTES-R1) não volta a ser editável.
     if (!anterior || anterior.excluido_em) throw loteNotFound();
     // D-PROD-316: a versão que a pessoa viu ainda é a atual (sob a trava da linha), senão 409 com quem alterou.
-    await exigirVersaoEsperada(tx, { clienteId: auth.clienteId, entidade: 'Lote', registro: anterior, versaoEsperada: separarVersaoEsperada(entrada).versaoEsperada, rotulo: 'O lote' });
+    // D-PROD-341: com o pedido, a repetição da MESMA edição (resposta perdida com o sinal fraco) não é conflito.
+    await exigirVersaoEsperada(tx, { clienteId: auth.clienteId, entidade: 'Lote', registro: anterior, versaoEsperada: separarVersaoEsperada(entrada).versaoEsperada, rotulo: 'O lote', pedido: camposDe(entrada) });
 
     const campos = camposDe(entrada);
     /** @type {Record<string, unknown>} */
