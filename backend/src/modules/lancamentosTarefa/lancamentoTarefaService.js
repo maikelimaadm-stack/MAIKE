@@ -2,6 +2,7 @@
  * Serviço de LancamentoTarefa e histórico (P5.3, D-PROD-49).
  */
 
+import { pedidoJaAplicado } from '../../shared/sincronizacao/versaoDoRegistro.js';
 import { exigirLotesNaoExcluidos } from '../../shared/lotes/loteVivo.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -451,6 +452,9 @@ export const atualizar = async (contexto, id, entrada) => {
     if (!anterior) throw attachmentOwnerInvalid();
 
     const campos = camposDeLancamento(corpo);
+    // D-PROD-342: a edição pedida já está toda na tarefa (e as fotos a somar já estão nela)?
+    const fotosJaNaTarefa = !somarFotos || fotosAdicionar.every((f) => (Array.isArray(anterior.fotos) ? anterior.fotos : []).includes(String(f)));
+    const repeticao = (Object.keys(campos).length > 0 || somarFotos) && fotosJaNaTarefa && (Object.keys(campos).length === 0 || pedidoJaAplicado(anterior, campos));
     if (somarFotos) {
       // D-PROD-335: a foto tirada sem internet sobe e é SOMADA às fotos que a tarefa tem agora no servidor. Antes o
       // aparelho mandava a lista inteira lida da cópia dele: cópia antiga (ou de outra fazenda) apagava as fotos que
@@ -480,7 +484,9 @@ export const atualizar = async (contexto, id, entrada) => {
       },
       tx
     );
-    await registrarHistoricoMapaTx(contexto, tx, auth, registro, historico);
+    // D-PROD-342: a MESMA edição repetida (o celular não recebeu a resposta e mandou de novo) não grava outra linha no
+    // histórico — "Conclusão" duas vezes. Um registro só de histórico (sem campos, ex.: "Registro") continua valendo.
+    if (!repeticao) await registrarHistoricoMapaTx(contexto, tx, auth, registro, historico);
     return publico;
   });
 };

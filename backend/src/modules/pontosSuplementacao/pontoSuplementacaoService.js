@@ -201,7 +201,7 @@ export const atualizar = async (contexto, id, entrada) => {
     await tx.$queryRaw`SELECT id FROM "PontoSuplementacao" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR NO KEY UPDATE`;
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    await exigirVersaoEsperada(tx, { clienteId: auth.clienteId, entidade: 'PontoSuplementacao', registro: existente, versaoEsperada, rotulo: String(existente.categoria_ponto ?? '').toUpperCase() === 'DEPOSITO' ? 'O depósito' : 'O cocho' });
+    await exigirVersaoEsperada(tx, { clienteId: auth.clienteId, entidade: 'PontoSuplementacao', registro: existente, versaoEsperada, rotulo: String(existente.categoria_ponto ?? '').toUpperCase() === 'DEPOSITO' ? 'O depósito' : 'O cocho', pedido: resto });
     const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, exigirSomenteColunasGravaveis('PontoSuplementacao', resto));
     await registrarEvento(
       contexto,

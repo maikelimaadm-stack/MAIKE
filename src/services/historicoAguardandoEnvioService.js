@@ -19,6 +19,20 @@
 import { mostrarComoAguardando as mostraComoAguardando, registrosDoAparelhoDoTipo } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
 import { TIPO_LANCAMENTO_COCHO, TIPO_TRANSFERENCIA_DEPOSITO } from '@/lib/offline/sincronizacao/tiposDeEnvio';
 
+/** D-PROD-342: no máximo uma confirmação pedida a cada tanto (o histórico é relido muitas vezes). */
+const INTERVALO_DA_CONFIRMACAO_MS = 20_000;
+let confirmacaoPedidaEm = 0;
+/** Pede uma passada já (sob demanda: o histórico não carrega a sincronização inteira). */
+const pedirConfirmacao = () => {
+  const agora = Date.now();
+  if (agora - confirmacaoPedidaEm < INTERVALO_DA_CONFIRMACAO_MS) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  confirmacaoPedidaEm = agora;
+  import('@/lib/offline/sincronizacao/gatilhosDeSincronizacao')
+    .then((m) => m.sincronizarTudo({ jaEmVoltaDaRede: true }))
+    .catch(() => undefined);
+};
+
 /** Prefixo das movimentações que ainda não estão no servidor (o cache nunca as grava). */
 export const PREFIXO_AGUARDANDO = 'aguardando:';
 
@@ -75,7 +89,15 @@ export const movimentacoesAguardandoEnvio = async (empresaId = null) => {
       for (const m of [res?.movimentacao_saida, res?.movimentacao_entrada]) if (m?.id) lista.push({ ...m, _confirmadoAgora: true });
       continue;
     }
-    if (!mostraComoAguardando(r)) continue;
+    if (r.estado === 'atencao') continue;
+    // D-PROD-342: a que tentou subir sem receber a resposta (sinal fraco), com internet, não aparece (a lista do
+    // servidor pode já tê-la, sem como casar — apareceria duas vezes), mas a confirmação é pedida NA HORA: o servidor
+    // deduplica pelo código da operação e devolve a que já fez, que volta ao histórico com os ids reais em segundos.
+    // Antes ela ficava fora até a passada seguinte (até 1 min) e a pessoa transferia de novo.
+    if (!mostraComoAguardando(r)) {
+      pedirConfirmacao();
+      continue;
+    }
     const comum = {
       ...base(p, r),
       local_estoque_destino: p?.local_destino_id ?? null,
@@ -115,7 +137,12 @@ export const movimentacoesAguardandoEnvio = async (empresaId = null) => {
       });
       continue;
     }
-    if (!mostraComoAguardando(r)) continue;
+    if (r.estado === 'atencao') continue;
+    // D-PROD-342: idem para a baixa do cocho que tentou subir sem resposta.
+    if (!mostraComoAguardando(r)) {
+      pedirConfirmacao();
+      continue;
+    }
     lista.push({
       ...base(p.saida, r),
       id: `${PREFIXO_AGUARDANDO}${r.operationId}:baixa`,

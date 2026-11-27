@@ -182,14 +182,27 @@ describe('D-PROD-308 A — id do aparelho na fila antiga', () => {
 describe('D-PROD-308 A2 — revisão: o que vem depois da criação que caiu', () => {
   const semRede = () => new erros.ApiError(erros.API_ERROR_CODES.PROVIDER_UNAVAILABLE, { operation: 'x', resource: 'y' });
 
-  it('IA-06 criação caiu (com internet) e a pessoa edita logo: a edição entra na criação, nada vai direto ao servidor', async () => {
-    const { ops } = servidorDePontos();
-    ops.create.mockRejectedValueOnce(semRede());
+  // D-PROD-342: antes a edição entrava na criação que caiu. Mas a criação pode ter chegado (só a resposta se perdeu), e
+  // o servidor devolve o que já tem para o mesmo id: a edição somada a ela se perdia. Agora vai como item próprio,
+  // depois da criação, e o resultado é o registro editado, uma vez só.
+  it('IA-06 criação caiu (com internet) e a pessoa edita logo: a edição vai depois da criação e não se perde', async () => {
+    const { ops, gravados } = servidorDePontos();
+    const original = ops.create.getMockImplementation();
+    ops.create.mockImplementationOnce(async (d) => {
+      await original(d); // gravou, a resposta se perdeu
+      throw semRede();
+    });
+    ops.update.mockImplementation(async (id, d) => {
+      gravados.set(id, { ...gravados.get(id), ...d, id });
+      return gravados.get(id);
+    });
     const porta = portaDoPonto(ops);
     const criado = await porta.create({ empresa_id: 'emp-1', nome_ponto: 'A' });
     await porta.update(criado.id, { empresa_id: 'emp-1', nome_ponto: 'B' });
-    expect(ops.update).not.toHaveBeenCalled();
-    expect([...storage.fila.values()].map((i) => [i.operation, i.data?.nome_ponto])).toEqual([['create', 'B']]);
+    await rt.syncOfflineEntityQueue();
+    expect(gravados.size).toBe(1);
+    expect(gravados.get(criado.id).nome_ponto).toBe('B');
+    expect(storage.fila.size).toBe(0);
   });
 
   it('IA-07 criação caiu e a pessoa exclui: a exclusão vai DEPOIS da criação (o servidor pode já ter o registro)', async () => {
