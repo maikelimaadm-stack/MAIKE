@@ -8,11 +8,9 @@
  * Índice completo: docs/design/GUIA-MAPA-E-ICONES.md
  */
 
-import { indicadorTarefa, tituloDoMarcadorTarefa } from "@/lib/tarefas/marcador";
-import { normalizarPrioridadeTarefa } from "@/lib/tarefas/prioridade";
-import { urlIconeTarefa } from "@/assets/icones/tarefas";
 import { useRef, useCallback } from "react";
 import { maplibregl, setSourceData } from "@/lib/maplibre/lifecycle.js";
+import { itensDaSuplementacao, itensDasTarefas, itensDosLotes, itensDosPontos } from "@/lib/maplibre/itensDoMapaGeral.js";
 import { parseVertex, parseVertices } from "@/lib/geografia/coords.js";
 import { buildAccuracyCircleCollection } from "@/lib/maplibre/gpsCapture.js";
 import {
@@ -21,16 +19,11 @@ import {
   buildMgAreasCollection,
   buildMgLinhasCollection,
   centroideArea,
-  descreverMarcadorSuplementacao,
   escolherModoRotulos,
   pontoEFolga,
   siglaDaArea,
   ensureMgLayers,
   aplicarEstiloPasto,
-  resolverIconeLote,
-  resolverIconePonto,
-  resolverIconeSuplementacao,
-  resolverIconeTarefa,
   textoHectares,
 } from "@/lib/maplibre/mapaGeralRender.js";
 import {
@@ -40,12 +33,9 @@ import {
   criarPiscaIdent,
   garantirImagens,
   haLoteNoPonto,
-  identificadoresDoLote,
   imagemPronta,
   ligarImagensFaltando,
   ligarInteracaoLotes,
-  pedidoImagemIdent,
-  pedidoImagemLote,
   pixelRatioDaTela,
   podarImagens,
   registrarImagens,
@@ -70,9 +60,6 @@ import {
   PONTOS_SOURCE_ID,
   SUPL_LAYER_ID,
   SUPL_SOURCE_ID,
-  TAMANHO_PONTO_PX,
-  TAMANHO_SUPL_PX,
-  TAMANHO_TAREFA_PX,
   TAREFAS_LAYER_ID,
   TAREFAS_SOURCE_ID,
   avisarFalhaPonto,
@@ -82,7 +69,6 @@ import {
   imagemDoGrupo,
   ligarImagensFaltandoPontos,
   ligarInteracaoPontos,
-  pedidosImagemPonto,
   registrarImagensPontos,
 } from "@/lib/maplibre/pontosNoMapa.js";
 
@@ -792,21 +778,7 @@ export default function useMapRenderer(mapInstanceRef) {
       if (typeof onClickPonto === "function") onClickPonto(p);
       else abrirPopup(item.lngLat, p.nome, p.tipo);
     };
-    const pr = pixelRatioRef.current;
-    const itens = [];
-    if (show) {
-      for (const ponto of pontos) {
-        const c = parseVertex(ponto.coordenadas);
-        if (!c) continue;
-        const { iconUrl, cor } = resolverIconePonto(ponto, iconesConfig);
-        const { imagem, reserva } = pedidosImagemPonto("mg-ponto", { urls: iconUrl ? [iconUrl] : [], base: TAMANHO_PONTO_PX, cor }, pr);
-        itens.push({
-          item: { id: String(ponto.id), lngLat: /** @type {[number, number]} */ ([c.lng, c.lat]), imagem: imagem.chave, reserva: reserva.chave, titulo: String(ponto.nome || "") },
-          ref: ponto,
-          pedidos: { imagem, reserva },
-        });
-      }
-    }
+    const itens = itensDosPontos({ pontos, show, iconesConfig, pixelRatio: pixelRatioRef.current });
     return sincronizarGrupo("pontos", itens);
   }, [mapInstanceRef]);
 
@@ -838,25 +810,7 @@ export default function useMapRenderer(mapInstanceRef) {
     const g = gruposRef.current.supl;
     g.args = [pontosSupl, show, iconesConfig, onClick];
     g.onClick = (p) => onClick?.(p);
-    const pr = pixelRatioRef.current;
-    const itens = [];
-    if (show) {
-      for (const ponto of pontosSupl) {
-        const c = parseVertex(ponto.coordenadas);
-        if (!c) continue;
-        const { iconUrl, cor, categoria } = resolverIconeSuplementacao(ponto, iconesConfig);
-        // Nível no marcador (D-PROD-178/205): o texto do SSOT vai no título (fonte; título do canvas no mouse); o selo
-        // e o farol, pintados na imagem. Nível, selo ou farol diferentes = imagem diferente no MESMO ponto da fonte.
-        const { titulo, selo, farol } = descreverMarcadorSuplementacao(ponto);
-        const base = (categoria.includes("COCHO") || categoria.includes("DEPOSITO")) ? TAMANHO_SUPL_PX : TAMANHO_PONTO_PX;
-        const { imagem, reserva } = pedidosImagemPonto("mg-supl", { urls: iconUrl ? [iconUrl] : [], base, cor, selo, farol }, pr);
-        itens.push({
-          item: { id: String(ponto.id), lngLat: /** @type {[number, number]} */ ([c.lng, c.lat]), imagem: imagem.chave, reserva: reserva.chave, titulo },
-          ref: ponto,
-          pedidos: { imagem, reserva },
-        });
-      }
-    }
+    const itens = itensDaSuplementacao({ pontosSupl, show, iconesConfig, pixelRatio: pixelRatioRef.current });
     return sincronizarGrupo("supl", itens);
   }, [mapInstanceRef]);
 
@@ -932,47 +886,10 @@ export default function useMapRenderer(mapInstanceRef) {
     lotesArgsRef.current = [lotesFiltrados, areas, show, categoriasManejo, onClickLotes, onDragLotes, canDragLotes, blinkAlerts];
     ligarLotes(map);
     const pr = pixelRatioRef.current;
-    const porArea = {};
-    if (show) {
-      for (const lote of lotesFiltrados) {
-        if (!lote.area_atual_id) continue;
-        (porArea[lote.area_atual_id] ||= []).push(lote);
-      }
-    }
-    /** @type {Map<string, any>} */
-    const novos = new Map();
-    /** @type {import('@/lib/maplibre/lotesNoMapa.js').PedidoImagem[]} */
-    const pedidos = [];
-    for (const [areaId, lotesNaArea] of Object.entries(porArea)) {
-      const area = areas.find((a) => a.id === areaId);
-      const centro = area ? centroideArea(area) : null;
-      if (!centro) continue;
-      const totalCabecas = lotesNaArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
-      const totalAlertas = lotesNaArea.reduce((s, l) => s + (l.alertas?.length || 0), 0);
-      // Sempre há figura (D-PROD-191): `iconUrl` é a data URL do SVG do marcador; `chave` identifica o desenho.
-      const { iconUrl, chave } = resolverIconeLote(lotesNaArea, categoriasManejo);
-      const imagem = pedidoImagemLote({ desenho: chave, iconUrl, cabecas: totalCabecas, pixelRatio: pr });
-      pedidos.push(imagem);
-      const ident = identificadoresDoLote(lotesNaArea)[0] || null;
-      const pedidoIdent = ident ? pedidoImagemIdent(ident, pr) : null;
-      if (pedidoIdent) pedidos.push(pedidoIdent);
-      novos.set(String(areaId), {
-        item: {
-          areaId: String(areaId),
-          lngLat: /** @type {[number, number]} */ ([centro.lng, centro.lat]),
-          imagem: imagem.chave,
-          ident: pedidoIdent?.chave ?? null,
-          alerta: totalAlertas > 0,
-          // Alerta pisca o identificador (D-PROD-125); sem identificador não há o que piscar.
-          piscar: Boolean(blinkAlerts) && totalAlertas > 0 && Boolean(pedidoIdent),
-          nome: area.nome || "",
-          cabecas: totalCabecas,
-          desenho: chave,
-        },
-        lotesNaArea,
-        areas,
-      });
-    }
+    // O que vai em cada pasto: o mesmo para o mapa do Google do site (D-PROD-369).
+    const { itens, pedidos } = itensDosLotes({ lotesFiltrados, areas, show, categoriasManejo, blinkAlerts, pixelRatio: pr });
+    // `tamanho` entra no aplicar (a imagem pronta)
+    const novos = /** @type {Map<string, any>} */ (itens);
     const seq = ++lotesSeqRef.current;
     const aplicar = () => {
       const m = getMap();
@@ -1009,38 +926,7 @@ export default function useMapRenderer(mapInstanceRef) {
     const g = gruposRef.current.tarefas;
     g.args = [tarefasMapa, areas, iconesConfig, onClickTarefa, hoje];
     g.onClick = (t) => onClickTarefa?.(t);
-    const pr = pixelRatioRef.current;
-    const itens = [];
-    for (const t of tarefasMapa) {
-      let pos = parseVertex(t.coordenadas);
-      if (!pos && t.area_id) {
-        const area = areas.find((a) => a.id === t.area_id);
-        pos = area ? centroideArea(area) : null;
-      }
-      if (!pos) continue;
-      const { iconUrl, cor } = resolverIconeTarefa(t, iconesConfig);
-      // Indicador do prazo pintado na imagem; o texto dele (prioridade, situação, prazo) é o título.
-      const ind = indicadorTarefa(t, hoje);
-      // Ícone enviado pela empresa que não carrega: o modelo local da prioridade (o `onerror` do marcador antigo).
-      const { imagem, reserva } = pedidosImagemPonto(
-        "mg-tarefa",
-        { urls: [iconUrl, urlIconeTarefa(t.prioridade)], base: TAMANHO_TAREFA_PX, cor, indicador: { texto: ind.texto, cor: ind.cor } },
-        pr
-      );
-      itens.push({
-        item: {
-          id: String(t.id),
-          lngLat: /** @type {[number, number]} */ ([pos.lng, pos.lat]),
-          imagem: imagem.chave,
-          reserva: reserva.chave,
-          titulo: tituloDoMarcadorTarefa(t, hoje),
-          // Urgente por cima das outras tarefas (z-index 3000 × 2500 de antes)
-          urgente: normalizarPrioridadeTarefa(t.prioridade) === "Urgente",
-        },
-        ref: t,
-        pedidos: { imagem, reserva },
-      });
-    }
+    const itens = itensDasTarefas({ tarefasMapa, areas, iconesConfig, hoje, pixelRatio: pixelRatioRef.current });
     return sincronizarGrupo("tarefas", itens);
   }, [mapInstanceRef]);
   syncGruposRef.current = { supl: syncPontosSuplementacao, pontos: syncPontos, tarefas: syncTarefas };

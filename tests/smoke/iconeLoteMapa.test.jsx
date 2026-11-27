@@ -256,8 +256,9 @@ describe("ILM-2 — ConfiguracaoIcone não decide mais o ícone do lote", () => 
 
     const mapa = codigoDe("src/pages/MapaGeral.jsx");
     expect(mapa).toContain("useQuery(createMapaQuery('categoriasManejo'))");
-    expect(mapa).toMatch(/renderer\.syncLotes\(lotesFiltrados, areas, [^,]+, categoriasManejo,/);
-    expect(mapa).not.toMatch(/renderer\.syncLotes\([^;]*iconesConfig/);
+    // `alvo`: o MapLibre ou, com o mapa do Google ligado, os marcadores do Google (D-PROD-369) — os mesmos argumentos
+    expect(mapa).toMatch(/alvo\.syncLotes\(lotesFiltrados, areas, [^,]+, categoriasManejo,/);
+    expect(mapa).not.toMatch(/\.syncLotes\([^;]*iconesConfig/);
     // os uploads antigos de Lote não são mais baixados
     expect(mapa).toMatch(/if \(icone\.tipo_entidade === 'Lote'\) return;/);
   });

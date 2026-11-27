@@ -31,6 +31,7 @@ import MapaFiltrosAvancados, {
 "../components/mapa/MapaFiltrosAvancados";
 import MapaVisualizacao from "../components/mapa/MapaVisualizacao";
 import MapaLegenda from "../components/mapa/MapaLegenda";
+import useMarcadoresGoogle from "@/components/mapa/useMarcadoresGoogle.js";
 import useMapRenderer from "../components/mapa/useMapRenderer";
 import useSetorAreas from "@/hooks/useSetorAreas";
 import { useBebedouros } from "@/hooks/useBebedouros";
@@ -204,6 +205,9 @@ export default function MapaGeral({ ativo = true } = {}) {
   const longPressTriggeredRef = useRef(false);
   const ignoreNextMapClickRef = useRef(false);
   const renderer = useMapRenderer(mapInstanceRef);
+  // Mapa do Google do site (D-PROD-369): os mesmos lotes, cochos, pontos e tarefas, pelo mesmo contrato do renderer.
+  const [mapaGoogleWeb, setMapaGoogleWeb] = useState(/** @type {any} */ (null));
+  const marcadoresGoogle = useMarcadoresGoogle(mapaGoogleWeb);
   const rendererEnsureRef = useRef(renderer.ensureLayers);
   const rendererHitRef = useRef(renderer.hitArea);
   const rendererHitLoteRef = useRef(renderer.hitLote);
@@ -1452,20 +1456,21 @@ export default function MapaGeral({ ativo = true } = {}) {
     });
   }, [pontos]);
 
-  useEffect(() => {if (mapReady) renderer.syncPontos(pontosFiltrados, mapaGeralPermissions.visualizar_pontos_referencia && showPontos, iconesConfig, handleClickPontoReferencia);}, [pontosFiltrados, showPontos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_pontos_referencia, handleClickPontoReferencia]);
+  useEffect(() => {const alvo = mapaGoogle ? marcadoresGoogle : mapReady ? renderer : null;if (alvo) alvo.syncPontos(pontosFiltrados, mapaGeralPermissions.visualizar_pontos_referencia && showPontos, iconesConfig, handleClickPontoReferencia);}, [pontosFiltrados, showPontos, iconesConfig, mapReady, mapaGoogle, marcadoresGoogle, mapaGeralPermissions.visualizar_pontos_referencia, handleClickPontoReferencia]);
   useEffect(() => {if (mapReady) renderer.syncLinhas(linhas, mapaGeralPermissions.visualizar_linhas && showLinhas);}, [linhas, showLinhas, mapReady, mapaGeralPermissions.visualizar_linhas]);
   useEffect(() => {
-    if (!mapReady) return;
+    const alvo = mapaGoogle ? marcadoresGoogle : mapReady ? renderer : null;
+    if (!alvo) return;
     const pontosVisiveis = [
     ...(showCochos ? cochosFiltrados : []),
     ...(showDepositos ? depositosFiltrados : [])];
 
     // Foco Tarefas (D-PROD-218): sem cochos e depósitos.
-    renderer.syncPontosSuplementacao(pontosVisiveis, mapaGeralPermissions.visualizar_cochos_suplementacao && (showCochos || showDepositos) && camadasFoco.suplementacao, iconesConfig, handleClickPontoSupl);
-  }, [cochosFiltrados, depositosFiltrados, showCochos, showDepositos, iconesConfig, mapReady, mapaGeralPermissions.visualizar_cochos_suplementacao, camadasFoco, handleClickPontoSupl]);
+    alvo.syncPontosSuplementacao(pontosVisiveis, mapaGeralPermissions.visualizar_cochos_suplementacao && (showCochos || showDepositos) && camadasFoco.suplementacao, iconesConfig, handleClickPontoSupl);
+  }, [cochosFiltrados, depositosFiltrados, showCochos, showDepositos, iconesConfig, mapReady, mapaGoogle, marcadoresGoogle, mapaGeralPermissions.visualizar_cochos_suplementacao, camadasFoco, handleClickPontoSupl]);
   // Lotes só no foco Lotes; tarefas em Lotes e Tarefas (D-PROD-218).
-  useEffect(() => {if (mapReady) renderer.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes && camadasFoco.lotes, categoriasManejo, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes && dragLotesEnabled, showAlertas && !filtroInclui(filtroStatus, 'sem_alerta'));}, [lotesFiltrados, areas, showLotes, camadasFoco, categoriasManejo, mapReady, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, dragLotesEnabled, showAlertas, filtroStatus, handleClickLotes, handleDragLotes]);
-  useEffect(() => {if (mapReady) renderer.syncTarefas(podeUsarTarefasMapa && (showTaskIcons || focoAtivo === 'tarefas') && camadasFoco.tarefas ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa, hoje);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, podeUsarTarefasMapa, showTaskIcons, camadasFoco, handleClickTarefa, focoAtivo, hoje]);
+  useEffect(() => {const alvo = mapaGoogle ? marcadoresGoogle : mapReady ? renderer : null;if (alvo) alvo.syncLotes(lotesFiltrados, areas, mapaGeralPermissions.visualizar_lotes && showLotes && camadasFoco.lotes, categoriasManejo, handleClickLotes, handleDragLotes, mapaGeralPermissions.mover_lotes && dragLotesEnabled, showAlertas && !filtroInclui(filtroStatus, 'sem_alerta'));}, [lotesFiltrados, areas, showLotes, camadasFoco, categoriasManejo, mapReady, mapaGoogle, marcadoresGoogle, mapaGeralPermissions.visualizar_lotes, mapaGeralPermissions.mover_lotes, dragLotesEnabled, showAlertas, filtroStatus, handleClickLotes, handleDragLotes]);
+  useEffect(() => {const alvo = mapaGoogle ? marcadoresGoogle : mapReady ? renderer : null;if (alvo) alvo.syncTarefas(podeUsarTarefasMapa && (showTaskIcons || focoAtivo === 'tarefas') && camadasFoco.tarefas ? tarefasMapaFiltradas : [], areas, iconesConfig, handleClickTarefa, hoje);}, [tarefasMapaFiltradas, areas, iconesConfig, mapReady, mapaGoogle, marcadoresGoogle, podeUsarTarefasMapa, showTaskIcons, camadasFoco, handleClickTarefa, focoAtivo, hoje]);
   useEffect(() => {if (mapReady) renderer.syncUserLocation(userLocation, mapaGeralPermissions.visualizar_localizacao && showUserLocation);}, [userLocation, showUserLocation, mapReady, mapaGeralPermissions.visualizar_localizacao]);
 
   useEffect(() => {
@@ -1577,7 +1582,8 @@ export default function MapaGeral({ ativo = true } = {}) {
           empresaId={empresaSelecionadaId}
           ativo={ativo}
           onClickArea={handleClickArea}
-          onFalha={falhaDoMapaGoogle} /> :
+          onFalha={falhaDoMapaGoogle}
+          onMapa={setMapaGoogleWeb} /> :
         <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: 'var(--mk-sup-fundo)', touchAction: 'none', isolation: 'isolate', visibility: aguardandoEnquadrar ? 'hidden' : 'visible' }} />
         }
 
