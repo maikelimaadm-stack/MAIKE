@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Upload, FileText, AlertTriangle, CheckCircle2, XCircle, MinusCircle, RotateCcw } from "lucide-react";
 import * as BotaoUi from "@/components/ui/button";
+import { eKmz, kmlDoKmz } from "@/lib/geografia/kmz.js";
 import * as CampoUi from "@/components/ui/input";
 import * as TextoUi from "@/components/ui/textarea";
 import * as DialogoUi from "@/components/ui/dialog";
@@ -266,6 +267,16 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
       return;
     }
     try {
+      // D-PROD-367: KMZ é um KML compactado — abre no aparelho e lê o KML de dentro.
+      if (eKmz(file.name)) {
+        const kmz = kmlDoKmz(new Uint8Array(await file.arrayBuffer()));
+        if ("erro" in kmz) {
+          setErroArquivo(kmz.erro);
+          return;
+        }
+        processarTexto(file.name.replace(/\.kmz$/i, ".kml"), kmz.texto, new Blob([kmz.texto]).size);
+        return;
+      }
       processarTexto(file.name, await file.text(), file.size);
     } catch {
       setErroArquivo("Não foi possível ler o arquivo.");
@@ -611,13 +622,13 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
                 <input
                   ref={inputRef}
                   type="file"
-                  accept=".kml,.geojson,.json"
+                  accept=".kml,.kmz,.geojson,.json"
                   className="hidden"
                   data-testid="importacao-input-arquivo"
                   onChange={(e) => lerArquivo(e.target.files?.[0])}
                 />
                 <p className="text-[11px] text-slate-500">
-                  Aceita .kml (Google Earth), .geojson e .json com GeoJSON. Até {formatarBytes(LIMITES_ARQUIVO.maxBytes)} e{" "}
+                  Aceita .kml e .kmz (Google Earth), .geojson e .json com GeoJSON. Até {formatarBytes(LIMITES_ARQUIVO.maxBytes)} e{" "}
                   {LIMITES_ARQUIVO.maxElementos} elementos. Só polígonos viram áreas; pontos e linhas são ignorados.
                 </p>
               </div>

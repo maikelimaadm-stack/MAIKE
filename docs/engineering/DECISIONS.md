@@ -10895,7 +10895,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 **Data:** 2026-11-27 · **Origem:** o proprietário comparou com o AgriWebb e com o MAKGESTAO antigo e pediu o mapa do Google no app (Android e iOS) e no site ("vamos usar o mapa nativo do google", "já ajuste assim o meu mapa do aplicativo e da web") · **Relatório:** [`MAPA-GOOGLE-NATIVO-ETAPA1-D366-REPORT.md`](./MAPA-GOOGLE-NATIVO-ETAPA1-D366-REPORT.md) · **Migration:** nenhuma · **APK:** 1.0.6 (código 7)
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-366: a D-PROD-364 foi da PR #452 (cadastro no mapa, etapa 4) e a D-PROD-365 está reservada pela PR #453 (regra A5). O marcador da `main` fica com a PR #453, que leva a 365; esta PR não mexe nele.
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-366: a D-PROD-364 foi da PR #452 e a D-PROD-365 está reservada pela PR #453 (regra A5). A `main` deu a D-PROD-367 ao cadastro no mapa, etapa 5 (PR #455), e passou a indicar `Próxima decisão: D-PROD-368`, que fica.
 
 - **Problema:**
   - O satélite do Mapa Geral é o MapLibre com a Map Tiles API do Google, que conta **cada imagem** baixada (faixa grátis de 100 mil por mês) e não deixa guardar imagem no aparelho. O consumo estava chegando à cobrança.
@@ -10956,4 +10956,24 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - a escolha no painel.
   O teste AE-03 (D-PROD-346) passou a conferir `nativoMinimo` 5 em vez da versão exata do app.
 
-<!-- Próxima decisão: D-PROD-365 -->
+## D-PROD-367 — Cadastrar no mapa como no AgriWebb, etapa 5: KMZ e exclusão sem internet que não fica pela metade
+
+**Data:** 2026-11-27 · **Origem:** pedido do proprietário (o mapa como no AgriWebb, também sem internet) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`MAPA-CADASTRO-ETAPA5-D367-REPORT.md`](./MAPA-CADASTRO-ETAPA5-D367-REPORT.md)
+
+**Decisão.**
+1. **A importação de áreas aceita KMZ**, o KML compactado que o Google Earth e o AgriWebb exportam.
+   - `kmlDoKmz` (`src/lib/geografia/kmz.js`, com `fflate`, que já era dependência) abre o ZIP no aparelho e lê o `doc.kml` (ou o KML da raiz) como o `.kml` solto.
+   - Só arquivos `.kml` são abertos, e o KML aberto não passa do limite de 10 MB da importação, o que protege de um ZIP pequeno escondendo um arquivo enorme.
+   - KMZ sem KML ou danificado dá mensagem clara.
+2. **Excluir pasto sem internet avisa que precisa de conexão** (`OFFLINE_DELETE_FORBIDDEN`: "Exclusão só com conexão: nada foi enviado nem guardado para depois").
+   - O motivo: a regra de exclusão confere as movimentações antigas da área, que só o servidor tem, e o servidor não confere de novo na desativação.
+   - Antes, sem internet, a consulta do histórico falhava com um erro genérico.
+   - Ponto ligado a cocho, depósito ou bebedouro ativo segue a mesma regra (a elegibilidade deles é consultada no servidor).
+   - **Ponto simples e linha continuam excluídos sem internet**, pela fila.
+3. **Fica para depois, com decisão do proprietário:**
+   - a conferência dos vínculos no servidor ao desativar a área, que permitiria guardar a exclusão do pasto para depois;
+   - dividir e juntar pastos, que mexe no gado de dentro e no histórico.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-367 (363 e 364 são as etapas 3 e 4, PRs #451 e #452; 365 e 366 estão reservados pelas PRs #453 e #454). O marcador passa a D-PROD-368. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-368 -->
