@@ -29,7 +29,7 @@ vi.mock("@/lib/maplibre/lotesNoMapa.js", async (orig) => {
   };
 });
 
-import { MS_TOQUE_NO_MARCADOR, criarMapaGoogleWeb } from "@/lib/mapaNativo/mapaGoogleWeb.js";
+import { criarMapaGoogleWeb } from "@/lib/mapaNativo/mapaGoogleWeb.js";
 import useMarcadoresGoogle, { ORDEM_GOOGLE } from "@/components/mapa/useMarcadoresGoogle.js";
 import { DESLOC_IDENT_PX, OFFSET_LOTE_PX } from "@/lib/maplibre/lotesNoMapa.js";
 
@@ -237,14 +237,12 @@ describe("G369-2 — camada de marcadores", () => {
     img.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     expect(noMapa).toHaveBeenCalledTimes(2);
     expect(/** @type {any} */ (globalThis).google.maps.OverlayView.preventMapHitsAndGesturesFrom).not.toHaveBeenCalled();
-    // o Google dispara o clique do polígono logo depois do toque no marcador: é ignorado
+    // o Google dispara o clique do polígono do gesto que começou no marcador: é ignorado, por mais que se segure
     estado.poligonos[0].disparar("click");
     expect(aArea).not.toHaveBeenCalled();
-    // um clique na área sem tocar marcador abre a área
-    const agora = Date.now();
-    const relogio = vi.spyOn(Date, "now").mockReturnValue(agora + MS_TOQUE_NO_MARCADOR + 1);
+    // o próximo gesto começa fora do marcador (mesmo logo depois de um arrasto a partir dele): a área abre
+    estado.mapa.div.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     estado.poligonos[0].disparar("click");
-    relogio.mockRestore();
     expect(aArea).toHaveBeenCalledTimes(1);
   });
 

@@ -46,7 +46,7 @@ No teste do proprietário, a roda do mouse não dava zoom quando o cursor estava
 
 Agora só o clique é do marcador:
 - a roda, o arrasto e a pinça chegam ao mapa, como no MapLibre;
-- para a área por baixo não abrir junto, um clique no polígono até 700 ms (`MS_TOQUE_NO_MARCADOR`) depois de um toque que começou num marcador é ignorado.
+- para a área por baixo não abrir junto, o clique no polígono gerado por um gesto que começou num marcador é ignorado. Cada gesto novo que começa no mapa diz se começou num marcador, então um clique na área depois de arrastar a partir de um ícone abre a área normalmente, e segurar o ícone por muito tempo não deixa a área abrir junto (achado da revisão automática, que pegou a primeira versão, por tempo).
 
 O teste "a roda do mouse e o arrasto em cima do marcador chegam ao mapa" cobre os dois lados.
 
