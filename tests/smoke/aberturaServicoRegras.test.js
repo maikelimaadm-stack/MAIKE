@@ -11,6 +11,8 @@ import {
   textoDasHorasHoje,
   ehCampoDesconhecido,
   lerEncerramento,
+  lerReabertura,
+  marcadorDaReabertura,
   lerTodasAsPaginas,
   formatarHorimetro,
   lancamentosDoDia,
@@ -576,6 +578,120 @@ describe("frentes com encerramento (D-PROD-348)", () => {
 
   it("aberturaDosApontamentos continua ignorando o encerramento", () => {
     const itens = [abre("2026-11-02", "bem-7", "Trator 12", "imp-2", "1000.0", "a1"), encerra("2026-11-09", "bem-7", "1080.0", "imp-2")];
+    expect(aberturaDosApontamentos(itens)?.horimetro).toBe("1000.0");
+  });
+});
+
+// ─── D-PROD-348 (item 4): reabrir uma frente encerrada ─────
+
+describe("reabertura de frente (D-PROD-348, item 4)", () => {
+  const abre = (dia, bemId, implementoId = "", horimetro = "1000.0", id = `ab-${dia}-${bemId}`, createdAt = undefined) => ({
+    id,
+    data_operacional: dia,
+    status: "CONFIRMADO",
+    createdAt,
+    observacao: marcadorDaAbertura({ bemId, bemNome: "Trator", implementoId, implementoNome: implementoId ? "Pulverizador" : "", horimetro, responsavelId: "usr-3", responsavelNome: "João" }),
+  });
+  const encerra = (dia, bemId, horimetro, implementoId = "", status = "CONFIRMADO", id = `en-${dia}-${bemId}`, createdAt = undefined) => ({
+    id,
+    data_operacional: dia,
+    status,
+    createdAt,
+    observacao: marcadorDoEncerramento({ bemId, implementoId, horimetro, bemNome: "", implementoNome: "" }),
+  });
+  const reabre = (dia, bemId, implementoId = "", status = "CONFIRMADO", id = `re-${dia}-${bemId}`, createdAt = undefined) => ({
+    id,
+    data_operacional: dia,
+    status,
+    createdAt,
+    observacao: marcadorDaReabertura({ bemId, implementoId }),
+  });
+
+  it("o marcador leva só bem e impl, na ordem fixa, e o implemento vazio sai da linha", () => {
+    expect(marcadorDaReabertura({ bemId: "bem-7", implementoId: "imp-2" })).toBe("[reabertura-servico bem=bem-7 impl=imp-2]");
+    expect(marcadorDaReabertura({ bemId: "bem-8", implementoId: "" })).toBe("[reabertura-servico bem=bem-8]");
+  });
+
+  it("lerReabertura lê a linha de reabertura (com texto depois) e não confunde com abertura nem encerramento", () => {
+    expect(lerReabertura(`${marcadorDaReabertura({ bemId: "bem-7", implementoId: "imp-2" })}\nvoltou do conserto`)).toEqual({ bemId: "bem-7", implementoId: "imp-2" });
+    expect(lerReabertura(marcadorDaReabertura({ bemId: "bem-8" }))).toEqual({ bemId: "bem-8", implementoId: "" });
+    expect(lerReabertura(marcadorDoEncerramento({ bemId: "bem-7", implementoId: "", horimetro: "10.0" }))).toBeNull();
+    expect(lerReabertura(marcadorDaAbertura(ABERTURA))).toBeNull();
+    expect(lerReabertura("[reabertura-servico impl=imp-2]")).toBeNull();
+    expect(lerReabertura(null)).toBeNull();
+  });
+
+  it("a linha de reabertura sai do texto da pessoa, como a de abertura e a de encerramento", () => {
+    expect(textoDaObservacao(`${marcadorDaReabertura({ bemId: "bem-7" })}\nfalta a bomba`)).toBe("falta a bomba");
+    expect(textoDaObservacao(marcadorDaReabertura({ bemId: "bem-7" }))).toBe("");
+  });
+
+  it("encerra → reabre → aberta: a frente volta a Aberto, com o horímetro inicial da abertura original e sem horímetro final", () => {
+    const itens = [abre("2026-11-02", "bem-7", "imp-2", "1000.0", "a1"), encerra("2026-11-05", "bem-7", "1080.5", "imp-2", "CONFIRMADO", "e1"), reabre("2026-11-06", "bem-7", "imp-2", "CONFIRMADO", "r1")];
+    const frente = frentesDosApontamentos(itens)[0];
+    expect(frente).toMatchObject({ chave: "bem-7|imp-2", inicio: "2026-11-02", encerrada: false, horimetroFinal: "", fim: "" });
+    expect(frente.abertura.horimetro).toBe("1000.0");
+    expect(resumoDasFrentes(frentesDosApontamentos(itens))).toEqual({ abertas: 1, encerradas: 0, total: 1 });
+  });
+
+  it("encerra → reabre → encerra → ENCERRADA: vale o último encerramento (horímetro e dia dele)", () => {
+    const itens = [
+      abre("2026-11-02", "bem-7", "imp-2", "1000.0", "a1"),
+      encerra("2026-11-05", "bem-7", "1080.5", "imp-2", "CONFIRMADO", "e1"),
+      reabre("2026-11-06", "bem-7", "imp-2", "CONFIRMADO", "r1"),
+      encerra("2026-11-09", "bem-7", "1120.0", "imp-2", "CONFIRMADO", "e2"),
+    ];
+    expect(frentesDosApontamentos(itens)[0]).toMatchObject({ encerrada: true, horimetroFinal: "1120.0", fim: "2026-11-09" });
+  });
+
+  it("uma reabertura sem encerramento antes não muda nada (a frente segue aberta)", () => {
+    expect(frentesDosApontamentos([abre("2026-11-02", "bem-7", "imp-2", "1000.0", "a1"), reabre("2026-11-03", "bem-7", "imp-2")])[0]).toMatchObject({
+      encerrada: false,
+      inicio: "2026-11-02",
+    });
+  });
+
+  it("reabertura de uma chave SEM abertura antes dela é ignorada (não cria frente)", () => {
+    expect(frentesDosApontamentos([reabre("2026-11-03", "bem-9", "imp-2")])).toEqual([]);
+    expect(frentesDosApontamentos([abre("2026-11-10", "bem-7", "imp-2"), encerra("2026-11-05", "bem-7", "1080.0", "imp-2"), reabre("2026-11-06", "bem-7", "imp-2")])[0]).toMatchObject({
+      encerrada: false,
+    });
+  });
+
+  it("reabertura de OUTRO implemento não reabre a frente (a chave é máquina + implemento)", () => {
+    const itens = [abre("2026-11-02", "bem-7", "imp-2", "1000.0", "a1"), encerra("2026-11-05", "bem-7", "1080.0", "imp-2"), reabre("2026-11-06", "bem-7", "")];
+    expect(frentesDosApontamentos(itens)[0]).toMatchObject({ chave: "bem-7|imp-2", encerrada: true, horimetroFinal: "1080.0" });
+  });
+
+  it("reabertura CANCELADA não conta: a frente segue encerrada", () => {
+    const itens = [abre("2026-11-02", "bem-7", "imp-2", "1000.0", "a1"), encerra("2026-11-05", "bem-7", "1080.0", "imp-2"), reabre("2026-11-06", "bem-7", "imp-2", "CANCELADO")];
+    expect(frentesDosApontamentos(itens)[0]).toMatchObject({ encerrada: true, horimetroFinal: "1080.0", fim: "2026-11-05" });
+  });
+
+  it("no MESMO dia, a ordem é a de criação (createdAt): encerrou às 9h e reabriu às 10h → aberta; o contrário → encerrada", () => {
+    const aberta = [
+      abre("2026-11-02", "bem-7", "imp-2", "1000.0", "a1"),
+      encerra("2026-11-05", "bem-7", "1080.0", "imp-2", "CONFIRMADO", "e1", "2026-11-05T09:00:00.000Z"),
+      reabre("2026-11-05", "bem-7", "imp-2", "CONFIRMADO", "r1", "2026-11-05T10:00:00.000Z"),
+    ];
+    expect(frentesDosApontamentos(aberta)[0]).toMatchObject({ encerrada: false });
+    // A mesma lista, mas a reabertura foi criada ANTES do encerramento (ainda que a lista a traga depois): encerrada.
+    const encerrada = [
+      abre("2026-11-02", "bem-7", "imp-2", "1000.0", "a1"),
+      encerra("2026-11-05", "bem-7", "1080.0", "imp-2", "CONFIRMADO", "e1", "2026-11-05T10:00:00.000Z"),
+      reabre("2026-11-05", "bem-7", "imp-2", "CONFIRMADO", "r1", "2026-11-05T09:00:00.000Z"),
+    ];
+    expect(frentesDosApontamentos(encerrada)[0]).toMatchObject({ encerrada: true, horimetroFinal: "1080.0" });
+  });
+
+  it("no mesmo dia e sem createdAt, a posição na lista decide (o marcador depois na lista é o mais recente)", () => {
+    const itens = [abre("2026-11-02", "bem-7", "imp-2", "1000.0", "a1"), reabre("2026-11-05", "bem-7", "imp-2", "CONFIRMADO", "r1"), encerra("2026-11-05", "bem-7", "1080.0", "imp-2")];
+    expect(frentesDosApontamentos(itens)[0]).toMatchObject({ encerrada: true });
+  });
+
+  it("a reabertura não é abertura: não entra em apontamentosDaFrente e a abertura continua a do dia de origem", () => {
+    const itens = [abre("2026-11-02", "bem-7", "imp-2", "1000.0", "a1"), encerra("2026-11-05", "bem-7", "1080.0", "imp-2", "CONFIRMADO", "e1"), reabre("2026-11-06", "bem-7", "imp-2", "CONFIRMADO", "r1")];
+    expect(apontamentosDaFrente(itens, "bem-7|imp-2").map((a) => a.id)).toEqual(["a1"]);
     expect(aberturaDosApontamentos(itens)?.horimetro).toBe("1000.0");
   });
 });

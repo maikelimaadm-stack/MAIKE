@@ -17,16 +17,18 @@ import { rotuloDaUnidade } from "./abastecimentoRegras.js";
 import { lerCarga } from "./cargaInsumoRegras.js";
 
 /**
- * D-PROD-348: o início da linha de marcador (abertura OU encerramento de serviço), com o fechamento `]` e a quebra de
- * linha (ou o fim do texto). Os dois prefixos são diferentes, então uma linha nunca é lida como a outra.
+ * D-PROD-348: o início da linha de marcador (abertura, encerramento OU reabertura de serviço), com o fechamento `]` e a
+ * quebra de linha (ou o fim do texto). Os prefixos são diferentes, então uma linha nunca é lida como outra.
  */
-const LINHA_DO_MARCADOR = /^\[(?:abertura|encerramento)-servico[^\]\n]*\](?:\r?\n|$)/;
+const LINHA_DO_MARCADOR = /^\[(?:abertura|encerramento|reabertura)-servico[^\]\n]*\](?:\r?\n|$)/;
 /** O início da linha de abertura, com o fechamento `]` e a quebra de linha (ou o fim do texto). */
 const LINHA_DA_ABERTURA = /^\[abertura-servico[^\]\n]*\](?:\r?\n|$)/;
 /** A linha inteira, com os pares `chave=valor` (só a 1ª linha conta). */
 const CONTEUDO_DA_LINHA = /^\[abertura-servico((?: [a-z]+=[^\s\]]*)*)\](?:\r?\n|$)/;
 /** D-PROD-348: a linha inteira do encerramento de serviço (só a 1ª linha conta). */
 const CONTEUDO_DO_ENCERRAMENTO = /^\[encerramento-servico((?: [a-z]+=[^\s\]]*)*)\](?:\r?\n|$)/;
+/** D-PROD-348 (item 4): a linha inteira da reabertura de serviço (só a 1ª linha conta). */
+const CONTEUDO_DA_REABERTURA = /^\[reabertura-servico((?: [a-z]+=[^\s\]]*)*)\](?:\r?\n|$)/;
 
 /**
  * Os pares `chave=valor` de uma linha de marcador, já decodificados. Valor corrompido vira vazio (ver `decodificar`).
@@ -149,6 +151,39 @@ export const marcadorDoEncerramento = (e) => {
     .filter(([, valor]) => valor !== "")
     .map(([chave, valor]) => `${chave}=${encodeURIComponent(/** @type {string} */ (valor))}`);
   return `[encerramento-servico${partes.map((p) => ` ${p}`).join("")}]`;
+};
+
+/**
+ * D-PROD-348 (item 4): a linha de REABERTURA de uma frente, com a mesma chave (máquina + implemento) da abertura e do
+ * encerramento: `[reabertura-servico bem=<id> impl=<id>]`. Sem horímetro e sem responsável: o cartão segue com a
+ * abertura original. Campo vazio não entra (implemento vazio = frente sem implemento).
+ * @param {{ bemId?: unknown, implementoId?: unknown }} r
+ * @returns {string}
+ */
+export const marcadorDaReabertura = (r) => {
+  const partes = [
+    ["bem", r?.bemId],
+    ["impl", r?.implementoId],
+  ]
+    .map(([chave, valor]) => [chave, texto(valor)])
+    .filter(([, valor]) => valor !== "")
+    .map(([chave, valor]) => `${chave}=${encodeURIComponent(/** @type {string} */ (valor))}`);
+  return `[reabertura-servico${partes.map((p) => ` ${p}`).join("")}]`;
+};
+
+/**
+ * D-PROD-348 (item 4): a reabertura gravada numa observação, ou `null` quando não há a linha ou ela não tem máquina. Só a
+ * 1ª linha conta. O implemento é opcional (vazio = frente sem implemento).
+ * @param {unknown} observacao
+ * @returns {{ bemId: string, implementoId: string } | null}
+ */
+export const lerReabertura = (observacao) => {
+  const m = CONTEUDO_DA_REABERTURA.exec(String(observacao ?? ""));
+  if (!m) return null;
+  const pares = paresDaLinha(m[1]);
+  const bemId = decodificar(pares.bem);
+  if (!bemId) return null;
+  return { bemId, implementoId: decodificar(pares.impl) };
 };
 
 /**
@@ -290,31 +325,53 @@ export const chaveDaFrente = (abertura) => `${texto(abertura?.bemId)}|${texto(ab
 const naoCancelados = (itens) => (Array.isArray(itens) ? itens : []).filter((a) => a && typeof a === "object" && a.status !== "CANCELADO");
 
 /**
+ * D-PROD-348 (item 4): os apontamentos não cancelados em ORDEM CRONOLÓGICA (o dia, depois a hora de criação, depois a
+ * posição na lista, que o servidor já devolve na ordem de criação dentro do dia). O último da lista é o mais recente.
+ * @param {unknown} itens
+ * @returns {any[]}
+ */
+const emOrdemCronologica = (itens) =>
+  naoCancelados(itens)
+    .map((a, i) => ({ a, i }))
+    .sort(
+      (x, y) =>
+        String(x.a.data_operacional ?? "").localeCompare(String(y.a.data_operacional ?? "")) ||
+        String(x.a.createdAt ?? "").localeCompare(String(y.a.createdAt ?? "")) ||
+        x.i - y.i,
+    )
+    .map(({ a }) => a);
+
+/**
  * As frentes de uma atividade: os apontamentos não cancelados agrupados pela chave (`chaveDaFrente`) da abertura da linha
- * de cada um. Cada frente sai uma vez, com a `abertura` mais recente dela (a do dia mais novo; no mesmo dia, o 1º da lista)
- * e o `inicio` (o menor `data_operacional` com a chave). Ordem: o início, depois a chave. Sem abertura nenhuma, `[]`.
+ * de cada um. Cada frente sai uma vez, com a `abertura` mais recente dela e o `inicio` (o menor `data_operacional` com a
+ * chave). Ordem: o início, depois a chave. Sem abertura nenhuma, `[]`.
  *
- * D-PROD-348: cada frente também diz se foi encerrada: `encerrada` (boolean), `horimetroFinal` (canônico, "" se aberta)
- * e `fim` (o dia do encerramento, "" se aberta). Conta o encerramento NÃO cancelado com a MESMA chave cujo dia é o da
- * abertura mais recente da frente ou posterior. A comparação usa essa abertura e não o `inicio`: a mesma máquina com o
- * mesmo implemento pode ser aberta de novo depois de um encerramento, e o encerramento antigo não pode fechar a nova
- * frente. Encerramento sem abertura com a mesma chave é ignorado (não cria frente). No mesmo dia, o 1º da lista.
+ * D-PROD-348 (item 4, reabertura): a frente está ENCERRADA só se o ÚLTIMO marcador dela (abertura, encerramento ou
+ * reabertura, em ordem cronológica) for um encerramento. Uma reabertura depois do encerramento reabre a frente, e um
+ * encerramento depois dela encerra de novo. Uma abertura nova também deixa a frente aberta. A reabertura não traz horímetro
+ * nem responsável: o cartão segue com a abertura original. Encerramento ou reabertura de uma chave SEM abertura antes dela
+ * é ignorado (não cria frente).
+ *
+ * Cada frente diz: `encerrada` (boolean), `horimetroFinal` (canônico, "" se aberta) e `fim` (o dia do último encerramento,
+ * "" se aberta).
  * @param {unknown} itens a lista de apontamentos da atividade (qualquer ordem)
  * @returns {Array<{ chave: string, abertura: NonNullable<ReturnType<typeof lerAbertura>>, inicio: string, encerrada: boolean, horimetroFinal: string, fim: string }>}
  */
 export const frentesDosApontamentos = (itens) => {
-  const diaDe = (/** @type {any} */ a) => String(a?.data_operacional ?? "");
-  const maisRecentePrimeiro = [...naoCancelados(itens)].sort((a, b) => diaDe(b).localeCompare(diaDe(a)));
-  /** @type {Map<string, { chave: string, abertura: any, inicio: string, diaDaAbertura: string }>} */
+  /** @type {Map<string, { chave: string, abertura: any, inicio: string, encerrada: boolean, horimetroFinal: string, fim: string }>} */
   const porChave = new Map();
-  /** @type {Map<string, { horimetro: string, dia: string }>} o encerramento mais recente de cada chave */
-  const encerramentoPorChave = new Map();
-  for (const ap of maisRecentePrimeiro) {
-    const dia = diaDe(ap);
+  for (const ap of emOrdemCronologica(itens)) {
+    const dia = String(ap?.data_operacional ?? "");
     const encerramento = lerEncerramento(ap.observacao);
     if (encerramento) {
-      const chaveEnc = chaveDaFrente(encerramento);
-      if (!encerramentoPorChave.has(chaveEnc)) encerramentoPorChave.set(chaveEnc, { horimetro: encerramento.horimetro, dia });
+      const frente = porChave.get(chaveDaFrente(encerramento));
+      if (frente) Object.assign(frente, { encerrada: true, horimetroFinal: encerramento.horimetro, fim: dia });
+      continue;
+    }
+    const reabertura = lerReabertura(ap.observacao);
+    if (reabertura) {
+      const frente = porChave.get(chaveDaFrente(reabertura));
+      if (frente) Object.assign(frente, { encerrada: false, horimetroFinal: "", fim: "" });
       continue;
     }
     const abertura = lerAbertura(ap.observacao);
@@ -322,18 +379,14 @@ export const frentesDosApontamentos = (itens) => {
     const chave = chaveDaFrente(abertura);
     const atual = porChave.get(chave);
     if (!atual) {
-      porChave.set(chave, { chave, abertura, inicio: dia, diaDaAbertura: dia });
-    } else if (dia && (!atual.inicio || dia < atual.inicio)) {
-      atual.inicio = dia;
+      porChave.set(chave, { chave, abertura, inicio: dia, encerrada: false, horimetroFinal: "", fim: "" });
+    } else {
+      // Abertura nova (a mais recente, por ordem cronológica) deixa a frente aberta e vira a abertura do cartão.
+      Object.assign(atual, { abertura, encerrada: false, horimetroFinal: "", fim: "" });
+      if (dia && (!atual.inicio || dia < atual.inicio)) atual.inicio = dia;
     }
   }
-  return [...porChave.values()]
-    .map(({ chave, abertura, inicio, diaDaAbertura }) => {
-      const enc = encerramentoPorChave.get(chave);
-      const encerrada = enc !== undefined && enc.dia.localeCompare(diaDaAbertura) >= 0;
-      return { chave, abertura, inicio, encerrada, horimetroFinal: encerrada ? enc.horimetro : "", fim: encerrada ? enc.dia : "" };
-    })
-    .sort((a, b) => a.inicio.localeCompare(b.inicio) || a.chave.localeCompare(b.chave));
+  return [...porChave.values()].sort((a, b) => a.inicio.localeCompare(b.inicio) || a.chave.localeCompare(b.chave));
 };
 
 /**

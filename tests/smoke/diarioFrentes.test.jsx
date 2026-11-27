@@ -21,12 +21,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, fireEvent, waitFor, cleanup, within, act } from "@testing-library/react";
 
 /** A permissão da sessão: `editar` é a que o "Encerrar atividade" exige (o concluir do backend é `g.editar`). */
-const permissoes = vi.hoisted(() => ({ editar: true }));
+const permissoes = vi.hoisted(() => ({ editar: true, lancar: true }));
 vi.mock("@/hooks/useLancamentoAtividadesSessao", async (importOriginal) => ({
   ...(await importOriginal()),
   useEmpresaRealSelecionadaId: () => "emp-1",
   useFusoDaFazenda: () => ({ hoje: "2026-11-26", fuso: "America/Sao_Paulo", semFuso: false, fusoOk: true }),
-  useAcoesTelaAtividades: () => ({ lancarApontamento: true, editar: permissoes.editar, login: "operador", permissaoEfetiva: { is_admin: false } }),
+  useAcoesTelaAtividades: () => ({ lancarApontamento: permissoes.lancar, editar: permissoes.editar, login: "operador", permissaoEfetiva: { is_admin: false } }),
 }));
 vi.mock("@/lib/AuthContext", async (importOriginal) => ({ ...(await importOriginal()), useAuth: () => ({ clienteId: "c1" }) }));
 vi.mock("@/lib/maikeNotify", async (importOriginal) => ({
@@ -133,12 +133,12 @@ const comecoDoServidor = () => ({
   "at-2": [],
 });
 
-/** @param {{ atividadesAbertas?: any[], atividade?: any }} [props] */
+/** @param {{ atividadesAbertas?: any[], atividade?: any, detalhe?: Record<string, unknown> }} [props] */
 const renderizar = (props = {}) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const onFechar = vi.fn();
   const onGravou = vi.fn();
-  const lerAtividade = vi.fn(async (id) => ({ ...DETALHE[/** @type {"at-1" | "at-2"} */ (id)] }));
+  const lerAtividade = vi.fn(async (id) => ({ ...DETALHE[/** @type {"at-1" | "at-2"} */ (id)], ...(props.detalhe ?? {}) }));
   render(
     <QueryClientProvider client={queryClient}>
       <DiarioDasAtividades
@@ -180,6 +180,7 @@ const adicionarMaquina = async () => {
 
 beforeEach(() => {
   permissoes.editar = true;
+  permissoes.lancar = true;
   store = comecoDoServidor();
   servico.listarOpcoesBens.mockResolvedValue(BENS);
   servico.listarOpcoesImplementos.mockResolvedValue(IMPLEMENTOS);
@@ -580,5 +581,179 @@ describe("D-PROD-348 — acertos de rótulo, cartão e encerramento (itens 2, 3 
     await waitFor(() => expect(screen.getByTestId(`atividade-encerrar-horimetro-${encodeURIComponent("bem-7|imp-2")}`)).toBeInTheDocument());
     expect(screen.queryByTestId("atividade-encerrar-erro-leitura")).toBeNull();
     expect(screen.getByTestId("atividade-encerrar-confirmar")).toBeEnabled();
+  });
+});
+
+// ─── D-PROD-348 (item 4): reabrir uma frente encerrada ─────
+
+/** Põe no "servidor" o encerramento do Trator 12 + Pulverizador (dia 26, horímetro 1.100,0): a frente fica encerrada. */
+const encerrarNoServidor = (id = "at-1") =>
+  store[id].push(
+    ap("ap-enc-trator12", "2026-11-26", marcadorDoEncerramento({ bemId: "bem-7", implementoId: "imp-2", horimetro: "1100.0", bemNome: "Trator 12", implementoNome: "Pulverizador 2.000 L" })),
+  );
+
+describe("D-PROD-348 — reabrir uma frente encerrada (item 4)", () => {
+  it("(q1) \"Reabrir\" envia a linha [reabertura-servico bem= impl=] (sem operador, sem linhas), relê e a frente volta a Aberto com o horímetro inicial original; não conta como lançamento do dia", async () => {
+    encerrarNoServidor();
+    const { onGravou } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await abrirAtividade();
+    const encerrada = await screen.findByTestId("frente-at-1-bem-7%7Cimp-2");
+    expect(encerrada).toBeDisabled();
+    expect(within(encerrada).getByText("● Encerrado")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("frente-reabrir-at-1-bem-7%7Cimp-2"));
+    await waitFor(() => expect(servico.criarApontamento).toHaveBeenCalledTimes(1));
+    expect(servico.criarApontamento.mock.calls[0]).toEqual(["at-1", { data_operacional: "2026-11-26", observacao: "[reabertura-servico bem=bem-7 impl=imp-2]" }]);
+    expect(servico.criarApontamento.mock.calls[0][1]).not.toHaveProperty("operador_usuario_id");
+    expect(servico.criarApontamento.mock.calls[0][1]).not.toHaveProperty("produtos");
+    expect(servico.criarApontamento.mock.calls[0][1]).not.toHaveProperty("maquinas");
+    await waitFor(() => expect(screen.getByTestId("frente-at-1-bem-7%7Cimp-2")).toBeEnabled());
+    const reaberta = screen.getByTestId("frente-at-1-bem-7%7Cimp-2");
+    expect(within(reaberta).getByText("● Aberto")).toBeInTheDocument();
+    expect(within(reaberta).getByText("1.000,0")).toBeInTheDocument();
+    expect(within(reaberta).getByTestId("frente-hoje")).toBeInTheDocument();
+    expect(screen.queryByTestId("frente-reabrir-at-1-bem-7%7Cimp-2")).toBeNull();
+    expect(onGravou).not.toHaveBeenCalled();
+    expect(notifySuccess).toHaveBeenCalledWith("Sucesso", "Serviço reaberto.");
+  });
+
+  it("(q2) sem permissão de lançar apontamento, a frente encerrada NÃO mostra \"Reabrir\"", async () => {
+    permissoes.lancar = false;
+    encerrarNoServidor();
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await abrirAtividade();
+    await screen.findByTestId("frente-at-1-bem-7%7Cimp-2");
+    expect(screen.queryByTestId("frente-reabrir-at-1-bem-7%7Cimp-2")).toBeNull();
+    expect(servico.criarApontamento).not.toHaveBeenCalled();
+  });
+
+  it("(q3) atividade CONCLUÍDA: a frente encerrada NÃO mostra \"Reabrir\"", async () => {
+    encerrarNoServidor();
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO], detalhe: { status: "CONCLUIDA" } });
+    await abrirAtividade();
+    await screen.findByTestId("frente-at-1-bem-7%7Cimp-2");
+    expect(screen.queryByTestId("frente-reabrir-at-1-bem-7%7Cimp-2")).toBeNull();
+  });
+
+  it("(q4) encerra → reabre → encerra de novo: a frente volta a Encerrado com o horímetro final do último encerramento", async () => {
+    encerrarNoServidor();
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await abrirAtividade();
+    fireEvent.click(await screen.findByTestId("frente-reabrir-at-1-bem-7%7Cimp-2"));
+    await waitFor(() => expect(screen.getByTestId("frente-at-1-bem-7%7Cimp-2")).toBeEnabled());
+    await abrirFrente("bem-7|imp-2");
+    fireEvent.click(screen.getByTestId("servico-encerrar"));
+    fireEvent.change(screen.getByTestId("encerrar-horimetro"), { target: { value: "1.150" } });
+    fireEvent.click(screen.getByTestId("servico-encerrar-confirmar"));
+    expect(await screen.findByTestId("atividade-passo")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("frente-at-1-bem-7%7Cimp-2")).toBeDisabled());
+    const encerradaDeNovo = screen.getByTestId("frente-at-1-bem-7%7Cimp-2");
+    expect(within(encerradaDeNovo).getByText("1.150,0")).toBeInTheDocument();
+    expect(within(encerradaDeNovo).getByText("1.000,0")).toBeInTheDocument();
+    expect(screen.getByTestId("frente-reabrir-at-1-bem-7%7Cimp-2")).toBeInTheDocument();
+    const observacoes = servico.criarApontamento.mock.calls.map((c) => c[1].observacao);
+    expect(observacoes[0]).toBe("[reabertura-servico bem=bem-7 impl=imp-2]");
+    expect(observacoes[1]).toMatch(/^\[encerramento-servico bem=bem-7 impl=imp-2 hor=1150\.0 /);
+  });
+});
+
+// ─── D-PROD-348 (item 5): o tipo exige produção ─────
+
+/** A recusa do concluir por produção, como o transporte a entrega (código no topo, campo e motivo em `details`). */
+const erroDeProducao = () =>
+  Object.assign(new Error("recusado"), { code: "ATIVIDADE_EXIGIDA_PELO_TIPO", details: { entidade: "atividade", field: "quantidade_produzida", reason: "exige_producao" } });
+const TEXTO_PRODUCAO = "Este tipo de atividade exige informar a produção. Informe a quantidade produzida para encerrar.";
+
+/** Na atividade com as duas frentes abertas: "Encerrar atividade", os dois horímetros finais e "Encerrar atividade" (confirmar). */
+const encerrarAtividadeComDuasFrentes = async () => {
+  await abrirAtividade();
+  await screen.findByTestId("frente-at-1-bem-8%7C");
+  fireEvent.click(screen.getByTestId("atividade-encerrar"));
+  fireEvent.change(screen.getByTestId(`atividade-encerrar-horimetro-${encodeURIComponent("bem-7|imp-2")}`), { target: { value: "1.200,5" } });
+  fireEvent.change(screen.getByTestId(`atividade-encerrar-horimetro-${encodeURIComponent("bem-8|")}`), { target: { value: "950" } });
+  fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+};
+
+describe("D-PROD-348 — o tipo exige produção: a recusa do concluir (item 5)", () => {
+  it("(p1) o concluir recusa por produção: a mensagem clara aparece no painel, a atividade fica aberta, as frentes seguem encerradas e o campo de produção aparece", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
+    const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+
+    expect(await screen.findByTestId("atividade-encerrar-producao-exigida")).toHaveTextContent(TEXTO_PRODUCAO);
+    expect(screen.queryByText(/ATIVIDADE_EXIGIDA_PELO_TIPO|Nada foi gravado/)).toBeNull();
+    expect(screen.getByTestId("atividade-encerrar-producao")).toBeInTheDocument();
+    expect(screen.getByTestId("atividade-encerrar-painel")).toHaveTextContent("Quantidade produzida");
+    expect(servico.concluirAtividade).toHaveBeenCalledTimes(1);
+    expect(onFechar).not.toHaveBeenCalled();
+    expect(notifySuccess).not.toHaveBeenCalledWith("Sucesso", "Atividade encerrada.");
+    // Nada reaberto nem perdido: as duas frentes seguem encerradas (o cabeçalho não tem máquina aberta e os dois
+    // encerramentos desta tentativa ficaram gravados; nenhuma reabertura foi enviada).
+    expect(screen.getByTestId("atividade-topo")).toHaveTextContent("Sem máquina em campo");
+    expect(servico.criarApontamento).toHaveBeenCalledTimes(2);
+    expect(servico.criarApontamento.mock.calls.some((c) => String(c[1].observacao).startsWith("[reabertura-servico"))).toBe(false);
+    expect(servico.criarApontamento.mock.calls.every((c) => c[1].observacao?.startsWith("[encerramento-servico "))).toBe(true);
+  });
+
+  it("(p2) com a unidade da atividade, o rótulo leva a sigla: \"Quantidade produzida (KM)\"", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO], detalhe: { unidade_producao_sigla: "KM" } });
+    await encerrarAtividadeComDuasFrentes();
+    expect(await screen.findByTestId("atividade-encerrar-producao")).toBeInTheDocument();
+    expect(screen.getByTestId("atividade-encerrar-painel")).toHaveTextContent("Quantidade produzida (KM)");
+  });
+
+  it("(p3) \"Encerrar atividade\" sem a quantidade (ou com zero): erro no campo, nada é enviado", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
+    renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+    await screen.findByTestId("atividade-encerrar-producao");
+    const criacoes = servico.criarApontamento.mock.calls.length;
+
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    expect(await screen.findByText("Informe a quantidade produzida, maior que zero.")).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("atividade-encerrar-producao"), { target: { value: "0" } });
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    expect(await screen.findByText("Informe a quantidade produzida, maior que zero.")).toBeInTheDocument();
+    expect(servico.criarApontamento).toHaveBeenCalledTimes(criacoes);
+    expect(servico.concluirAtividade).toHaveBeenCalledTimes(1);
+  });
+
+  it("(p4) quantidade informada: grava o apontamento com quantidade_produzida_dia de hoje (sem observação), e conclui de novo com a versão atual", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao());
+    const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+    fireEvent.change(await screen.findByTestId("atividade-encerrar-producao"), { target: { value: "1.250,5" } });
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+
+    await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
+    const producao = servico.criarApontamento.mock.calls[2];
+    expect(producao).toEqual(["at-1", { data_operacional: "2026-11-26", quantidade_produzida_dia: "1250.5" }]);
+    expect(servico.concluirAtividade).toHaveBeenCalledTimes(2);
+    expect(servico.concluirAtividade.mock.calls[1]).toEqual(["at-1", { versao: 7, data_conclusao: "2026-11-26" }]);
+    expect(notifySuccess).toHaveBeenCalledWith("Sucesso", "Atividade encerrada.");
+  });
+
+  it("(p5) falha de rede no concluir DEPOIS de gravar a produção: tentar de novo não grava a produção outra vez", async () => {
+    servico.concluirAtividade.mockRejectedValueOnce(erroDeProducao()).mockRejectedValueOnce(new Error("rede"));
+    const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+    fireEvent.change(await screen.findByTestId("atividade-encerrar-producao"), { target: { value: "500" } });
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    await waitFor(() => expect(servico.concluirAtividade).toHaveBeenCalledTimes(2));
+    expect(onFechar).not.toHaveBeenCalled();
+    expect(servico.criarApontamento).toHaveBeenCalledTimes(3);
+
+    fireEvent.click(screen.getByTestId("atividade-encerrar-confirmar"));
+    await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
+    expect(servico.criarApontamento).toHaveBeenCalledTimes(3);
+    expect(servico.concluirAtividade).toHaveBeenCalledTimes(3);
+  });
+
+  it("(p6) sem a recusa de produção, o encerramento segue igual: nenhum campo de produção aparece", async () => {
+    const { onFechar } = renderizar({ atividadesAbertas: [ATIVIDADE_APLICACAO] });
+    await encerrarAtividadeComDuasFrentes();
+    await waitFor(() => expect(onFechar).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId("atividade-encerrar-producao")).toBeNull();
+    expect(servico.criarApontamento).toHaveBeenCalledTimes(2);
   });
 });
