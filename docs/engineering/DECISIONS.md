@@ -10713,7 +10713,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 **Data:** 2026-11-27 · **Origem:** acerto do caminho único do Diário das atividades (fecha os limites da D-PROD-352)
 
-> **Numeração:** D-PROD-354 e D-PROD-355 são de PRs abertas; esta ficou com D-PROD-356 e o marcador passa a D-PROD-357.
+> **Numeração:** D-PROD-354 (PR aberta), D-PROD-355 e D-PROD-357 já estão na `main`; esta é a D-PROD-356, reservada para a PR #444 e o marcador continua D-PROD-358 (a D-PROD-357 é das fotos sem internet, já na `main`).
 
 **Decisão.** Dois acertos de tela, sem backend, sem migration e sem mudança de dados.
 
@@ -10727,4 +10727,4 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 **Testes.** `lancamentoAtividades.test.jsx` (LD-1, LD-2, LD-2b, LD-5 a LD-9, LA-RAIO-1), `diarioDasAtividades.test.jsx` (fixture com `permite_produto`; bloco m1 a m6 do Insumo).
 
-<!-- Próxima decisão: D-PROD-357 -->
+<!-- Próxima decisão: D-PROD-358 -->
