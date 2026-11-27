@@ -20,3 +20,7 @@ O proprietário pediu o mapa como o do AgriWebb, que tem uma ferramenta para med
   - RG-01 e RG-02 falham no código antigo;
   - RG-03 garante que, fora da régua, o editor ainda pergunta ao sair com desenho.
 - `tests/smoke/mapaFocoBarraV12.test.jsx` BARRA-10 falha no código antigo: a régua aparece nas abas Lotes e Pontos, abre só para medir, troca para área e fecha.
+
+## Teste instável corrigido junto (fora do mapa)
+
+`tests/smoke/diarioAbastecimento.test.jsx` (b), da D-PROD-359, falhava 2 em 5 também na `main` e derrubou o CI desta PR. O teste lia "Disponível neste local" logo depois de ver o Produto, mas o saldo dos locais chega por outra consulta, um instante depois. Agora o teste espera esse texto (`findByTestId`). Nada mudou no código do Diário. Passou 15 de 15.
