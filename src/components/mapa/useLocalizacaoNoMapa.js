@@ -65,15 +65,26 @@ export const mensagemDoErroGps = (erro) => {
  *   mapInstanceRef: { current: any },
  *   ativo: boolean,
  *   aoErro?: (mensagem: string) => void,
- * }} p `ativo`: permissão + camada "Minha localização" ligada.
+ *   centrarEm?: { current: null | ((p: PosicaoGps) => void) },
+ * }} p `ativo`: permissão + camada "Minha localização" ligada. `centrarEm` (D-PROD-375): outro mapa que centraliza
+ * no lugar do MapLibre (o mapa do Google); vazio, o MapLibre.
  */
-export function useLocalizacaoNoMapa({ mapInstanceRef, ativo, aoErro }) {
+export function useLocalizacaoNoMapa({ mapInstanceRef, ativo, aoErro, centrarEm }) {
   const [posicao, setPosicao] = useState(/** @type {PosicaoGps|null} */ (null));
   const posicaoRef = useRef(/** @type {PosicaoGps|null} */ (null));
   const aoErroRef = useRef(aoErro);
   aoErroRef.current = aoErro;
 
   const centrar = useCallback((/** @type {PosicaoGps} */ p) => {
+    const outro = centrarEm?.current;
+    if (outro) {
+      try {
+        outro(p);
+      } catch {
+        /* mapa ainda não pronto */
+      }
+      return;
+    }
     const map = mapInstanceRef.current;
     if (!map) return;
     try {
@@ -81,7 +92,7 @@ export function useLocalizacaoNoMapa({ mapInstanceRef, ativo, aoErro }) {
     } catch {
       /* mapa ainda não pronto */
     }
-  }, [mapInstanceRef]);
+  }, [mapInstanceRef, centrarEm]);
 
   const receber = useCallback((/** @type {PosicaoGps} */ nova) => {
     if (!leituraEntra(posicaoRef.current, nova)) return;

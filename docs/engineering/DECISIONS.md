@@ -11155,4 +11155,21 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - `mapaGoogleCameraD373.test.js`: os 6 remendos e o APK 1.0.8.
   - `mapaGoogleAppMarcadoresD372.test.jsx` e `mapaGoogleMarcadoresD369.test.jsx`: `translate3d` e uma câmera por quadro.
 
-<!-- Próxima decisão: D-PROD-375 -->
+## D-PROD-375 — Mapa do Google, etapa 4: linhas, minha localização e "Localizar"
+
+**Data:** 2026-11-27 · **Origem:** etapa 4 do mapa do Google ("vamos lá, prossiga" do proprietário após o APK 1.0.8) · **Relatório:** [`MAPA-GOOGLE-ETAPA4-LINHAS-LOCALIZACAO-D375-REPORT.md`](./MAPA-GOOGLE-ETAPA4-LINHAS-LOCALIZACAO-D375-REPORT.md) · **Migration:** nenhuma · **APK:** nenhum novo (o plugin já desenha linhas e círculos; vai pela atualização automática)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-375. O marcador passa a D-PROD-376.
+
+- **Problema:** no mapa do Google (site e app) não apareciam as linhas do Mapa Geral nem a localização, e o "Localizar" não fazia nada: o GPS só ligava com o MapLibre pronto e centralizava nele.
+- **Decisão:**
+  - **Linhas:** as mesmas do MapLibre (cor da linha ou `#f59e0b`, 3 px), como `Polyline` do Google. No app a espessura é multiplicada pela densidade da tela, como nos polígonos.
+    - O toque na linha mostra o nome e o tipo dela num aviso. No MapLibre é um balão no ponto.
+    - No site, o gesto que começou num ícone não abre a linha por baixo, a mesma regra dos polígonos (D-PROD-369).
+  - **Minha localização:** o ponto azul (24 px, borda branca) é um marcador por cima de tudo e sem toque (`zNativo` no app). O círculo da precisão real do GPS (3 a 500 m, 20 m sem leitura) é um `Circle`.
+    - A cada leitura nova, o círculo novo entra antes de o velho sair, para não piscar.
+  - **"Localizar":** com o mapa do Google aberto, o GPS liga com ele e o "Localizar" centraliza nele no mesmo zoom de antes (18 do MapLibre, 19 do Google).
+    - `useLocalizacaoNoMapa` ganha `centrarEm`. O mapa do Google expõe `centrar`: no site, `setCenter`/`setZoom`; no app, `setCamera`.
+- **Testes:** `mapaGoogleLinhasD375.test.jsx` (6): linhas, círculo e ponto; o mapa do site (toque na linha com a `tag`, gesto no ícone, círculos, centrar, destruir); o app (linhas nativas e o toque, ponto nativo, círculo sem piscar, `setCamera`); "Localizar" no Google ou no MapLibre.
+
+<!-- Próxima decisão: D-PROD-376 -->

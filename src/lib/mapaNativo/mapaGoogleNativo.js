@@ -308,3 +308,122 @@ export async function numeroDoApk() {
     return 0;
   }
 }
+
+// ─── Linhas e "minha localização" (D-PROD-375, etapa 4) ───
+
+/** Cor e espessura das linhas e da localização, as mesmas do MapLibre (`ensureMgLayers`). */
+export const COR_LINHA_PADRAO = "#f59e0b";
+export const LARGURA_LINHA_PX = 3;
+export const COR_LOCALIZACAO = "#4285F4";
+/** O ponto azul por cima de tudo (como o z-index 10000 do MapLibre). */
+export const Z_LOCALIZACAO = 10000;
+/** O ponto azul: 24 px, borda branca de 3 px e sombra. */
+export const TAMANHO_PONTO_LOCALIZACAO = 24;
+
+/**
+ * Linhas do Mapa Geral (cerca, estrada, rede...) para o Google: a cor da linha, 3 px, `tag` = id. Linha com menos de
+ * 2 pontos fica de fora.
+ * @param {any[]} linhas @param {number} [escala] px do Google por px da página (Android: a densidade da tela)
+ */
+export function polilinhasDasLinhas(linhas, escala = 1) {
+  /** @type {Array<{ path: Array<{ lat: number, lng: number }>, strokeColor: string, strokeOpacity: number, strokeWeight: number, clickable: boolean, zIndex: number, tag: string }>} */
+  const saida = [];
+  for (const linha of linhas || []) {
+    if (!linha || linha.id == null) continue;
+    const pontos = parseVertices(linha.coordenadas?.coords);
+    if (pontos.length < 2) continue;
+    saida.push({
+      path: pontos.map((p) => ({ lat: p.lat, lng: p.lng })),
+      strokeColor: linha.coordenadas?.cor || linha.cor || COR_LINHA_PADRAO,
+      strokeOpacity: 1,
+      strokeWeight: LARGURA_LINHA_PX * escala,
+      clickable: true,
+      zIndex: 2,
+      tag: String(linha.id),
+    });
+  }
+  return saida;
+}
+
+/**
+ * Raio do círculo de precisão (m): a precisão REAL da leitura do GPS, entre 3 e 500 m; sem ela, 20 m (D-PROD-302).
+ * @param {unknown} precisao
+ */
+export function raioDaPrecisao(precisao) {
+  const p = Number(precisao);
+  return Number.isFinite(p) && p > 0 ? Math.min(Math.max(p, 3), 500) : 20;
+}
+
+/**
+ * O círculo de precisão em volta da localização (como o do MapLibre: azul, 15% de preenchimento, borda fina).
+ * @param {{ lat: number, lng: number, accuracy?: number | null }} pos @param {number} [escala]
+ */
+export function circuloDaLocalizacao(pos, escala = 1) {
+  return {
+    center: { lat: pos.lat, lng: pos.lng },
+    radius: raioDaPrecisao(pos.accuracy),
+    fillColor: COR_LOCALIZACAO,
+    fillOpacity: 0.15,
+    strokeColor: COR_LOCALIZACAO,
+    strokeOpacity: 0.3,
+    strokeWeight: 1 * escala,
+    clickable: false,
+    zIndex: 3,
+    tag: "minha-localizacao",
+  };
+}
+
+/** @type {Map<number, string | null>} */
+const pontosDesenhados = new Map();
+
+/**
+ * A imagem do ponto azul (URL `data:`), desenhada uma vez por densidade da tela; null sem canvas.
+ * @param {number} [pixelRatio]
+ */
+export function imagemDoPontoDeLocalizacao(pixelRatio = Math.max(1, Number(globalThis.devicePixelRatio) || 1)) {
+  const pr = Math.max(1, pixelRatio);
+  if (pontosDesenhados.has(pr)) return pontosDesenhados.get(pr) ?? null;
+  let url = null;
+  try {
+    if (typeof document !== "undefined") {
+      const t = TAMANHO_PONTO_LOCALIZACAO;
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(t * pr);
+      canvas.height = Math.ceil(t * pr);
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.scale(pr, pr);
+        ctx.shadowColor = "rgba(0,0,0,0.4)";
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetY = 1;
+        ctx.beginPath();
+        ctx.arc(t / 2, t / 2, t / 2 - 2, 0, Math.PI * 2);
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+        ctx.shadowColor = "transparent";
+        ctx.beginPath();
+        ctx.arc(t / 2, t / 2, t / 2 - 5, 0, Math.PI * 2);
+        ctx.fillStyle = COR_LOCALIZACAO;
+        ctx.fill();
+        url = canvas.toDataURL("image/png");
+      }
+    }
+  } catch {
+    url = null;
+  }
+  pontosDesenhados.set(pr, url);
+  return url;
+}
+
+/**
+ * O marcador do ponto azul (o toque passa para o que está por baixo, como no MapLibre), ou null.
+ * @param {{ lat: number, lng: number } | null | undefined} pos
+ * @returns {import('./mapaGoogleWeb.js').MarcadorWeb | null}
+ */
+export function marcadorDaLocalizacao(pos) {
+  if (!pos || !Number.isFinite(pos.lat) || !Number.isFinite(pos.lng)) return null;
+  const url = imagemDoPontoDeLocalizacao();
+  if (!url) return null;
+  const t = TAMANHO_PONTO_LOCALIZACAO;
+  return { id: "eu", lat: pos.lat, lng: pos.lng, url, w: t, h: t, z: Z_LOCALIZACAO, zNativo: Z_LOCALIZACAO, titulo: "Sua localização", semToque: true };
+}
