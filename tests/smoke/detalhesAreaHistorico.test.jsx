@@ -1,7 +1,7 @@
 /**
  * Detalhes da área acessíveis pelo contorno no Mapa Geral (D-PROD-94a, D-PROD-220, D-PROD-254), no desenho do Detalhes do
  * Lote: abas Detalhes · Histórico (os REGISTROS de campo da área), o cartão da área, as atividades em andamento e os custos
- * do mês (números do servidor), o rodapé com "Manejos" (abre o Diário das atividades do pasto, D-PROD-335) e
+ * do mês (números do servidor), o rodapé com "Manejos" (abre o Diário das atividades do pasto, D-PROD-338) e
  * "Histórico completo" (o Histórico de Movimentação de hoje, com o "Excluir movimentação" do administrador, D-PROD-110).
  * Curral mantém a aba Abate. Testes de componente (mock de serviço).
  */
@@ -301,7 +301,7 @@ describe("DetalhesArea — Detalhes e Histórico", () => {
   });
 });
 
-describe("DetalhesArea — Manejos abre o Diário das atividades do pasto (D-PROD-335: uma entrada só)", () => {
+describe("DetalhesArea — Manejos abre o Diário das atividades do pasto (D-PROD-338: uma entrada só)", () => {
   it("a pílula Manejos abre o Diário das atividades (não a Nova realização): sem atividade aberta no pasto, vai direto ao tipo", async () => {
     atividades.resumo.mockImplementation(async () => ({ ...RESUMO, atividades: [RESUMO.atividades[1]] }));
     renderizar(<DetalhesArea area={PASTO} permissions={PERMITE} setorNome="RETIRO" />);

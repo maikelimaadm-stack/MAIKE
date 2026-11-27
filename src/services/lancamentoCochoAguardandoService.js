@@ -75,9 +75,17 @@ const comLancamentosNovosAguardando = async (eventos, empresaId, pontoId) => {
     .map((r) => /** @type {any} */ (r.resultado)?.evento)
     .filter((ev) => ev?.id && !noServidor.has(ev.id) && ev.situacao !== 'cancelado')
     .map((ev) => ({ ...ev, _confirmadoAgora: true }));
-  // O recusado ("precisa de atenção") continua na lista do cocho, como antes (para corrigir ou excluir); o que tentou
-  // sem resposta, só sem internet (com internet a lista do servidor pode já tê-lo: apareceria duas vezes).
-  const aguardando = doAparelho.filter((r) => r.estado === 'atencao' || mostrarComoAguardando(r));
+  // O recusado ("precisa de atenção") continua na lista do cocho, como antes (para corrigir ou excluir).
+  // D-PROD-335: o que tentou subir sem receber a resposta (sinal fraco) continua na lista até o servidor mostrar que o
+  // tem — pelo código da operação, que o servidor grava no lançamento. Antes ele sumia sempre que o celular dizia ter
+  // internet, e a pessoa, sem ver o lançamento, lançava de novo (dois no servidor).
+  const codigosNoServidor = new Set((Array.isArray(eventos) ? eventos : []).map((e) => e?.operation_id).filter(Boolean));
+  const aguardando = doAparelho.filter(
+    (r) =>
+      r.estado === 'atencao' ||
+      mostrarComoAguardando(r) ||
+      (r.estado !== 'enviado' && r.tentado && !codigosNoServidor.has(r.operationId))
+  );
   if (!aguardando.length && !confirmados.length) return eventos;
   const fechadosLocalmente = new Map();
   for (const r of aguardando) {

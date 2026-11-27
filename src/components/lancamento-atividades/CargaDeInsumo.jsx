@@ -206,7 +206,7 @@ function BlocoDeProduto({ atividadeId, bloco, indice, modo, erros, bloqueado, po
  *   filtrarPorArea?: boolean,         // a atividade tem VÁRIAS áreas: destino e numeração só do apontamento deste pasto
  *   onEnviando?: (enviando: boolean) => void, // a carga está saindo (o pai trava o voltar e o fechar)
  *   apontamentos: any[],              // os apontamentos DESTE serviço (a frente, quando a atividade tem várias); a lista da consulta
- *   observacaoDoApontamento?: string | null, // D-PROD-335 (frentes): a linha de abertura da frente; vai na observação do apontamento que a carga CRIA
+ *   observacaoDoApontamento?: string | null, // D-PROD-338 (frentes): a linha de abertura da frente; vai na observação do apontamento que a carga CRIA
  *   hoje: string,                     // o "hoje" da fazenda (AAAA-MM-DD)
  *   implementoNome: string,
  *   podeGravar: boolean,
@@ -289,7 +289,7 @@ export default function CargaDeInsumo({
         {
           data_operacional: arg.dia,
           ...(arg.atividadeAreaId ? { atividade_area_id: arg.atividadeAreaId } : {}),
-          // D-PROD-335 (frentes): o apontamento novo fica na frente certa (a linha de abertura dela na observação).
+          // D-PROD-338 (frentes): o apontamento novo fica na frente certa (a linha de abertura dela na observação).
           observacao: arg.observacao,
           produtos: pendentes.map((/** @type {any} */ i) => i.corpo),
         },

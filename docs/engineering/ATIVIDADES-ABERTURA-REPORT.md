@@ -63,7 +63,7 @@ Três correções de P2 do review do PR #420 (a abertura do serviço; sem migrat
 
 **Migration:** nenhuma. **Testes:** `aberturaServicoRegras.test.js` (capim, paginação, campo desconhecido), `diarioDasAtividades.test.jsx` (Capim só no Plantio, erro sem capim, `plantio` com o capim, `bem_id` sem `maquinas`, páginas, fallback e erro que não é o campo) e `backend/tests/atividadeRegistro.test.mjs` (3 casos novos: `bem_id` sem linha de uso, `bem_id` com `maquinas[]`, `bem_id` inexistente). Os de backend não rodaram aqui (`DATABASE_URL` não definida): ficam para o CI.
 
-## Emenda — pasto com serviço antigo e máquina no envio (D-PROD-335)
+## Emenda — pasto com serviço antigo e máquina no envio (D-PROD-338)
 
 Dois defeitos em produção, uma correção (sem migration, sem mudar o backend):
 
@@ -74,7 +74,7 @@ Dois defeitos em produção, uma correção (sem migration, sem mudar o backend)
 
 **Testes:** `tests/smoke/diarioDasAtividades.test.jsx` (f2 e f3; 1; 3) e `tests/smoke/lancamentoAtividades.test.jsx` (LA-PORTA-BEM).
 
-### Escolher atividade em andamento (mesma D-PROD-335)
+### Escolher atividade em andamento (mesma D-PROD-338)
 > Desde a emenda das frentes, cada atividade aberta vira um cartão por frente (ver abaixo); o que segue descreve a lista inicial.
 
 Com atividades abertas no pasto, o Diário abre na lista "Em andamento neste pasto" (uma linha por atividade não concluída do resumo da área: nome, início, "Com abertura" ou "Sem abertura") com "Nova atividade". Tocar numa linha lê a atividade: com abertura, vai ao cabeçalho; sem ela, cai no formulário do defeito 1. Sem atividade aberta, o Diário abre no tipo, como antes. Do tipo, o Voltar volta à lista. O tipo com atividade aberta no pasto mostra "Já existe <nome> em andamento neste pasto: iniciar entra nela." (aviso).
@@ -83,7 +83,7 @@ Com atividades abertas no pasto, o Diário abre na lista "Em andamento neste pas
 
 **Arquivos da emenda:** `src/components/lancamento-atividades/DiarioDasAtividades.jsx` (o passo `escolher`, a linha `ItemAtividadeAberta`), `src/components/mapa/detalhes-area/AbaDetalhesDaArea.jsx` (abre sem ler; passa `atividadesAbertas` e `lerAtividade`), `src/styles/cadastro-base1.css` (duas regras: `.b1-aberto-opcoes--lista` e `.b1-aberto-chip--neutro`; sem seletor `.b1-realizacao`). **Testes:** `tests/smoke/diarioEmAndamentoNoPasto.test.jsx` e `tests/smoke/diarioFase2.test.jsx`.
 
-### Uma entrada só (pedido do dono, mesma D-PROD-335)
+### Uma entrada só (pedido do dono, mesma D-PROD-338)
 
 Os Detalhes da área tinham três entradas de diário. Ficou uma: o "Diário das atividades" (`DiarioDoPasto`, que é o `DiarioDasAtividades` com a lista do pasto).
 
@@ -92,7 +92,7 @@ Os Detalhes da área tinham três entradas de diário. Ficou uma: o "Diário das
 - **Continua na página Lançamento de Atividades:** a "Nova realização" (`RegistroDeCampo.jsx`), com o arquivo inteiro. Os Detalhes da área deixaram de abrir a "Nova realização" pela pílula. A ação de linha "+ Lançamento" continua abrindo a "Nova realização" presa à atividade (D-PROD-278). (A página deixou de usar o "Diário da máquina": ver "Organização das entradas" abaixo.)
 - **Testes:** `tests/smoke/diarioFase2.test.jsx` (a aba sem o botão; o `DiarioDoPasto` com a lista e a leitura no toque), `tests/smoke/detalhesAreaHistorico.test.jsx` (a pílula Manejos abre o diário: no tipo sem atividade aberta, na lista com uma), `tests/smoke/mapaAtividadeAcoes.test.jsx` (o rótulo "Diário das atividades" no menu e o toque que abre o diário nessa atividade). Os testes da "Nova realização" pela pílula saíram do `detalhesAreaHistorico`, porque essa ligação não existe mais; a janela continua coberta pelos testes do `RegistroDeCampo`.
 
-### Organização das entradas (pedido do dono, mesma D-PROD-335)
+### Organização das entradas (pedido do dono, mesma D-PROD-338)
 
 Entradas finais do diário (o mesmo `DiarioDoPasto` nas três):
 
@@ -112,7 +112,7 @@ Entradas finais do diário (o mesmo `DiarioDoPasto` nas três):
 
 **Limite conhecido:** o `DiarioDoPasto` mostra o tamanho do pasto no subtítulo só se a área da atividade trouxer `tamanho_hectares`. A lista da página (`areas[].area`) não traz esse campo nos dados de teste, então ali o subtítulo sai só com o nome.
 
-### Uma abertura por máquina + implemento (frentes, mesma D-PROD-335)
+### Uma abertura por máquina + implemento (frentes, mesma D-PROD-338)
 
 Vários tratores e implementos trabalham no mesmo pasto, no mesmo tipo, ao mesmo tempo. Cada um tem o seu serviço aberto, com a sua abertura, lançado separado.
 

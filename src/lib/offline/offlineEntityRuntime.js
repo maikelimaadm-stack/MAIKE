@@ -222,6 +222,9 @@ const aplicarPendentes = (items, operacoes) => {
   const proximo = [...items];
 
   operacoes.forEach((operacao) => {
+    // D-PROD-337: a edição ou exclusão que o servidor RECUSOU não vale mais nas listas (ela espera a pessoa decidir na
+    // janela Sincronização). Antes o valor recusado continuava pintado por cima do servidor, como se estivesse salvo.
+    if (operacao.operation !== "create" && operacao.quarentena?.codigo === CODIGO_RECUSADO_PELO_SERVIDOR) return;
     if (operacao.operation === "create") {
       // D-PROD-307: o registro criado offline também fica no cache: sem isto aparecia duas vezes.
       const i = proximo.findIndex((item) => item?.id === operacao.data?.id);
@@ -804,18 +807,37 @@ export const createOfflineEntityAdapter = ({
             item.data?.id === recordId &&
             (tenantId === undefined || (item.cliente_id ?? null) === tenantId)
         );
-        if (criacaoPendente) {
+        if (criacaoPendente && !estaSendoEnviado(criacaoPendente)) {
           await porta.atualizarNaFila(criacaoPendente.id, { data: registro });
           emitirMudancaDeFila();
           return registro;
         }
+        if (criacaoPendente) {
+          // D-PROD-335: a criação está indo ao servidor agora: a edição vai como item próprio, logo depois
+          // (a passada seguinte a envia; a criação, ao terminar, passa o id do servidor para ela).
+          await enfileirar(porta, {
+            entity_name: entityName,
+            empresa_id: empresaId,
+            ...carimboDeTenant(tenantScoped, tenantId),
+            operation: "update",
+            record_id: recordId,
+            data: dados,
+          });
+          emitirMudancaDeFila();
+          syncOfflineEntityQueue().catch(() => undefined);
+          return registro;
+        }
       }
 
+      // D-PROD-335: nunca dentro de uma edição RECUSADA (ela espera a pessoa decidir, e a nova sumiria junto, sem
+      // contar como "aguardando") nem de uma que está indo ao servidor agora (a nova se perderia).
       const atualizacaoPendente = fila.find(
         (item) =>
           item.entity_name === entityName &&
           item.operation === "update" &&
           item.record_id === recordId &&
+          !item.quarentena &&
+          !estaSendoEnviado(item) &&
           mesmaEmpresa(item)
       );
 
@@ -916,7 +938,9 @@ export const createOfflineEntityAdapter = ({
           (tenantId === undefined || (item.cliente_id ?? null) === tenantId)
       );
 
-      if (criacaoPendente && !criacaoPendente.ja_tentado) {
+      // D-PROD-335: criação indo ao servidor AGORA: não some da fila (o servidor a gravaria e o registro
+      // voltaria); a exclusão entra depois dela, como na criação já tentada.
+      if (criacaoPendente && !criacaoPendente.ja_tentado && !estaSendoEnviado(criacaoPendente)) {
         // Criação que nunca chegou ao servidor: some da fila em vez de virar
         // um delete de id que o servidor não conhece.
         await porta.removerDaFila(criacaoPendente.id);
@@ -980,6 +1004,46 @@ const destinoDaEntrada = (entrada, item, tenantAtual) => {
 };
 
 /**
+ * D-PROD-335 — itens da fila que a passada está enviando AGORA (entre o pedido ao servidor e a saída da fila).
+ * Uma edição ou exclusão feita nesse meio tempo não pode entrar nem apagar o item: ele já foi ao servidor, e
+ * ela se perderia (o envio o tira da fila ao terminar). Vai como um item próprio, depois dele.
+ * @type {Set<string|number>}
+ */
+const EM_ENVIO = new Set();
+/** @param {{id: string|number}|null|undefined} item */
+const estaSendoEnviado = (item) => Boolean(item) && EM_ENVIO.has(/** @type {any} */ (item).id);
+
+/** @type {Promise<any>|null} */
+let passadaDaFila = null;
+let pedidaDuranteAPassada = false;
+
+/**
+ * D-PROD-335 — uma passada pela fila por vez. Antes, a edição de um registro com outra edição na fila (e a
+ * exclusão só online) chamava a fila direto, fora da vez da sincronização: duas passadas liam a mesma fila e
+ * mandavam os mesmos itens, e o cadastro criado sem internet era criado DUAS vezes no servidor. Quem pede
+ * durante uma passada recebe ela, e mais uma volta logo em seguida (para o que entrou na fila no meio).
+ *
+ * @param {(p: {current: number, total: number, item: object}) => void} [onProgress]
+ */
+export const syncOfflineEntityQueue = (onProgress) => {
+  if (passadaDaFila) {
+    pedidaDuranteAPassada = true;
+    return passadaDaFila;
+  }
+  passadaDaFila = (async () => {
+    let resultado;
+    do {
+      pedidaDuranteAPassada = false;
+      resultado = await passarPelaFilaDeEntidades(onProgress);
+    } while (pedidaDuranteAPassada && estaOnline());
+    return resultado;
+  })().finally(() => {
+    passadaDaFila = null;
+  });
+  return passadaDaFila;
+};
+
+/**
  * Replay da fila, em ordem de chegada.
  *
  * Falha **preserva a fila**: o item que falhou continua lá, e o replay para no
@@ -1007,7 +1071,7 @@ const destinoDaEntrada = (entrada, item, tenantAtual) => {
  * @returns {Promise<{success: boolean, code?: string, error?: unknown, pendentes?: number,
  *                    pulados?: number, descartados?: number, quarentenados?: number, retidos?: number, recusados?: number}>}
  */
-export const syncOfflineEntityQueue = async (onProgress) => {
+const passarPelaFilaDeEntidades = async (onProgress) => {
   if (!estaOnline()) return { success: false, code: "OFFLINE" };
   if (CATALOGO.size === 0) return { success: true, pendentes: 0 };
 
@@ -1177,6 +1241,7 @@ export const syncOfflineEntityQueue = async (onProgress) => {
       }
     }
 
+    EM_ENVIO.add(item.id);
     try {
       const tenantDoItem = entrada.tenantScoped ? (item.cliente_id ?? null) : undefined;
 
@@ -1225,8 +1290,10 @@ export const syncOfflineEntityQueue = async (onProgress) => {
       }
 
       await storage.removerDaFila(item.id);
+      EM_ENVIO.delete(item.id);
       emitirMudancaDeFila();
     } catch (error) {
+      EM_ENVIO.delete(item.id);
       // D-PROD-307: recusa DEFINITIVA do servidor (registro que já não existe, dado inválido):
       // o item fica RETIDO com o motivo (a pessoa decide na janela "Sincronização") e a fila
       // SEGUE. Antes ele voltava a cada minuto e travava a fila inteira, de todas as entidades.
@@ -1334,6 +1401,16 @@ const filaDaSessao = async () => {
 export const contarPendenciasDaFilaDeEntidades = async () =>
   (await filaDaSessao()).filter((item) => item.quarentena?.codigo !== CODIGO_RECUSADO_PELO_SERVIDOR).length;
 
+/**
+ * D-PROD-335 — a fila tem algum cadastro cuja porta ainda não carregou (as portas de Marca, Unidade, Categoria e
+ * Tipo de atividade carregam com a tela)? Sem ela, a passada parava no item e segurava o resto da fila.
+ */
+export const temEntidadeSemPortaNaFila = async () => {
+  if (CATALOGO.size === 0) return false;
+  const fila = await [...CATALOGO.values()][0].storage.listarFila();
+  return fila.some((item) => !CATALOGO.has(item.entity_name));
+};
+
 /** Código da quarentena do item que o servidor recusou de vez (D-PROD-307). */
 export const CODIGO_RECUSADO_PELO_SERVIDOR = "RECUSADO_PELO_SERVIDOR";
 
@@ -1347,6 +1424,20 @@ export const idsComCriacaoPendenteNaFilaDeEntidades = async () =>
   new Set(
     (await filaDaSessao())
       .filter((item) => item.operation === "create" && !item.quarentena)
+      .map((item) => String(item.record_id))
+  );
+
+/**
+ * D-PROD-335 — ids dos registros desta entidade com QUALQUER criação ou edição na fila (inclusive recusada). Quem grava
+ * por fora da fila (ex.: as fotos de tarefa que sobem depois) espera esses saírem: mandar antes passaria à frente da
+ * edição guardada, ou iria a um registro que o servidor ainda não tem (ou recusou).
+ * @param {string} entityName
+ * @returns {Promise<Set<string>>}
+ */
+export const idsComPendenciaNaFilaDeEntidades = async (entityName) =>
+  new Set(
+    (await filaDaSessao())
+      .filter((item) => item.entity_name === entityName && (item.operation === "create" || item.operation === "update"))
       .map((item) => String(item.record_id))
   );
 
@@ -1415,6 +1506,8 @@ export const listarItensDaFilaDeEntidades = async () =>
         tentativas: Number(item.tentativas_com_erro ?? 0) + (situacao === "recusado" ? 1 : 0),
         ultimaTentativaEm: item.quarentena?.em ?? item.ultimo_erro?.em ?? null,
         dados: item.data && typeof item.data === "object" ? item.data : null,
+        // D-PROD-337: a fazenda em que o registro foi feito (a edição nem sempre leva `empresa_id` nos dados).
+        empresaId: item.empresa_id ?? null,
       };
     });
 

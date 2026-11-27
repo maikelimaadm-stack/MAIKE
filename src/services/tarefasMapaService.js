@@ -57,7 +57,36 @@ export const listarTodasAsTarefas = async () => {
   return Array.isArray(lista) ? lista : [];
 };
 export const criarTarefa = (dados) => createLancamento(dados);
-export const atualizarTarefa = (id, dados) => updateLancamento(id, dados);
+/**
+ * D-PROD-335 — fotos tiradas sem internet que SUBIRAM DEPOIS (a passada as soma no servidor), por tarefa, nesta
+ * abertura do app. A tela de edição manda a lista inteira de fotos que ela tinha ao abrir: se uma foto subiu enquanto
+ * a tela estava aberta, a lista da tela não a tem e a edição a apagava do servidor.
+ * @type {Map<string, Set<string>>}
+ */
+const fotosQueSubiramDepois = new Map();
+/** @param {string} tarefaId @param {string[]} urls */
+export const registrarFotosQueSubiram = (tarefaId, urls) => {
+  if (!tarefaId || !Array.isArray(urls) || !urls.length) return;
+  const atuais = fotosQueSubiramDepois.get(tarefaId) ?? new Set();
+  for (const u of urls) atuais.add(u);
+  fotosQueSubiramDepois.set(tarefaId, atuais);
+};
+
+/**
+ * @param {string} id
+ * @param {Record<string, any>} dados
+ * @param {{ fotosDaTela?: unknown }} [opcoes] `fotosDaTela`: as fotos que a tela tinha ao abrir a edição. A foto que
+ *   subiu depois e que a tela não tinha continua na tarefa (a que a tela tinha e a pessoa tirou, sai).
+ */
+export const atualizarTarefa = (id, dados, opcoes = {}) => {
+  const subiram = fotosQueSubiramDepois.get(id);
+  if (subiram?.size && Array.isArray(dados?.fotos)) {
+    const daTela = new Set(Array.isArray(opcoes.fotosDaTela) ? opcoes.fotosDaTela : []);
+    const faltando = [...subiram].filter((u) => !daTela.has(u) && !dados.fotos.includes(u));
+    if (faltando.length) return updateLancamento(id, { ...dados, fotos: [...dados.fotos, ...faltando] });
+  }
+  return updateLancamento(id, dados);
+};
 export const excluirTarefa = (id) => deleteLancamento(id);
 
 export const listarHistorico = (opcoes) => listHistorico(opcoes);

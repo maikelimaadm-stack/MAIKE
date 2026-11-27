@@ -22,14 +22,16 @@ import {
 } from '@/components/offline/IndexedDBManager';
 import { registrarPassadaExtra } from '@/lib/offline/sincronizacao/gatilhosDeSincronizacao';
 import { classificarFalhaDeEnvio } from '@/lib/offline/sincronizacao/motorDeSincronizacao';
-import { idsComCriacaoPendenteNaFilaDeEntidades } from '@/lib/offline/offlineEntityRuntime';
-import { atualizarTarefa, enviarAnexo, listarTodasAsTarefas } from '@/services/tarefasMapaService';
+import { idsComCriacaoPendenteNaFilaDeEntidades, idsComPendenciaNaFilaDeEntidades } from '@/lib/offline/offlineEntityRuntime';
+import { atualizarTarefa, enviarAnexo, registrarFotosQueSubiram } from '@/services/tarefasMapaService';
 
 const PREFIXO = 'tarefa:';
 const chaveDa = (/** @type {string} */ tarefaId) => `${PREFIXO}${tarefaId}`;
 
 /** Evento que as telas escutam para reler a contagem de fotos guardadas. */
 export const EVENTO_FOTOS_DE_TAREFA = 'maike:fotos-de-tarefa';
+/** D-PROD-335: fotos de uma tarefa somadas no servidor; `detail.tarefas`: as tarefas como o servidor as devolveu. */
+export const EVENTO_TAREFA_COM_FOTOS_ENVIADAS = 'maike:tarefa-com-fotos-enviadas';
 const avisar = () => {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(EVENTO_FOTOS_DE_TAREFA));
 };
@@ -109,29 +111,51 @@ export const fotosAguardandoDaTarefa = async (tarefaId) => {
   }
 };
 
-/** @param {string} tarefaId @param {any[]} fotos */
+/** A foto guardada como está AGORA no aparelho (a pessoa pode tê-la excluído). @param {string} tarefaId @param {any} foto */
+const fotoAindaGuardada = async (tarefaId, foto) =>
+  (await getTarefaImagesOffline(chaveDa(tarefaId))).find((f) => f._imgId === foto._imgId) ?? null;
+
+/**
+ * D-PROD-335 — sobe as fotos guardadas da tarefa e as SOMA no servidor às que ela tem (`fotos_adicionar`). Antes a
+ * passada lia as fotos da tarefa na cópia do aparelho e mandava a lista inteira: cópia antiga (ou a tarefa fora da
+ * cópia, como numa troca de fazenda) apagava do servidor as fotos que a tarefa já tinha.
+ * Foto excluída pela pessoa enquanto a anterior subia não volta nem vai para a tarefa.
+ * As fotos só saem do aparelho com a resposta do servidor.
+ * @param {string} tarefaId @param {any[]} fotos
+ */
 const enviarDaTarefa = async (tarefaId, fotos) => {
   /** @type {string[]} */
   const urls = [];
+  /** @type {any[]} */
+  const subiram = [];
   for (const foto of fotos) {
-    if (typeof foto.url_enviada === 'string' && foto.url_enviada) {
-      urls.push(foto.url_enviada);
+    const atual = await fotoAindaGuardada(tarefaId, foto);
+    if (!atual) continue;
+    if (typeof atual.url_enviada === 'string' && atual.url_enviada) {
+      urls.push(atual.url_enviada);
+      subiram.push(atual);
       continue;
     }
-    const arquivo = new File([foto.buffer], foto.name || 'foto', { type: foto.type || 'application/octet-stream' });
+    const arquivo = new File([atual.buffer], atual.name || 'foto', { type: atual.type || 'application/octet-stream' });
     const { file_url } = await enviarAnexo({ file: arquivo });
-    await putTarefaImageOffline({ ...foto, url_enviada: file_url });
+    // Excluída enquanto subia: não grava de volta (ela reapareceria) nem soma na tarefa.
+    const depois = await fotoAindaGuardada(tarefaId, foto);
+    if (!depois) continue;
+    await putTarefaImageOffline({ ...depois, url_enviada: file_url });
     urls.push(file_url);
+    subiram.push(depois);
   }
-  const tarefa = (await listarTodasAsTarefas()).find((t) => t?.id === tarefaId);
-  const atuais = Array.isArray(tarefa?.fotos) ? tarefa.fotos : [];
-  const fotosFinais = [...new Set([...atuais, ...urls])];
-  await atualizarTarefa(tarefaId, {
-    fotos: fotosFinais,
+  if (!urls.length) return null;
+  const atualizada = await atualizarTarefa(tarefaId, {
+    fotos_adicionar: [...new Set(urls)],
     historico_evento: 'Edição',
     historico_descricao: urls.length === 1 ? 'Foto tirada sem internet enviada.' : `${urls.length} fotos tiradas sem internet enviadas.`,
   });
-  for (const foto of fotos) await deleteTarefaImageOffline(foto._imgId);
+  // A edição ficou na fila (sem resposta): as fotos continuam no aparelho e são somadas de novo depois (sem repetir).
+  if (atualizada?._isOffline) return null;
+  registrarFotosQueSubiram(tarefaId, urls);
+  for (const foto of subiram) await deleteTarefaImageOffline(foto._imgId);
+  return atualizada ?? null;
 };
 
 /** D-PROD-328: depois de tantas falhas seguidas, a foto para de tentar sozinha e pede a pessoa (fila única). */
@@ -212,12 +236,16 @@ export const enviarFotosDeTarefasGuardadas = async () => {
     const id = String(f.tarefa_offline_id).slice(PREFIXO.length);
     porTarefa.set(id, [...(porTarefa.get(id) ?? []), f]);
   }
-  const criacoesNaFila = await idsComCriacaoPendenteNaFilaDeEntidades().catch(() => new Set());
+  // D-PROD-335: a tarefa com criação OU edição na fila (inclusive recusada) espera: a soma das fotos não passa à
+  // frente do que foi guardado antes, nem vai a uma tarefa que o servidor ainda não tem.
+  const pendentesNaFila = await idsComPendenciaNaFilaDeEntidades('LancamentoTarefa').catch(() => new Set());
   let enviadas = 0;
+  /** @type {any[]} */
+  const atualizadas = [];
   let esperando = 0;
   let falharam = 0;
   for (const [tarefaId, fotos] of porTarefa) {
-    if (criacoesNaFila.has(tarefaId)) {
+    if (pendentesNaFila.has(tarefaId)) {
       esperando += 1;
       continue;
     }
@@ -227,8 +255,11 @@ export const enviarFotosDeTarefasGuardadas = async () => {
       continue;
     }
     try {
-      await enviarDaTarefa(tarefaId, fotos);
-      enviadas += 1;
+      const atualizada = await enviarDaTarefa(tarefaId, fotos);
+      if (atualizada) {
+        enviadas += 1;
+        atualizadas.push(atualizada);
+      }
     } catch (erro) {
       falharam += 1;
       // Sem internet (ou sessão vencida) não conta: só a falha com resposta do servidor conta tentativa.
@@ -238,7 +269,12 @@ export const enviarFotosDeTarefasGuardadas = async () => {
   }
   if (enviadas > 0) {
     avisar();
-    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+    if (typeof window !== 'undefined') {
+      // D-PROD-335: a tela de detalhes aberta troca as fotos pela da tarefa atualizada (a foto não some da tela) e o
+      // mapa relê as tarefas.
+      window.dispatchEvent(new CustomEvent(EVENTO_TAREFA_COM_FOTOS_ENVIADAS, { detail: { tarefas: atualizadas } }));
+      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['tarefas'] } }));
+    }
   }
   return { enviadas, esperando, falharam };
 };

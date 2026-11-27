@@ -10290,7 +10290,67 @@ Vários itens ficavam presos para sempre, sem botão:
 
 - **Revisão do Codex (PR #424):** (1) atividade com VÁRIAS áreas: o destino e a numeração da carga são só do apontamento de hoje DO PASTO aberto (`atividade_area_id`); sem ele, `criarApontamento` cria o do pasto; (2) mexer no formulário depois de uma falha esquece o envio guardado (`esquecerUltimo`), e a pendência pergunta antes de abandonar um envio incerto; (3) enquanto a carga sai, o voltar e o fechar da janela ficam travados.
 
-## D-PROD-335 — Abertura do Diário das atividades: pasto com serviço antigo e máquina no envio
+## D-PROD-335 — Sem internet, Grupo 1: nada se perde, nada duplica, nenhuma foto se apaga
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("Verifique os bugs offiline"). A varredura achou 21 defeitos confirmados, e ele escolheu corrigir primeiro o Grupo 1 ("Grupo 1 primeiro (Recomendado)") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SEM-INTERNET-GRUPO1-D335-REPORT.md`](./SEM-INTERNET-GRUPO1-D335-REPORT.md)
+
+**Decisão.** São seis correções; os Grupos 2 e 3 ficam para depois e estão no relatório.
+
+1. **Quem envia carrega antes da passada.**
+   - O que estava errado: o lançamento e o cancelamento do cocho e a transferência e o cancelamento do depósito só se registravam no motor quando a tela de um lote ou de um cocho carregava. O mesmo valia para as portas de Marca, Unidade, Categoria e Tipo de atividade. Depois de o Android fechar o app, a passada deixava esses registros parados (e mostrava "Tudo sincronizado").
+   - O que muda: a passada confere se a fila tem algo que ninguém sabe enviar (`temTipoSemRegistroNaFila`, `temEntidadeSemPortaNaFila`) e, nesse caso, carrega esses módulos antes de enviar (`prepararTiposDeEnvio`).
+2. **Uma passada por vez na fila de cadastros.** `syncOfflineEntityQueue` passa a fazer uma passada só por vez: quem pede durante uma passada recebe ela e mais uma volta em seguida. Antes, duas passadas ao mesmo tempo criavam o cadastro duas vezes no servidor.
+3. **Item em envio é intocável.**
+   - Na fila de cadastros: uma edição ou exclusão feita enquanto a criação do registro vai ao servidor (`EM_ENVIO`) vira um item próprio, depois dela. Antes, ela entrava no item que já estava subindo e se perdia, ou o apagava e o registro voltava.
+   - A edição nova também não entra numa edição recusada.
+   - No motor: o resultado do envio só é gravado se o item ainda está na fila. Antes, "Excluir" feito durante o envio era desfeito e o registro ia assim mesmo.
+4. **Lote manda a versão.** A edição do lote leva `versao_esperada` (D-PROD-316), que a porta descartava. Sem ela, a edição feita sem internet apagava, sem aviso, o que outra pessoa tinha mudado.
+5. **Fotos de tarefa são somadas no servidor.**
+   - `PATCH /lancamentos-tarefa/:id` aceita `fotos_adicionar`. O servidor trava a tarefa e soma essas fotos às que ela tem, sem repetir; com `fotos` junto, a soma é sobre a lista enviada.
+   - A passada das fotos manda só as novas. Antes ela mandava a lista inteira lida da cópia do aparelho, e uma cópia antiga ou de outra fazenda apagava as fotos da tarefa.
+   - A passada também:
+     - pula a foto excluída durante o envio;
+     - espera a criação ou edição da tarefa que está na fila;
+     - só apaga a foto do aparelho com a resposta do servidor.
+   - Quando a foto sobe, a tela de detalhes aberta passa a mostrá-la.
+   - Uma edição aberta antes não a apaga (`atualizarTarefa(..., { fotosDaTela })`). Se a pessoa tirar a foto de propósito, ela sai.
+6. **O lançamento do cocho que tentou subir não some.**
+   - O servidor grava `operation_id` no lançamento, fora do fingerprint, então o replay não muda.
+   - O lançamento que tentou subir sem resposta continua na lista com e sem internet, até a lista do servidor trazer o mesmo código.
+   - Antes ele sumia sempre que o celular dizia ter internet, e a pessoa lançava de novo.
+
+> **Numeração:** a `main` (`471ad9c9d`) indicava `Próxima decisão: D-PROD-334`, reservada pela PR #424. Antes do merge, a #424 levou a D-PROD-334 (`dd8d4525a`) e a `main` passou a indicar `Próxima decisão: D-PROD-335`, que é esta (`node scripts/dev/proxima-decisao.mjs`); o marcador passa a D-PROD-336. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-337 — Sem internet, Grupo 2: sem travas escondidas e sem aviso que engana
+
+**Data:** 2026-11-26 · **Origem:** pedido do proprietário ("Continue corrigindo bugs"), depois do Grupo 1 (D-PROD-335) · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **Relatório:** [`SEM-INTERNET-GRUPO2-D337-REPORT.md`](./SEM-INTERNET-GRUPO2-D337-REPORT.md)
+
+**Decisão.**
+1. **A espera por falta de rede acaba quando a rede volta.**
+   - Antes: com o celular mostrando sinal mas sem dados, as falhas se acumulavam e "Enviar agora" não mandava nada por até 10 min.
+   - Agora: a falha de rede fica marcada no item (`ultimo_erro.falha = 'rede'`). A volta da internet, a volta ao app, a abertura do app, "Enviar agora" e a sincronização nos dois sentidos liberam essa espera (`liberarEsperaDeRede`).
+   - A espera depois de erro do servidor continua.
+   - Uma espera maior que a maior possível é relógio do celular que voltou e não segura o item.
+2. **"Tudo sincronizado" só quando nada ficou no celular.**
+   - Antes: o cartão olhava só a baixa dos dados.
+   - Agora: com registros na fila (aguardando ou precisando de atenção), o fim mostra "N registros ficaram no celular".
+3. **A leitura do cocho parada não trava o cocho.**
+   - Antes: uma leitura recusada deixava os lançamentos do mesmo cocho "aguardando" para sempre.
+   - Agora: o tipo `independente` (leitura) não espera nem segura ninguém pelo recurso, nem na passada nem no envio direto.
+4. **O valor recusado não aparece como salvo.** A edição ou exclusão que o servidor recusou não é mais aplicada por cima da lista do servidor. Ela espera a pessoa decidir na janela Sincronização.
+5. **Cada fazenda vê só a sua fila no mapa.**
+   - Antes: a tarefa da fazenda A editada sem internet aparecia no mapa da fazenda B.
+   - Agora: a fila de cadastros informa a fazenda de cada item (`empresaId`), e o mapa usa só a fila da fazenda selecionada.
+6. **"Excluir" a tarefa criada no aparelho limpa tudo.** As fotos guardadas dela saem junto e o mapa relê na hora. Quando os cadastros feitos sem internet chegam ao servidor, o mapa também relê e tira a marca "aguardando envio".
+7. **Sessão vencida diz o motivo.** O item fica com o motivo "O acesso deste celular venceu: saia e entre de novo para enviar." Antes ficava "aguardando" sem explicação.
+
+**Fica para uma missão com mudança no servidor:**
+- A transferência do depósito que tentou subir com sinal fraco ainda some do histórico, porque a movimentação de estoque não guarda o código da operação.
+- A edição de cadastro com sinal fraco ainda dá erro em vez de ir para a fila. O PATCH precisa reconhecer o pedido repetido, senão a versão (D-PROD-316) acusaria um conflito falso.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indica D-PROD-336, mas a D-PROD-335 está nas PRs #425 (Grupo 1) e #426 (diário), e uma delas vai passar a D-PROD-336. Esta é a D-PROD-337 e o marcador passa a D-PROD-338. Conferir de novo antes do merge (regra A5).
+
+## D-PROD-338 — Abertura do Diário das atividades: pasto com serviço antigo e máquina no envio
 
 **Causa (defeito 1).** Um pasto com uma atividade EM ANDAMENTO que não tem a linha `[abertura-servico ...]` na observação dos apontamentos (as criadas pelo fluxo antigo, como Gradagem e Combate à cigarrinha) abria o Diário direto no cabeçalho, com "Abertura não registrada neste serviço.". Não havia tela de tipo nem de abertura, então o usuário não conseguia iniciar nada.
 
@@ -10322,7 +10382,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 **Uma entrada só (pedido do dono).** Os Detalhes da área tinham três entradas de diário: a pílula "Manejos" do rodapé (abria a "Nova realização"), o botão verde "Diário das atividades" no topo da aba Manejos (D-PROD-332, PR #420) e a ação de linha "Diário da máquina" (a tela antiga `DiarioDaMaquina`). Agora a entrada é uma só, o "Diário das atividades" (`DiarioDoPasto`), aberto pela pílula "Manejos" do rodapé e pela ação de linha, que passa a se chamar "Diário das atividades". Religadas: a pílula "Manejos" (antes `JanelaRegistroDeCampo`) e a ação de linha (antes `DiarioDaMaquina`). Removida: o botão do topo da aba Manejos. Os arquivos `DiarioDaMaquina.jsx` e `RegistroDeCampo.jsx` continuam: a página Lançamento de Atividades segue usando os dois. Nos Detalhes da área, a "Nova realização" ainda abre pela ação de linha "+ Lançamento" (presa à atividade, D-PROD-278); só a pílula "Manejos" deixou de abri-la. Sem migration e sem backend. (Esta frase sobre a página foi superada pela "Organização das entradas" abaixo: a página deixou de usar a `DiarioDaMaquina`.)
 
-**Organização das entradas (pedido do dono, mesma D-PROD-335).** Lista final das entradas do diário:
+**Organização das entradas (pedido do dono, mesma D-PROD-338).** Lista final das entradas do diário:
 1. Pílula "Manejos" do rodapé da área (Detalhes da área): `DiarioDoPasto` sem atividade (lista "Em andamento neste pasto" ou, sem atividade aberta, o tipo).
 2. Ação de linha "Diário das atividades" da atividade em andamento na área (⚡ na aba Manejos): `DiarioDoPasto` com a atividade.
 3. Ação de linha "Diário das atividades" na página Lançamento de Atividades (⚡ de atividade ABERTA com pasto em andamento; abre no primeiro pasto em andamento): `DiarioDoPasto` com a atividade lida. A lista da página relê ao gravar (prop `aoGravar`).
@@ -10335,6 +10395,6 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 - Pílula "Manejos" e a ação de linha da área abrem o mesmo diário por caminhos diferentes (no rodapé, sem atividade escolhida; na linha, com ela). Ficam as duas porque a lista do dono as nomeia. Se o dono quiser uma só, a ação de linha de `AcoesDaAtividadeDaArea.jsx` sai numa linha: é decisão dele.
 - "Iniciar serviço" é o botão de dentro do diário, não uma entrada. "Iniciar atividade" não existe mais no código.
 
-> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`471ad9c9d`) indicou D-PROD-334. A PR #424 (Insumo) reservou o 334, então esta correção é a D-PROD-335, e o marcador passa a D-PROD-336. Conferir de novo antes do merge (regra A5).
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`471ad9c9d`) indicou D-PROD-334. A PR #424 (Insumo) reservou o 334, então esta correção é a D-PROD-338, e o marcador passa a D-PROD-339. Conferir de novo antes do merge (regra A5).
 
-<!-- Próxima decisão: D-PROD-336 -->
+<!-- Próxima decisão: D-PROD-339 -->
