@@ -371,10 +371,15 @@ export default function useMapRenderer(mapInstanceRef) {
   /**
    * Sem bagunça de rótulos (D-PROD-126): mede os rótulos e as áreas na tela e
    * põe TODOS no mesmo nível — nome + ha, só o nome, ou só a sigla.
+   *
+   * D-PROD-347 (mapa leve): `soNaTela` (durante o zoom) mede e mexe só nos rótulos cujo pasto está na tela; os de fora
+   * ficam como estavam até o `moveend`, que revê todos. Medir os 200 rótulos a cada revisão travava o zoom.
+   * @param {{ soNaTela?: boolean }} [opcoes]
    */
-  const arrumarRotulos = () => {
+  const arrumarRotulos = (opcoes) => {
     const map = getMap();
     if (!map) return;
+    const soNaTela = opcoes?.soNaTela === true;
     // Lote de área sem rótulo (nomes desligados ou área sem nome): volta à
     // posição padrão, sem o espaço do nome embaixo (D-PROD-127).
     markersRef.current.forEach((entry, key) => {
@@ -394,6 +399,7 @@ export default function useMapRenderer(mapInstanceRef) {
      */
     const aplicar = (modo) => {
       labelsRef.current.forEach((entry, id) => {
+        if (alvo && !alvo.has(id)) return;
         entry.titulo.textContent = modo === "sigla" ? entry.sigla : entry.nome;
         entry.ha.style.display = modo === "tudo" && entry.temHa ? "block" : "none";
         entry.extra.style.display = modo === "tudo" && entry.temExtra ? "block" : "none";
@@ -418,9 +424,12 @@ export default function useMapRenderer(mapInstanceRef) {
     const medir = () => {
       /** @type {Map<string, { x: number, y: number, w: number, h: number }>} */
       const rotulos = new Map();
-      labelsRef.current.forEach((entry, id) => rotulos.set(id, caixa(entry.corpo)));
+      labelsRef.current.forEach((entry, id) => {
+        if (!alvo || alvo.has(id)) rotulos.set(id, caixa(entry.corpo));
+      });
       const obstaculos = [];
       markersRef.current.forEach((entry, key) => {
+        if (alvo && key.startsWith("lote_area_") && !alvo.has(key.slice("lote_area_".length))) return;
         // `dono`: o ícone do lote da própria área não conta contra o nome dela
         if (key.startsWith("lote_") && entry.el) obstaculos.push({ ...caixa(entry.el), dono: key.startsWith("lote_area_") ? key.slice("lote_area_".length) : undefined });
       });
@@ -430,8 +439,11 @@ export default function useMapRenderer(mapInstanceRef) {
     // caixa de cada área na tela
     /** @type {Map<string, { x: number, y: number, w: number, h: number }>} */
     const areas = new Map();
+    const tela = map.getCanvas();
+    const larg = tela.clientWidth || tela.width, alt = tela.clientHeight || tela.height;
+    /** @type {Set<string> | null} */
+    const alvo = soNaTela ? new Set() : null;
     labelsRef.current.forEach((entry, id) => {
-      entry.el.style.visibility = "hidden"; // mede sem pintar
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const p of entry.ring || []) {
         const pt = map.project([p.lng, p.lat]);
@@ -440,7 +452,15 @@ export default function useMapRenderer(mapInstanceRef) {
         if (pt.x > maxX) maxX = pt.x;
         if (pt.y > maxY) maxY = pt.y;
       }
+      if (alvo) {
+        // fora da tela (com 1/4 de folga): fica como está até o moveend
+        if (!Number.isFinite(minX) || maxX < -larg / 4 || minX > larg * 1.25 || maxY < -alt / 4 || minY > alt * 1.25) return;
+        alvo.add(id);
+      }
       if (Number.isFinite(minX)) areas.set(id, { x: minX, y: minY, w: maxX - minX, h: maxY - minY });
+    });
+    labelsRef.current.forEach((entry, id) => {
+      if (!alvo || alvo.has(id)) entry.el.style.visibility = "hidden"; // mede sem pintar
     });
 
     // mede cada nível já na posição final; o nome é medido sozinho (sem o "ha"
@@ -458,13 +478,19 @@ export default function useMapRenderer(mapInstanceRef) {
     const modo = escolherModoRotulos(itens, { tudo: comTudo.obstaculos, nome: soNome.obstaculos });
     aplicar(modo);
     const zoom = map.getZoom();
-    labelsRef.current.forEach((entry) => {
+    // D-PROD-347: primeiro LER todos (um cálculo de página só), depois ESCREVER todos. Ler e escrever alternados, um
+    // nome por vez, recalculava a página inteira a cada nome (centenas de vezes por revisão) e travava o zoom.
+    labelsRef.current.forEach((entry, id) => {
+      if (alvo && !alvo.has(id)) return;
       // tamanho do texto sem escala e a folga do ponto na tela, neste zoom
       const t = entry.corpo.getBoundingClientRect(); // ainda sem escala (aplicar)
       entry.tam = { w: t.width, h: t.height };
       const pf = entry.pf;
       entry.raio0 = pf ? Math.abs(map.project([pf.lng, pf.lat + pf.folga]).y - map.project([pf.lng, pf.lat]).y) : null;
       entry.z0 = zoom;
+    });
+    labelsRef.current.forEach((entry, id) => {
+      if (alvo && !alvo.has(id)) return;
       escalarNome(entry, zoom);
       entry.el.style.visibility = "visible";
       entry.el.dataset.rotulo = modo;
@@ -483,13 +509,16 @@ export default function useMapRenderer(mapInstanceRef) {
     entry.corpo.style.transform = s < 1 ? `${entry.base || ""} scale(${s})`.trim() : entry.base || "";
   };
 
-  /** Revisão do nível durante o zoom, no máximo a cada 120 ms (D-PROD-129). */
+  /**
+   * Revisão do nível durante o zoom (D-PROD-129), no máximo a cada 120 ms e só nos pastos que estão na tela
+   * (D-PROD-347); o `moveend` revê todos.
+   */
   const ultimoArrumarRef = useRef(0);
   const arrumarDuranteZoom = () => {
     const agora = typeof performance !== "undefined" ? performance.now() : Date.now();
     if (agora - ultimoArrumarRef.current < 120) return;
     ultimoArrumarRef.current = agora;
-    arrumarRotulos();
+    arrumarRotulos({ soNaTela: true });
   };
 
   const agendarArrumar = () => {
@@ -501,7 +530,7 @@ export default function useMapRenderer(mapInstanceRef) {
       map.on("moveend", handler);
     }
     cancelAnimationFrame(arrumarRef.current.quadro);
-    arrumarRef.current.quadro = requestAnimationFrame(arrumarRotulos);
+    arrumarRef.current.quadro = requestAnimationFrame(() => arrumarRotulos());
   };
 
   const syncLabels = useCallback((areas, show, extraTextFn, showHectares = true) => {

@@ -10515,6 +10515,19 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 > **Numeração:** depois da D-PROD-344 (Fase 2). O marcador passa a D-PROD-346. Conferir antes do merge (regra A5).
 
+## D-PROD-347 — Mapa leve, etapa 1: medir e tirar a trava do zoom nos nomes das áreas
+
+**Data:** 2026-11-27 · **Origem:** proprietário: deixar o Mapa Geral tão rápido quanto o do AgriWebb sem trocar o mapa; autorizou fazer tudo sozinho, "sempre tentando ao máximo deixar igual o atual" · **Relatório:** [`MAPA-LEVE-D347-REPORT.md`](./MAPA-LEVE-D347-REPORT.md)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` deu D-PROD-347 (a D-PROD-346 está reservada pela PR #434). O marcador passa a D-PROD-348.
+
+- **Medição (nova):** `tests/e2e/harness/run-perf.cjs` abre o harness com uma fazenda grande (`?grande=200`: 200 pastos, 200 lotes, 50 cochos), num celular emulado com CPU 4× mais lenta, e mede abertura, arrastar e zoom (quadros, layout, estilo). O harness voltou a abrir o Mapa Geral (stub de `AuthContext`).
+- **Causa da trava no zoom:** no fim de `arrumarRotulos`, cada nome era lido (`getBoundingClientRect`) e logo escalado, um por um — cada leitura depois de uma escrita recalculava a página inteira. 200 nomes = 200 recálculos por revisão, e a revisão roda a cada 120 ms durante o zoom (D-PROD-129).
+- **Decisão (comportamento igual):**
+  - a última passada lê todos os nomes e só depois escala todos (duas passadas);
+  - durante o zoom, a revisão mexe só nos pastos que estão na tela (com folga de ¼); o `moveend` revê todos, como antes.
+- **Resultado (200 pastos, CPU 4×):** zoom de 2,5 → 8,5 quadros/s; layout no gesto de 36 s → 0,05 s; quadro mais lento de 1,2 s → 0,22 s. Arrastar sem mudança (≈ 9 quadros/s): o custo que resta são os ~400 marcadores HTML reposicionados a cada quadro — próximas etapas (pontos e lotes desenhados pelo próprio mapa).
+
 ## D-PROD-348 — Diário das atividades: o modelo de frentes (uma atividade por pasto e tipo, máquinas dentro)
 
 **Decisão.** No pasto, cada tipo de atividade é UMA atividade (a atividade do pasto). As máquinas em campo são as FRENTES dela (máquina + implemento): cada frente tem a sua abertura, o horímetro inicial e final, o seu operador e os seus lançamentos. A frente continua sendo lida dos apontamentos (D-PROD-341, emenda); o que muda é que o encerramento também é um apontamento.
@@ -10539,6 +10552,6 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 
 **Correção no caminho.** O formulário de "Adicionar máquina" mostrava "já tem serviço aberto" também para a frente encerrada. Agora a frente encerrada tem a sua frase (`MSG_FRENTE_ENCERRADA`), no mesmo ponto em que a trava já decidia.
 
-> **Numeração:** nasceu D-PROD-342 (`node scripts/dev/proxima-decisao.mjs` na `main` `6aa675672`). Antes do merge, a `main` levou as D-PROD-342 a D-PROD-345 (sem internet e sincronização, PRs #430 a #433); esta passou a D-PROD-348 e o marcador a D-PROD-349 (a D-PROD-346 é da PR #435 e a D-PROD-347 da PR #436, ainda abertas).
+> **Numeração:** nasceu D-PROD-342 (`node scripts/dev/proxima-decisao.mjs` na `main` `6aa675672`). Antes do merge, a `main` levou as D-PROD-342 a D-PROD-345 (sem internet e sincronização, PRs #430 a #433); esta passou a D-PROD-348 e o marcador a D-PROD-349 (a D-PROD-346 é da PR #435, ainda aberta, e a D-PROD-347 da PR #436, já mesclada).
 
 <!-- Próxima decisão: D-PROD-349 -->

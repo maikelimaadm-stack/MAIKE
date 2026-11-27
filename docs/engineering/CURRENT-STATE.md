@@ -9,7 +9,16 @@ rollout pausado **D-PROD-41**)
 
 ---
 
-## Missão ativa (2026-11-27) — MAIKE-SINCRONIZACAO-FASE3: baixar só o que mudou em pontos, linhas e tarefas (D-PROD-345)
+## Missão ativa (2026-11-27) — MAIKE-MAPA-LEVE: etapa 1, medir e tirar a trava do zoom nos nomes (D-PROD-347)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-347**: nomes das áreas lidos e escalados em duas passadas; durante o zoom só os da tela; medição `run-perf.cjs` |
+| Banco | sem migration; backend sem mudança |
+| Relatório | [`MAPA-LEVE-D347-REPORT.md`](./MAPA-LEVE-D347-REPORT.md) |
+| Próximas | pontos e lotes desenhados pelo próprio mapa (camadas `symbol`), medir de novo |
+
+## Missão anterior (2026-11-27) — MAIKE-SINCRONIZACAO-FASE3: baixar só o que mudou em pontos, linhas e tarefas (D-PROD-345)
 
 | Item | Estado |
 |---|---|
