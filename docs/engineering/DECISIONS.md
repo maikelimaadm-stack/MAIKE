@@ -11102,4 +11102,28 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 - **Fica para depois:** os nomes dos pastos (etapa 3) e o resto da etapa 4.
 - **Testes:** `mapaGoogleAppMarcadoresD372.test.jsx` (7: projeção, camada, componente no app e no site), `mapaGoogleNativoD366.test.jsx` (o mapa falso ganha `setOnCameraMoveStartedListener`).
 
-<!-- Próxima decisão: D-PROD-373 -->
+## D-PROD-373 — Mapa do Google no app: os ícones andam junto com o mapa e todo toque é do mapa; APK 1.0.7
+
+**Data:** 2026-11-27 · **Origem:** teste do proprietário no APK 1.0.6 com a D-PROD-372: "quando começo a dar zoom os pontos somem e só aparecem depois que eu paro", "movimentar no mapa também faz sumir os ícones" e "quando dou zoom com o dedo em algum ícone trava e não dá zoom" · **Relatório:** [`MAPA-GOOGLE-APP-CAMERA-D373-REPORT.md`](./MAPA-GOOGLE-APP-CAMERA-D373-REPORT.md) · **Migration:** nenhuma · **APK:** 1.0.7 (código 8), `nativoMinimo` 5
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-373. O marcador passa a D-PROD-374.
+
+- **Problema:**
+  - O plugin `@capacitor/google-maps` só avisa a câmera quando o mapa começa a mexer e quando para. Os ícones do Mapa Geral, num `div` por cima do mapa nativo (D-PROD-372), sumiam durante todo o movimento.
+  - A imagem do ícone pegava o toque, então a pinça que começava em cima de um ícone ia para a página, não para o mapa.
+- **Decisão:**
+  - **Câmera a cada quadro:** um remendo no plugin (`scripts/app/remendar-google-maps.mjs`, no `postinstall`) faz o mapa nativo avisar `onCameraMove`, com latitude, longitude, zoom, rumo e inclinação.
+    - No Android, no `onCameraMove` que o plugin já ouvia (só para agrupar marcadores).
+    - No iOS, no `mapView(_:didChange:)`.
+    - O remendo é idempotente e avisa se o plugin mudar (teste `mapaGoogleCameraD373`).
+    - No app, o `MapaGoogleNativo` ouve o evento pelo plugin (`pluginDoMapaGoogle`) e reposiciona os ícones a cada quadro.
+    - No APK 1.0.6 (sem o evento), os ícones continuam sumindo durante o movimento e voltando quando o mapa para. Por isso o `nativoMinimo` segue 5.
+  - **Todo toque é do mapa:** as imagens têm `pointer-events: none` e a pinça e o arrasto em cima de um ícone mexem o mapa.
+    - O toque rápido chega pelo clique do mapa (`onMapClick`). O ícone de cima no ponto, com folga de 4 px, abre o detalhe dele (`camada.tocar`). Com o mesmo z-index, ganha o posto depois, que é o que aparece por cima. Sem ícone, a área que contém o ponto abre o detalhe da área (`areaNoPonto`).
+    - No app, os polígonos não são clicáveis, para o clique do mapa sempre chegar. No site nada muda.
+- **Testes:**
+  - `mapaGoogleCameraD373.test.js` (4): plugin instalado remendado, idempotência, plugin mudado, postinstall e versão do APK.
+  - `mapaGoogleAppMarcadoresD372.test.jsx` (9): toque no ícone de cima, ícones a cada quadro, APK antigo, toque no ícone ou na área, polígonos não clicáveis.
+  - `mapaGoogleNativoD366.test.jsx`: o mapa falso ganha `setOnMapClickListener`.
+
+<!-- Próxima decisão: D-PROD-374 -->

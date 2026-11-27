@@ -57,6 +57,10 @@ O Mapa Geral tem o mapa do Google pelo plugin oficial `@capacitor/google-maps`. 
   - Para o app, ela não pode ter a restrição de aplicativo "Sites". Use "Nenhuma", com restrição de API, cotas diárias e alerta de orçamento.
   - Opcional: `GOOGLE_MAPS_ANDROID_KEY` (chave própria do Android, restrita ao pacote e à SHA-1 que o build mostra) e `VITE_GOOGLE_MAPS_IOS_KEY`.
 - **Sem internet:** o Google mostra o que já guardou, sem baixar área inteira.
+- **Ícones no app (D-PROD-372, D-PROD-373):**
+  - Os lotes, cochos, pontos e tarefas ficam por cima do mapa nativo, com os mesmos ícones do sistema.
+  - A partir do APK 1.0.7, o mapa nativo avisa a câmera a cada quadro e os ícones andam junto ao arrastar e ao dar zoom. No APK 1.0.6, eles somem durante o movimento.
+  - O aviso a cada quadro vem de um remendo no plugin (`scripts/app/remendar-google-maps.mjs`), aplicado no `postinstall`, antes do `cap sync` e do build. Ao subir a versão do `@capacitor/google-maps`, conferir o teste `mapaGoogleCameraD373`.
 
 ## Permissões
 

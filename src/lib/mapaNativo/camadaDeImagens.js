@@ -5,7 +5,8 @@
  * por `z-index`, posicionadas pela câmera (`projetarNaCamera`). O site tem a camada própria dele, dentro do mapa do
  * Google (`mapaGoogleWeb.js`).
  *
- * O `div` não pega o toque (vai para o mapa nativo); só a imagem pega, e só para o clique.
+ * O `div` e as imagens não pegam toque (vai tudo para o mapa nativo, D-PROD-373): o toque rápido num ícone chega
+ * pelo clique do mapa e é conferido aqui (`tocar`).
  */
 
 /**
@@ -15,21 +16,24 @@
 
 /**
  * @param {HTMLElement} div onde as imagens moram
- * @param {{ aoTocar?: () => void }} [opcoes] `aoTocar`: um toque começou num marcador (antes do clique)
  */
-export function criarCamadaDeImagens(div, opcoes = {}) {
+export function criarCamadaDeImagens(div) {
   /** @type {Map<string, { m: Marcador, el: HTMLImageElement }>} */
   const itens = new Map();
   /** @type {Projetar | null} */
   let projetarAtual = null;
 
+  /** Canto da imagem na tela, ou null sem projeção. @param {Marcador} m */
+  const canto = (m) => {
+    const p = projetarAtual?.(m.lat, m.lng);
+    if (!p) return null;
+    return { x: Math.round(p.x + (m.dx || 0) - m.w / 2), y: Math.round(p.y + (m.dy || 0) - m.h / 2) };
+  };
+
   /** @param {Marcador} m @param {HTMLImageElement} el */
   const posicionar = (m, el) => {
-    const p = projetarAtual?.(m.lat, m.lng);
-    if (!p) return;
-    const x = Math.round(p.x + (m.dx || 0) - m.w / 2);
-    const y = Math.round(p.y + (m.dy || 0) - m.h / 2);
-    el.style.transform = `translate(${x}px, ${y}px)`;
+    const c = canto(m);
+    if (c) el.style.transform = `translate(${c.x}px, ${c.y}px)`;
   };
 
   return {
@@ -58,15 +62,11 @@ export function criarCamadaDeImagens(div, opcoes = {}) {
           const el = document.createElement("img");
           el.alt = "";
           el.draggable = false;
-          el.style.cssText = "position:absolute;left:0;top:0;cursor:pointer;pointer-events:auto;user-select:none;-webkit-user-drag:none;";
-          // o dedo em cima do ícone nunca dá zoom nem rola a página
-          el.style.touchAction = "none";
+          // A imagem não pega toque nenhum (D-PROD-373): todo toque vai para o mapa nativo, então a pinça e o arrasto
+          // que começam em cima de um ícone mexem o mapa. O toque rápido num ícone chega pelo clique do mapa
+          // (`tocar`, com o ponto na tela).
+          el.style.cssText = "position:absolute;left:0;top:0;pointer-events:none;user-select:none;-webkit-user-drag:none;";
           el.dataset.marcador = k;
-          el.addEventListener("pointerdown", () => opcoes.aoTocar?.());
-          el.addEventListener("click", (e) => {
-            e.stopPropagation();
-            itens.get(k)?.m.onClick?.();
-          });
           div.appendChild(el);
           it = { m, el };
           itens.set(k, it);
@@ -81,6 +81,25 @@ export function criarCamadaDeImagens(div, opcoes = {}) {
         posicionar(m, el);
       }
     },
+    /**
+     * Toque no mapa em (x, y) px da tela: o ícone de cima que está nesse ponto (com uma folga para o dedo) recebe o
+     * clique. Devolve se algum recebeu.
+     * @param {number} x @param {number} y @param {number} [folga] px em volta do ícone
+     */
+    tocar(x, y, folga = FOLGA_TOQUE_PX) {
+      /** @type {Marcador | null} */
+      let achado = null;
+      for (const { m } of itens.values()) {
+        const c = canto(m);
+        if (!c) continue;
+        const dentro = x >= c.x - folga && x <= c.x + m.w + folga && y >= c.y - folga && y <= c.y + m.h + folga;
+        // empate de z-index: o de cima é o posto depois (a ordem do Map é a das imagens no div)
+        if (dentro && (!achado || (m.z ?? 0) >= (achado.z ?? 0))) achado = m;
+      }
+      if (!achado) return false;
+      achado.onClick?.();
+      return true;
+    },
     /** Tira todas as imagens. */
     limpar() {
       for (const { el } of itens.values()) el.remove();
@@ -88,6 +107,9 @@ export function criarCamadaDeImagens(div, opcoes = {}) {
     },
   };
 }
+
+/** Folga em volta do ícone para o toque do dedo (px). */
+export const FOLGA_TOQUE_PX = 4;
 
 /** Tamanho do mundo em px no zoom do Google (ladrilho de 256 px, em px da página = dp no app). @param {number} zoom */
 const mundo = (zoom) => 256 * 2 ** zoom;
