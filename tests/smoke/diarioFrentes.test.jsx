@@ -114,7 +114,7 @@ const abertura = ({ bem, bemNome, impl = "", implNome = "", hor, resp = "usr-3",
 const TRATOR_12 = abertura({ bem: "bem-7", bemNome: "Trator 12", impl: "imp-2", implNome: "Pulverizador 2.000 L", hor: "1000.0" });
 const TRATOR_08 = abertura({ bem: "bem-8", bemNome: "Trator 08", hor: "900.0", resp: "usr-4", respNome: "Maria Souza" });
 /** Uma linha de produto CONFIRMADA (a carga). */
-const linhaProduto = (id, nome, quantidade, unidade, jato) => ({ id, status: "CONFIRMADO", produto_id: id, produto: { nome }, quantidade, unidade, jato, createdAt: "2026-11-26T09:10:00.000Z" });
+const linhaProduto = (id, nome, quantidade, unidade, jato, observacao = null) => ({ id, status: "CONFIRMADO", produto_id: id, produto: { nome }, quantidade, unidade, jato, observacao, createdAt: "2026-11-26T09:10:00.000Z" });
 /** Um apontamento CONFIRMADO de um dia, com a observação e as linhas dadas. */
 const ap = (id, dia, observacao, produtos = []) => ({ id, data_operacional: dia, status: "CONFIRMADO", versao: 2, createdAt: `${dia}T09:00:00.000Z`, observacao, produtos, maquinas: [], mao_obra: [], servicos: [] });
 
@@ -126,7 +126,7 @@ let store;
 const comecoDoServidor = () => ({
   "at-1": [
     ap("ap-1", "2026-11-02", TRATOR_12),
-    ap("ap-1h", "2026-11-26", TRATOR_12, [linhaProduto("pl-1", "Glifosato", "10.0000", "L", 1)]),
+    ap("ap-1h", "2026-11-26", TRATOR_12, [linhaProduto("pl-1", "Glifosato", "10.0000", "L", 1, "[carga hor=1100.0]")]),
     ap("ap-2", "2026-11-20", TRATOR_08),
     ap("ap-2h", "2026-11-26", TRATOR_08, [linhaProduto("pl-2", "Ureia", "500.0000", "kg", 1)]),
   ],
@@ -230,12 +230,15 @@ describe("D-PROD-348 — o passo \"Em andamento neste pasto\" (a) e o passo da a
     expect(within(trator12).getByText("Pulverizador 2.000 L")).toBeInTheDocument();
     expect(within(trator12).getByText("João Pereira")).toBeInTheDocument();
     expect(within(trator12).getByText("1.000,0")).toBeInTheDocument();
-    // "Hoje" conta os lançamentos do dia (a carga de Glifosato), não as horas.
-    expect(within(trator12).getByTestId("frente-hoje")).toHaveTextContent("1 lançamento");
+    // D-PROD-348 (item 1): "Hoje" são as horas do dia: a carga de Glifosato leu 1.100,0 h; a abertura, 1.000,0 h → 100 h.
+    expect(within(trator12).getByTestId("frente-hoje")).toHaveTextContent("100 h");
+    expect(within(trator12).getByTestId("frente-hoje")).not.toHaveTextContent("lançamento");
     const trator08 = screen.getByTestId("frente-at-1-bem-8%7C");
     expect(within(trator08).getByText("Maria Souza")).toBeInTheDocument();
     expect(within(trator08).getByText("900,0")).toBeInTheDocument();
     expect(within(trator08).getByText("—")).toBeInTheDocument();
+    // Ureia hoje sem horímetro na observação: sem leitura do dia, "Nada hoje" (dado ausente).
+    expect(within(trator08).getByTestId("frente-hoje")).toHaveTextContent("Nada hoje");
     expect(screen.getByTestId("atividade-adicionar-maquina")).toHaveTextContent("Adicionar máquina");
     expect(screen.getByTestId("atividade-encerrar")).toHaveTextContent("Encerrar atividade");
   });

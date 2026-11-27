@@ -1,5 +1,5 @@
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Sprout } from "lucide-react";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import { VerCustoContext, useVerCusto } from "@/components/lancamento-atividades/VerCusto";
@@ -11,8 +11,10 @@ import { formatarMoedaAtividade } from "@/lib/atividadeLinhasRegras";
 import { formatarDiaAtividade } from "@/lib/lancamentoAtividadesRegras";
 import { QUERY_ATIVIDADES_DA_AREA, rotuloDoMesCurto } from "@/lib/registroDeCampoRegras";
 import { STATUS_AREA } from "@/lib/atividadeAreasRegras";
+import { chaveApontamentos, itensDaLista } from "@/lib/atividadeApontamentoRegras";
+import { frentesDosApontamentos, resumoDasFrentes, textoDasMaquinasEmCampo } from "@/lib/aberturaServicoRegras";
 import { textoDaReformaNaArea } from "@/lib/reformaRegras";
-import { definirFazendaDaTela, obterResumoDaArea } from "@/services/lancamentoAtividadesService";
+import { definirFazendaDaTela, listarApontamentos, obterResumoDaArea } from "@/services/lancamentoAtividadesService";
 import { useAcoesDaAtividadeDaArea } from "./AcoesDaAtividadeDaArea";
 
 import "@/styles/mk-dp-detalhes-v13.css";
@@ -76,6 +78,18 @@ const subDaAtividade = (a) => {
 };
 
 /**
+ * D-PROD-348 (item 2): o `subDaAtividade` e, com frente aberta, "N máquinas em campo" (o mesmo texto do cartão da atividade
+ * no Diário). `frentes` nulo (lendo ou com erro) ou sem frente aberta → só o texto de antes.
+ * @param {any} a uma atividade do resumo
+ * @param {any[] | null} frentes as frentes lidas da atividade (`frentesDosApontamentos`), ou nulo
+ */
+const subDaAtividadeComMaquinas = (a, frentes) => {
+  const abertas = frentes ? resumoDasFrentes(frentes).abertas : 0;
+  const base = subDaAtividade(a);
+  return abertas > 0 ? `${base} · ${textoDasMaquinasEmCampo(abertas)}` : base;
+};
+
+/**
  * @param {{ area: any, setorNome?: string, ocupada?: boolean | null, verAtividades: boolean, tipos?: any[], secao?: "detalhes" | "manejos" | "custos", onIrAba?: (aba: string) => void }} props
  *   `tipos`: as operações ativas (as que os Detalhes da área já leem), para as ações da atividade.
  */
@@ -102,6 +116,24 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
     staleTime: 15 * 1000,
   });
   const atividades = resumo.data?.atividades ?? [];
+  // D-PROD-348 (item 2): as máquinas em campo de cada atividade EM ANDAMENTO (a linha diz "N máquinas em campo"). Lê os
+  // apontamentos com a MESMA chave e o MESMO serviço do Diário das atividades (sem chamada a mais, o cache é o mesmo).
+  // Lendo ou com erro, a linha fica como era (`frentesPorAtividade` não tem a atividade → sem trecho).
+  const emAndamentoLista = atividades.filter((a) => a.area_status !== STATUS_AREA.CONCLUIDA && a.area_status !== STATUS_AREA.PLANEJADA);
+  const frentesLidas = useQueries({
+    queries: emAndamentoLista.map((a) => ({
+      queryKey: chaveApontamentos(empresaId, String(a.atividade_id)),
+      queryFn: () => listarApontamentos(String(a.atividade_id)),
+      enabled: Boolean(empresaId && verAtividades && a.atividade_id),
+      staleTime: 15 * 1000,
+    })),
+  });
+  /** @type {Map<string, any[]>} */
+  const frentesPorAtividade = new Map();
+  emAndamentoLista.forEach((a, i) => {
+    const consulta = frentesLidas[i];
+    if (consulta?.isSuccess) frentesPorAtividade.set(String(a.atividade_id), frentesDosApontamentos(itensDaLista(consulta.data)));
+  });
   const custos = resumo.data?.custos ?? null;
   const mes = rotuloDoMesCurto(resumo.data?.mes);
   const cultura = texto(area.tipo_cultura) !== "Infraestrutura" ? texto(area.cultura?.nome || area.tipo_pastagem) : "";
@@ -121,7 +153,7 @@ function ConteudoAbaDetalhesDaArea({ area, ocupada = null, verAtividades, tipos 
           textoAutomatico: true,
           icone: iconeDoTipoAtividade({ nome_tipo: a.tipo_atividade_nome }),
           rotulo: a.nome,
-          sub: subDaAtividade(a),
+          sub: subDaAtividadeComMaquinas(a, frentesPorAtividade.get(String(a.atividade_id)) ?? null),
           valor: <Chip tom={s.tom}>{s.rotulo}</Chip>,
         };
         const grupos = acoesDaAtividade.gruposDe(a);

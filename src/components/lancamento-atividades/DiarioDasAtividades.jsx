@@ -1208,7 +1208,6 @@ export default function DiarioDasAtividades({
             lendo={apontamentosLidos.isLoading}
             erro={apontamentosLidos.isError}
             hoje={hoje}
-            fuso={fuso}
             ocupado={enviando}
             painel={painelDaAtividade}
             onAbrirFrente={abrirFrente}

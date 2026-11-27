@@ -10,10 +10,11 @@
  *
  * Horímetro: o campo é pt-BR (ponto = milhar, vírgula = decimal); o valor guardado é canônico ("1245.0").
  */
-import { comparar, ehCanonico, formatarNumero, lerNumeroLocal } from "./dinheiroDecimal.js";
+import { comparar, ehCanonico, formatarNumero, lerNumeroLocal, somar, subtrair } from "./dinheiroDecimal.js";
 import { confirmadosDoDia, normalizarPaginaDeOpcoes } from "./atividadeApontamentoRegras.js";
 import { lerErroGestao } from "./gestaoErros.js";
 import { rotuloDaUnidade } from "./abastecimentoRegras.js";
+import { lerCarga } from "./cargaInsumoRegras.js";
 
 /**
  * D-PROD-348: o início da linha de marcador (abertura OU encerramento de serviço), com o fechamento `]` e a quebra de
@@ -467,3 +468,111 @@ export const lancamentosDoDia = (apontamentos, dia, fuso) => {
   }
   return linhas.sort((a, b) => a.instante - b.instante);
 };
+
+// ─── Horas da frente no dia (D-PROD-348, item 1: o "Hoje" do cartão da frente) ─────
+
+/** A escala do horímetro e das horas: 4 casas (a mesma de `parseHorimetroPtBr`). Mais casas que isso não entram. */
+const CASAS_DO_HORIMETRO = 4;
+/** Zero na escala do horímetro. */
+const ZERO_HORAS = "0.0000";
+
+/** `a − b` na escala do horímetro; `null` se algum valor não couber nela (sem arredondar em silêncio). @param {string} a @param {string} b */
+const diferencaSegura = (a, b) => {
+  try {
+    return subtrair(a, b, CASAS_DO_HORIMETRO);
+  } catch {
+    return null;
+  }
+};
+
+/** A soma das parcelas na escala do horímetro; `null` se alguma não couber nela. @param {string[]} parcelas */
+const somaSegura = (parcelas) => {
+  try {
+    return somar(parcelas, CASAS_DO_HORIMETRO);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Os horímetros lidos numa observação de apontamento: a leitura FINAL das linhas de máquina confirmadas e o marcador
+ * `[carga hor=…]` das linhas de produto confirmadas. Só valores canônicos.
+ * @param {any} ap
+ * @returns {string[]}
+ */
+const horimetrosLidosNoApontamento = (ap) => {
+  /** @type {string[]} */
+  const lidos = [];
+  for (const l of Array.isArray(ap?.maquinas) ? ap.maquinas : []) {
+    if (l?.status === "CONFIRMADO" && ehCanonico(l.leitura_final)) lidos.push(l.leitura_final);
+  }
+  for (const l of Array.isArray(ap?.produtos) ? ap.produtos : []) {
+    if (l?.status !== "CONFIRMADO") continue;
+    const carga = lerCarga(l.observacao);
+    if (carga) lidos.push(carga.horimetro);
+  }
+  return lidos;
+};
+
+/**
+ * D-PROD-348 (item 1): as horas que a FRENTE trabalhou no dia `dia` (o "Hoje" do cartão), em decimal canônico ("4.5000"),
+ * ou `null` quando não há o que dizer ("Nada hoje").
+ *
+ * - Sem nenhum lançamento CONFIRMADO da frente no dia → `null`.
+ * - Se alguma linha de máquina confirmada do dia tem leitura inicial E final, soma (final − inicial) dessas linhas. Linha
+ *   em que o medidor anda para trás não entra.
+ * - Senão, usa os horímetros lidos no dia (a leitura final das máquinas e o `[carga hor=…]` das cargas): o MAIOR deles menos
+ *   o último lido antes do dia (ou, se não houver, o horímetro inicial da abertura). Horímetro que não anda → "0.0000".
+ * - Sem leitura no dia, ou sem base para comparar, → `null`.
+ *
+ * `itens` são os apontamentos da atividade (qualquer ordem); a frente é a da chave `chaveDaFrente`.
+ * @param {unknown} itens
+ * @param {string} chave a chave da frente (`chaveDaFrente` da abertura)
+ * @param {string} dia o "hoje" da fazenda (AAAA-MM-DD)
+ * @param {unknown} horimetroInicial o horímetro canônico da abertura da frente
+ * @returns {string | null}
+ */
+export const horasDaFrenteNoDia = (itens, chave, dia, horimetroInicial) => {
+  const daFrente = apontamentosDaFrente(itens, chave);
+  if (lancamentosDoDia(daFrente, dia, null).length === 0) return null;
+
+  const hoje = confirmadosDoDia(daFrente, dia);
+  const linhasDeMaquinaHoje = hoje.flatMap((ap) => (Array.isArray(ap.maquinas) ? ap.maquinas : []).filter((l) => l?.status === "CONFIRMADO"));
+
+  const pares = linhasDeMaquinaHoje.filter((l) => ehCanonico(l.leitura_inicial) && ehCanonico(l.leitura_final));
+  if (pares.length > 0) {
+    /** @type {string[]} */
+    const parcelas = [];
+    for (const l of pares) {
+      if (comparar(l.leitura_final, l.leitura_inicial) < 0) continue;
+      const diferenca = diferencaSegura(l.leitura_final, l.leitura_inicial);
+      if (diferenca === null) return null;
+      parcelas.push(diferenca);
+    }
+    return somaSegura(parcelas);
+  }
+
+  const lidosHoje = hoje.flatMap(horimetrosLidosNoApontamento);
+  if (lidosHoje.length === 0) return null;
+  const maiorHoje = lidosHoje.reduce((maior, v) => (comparar(v, maior) > 0 ? v : maior));
+
+  /** @type {string | null} o último horímetro lido antes do dia (a base); sem ele, o inicial da abertura */
+  let base = null;
+  for (const ap of daFrente) {
+    if (ap?.status !== "CONFIRMADO" || !(String(ap.data_operacional ?? "") < dia)) continue;
+    for (const v of horimetrosLidosNoApontamento(ap)) {
+      if (base === null || comparar(v, base) > 0) base = v;
+    }
+  }
+  if (base === null) base = ehCanonico(horimetroInicial) ? /** @type {string} */ (horimetroInicial) : null;
+  if (base === null) return null;
+  if (comparar(maiorHoje, base) <= 0) return ZERO_HORAS;
+  return diferencaSegura(maiorHoje, base);
+};
+
+/**
+ * D-PROD-348 (item 1): o texto do "Hoje" de uma frente. Horas canônicas → "4,5 h" (pt-BR, até 2 casas); sem horas, "Nada hoje".
+ * @param {unknown} horas o retorno de `horasDaFrenteNoDia`
+ * @returns {string}
+ */
+export const textoDasHorasHoje = (horas) => (ehCanonico(horas) ? `${formatarNumero(/** @type {string} */ (horas), { locale: "pt-BR", casasMin: 0, casasMax: 2 })} h` : "Nada hoje");

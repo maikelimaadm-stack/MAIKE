@@ -1,7 +1,7 @@
 import React from "react";
 import { ChevronRight, Plus, Tractor } from "lucide-react";
 import { AvisoGestao } from "@/components/gestao/GestaoFormParts";
-import { apontamentosDaFrente, formatarHorimetro, lancamentosDoDia, resumoDasFrentes, textoDasMaquinasEmCampo } from "@/lib/aberturaServicoRegras";
+import { formatarHorimetro, horasDaFrenteNoDia, resumoDasFrentes, textoDasHorasHoje, textoDasMaquinasEmCampo } from "@/lib/aberturaServicoRegras";
 import { STATUS_AREA } from "@/lib/atividadeAreasRegras";
 import { iconeDoTipoAtividade } from "@/lib/iconesTipoAtividade";
 
@@ -32,15 +32,13 @@ export const tituloDaFrente = (abertura) => {
   return abertura?.implementoNome ? `${bem} + ${abertura.implementoNome}` : bem;
 };
 
-/** "Hoje" de uma frente: quantos lançamentos ela teve no dia. @param {number} n */
-const textoDeHoje = (n) => (n === 0 ? "Nada hoje" : n === 1 ? "1 lançamento" : `${n} lançamentos`);
-
 /**
  * Um cartão de FRENTE (máquina + implemento) da atividade. Aberta é tocável (abre o serviço dela); encerrada não (cartão
  * desabilitado, sem seta, com o horímetro final no lugar de "Hoje").
- * @param {{ id: string, frente: { chave: string, abertura: any, encerrada: boolean, horimetroFinal: string }, lancamentosHoje: number, ocupado: boolean, onAbrir: (chave: string) => void }} props
+ * D-PROD-348 (item 1): o "Hoje" é as horas trabalhadas no dia (`horasHoje`, de `horasDaFrenteNoDia`); sem elas, "Nada hoje".
+ * @param {{ id: string, frente: { chave: string, abertura: any, encerrada: boolean, horimetroFinal: string }, horasHoje: string | null, ocupado: boolean, onAbrir: (chave: string) => void }} props
  */
-export function CartaoDaFrente({ id, frente, lancamentosHoje, ocupado, onAbrir }) {
+export function CartaoDaFrente({ id, frente, horasHoje, ocupado, onAbrir }) {
   const { abertura, chave, encerrada, horimetroFinal } = frente;
   const titulo = abertura.bemNome || "Máquina";
   return (
@@ -75,7 +73,7 @@ export function CartaoDaFrente({ id, frente, lancamentosHoje, ocupado, onAbrir }
             ) : (
               <span data-testid="frente-hoje">
                 <i>Hoje</i>
-                {textoDeHoje(lancamentosHoje)}
+                {textoDasHorasHoje(horasHoje)}
               </span>
             )}
           </span>
@@ -126,11 +124,11 @@ export function CartaoDaAtividade({ atividade, frentes, ocupado, onTocar }) {
  * entra no lugar da lista quando a pessoa está encerrando. Lendo, erro e aviso vêm das props.
  * @param {{
  *   atividade: any, nome: string, pasto: string, frentes: any[], apontamentos: any[], lendo: boolean, erro: boolean,
- *   hoje: string, fuso: string | null, ocupado: boolean, painel?: import('react').ReactNode,
+ *   hoje: string, ocupado: boolean, painel?: import('react').ReactNode,
  *   onAbrirFrente: (chave: string) => void, onAdicionar: () => void,
  * }} props
  */
-export default function AtividadeComFrentes({ atividade, nome, pasto, frentes, apontamentos, lendo, erro, hoje, fuso, ocupado, painel = null, onAbrirFrente, onAdicionar }) {
+export default function AtividadeComFrentes({ atividade, nome, pasto, frentes, apontamentos, lendo, erro, hoje, ocupado, painel = null, onAbrirFrente, onAdicionar }) {
   const id = String(atividade?.id ?? "");
   const maquinas = lendo || erro ? "—" : textoDasMaquinasEmCampo(resumoDasFrentes(frentes).abertas);
   const inicio = diaComAno(atividade?.data_inicio);
@@ -177,7 +175,7 @@ export default function AtividadeComFrentes({ atividade, nome, pasto, frentes, a
                     key={f.chave}
                     id={id}
                     frente={f}
-                    lancamentosHoje={lancamentosDoDia(apontamentosDaFrente(apontamentos, f.chave), hoje, fuso).length}
+                    horasHoje={horasDaFrenteNoDia(apontamentos, f.chave, hoje, f.abertura.horimetro)}
                     ocupado={ocupado}
                     onAbrir={onAbrirFrente}
                   />

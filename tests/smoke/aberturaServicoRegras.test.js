@@ -7,6 +7,8 @@ import {
   apontamentosDaFrente,
   chaveDaFrente,
   frentesDosApontamentos,
+  horasDaFrenteNoDia,
+  textoDasHorasHoje,
   ehCampoDesconhecido,
   lerEncerramento,
   lerTodasAsPaginas,
@@ -575,5 +577,94 @@ describe("frentes com encerramento (D-PROD-348)", () => {
   it("aberturaDosApontamentos continua ignorando o encerramento", () => {
     const itens = [abre("2026-11-02", "bem-7", "Trator 12", "imp-2", "1000.0", "a1"), encerra("2026-11-09", "bem-7", "1080.0", "imp-2")];
     expect(aberturaDosApontamentos(itens)?.horimetro).toBe("1000.0");
+  });
+});
+
+// ─── D-PROD-348 (item 1): as horas da frente no dia ─────
+
+describe("horasDaFrenteNoDia / textoDasHorasHoje (o \"Hoje\" do cartão da frente)", () => {
+  const DIA = "2026-11-26";
+  const ONTEM = "2026-11-25";
+  const CHAVE = "bem-7|";
+  /** A abertura da frente (Trator 12, sem implemento), com horímetro inicial 1000,0. */
+  const ABRE = marcadorDaAbertura({ bemId: "bem-7", bemNome: "Trator 12", horimetro: "1000.0", responsavelId: "usr-3", responsavelNome: "João" });
+  /** Um apontamento com a observação e as linhas dadas (status CONFIRMADO por padrão). */
+  const apontamento = (id, dia, observacao, { produtos = [], maquinas = [], status = "CONFIRMADO" } = {}) => ({ id, data_operacional: dia, status, createdAt: `${dia}T09:00:00.000Z`, observacao, produtos, maquinas, mao_obra: [], servicos: [] });
+  /** Uma linha de produto (carga) com o horímetro da carga na observação. */
+  const carga = (id, horimetro = null) => ({ id, status: "CONFIRMADO", produto: { nome: "Glifosato" }, quantidade: "10.0000", unidade: "L", jato: 1, observacao: horimetro ? `[carga hor=${horimetro}]` : null, createdAt: `${DIA}T10:00:00.000Z` });
+  /** Uma linha de máquina com leitura inicial e final (canônicas). */
+  const maquina = (id, inicial, final, status = "CONFIRMADO") => ({ id, status, bem: { nome: "Trator 12" }, leitura_inicial: inicial, leitura_final: final, createdAt: `${DIA}T08:00:00.000Z` });
+
+  it("zero: sem nenhum lançamento CONFIRMADO da frente no dia → null (Nada hoje)", () => {
+    expect(horasDaFrenteNoDia([apontamento("a", ONTEM, ABRE)], CHAVE, DIA, "1000.0")).toBeNull();
+    expect(horasDaFrenteNoDia([], CHAVE, DIA, "1000.0")).toBeNull();
+  });
+
+  it("uma leitura: a carga de hoje lê 1100,0 com abertura em 1000,0 → 100 h", () => {
+    const itens = [apontamento("a", DIA, ABRE, { produtos: [carga("l1", "1100.0")] })];
+    expect(horasDaFrenteNoDia(itens, CHAVE, DIA, "1000.0")).toBe("100.0000");
+  });
+
+  it("várias leituras de máquina: soma (final − inicial) de cada linha confirmada do dia", () => {
+    const itens = [
+      apontamento("a", DIA, ABRE, { maquinas: [maquina("m1", "1000.0", "1040.5")] }),
+      apontamento("b", DIA, ABRE, { maquinas: [maquina("m2", "1040.5", "1052.25")] }),
+    ];
+    expect(horasDaFrenteNoDia(itens, CHAVE, DIA, "1000.0")).toBe("52.2500");
+  });
+
+  it("várias cargas no dia: o MAIOR horímetro lido hoje menos a base (a abertura)", () => {
+    const itens = [
+      apontamento("a", DIA, ABRE, { produtos: [carga("l1", "1030.0")] }),
+      apontamento("b", DIA, ABRE, { produtos: [carga("l2", "1045.5")] }),
+    ];
+    expect(horasDaFrenteNoDia(itens, CHAVE, DIA, "1000.0")).toBe("45.5000");
+  });
+
+  it("a base é o último horímetro lido ANTES de hoje (não a abertura), quando houver", () => {
+    const itens = [
+      apontamento("a", ONTEM, ABRE, { produtos: [carga("l0", "1050.0")] }),
+      apontamento("b", DIA, ABRE, { produtos: [carga("l1", "1100.0")] }),
+    ];
+    expect(horasDaFrenteNoDia(itens, CHAVE, DIA, "1000.0")).toBe("50.0000");
+  });
+
+  it("horímetro que não anda: lido hoje igual à base → 0 (com lançamento no dia)", () => {
+    const itens = [apontamento("a", DIA, ABRE, { produtos: [carga("l1", "1000.0")] })];
+    expect(horasDaFrenteNoDia(itens, CHAVE, DIA, "1000.0")).toBe("0.0000");
+    expect(textoDasHorasHoje(horasDaFrenteNoDia(itens, CHAVE, DIA, "1000.0"))).toBe("0 h");
+  });
+
+  it("linha de máquina em que o medidor anda para trás não entra na soma", () => {
+    const itens = [apontamento("a", DIA, ABRE, { maquinas: [maquina("m1", "1040.0", "1030.0"), maquina("m2", "1030.0", "1035.0")] })];
+    expect(horasDaFrenteNoDia(itens, CHAVE, DIA, "1000.0")).toBe("5.0000");
+  });
+
+  it("dado ausente: lançamento de hoje sem horímetro nenhum e sem leitura de máquina → null", () => {
+    const itens = [apontamento("a", DIA, ABRE, { produtos: [carga("l1")] })];
+    expect(horasDaFrenteNoDia(itens, CHAVE, DIA, "1000.0")).toBeNull();
+  });
+
+  it("dado ausente: sem base (nem leitura anterior nem abertura canônica) → null", () => {
+    const itens = [apontamento("a", DIA, ABRE, { produtos: [carga("l1", "1100.0")] })];
+    expect(horasDaFrenteNoDia(itens, CHAVE, DIA, "1.245,0")).toBeNull();
+  });
+
+  it("ignora apontamentos cancelados e linhas que não estão CONFIRMADAS, e outras frentes", () => {
+    const itens = [
+      apontamento("x", DIA, ABRE, { produtos: [carga("l1", "1900.0")], status: "CANCELADO" }),
+      apontamento("y", DIA, ABRE, { produtos: [{ ...carga("l2", "1800.0"), status: "PENDENTE" }] }),
+      apontamento("z", DIA, marcadorDaAbertura({ bemId: "bem-8", horimetro: "500.0", responsavelId: "usr-3" }), { produtos: [carga("l3", "700.0")] }),
+      apontamento("w", DIA, ABRE, { produtos: [carga("l4", "1020.0")] }),
+    ];
+    expect(horasDaFrenteNoDia(itens, CHAVE, DIA, "1000.0")).toBe("20.0000");
+  });
+
+  it("textoDasHorasHoje: horas em pt-BR com até 2 casas; sem horas, \"Nada hoje\"", () => {
+    expect(textoDasHorasHoje("4.5000")).toBe("4,5 h");
+    expect(textoDasHorasHoje("100.0000")).toBe("100 h");
+    expect(textoDasHorasHoje("0.0000")).toBe("0 h");
+    expect(textoDasHorasHoje(null)).toBe("Nada hoje");
+    expect(textoDasHorasHoje(undefined)).toBe("Nada hoje");
   });
 });
