@@ -779,6 +779,17 @@ describe("horasDaFrenteNoDia / textoDasHorasHoje (o \"Hoje\" do cartão da frent
     expect(horasDaFrenteNoDia(itens, CHAVE, DIA, "1000.0")).toBe("52.2500");
   });
 
+  it("máquina sem contador (D-PROD-365): o uso digitado da linha sem medidor entra no \"Hoje\", sozinho ou junto com as leituras", () => {
+    const digitada = (id, uso) => ({ id, status: "CONFIRMADO", bem: { nome: "Trator 12" }, sem_medidor: true, leitura_inicial: null, leitura_final: null, quantidade_uso: uso, createdAt: `${DIA}T08:00:00.000Z` });
+    const so = [apontamento("a", DIA, ABRE, { maquinas: [digitada("m1", "5.0000")] })];
+    expect(horasDaFrenteNoDia(so, CHAVE, DIA, "1000.0")).toBe("5.0000");
+    expect(textoDasHorasHoje(horasDaFrenteNoDia(so, CHAVE, DIA, "1000.0"))).toBe("5 h");
+    const junto = [apontamento("a", DIA, ABRE, { maquinas: [digitada("m1", "2.5000"), maquina("m2", "1000.0", "1004.0")] })];
+    expect(horasDaFrenteNoDia(junto, CHAVE, DIA, "1000.0")).toBe("6.5000");
+    const cancelada = [apontamento("a", DIA, ABRE, { maquinas: [{ ...digitada("m3", "9.0000"), status: "CANCELADO" }, maquina("m4", "1000.0", "1001.0")] })];
+    expect(horasDaFrenteNoDia(cancelada, CHAVE, DIA, "1000.0")).toBe("1.0000");
+  });
+
   it("várias cargas no dia: o MAIOR horímetro lido hoje menos a base (a abertura)", () => {
     const itens = [
       apontamento("a", DIA, ABRE, { produtos: [carga("l1", "1030.0")] }),

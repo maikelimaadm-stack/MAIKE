@@ -39,6 +39,7 @@ import {
   ACAO_LANCAR_LINHA,
   adicionarLinha,
   alvoDasLinhas,
+  alvoDosApontamentos,
   criarApontamento,
   limparPendenciaDaLinha,
   listarApontamentos,
@@ -262,7 +263,10 @@ export default function MaquinaDaFrente({
       );
       if (ap && gravou) {
         progressoRef.current = { apontamentoId: String(ap.id), versao: ap.versao ?? progressoRef.current.versao };
+        // Os dois caminhos de envio: a linha nova num registro que já existia (alvo das linhas do apontamento) e o registro do dia
+        // criado junto com a linha (alvo dos apontamentos da atividade). Limpar o que não foi usado não faz nada.
         limparPendenciaDaLinha(escopo, ACAO_LANCAR_LINHA, alvoDasLinhas(LINHA_MAQUINA, String(ap.id)));
+        limparPendenciaDaLinha(escopo, ACAO_LANCAR_LINHA, alvoDosApontamentos(String(atividadeId)));
         notifySuccess("Gravado", "O envio anterior das horas foi gravado.");
         await concluir({ apontamento: ap, atividade: null, avisos: [] });
         return;

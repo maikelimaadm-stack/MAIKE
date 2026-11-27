@@ -605,7 +605,7 @@ const horimetrosLidosNoApontamento = (ap) => {
  * ou `null` quando não há o que dizer ("Nada hoje").
  *
  * - Sem nenhum lançamento CONFIRMADO da frente no dia → `null`.
- * - Se alguma linha de máquina confirmada do dia tem leitura inicial E final, soma (final − inicial) dessas linhas. Linha
+ * - Se alguma linha de máquina confirmada do dia tem leitura inicial E final, soma (final − inicial) dessas linhas (mais o uso digitado das linhas "sem medidor", D-PROD-365). Linha
  *   em que o medidor anda para trás não entra.
  * - Senão, usa os horímetros lidos no dia (a leitura final das máquinas e o `[carga hor=…]` das cargas): o MAIOR deles menos
  *   o último lido antes do dia (ou, se não houver, o horímetro inicial da abertura). Horímetro que não anda → "0.0000".
@@ -626,9 +626,13 @@ export const horasDaFrenteNoDia = (itens, chave, dia, horimetroInicial) => {
   const linhasDeMaquinaHoje = hoje.flatMap((ap) => (Array.isArray(ap.maquinas) ? ap.maquinas : []).filter((l) => l?.status === "CONFIRMADO"));
 
   const pares = linhasDeMaquinaHoje.filter((l) => ehCanonico(l.leitura_inicial) && ehCanonico(l.leitura_final));
-  if (pares.length > 0) {
+  // Máquina sem contador: a linha guarda só o uso (horas digitadas), sem leituras; entra na soma como está.
+  const digitadas = linhasDeMaquinaHoje.filter(
+    (l) => !(ehCanonico(l.leitura_inicial) && ehCanonico(l.leitura_final)) && l.sem_medidor === true && ehCanonico(l.quantidade_uso),
+  );
+  if (pares.length > 0 || digitadas.length > 0) {
     /** @type {string[]} */
-    const parcelas = [];
+    const parcelas = digitadas.map((l) => l.quantidade_uso);
     for (const l of pares) {
       if (comparar(l.leitura_final, l.leitura_inicial) < 0) continue;
       const diferenca = diferencaSegura(l.leitura_final, l.leitura_inicial);
