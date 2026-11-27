@@ -10609,4 +10609,19 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - imagens que nenhum lote usa saem do mapa e do cache (não com os lotes escondidos pelo filtro);
   - devicePixelRatio relido no `resize`.
 
-<!-- Próxima decisão: D-PROD-350 -->
+## D-PROD-350 — Celular de mais de uma pessoa: o que ficou para enviar sobe com a conta da fazenda (como o AgriWebb)
+
+**Data:** 2026-11-27 · **Origem:** o proprietário escolheu fazer como o AgriWebb ("faz assim, o AgriWebb funciona como?") · **Branch:** `claude/nifty-feynman-rh0kdn` · **Migration:** nenhuma · **APK:** não precisa · **Relatório:** [`CELULAR-COMPARTILHADO-D350-REPORT.md`](./CELULAR-COMPARTILHADO-D350-REPORT.md)
+
+**Como o AgriWebb faz** (lido no próprio app): os dados ficam por fazenda baixada no celular, não por pessoa. Ao sair, ele só lembra que vai precisar de internet para entrar de novo. Antes de tirar uma fazenda do celular, ele confere o que não foi sincronizado e avisa que isso seria descartado.
+
+**Decisão.**
+1. **O dono da fila do motor é a conta da fazenda (cliente), não a pessoa.** Isso vale para a leitura de cocho, o lançamento e a transferência. O que um peão lançou sem internet sobe quando qualquer pessoa da mesma conta entrar com internet. Antes esperava a mesma pessoa voltar, e podia nunca subir. A fila de cadastros já era assim. O registro de outra conta continua nunca indo com esta sessão. A pessoa que lançou continua gravada no item (`usuario_id`). No servidor, o registro fica com a conta de quem estava no celular na hora do envio.
+2. **Sair da conta com registros pendentes:**
+   - o app confere a fila na hora, não o número que a tela tinha;
+   - com internet, tenta enviar antes, por até 20 s;
+   - só então avisa quantos ficaram, com o texto certo: "ficam guardados aqui e sobem quando alguém desta fazenda entrar com internet". Antes dizia "só com esta mesma conta", o que só valia para parte da fila.
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` na `main` (`dcc7d46a6`) indicou D-PROD-350. O marcador passa a D-PROD-351. Conferir antes do merge (regra A5).
+
+<!-- Próxima decisão: D-PROD-351 -->
