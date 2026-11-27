@@ -18,11 +18,12 @@
  *  - ordem igual ao z-index de antes: cocho < ponto < lote < tarefa < tarefa Urgente (`ORDEM_CLICAVEIS`).
  */
 import {
+  ADIADA,
   LOTES_LAYER_ID,
   baseDoTexto,
   carregarFigura,
   contextoDeDesenho,
-  esquecerFigura,
+  figuraFalhouHaPouco,
   imagemPronta,
   lerPixelsDoCanvas,
   porImagemNoMapa,
@@ -173,14 +174,21 @@ function larguraIndicador(/** @type {CanvasRenderingContext2D | null} */ ctx, /*
   return Math.max(I.larguraMin, Math.ceil(w) + 2 * I.folga + 2 * I.borda);
 }
 
-/** Primeira figura que carrega (as que falham são esquecidas: a próxima tentativa recarrega). @param {string[]} urls */
-async function primeiraFigura(urls) {
+/**
+ * Primeira figura que carrega. Roda FORA da fila de desenho (`preparar`): uma figura remota lenta não segura os lotes
+ * nem os outros pontos. Uma URL remota que falhou há pouco é pulada (`carregarFigura` lembra a falha); se todas
+ * foram puladas, `ADIADA` (não é uma tentativa nova, não conta como falha).
+ * @param {string[]} urls @returns {Promise<HTMLImageElement | null | typeof ADIADA>}
+ */
+export async function primeiraFigura(urls) {
+  let tentou = false;
   for (const url of urls) {
+    if (figuraFalhouHaPouco(url)) continue;
+    tentou = true;
     const fig = await carregarFigura(url);
     if (fig) return fig;
-    esquecerFigura(url);
   }
-  return null;
+  return tentou ? null : ADIADA;
 }
 
 /**
@@ -190,12 +198,16 @@ async function primeiraFigura(urls) {
  *
  * Com `urls` e nenhuma carregando (ou com o canvas "sujo" por uma figura de outra origem) devolve null: o ponto fica
  * com a reserva. Sem `urls` desenha o círculo (é o normal de um ponto sem ícone cadastrado, não é falha).
+ * `corpo` no resultado: meia largura e meia altura do ícone visível (sem selo, farol, indicador nem margem), para o
+ * toque na margem transparente não contar como toque no ponto.
  * @param {DesenhoPonto & { pixelRatio: number }} d
- * @returns {Promise<Raster | null>}
+ * @param {HTMLImageElement | null} [figura] já carregada (fora da fila); sem ela, carrega aqui
+ * @returns {Promise<(Raster & { corpo: { hx: number, hy: number } }) | null>}
  */
-export async function desenharImagemPonto(d) {
+export async function desenharImagemPonto(d, figura) {
   const pr = d.pixelRatio;
-  const fig = d.urls.length ? await primeiraFigura(d.urls) : null;
+  const carregada = figura !== undefined ? figura : d.urls.length ? await primeiraFigura(d.urls) : null;
+  const fig = carregada === ADIADA ? null : carregada;
   if (d.urls.length && !fig) return null;
   const corpo = fig ? iconeSemAchatar(fig.naturalWidth, fig.naturalHeight, d.base) : { width: 2 * RAIO_CIRCULO_PX, height: 2 * RAIO_CIRCULO_PX };
   const folga = fig ? 0 : FOLGA_SOMBRA_PX;
@@ -268,7 +280,7 @@ export async function desenharImagemPonto(d) {
     ctx.fillText(d.indicador.texto, x + larguraInd / 2, baseDoTexto(ctx, d.indicador.texto, y + I.altura / 2));
   }
   const imagem = lerPixelsDoCanvas(ctx, largura, altura);
-  return imagem ? { imagem, pixelRatio: pr, w: W, h: H } : null;
+  return imagem ? { imagem, pixelRatio: pr, w: W, h: H, corpo: { hx: corpo.width / 2, hy: corpo.height / 2 } } : null;
 }
 
 /**
@@ -282,8 +294,15 @@ export function pedidosImagemPonto(grupo, d, pixelRatio) {
   const desenho = { ...d, urls };
   const reserva = { ...d, urls: [] };
   return {
-    imagem: { chave: chaveImagemPonto(grupo, desenho), gerar: () => desenharImagemPonto({ ...desenho, pixelRatio }) },
-    reserva: { chave: chaveReservaPonto(grupo, d), gerar: () => desenharImagemPonto({ ...reserva, pixelRatio }) },
+    // a figura é carregada fora da fila (preparar); a fila só desenha
+    imagem: urls.length
+      ? {
+          chave: chaveImagemPonto(grupo, desenho),
+          preparar: () => primeiraFigura(urls),
+          gerar: (/** @type {any} */ fig) => desenharImagemPonto({ ...desenho, pixelRatio }, fig || null),
+        }
+      : { chave: chaveImagemPonto(grupo, desenho), gerar: () => desenharImagemPonto({ ...desenho, pixelRatio }, null) },
+    reserva: { chave: chaveReservaPonto(grupo, d), gerar: () => desenharImagemPonto({ ...reserva, pixelRatio }, null) },
   };
 }
 
@@ -301,8 +320,12 @@ export function limparAvisoPontos() {
 
 // ─── Fonte e camadas ────────────────────────────────────────────────────────
 
+/** Tarefa Urgente ou lote com alerta: desenhados por cima dos outros da mesma camada. @param {any} f */
+const prioridade = (f) => (f?.properties?.urgente || f?.properties?.alerta ? 1 : 0);
+
 /**
- * @typedef {{ id: string, lngLat: [number, number], imagem: string, reserva: string, titulo: string, urgente?: boolean }} ItemPonto
+ * @typedef {{ id: string, lngLat: [number, number], imagem: string, reserva: string, titulo: string, urgente?: boolean, caixa?: { hx: number, hy: number } | null }} ItemPonto
+ *   `caixa`: meia largura/altura do ícone visível na imagem em uso (vai na fonte como `hw`/`hh`, para o toque).
  */
 
 /**
@@ -318,8 +341,15 @@ export function colecaoPontos(itens) {
     /** @type {Record<string, any>} */
     const properties = { id: it.id, imagem: it.imagem, reserva: it.reserva, titulo: it.titulo };
     if (it.urgente !== undefined) properties.urgente = it.urgente;
+    if (it.caixa) {
+      properties.hw = it.caixa.hx;
+      properties.hh = it.caixa.hy;
+    }
     features.push({ type: "Feature", id: it.id, properties, geometry: { type: "Point", coordinates: it.lngLat } });
   }
+  // Urgente por ÚLTIMO: é desenhada por cima (`symbol-sort-key`) e o MapLibre devolve o clique na ordem inversa dos
+  // dados — com a mesma ordem, a tarefa que aparece por cima é a que abre.
+  features.sort((a, b) => prioridade(a) - prioridade(b));
   return { type: "FeatureCollection", features };
 }
 
@@ -415,6 +445,27 @@ export function ligarImagensFaltandoPontos(map, pixelRatio) {
 /** @param {{ x: number, y: number } | [number, number]} ponto @returns {[number, number]} */
 const xy = (ponto) => (Array.isArray(ponto) ? ponto : [ponto.x, ponto.y]);
 
+/** Folga (px) em volta do ícone visível que ainda conta como toque nele. */
+export const FOLGA_TOQUE_PX = 2;
+
+/**
+ * O toque caiu no ícone VISÍVEL do ponto? A imagem tem margem transparente (é simétrica em volta do centro, para
+ * caber o selo, o farol ou o indicador); o toque nessa margem é da área por baixo, não do ponto. Sem `hw`/`hh` ou sem
+ * geometria (lote, testes), vale o que o mapa achou.
+ * @param {any} map @param {any} f @param {[number, number]} p
+ */
+export function toqueNoIconeVisivel(map, f, p) {
+  const hw = Number(f?.properties?.hw);
+  const hh = Number(f?.properties?.hh);
+  const c = f?.geometry?.coordinates;
+  if (!(hw > 0) || !(hh > 0) || !Array.isArray(c) || typeof map?.project !== "function") return true;
+  const q = map.project(c);
+  return Math.abs(p[0] - q.x) <= hw + FOLGA_TOQUE_PX && Math.abs(p[1] - q.y) <= hh + FOLGA_TOQUE_PX;
+}
+
+/** As features de uma camada sob o ponto, só as tocadas no ícone visível. @param {any} map @param {[number, number]} p @param {string} camada */
+const tocadas = (map, p, camada) => map.queryRenderedFeatures(p, { layers: [camada] }).filter((/** @type {any} */ f) => toqueNoIconeVisivel(map, f, p));
+
 /**
  * O ícone clicável de cima no ponto da tela (tarefa, lote, ponto ou cocho, nessa ordem), ou null.
  * Consulta camada por camada, de cima para baixo: o primeiro que tem algo no ponto é o que o dedo tocou.
@@ -426,8 +477,12 @@ export function iconeNoTopo(map, ponto) {
     const p = xy(ponto);
     for (const camada of ORDEM_CLICAVEIS) {
       if (!map?.getLayer?.(camada)) continue;
-      const [f] = map.queryRenderedFeatures(p, { layers: [camada] });
-      if (f) return { camada, feature: f };
+      const fs = tocadas(map, p, camada);
+      if (!fs.length) continue;
+      // dentro da camada: a Urgente (ou o lote com alerta), que é desenhada por cima; empate, o primeiro (o de cima)
+      let melhor = fs[0];
+      for (const f of fs) if (prioridade(f) > prioridade(melhor)) melhor = f;
+      return { camada, feature: melhor };
     }
   } catch {
     /* mapa sendo removido */
@@ -442,8 +497,8 @@ export function iconeNoTopo(map, ponto) {
  */
 export function haPontoNoPonto(map, ponto) {
   try {
-    const camadas = CAMADAS_PONTOS.filter((c) => map?.getLayer?.(c));
-    return camadas.length > 0 && map.queryRenderedFeatures(xy(ponto), { layers: camadas }).length > 0;
+    const p = xy(ponto);
+    return CAMADAS_PONTOS.some((c) => Boolean(map?.getLayer?.(c)) && tocadas(map, p, c).length > 0);
   } catch {
     return false;
   }
@@ -452,7 +507,7 @@ export function haPontoNoPonto(map, ponto) {
 /** Há tarefa (a camada acima dos lotes) sob o ponto? O lote por baixo dela não abre nem arrasta. @param {any} map */
 export function haTarefaNoPonto(map, /** @type {{ x: number, y: number } | [number, number]} */ ponto) {
   try {
-    return Boolean(map?.getLayer?.(TAREFAS_LAYER_ID)) && map.queryRenderedFeatures(xy(ponto), { layers: [TAREFAS_LAYER_ID] }).length > 0;
+    return Boolean(map?.getLayer?.(TAREFAS_LAYER_ID)) && tocadas(map, xy(ponto), TAREFAS_LAYER_ID).length > 0;
   } catch {
     return false;
   }
@@ -479,20 +534,31 @@ export function ligarInteracaoPontos(map, opts) {
   /** @type {Array<[string, string, (e: any) => void]>} */
   const ligados = [];
   for (const camada of CAMADAS_PONTOS) {
+    /** O que este toque acerta nesta camada: null se outro ícone está por cima ou se caiu só na margem transparente. */
+    const alvo = (/** @type {any} */ e) => {
+      if (!e?.point) return e?.features?.[0] ?? null;
+      const topo = iconeNoTopo(map, e.point);
+      if (topo) return topo.camada === camada ? topo.feature : null;
+      // o mapa achou a feature, mas a consulta não (testes/estilo trocando): vale a do evento, se tocada no ícone
+      return (e.features || []).find((/** @type {any} */ f) => toqueNoIconeVisivel(map, f, xy(e.point))) ?? null;
+    };
     const aoClicar = (/** @type {any} */ e) => {
       if (opts.ignorarClique?.()) return;
-      const topo = e?.point ? iconeNoTopo(map, e.point) : null;
-      if (topo && topo.camada !== camada) return;
-      const id = idDe(topo?.feature ?? e?.features?.[0]);
+      const id = idDe(alvo(e));
       if (id) opts.aoClicar(camada, id);
     };
     const aoEntrar = (/** @type {any} */ e) => {
       const c = canvas();
       if (!c?.style) return;
-      const topo = e?.point ? iconeNoTopo(map, e.point) : null;
-      if (topo && topo.camada !== camada) return; // quem está por cima cuida
+      const f = alvo(e);
+      if (!f) {
+        // na margem transparente: não é o ponto (quem está por cima cuida do próprio cursor)
+        if (tituloPosto && "title" in c && c.title === tituloPosto) c.title = "";
+        tituloPosto = "";
+        return;
+      }
       c.style.cursor = "pointer";
-      const id = idDe(topo?.feature ?? e?.features?.[0]);
+      const id = idDe(f);
       tituloPosto = id ? opts.titulo(camada, id) || "" : "";
       if ("title" in c) c.title = tituloPosto;
     };

@@ -28,12 +28,12 @@ export const svgDaUrl = (url) => {
  * imagem do lote que não pôde ser desenhada.
  * `falharFigura`: quando true, a figura (SVG) não carrega (`onerror`).
  * `falharUrl(url)`: quando devolve true, aquela figura não carrega. `sujarCom(url)`: quando devolve true, desenhar
- * aquela figura suja o canvas (a leitura dos pixels dele passa a lançar).
- * @returns {{ chamadas: any[], figurasCarregadas: string[], textos: () => string[], desenhos: () => number, falharLeitura: null | ((w: number, h: number) => boolean), falharFigura: boolean, falharUrl: null | ((url: string) => boolean), sujarCom: null | ((url: string) => boolean), crossOrigin: string[] }}
+ * aquela figura suja o canvas (a leitura dos pixels dele passa a lançar). `penderUrl(url)`: aquela figura nunca responde.
+ * @returns {{ chamadas: any[], figurasCarregadas: string[], textos: () => string[], desenhos: () => number, falharLeitura: null | ((w: number, h: number) => boolean), falharFigura: boolean, falharUrl: null | ((url: string) => boolean), sujarCom: null | ((url: string) => boolean), penderUrl: null | ((url: string) => boolean), crossOrigin: string[] }}
  */
 export function instalarCanvasFalso() {
   /** @type {{ falharLeitura: null | ((w: number, h: number) => boolean) }} */
-  const controle = { falharLeitura: null, falharFigura: false, falharUrl: null, sujarCom: null };
+  const controle = { falharLeitura: null, falharFigura: false, falharUrl: null, sujarCom: null, penderUrl: null };
   /** `crossOrigin` de cada figura pedida (na ordem). */
   const crossOrigin = [];
   /** @type {any[]} */
@@ -55,6 +55,7 @@ export function instalarCanvasFalso() {
     set src(v) {
       this._src = v;
       crossOrigin.push(this.crossOrigin);
+      if (controle.penderUrl?.(v)) return; // servidor que nunca responde: nem onload, nem onerror
       queueMicrotask(() => {
         try {
           if (controle.falharFigura) throw new Error("figura não carregou");
@@ -169,6 +170,12 @@ export function instalarCanvasFalso() {
     },
     set falharUrl(f) {
       controle.falharUrl = f;
+    },
+    get penderUrl() {
+      return controle.penderUrl;
+    },
+    set penderUrl(f) {
+      controle.penderUrl = f;
     },
     get sujarCom() {
       return controle.sujarCom;

@@ -52,7 +52,10 @@ export const COR_IDENT_MISTO = "linear-gradient(90deg, #000000 50%, #ffffff 50%)
  * @typedef {{ width: number, height: number, data: Uint8Array | Uint8ClampedArray }} Pixels
  * @typedef {{ imagem: Pixels, pixelRatio: number, w: number, h: number }} Raster
  *   `w`/`h`: tamanho na tela (px CSS); `imagem`: pixels em `w × pixelRatio`.
- * @typedef {{ chave: string, gerar: () => Promise<Raster | null> }} PedidoImagem
+ * @typedef {{ chave: string, gerar: (preparado?: any) => Promise<Raster | null>, preparar?: () => Promise<any> }} PedidoImagem
+ *   `preparar` (D-PROD-352): o que espera rede (carregar a figura de um ponto) roda FORA da fila de desenho; o
+ *   resultado vai para `gerar`, que só desenha. Se `preparar` devolver `ADIADA`, a imagem não é tentada agora (a figura
+ *   falhou há pouco) e isso não conta como falha.
  */
 
 // ─── Dados (puros) ──────────────────────────────────────────────────────────
@@ -113,6 +116,7 @@ export function chaveImagemIdent(ident) {
 /**
  * Fonte GeoJSON dos lotes. As propriedades servem à camada (imagem, ident, alerta, piscar, comRotulo) e a quem
  * precisa saber o que está no mapa sem olhar pixels (testes, e2e): `cabecas`, `contagem` (texto desenhado) e `desenho`.
+ * Os lotes com alerta vão no fim (a mesma ordem em que são desenhados).
  * @param {Iterable<ItemLote>} itens
  * @returns {GeoJSON.FeatureCollection<GeoJSON.Point>}
  */
@@ -135,6 +139,10 @@ export function colecaoLotes(itens) {
     if (it.ident) properties.ident = it.ident;
     features.push({ type: "Feature", id: it.areaId, properties, geometry: { type: "Point", coordinates: it.lngLat } });
   }
+  // Lote com alerta por ÚLTIMO (D-PROD-352): ele é desenhado por cima (`symbol-sort-key`) e o MapLibre devolve o
+  // clique na ordem inversa dos dados — com a mesma ordem, o lote que aparece por cima é o que abre.
+  const alerta = (/** @type {GeoJSON.Feature} */ f) => (f.properties?.alerta ? 1 : 0);
+  features.sort((a, b) => alerta(a) - alerta(b));
   return { type: "FeatureCollection", features };
 }
 
@@ -242,6 +250,7 @@ export function limparCacheImagensLotes() {
   prontas.clear();
   pendentes.clear();
   falhas.clear();
+  falhasDeFigura.clear();
   tela = null;
 }
 
@@ -251,31 +260,60 @@ export function pixelRatioDaTela() {
   return Number.isFinite(dpr) && dpr > 0 ? Math.min(4, Math.max(1, dpr)) : 1;
 }
 
+/** Figura que não respondeu até aqui (ms) conta como falha: um servidor lento não segura o ponto para sempre. */
+export const MS_LIMITE_FIGURA = 8000;
+/** Figura remota que falhou não é baixada de novo por este tempo (ms): N pontos com o mesmo ícone = 1 download. */
+export const MS_FALHA_FIGURA = 120000;
+/** URL remota → quando falhou. @type {Map<string, number>} */
+const falhasDeFigura = new Map();
+/** @param {string} url */
+const ehRemota = (url) => !/^(data|blob):/i.test(String(url));
+
+/** A figura remota falhou há menos de MS_FALHA_FIGURA? (Não vale tentar de novo agora.) @param {string} url */
+export function figuraFalhouHaPouco(url) {
+  const t = falhasDeFigura.get(url);
+  return t !== undefined && agora() - t < MS_FALHA_FIGURA;
+}
+
 /**
- * Figura carregada (uma por URL). URL que não é `data:`/`blob:` (ícone antigo gravado como link; o envio do app
- * devolve `data:` URL — D-PROD-352) é pedida com CORS: sem ele, desenhar a figura sujaria o canvas e nenhum pixel
- * poderia ser lido. Servidor sem CORS = figura que não carrega (o ponto fica com a reserva).
+ * Figura carregada (uma por URL; quem pede a mesma URL enquanto ela carrega espera o mesmo download). URL que não é
+ * `data:`/`blob:` (ícone antigo gravado como link; o envio do app devolve `data:` URL — D-PROD-352) é pedida com CORS:
+ * sem ele, desenhar a figura sujaria o canvas e nenhum pixel poderia ser lido. Servidor sem CORS, ou que não responde
+ * em MS_LIMITE_FIGURA, = figura que não carrega (o ponto fica com a reserva). A falha de uma URL remota é lembrada por
+ * MS_FALHA_FIGURA; a de uma `data:` URL, não (a próxima tentativa decodifica de novo).
  * @param {string} url @returns {Promise<HTMLImageElement | null>}
  */
 export function carregarFigura(url) {
+  if (ehRemota(url) && figuraFalhouHaPouco(url)) return Promise.resolve(null);
   let p = figuras.get(url);
   if (!p) {
-    p = new Promise((resolve) => {
+    p = new Promise((/** @type {(img: HTMLImageElement | null) => void} */ resolve) => {
       if (typeof Image === "undefined") return resolve(null);
       const img = new Image();
-      if (!/^(data|blob):/i.test(String(url))) img.crossOrigin = "anonymous";
-      img.onload = () => resolve(img);
-      img.onerror = () => resolve(null);
+      if (ehRemota(url)) img.crossOrigin = "anonymous";
+      let fim = false;
+      const terminar = (/** @type {HTMLImageElement | null} */ v) => {
+        if (fim) return;
+        fim = true;
+        clearTimeout(limite);
+        img.onload = null;
+        img.onerror = null;
+        resolve(v);
+      };
+      const limite = setTimeout(() => terminar(null), MS_LIMITE_FIGURA);
+      img.onload = () => terminar(img);
+      img.onerror = () => terminar(null);
       img.src = url;
+    }).then((img) => {
+      if (!img) {
+        figuras.delete(url);
+        if (ehRemota(url)) falhasDeFigura.set(url, agora());
+      }
+      return img;
     });
     figuras.set(url, p);
   }
   return p;
-}
-
-/** Esquece a figura que não carregou: a próxima tentativa carrega de novo. @param {string} url */
-export function esquecerFigura(url) {
-  figuras.delete(url);
 }
 
 /**
@@ -521,15 +559,22 @@ function naFila(fn) {
 export function garantirImagens(pedidos, pixelRatio, aoFalhar = avisarFalha) {
   /** @type {Promise<Raster | null>[]} */
   const esperar = [];
-  for (const { chave, gerar } of pedidos) {
+  for (const { chave, gerar, preparar } of pedidos) {
     const k = chaveCache(chave, pixelRatio);
     if (prontas.has(k) || (falhas.get(k) || 0) >= MAX_TENTATIVAS_IMAGEM) continue;
     let p = pendentes.get(k);
     if (!p) {
-      p = naFila(gerar)
+      // a rede (preparar) fica fora da fila: só o desenho no canvas entra nela
+      const tentar = async () => {
+        const prep = preparar ? await preparar() : undefined;
+        if (prep === ADIADA) return ADIADA;
+        return naFila(() => gerar(prep));
+      };
+      p = tentar()
         .catch(() => null)
-        .then((r) => {
+        .then((/** @type {any} */ r) => {
           pendentes.delete(k);
+          if (r === ADIADA) return null; // não tentou agora: nem falha, nem cache
           // Falhou: não guarda (a próxima sincronização tenta de novo); o lote aparece com a reserva.
           if (r) {
             prontas.set(k, r);
@@ -546,6 +591,9 @@ export function garantirImagens(pedidos, pixelRatio, aoFalhar = avisarFalha) {
   }
   return esperar.length ? Promise.all(esperar).then(() => undefined) : null;
 }
+
+/** `preparar` que devolve isto: a imagem não é tentada agora (não conta como falha). */
+export const ADIADA = Symbol("imagem adiada");
 
 /** Imagem pronta (ou null se ainda não ou se falhou). @param {string} chave @param {number} pixelRatio */
 export function imagemPronta(chave, pixelRatio) {

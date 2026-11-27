@@ -111,6 +111,9 @@ const NOMES_GRUPOS = ["supl", "pontos", "tarefas"];
  * novo), as imagens em uso, a ordem das chamadas (`seq`), o último conteúdo publicado e os últimos argumentos.
  * @typedef {{ seq: number, porId: Map<string, { item: import('@/lib/maplibre/pontosNoMapa.js').ItemPonto, ref: any }>, emUso: string[], publicado: string, args: any[] | null, onClick: null | ((ref: any, item: import('@/lib/maplibre/pontosNoMapa.js').ItemPonto) => void) }} GrupoPontos
  */
+/** Quanto um grupo espera as imagens antes de publicar com a reserva no que faltar (ms): o cache sai na hora, uma
+ * figura remota lenta não segura o grupo (D-PROD-352). */
+const MS_ESPERA_IMAGENS = 250;
 /** @returns {GrupoPontos} */
 const novoGrupo = () => ({ seq: 0, porId: new Map(), emUso: [], publicado: "", args: null, onClick: null });
 
@@ -725,32 +728,41 @@ export default function useMapRenderer(mapInstanceRef) {
   };
 
   /**
-   * Publica um grupo: desenha as imagens que faltam (cache e fila dos lotes), põe no mapa, publica a fonte (só se algo
-   * mudou) e tira do mapa as imagens do grupo que ninguém usa mais. Devolve a promessa de quando o grupo está no mapa.
+   * Publica um grupo (D-PROD-352). O mapa id → objeto do app é trocado NA HORA (o clique entrega sempre o mais novo,
+   * mesmo com imagens ainda por desenhar). Depois:
+   *  1. as reservas (círculo da cor, sem rede) são desenhadas;
+   *  2. espera as imagens no máximo MS_ESPERA_IMAGENS (as do cache saem na hora) e publica: o que ainda falta aparece
+   *     com a reserva — uma figura remota lenta não segura o grupo;
+   *  3. quando as imagens que faltavam chegam, publica de novo (a lista do que falta mudou) e o mapa troca a reserva.
+   * Devolve a promessa de quando todas as imagens do grupo foram tentadas.
    * @param {NomeGrupo} nome
-   * @param {Array<{ item: import('@/lib/maplibre/pontosNoMapa.js').ItemPonto, ref: any }>} itens
-   * @param {import('@/lib/maplibre/lotesNoMapa.js').PedidoImagem[]} pedidos
+   * @param {Array<{ item: import('@/lib/maplibre/pontosNoMapa.js').ItemPonto, ref: any, pedidos: { imagem: import('@/lib/maplibre/lotesNoMapa.js').PedidoImagem, reserva: import('@/lib/maplibre/lotesNoMapa.js').PedidoImagem } }>} itens
    */
-  const sincronizarGrupo = (nome, itens, pedidos) => {
+  const sincronizarGrupo = (nome, itens) => {
     const map = getMap();
     if (!map) return Promise.resolve();
     ensureMgLayers(map);
     ligarPontos(map);
     const g = gruposRef.current[nome];
+    g.porId = new Map(itens.map((i) => [i.item.id, i]));
     const { fonte, prefixo } = GRUPOS_PONTOS[nome];
     const pr = pixelRatioRef.current;
     const seq = ++g.seq;
+    const imagens = itens.map((i) => i.pedidos.imagem);
+    const reservas = itens.map((i) => i.pedidos.reserva);
+    const emUso = [...new Set([...imagens, ...reservas].map((p) => p.chave))];
+    /** Meia largura/altura do ícone visível da imagem que o mapa vai mostrar (a figura ou a reserva). */
+    const caixa = (/** @type {import('@/lib/maplibre/pontosNoMapa.js').ItemPonto} */ it) =>
+      /** @type {any} */ (imagemPronta(it.imagem, pr) || imagemPronta(it.reserva, pr))?.corpo || null;
     const aplicar = () => {
       const m = getMap();
       if (seq !== g.seq || !m || gruposRef.current[nome] !== g) return;
-      const emUso = [...new Set(pedidos.map((p) => p.chave))];
       registrarImagensPontos(m, emUso, pr);
-      // Imagem que falhou: o ponto fica com a reserva. Quando ela vier numa próxima tentativa, a lista muda e a
-      // fonte é publicada de novo (o mapa só troca a reserva pela imagem ao refazer os dados).
+      // O que ainda não está pronto (pendente ou falhou) aparece com a reserva. Quando chegar, a lista muda e a fonte
+      // é publicada de novo (o mapa só troca a reserva pela imagem ao refazer os dados).
       const faltando = emUso.filter((k) => !imagemPronta(k, pr));
-      g.porId = new Map(itens.map((i) => [i.item.id, i]));
       g.emUso = emUso;
-      const fc = colecaoPontos(itens.map((i) => i.item));
+      const fc = colecaoPontos(itens.map((i) => ({ ...i.item, caixa: caixa(i.item) })));
       const conteudo = JSON.stringify([fc.features, faltando]);
       if (conteudo !== g.publicado) {
         g.publicado = conteudo;
@@ -759,12 +771,22 @@ export default function useMapRenderer(mapInstanceRef) {
       }
       podarImagens(m, new Set(emUso), pr, imagemDoGrupo(prefixo));
     };
-    const espera = garantirImagens(pedidos, pr, avisarFalhaPonto);
-    if (!espera) {
+    const esperaReservas = garantirImagens(reservas, pr, avisarFalhaPonto);
+    const esperaImagens = garantirImagens(imagens, pr, avisarFalhaPonto);
+    if (!esperaReservas && !esperaImagens) {
       aplicar();
       return Promise.resolve();
     }
-    return espera.then(aplicar);
+    const prazo = () => new Promise((r) => setTimeout(r, MS_ESPERA_IMAGENS));
+    return (esperaReservas || Promise.resolve())
+      .then(() => (esperaImagens ? Promise.race([esperaImagens, prazo()]) : null))
+      .then(() => {
+        aplicar();
+        return esperaImagens;
+      })
+      .then(() => {
+        if (esperaImagens) aplicar();
+      });
   };
 
   // ─── Pontos de referência (bebedouro incluído) ───
@@ -778,21 +800,20 @@ export default function useMapRenderer(mapInstanceRef) {
     };
     const pr = pixelRatioRef.current;
     const itens = [];
-    const pedidos = [];
     if (show) {
       for (const ponto of pontos) {
         const c = parseVertex(ponto.coordenadas);
         if (!c) continue;
         const { iconUrl, cor } = resolverIconePonto(ponto, iconesConfig);
         const { imagem, reserva } = pedidosImagemPonto("mg-ponto", { urls: iconUrl ? [iconUrl] : [], base: TAMANHO_PONTO_PX, cor }, pr);
-        pedidos.push(imagem, reserva);
         itens.push({
           item: { id: String(ponto.id), lngLat: /** @type {[number, number]} */ ([c.lng, c.lat]), imagem: imagem.chave, reserva: reserva.chave, titulo: String(ponto.nome || "") },
           ref: ponto,
+          pedidos: { imagem, reserva },
         });
       }
     }
-    return sincronizarGrupo("pontos", itens, pedidos);
+    return sincronizarGrupo("pontos", itens);
   }, [mapInstanceRef]);
 
   // ─── Linhas geográficas ───
@@ -825,7 +846,6 @@ export default function useMapRenderer(mapInstanceRef) {
     g.onClick = (p) => onClick?.(p);
     const pr = pixelRatioRef.current;
     const itens = [];
-    const pedidos = [];
     if (show) {
       for (const ponto of pontosSupl) {
         const c = parseVertex(ponto.coordenadas);
@@ -836,14 +856,14 @@ export default function useMapRenderer(mapInstanceRef) {
         const { titulo, selo, farol } = descreverMarcadorSuplementacao(ponto);
         const base = (categoria.includes("COCHO") || categoria.includes("DEPOSITO")) ? TAMANHO_SUPL_PX : TAMANHO_PONTO_PX;
         const { imagem, reserva } = pedidosImagemPonto("mg-supl", { urls: iconUrl ? [iconUrl] : [], base, cor, selo, farol }, pr);
-        pedidos.push(imagem, reserva);
         itens.push({
           item: { id: String(ponto.id), lngLat: /** @type {[number, number]} */ ([c.lng, c.lat]), imagem: imagem.chave, reserva: reserva.chave, titulo },
           ref: ponto,
+          pedidos: { imagem, reserva },
         });
       }
     }
-    return sincronizarGrupo("supl", itens, pedidos);
+    return sincronizarGrupo("supl", itens);
   }, [mapInstanceRef]);
 
   // ─── Lotes (agrupados por área) — desenhados pelo mapa (D-PROD-349) ───
@@ -997,7 +1017,6 @@ export default function useMapRenderer(mapInstanceRef) {
     g.onClick = (t) => onClickTarefa?.(t);
     const pr = pixelRatioRef.current;
     const itens = [];
-    const pedidos = [];
     for (const t of tarefasMapa) {
       let pos = parseVertex(t.coordenadas);
       if (!pos && t.area_id) {
@@ -1014,7 +1033,6 @@ export default function useMapRenderer(mapInstanceRef) {
         { urls: [iconUrl, urlIconeTarefa(t.prioridade)], base: TAMANHO_TAREFA_PX, cor, indicador: { texto: ind.texto, cor: ind.cor } },
         pr
       );
-      pedidos.push(imagem, reserva);
       itens.push({
         item: {
           id: String(t.id),
@@ -1026,9 +1044,10 @@ export default function useMapRenderer(mapInstanceRef) {
           urgente: normalizarPrioridadeTarefa(t.prioridade) === "Urgente",
         },
         ref: t,
+        pedidos: { imagem, reserva },
       });
     }
-    return sincronizarGrupo("tarefas", itens, pedidos);
+    return sincronizarGrupo("tarefas", itens);
   }, [mapInstanceRef]);
   syncGruposRef.current = { supl: syncPontosSuplementacao, pontos: syncPontos, tarefas: syncTarefas };
 

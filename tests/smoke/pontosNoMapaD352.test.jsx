@@ -14,6 +14,8 @@
  *          limite de tentativas; a tarefa com ícone enviado que não carrega usa o modelo local.
  *  P352-7. Poda (imagens sem uso saem; grupo escondido não poda) e troca de estilo (as imagens voltam).
  *  P352-8. Texto acessível: o título (nível do cocho, prazo da tarefa) vai na fonte e aparece no mouse.
+ *  P352-9. Revisão: figura remota lenta fora da fila (não atrasa lotes nem outros pontos; publica com a reserva),
+ *          falha lembrada por URL; sobrepostos abrem o de cima; clique com o objeto novo; margem transparente.
  */
 import { readFileSync } from "node:fs";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
@@ -23,7 +25,7 @@ import { urlIconeCocho } from "@/assets/icones/cocho-descoberto.js";
 import { urlIconeDeposito } from "@/assets/icones/deposito-sal.js";
 import { urlIconeTarefa } from "@/assets/icones/tarefas.js";
 import { indicadorTarefa } from "@/lib/tarefas/marcador";
-import { LOTES_IDENT_LAYER_ID, LOTES_LAYER_ID, MAX_TENTATIVAS_IMAGEM, limparCacheImagensLotes } from "@/lib/maplibre/lotesNoMapa.js";
+import { LOTES_IDENT_LAYER_ID, LOTES_LAYER_ID, MAX_TENTATIVAS_IMAGEM, MS_FALHA_FIGURA, colecaoLotes, limparCacheImagensLotes } from "@/lib/maplibre/lotesNoMapa.js";
 import { resolverIconeTarefa } from "@/lib/maplibre/mapaGeralRender.js";
 import {
   CORES_SELO_SUPLEMENTACAO,
@@ -331,7 +333,8 @@ describe("P352-3 — tarefa", () => {
     const fig = canvas.chamadas.find((c) => c.nome === "drawImage" && c.largura === 50);
     expect(fig.args.slice(1)).toEqual([7, 0, 36, 40]);
     // pílula de 22 × 22: direita em 25 + 18 + 7 = 50, pé em 20 + 20 − 4 = 36
-    const texto = canvas.chamadas.find((c) => c.nome === "fillText" && c.args[0] === "3d");
+    // (a reserva também leva o "3d", numa imagem de outra largura)
+    const texto = canvas.chamadas.find((c) => c.nome === "fillText" && c.largura === 50 && c.args[0] === "3d");
     expect(texto.args[1]).toBe(50 - 11);
     expect(texto.estado).toMatchObject({ fillStyle: "#ffffff", font: "700 10px Arial, sans-serif" });
     const fundo = canvas.chamadas.find((c) => c.nome === "arc" && c.largura === 50 && c.estado.fillStyle === ind.cor);
@@ -339,7 +342,7 @@ describe("P352-3 — tarefa", () => {
     // centrada a pílula no "99+" mais largo: 6 px por letra + folga + borda = 26
     canvas.chamadas.length = 0;
     await r.syncTarefas([{ ...TAREFA, data_prevista: "2027-06-01" }], [AREA], [], vi.fn(), "2026-11-26");
-    const t99 = canvas.chamadas.find((c) => c.nome === "fillText" && c.args[0] === "99+");
+    const t99 = canvas.chamadas.find((c) => c.nome === "fillText" && c.largura === 50 && c.args[0] === "99+");
     expect(t99.args[1]).toBe(50 - 13);
   });
 
@@ -349,8 +352,9 @@ describe("P352-3 — tarefa", () => {
     const { map, r } = montar();
     renderer = r;
     await r.syncTarefas([TAREFA, { ...TAREFA, id: "t2", prioridade: "Baixa" }], [AREA], [], vi.fn(), "2026-11-26");
-    expect(feicoes(map, TAREFAS_SOURCE_ID).map((f) => f.properties.urgente)).toEqual([true, false]);
-    const antes = feicoes(map, TAREFAS_SOURCE_ID)[0].properties.imagem;
+    // a Urgente vai no fim dos dados: é desenhada por cima e o MapLibre devolve o clique na ordem inversa dos dados
+    expect(feicoes(map, TAREFAS_SOURCE_ID).map((f) => [f.properties.id, f.properties.urgente])).toEqual([["t2", false], ["t1", true]]);
+    const antes = feicoes(map, TAREFAS_SOURCE_ID).find((f) => f.properties.id === "t1").properties.imagem;
     await r.syncTarefas([{ ...TAREFA, status: "Em Andamento" }], [AREA], [], vi.fn(), "2026-11-30");
     const [f] = feicoes(map, TAREFAS_SOURCE_ID);
     expect(f.properties.imagem).not.toBe(antes);
@@ -545,13 +549,60 @@ describe("P352-6 — reserva", () => {
     expect(map.images.has(map.data.get("mg-lotes").features[0].properties.imagem)).toBe(true);
   });
 
-  it("figura que falha sempre: para de tentar depois de MAX_TENTATIVAS_IMAGEM", async () => {
+  it("figura remota que falha: a falha é lembrada por MS_FALHA_FIGURA (N pontos/sincronizações = 1 download); depois tenta de novo, até MAX_TENTATIVAS_IMAGEM", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
+    let relogio = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => relogio);
     canvas.falharUrl = (u) => u.startsWith("https://");
-    const { r } = montar();
+    const { map, r } = montar();
     renderer = r;
-    for (let i = 0; i < MAX_TENTATIVAS_IMAGEM + 3; i++) await r.syncPontos([BEBEDOURO], true, [ICONE_BEB], vi.fn());
-    expect(canvas.crossOrigin.length).toBe(MAX_TENTATIVAS_IMAGEM);
+    const downloads = () => canvas.crossOrigin.filter((c) => c === "anonymous").length;
+    const tres = [BEBEDOURO, { ...BEBEDOURO, id: "p2", cor: "#111111" }, { ...BEBEDOURO, id: "p3", cor: "#222222" }];
+    for (let i = 0; i < 4; i++) await r.syncPontos(tres, true, [ICONE_BEB], vi.fn());
+    expect(downloads()).toBe(1);
+    expect(feicoes(map, PONTOS_SOURCE_ID)).toHaveLength(3); // com a reserva
+    // passou o tempo: uma tentativa nova (um download para os três)
+    relogio += MS_FALHA_FIGURA + 1;
+    await r.syncPontos(tres, true, [ICONE_BEB], vi.fn());
+    expect(downloads()).toBe(2);
+    for (let i = 0; i < MAX_TENTATIVAS_IMAGEM + 2; i++) {
+      relogio += MS_FALHA_FIGURA + 1;
+      await r.syncPontos(tres, true, [ICONE_BEB], vi.fn());
+    }
+    expect(downloads()).toBe(MAX_TENTATIVAS_IMAGEM);
+  });
+
+  it("tarefas com o mesmo ícone remoto que falha: um download só; todas com o modelo local", async () => {
+    canvas.falharUrl = (u) => u.startsWith("https://");
+    const { map, r } = montar();
+    renderer = r;
+    const icone = { tipo_entidade: "Prioridade Tarefa", categoria: "Urgente", icone_url: "https://icones.exemplo.com/urgente.png" };
+    const tarefas = ["2026-11-27", "2026-11-28", "2026-11-29", "2026-11-30"].map((d, i) => ({ ...TAREFA, id: `t${i}`, data_prevista: d }));
+    await r.syncTarefas(tarefas, [AREA], [icone], vi.fn(), "2026-11-26");
+    expect(canvas.crossOrigin.filter((c) => c === "anonymous")).toHaveLength(1);
+    for (const f of feicoes(map, TAREFAS_SOURCE_ID)) expect(map.images.has(f.properties.imagem)).toBe(true);
+  });
+
+  it("figura que NUNCA responde não atrasa os lotes nem os outros pontos; o ponto sai com a reserva e o grupo publica", async () => {
+    canvas.penderUrl = (u) => u.startsWith("https://lento.");
+    const { map, r } = montar();
+    renderer = r;
+    const lento = { ...ICONE_BEB, icone_url: "https://lento.exemplo.com/b.png" };
+    const porteira = { ...BEBEDOURO, id: "p2", tipo: "PORTEIRA", nome: "Porteira" };
+    // não espera: a figura do bebedouro nunca chega (só o tempo-limite de 8 s a encerra)
+    void r.syncPontos([BEBEDOURO, porteira], true, [lento], vi.fn());
+    const t0 = performance.now();
+    await r.syncPontosSuplementacao([cocho({ indicador_percentual: 0.5 })], true, [], vi.fn());
+    await r.syncLotes([{ id: "l1", area_atual_id: "a1", quantidade_cabecas: 3 }], [AREA], true, [], vi.fn(), vi.fn(), true, false);
+    expect(performance.now() - t0).toBeLessThan(2000);
+    expect(map.images.has(feicoes(map, SUPL_SOURCE_ID)[0].properties.imagem)).toBe(true);
+    expect(map.images.has(map.data.get("mg-lotes").features[0].properties.imagem)).toBe(true);
+    // o grupo dos pontos publica depois de MS_ESPERA_IMAGENS: a porteira com a figura dela, o bebedouro com a reserva
+    await vi.waitFor(() => expect(feicoes(map, PONTOS_SOURCE_ID)).toHaveLength(2), { timeout: 2000 });
+    const [beb, port] = ["p1", "p2"].map((id) => feicoes(map, PONTOS_SOURCE_ID).find((f) => f.properties.id === id));
+    expect(map.images.has(beb.properties.imagem)).toBe(false);
+    expect(map.images.has(beb.properties.reserva)).toBe(true);
+    expect(map.images.has(port.properties.imagem)).toBe(true);
   });
 
   it("tarefa com ícone enviado que não carrega: usa o modelo local da prioridade (como o onerror do marcador)", async () => {
@@ -653,5 +704,64 @@ describe("P352 — imagens só depois de prontas", () => {
     await esperarImagens();
     const [f] = feicoes(map, SUPL_SOURCE_ID);
     expect(map.images.has(f.properties.imagem)).toBe(true);
+  });
+});
+
+describe("P352-9 — revisão: sobrepostos, objeto novo e margem transparente", () => {
+  it("sobrepostos na mesma camada: abre a Urgente (desenhada por cima) mesmo se o mapa a devolver depois", async () => {
+    const { map, r } = montar();
+    renderer = r;
+    const onTarefa = vi.fn();
+    const baixa = { ...TAREFA, id: "t2", prioridade: "Baixa" };
+    await r.syncTarefas([TAREFA, baixa], [AREA], [], onTarefa, "2026-11-26");
+    map.sobPonto = { [TAREFAS_LAYER_ID]: [{ properties: { id: "t2" } }, { properties: { id: "t1", urgente: true } }] };
+    disparar(map, "click", TAREFAS_LAYER_ID, { point: { x: 1, y: 1 }, features: [{ properties: { id: "t2" } }] });
+    expect(onTarefa).toHaveBeenCalledTimes(1);
+    expect(onTarefa).toHaveBeenCalledWith(TAREFA);
+    // o mesmo nos lotes: o com alerta vai no fim dos dados (a ordem em que o MapLibre devolve o clique é a inversa)
+    const dados = colecaoLotes([
+      { areaId: "a", lngLat: [0, 0], imagem: "x", ident: null, alerta: true, piscar: false, comRotulo: false, nome: "A", cabecas: 1, desenho: "d" },
+      { areaId: "b", lngLat: [0, 0], imagem: "x", ident: null, alerta: false, piscar: false, comRotulo: false, nome: "B", cabecas: 1, desenho: "d" },
+    ]);
+    expect(dados.features.map((f) => f.properties.areaId)).toEqual(["b", "a"]);
+  });
+
+  it("o clique entrega o objeto novo mesmo com a imagem nova ainda por desenhar", async () => {
+    const { map, r } = montar();
+    renderer = r;
+    const onSupl = vi.fn();
+    await r.syncPontosSuplementacao([cocho({ indicador_percentual: 0.5 })], true, [], onSupl);
+    const pendente = r.syncPontosSuplementacao([cocho({ indicador_percentual: 0.9, nome_ponto: "Cocho Novo" })], true, [], onSupl);
+    map.sobPonto = { [SUPL_LAYER_ID]: [{ properties: { id: "c1" } }] };
+    disparar(map, "click", SUPL_LAYER_ID, { point: { x: 1, y: 1 }, features: [{ properties: { id: "c1" } }] });
+    expect(onSupl).toHaveBeenLastCalledWith(expect.objectContaining({ indicador_percentual: 0.9, nome_ponto: "Cocho Novo" }));
+    await pendente;
+  });
+
+  it("toque na margem transparente da imagem não é do ponto: a área abre; no ícone visível, o ponto", async () => {
+    const { map, r } = montar();
+    renderer = r;
+    const onArea = vi.fn();
+    const onSupl = vi.fn();
+    r.syncAreas([AREA], true, onArea, vi.fn(), null);
+    await r.syncPontosSuplementacao([cocho({ indicador_percentual: 0.5, indicador_neutro: true })], true, [], onSupl);
+    const [f] = feicoes(map, SUPL_SOURCE_ID);
+    // o ícone visível (34 × 36) vai na fonte; a imagem tem 50 × 52 por causa do selo
+    expect([f.properties.hw, f.properties.hh]).toEqual([17, 18]);
+    const centro = map.project(f.geometry.coordinates);
+    map.sobPonto = { [SUPL_LAYER_ID]: [f] };
+    const tocar = (dx, dy) => {
+      const e = { point: { x: centro.x + dx, y: centro.y + dy }, lngLat: { lat: 0, lng: 0 }, features: [f] };
+      disparar(map, "click", SUPL_LAYER_ID, e);
+      disparar(map, "click", "mg-areas-fill", { ...e, features: [{ properties: { id: "a1" } }] });
+    };
+    tocar(23, -20); // no canto do selo/margem: fora do ícone
+    expect(onSupl).not.toHaveBeenCalled();
+    expect(onArea).toHaveBeenCalledTimes(1);
+    expect(r.hitPonto({ x: centro.x + 23, y: centro.y - 20 })).toBe(false);
+    tocar(10, 10); // no ícone
+    expect(onSupl).toHaveBeenCalledTimes(1);
+    expect(onArea).toHaveBeenCalledTimes(1);
+    expect(r.hitPonto({ x: centro.x + 10, y: centro.y + 10 })).toBe(true);
   });
 });
