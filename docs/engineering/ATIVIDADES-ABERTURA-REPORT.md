@@ -102,7 +102,7 @@ Entradas finais do diário (o mesmo `DiarioDoPasto` nas três):
 
 **Religado:** a ação "Diário da máquina" da página virou "Diário das atividades" (`diarioItem` e `abrirDiario` em `src/pages/LancamentoAtividades.jsx`). **Removido da página:** o import e o uso de `DiarioDaMaquina`. Não há mais "Diário da máquina" em menu nenhum.
 
-**Não apagado:** `DiarioDaMaquina.jsx` (agora sem uso no app), os services e a porta do diário da máquina, o backend, as tabelas e os dados.
+**Removido (código sem uso, exigido pelo gate `source-closure`):** `DiarioDaMaquina.jsx`, `DiarioSecoes.jsx`, `implementoRegras.js`, `diarioMaquinaService.js` e os testes deles. **Não apagado:** o backend (rotas do diário da máquina), as tabelas e os dados.
 
 **Sobrou e por quê:**
 - A "Nova realização" (`RegistroDeCampo`), na página (criar, e os cartões dos 7 tipos) e nos Detalhes da área ("+ Lançamento" e "Só <tipo>"). É o lançamento completo por área e tipo (máquina, mão de obra, insumo e serviço). O diário ainda não cobre isso: no serviço aberto, "Encerrar serviço" e as outras opções seguem "Em breve".
@@ -129,4 +129,4 @@ Vários tratores e implementos trabalham no mesmo pasto, no mesmo tipo, ao mesmo
 
 ## Fora desta parte
 
-Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia; o "Diário da máquina" (`DiarioDaMaquina`) saiu dos Detalhes da área e da página Lançamento de Atividades; o arquivo fica no repositório, sem entrada.
+Encher implemento, Trocar pasto, Trocar implemento, Mais e Encerrar o dia; o "Diário da máquina" (`DiarioDaMaquina`) saiu dos Detalhes da área e da página Lançamento de Atividades; o código da tela antiga foi removido (sem uso).

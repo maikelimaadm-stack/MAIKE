@@ -10387,7 +10387,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 2. Ação de linha "Diário das atividades" da atividade em andamento na área (⚡ na aba Manejos): `DiarioDoPasto` com a atividade.
 3. Ação de linha "Diário das atividades" na página Lançamento de Atividades (⚡ de atividade ABERTA com pasto em andamento; abre no primeiro pasto em andamento): `DiarioDoPasto` com a atividade lida. A lista da página relê ao gravar (prop `aoGravar`).
 
-*Religado e removido:* a ação "Diário da máquina" da página virou "Diário das atividades" e abre o `DiarioDoPasto`; a `DiarioDaMaquina` saiu da página (import e uso). Não há mais "Diário da máquina" em menu nenhum. Arquivos (`DiarioDaMaquina.jsx`, `RegistroDeCampo.jsx`), services, porta, backend, tabelas e dados ficam intactos.
+*Religado e removido:* a ação "Diário da máquina" da página virou "Diário das atividades" e abre o `DiarioDoPasto`; a `DiarioDaMaquina` saiu da página (import e uso). Não há mais "Diário da máquina" em menu nenhum. Os arquivos da tela antiga (`DiarioDaMaquina.jsx`, `DiarioSecoes.jsx`, `implementoRegras.js`, `diarioMaquinaService.js` e seus testes) foram removidos porque ficaram sem uso (o gate `source-closure` exige); `RegistroDeCampo.jsx`, a porta, o backend (rotas do diário da máquina), as tabelas e os dados ficam intactos.
 
 *Sobrou e por quê:*
 - "Nova realização" (`RegistroDeCampo`): na página (criar pela barra e pelos cartões dos 7 tipos) e nos Detalhes da área (ação "+ Lançamento" e "Só <tipo>"). É o lançamento completo por área e tipo (máquina, mão de obra, insumo, serviço); o diário ainda não cobre isso (no serviço aberto, "Encerrar serviço" e as outras opções seguem "Em breve").
