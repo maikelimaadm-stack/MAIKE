@@ -174,6 +174,15 @@ describe("D-PROD-369 — tocar na atividade abre o Diário direto", () => {
     await waitFor(() => expect(atividades.apontamentos).toHaveBeenCalled());
     expect(screen.queryByTestId("area-atividade-at-2-acoes")).toBeNull();
   });
+
+  it("só editar (sem lançar apontamento): a linha não é tocável, mas \"Finalizar\" segue na fileira, mesmo com máquina", async () => {
+    atividades.acoes = { ...TUDO, lancarApontamento: false };
+    renderizar();
+    const linha = await screen.findByTestId("area-atividade-at-1");
+    expect(linha.tagName).toBe("DIV");
+    await waitFor(() => expect(acoesDaLinha("at-1")).toContain("Finalizar"));
+    expect(acoesDaLinha("at-1")).toEqual(["Finalizar"]);
+  });
 });
 
 describe("D-PROD-369 — as ações secundárias na fileira da linha", () => {

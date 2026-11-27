@@ -10947,7 +10947,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
    - "Só mão de obra" e "Só serviço de terceiro": quando a operação da atividade permite;
    - "Só insumo": só numa atividade SEM máquina (o tipo não exige máquina e não há frente aberta lida), porque o Diário exige máquina, horímetro e responsável na abertura. Com máquina, o insumo é do Diário.
    - "Só máquina" sai: o Diário tem a opção Máquina (horas do dia dentro da frente, D-PROD-365).
-3. **"Finalizar"**, numa atividade SEM máquina com dia lançado na área, segue o diálogo da lista (`DialogoConcluirServico`). Numa atividade COM máquina, o encerramento é o do Diário ("Encerrar serviço").
+3. **"Finalizar"**, numa atividade SEM máquina com dia lançado na área, segue o diálogo da lista (`DialogoConcluirServico`). Numa atividade COM máquina, o encerramento é o do Diário ("Encerrar serviço"). Exceção: quem só pode editar (sem lançar apontamento) não abre o Diário; para ele o "Finalizar" segue na fileira, também com máquina (achado do Codex, P2).
 4. **Sem máquina** quer dizer: o tipo da atividade não exige máquina (`exige_maquina`, na lista de tipos) e as frentes foram lidas e nenhuma está aberta. Enquanto a lista de tipos ou as frentes não chegaram, as ações secundárias não aparecem.
 
 **O que muda.**

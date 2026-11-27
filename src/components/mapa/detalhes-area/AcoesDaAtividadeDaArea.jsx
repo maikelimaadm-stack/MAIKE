@@ -130,9 +130,10 @@ export function useAcoesDaAtividadeDaArea({ area, tipos }) {
         lancar.push({ key: `so-${l.tipo}`, rotulo: SO_DO_TIPO[l.tipo], onSelect: () => void abrir(linha, "tipo", l.tipo) });
       }
     }
-    // "Finalizar" só numa atividade sem máquina, com dia lançado na área (a regra da lista). Com máquina, o Diário encerra.
+    // "Finalizar" numa atividade sem máquina, com dia lançado na área (a regra da lista). Com máquina, o Diário encerra,
+    // salvo para quem só pode editar (sem lançar apontamento): a linha não abre o Diário, então o diálogo é o caminho.
     const finalizar =
-      semMaquina && ac.concluir && (emAndamentoNaArea || Boolean(linha.ultimo_dia))
+      (semMaquina || !podeAbrirDiario(linha)) && ac.concluir && (emAndamentoNaArea || Boolean(linha.ultimo_dia))
         ? [{ key: "concluir", rotulo: "Finalizar", onSelect: () => void abrir(linha, "concluir") }]
         : [];
     return [...lancar, ...finalizar];
