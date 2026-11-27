@@ -387,16 +387,43 @@ const atualizarCache = async (storage, entityName, empresaId, transformar, tenan
 };
 
 /**
+ * D-PROD-338 — a cópia desta fazenda ainda não existe (a pessoa baixou os dados na fazenda A e, sem internet, trocou
+ * para a B): as listas do servidor são do cliente inteiro, então a cópia guardada na fazenda A já tem os registros da
+ * B. Usa os dessas cópias que são DESTA fazenda (pelo `empresa_id` de cada registro), em vez de mostrar tudo vazio.
+ * Só registros com a fazenda marcada; o que não diz a fazenda não entra.
+ */
+const daCopiaDeOutraFazenda = async (storage, entityName, empresaId, tenantId) => {
+  if (typeof storage.listarCaches !== "function" || !empresaId) return [];
+  let caches = [];
+  try {
+    caches = await storage.listarCaches();
+  } catch {
+    return [];
+  }
+  /** @type {Map<string, object>} */
+  const porId = new Map();
+  for (const c of caches) {
+    if (c?.entity_name !== entityName) continue;
+    if (tenantId !== undefined && (c.cliente_id ?? null) !== (tenantId ?? null)) continue;
+    for (const item of Array.isArray(c.items) ? c.items : []) {
+      if (item?.id != null && item.empresa_id === empresaId && !porId.has(String(item.id))) porId.set(String(item.id), item);
+    }
+  }
+  return [...porId.values()];
+};
+
+/**
  * @param {object} storage
  * @param {string} entityName
  * @param {{order?: string, limit?: number, filters?: Record<string, any>, empresaId?: string,
  *          tenantId?: string|null}} [opcoes]
  */
 const listarLocal = async (storage, entityName, { order, limit, filters = {}, empresaId, tenantId } = {}) => {
-  const [emCache, fila] = await Promise.all([
+  const [daFazenda, fila] = await Promise.all([
     lerCacheDe(storage, entityName, empresaId, tenantId),
     storage.listarFila(),
   ]);
+  const emCache = daFazenda.length ? daFazenda : await daCopiaDeOutraFazenda(storage, entityName, empresaId, tenantId);
 
   // A fila é global, e desde a P4.1-R1 uma entrada tenant-scoped só conta para o
   // dono dela: sem isso, a tela do cliente B mostraria a criação pendente do
@@ -731,13 +758,9 @@ export const createOfflineEntityAdapter = ({
         _isOffline: true,
       };
 
-      await atualizarCache(
-        porta,
-        entityName,
-        empresaId,
-        (items) => [registro, ...items.filter((item) => item.id !== registro.id)],
-        tenantId
-      );
+      // D-PROD-338: primeiro a fila, depois a cópia. Com o armazenamento cheio, a gravação na fila falha e a criação
+      // dá erro para a tela — antes a cópia já tinha o registro, que aparecia como salvo sem estar em fila nenhuma
+      // (e, tentando de novo, aparecia outro). A lista mostra a criação da fila mesmo se a cópia falhar.
       await enfileirar(porta, {
         entity_name: entityName,
         empresa_id: empresaId,
@@ -747,6 +770,13 @@ export const createOfflineEntityAdapter = ({
         data: registro,
         ...(jaTentado ? { ja_tentado: true } : {}),
       });
+      await atualizarCache(
+        porta,
+        entityName,
+        empresaId,
+        (items) => [registro, ...items.filter((item) => item.id !== registro.id)],
+        tenantId
+      ).catch(() => undefined);
       return registro;
     };
   }
@@ -777,7 +807,10 @@ export const createOfflineEntityAdapter = ({
         return atualizado;
       }
 
+      /** D-PROD-338: como o registro estava na cópia, para desfazer se a fila não gravar (armazenamento cheio). */
+      let antesDaEdicao = null;
       const proximos = await atualizarCache(porta, entityName, empresaId, (items) => {
+        antesDaEdicao = items.find((item) => item.id === recordId) ?? null;
         const existente = items.find((item) => item.id === recordId) || { id: recordId, empresa_id: empresaId };
         const atualizado = {
           ...existente,
@@ -790,31 +823,62 @@ export const createOfflineEntityAdapter = ({
       }, tenantId);
 
       const registro = proximos.find((item) => item.id === recordId);
-      const fila = await porta.listarFila();
-      // Coalescer só pode acontecer dentro do mesmo dono: juntar a edição do
-      // cliente B numa criação pendente do cliente A misturaria os dois.
-      const mesmaEmpresa = (item) =>
-        chaveEmpresa(item.empresa_id) === chaveEmpresa(empresaId) &&
-        (tenantId === undefined || (item.cliente_id ?? null) === tenantId);
+      try {
+        const fila = await porta.listarFila();
+        // Coalescer só pode acontecer dentro do mesmo dono: juntar a edição do
+        // cliente B numa criação pendente do cliente A misturaria os dois.
+        const mesmaEmpresa = (item) =>
+          chaveEmpresa(item.empresa_id) === chaveEmpresa(empresaId) &&
+          (tenantId === undefined || (item.cliente_id ?? null) === tenantId);
 
-      // Criação ainda na fila (id `offline_` ou, desde a D-PROD-308, id do aparelho): a edição
-      // entra nela, em vez de virar um update de um registro que o servidor não conhece.
-      {
-        const criacaoPendente = fila.find(
+        // Criação ainda na fila (id `offline_` ou, desde a D-PROD-308, id do aparelho): a edição
+        // entra nela, em vez de virar um update de um registro que o servidor não conhece.
+        {
+          const criacaoPendente = fila.find(
+            (item) =>
+              item.entity_name === entityName &&
+              item.operation === "create" &&
+              item.data?.id === recordId &&
+              (tenantId === undefined || (item.cliente_id ?? null) === tenantId)
+          );
+          if (criacaoPendente && !estaSendoEnviado(criacaoPendente)) {
+            await porta.atualizarNaFila(criacaoPendente.id, { data: registro });
+            emitirMudancaDeFila();
+            return registro;
+          }
+          if (criacaoPendente) {
+            // D-PROD-335: a criação está indo ao servidor agora: a edição vai como item próprio, logo depois
+            // (a passada seguinte a envia; a criação, ao terminar, passa o id do servidor para ela).
+            await enfileirar(porta, {
+              entity_name: entityName,
+              empresa_id: empresaId,
+              ...carimboDeTenant(tenantScoped, tenantId),
+              operation: "update",
+              record_id: recordId,
+              data: dados,
+            });
+            emitirMudancaDeFila();
+            syncOfflineEntityQueue().catch(() => undefined);
+            return registro;
+          }
+        }
+
+        // D-PROD-335: nunca dentro de uma edição RECUSADA (ela espera a pessoa decidir, e a nova sumiria junto, sem
+        // contar como "aguardando") nem de uma que está indo ao servidor agora (a nova se perderia).
+        const atualizacaoPendente = fila.find(
           (item) =>
             item.entity_name === entityName &&
-            item.operation === "create" &&
-            item.data?.id === recordId &&
-            (tenantId === undefined || (item.cliente_id ?? null) === tenantId)
+            item.operation === "update" &&
+            item.record_id === recordId &&
+            !item.quarentena &&
+            !estaSendoEnviado(item) &&
+            mesmaEmpresa(item)
         );
-        if (criacaoPendente && !estaSendoEnviado(criacaoPendente)) {
-          await porta.atualizarNaFila(criacaoPendente.id, { data: registro });
-          emitirMudancaDeFila();
-          return registro;
-        }
-        if (criacaoPendente) {
-          // D-PROD-335: a criação está indo ao servidor agora: a edição vai como item próprio, logo depois
-          // (a passada seguinte a envia; a criação, ao terminar, passa o id do servidor para ela).
+
+        if (edicaoNaFila) {
+          // D-PROD-316: com internet, a fila pode estar enviando a edição anterior agora: juntar nela
+          // poderia perder esta (o envio a tira da fila ao terminar). Vai como um item próprio, logo
+          // depois, sem versão: é a continuação da edição anterior, que já confere a versão.
           await enfileirar(porta, {
             entity_name: entityName,
             empresa_id: empresaId,
@@ -825,56 +889,38 @@ export const createOfflineEntityAdapter = ({
           });
           emitirMudancaDeFila();
           syncOfflineEntityQueue().catch(() => undefined);
-          return registro;
+        } else if (atualizacaoPendente) {
+          // D-PROD-316: a versão que vale é a da PRIMEIRA edição na fila (a que a pessoa viu do
+          // servidor); a desta foi lida da cópia do aparelho, já com a edição anterior aplicada.
+          const versaoDaFila = atualizacaoPendente.data?.[CAMPO_VERSAO_ESPERADA];
+          await porta.atualizarNaFila(atualizacaoPendente.id, {
+            data: { ...atualizacaoPendente.data, ...dados, ...(versaoDaFila ? { [CAMPO_VERSAO_ESPERADA]: versaoDaFila } : {}) },
+          });
+          emitirMudancaDeFila();
+        } else {
+          await enfileirar(porta, {
+            entity_name: entityName,
+            empresa_id: empresaId,
+            ...carimboDeTenant(tenantScoped, tenantId),
+            operation: "update",
+            record_id: recordId,
+            data: versaoEsperada ? { ...dados, [CAMPO_VERSAO_ESPERADA]: versaoEsperada } : dados,
+          });
         }
+
+        return registro;
+      } catch (erro) {
+        // D-PROD-338: a fila não gravou (armazenamento cheio): a cópia volta a ser o que era, e a tela recebe o erro.
+        // Antes a edição ficava na cópia como se estivesse salva, sem ir nunca ao servidor.
+        await atualizarCache(
+          porta,
+          entityName,
+          empresaId,
+          (items) => (antesDaEdicao ? items.map((item) => (item.id === recordId ? antesDaEdicao : item)) : items.filter((item) => item.id !== recordId)),
+          tenantId
+        ).catch(() => undefined);
+        throw erro;
       }
-
-      // D-PROD-335: nunca dentro de uma edição RECUSADA (ela espera a pessoa decidir, e a nova sumiria junto, sem
-      // contar como "aguardando") nem de uma que está indo ao servidor agora (a nova se perderia).
-      const atualizacaoPendente = fila.find(
-        (item) =>
-          item.entity_name === entityName &&
-          item.operation === "update" &&
-          item.record_id === recordId &&
-          !item.quarentena &&
-          !estaSendoEnviado(item) &&
-          mesmaEmpresa(item)
-      );
-
-      if (edicaoNaFila) {
-        // D-PROD-316: com internet, a fila pode estar enviando a edição anterior agora: juntar nela
-        // poderia perder esta (o envio a tira da fila ao terminar). Vai como um item próprio, logo
-        // depois, sem versão: é a continuação da edição anterior, que já confere a versão.
-        await enfileirar(porta, {
-          entity_name: entityName,
-          empresa_id: empresaId,
-          ...carimboDeTenant(tenantScoped, tenantId),
-          operation: "update",
-          record_id: recordId,
-          data: dados,
-        });
-        emitirMudancaDeFila();
-        syncOfflineEntityQueue().catch(() => undefined);
-      } else if (atualizacaoPendente) {
-        // D-PROD-316: a versão que vale é a da PRIMEIRA edição na fila (a que a pessoa viu do
-        // servidor); a desta foi lida da cópia do aparelho, já com a edição anterior aplicada.
-        const versaoDaFila = atualizacaoPendente.data?.[CAMPO_VERSAO_ESPERADA];
-        await porta.atualizarNaFila(atualizacaoPendente.id, {
-          data: { ...atualizacaoPendente.data, ...dados, ...(versaoDaFila ? { [CAMPO_VERSAO_ESPERADA]: versaoDaFila } : {}) },
-        });
-        emitirMudancaDeFila();
-      } else {
-        await enfileirar(porta, {
-          entity_name: entityName,
-          empresa_id: empresaId,
-          ...carimboDeTenant(tenantScoped, tenantId),
-          operation: "update",
-          record_id: recordId,
-          data: versaoEsperada ? { ...dados, [CAMPO_VERSAO_ESPERADA]: versaoEsperada } : dados,
-        });
-      }
-
-      return registro;
     };
   }
 
@@ -1004,6 +1050,18 @@ const destinoDaEntrada = (entrada, item, tenantAtual) => {
 };
 
 /**
+ * D-PROD-338 — a ordem da fila é a ordem em que os itens ENTRARAM (a chave crescente do armazenamento), não a hora do
+ * celular. Com o relógio corrigido para trás (a rede volta e acerta a hora), um cadastro que cita outro (o setor de uma
+ * área nova) podia ir antes dele e chegar ao servidor citando um id que o servidor não conhece. Chave não numérica
+ * (armazenamento antigo): fica a hora, como antes.
+ * @param {{id: any, created_at?: string}} a @param {{id: any, created_at?: string}} b
+ */
+const naOrdemDeEntrada = (a, b) => {
+  if (typeof a.id === "number" && typeof b.id === "number") return a.id - b.id;
+  return new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime();
+};
+
+/**
  * D-PROD-335 — itens da fila que a passada está enviando AGORA (entre o pedido ao servidor e a saída da fila).
  * Uma edição ou exclusão feita nesse meio tempo não pode entrar nem apagar o item: ele já foi ao servidor, e
  * ela se perderia (o envio o tira da fila ao terminar). Vai como um item próprio, depois dele.
@@ -1077,7 +1135,7 @@ const passarPelaFilaDeEntidades = async (onProgress) => {
 
   const qualquerPorta = [...CATALOGO.values()][0].storage;
   const fila = await qualquerPorta.listarFila();
-  const emOrdem = [...fila].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  const emOrdem = [...fila].sort(naOrdemDeEntrada);
   /** Ids desta passada; o que sobrevive entre passadas vai para a fila (D-PROD-204). */
   const mapaDeIds = Object.create(null);
   const tenantAtual = getOfflineTenant();
@@ -1483,7 +1541,7 @@ const portaDaFilaDe = (nome) => CATALOGO.get(nome) ?? { storage: [...CATALOGO.va
 export const listarItensDaFilaDeEntidades = async () =>
   (await filaDaSessao())
     .slice()
-    .sort((a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime())
+    .sort(naOrdemDeEntrada)
     .map((item) => {
       const codigo = item.quarentena?.codigo ?? null;
       const situacao = codigo === CODIGO_RECUSADO_PELO_SERVIDOR ? "recusado" : codigo ? "retido" : "aguardando";
