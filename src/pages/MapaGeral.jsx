@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import MapaFiltrosPainel from "@/components/mapa/MapaFiltrosPainel";
-import { acaoDoCliqueNaArea } from "@/domain/mapa/cliqueArea";
+import { acaoDoCliqueNaArea, acaoDoCliqueNoLote, deveComecarToqueLongo } from "@/domain/mapa/cliqueArea";
 import { LancLoteDialogo } from "../components/lotes/LancamentoLoteUi";
 import MapaControlesMobile from "../components/mapa/MapaControlesMobile";
 import MapaFiltrosAvancados, {
@@ -193,12 +193,14 @@ export default function MapaGeral({ ativo = true } = {}) {
   const renderer = useMapRenderer(mapInstanceRef);
   const rendererEnsureRef = useRef(renderer.ensureLayers);
   const rendererHitRef = useRef(renderer.hitArea);
+  const rendererHitLoteRef = useRef(renderer.hitLote);
   const rendererEstiloRef = useRef(renderer.setEstiloPasto);
   rendererEstiloRef.current = renderer.setEstiloPasto;
   useEffect(() => {
     if (mapReady) rendererEstiloRef.current?.(estiloPasto);
   }, [mapReady, estiloPasto]);
   rendererHitRef.current = renderer.hitArea;
+  rendererHitLoteRef.current = renderer.hitLote;
   rendererEnsureRef.current = renderer.ensureLayers;
   const basemap = useBasemap(mapInstance, {
     inicial: BASEMAP_IDS.SATELITE,
@@ -1119,6 +1121,8 @@ export default function MapaGeral({ ativo = true } = {}) {
 
   const handleClickLotes = useCallback((l) => {
     if (!mapaGeralPermissions.visualizar_detalhes_lotes) return;
+    // D-PROD-348: o clique que encerra um toque longo (lançamento de tarefa) não abre os lotes.
+    if (acaoDoCliqueNoLote({ toqueLongoAcabouDeDisparar: longPressTriggeredRef.current }) === 'ignorar') return;
     setSelectedLote(l);
     setShowDetalhesLote(true);
   }, [mapaGeralPermissions.visualizar_detalhes_lotes]);
@@ -1268,8 +1272,16 @@ export default function MapaGeral({ ativo = true } = {}) {
       if (!podeUsarTarefasMapa || selecionandoLocalTarefa) return;
       const point = getPointFromEvent(event);
       if (!point) return;
-      longPressStartRef.current = point;
       longPressTriggeredRef.current = false;
+      // D-PROD-348: em cima do ícone de um lote o toque é do lote (abrir ou arrastar), não do lançamento de tarefa.
+      const rect = mapElement.getBoundingClientRect();
+      const sobreLote = Boolean(rendererHitLoteRef.current?.({ x: point.x - rect.left, y: point.y - rect.top }));
+      if (!deveComecarToqueLongo({ podeUsarTarefasMapa, selecionandoLocalTarefa, sobreLote })) {
+        clearLongPress();
+        longPressStartRef.current = null;
+        return;
+      }
+      longPressStartRef.current = point;
       clearLongPress();
       longPressTimerRef.current = setTimeout(() => {
         const coords = getCoordsFromPoint(point);

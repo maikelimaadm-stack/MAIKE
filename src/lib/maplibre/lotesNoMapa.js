@@ -143,13 +143,14 @@ const arrastando = ["boolean", ["feature-state", "arrastando"], false];
 const soma = (a, b) => [a[0] + b[0], a[1] + b[1]];
 
 /**
- * Opacidade do identificador: some no arrasto; com alerta (`piscar`), `visivel` decide entre 1 e OPACIDADE_PISCAR.
- * Todos os que piscam piscam juntos.
- * @param {boolean} visivel
+ * Opacidade do identificador, FIXA na camada: some no arrasto; apagada (OPACIDADE_PISCAR) quando o estado do lote
+ * (`feature-state`) diz `piscaApagado`. O piscar só troca esse estado nos lotes com alerta — trocar a pintura da
+ * camada refaria a fonte inteira no worker a cada 550 ms.
  */
-export function opacidadeIdent(visivel) {
-  return ["case", arrastando, 0, ["boolean", ["get", "piscar"], false], visivel ? 1 : OPACIDADE_PISCAR, 1];
-}
+export const OPACIDADE_IDENT = Object.freeze(["case", arrastando, 0, ["boolean", ["feature-state", "piscaApagado"], false], OPACIDADE_PISCAR, 1]);
+
+/** Imagem reserva do lote (o círculo verde do marcador antigo), quando a imagem do lote não pôde ser desenhada. */
+export const IMAGEM_RESERVA = "mg-lote-reserva";
 
 /**
  * Camadas `symbol` dos lotes: o ícone (com a contagem) e, por cima, o identificador. Nunca somem por colisão
@@ -174,7 +175,8 @@ export function camadasLotes() {
       id: LOTES_LAYER_ID,
       type: "symbol",
       source: LOTES_SOURCE_ID,
-      layout: { ...comum, "icon-image": ["get", "imagem"], "icon-offset": offset([0, 0]) },
+      // sem a imagem do lote (falhou ao desenhar), a reserva: o lote nunca some
+      layout: { ...comum, "icon-image": ["coalesce", ["image", ["get", "imagem"]], ["image", IMAGEM_RESERVA]], "icon-offset": offset([0, 0]) },
       paint: { "icon-opacity": ["case", arrastando, 0, 1] },
     },
     {
@@ -183,7 +185,7 @@ export function camadasLotes() {
       source: LOTES_SOURCE_ID,
       filter: ["has", "ident"],
       layout: { ...comum, "icon-image": ["get", "ident"], "icon-offset": offset(DESLOC_IDENT_PX) },
-      paint: { "icon-opacity": opacidadeIdent(true) },
+      paint: { "icon-opacity": OPACIDADE_IDENT },
     },
   ];
 }
@@ -231,6 +233,8 @@ let tela = null;
 export function limparCacheImagensLotes() {
   figuras.clear();
   bases.clear();
+  reservas.clear();
+  avisouFalha = false;
   prontas.clear();
   pendentes.clear();
   tela = null;
@@ -447,6 +451,14 @@ export function pedidoImagemIdent(ident, pixelRatio) {
 /** @param {string} chave @param {number} pixelRatio */
 const chaveCache = (chave, pixelRatio) => `${chave}@${pixelRatio}`;
 
+let avisouFalha = false;
+/** Um aviso só por sessão: a imagem do lote não pôde ser desenhada (o mapa mostra a reserva). */
+function avisarFalha() {
+  if (avisouFalha) return;
+  avisouFalha = true;
+  console.warn("[mapa] a imagem de um lote não pôde ser desenhada; o lote aparece com o círculo verde até a próxima tentativa.");
+}
+
 /** Uma fatia de desenho; passou disso, devolve a vez ao navegador (nada de tarefa longa ao abrir 200 pastos). */
 const FATIA_MS = 8;
 let fila = /** @type {Promise<unknown>} */ (Promise.resolve());
@@ -486,8 +498,10 @@ export function garantirImagens(pedidos, pixelRatio) {
       p = naFila(gerar)
         .catch(() => null)
         .then((r) => {
-          prontas.set(k, r);
           pendentes.delete(k);
+          // Falhou: não guarda (a próxima sincronização tenta de novo); o lote aparece com a reserva.
+          if (r) prontas.set(k, r);
+          else avisarFalha();
           return r;
         });
       pendentes.set(k, p);
@@ -497,9 +511,89 @@ export function garantirImagens(pedidos, pixelRatio) {
   return esperar.length ? Promise.all(esperar).then(() => undefined) : null;
 }
 
-/** Imagem pronta (ou null se ainda não/falhou). @param {string} chave @param {number} pixelRatio */
+/** Imagem pronta (ou null se ainda não ou se falhou). @param {string} chave @param {number} pixelRatio */
 export function imagemPronta(chave, pixelRatio) {
   return prontas.get(chaveCache(chave, pixelRatio)) || null;
+}
+
+/** @type {Map<number, Raster | null>} */
+const reservas = new Map();
+/**
+ * Imagem reserva: o fallback do marcador antigo — círculo verde #10b981 de raio 19, borda branca de 3 px e a sombra
+ * `0 1px 3px rgba(0,0,0,.35)`. Desenhada na hora (não depende de figura).
+ * @param {number} pixelRatio
+ */
+export function desenharImagemReserva(pixelRatio) {
+  if (reservas.has(pixelRatio)) return reservas.get(pixelRatio) || null;
+  const raio = 19;
+  const lado = 2 * raio + 2 * FOLGA_IDENT_PX;
+  const px = Math.max(1, Math.round(lado * pixelRatio));
+  const ctx = contexto(px, px);
+  /** @type {Raster | null} */
+  let r = null;
+  if (ctx) {
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    const c = lado / 2;
+    ctx.shadowColor = "rgba(0,0,0,.35)";
+    ctx.shadowBlur = 3 * pixelRatio;
+    ctx.shadowOffsetY = 1 * pixelRatio;
+    ctx.fillStyle = "#10b981";
+    ctx.beginPath();
+    ctx.arc(c, c, raio, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(c, c, raio - 1.5, 0, Math.PI * 2);
+    ctx.stroke();
+    const imagem = lerPixels(ctx, px, px);
+    r = imagem ? { imagem, pixelRatio, w: lado, h: lado } : null;
+  }
+  // só guarda o que deu certo: falhou, tenta de novo na próxima vez
+  if (r) reservas.set(pixelRatio, r);
+  return r;
+}
+
+/**
+ * Imagens de lote que este renderer pôs em cada mapa, com o DPR em que foram desenhadas.
+ * @type {WeakMap<object, Map<string, number>>}
+ */
+const registradas = new WeakMap();
+/** @param {any} map */
+const registradasDo = (map) => {
+  let m = registradas.get(map);
+  if (!m) {
+    m = new Map();
+    registradas.set(map, m);
+  }
+  return m;
+};
+
+/**
+ * Põe (ou troca) uma imagem no estilo. Já está com o mesmo DPR: nada. Com outro DPR (a tela mudou): troca.
+ * @param {any} map @param {string} chave @param {Raster} r
+ */
+function porImagem(map, chave, r) {
+  const doMapa = registradasDo(map);
+  try {
+    const tem = typeof map.hasImage === "function" && map.hasImage(chave);
+    if (tem && doMapa.get(chave) === r.pixelRatio) return;
+    if (tem) map.removeImage(chave);
+    map.addImage(chave, r.imagem, { pixelRatio: r.pixelRatio });
+    doMapa.set(chave, r.pixelRatio);
+  } catch {
+    /* estilo trocando: o styleimagemissing repõe */
+  }
+}
+
+/** A reserva no mapa (uma vez por estilo). @param {any} map @param {number} pixelRatio */
+export function registrarReserva(map, pixelRatio) {
+  if (typeof map?.addImage !== "function") return;
+  const r = desenharImagemReserva(pixelRatio);
+  if (r) porImagem(map, IMAGEM_RESERVA, r);
 }
 
 /**
@@ -509,28 +603,57 @@ export function imagemPronta(chave, pixelRatio) {
  */
 export function registrarImagens(map, chaves, pixelRatio) {
   if (typeof map?.addImage !== "function") return;
+  registrarReserva(map, pixelRatio);
   for (const chave of chaves) {
     const r = imagemPronta(chave, pixelRatio);
-    if (!r) continue;
-    try {
-      if (typeof map.hasImage === "function" && map.hasImage(chave)) continue;
-      map.addImage(chave, r.imagem, { pixelRatio: r.pixelRatio });
-    } catch {
-      /* estilo trocando: o styleimagemissing repõe */
-    }
+    if (r) porImagem(map, chave, r);
   }
+}
+
+/** Chave de imagem de lote ou de identificador (não a reserva). @param {string} chave */
+const ehImagemDeLote = (chave) => chave.startsWith("mg-lote|") || chave.startsWith("mg-lote-ident|");
+
+/**
+ * Tira do mapa e do cache as imagens de lote que nenhum lote usa mais (contagem que mudou, lote que saiu) e as de
+ * outro DPR. As que ainda estão sendo desenhadas ficam (entram no cache e saem na próxima poda). Sem nenhum lote
+ * (camada escondida pelo filtro) não poda: ao mostrar de novo, as imagens já estão prontas.
+ * @param {any} map @param {Set<string>} emUso @param {number} pixelRatio
+ * @returns {string[]} chaves tiradas do mapa
+ */
+export function podarImagens(map, emUso, pixelRatio) {
+  if (!emUso.size) return [];
+  /** @type {string[]} */
+  const tiradas = [];
+  const doMapa = map ? registradas.get(map) : null;
+  doMapa?.forEach((_pr, chave) => {
+    if (!ehImagemDeLote(chave) || emUso.has(chave)) return;
+    try {
+      if (typeof map.hasImage !== "function" || map.hasImage(chave)) map.removeImage?.(chave);
+    } catch {
+      /* mapa já removido */
+    }
+    doMapa.delete(chave);
+    tiradas.push(chave);
+  });
+  for (const k of [...prontas.keys()]) {
+    const i = k.lastIndexOf("@");
+    const chave = k.slice(0, i);
+    if (ehImagemDeLote(chave) && (!emUso.has(chave) || Number(k.slice(i + 1)) !== pixelRatio)) prontas.delete(k);
+  }
+  return tiradas;
 }
 
 /**
  * Responde ao `styleimagemissing` com as imagens de lote do cache (troca de estilo: satélite ↔ mapa).
- * @param {any} map @param {number} pixelRatio
+ * @param {any} map @param {() => number} pixelRatio DPR atual
  * @returns {() => void} desliga
  */
 export function ligarImagensFaltando(map, pixelRatio) {
   if (typeof map?.on !== "function") return () => {};
   const h = (/** @type {{ id?: string }} */ e) => {
     const id = String(e?.id || "");
-    if (id.startsWith("mg-lote")) registrarImagens(map, [id], pixelRatio);
+    if (id === IMAGEM_RESERVA) registrarReserva(map, pixelRatio());
+    else if (id.startsWith("mg-lote")) registrarImagens(map, [id], pixelRatio());
   };
   map.on("styleimagemissing", h);
   return () => {
@@ -561,37 +684,48 @@ function urlDoRaster(r) {
 // ─── Piscar do alerta ───────────────────────────────────────────────────────
 
 /**
- * Pisca os identificadores com alerta: uma troca de `icon-opacity` na camada a cada PISCAR_MS (todos juntos).
+ * Pisca os identificadores com alerta: a cada PISCAR_MS troca o `feature-state` `piscaApagado` SÓ dos lotes que
+ * piscam (todos juntos). A pintura da camada não muda (`OPACIDADE_IDENT` é fixa): nada é refeito no worker.
  * @param {() => any} getMap
  */
 export function criarPiscaIdent(getMap) {
   /** @type {ReturnType<typeof setInterval> | null} */
   let iv = null;
-  let visivel = true;
-  const aplicar = () => {
+  let apagado = false;
+  /** @type {Set<string>} */
+  let ids = new Set();
+  const marcar = (/** @type {Iterable<string>} */ lista, /** @type {boolean} */ v) => {
     const map = getMap();
-    try {
-      if (map?.getLayer?.(LOTES_IDENT_LAYER_ID)) map.setPaintProperty(LOTES_IDENT_LAYER_ID, "icon-opacity", opacidadeIdent(visivel));
-    } catch {
-      /* estilo trocando */
+    if (typeof map?.setFeatureState !== "function") return;
+    for (const id of lista) {
+      try {
+        map.setFeatureState({ source: LOTES_SOURCE_ID, id }, { piscaApagado: v });
+      } catch {
+        /* fonte recriada (troca de estilo): o próximo tique marca de novo */
+      }
     }
   };
   const parar = () => {
     if (iv) clearInterval(iv);
     iv = null;
-    if (!visivel) {
-      visivel = true;
-      aplicar();
-    }
+    if (apagado) marcar(ids, false);
+    apagado = false;
+    ids = new Set();
   };
   return {
-    /** @param {boolean} algum há identificador para piscar */
-    atualizar(algum) {
-      if (!algum) return parar();
+    /** @param {Iterable<string>} lista ids (areaId) dos lotes que piscam agora */
+    atualizar(lista) {
+      const novos = new Set([...lista].map(String));
+      if (!novos.size) return parar();
+      if (apagado) {
+        marcar([...ids].filter((id) => !novos.has(id)), false); // saíram: voltam acesos
+        marcar([...novos].filter((id) => !ids.has(id)), true); // entraram: na mesma fase dos outros
+      }
+      ids = novos;
       if (iv) return;
       iv = setInterval(() => {
-        visivel = !visivel;
-        aplicar();
+        apagado = !apagado;
+        marcar(ids, apagado);
       }, PISCAR_MS);
     },
     parar,
@@ -628,13 +762,22 @@ export function criarPiscaIdent(getMap) {
  *   aoClicar: (areaId: string) => void,
  *   aoSoltar: (lngLat: { lat: number, lng: number }, areaId: string) => void,
  *   criarMarcador: (el: HTMLElement, offset: [number, number]) => any,
- *   pixelRatio: number,
+ *   pixelRatio: () => number,
  * }} opts
  * @returns {{ off: () => void, cancelarArrasto: () => void }}
  */
 export function ligarInteracaoLotes(map, opts) {
-  /** @type {null | { areaId: string, inicio: { x: number, y: number }, origem: { x: number, y: number }, ancora: [number, number], ativo: boolean, marcador: any, lngLat: { lat: number, lng: number } | null }} */
+  /** @type {null | { areaId: string, toque: boolean, inicio: { x: number, y: number }, origem: { x: number, y: number }, ancora: [number, number], ativo: boolean, marcador: any, lngLat: { lat: number, lng: number } | null }} */
   let arrasto = null;
+  const janela = typeof window !== "undefined" ? window : null;
+  // Soltou o botão fora do mapa (ou a janela perdeu o foco): o mapa não vê o mouseup, e o arrasto ficaria preso.
+  const soltouFora = (/** @type {Event} */ ev) => {
+    const caixa = map.getCanvasContainer?.() || map.getContainer?.();
+    const alvo = /** @type {any} */ (ev?.target);
+    const ehNo = typeof Node !== "undefined" && alvo instanceof Node;
+    if (ev?.type === "mouseup" && caixa && ehNo && typeof caixa.contains === "function" && caixa.contains(alvo)) return;
+    terminar(false);
+  };
   let ignorarClique = false;
   const canvas = () => map.getCanvas?.();
   const areaDe = (/** @type {any} */ e) => {
@@ -653,7 +796,8 @@ export function ligarInteracaoLotes(map, opts) {
     const el = document.createElement("div");
     el.className = "mg-lote-arrastando";
     el.style.cssText = "position:relative;pointer-events:none;";
-    const img = imagemPronta(lote.imagem, opts.pixelRatio);
+    const pr = opts.pixelRatio();
+    const img = imagemPronta(lote.imagem, pr);
     const url = img ? urlDoRaster(img) : null;
     const t = img ? { w: img.w, h: img.h } : TAMANHO_PADRAO_LOTE;
     el.style.width = `${t.w}px`;
@@ -666,7 +810,7 @@ export function ligarInteracaoLotes(map, opts) {
       i.style.cssText = `display:block;width:${t.w}px;height:${t.h}px;`;
       el.appendChild(i);
     }
-    const id = lote.ident ? imagemPronta(lote.ident, opts.pixelRatio) : null;
+    const id = lote.ident ? imagemPronta(lote.ident, pr) : null;
     const urlId = id ? urlDoRaster(id) : null;
     if (id && urlId) {
       const b = document.createElement("img");
@@ -686,6 +830,8 @@ export function ligarInteracaoLotes(map, opts) {
     map.off("mouseup", aoLevantar);
     map.off("touchend", aoLevantar);
     map.off("touchcancel", aoCancelar);
+    janela?.removeEventListener("mouseup", soltouFora);
+    janela?.removeEventListener("blur", soltouFora);
     if (!a) return;
     if (a.ativo) {
       try {
@@ -711,6 +857,8 @@ export function ligarInteracaoLotes(map, opts) {
     const a = arrasto;
     if (!a || !e?.point) return;
     if (e.points && e.points.length > 1) return terminar(false); // pinça: é zoom, não arrasto
+    // mouse sem botão apertado: o botão foi solto onde o mapa não viu
+    if (!a.toque && e.originalEvent && e.originalEvent.buttons === 0) return terminar(false);
     const dx = e.point.x - a.inicio.x;
     const dy = e.point.y - a.inicio.y;
     if (!a.ativo) {
@@ -738,11 +886,13 @@ export function ligarInteracaoLotes(map, opts) {
     if (!areaId || !e?.point) return;
     if (arrasto) terminar(false);
     e.preventDefault?.(); // o mapa não desliza enquanto o lote é arrastado
-    arrasto = { areaId, inicio: { x: e.point.x, y: e.point.y }, origem: { x: 0, y: 0 }, ancora: [0, 0], ativo: false, marcador: null, lngLat: null };
     const toque = e.type === "touchstart";
+    arrasto = { areaId, toque, inicio: { x: e.point.x, y: e.point.y }, origem: { x: 0, y: 0 }, ancora: [0, 0], ativo: false, marcador: null, lngLat: null };
     map.on(toque ? "touchmove" : "mousemove", mover);
     map.on(toque ? "touchend" : "mouseup", aoLevantar);
     if (toque) map.on("touchcancel", aoCancelar);
+    else janela?.addEventListener("mouseup", soltouFora);
+    janela?.addEventListener("blur", soltouFora);
   };
 
   const aoClicarCamada = (/** @type {any} */ e) => {
@@ -788,14 +938,16 @@ export function ligarInteracaoLotes(map, opts) {
 }
 
 /**
- * Há lote (ícone ou identificador) sob o ponto? Quem trata o clique na área/linha usa isto para não abrir também
- * o que está por baixo do lote.
+ * Há ícone de lote sob o ponto? (Só a camada do ícone: o identificador não é clicável, como no marcador antigo.)
+ * Quem trata o clique na área/linha e o toque longo do mapa usam isto para não agir também por baixo do lote.
  * @param {any} map @param {{ x: number, y: number } | [number, number]} ponto
  */
 export function haLoteNoPonto(map, ponto) {
   try {
     if (!map?.getLayer?.(LOTES_LAYER_ID)) return false;
-    return map.queryRenderedFeatures(ponto, { layers: [LOTES_LAYER_ID] }).length > 0;
+    // sempre [x, y]: um objeto `{ x, y }` comum o MapLibre lê como "opções" e consulta a tela inteira
+    const xy = Array.isArray(ponto) ? ponto : [ponto.x, ponto.y];
+    return map.queryRenderedFeatures(xy, { layers: [LOTES_LAYER_ID] }).length > 0;
   } catch {
     return false;
   }

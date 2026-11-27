@@ -47,6 +47,7 @@ import {
   pedidoImagemIdent,
   pedidoImagemLote,
   pixelRatioDaTela,
+  podarImagens,
   registrarImagens,
 } from "@/lib/maplibre/lotesNoMapa.js";
 
@@ -239,6 +240,9 @@ export default function useMapRenderer(mapInstanceRef) {
   const lotesConteudoRef = useRef("");
   const lotesPublicadoRef = useRef("");
   const pixelRatioRef = useRef(pixelRatioDaTela());
+  /** Últimos argumentos de `syncLotes`: refeitos quando a densidade da tela muda (outro monitor, zoom do navegador). */
+  const lotesArgsRef = useRef(/** @type {null | any[]} */ (null));
+  const syncLotesRef = useRef(/** @type {null | ((...a: any[]) => Promise<void>)} */ (null));
   const piscaRef = useRef(/** @type {null | ReturnType<typeof criarPiscaIdent>} */ (null));
   if (!piscaRef.current) piscaRef.current = criarPiscaIdent(() => mapInstanceRef.current);
 
@@ -836,7 +840,7 @@ export default function useMapRenderer(mapInstanceRef) {
   /** Clique, arrastar e imagens que faltam após troca de estilo: ligados uma vez por mapa. */
   const ligarLotes = (/** @type {any} */ map) => {
     if (lotesHandlersRef.current) return;
-    const pr = pixelRatioRef.current;
+    const pr = () => pixelRatioRef.current;
     const interacao = ligarInteracaoLotes(map, {
       lote: (areaId) => {
         const l = lotesRef.current.get(areaId);
@@ -857,10 +861,23 @@ export default function useMapRenderer(mapInstanceRef) {
       pixelRatio: pr,
     });
     const desligarImagens = ligarImagensFaltando(map, pr);
+    // A densidade da tela mudou: imagens novas nessa densidade (mesmas chaves; `registrarImagens` troca as do mapa).
+    const aoRedimensionar = () => {
+      const novo = pixelRatioDaTela();
+      if (novo === pixelRatioRef.current) return;
+      pixelRatioRef.current = novo;
+      if (lotesArgsRef.current) syncLotesRef.current?.(...lotesArgsRef.current);
+    };
+    map.on("resize", aoRedimensionar);
     lotesHandlersRef.current = {
       off: () => {
         interacao.off();
         desligarImagens();
+        try {
+          map.off("resize", aoRedimensionar);
+        } catch {
+          /* mapa já removido */
+        }
       },
     };
   };
@@ -873,6 +890,7 @@ export default function useMapRenderer(mapInstanceRef) {
     if (!map) return Promise.resolve();
     ensureMgLayers(map);
     lotesCallbacksRef.current = { onClickLotes, onDragLotes, canDragLotes: !!canDragLotes };
+    lotesArgsRef.current = [lotesFiltrados, areas, show, categoriasManejo, onClickLotes, onDragLotes, canDragLotes, blinkAlerts];
     ligarLotes(map);
     const pr = pixelRatioRef.current;
     const porArea = {};
@@ -920,15 +938,21 @@ export default function useMapRenderer(mapInstanceRef) {
     const aplicar = () => {
       const m = getMap();
       if (seq !== lotesSeqRef.current || !m) return;
-      registrarImagens(m, chavesImagensLotes(novos), pr);
+      const emUso = chavesImagensLotes(novos);
+      registrarImagens(m, emUso, pr);
       novos.forEach((l) => {
         const r = imagemPronta(l.item.imagem, pr);
         l.tamanho = r ? { w: r.w, h: r.h } : TAMANHO_PADRAO_LOTE;
       });
+      // Imagem que falhou: o lote aparece com a reserva. Quando ela vier numa próxima tentativa, a lista muda e a
+      // fonte é publicada de novo (o mapa só troca a reserva pela imagem ao refazer os dados).
+      const faltando = emUso.filter((k) => !imagemPronta(k, pr));
       lotesRef.current = novos;
-      lotesConteudoRef.current = JSON.stringify([...novos.values()].map((l) => l.item));
+      lotesConteudoRef.current = JSON.stringify([[...novos.values()].map((l) => l.item), faltando]);
       publicarLotes();
-      piscaRef.current?.atualizar([...novos.values()].some((l) => l.item.piscar));
+      // Depois de publicar: as imagens que nenhum lote usa mais saem do mapa e do cache.
+      podarImagens(m, new Set(emUso), pr);
+      piscaRef.current?.atualizar([...novos.values()].filter((l) => l.item.piscar).map((l) => l.item.areaId));
       // Os ícones de lote são obstáculos para os rótulos (D-PROD-126).
       agendarArrumar();
     };
@@ -939,6 +963,7 @@ export default function useMapRenderer(mapInstanceRef) {
     }
     return espera.then(aplicar);
   }, [mapInstanceRef]);
+  syncLotesRef.current = syncLotes;
 
   // ─── Tarefas ───
   const syncTarefas = useCallback((tarefasMapa, areas, iconesConfig, onClickTarefa, hoje) => {
@@ -1014,6 +1039,12 @@ export default function useMapRenderer(mapInstanceRef) {
     );
   }, [mapInstanceRef]);
 
+  /** Há ícone de lote sob o ponto (px do mapa)? O toque longo do Mapa Geral não começa em cima de um lote. */
+  const hitLote = useCallback((point) => {
+    const map = getMap();
+    return Boolean(map) && haLoteNoPonto(map, point);
+  }, [mapInstanceRef]);
+
   /** Há área de negócio (ou lote em cima dela) sob o ponto (para o clique geral do mapa não duplicar o da área). */
   const hitArea = useCallback((point) => {
     const map = getMap();
@@ -1026,5 +1057,5 @@ export default function useMapRenderer(mapInstanceRef) {
     }
   }, [mapInstanceRef]);
 
-  return { clearAll, ensureLayers, hitArea, syncAreas, syncLabels, syncPontos, syncLinhas, syncPontosSuplementacao, syncLotes, syncTarefas, syncUserLocation, setEstiloPasto };
+  return { clearAll, ensureLayers, hitArea, hitLote, syncAreas, syncLabels, syncPontos, syncLinhas, syncPontosSuplementacao, syncLotes, syncTarefas, syncUserLocation, setEstiloPasto };
 }
