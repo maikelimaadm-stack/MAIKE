@@ -346,12 +346,19 @@ function lerPixels(ctx, largura, altura) {
  */
 export async function desenharImagemLote({ iconUrl, texto, pixelRatio }) {
   const base = await baseDaFigura(iconUrl, pixelRatio);
+  if (!base.canvas) {
+    // A figura não carregou (ou sem canvas): é falha, não uma imagem só com o número. Esquece a figura para a
+    // próxima tentativa recarregar, e o lote fica com a reserva (o círculo verde, como o `onerror` do marcador antigo).
+    figuras.delete(iconUrl);
+    bases.delete(`${pixelRatio}|${iconUrl}`);
+    return null;
+  }
   const { w, h } = base;
   const largura = Math.max(1, Math.round(w * pixelRatio));
   const altura = Math.max(1, Math.round(h * pixelRatio));
   const ctx = contexto(largura, altura);
   if (!ctx) return null;
-  if (base.canvas) ctx.drawImage(base.canvas, 0, 0);
+  ctx.drawImage(base.canvas, 0, 0);
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   ctx.font = `700 ${FONTE_CONTAGEM_PX}px ${FONTE_FAMILIA}`;
   ctx.textAlign = "center";

@@ -17,11 +17,12 @@ export const svgDaUrl = (url) =>
  * Instala os falsos. Chamar no `beforeEach` (o `restoreMocks` do vitest desfaz o `getContext`; `unstubGlobals`, a `Image`).
  * `falharLeitura(largura, altura)`: quando devolve true, `getImageData` lança (canvas "sujo"), para simular a
  * imagem do lote que não pôde ser desenhada.
- * @returns {{ chamadas: any[], figurasCarregadas: string[], textos: () => string[], desenhos: () => number, falharLeitura: null | ((w: number, h: number) => boolean) }}
+ * `falharFigura`: quando true, a figura (SVG) não carrega (`onerror`).
+ * @returns {{ chamadas: any[], figurasCarregadas: string[], textos: () => string[], desenhos: () => number, falharLeitura: null | ((w: number, h: number) => boolean), falharFigura: boolean }}
  */
 export function instalarCanvasFalso() {
   /** @type {{ falharLeitura: null | ((w: number, h: number) => boolean) }} */
-  const controle = { falharLeitura: null };
+  const controle = { falharLeitura: null, falharFigura: false };
   /** @type {any[]} */
   const chamadas = [];
   /** @type {string[]} */
@@ -41,6 +42,7 @@ export function instalarCanvasFalso() {
       this._src = v;
       queueMicrotask(() => {
         try {
+          if (controle.falharFigura) throw new Error("figura não carregou");
           const svg = svgDaUrl(v);
           this.naturalWidth = Number(svg.getAttribute("width")) || 0;
           this.naturalHeight = Number(svg.getAttribute("height")) || 0;
@@ -124,6 +126,12 @@ export function instalarCanvasFalso() {
     },
     set falharLeitura(f) {
       controle.falharLeitura = f;
+    },
+    get falharFigura() {
+      return controle.falharFigura;
+    },
+    set falharFigura(v) {
+      controle.falharFigura = !!v;
     },
     chamadas,
     figurasCarregadas,

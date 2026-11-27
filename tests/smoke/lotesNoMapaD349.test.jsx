@@ -728,6 +728,22 @@ describe("L349-9 — correções da revisão", () => {
     expect(fonte(map)).not.toBe(dados);
   });
 
+  it("figura que não carrega (Codex P2): não vira imagem só com o número — fica a reserva e a próxima vez recarrega", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    canvas.falharFigura = true;
+    const { map, r } = montar();
+    renderer = r;
+    await r.syncLotes(umLote(), [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
+    const [f] = feicoes(map);
+    expect(map.images.has(f.properties.imagem)).toBe(false); // nada de imagem só com o número
+    expect(map.images.has(IMAGEM_RESERVA)).toBe(true);
+    expect(canvas.textos()).not.toContain("3"); // a contagem (3 cabeças) não foi escrita sozinha
+    // a figura volta a carregar: a próxima sincronização recarrega e a imagem entra
+    canvas.falharFigura = false;
+    await r.syncLotes(umLote(), [AREA], true, CATEGORIAS, vi.fn(), vi.fn(), true, false);
+    expect(map.images.has(f.properties.imagem)).toBe(true);
+  });
+
   it("imagem que falha sempre: para de tentar depois de MAX_TENTATIVAS_IMAGEM (fica a reserva)", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     canvas.falharLeitura = (w) => w === LARGURA_MARCADOR_PX;
