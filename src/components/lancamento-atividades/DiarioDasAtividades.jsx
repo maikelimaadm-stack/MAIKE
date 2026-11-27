@@ -361,7 +361,7 @@ export default function DiarioDasAtividades({
    * D-PROD-359: o registro do dia criado pelo abastecimento desta janela (a frente e o dia dele). Uma nova tentativa, sem a
    * releitura da lista ter chegado, acha esse registro e não cria outro.
    */
-  const registroDoDiaCriadoRef = useRef(/** @type {{ chave: string, dia: string, id: string } | null} */ (null));
+  const registroDoDiaCriadoRef = useRef(/** @type {{ atividadeId: string, areaId: string, chave: string, dia: string, id: string } | null} */ (null));
   /**
    * D-PROD-356: o Insumo (carga de insumo) só existe quando a operação da atividade permite produto (`permite_produto`,
    * a mesma flag do menu "Só insumo" do mapa, `flagsDoTipoDaAtividade`). A flag fecha por padrão: enquanto as operações
@@ -901,7 +901,7 @@ export default function DiarioDasAtividades({
     const existente = apontamentoDeHoje(apontamentosDaFrente(lista, chave), hoje, areaDoDestino);
     if (existente?.id != null) return String(existente.id);
     const criado = registroDoDiaCriadoRef.current;
-    if (criado && criado.chave === chave && criado.dia === hoje) return criado.id;
+    if (criado && criado.atividadeId === String(atividadeId) && criado.areaId === String(areaDoDestino ?? "") && criado.chave === chave && criado.dia === hoje) return criado.id;
     const resposta = normalizarRespostaDeEscrita(
       await criarApontamento(String(atividadeId), {
         data_operacional: hoje,
@@ -911,7 +911,7 @@ export default function DiarioDasAtividades({
     );
     const id = resposta.apontamento?.id;
     if (id == null) throw new Error("O servidor não devolveu o registro do dia.");
-    registroDoDiaCriadoRef.current = { chave, dia: hoje, id: String(id) };
+    registroDoDiaCriadoRef.current = { atividadeId: String(atividadeId), areaId: String(areaDoDestino ?? ""), chave, dia: hoje, id: String(id) };
     await queryClient.invalidateQueries({ queryKey: chaveApontamentos(empresaId, atividadeId) });
     return String(id);
   };
