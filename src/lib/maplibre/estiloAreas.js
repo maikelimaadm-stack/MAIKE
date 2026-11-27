@@ -31,8 +31,9 @@ export const EDITOR_VISUAL = Object.freeze({
   ima: Object.freeze({ anel: 8, anelBorda: 1.6, anelOpacidade: 0.95, fecharRaio: 4.2, fecharBorda: 2, arestaHalo: 5, arestaHaloOpacidade: 0.22, arestaLinha: 2 }),
   cruz: Object.freeze({ braco: 7, largura: 1.8 }),
   guiaShift: Object.freeze({ largura: 1.2, traco: Object.freeze([4, 6]), opacidade: 0.85, extensao: 1.35 }),
-  /** Tolerância de acerto (px) — alvo maior que o círculo visível. */
-  acerto: Object.freeze({ mouse: 8, toque: 14 }),
+  /** Tolerância de acerto (px) — alvo maior que o círculo visível. D-PROD-361: no dedo 22px (alvo de ~44px, como
+   *  pedem as diretrizes de toque e o AgriWebb); 14px fazia o dedo errar o vértice e mover o mapa. */
+  acerto: Object.freeze({ mouse: 8, toque: 22 }),
 });
 
 /**

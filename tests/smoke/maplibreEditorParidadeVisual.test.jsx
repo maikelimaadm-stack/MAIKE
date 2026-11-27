@@ -180,7 +180,7 @@ describe("D-PROD-66 — dados do desenho e do cursor", () => {
     expect(pontaGuiaShift({ x: 0, y: 0 }, { x: 10, y: 20 })).toEqual({ x: 13.5, y: 27 });
   });
 
-  it("VIS-04: acerto 8px no mouse e 14px no toque; vértice tem prioridade sobre o meio", () => {
+  it("VIS-04: acerto 8px no mouse e 22px no toque (D-PROD-361); vértice tem prioridade sobre o meio", () => {
     const f = (role, i, lng, lat) => ({ geometry: { type: "Point", coordinates: [lng, lat] }, properties: { role, index: i, id: `${role[0]}-${i}` } });
     const m = mapaFalso([f("midpoint", 0, 0.005, 0), f("vertex", 1, 0.03, 0)]);
     m.addLayer({ id: LAYER_IDS.VERTICES });

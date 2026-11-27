@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-11-27 (missões ativas D-PROD-360 (mapa leve, etapa 5) e D-PROD-358; antes D-PROD-354 (mapa leve, etapa 4); antes D-PROD-357, D-PROD-355; antes missões ativas D-PROD-353 (mapa leve, etapa 3) e D-PROD-350 (celular compartilhado, PR #438); antes D-PROD-349 (mapa leve, etapa 2, PR #437), D-PROD-346, D-PROD-347 (mapa leve, PR #436) e D-PROD-348 (diário, PR #434); antes D-PROD-345, D-PROD-344, D-PROD-343, D-PROD-342, D-PROD-341 (diário, PR #426), D-PROD-340, D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+**Atualizado em:** 2026-11-27 (missões ativas D-PROD-361 (cadastro no mapa, etapa 1) e D-PROD-360 (mapa leve, etapa 5); antes D-PROD-358 e D-PROD-354 (mapa leve, etapa 4); antes D-PROD-357, D-PROD-355; antes missões ativas D-PROD-353 (mapa leve, etapa 3) e D-PROD-350 (celular compartilhado, PR #438); antes D-PROD-349 (mapa leve, etapa 2, PR #437), D-PROD-346, D-PROD-347 (mapa leve, PR #436) e D-PROD-348 (diário, PR #434); antes D-PROD-345, D-PROD-344, D-PROD-343, D-PROD-342, D-PROD-341 (diário, PR #426), D-PROD-340, D-PROD-338, D-PROD-337, D-PROD-335, D-PROD-333, D-PROD-332 (diário das atividades, PR #420), D-PROD-331, D-PROD-330, D-PROD-329, D-PROD-328, D-PROD-327, D-PROD-326, D-PROD-325, D-PROD-324, D-PROD-321, D-PROD-320, D-PROD-319, D-PROD-318, D-PROD-316, D-PROD-315, D-PROD-314, D-PROD-313, D-PROD-312, D-PROD-311, D-PROD-310, D-PROD-309, D-PROD-308, D-PROD-307, D-PROD-306, D-PROD-305, D-PROD-304, D-PROD-303, D-PROD-302, D-PROD-301, D-PROD-300, D-PROD-299, D-PROD-298, D-PROD-297, D-PROD-296; antes D-PROD-295, D-PROD-293; antes D-PROD-287, D-PROD-284 e D-PROD-282; blocos abaixo por data) · antes: 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
 dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
 tabelas de app alinhadas ao Prisma — ver
 [`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
@@ -8,6 +8,15 @@ tabelas de app alinhadas ao Prisma — ver
 rollout pausado **D-PROD-41**)
 
 ---
+
+## Missão ativa (2026-11-27) — MAIKE-MAPA-CADASTRO: cadastrar no mapa como no AgriWebb, etapa 1 (D-PROD-361)
+
+| Item | Estado |
+|---|---|
+| Decisão | **D-PROD-361**: "+" do Mapa Geral com Novo pasto · Novo ponto · Nova linha; editor com alvo de toque de 22 px nos vértices e 44 px nos botões; barra de baixo cabendo na tela |
+| Banco | sem migration; sem APK novo |
+| Próximas etapas | 2 mira no centro + seguir posição; 3 caminhar gravando o contorno; 4 régua; 5 excluir sem internet + KMZ |
+| Relatório | [`MAPA-CADASTRO-ETAPA1-D361-REPORT.md`](./MAPA-CADASTRO-ETAPA1-D361-REPORT.md) |
 
 ## Missão ativa (2026-11-27) — MAIKE-MAPA-LEVE: etapa 5, satélite sem o mapa de ruas por baixo (D-PROD-360)
 
@@ -18,7 +27,7 @@ rollout pausado **D-PROD-41**)
 | Relatório | [`MAPA-LEVE-D360-REPORT.md`](./MAPA-LEVE-D360-REPORT.md) |
 | Próximas | medir no tablet do proprietário com o satélite |
 
-## Missão ativa (2026-11-27) — MAIKE-VERSAO-NA-TAREFA: a tela da tarefa manda a versão (D-PROD-358)
+## Missão anterior (2026-11-27) — MAIKE-VERSAO-NA-TAREFA: a tela da tarefa manda a versão (D-PROD-358)
 
 | Item | Estado |
 |---|---|

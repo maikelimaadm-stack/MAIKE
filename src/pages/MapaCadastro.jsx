@@ -64,6 +64,10 @@ function AbasCadastroMapa({ ativa, onTrocar }) {
   );
 }
 
+/** D-PROD-361 — o que o "+" do Mapa Geral pede pelo endereço (`?novo=area|ponto|linha`) e a aba de cada um. */
+const ABA_DO_TIPO = Object.freeze({ area: "areas", ponto: "pontos", linha: "linhas" });
+const tipoNovoDoEndereco = (valor) => (Object.prototype.hasOwnProperty.call(ABA_DO_TIPO, valor) ? valor : null);
+
 /** Vértices gravados ([lat, lng] ou {lat, lng}) no formato que os formulários de área e linha recebem. */
 const verticesDoItem = (item) => item?.coordenadas?.coords?.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));
 
@@ -77,10 +81,11 @@ export default function MapaCadastro() {
   // D-PROD-340: aberto pelo "+" da aba Pontos (`?novo=ponto`), já nasce no editor de ponto — antes a lista do cadastro
   // aparecia por um instante antes do editor (e de novo ao voltar), e parecia que a tela ia e voltava.
   const [parametros, setParametros] = useSearchParams();
-  const [abertoPeloMais] = useState(() => parametros.get("novo") === "ponto");
+  // D-PROD-361: o "+" também abre pasto (`?novo=area`) e linha (`?novo=linha`).
+  const [abertoPeloMais] = useState(() => tipoNovoDoEndereco(parametros.get("novo")));
   const [modo, setModo] = useState(abertoPeloMais ? "mapa" : "listagem");
-  const [abaAtiva, setAbaAtiva] = useState(abertoPeloMais ? "pontos" : "areas");
-  const [tipoDesenho, setTipoDesenho] = useState(abertoPeloMais ? "ponto" : null);
+  const [abaAtiva, setAbaAtiva] = useState(abertoPeloMais ? ABA_DO_TIPO[abertoPeloMais] : "areas");
+  const [tipoDesenho, setTipoDesenho] = useState(abertoPeloMais || null);
   const [usarGPS, setUsarGPS] = useState(false);
   const [itemEditando, setItemEditando] = useState(null);
   const [showImportarAreas, setShowImportarAreas] = useState(false);
@@ -208,10 +213,11 @@ export default function MapaCadastro() {
 
   // D-PROD-333: `?novo=ponto` (o botão "+" da aba Pontos do Mapa Geral) abre direto a marcação de um ponto novo.
   useEffect(() => {
-    if (parametros.get("novo") !== "ponto") return;
+    const tipo = tipoNovoDoEndereco(parametros.get("novo"));
+    if (!tipo) return;
     voltarAoMapaGeralRef.current = true;
-    setAbaAtiva("pontos");
-    setTipoDesenho("ponto");
+    setAbaAtiva(ABA_DO_TIPO[tipo]);
+    setTipoDesenho(tipo);
     setUsarGPS(false);
     setItemEditando(null);
     setModo("mapa");

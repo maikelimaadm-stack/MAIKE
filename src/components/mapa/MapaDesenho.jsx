@@ -46,7 +46,7 @@ import {
   segmentosDaRegua,
   transladarPontos,
 } from "@/lib/maplibre/editorModos.js";
-import { acertoEditor, pintarEdicao, pontaGuiaShift, resolverAlvoDesenho, rumoGraus } from "@/lib/maplibre/editorVisual.js";
+import { acertoEditor, eToque, pintarEdicao, pontaGuiaShift, resolverAlvoDesenho, rumoGraus } from "@/lib/maplibre/editorVisual.js";
 import CursorEditorOverlay from "./CursorEditorOverlay";
 import { pontoRotuloSeguro, textoHectares } from "@/lib/maplibre/mapaGeralRender.js";
 import useBasemap from "./useBasemap";
@@ -951,7 +951,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         markerPx && Math.hypot(markerPx.x - e.point.x, markerPx.y - e.point.y) <= 22
           ? { role: "vertex", index: 0, id: "ponto", lat: marker.lat, lng: marker.lng } : null
       ) : acertoEditor(map, e.point, {
-        toque: !!oe?.type?.startsWith("touch"),
+        toque: eToque(oe),
         camadas: { vertices: meiosNoCadastro ? null : LAYER_IDS.VERTICES, meios: LAYER_IDS.MIDPOINTS },
       });
       if (!a) return;
@@ -1085,7 +1085,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     const camadas = () => [LAYER_IDS.DESENHO_FILL, LAYER_IDS.DESENHO_LINE].filter((id) => map.getLayer(id));
     const onDown = (e) => {
       if (!podeMoverArea(modoRef.current, currentPointsRef.current)) return;
-      const tol = 6;
+      // D-PROD-361: no dedo a linha fina precisa de folga maior (6px só acerta com o mouse).
+      const tol = eToque(e.originalEvent) ? 16 : 6;
       const hit = map.queryRenderedFeatures(
         [
           [e.point.x - tol, e.point.y - tol],
@@ -1302,7 +1303,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     `h-11 min-w-[44px] px-2 text-xs font-semibold rounded-md border shadow-sm ${ativo ? "bg-slate-900 text-white border-slate-900 hover:bg-slate-800" : "bg-white text-slate-800 border-slate-300 hover:bg-slate-100"}`;
 
   return (
-    <div className="fixed inset-0 z-50 bg-white">
+    <div className="fixed inset-0 z-50 bg-white mk-editor-mapa">
       <div className="w-full h-full relative">
         <div
           ref={mapRef}
@@ -1341,12 +1342,12 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
           aria-label="Fechar editor"
           variant="secondary"
           size="icon"
-          className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 text-secondary-foreground absolute top-1 left-1 z-20 h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white"
+          className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 text-secondary-foreground mk-editor-fechar absolute top-1 left-1 z-20 h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white"
         >
           <X className="w-6 h-6 text-slate-700" />
         </Button>
 
-        <div className="absolute top-4 right-4 z-20 flex items-center gap-1">
+        <div className="mk-editor-barra absolute top-4 right-4 z-20 flex items-center gap-1">
           <Button
             variant={basemap.basemapId === BASEMAP_IDS.RUAS ? "default" : "secondary"}
             size="sm"
@@ -1425,7 +1426,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         {tipoDesenho && mapReady && (
           <>
             {desenhaAreaOuLinha && (
-              <div role="toolbar" aria-label="Modo do editor" className="absolute left-1 top-12 z-20 flex flex-col gap-1" style={{ top: "max(3rem, env(safe-area-inset-top))" }}>
+              <div role="toolbar" aria-label="Modo do editor" className="mk-editor-modos absolute left-1 top-12 z-20 flex flex-col gap-1" style={{ top: "max(3rem, env(safe-area-inset-top))" }}>
                 <button type="button" className={botaoModo(modo === MODOS.NAVEGAR)} aria-pressed={modo === MODOS.NAVEGAR} aria-label="Navegar no mapa" title="Navegar: mover e ampliar sem criar pontos" onClick={() => setModo(MODOS.NAVEGAR)}>
                   ✋ Navegar
                 </button>
@@ -1437,7 +1438,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                 <button type="button" className={botaoModo(modo === MODOS.EDITAR)} aria-pressed={modo === MODOS.EDITAR} aria-label="Editar pontos" title="Editar: arraste pontos, toque no meio para inserir, toque num ponto para selecionar" disabled={currentPoints.length === 0} onClick={() => setModo(MODOS.EDITAR)}>
                   ⬚ Editar
                 </button>
-                <button type="button" className={botaoModo(modo === MODOS.MOVER)} aria-pressed={modo === MODOS.MOVER} aria-label="Mover área inteira" title="Mão: arraste o interior para mover a área inteira" disabled={currentPoints.length === 0} onClick={() => setModo(MODOS.MOVER)}>
+                <button type="button" className={botaoModo(modo === MODOS.MOVER)} aria-pressed={modo === MODOS.MOVER} aria-label={tipoDesenho === "linha" ? "Mover linha inteira" : "Mover área inteira"} title={tipoDesenho === "linha" ? "Mão: arraste a linha para movê-la inteira" : "Mão: arraste o interior para mover a área inteira"} disabled={currentPoints.length === 0} onClick={() => setModo(MODOS.MOVER)}>
                   ✥ Mover
                 </button>
               </div>
@@ -1474,7 +1475,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
               </button>
             )}
 
-            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-1">
+            <div className="mk-editor-rodape absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-1">
               {tipoDesenho === "ponto" && !itemEditando && (
                 <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
                   {currentMarker ? "Arraste o ponto para ajustar e toque em Continuar" : "Toque no mapa para marcar — ou use a sua localização"}
@@ -1490,11 +1491,11 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                   {modo === MODOS.NAVEGAR && "Navegando — o mapa move sem criar pontos"}
                   {modo === MODOS.DESENHAR && "Toque para adicionar pontos"}
                   {modo === MODOS.EDITAR && (verticeSelecionado != null ? `Ponto ${verticeSelecionado + 1} selecionado` : "Arraste os pontos para ajustar")}
-                  {modo === MODOS.MOVER && "Arraste o interior para mover a área"}
+                  {modo === MODOS.MOVER && (tipoDesenho === "linha" ? "Arraste a linha para movê-la" : "Arraste o interior para mover a área")}
                 </div>
               )}
 
-              <div className="flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-1.5 rounded-full shadow-lg border border-slate-200">
+              <div className="mk-editor-barra mk-editor-barra-baixo flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-1.5 rounded-full shadow-lg border border-slate-200">
                 {(drawingClosed || currentPoints.length > 0) && !itemEditando && (
                   <Button
                     variant="outline"
