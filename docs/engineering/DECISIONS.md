@@ -11172,4 +11172,30 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
     - `useLocalizacaoNoMapa` ganha `centrarEm`. O mapa do Google expõe `centrar`: no site, `setCenter`/`setZoom`; no app, `setCamera`.
 - **Testes:** `menuNavFreeze.test.jsx`: o GPS segue desligado com o Mapa Geral escondido, agora com o mapa pronto (MapLibre ou Google). `mapaGoogleLinhasD375.test.jsx` (6): linhas, círculo e ponto; o mapa do site (toque na linha com a `tag`, gesto no ícone, círculos, centrar, destruir); o app (linhas nativas e o toque, ponto nativo, círculo sem piscar, `setCamera`); "Localizar" no Google ou no MapLibre.
 
-<!-- Próxima decisão: D-PROD-376 -->
+## D-PROD-376 — Mapa do Google no app: a camada do Mapa Geral desenhada pelo próprio Android; APK 1.0.9
+
+**Data:** 2026-11-27 · **Origem:** teste do proprietário no APK 1.0.8: "ainda fica dando um bug de travadinha nos ícones, e também os nomes do zoom e hectares tem vezes que fica cortado"; "como podemos fazer para isso ficar nativo?" e "pode ser" à proposta, com a garantia de que o desenho dos ícones não muda · **Relatório:** [`MAPA-GOOGLE-CAMADA-NATIVA-D376-REPORT.md`](./MAPA-GOOGLE-CAMADA-NATIVA-D376-REPORT.md) · **Migration:** nenhuma · **APK:** 1.0.9 (código 10), `nativoMinimo` 5
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-376. O marcador passa a D-PROD-377.
+
+- **Problema:**
+  - Como marcadores do mapa (D-PROD-374), os ícones andam colados no mapa, mas os nomes não mudam de tamanho durante o zoom.
+  - Os nomes são refeitos quando o mapa para (a "travadinha"). A troca de nível no meio do gesto reenviava todos os nomes pela ponte.
+  - O nome ficava por baixo dos ícones e parecia cortado onde um cocho ou ponto o cobria.
+- **Decisão:** uma camada nativa do próprio app no Android (`CamadaDoMapaPlugin.java` + `CamadaDoMapaView.java`), por cima do mapa do plugin `@capacitor/google-maps`, dentro do contêiner dele e por baixo da página.
+  - **Imagens uma vez:** a página manda cada imagem uma vez, por uma chave curta da URL `data:` (`camadaNativa.js`). São as mesmas imagens do sistema, então o desenho dos ícones não muda.
+  - **Itens por grupo:** a página manda os itens de cada grupo (ponto, tamanho em dp, deslocamento, âncora, ordem, toque) e, para os nomes, as paradas de tamanho nos zooms 0 a 24 do MapLibre. O Android interpola entre elas como o `icon-size`.
+  - **Desenho:** a cada passo da câmera, o Android desenha tudo com a mesma conta da página.
+    - Web Mercator, ladrilho de 256 dp, rumo, e zoom do MapLibre = zoom do Google − 1. O teste confere as constantes, e a conta foi conferida contra `projetarNaCamera`.
+    - O plugin avisa cada passo: um gancho novo no remendo (`MaikeCamera.mexeu()` no `onCameraMove`, arquivo `MaikeCamera.java` criado no plugin). Com o mapa parado, a camada não trabalha.
+  - **Ordem:** a mesma do site e do MapLibre. O nome fica por cima dos ícones e o ponto azul por cima de tudo, porque a camada não pega toque.
+  - **Toque:** o toque é do mapa. O clique do mapa pergunta à camada qual item, entre os que têm clique, está no ponto (`tocar`, com a mesma folga de 4 dp). Sem item, abre a área.
+  - **Durante o gesto:** com os ícones no mapa nativo (camada ou marcadores), a página não pede a câmera a cada quadro. Os nomes são revistos quando o mapa para, o que vale também para o APK 1.0.8.
+  - **Versões:** a camada é usada no APK 1.0.9 em diante (código 10), com o plugin disponível. Se ela não ligar, ficam os marcadores do mapa (1.0.8). No 1.0.7 ou mais antigo, a camada por cima da página. O `nativoMinimo` segue 5.
+  - **iPhone:** por enquanto segue com os marcadores do mapa. A mesma camada em Swift vem depois.
+- **Testes:**
+  - `mapaGoogleCamadaNativaD376.test.jsx` (12): chave, paradas e item; ligar, imagens uma vez, sem reenviar, toque, troca mais nova; APK 1.0.9, 1.0.8 e falha ao ligar; o lado Android (registro, versão do mapa, nome, constantes, métodos).
+  - `mapaGoogleCameraD373.test.js`: os 7 remendos, o gancho e o APK 1.0.9.
+  - O código Java foi compilado contra imitações das classes do Android, e o APK é compilado no CI ("apk assinado").
+
+<!-- Próxima decisão: D-PROD-377 -->

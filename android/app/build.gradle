@@ -61,6 +61,8 @@ dependencies {
     implementation project(':capacitor-android')
     // D-PROD-346: aviso de registros esperando envio com o app fechado (trabalho periódico do Android).
     implementation "androidx.work:work-runtime:2.10.0"
+    // D-PROD-376: a camada do Mapa Geral usa o mapa do Google do plugin @capacitor/google-maps (a mesma versão dele).
+    implementation "com.google.android.gms:play-services-maps:19.2.0"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

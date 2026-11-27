@@ -65,6 +65,11 @@ O Mapa Geral tem o mapa do Google pelo plugin oficial `@capacitor/google-maps`. 
   - A partir do APK 1.0.8 (código 9), os ícones e os nomes dos pastos são marcadores do próprio mapa nativo e andam colados nele, sem tremer.
   - O remendo também faz o marcador aceitar a imagem `data:` e faz o toque no marcador não centralizar o mapa.
   - No APK 1.0.7 ou mais antigo, os ícones continuam no `div` por cima do mapa.
+- **Camada nativa do Mapa Geral (D-PROD-376, APK 1.0.9 em diante, Android):**
+  - Os ícones e os nomes são desenhados pelo próprio app (`CamadaDoMapaPlugin.java`, `CamadaDoMapaView.java`), por cima do mapa do Google, a cada passo da câmera.
+  - Os nomes mudam de tamanho junto com o zoom. As imagens são as do sistema.
+  - O plugin do mapa avisa cada passo pelo gancho `MaikeCamera`, criado pelo remendo do `postinstall`.
+  - Ao subir a versão do `@capacitor/google-maps`, conferir também a versão do `play-services-maps` no `android/app/build.gradle`. O teste `mapaGoogleCamadaNativaD376` compara as duas.
 
 ## Permissões
 
