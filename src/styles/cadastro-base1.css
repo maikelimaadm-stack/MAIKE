@@ -3012,6 +3012,16 @@
   }
 }
 
+/* D-PROD-359 — o fim do conteúdo rolável não some atrás do rodapé (o "Encerrar serviço", o "Salvar carga" e o "Salvar
+   abastecimento" ficam por cima da última linha de "Lançado hoje" no celular). O respiro é a altura do rodapé mais folga.
+   O seletor leva a janela inteira (`.mdlc.b1-janela`) para vencer o `padding` da janela tela cheia de base1-design-ajustes. */
+.b1ref .mdlc.b1-janela.b1-aberto-janela .b1-janela__corpo:not(#mk-a) {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+.b1ref .mdlc.b1-janela.b1-aberto-janela.b1-janela--tela-cheia .b1-janela__corpo:not(#mk-a) {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+
 /* D-PROD-334 — a "Carga de insumo" (maquete 06), na janela do serviço aberto. Os seletores NÃO levam `.b1-realizacao` nem
    `--mg-field-h` (o teste de campo conta essa variável); a altura da caixa da unidade é fixa. */
 .b1-aberto-janela .b1-carga-cab {

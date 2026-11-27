@@ -29,6 +29,15 @@ vi.mock("@/hooks/useLancamentoAtividadesSessao", async (importOriginal) => ({
   useFusoDaFazenda: () => ({ hoje: "2026-11-26", fuso: "America/Sao_Paulo", semFuso: false, fusoOk: true }),
   useAcoesTelaAtividades: () => ({ lancarApontamento: true, login: "operador", permissaoEfetiva: { is_admin: false } }),
 }));
+vi.mock("@/hooks/usePatrimonioSessao", () => ({
+  // D-PROD-359: a opção Abastecimento do serviço exige a permissão de criar abastecimento (por padrão, concedida aqui).
+  useAcoesTelaAbastecimento: () => ({ ver: true, criar: true, cancelar: false }),
+  useAcoesTelaPatrimonio: () => ({ ver: false }),
+}));
+vi.mock("@/services/abastecimentoService", async (importOriginal) => ({
+  ...(await importOriginal()),
+  listarAbastecimentosPagina: vi.fn(async () => ({ items: [], has_more: false, next_cursor: null })),
+}));
 vi.mock("@/lib/AuthContext", async (importOriginal) => ({ ...(await importOriginal()), useAuth: () => ({ clienteId: "c1" }) }));
 vi.mock("@/lib/maikeNotify", async (importOriginal) => ({
   ...(await importOriginal()),

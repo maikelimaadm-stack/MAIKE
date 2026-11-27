@@ -156,6 +156,11 @@ export function useFluxoAbastecimento({ empresaId, hoje, podeCriar, escopo, onCo
   const [erros, setErros] = useState(/** @type {Record<string, string>} */ ({}));
   const limparErro = useCallback((/** @type {string} */ campo) => setErros((e) => (e[campo] ? Object.fromEntries(Object.entries(e).filter(([k]) => k !== campo)) : e)), []);
   const [previa, setPrevia] = useState(/** @type {PreviaDoFluxo | null} */ (null));
+  /**
+   * A prévia mais recente, por ref: a confirmação lê ESTA (não a do render), para quem confirma logo depois da prévia (a
+   * função de confirmar do render anterior ainda veria a prévia antiga). Sempre igual a `previa`.
+   */
+  const previaRef = useRef(/** @type {PreviaDoFluxo | null} */ (null));
   const seqPrevia = useRef(0);
   const [previaAberta, setPreviaAberta] = useState(false);
   const [previando, setPreviando] = useState(false);
@@ -171,10 +176,12 @@ export function useFluxoAbastecimento({ empresaId, hoje, podeCriar, escopo, onCo
   const iniciar = useCallback((inicial) => {
     setFormEstado(inicial);
     setErros({});
+    previaRef.current = null;
     setPrevia(null);
   }, []);
   /** Troca de empresa: nada da anterior continua aberto. */
   const reiniciar = useCallback(() => {
+    previaRef.current = null;
     setPrevia(null);
     setPreviaAberta(false);
     setCancelando(null);
@@ -188,6 +195,7 @@ export function useFluxoAbastecimento({ empresaId, hoje, podeCriar, escopo, onCo
     if (!daEmpresaAtual(emp)) return;
     if (tipo === 'confirmar') {
       setPreviaAberta(false);
+      previaRef.current = null;
       setPrevia(null);
     } else setCancelando(null);
     onConcluido?.(registro, emp, tipo);
@@ -209,25 +217,35 @@ export function useFluxoAbastecimento({ empresaId, hoje, podeCriar, escopo, onCo
   /** @type {'nenhuma'|'valida'|'invalidada'} */
   const situacaoPrevia = !previa ? 'nenhuma' : previa.assinatura === assinaturaDoFormulario(form) ? 'valida' : 'invalidada';
 
-  const pedirPrevia = async () => {
-    if (!empresaId || !podeCriar || previandoRef.current) return;
+  /**
+   * Pede a revisão ao servidor (sem gravar). `complemento` (D-PROD-359, opcional) são campos que entram no formulário ANTES
+   * da prévia — o `apontamento_id` do registro do dia, que a tela cria só depois de validar. A revisão vale para o
+   * formulário com o complemento. Devolve a prévia nova, ou null (formulário inválido, sem empresa, recusa ou rede).
+   * @param {Record<string, unknown> | null} [complemento]
+   * @returns {Promise<PreviaDoFluxo | null>}
+   */
+  const pedirPrevia = async (complemento = null) => {
+    if (!empresaId || !podeCriar || previandoRef.current) return null;
     // Capacidade (litros) do tanque escolhido entre os que aceitam o Produto (opção do servidor): só vale para Produto em L.
     const v = validarFormulario(form, { hoje, capacidadeLitros: tanqueDoFormulario(form)?.capacidade_litros ?? null, unidade: unidadeDoFormulario(form) });
     setErros(v.erros);
     if (Object.keys(v.erros).length) {
       notifyWarning('Atenção', 'Revise os campos destacados.');
-      return;
+      return null;
     }
     previandoRef.current = true;
     setPreviando(true);
     const emp = empresaId;
-    const snapshot = form;
-    const assinatura = assinaturaDoFormulario(form);
+    const snapshot = complemento ? { ...form, ...complemento } : form;
+    const assinatura = assinaturaDoFormulario(snapshot);
     try {
+      if (complemento) setFormEstado((f) => ({ ...f, ...complemento }));
       const resposta = await previaDoAbastecimento(emp, snapshot);
-      if (!daEmpresaAtual(emp)) return;
+      if (!daEmpresaAtual(emp)) return null;
       seqPrevia.current += 1;
-      setPrevia({ seq: seqPrevia.current, assinatura, form: snapshot, resposta, empresaId: emp });
+      const nova = { seq: seqPrevia.current, assinatura, form: snapshot, resposta, empresaId: emp };
+      previaRef.current = nova;
+      setPrevia(nova);
       // Bloqueio que muda a verdade da tela (aceite retirado, Produto inativo, tanque inativo…) relê como a
       // recusa da confirmação: a reconciliação do formulário tira a escolha que saiu e oferece a nova.
       const unidadeServidor = resposta.plano?.produto?.unidade_principal_estoque ?? null;
@@ -240,9 +258,11 @@ export function useFluxoAbastecimento({ empresaId, hoje, podeCriar, escopo, onCo
         queryClient.invalidateQueries({ queryKey: chaveProdutosDoBem(emp, snapshot.bem?.id ? String(snapshot.bem.id) : null) });
       }
       setPreviaAberta(true);
+      return nova;
     } catch (erro) {
       reagirAoErro(erro, emp);
       notifyWarning('Atenção', mensagemErroAbastecimento(erro, 'Não foi possível calcular a revisão. Nada foi gravado.'));
+      return null;
     } finally {
       previandoRef.current = false;
       setPreviando(false);
@@ -251,7 +271,7 @@ export function useFluxoAbastecimento({ empresaId, hoje, podeCriar, escopo, onCo
 
   /** @param {unknown} _arg @param {{ retentativa: boolean }} opcoes */
   const confirmarDaPrevia = async (_arg, { retentativa }) => {
-    const p = previa;
+    const p = previaRef.current;
     if (!p) return;
     const emp = p.empresaId;
     try {
