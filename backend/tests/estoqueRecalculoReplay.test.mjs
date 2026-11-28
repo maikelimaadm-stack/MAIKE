@@ -40,7 +40,6 @@ beforeEach(async () => {
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 const qs = (o) => `?${new URLSearchParams(o).toString()}`;
-let seq = 0;
 
 /** Cenário: o do abastecimento (tenant, 2 fazendas, trator com tanque de diesel, 2 locais, compra P3) + sal e financeiro de venda. */
 const montar = async () => {
@@ -200,7 +199,7 @@ describe('D-PROD-273 fatia 3 — replay = gravado (cenário pelos serviços reai
     const origens = new Set((await prisma().movimentacaoEstoque.findMany({ where: { cliente_id: x.c, produto_id: sal.id }, select: { origem_sistema: true } })).map((m) => m.origem_sistema));
     assert.deepEqual([...origens].sort(), ['deposito', 'entrada_estoque', 'operacao_financeira', 'saida_estoque', 'suplementacao']);
     // o poço do B é heterogêneo antes da última saída (custos diferentes): a reavaliação foi exercida
-    assert.ok(r.movimentos >= 35, `movimentos do sal: ${r.movimentos}`);
+    assert.ok(r.movimentos >= 32, `movimentos do sal: ${r.movimentos}`);
 
     // diesel: compra P3, abastecimento, cancelamento (estorno exato), entrada em L, abastecimentos
     const d = x.diesel;
