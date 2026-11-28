@@ -159,3 +159,22 @@ describe("CH-4 — o remendo e o componente", () => {
     expect(fonte).toContain("definirNomesNoChao");
   });
 });
+
+describe("CH-5 — todos juntos: ou todos os nomes aparecem, ou nenhum", () => {
+  it("um pasto grande e um pequeno: os dois aparecem enquanto metade se lê; depois, os dois somem", async () => {
+    const definirMarcadores = vi.fn();
+    const definirNomesNoChao = vi.fn();
+    const areas = [quadrado("g", -15, -47, 0.05), quadrado("p", -15.2, -47, 0.002)];
+    const { result } = renderHook(() => useMarcadoresGoogle({ definirMarcadores, definirNomesNoChao, nomesFixos: true }));
+    await result.current.syncLabels(areas, true, null, true);
+    for (const zoom of [16, 13, 11, 9, 6]) {
+      result.current.revisarNomes(camera(zoom, true));
+      const v = definirNomesNoChao.mock.calls.at(-1)[0].map((x) => x.visivel);
+      expect(v[0]).toBe(v[1]);
+    }
+    result.current.revisarNomes(camera(16, true));
+    expect(definirNomesNoChao.mock.calls.at(-1)[0].every((x) => x.visivel)).toBe(true);
+    result.current.revisarNomes(camera(6, true));
+    expect(definirNomesNoChao.mock.calls.at(-1)[0].every((x) => !x.visivel)).toBe(true);
+  });
+});

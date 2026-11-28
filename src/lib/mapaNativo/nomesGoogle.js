@@ -207,7 +207,7 @@ export const ZOOM_MINIMO_NOMES = 11;
  * Na sigla (o último nível antes de sumir), até esta parte dos nomes pode sair para os outros continuarem: de longe, os
  * nomes dos pastos pequenos saem primeiro e os dos grandes ficam, como os rótulos do Google. Acima disto, todos somem.
  */
-export const TOLERANCIA_NA_SIGLA = 0.85;
+export const TOLERANCIA_NA_SIGLA = 0.5;
 /** Com mais nomes do que isto, só os pastos perto da tela (uma tela para cada lado) entram na conta e no mapa. */
 export const NOMES_SEM_RECORTE = 300;
 /**
@@ -365,11 +365,13 @@ export function nomesFixosNaCamera(nomes, camera, lotes, icones = [], atual) {
     const nv = /** @type {NivelNome} */ (NIVEIS[i]);
     // mais detalhe do que o de agora: só com folga a mais (o nível não fica indo e voltando)
     const r = arrumar(nv, ordem >= 0 && i < ordem ? FOLGA_PARA_SUBIR_PX : 0);
-    if (r.problemas <= limite) return { nivel: nv, desloc: r.desloc, ocultos: r.ocultos };
+    // todos juntos (pedido do proprietário): quem tem um ícone em cima aparece assim mesmo; só o que está longe da
+    // tela (fazenda com muitos pastos) fica de fora
+    if (r.problemas <= limite) return { nivel: nv, desloc: r.desloc, ocultos: new Set(longe) };
   }
   // de longe: a sigla dos pastos maiores fica; a dos pequenos (sem lugar, ou um pontinho na tela) sai
   const r = arrumar("sigla", 0, true);
-  if (r.problemas <= Math.floor(itens.length * TOLERANCIA_NA_SIGLA)) return { nivel: "sigla", desloc: r.desloc, ocultos: r.ocultos };
+  if (r.problemas <= Math.floor(itens.length * TOLERANCIA_NA_SIGLA)) return { nivel: "sigla", desloc: r.desloc, ocultos: new Set(longe) };
   return vazio("nenhum");
 }
 

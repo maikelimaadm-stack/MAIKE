@@ -90,7 +90,8 @@ describe("G382-1 — o nível dos nomes de tamanho fixo, o mesmo para todos", ()
     const cocho = { lat: n.lat, lng: n.lng, w: 40, h: 40 };
     const r = nomesFixosNaCamera(nomes, camera(k), new Map(), [cocho]);
     expect(r.desloc.size).toBe(0);
-    expect(r.nivel === "nenhum" || r.ocultos.has("a")).toBe(true);
+    // um pasto só, com o ícone em cima do nome: nenhum nome (todos juntos); nunca um nome escondido sozinho
+    expect(r.ocultos.size).toBe(0);
     const proprio = new Map([["a", { lat: n.lat, lng: n.lng, tamanho: { w: 44, h: 42 } }]]);
     expect(nivelDosNomesFixos(nomes, camera(k), proprio)).toBe("tudo");
     expect(nomesFixosNaCamera(nomes, camera(k), proprio).desloc.size).toBe(0);
@@ -130,8 +131,8 @@ describe("G382-1 — o nível dos nomes de tamanho fixo, o mesmo para todos", ()
     const nomes = montarNomes([quadrado("a", -15, -47, 0.01), quadrado("b", -15.002, -46.998, 0.006)]);
     const r = nomesFixosNaCamera(nomes, camera(100000), new Map());
     expect(r.desloc.size).toBe(0);
-    expect(r.ocultos.has("a")).toBe(false);
-    expect(r.nivel === "nenhum" || r.ocultos.has("b")).toBe(true);
+    // todos juntos: ninguém some sozinho
+    expect(r.ocultos.size).toBe(0);
   });
 
   it("o nível muda no MESMO zoom, aproximando ou afastando (não é preciso afastar mais do que se aproximou)", () => {
@@ -283,18 +284,15 @@ describe("G382-2 — os nomes no app pelo useMarcadoresGoogle", () => {
 });
 
 describe("G382-6 — de longe, como no Google: os nomes dos pastos pequenos saem primeiro", () => {
-  it("na sigla, o pasto que virou um pontinho fica sem nome e os grandes continuam; longe demais, nenhum", () => {
-    // um pasto grande e três pequenos
-    const lista = [quadrado("g", -15, -47, 0.02), quadrado("p1", -15.03, -47, 0.002), quadrado("p2", -15.04, -47, 0.002), quadrado("p3", -15.05, -47, 0.002)];
-    const nomes = montarNomes(lista);
-    // 0,002° × 4000 = 8 px (um pontinho); o grande, 80 px
-    const r = nomesFixosNaCamera(nomes, camera(4000), new Map());
-    expect(r.nivel).toBe("sigla");
-    expect(r.ocultos.has("g")).toBe(false);
-    expect([...r.ocultos].sort()).toEqual(["p1", "p2", "p3"]);
-    expect(TOLERANCIA_NA_SIGLA).toBeGreaterThan(0.5);
-    // todos viraram pontinhos: nenhum
-    expect(nomesFixosNaCamera(nomes, camera(300), new Map()).nivel).toBe("nenhum");
+  it("todos juntos: com metade dos pastos virando pontinho os nomes ainda aparecem, TODOS; passando disso, nenhum", () => {
+    const grandes = [quadrado("g1", -15, -47, 0.02), quadrado("g2", -15, -46.9, 0.02)];
+    const pequenos = [quadrado("p1", -15.03, -47, 0.002), quadrado("p2", -15.04, -47, 0.002), quadrado("p3", -15.05, -47, 0.002)];
+    const metade = nomesFixosNaCamera(montarNomes([...grandes, ...pequenos.slice(0, 2)]), camera(4000), new Map());
+    expect(metade.nivel).toBe("sigla");
+    expect(metade.ocultos.size).toBe(0);
+    const maioria = nomesFixosNaCamera(montarNomes([grandes[0], ...pequenos]), camera(4000), new Map());
+    expect(maioria.nivel).toBe("nenhum");
+    expect(TOLERANCIA_NA_SIGLA).toBe(0.5);
   });
 
   it("fazenda com muitos pastos: só os de perto da tela entram (os de longe ficam escondidos)", () => {
