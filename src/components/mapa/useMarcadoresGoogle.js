@@ -7,9 +7,9 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { itensDaSuplementacao, itensDasTarefas, itensDosLotes, itensDosPontos } from "@/lib/maplibre/itensDoMapaGeral.js";
-import { FATOR_DA_IMAGEM_PEQUENA, FOLGA_ABAIXO_DO_LOTE, PARTE_DA_IMAGEM_PEQUENA, tamanhoNoChao } from "@/lib/mapaNativo/nomesNoChao.js";
+import { FATOR_DA_IMAGEM_PEQUENA, FOLGA_ABAIXO_DO_LOTE, PARTE_DA_IMAGEM_PEQUENA, letraDeTodos, metrosPorPx, tamanhoNoChao } from "@/lib/mapaNativo/nomesNoChao.js";
 import { ESCALA_NOME_FIXO, NIVEIS, colocacaoDoNome, montarNomes, nivelDosNomes, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
-import { DESLOC_NOME_COM_LOTE_PX, avisarFalhaNome, esperarFonteDosNomes, pedidoImagemNome } from "@/lib/maplibre/nomesNoMapa.js";
+import { DESLOC_NOME_COM_LOTE_PX, avisarFalhaNome, esperarFonteDosNomes, fontesRotuloPorZoom, pedidoImagemNome } from "@/lib/maplibre/nomesNoMapa.js";
 import {
   DESLOC_IDENT_PX,
   OFFSET_LOTE_COM_NOME_PX,
@@ -144,31 +144,34 @@ export default function useMarcadoresGoogle(mapa) {
       const aplicar = () => {
         if (seqRef.current.nomes !== seq) return;
         const camera = cameraRef.current;
-        const lista = [];
+        const zoom = camera ? camera.zoom : 14;
+        /** @type {Array<{ n: any, d: any, r: any, comLote: boolean, cabe: number }>} */
+        const prontos = [];
         for (const n of nomes.values()) {
           const d = nivelDe(n);
           const r = d.linhas.length ? imagemPronta(d.chave, pr) : null;
           if (!r) continue;
           const comLote = lotesInfoRef.current.has(n.id);
-          // sem câmera ainda (o mapa avisa quando para): o nome entra escondido
-          const t = tamanhoNoChao({ w: r.w, h: r.h }, n.pf, n.lat, comLote, camera ? camera.zoom : 14);
-          // Sempre preso pelo MEIO da imagem (ao mudar de tamanho, o mapa refaz a imagem em volta do meio: preso pelo
-          // topo, o nome subia para cima do lote). Com lote, o meio fica meia altura (+ 3 px) abaixo do ponto: o topo do
-          // nome logo abaixo do ícone, sem encostar nele.
-          // (a folga é uma parte da altura do nome, não px da tela: o lugar não muda a cada zoom e o nome não é refeito)
-          const alturaM = (t.metros * r.h) / r.w;
+          prontos.push({ n, d, r, comLote, cabe: tamanhoNoChao({ w: r.w, h: r.h }, n.pf, n.lat, comLote, zoom).cabe });
+        }
+        // A MESMA letra para todos (pedido do proprietário) e TODOS juntos: ou todos aparecem, ou nenhum.
+        // O tamanho é o da letra do site neste zoom (10 px longe … 12 px perto, `fontesRotuloPorZoom`), o mesmo em todos
+        // os pastos. Somem todos quando, na maior parte dos pastos, o nome já não caberia nem bem reduzido.
+        const cabem = letraDeTodos(prontos.map((x) => x.cabe));
+        const letra = { fator: fontesRotuloPorZoom(zoom).nome / 12 };
+        const visivel = Boolean(camera) && cabem.visivel;
+        const lista = [];
+        for (const { n, d, r, comLote } of prontos) {
+          const metros = r.w * letra.fator * metrosPorPx(n.lat, zoom);
+          // Preso pelo MEIO da imagem. Com lote, o meio fica meia altura (+ uma folga, parte da altura) abaixo do ponto:
+          // o topo do nome logo abaixo do ícone, sem encostar nele.
+          const alturaM = (metros * r.h) / r.w;
           const desce = comLote ? alturaM * (0.5 + FOLGA_ABAIXO_DO_LOTE) : 0;
-          const lat = n.lat - desce / 110574;
-          const pequena = t.fator < FATOR_DA_IMAGEM_PEQUENA ? imagemPronta(d.chave, prMenor) : null;
+          const pequena = letra.fator < FATOR_DA_IMAGEM_PEQUENA ? imagemPronta(d.chave, prMenor) : null;
           const url = urlDaImagem(pequena || r, d.chave);
           if (!url) continue;
-          lista.push({ chave: n.id, url, lat, lng: n.lng, ancoraY: 0.5, metros: t.metros, visivel: Boolean(camera) && t.visivel });
+          lista.push({ chave: n.id, url, lat: n.lat - desce / 110574, lng: n.lng, ancoraY: 0.5, metros, visivel });
         }
-        // TODOS juntos (pedido do proprietário): ou todos os nomes aparecem, ou nenhum — nunca um some e outro fica.
-        // Aparecem enquanto pelo menos um quarto deles se lê (somem mais longe); cada um no tamanho que cabe no pasto dele.
-        const legiveis = lista.filter((x) => x.visivel).length;
-        const todos = Boolean(camera) && lista.length > 0 && legiveis * 4 >= lista.length;
-        for (const x of lista) x.visivel = todos;
         mapa.definirNomesNoChao(lista);
       };
       const esperas = [garantirImagens(pedidos, pr, avisarFalhaNome), garantirImagens(pedidosMenores, prMenor, avisarFalhaNome)].filter(Boolean);

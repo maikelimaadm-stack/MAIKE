@@ -37,7 +37,8 @@ export function metrosPorPx(lat, zoomMapLibre) {
  * @param {{ lat: number, folga: number } | null} pf ponto do nome e raio livre do pasto (graus de latitude)
  * @param {number} lat @param {boolean} comLote com lote, o nome fica logo abaixo do ponto (só a metade de baixo do espaço)
  * @param {number} zoom zoom do MapLibre
- * @returns {{ metros: number, visivel: boolean, fator: number }} largura da imagem em metros; `fator` = letra ÷ 12 px
+ * @returns {{ metros: number, visivel: boolean, fator: number, cabe: number }} largura da imagem em metros; `fator` = letra ÷ 12 px;
+ *   `cabe` = o fator que caberia no pasto, sem o máximo
  */
 export function tamanhoNoChao(medida, pf, lat, comLote, zoom) {
   const mpp = metrosPorPx(lat, zoom);
@@ -46,7 +47,7 @@ export function tamanhoNoChao(medida, pf, lat, comLote, zoom) {
   let cabe = FATOR_MAXIMO;
   if (raio != null) cabe = (OCUPACAO * (comLote ? raio : 2 * raio)) / Math.hypot(comLote ? medida.w / 2 : medida.w, medida.h);
   const fator = Math.min(FATOR_MAXIMO, cabe);
-  return { metros: medida.w * fator * mpp, visivel: cabe >= FATOR_MINIMO, fator };
+  return { metros: medida.w * fator * mpp, visivel: cabe >= FATOR_MINIMO, fator, cabe };
 }
 
 /**
@@ -110,4 +111,21 @@ export function criarNomesNoChao(enviar) {
       if (tirar.length) await enviar({ tirar }).catch(() => {});
     },
   };
+}
+
+/** Parte dos pastos em que o nome pode passar um pouco do espaço livre, para a letra ser a MESMA em todos. */
+export const PARTE_QUE_PODE_PASSAR = 0.3;
+
+/**
+ * A letra de TODOS os nomes na tela (÷ 12 px), a mesma para todos (pedido do proprietário: nada de uns maiores e outros
+ * menores): a que cabe em 70% dos pastos, até o máximo. Abaixo do mínimo, nenhum nome aparece.
+ * @param {number[]} cabem o fator que cabe em cada pasto
+ * @returns {{ fator: number, visivel: boolean }}
+ */
+export function letraDeTodos(cabem) {
+  if (!cabem.length) return { fator: FATOR_MAXIMO, visivel: false };
+  const ordem = [...cabem].sort((a, b) => a - b);
+  const base = ordem[Math.min(ordem.length - 1, Math.floor(ordem.length * PARTE_QUE_PODE_PASSAR))];
+  const fator = Math.min(FATOR_MAXIMO, base);
+  return { fator, visivel: fator >= FATOR_MINIMO };
 }

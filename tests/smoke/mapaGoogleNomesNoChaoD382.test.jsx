@@ -210,7 +210,7 @@ describe("CH-7 — revisão de ruídos e aberturas", () => {
     await chao.definir([n({ lat: -15.002 })]);
     expect(enviar.mock.calls[2][0].por).toHaveLength(1);
 
-    // com lote, no tamanho que cabe no pasto: o mesmo lugar em dois zooms (a folga é parte da altura do nome)
+    // com lote: o nome abaixo do ponto, na letra do site
     const definirNomesNoChao = vi.fn();
     const areas = [quadrado("a", -15, -47, 0.004)];
     const { result } = renderHook(() => useMarcadoresGoogle({ definirMarcadores: vi.fn(), definirNomesNoChao, nomesFixos: true }));
@@ -222,7 +222,24 @@ describe("CH-7 — revisão de ruídos e aberturas", () => {
     const a13 = definirNomesNoChao.mock.calls.at(-1)[0][0];
     result.current.revisarNomes(camera(12.6, true));
     const a12 = definirNomesNoChao.mock.calls.at(-1)[0][0];
-    expect(a12.metros).toBeCloseTo(a13.metros, 6);
-    expect(a12.lat).toBeCloseTo(a13.lat, 9);
+    // a letra é a do site (px da tela iguais nos dois zooms até 13): em metros acompanha o zoom
+    expect(a12.metros / metrosPorPx(a12.lat, 12.6)).toBeCloseTo(a13.metros / metrosPorPx(a13.lat, 13), 4);
+    expect(a12.lat).toBeLessThan(-15);
+  });
+});
+
+describe("CH-8 — a letra do site, a mesma em todos os pastos", () => {
+  it("pasto grande e pasto pequeno: o mesmo tamanho de letra (o do site no zoom: 10 px longe, 12 px perto)", async () => {
+    const definirNomesNoChao = vi.fn();
+    const areas = [quadrado("g", -15, -47, 0.05), quadrado("p", -15, -46.9, 0.01)];
+    const { result } = renderHook(() => useMarcadoresGoogle({ definirMarcadores: vi.fn(), definirNomesNoChao, nomesFixos: true }));
+    await result.current.syncLabels(areas, true, null, true);
+    for (const [zoom, px] of [[17, 12], [15, 11], [13, 10]]) {
+      result.current.revisarNomes(camera(zoom, true));
+      const [g, p] = definirNomesNoChao.mock.calls.at(-1)[0];
+      // a imagem de teste tem 60 px de largura na letra de 12 px
+      expect(g.metros / metrosPorPx(g.lat, zoom)).toBeCloseTo((60 * px) / 12, 4);
+      expect(p.metros / metrosPorPx(p.lat, zoom)).toBeCloseTo((60 * px) / 12, 4);
+    }
   });
 });
