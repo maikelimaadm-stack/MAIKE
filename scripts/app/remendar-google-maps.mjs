@@ -29,6 +29,7 @@ export const MARCA_TOQUE = "MAIKE D-PROD-374: toque no marcador";
 export const MARCA_CAMADA = "MAIKE D-PROD-376: camada do Mapa Geral";
 export const MARCA_JUNTOS = "MAIKE D-PROD-382: marcadores juntos";
 export const MARCA_MOSTRAR = "MAIKE D-PROD-382: mostrar e esconder";
+export const MARCA_CHAO = "MAIKE D-PROD-382: nomes no chao";
 
 /**
  * D-PROD-376: o gancho da câmera para a camada nativa do Mapa Geral (`CamadaDoMapaView.java`, no app). O plugin chama
@@ -282,6 +283,123 @@ export const REMENDOS = [
             }
 
             map.maikeMostrar(lista("mostrar"), lista("esconder"), (call.getInt("ms") ?: 0).toLong())
+            call.resolve()
+        } catch (e: GoogleMapsError) {
+            handleError(call, e)
+        } catch (e: Exception) {
+            handleError(call, e)
+        }
+    }
+
+    @PluginMethod
+    fun removeMarkers(call: PluginCall) {
+`,
+  },
+  // D-PROD-382: os nomes dos pastos desenhados NO CHÃO do mapa (GroundOverlay), como os pastos: crescem e diminuem
+  // junto com o zoom, lisos, desenhados pelo próprio mapa. Nada é trocado no meio do gesto.
+  {
+    marca: MARCA_CHAO,
+    arquivo: "android/src/main/java/com/capacitorjs/plugins/googlemaps/CapacitorGoogleMap.kt",
+    ancora: `    fun removeMarkers(ids: List<String>, callback: (error: GoogleMapsError?) -> Unit) {
+`,
+    inserir: `    // ${MARCA_CHAO} (imagens no chão do mapa: acompanham o zoom como os pastos)
+    private val maikeChaoItens = HashMap<String, GroundOverlay>()
+
+    private fun maikeBitmap(url: String): Bitmap? {
+        try {
+            val bytes = android.util.Base64.decode(url.substringAfter(","), android.util.Base64.DEFAULT)
+            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        } catch (e: Exception) {
+            return null
+        }
+    }
+
+    fun maikeChao(
+            por: org.json.JSONArray?,
+            tamanhos: org.json.JSONArray?,
+            mostrar: List<String>,
+            esconder: List<String>,
+            tirar: List<String>
+    ) {
+        CoroutineScope(Dispatchers.Main).launch {
+            val novos = ArrayList<org.json.JSONObject>()
+            if (por != null) {
+                for (i in 0 until por.length()) {
+                    novos.add(por.getJSONObject(i))
+                }
+            }
+            // as imagens todas antes, fora da tela
+            val imagens: List<Bitmap?> =
+                    CoroutineScope(Dispatchers.IO).async {
+                        novos.map { o -> maikeBitmap(o.optString("url")) }
+                    }.await()
+            for (chave in tirar) {
+                maikeChaoItens.remove(chave)?.remove()
+            }
+            for (i in 0 until novos.size) {
+                val o = novos[i]
+                val imagem = imagens[i]
+                if (imagem != null) {
+                    val chave = o.optString("chave")
+                    val opcoes = GroundOverlayOptions()
+                            .image(BitmapDescriptorFactory.fromBitmap(imagem))
+                            .position(LatLng(o.optDouble("lat"), o.optDouble("lng")), o.optDouble("metros").toFloat())
+                            .anchor(0.5f, o.optDouble("ancoraY", 0.5).toFloat())
+                            .zIndex(o.optDouble("z", 1.0).toFloat())
+                            .visible(o.optBoolean("visivel", true))
+                    val novo = googleMap?.addGroundOverlay(opcoes)
+                    maikeChaoItens.remove(chave)?.remove()
+                    if (novo != null) {
+                        maikeChaoItens[chave] = novo
+                    }
+                }
+            }
+            if (tamanhos != null) {
+                for (i in 0 until tamanhos.length()) {
+                    val o = tamanhos.getJSONObject(i)
+                    maikeChaoItens[o.optString("chave")]?.setDimensions(o.optDouble("metros").toFloat())
+                }
+            }
+            for (chave in mostrar) {
+                maikeChaoItens[chave]?.isVisible = true
+            }
+            for (chave in esconder) {
+                maikeChaoItens[chave]?.isVisible = false
+            }
+        }
+    }
+
+    fun removeMarkers(ids: List<String>, callback: (error: GoogleMapsError?) -> Unit) {
+`,
+  },
+  {
+    marca: MARCA_CHAO,
+    arquivo: "android/src/main/java/com/capacitorjs/plugins/googlemaps/CapacitorGoogleMapsPlugin.kt",
+    ancora: `    @PluginMethod
+    fun removeMarkers(call: PluginCall) {
+`,
+    inserir: `    // ${MARCA_CHAO} (imagens no chão do mapa: acompanham o zoom como os pastos)
+    @PluginMethod
+    fun maikeChao(call: PluginCall) {
+        try {
+            val id = call.getString("id")
+            id ?: throw InvalidMapIdError()
+
+            val map = maps[id]
+            map ?: throw MapNotFoundError()
+
+            val lista = { nome: String ->
+                val saida: MutableList<String> = mutableListOf()
+                val vetor = call.getArray(nome)
+                if (vetor != null) {
+                    for (i in 0 until vetor.length()) {
+                        saida.add(vetor.getString(i))
+                    }
+                }
+                saida
+            }
+
+            map.maikeChao(call.getArray("por"), call.getArray("tamanhos"), lista("mostrar"), lista("esconder"), lista("tirar"))
             call.resolve()
         } catch (e: GoogleMapsError) {
             handleError(call, e)
