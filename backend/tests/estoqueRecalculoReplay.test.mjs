@@ -2,8 +2,8 @@
  * D-PROD-273 (fatia 3) — REPLAY puro do custo médio, PRÉVIA da exclusão e a prova "replay = gravado", contra
  * PostgreSQL real. Os cenários são montados pelos serviços de verdade (HTTP autenticado e, para o cocho, a
  * primitiva do motor numa transação como o serviço chama): entrada documentada, compra e venda do financeiro,
- * saída manual, transferência, cocho, linha de produto da atividade, abastecimento, edição D-PROD-271 e os
- * estornos de cada um. Sem exclusão, o replay tem de reproduzir EXATAMENTE os valores gravados, movimento a
+ * saída manual, transferência, cocho, abastecimento, edição D-PROD-271 e os estornos de cada um (a linha de
+ * produto da atividade saiu com as atividades, D-PROD-383). Sem exclusão, o replay tem de reproduzir EXATAMENTE os valores gravados, movimento a
  * movimento, e as camadas no fim. A prévia nunca grava nada.
  */
 import { test, describe, before, after, beforeEach } from 'node:test';
@@ -42,7 +42,7 @@ const hoje = () => new Date().toISOString().slice(0, 10);
 const qs = (o) => `?${new URLSearchParams(o).toString()}`;
 let seq = 0;
 
-/** Cenário: o do abastecimento (tenant, 2 fazendas, trator com tanque de diesel, 2 locais, compra P3) + sal, atividade e financeiro de venda. */
+/** Cenário: o do abastecimento (tenant, 2 fazendas, trator com tanque de diesel, 2 locais, compra P3) + sal e financeiro de venda. */
 const montar = async () => {
   const s = await montarAbastecimento(app, { lotes: false });
   const p = prisma();
@@ -53,11 +53,9 @@ const montar = async () => {
   const motivosSaida = (await H.ok(H.req('GET', '/estoque/motivos-saida', s.token))).items;
   const compra = motivosEntrada.find((m) => m.nome === 'Compra').id;
   const perda = motivosSaida.find((m) => m.nome === 'Perda').id;
-  const grupo = await p.grupoAtividade.create({ data: { cliente_id: s.c, nome_grupo: `GRUPO ${suf}` } });
-  const tipo = await p.tipoAtividade.create({ data: { cliente_id: s.c, nome_tipo: `ADUBAÇÃO ${suf}`, grupo_atividade_id: grupo.id, grupo_atividade_nome: grupo.nome_grupo, permite_produto: true } });
   ok(await H.req('PUT', '/perfis-financeiros-empresa', s.token, { empresa_id: s.e1.id, pais: 'BR', moeda: 'BRL', locale: 'pt-BR' }));
   const ctx = { auth: { clienteId: s.c, usuarioId: s.adm.usuario.id, login: s.adm.credenciais.login } };
-  return { ...s, sal, ureia, compra, perda, tipo, ctx };
+  return { ...s, sal, ureia, compra, perda, ctx };
 };
 
 const ok = (r, status = 200) => {
@@ -122,27 +120,6 @@ const vender = async (x, linhas) => {
 const cancelarOperacao = async (x, id) =>
   ok(await H.req('POST', `/operacoes-financeiras/${id}/cancelar`, x.token, { empresa_id: x.e1.id, operation_id: opId(), motivo: 'teste do replay' }));
 
-/** Atividade aberta + apontamento do dia; devolve as ações da linha de produto. */
-const atividade = async (x) => {
-  const a = ok(await H.req('POST', '/atividades', x.token, {
-    empresa_id: x.e1.id, nome: `Adubação ${++seq}`, tipo_atividade_id: x.tipo.id, data_inicio: '2027-06-01', data_prevista_fim: '2027-06-30',
-  }), 201);
-  const base = `/atividades/${a.id}/apontamentos`;
-  let ap = ok(await H.req('POST', base, x.token, { empresa_id: a.empresa_id, data_operacional: '2027-06-10', area_executada_dia: '10' }), 201).apontamento;
-  return {
-    lancar: async (produto, local, kg) => {
-      const r = ok(await H.req('POST', `${base}/${ap.id}/produtos`, x.token, { empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), produto_id: produto.id, local_estoque_id: local.id, quantidade: kg }), 201);
-      ap = r.apontamento;
-      return r.linha;
-    },
-    cancelar: async (linha) => {
-      const r = ok(await H.req('POST', `${base}/${ap.id}/produtos/${linha.id}/cancelar`, x.token, { empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), motivo: 'lançado errado' }));
-      ap = r.apontamento;
-      return r.linha;
-    },
-  };
-};
-
 /** Prova "replay = gravado" de um produto: reproduzível, nenhuma divergência, todo movimento reproduzido. */
 const provarReplay = async (x, produto) => {
   const r = await emLeituraSomente((tx) => auditarReplayDoProduto(tx, x.c, x.e1.id, produto.id));
@@ -172,7 +149,7 @@ const recusaPosterior = (p) => [p.permitido, p.modo, p.recusa?.code, p.recusa?.r
 const movDoItem = async (doc) => (await prisma().movimentacaoEstoque.findUnique({ where: { id: doc.itens[0].movimentacao_estoque_id } }));
 
 describe('D-PROD-273 fatia 3 — replay = gravado (cenário pelos serviços reais)', () => {
-  test('sal (entradas, compra e venda do financeiro, saída manual, transferências, cocho, atividade, edições, estornos de todos) e diesel (compra, abastecimento e cancelamento): replay sem exclusão reproduz cada valor gravado e cada camada', async () => {
+  test('sal (entradas, compra e venda do financeiro, saída manual, transferências, cocho, edições, estornos de todos) e diesel (compra, abastecimento e cancelamento): replay sem exclusão reproduz cada valor gravado e cada camada', async () => {
     const x = await montar();
     const A = x.local;
     const B = x.local2;
@@ -187,11 +164,6 @@ describe('D-PROD-273 fatia 3 — replay = gravado (cenário pelos serviços reai
     const c1 = await cocho(x, sal, B, '7.5');
     await cancelarCocho(x, c1, sal);
     await cocho(x, sal, B, '3.3333');
-    // linha de produto da atividade no A; outra cancelada em seguida (estorno em lote da atividade)
-    const at = await atividade(x);
-    await at.lancar(sal, A, '12.3456');
-    const l2 = await at.lancar(sal, A, '2.5');
-    await at.cancelar(l2);
     // venda com DUAS linhas no mesmo depósito, cancelada (estorno em lote do financeiro: reavalia uma vez no fim)
     const venda = await vender(x, [[sal, A, '5', '9'], [sal, A, '7', '9.5']]);
     await cancelarOperacao(x, venda.id);
@@ -226,7 +198,7 @@ describe('D-PROD-273 fatia 3 — replay = gravado (cenário pelos serviços reai
     assert.equal(r.legados, 0);
     assert.equal(replay.resultados.size, r.movimentos, 'todo movimento reproduzido');
     const origens = new Set((await prisma().movimentacaoEstoque.findMany({ where: { cliente_id: x.c, produto_id: sal.id }, select: { origem_sistema: true } })).map((m) => m.origem_sistema));
-    assert.deepEqual([...origens].sort(), ['apontamento_atividade', 'deposito', 'entrada_estoque', 'operacao_financeira', 'saida_estoque', 'suplementacao']);
+    assert.deepEqual([...origens].sort(), ['deposito', 'entrada_estoque', 'operacao_financeira', 'saida_estoque', 'suplementacao']);
     // o poço do B é heterogêneo antes da última saída (custos diferentes): a reavaliação foi exercida
     assert.ok(r.movimentos >= 35, `movimentos do sal: ${r.movimentos}`);
 

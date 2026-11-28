@@ -57,7 +57,6 @@ const erro = (r, status, code, reason) => {
 };
 const v4 = (d) => (d === null || d === undefined ? null : Number(d).toFixed(4));
 const DIVERGENTE = 'ESTOQUE_ESTORNO_MODO_LOTE_DIVERGENTE';
-let seq = 0;
 
 const montar = async () => {
   const s = await montarAbastecimento(app, { lotes: false });
