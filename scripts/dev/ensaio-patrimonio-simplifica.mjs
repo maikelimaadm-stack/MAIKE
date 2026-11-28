@@ -197,7 +197,9 @@ export const NOME_SINC_INDICES = '20261126300000_sincronizacao_incremental_indic
 export const NOME_DM = '20261127100000_diario_maquina';
 /** D-PROD-371: a CONTRACT do estoque na unidade do cadastro, também posterior (fora da partida). */
 export const NOME_EUC = '20261127200000_estoque_unidade_cadastro';
-export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM, NOME_EUC]);
+/** D-PROD-383: a CONTRACT que apaga as atividades (16 tabelas e o vínculo em AbastecimentoBem), por último (fora da partida). */
+export const NOME_REMOVER_ATIVIDADES = '20261128100000_remover_atividades';
+export const MIGRATIONS_DEPOIS_DO_CONTRACT = Object.freeze(['20261113700000_apontamento_atividade', '20261113800000_apontamento_atividade_item', NOME_ATIVIDADE_CABECALHO, NOME_ATIVIDADE_LINHAS, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_ATIVIDADE_MAO_OBRA, NOME_MAO_OBRA_PARCEIRO, NOME_FUNCIONARIO_TIPO, NOME_BASE, NOME_ABASTECIMENTO_ATIVIDADE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_ABASTECIMENTO_FK_APONTAMENTO, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM, NOME_EUC, NOME_REMOVER_ATIVIDADES]);
 /** As 3 tabelas das linhas de produto e de máquina (D-PROD-202) e as 4 da mão de obra e do serviço (D-PROD-207). */
 const TABELAS_LINHAS = ['AtividadeApontamentoMaquina', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote',
   'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Funcionario', 'Servico'];
@@ -209,7 +211,8 @@ const TABELAS_LEITURA = ['LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM'];
 // D-PROD-249: AtividadeArea (as áreas da atividade) nasce com a última delas e fica no fim.
 export const TABELAS_DEPOIS_DO_CONTRACT = Object.freeze(['ApontamentoAtividade', 'ApontamentoAtividadeItem', 'ApontamentoAtividadeItemConsumoLote', 'Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS, ...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio', 'Planejamento', 'PlanejamentoArea', 'ProdutoUnidadeConversao', 'AtividadeMistura', 'AtividadeMisturaItem', 'AtividadeMisturaMovimento']);
 // D-PROD-208: Funcionario nasce com a D-PROD-207 e sai com a D-PROD-208; não fica no fim.
-export const TABELAS_FINAIS_DEPOIS_DO_CONTRACT = Object.freeze(['Atividade', 'AtividadeApontamento', 'AtividadeArea', ...TABELAS_LINHAS.filter((t) => t !== 'Funcionario'), ...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio', 'Planejamento', 'PlanejamentoArea', 'ProdutoUnidadeConversao', 'AtividadeMistura', 'AtividadeMisturaItem', 'AtividadeMisturaMovimento']);
+// D-PROD-383: as tabelas das atividades (Atividade*, Servico, Planejamento*) nascem no GREEN e saem com a última delas.
+export const TABELAS_FINAIS_DEPOIS_DO_CONTRACT = Object.freeze([...TABELAS_FORMULACOES, ...TABELAS_LEITURA, 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'ProdutoUnidadeConversao']);
 /**
  * Migrations do repositório (pastas com `migration.sql`). A partida é TODAS menos a CONTRACT e as
  * `MIGRATIONS_DEPOIS_DO_CONTRACT`, e o GREEN é TODAS: as contagens saem da pasta, não de número fixo —
@@ -237,9 +240,10 @@ SELECT coalesce(sum(n), 0)::int AS linhas,
  * ensaio/fingerprint_v2.sql) e sem o que a D-PROD-208, posterior, acrescenta a Fornecedor (4 colunas e 1 CHECK). D-PROD-216
  * (posterior, sobe no GREEN): sem a coluna, a FK e o índice da Área ligada à Cultura em AreaPastagem. D-PROD-223
  * (posterior): sem as 3 colunas dos parâmetros próprios do pasto em AreaPastagem. D-PROD-274 (posterior): sem
- * `Produto.carencia_dias` e `TipoAtividade.alvo` (as outras 3 colunas dela são de tabelas posteriores).
+ * `Produto.carencia_dias` e `TipoAtividade.alvo` (as outras 3 colunas dela são de tabelas posteriores). D-PROD-383
+ * (posterior, sobe no GREEN): o TipoAtividade, que existe na partida e sai no GREEN, fica fora da impressão.
  */
-export const SQL_FINGERPRINT_V2 = `WITH patr(t) AS (VALUES ${[...TABELAS_APAGADAS, 'TanqueBemProduto', ...TABELAS_DEPOIS_DO_CONTRACT].map((t) => `('${t}')`).join(',')}),
+export const SQL_FINGERPRINT_V2 = `WITH patr(t) AS (VALUES ${[...TABELAS_APAGADAS, 'TanqueBemProduto', 'TipoAtividade', ...TABELAS_DEPOIS_DO_CONTRACT].map((t) => `('${t}')`).join(',')}),
 tab AS (
   SELECT c.oid, c.relname::text AS t, c.relrowsecurity AS rls, c.relforcerowsecurity AS force, coalesce(c.relacl::text, '') AS acl
     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace

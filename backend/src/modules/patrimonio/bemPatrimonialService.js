@@ -642,9 +642,9 @@ export const previaDepreciacao = async (contexto, entrada) => {
 // ─── D-PROD-287: excluir o bem que nunca foi usado ─────────────────────────
 
 /**
- * 409 `BEM_PATRIMONIAL_EM_USO`: o bem tem histórico (abastecimento, atividade ou lançamento de máquina, inclusive como
- * implemento, em qualquer situação — cancelado também é histórico de estoque e custo). Só inativar.
- * @param {{ abastecimentos: number, atividades: number, lancamentos: number }} uso
+ * 409 `BEM_PATRIMONIAL_EM_USO`: o bem tem histórico (abastecimento, em qualquer situação — cancelado também é histórico
+ * de estoque e custo). Só inativar.
+ * @param {{ abastecimentos: number }} uso
  */
 const bemEmUso = (uso) =>
   new AppError('BEM_PATRIMONIAL_EM_USO', 'este bem já foi usado (abastecimento): não pode ser excluído, só inativado; nada foi apagado', {
@@ -681,7 +681,7 @@ export const excluir = async (contexto, id, query = {}) => {
       await tx.bemPatrimonial.delete({ where: { cliente_id_id: { cliente_id: cli, id } } });
     } catch (erro) {
       // Uma referência que a conferência acima não conhece: o banco recusa (FK RESTRICT) e nada sai.
-      if (/** @type {any} */ (erro)?.code === 'P2003') throw bemEmUso({ abastecimentos, atividades, lancamentos });
+      if (/** @type {any} */ (erro)?.code === 'P2003') throw bemEmUso({ abastecimentos });
       throw erro;
     }
     await registrarEvento(contexto, { acao: 'delete', entidade: ENTIDADE, entidadeId: id, dadosAnteriores: paraAuditoria(antes) }, tx);
