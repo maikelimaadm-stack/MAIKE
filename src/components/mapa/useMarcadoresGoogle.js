@@ -32,6 +32,8 @@ export const MS_NIVEL_NO_MOVIMENTO = 120;
 const urls = new Map();
 /** Quanto um grupo de pontos espera as figuras antes de sair com a reserva no que faltar (ms), como no MapLibre. */
 export const MS_ESPERA_IMAGENS = 250;
+/** No app (marcadores do mapa nativo), a espera pela figura antes de pôr a reserva (D-PROD-382). */
+export const MS_ESPERA_IMAGENS_APP = 1500;
 /** Passou disso, o cache de URLs recomeça (as imagens em uso são refeitas na próxima publicação). */
 const MAX_URLS = 600;
 
@@ -173,7 +175,8 @@ export default function useMarcadoresGoogle(mapa) {
         aplicar();
         return Promise.resolve();
       }
-      const prazo = () => new Promise((r) => setTimeout(r, MS_ESPERA_IMAGENS));
+      // no app (D-PROD-382) espera mais a figura certa: o ícone entra uma vez, sem a troca reserva → figura
+      const prazo = () => new Promise((r) => setTimeout(r, nomesFixos ? MS_ESPERA_IMAGENS_APP : MS_ESPERA_IMAGENS));
       return (esperaReservas || Promise.resolve())
         .then(() => (esperaImagens && reservas.length ? Promise.race([esperaImagens, prazo()]) : esperaImagens))
         .then(() => {

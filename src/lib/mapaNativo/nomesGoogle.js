@@ -178,6 +178,8 @@ export const ESCALA_NOME_FIXO = 1;
 export const FOLGA_NOME_PX = 2;
 /** O nome pode passar do pasto na tela até isto (px), como no MapLibre. */
 const SOBRA_NA_AREA_PX = 6;
+/** Pasto menor do que isto na tela (px, o lado menor) já é um pontinho: conta como problema para o nível. */
+export const LADO_MINIMO_PASTO_PX = 12;
 /** Uns poucos pastos (10%) com problema não derrubam o mapa inteiro de nível (D-PROD-126). */
 const TOLERANCIA = 0.1;
 
@@ -200,7 +202,7 @@ export function caixaDoNomeFixo(p, medida, comLote) {
 /**
  * Abaixo deste zoom (o do MapLibre; no Google, um a mais) nenhum nome aparece: de muito longe os nomes só poluem.
  */
-export const ZOOM_MINIMO_NOMES = 12.5;
+export const ZOOM_MINIMO_NOMES = 12;
 /** Para SUBIR de nível (mais detalhe) o pasto precisa sobrar esta folga a mais (px): o nível não fica indo e voltando. */
 export const FOLGA_PARA_SUBIR_PX = 6;
 
@@ -249,10 +251,17 @@ export function nomesFixosNaCamera(nomes, camera, lotes, icones = [], atual) {
   if (!itens.length) return vazio("tudo");
   // o maior pasto escolhe o lugar primeiro
   itens.sort((a, b) => b.area.w * b.area.h - a.area.w * a.area.h);
-  const bate = (/** @type {any} */ a, /** @type {any} */ b) =>
-    a.x < b.x + b.w + FOLGA_NOME_PX && b.x < a.x + a.w + FOLGA_NOME_PX && a.y < b.y + b.h + FOLGA_NOME_PX && b.y < a.y + a.h + FOLGA_NOME_PX;
-  const dentro = (/** @type {any} */ c, /** @type {any} */ area) =>
-    c.x >= area.x - SOBRA_NA_AREA_PX && c.y >= area.y - SOBRA_NA_AREA_PX && c.x + c.w <= area.x + area.w + SOBRA_NA_AREA_PX && c.y + c.h <= area.y + area.h + SOBRA_NA_AREA_PX;
+  /** @param {any} a @param {any} b @param {number} [extra] folga a mais (para subir de nível) */
+  const bate = (a, b, extra = 0) => {
+    const f = FOLGA_NOME_PX + extra;
+    return a.x < b.x + b.w + f && b.x < a.x + a.w + f && a.y < b.y + b.h + f && b.y < a.y + a.h + f;
+  };
+  // o nome puxado para o lado continua com o meio dentro do pasto
+  const dentro = (/** @type {any} */ c, /** @type {any} */ area) => {
+    const mx = c.x + c.w / 2;
+    const my = c.y + c.h / 2;
+    return mx >= area.x - SOBRA_NA_AREA_PX && mx <= area.x + area.w + SOBRA_NA_AREA_PX && my >= area.y - SOBRA_NA_AREA_PX && my <= area.y + area.h + SOBRA_NA_AREA_PX;
+  };
   const ordem = NIVEIS.indexOf(/** @type {any} */ (atual));
   /** @param {NivelNome} nv @param {number} folga */
   const arrumar = (nv, folga) => {
@@ -264,8 +273,10 @@ export function nomesFixosNaCamera(nomes, camera, lotes, icones = [], atual) {
     for (const it of itens) {
       const c = it.caixas[nv];
       if (!c) continue;
-      if (c.w + folga > it.area.w + SOBRA_NA_AREA_PX || c.h + folga > it.area.h + SOBRA_NA_AREA_PX) problemas += 1;
-      const livre = (/** @type {any} */ k) => !obstaculos.some((o) => o.dono !== it.id && bate(k, o)) && !postos.some((o) => bate(k, o));
+      // como os rótulos do Google, o nome pode passar da divisa do pasto (o que o derruba é bater noutro nome ou num
+      // ícone); só o pasto que virou um pontinho na tela conta como problema
+      if (Math.min(it.area.w, it.area.h) < LADO_MINIMO_PASTO_PX + folga) problemas += 1;
+      const livre = (/** @type {any} */ k) => !obstaculos.some((o) => o.dono !== it.id && bate(k, o, folga)) && !postos.some((o) => bate(k, o, folga));
       if (livre(c)) {
         postos.push(c);
         continue;

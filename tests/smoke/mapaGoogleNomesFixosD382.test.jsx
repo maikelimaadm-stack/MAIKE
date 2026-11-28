@@ -124,7 +124,7 @@ describe("G382-1 — o nível dos nomes de tamanho fixo, o mesmo para todos", ()
     expect(nivelDosNomesFixos(nomes, camera(kVolta), new Map())).toBe("tudo");
     expect(nivelDosNomesFixos(nomes, camera(kVolta), new Map(), [], "nome")).toBe("nome");
     // com folga de sobra, sobe
-    expect(nivelDosNomesFixos(nomes, camera(kVolta * 1.5), new Map(), [], "nome")).toBe("tudo");
+    expect(nivelDosNomesFixos(nomes, camera(kVolta * 3), new Map(), [], "nome")).toBe("tudo");
     expect(FOLGA_PARA_SUBIR_PX).toBeGreaterThan(0);
   });
 

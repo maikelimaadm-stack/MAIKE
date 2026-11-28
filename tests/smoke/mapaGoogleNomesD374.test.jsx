@@ -79,7 +79,7 @@ vi.mock("@capacitor/google-maps", () => ({
 
 import { caixaDoMarcador, porNaCaixa } from "@/lib/mapaNativo/posicaoDoMarcador.js";
 import { NIVEIS, colocacaoDoNome, montarNomes, nivelDosNomes } from "@/lib/mapaNativo/nomesGoogle.js";
-import { DIFERENCA_REFAZER_NOME, Z_NOME_NATIVO, criarMarcadoresNativos, geometriaNoZoom, imagemComAncora } from "@/lib/mapaNativo/marcadoresNativos.js";
+import { DIFERENCA_REFAZER_NOME, MS_JUNTAR_GRUPOS, Z_NOME_NATIVO, criarMarcadoresNativos, geometriaNoZoom, imagemComAncora } from "@/lib/mapaNativo/marcadoresNativos.js";
 import { APK_MARCADORES_NATIVOS, numeroDoApk } from "@/lib/mapaNativo/mapaGoogleNativo.js";
 import useMarcadoresGoogle, { ORDEM_GOOGLE } from "@/components/mapa/useMarcadoresGoogle.js";
 import MapaGoogleNativo from "@/components/mapa/MapaGoogleNativo.jsx";
@@ -280,7 +280,8 @@ describe("G374-3 — os ícones como marcadores do mapa nativo", () => {
       }
     };
     const feito = camada.definir("nomes", [{ id: "a1", lat: 0, lng: 0, url: "data:n", w: 60, h: 14, dy: 10, ancora: "topo", escala: (z) => z / 14 }]);
-    await new Promise((r) => setTimeout(r, 0));
+    // D-PROD-382: a troca sai depois de juntar os grupos pedidos em seguida
+    await new Promise((r) => setTimeout(r, MS_JUNTAR_GRUPOS + 10));
     camada.aoParar(16);
     globalThis.Image = ImagemRapida;
     soltar();

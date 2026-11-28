@@ -157,3 +157,39 @@ describe("G382-4 — o componente no app não redesenha os pastos", () => {
     expect(falso.mapa.removePolylines).not.toHaveBeenCalled();
   });
 });
+
+describe("G382-5 — os ícones entram juntos e a troca sigla ↔ nome não sobrepõe", () => {
+  it("grupos pedidos em seguida vão numa chamada só ao mapa", async () => {
+    const { criarMarcadoresNativos } = await import("@/lib/mapaNativo/marcadoresNativos.js");
+    const mapa = { addMarkers: vi.fn(async (l) => l.map((_, i) => `n${i}`)), removeMarkers: vi.fn(async () => {}) };
+    const camada = criarMarcadoresNativos(mapa);
+    const m = (id) => ({ id, lat: 0, lng: 0, url: "data:x", w: 10, h: 10 });
+    const a = camada.definir("lotes", [m("l1"), m("l2")]);
+    const b = camada.definir("supl", [m("c1")]);
+    await Promise.all([a, b]);
+    expect(mapa.addMarkers).toHaveBeenCalledTimes(1);
+    expect(mapa.addMarkers.mock.calls[0][0]).toHaveLength(3);
+  });
+
+  it("o nome que troca de texto no mesmo lugar sai antes de o novo entrar; ícone novo entra antes do velho sair", async () => {
+    const { criarMarcadoresNativos } = await import("@/lib/mapaNativo/marcadoresNativos.js");
+    const ordem = [];
+    let n = 0;
+    const mapa = {
+      addMarkers: vi.fn(async (l) => (ordem.push("add"), l.map(() => `n${++n}`))),
+      removeMarkers: vi.fn(async (ids) => void ordem.push(`remove:${ids.join(",")}`)),
+    };
+    const camada = criarMarcadoresNativos(mapa);
+    const nome = (url) => ({ id: "a", lat: 0, lng: 0, url, w: 40, h: 14, semToque: true });
+    await camada.definir("nomes", [nome("data:sigla")]);
+    ordem.length = 0;
+    await camada.definir("nomes", [nome("data:nome-inteiro")]);
+    expect(ordem).toEqual(["remove:n1", "add"]);
+    // ícone (com toque) trocado: o novo entra antes
+    await camada.definir("supl", [{ id: "c", lat: 0, lng: 0, url: "data:c1", w: 10, h: 10 }]);
+    ordem.length = 0;
+    await camada.definir("supl", [{ id: "c", lat: 0, lng: 0, url: "data:c2", w: 10, h: 10 }]);
+    expect(ordem[0]).toBe("add");
+    expect(ordem[1]).toMatch(/^remove:/);
+  });
+});

@@ -71,6 +71,9 @@ export async function imagemComAncora(url, w, h, ax, ay) {
   return pronta ? { url: pronta, w: L, h: A, ax: ax - esquerda, ay: ay - topo } : null;
 }
 
+/** D-PROD-382: os grupos pedidos dentro deste tempo (ms) vão para o mapa juntos (os ícones não aparecem um por um). */
+export const MS_JUNTAR_GRUPOS = 40;
+
 /**
  * Tamanho e âncora (px da imagem) de um marcador no zoom.
  * @param {Marcador} m @param {number} zoom zoom do MapLibre
@@ -97,8 +100,6 @@ export function criarMarcadoresNativos(mapa) {
   const porNativo = new Map();
   /** @type {Map<string, Marcador[]>} a última lista de cada grupo (para refazer os nomes no zoom) */
   const listas = new Map();
-  /** @type {Record<string, number>} */
-  const seq = {};
   /** @type {Map<string, number>} o zoom em que cada grupo foi posto (o tamanho dos nomes) */
   const zoomDoGrupo = new Map();
   let zoom = 14;
@@ -126,59 +127,87 @@ export function criarMarcadoresNativos(mapa) {
     };
   };
 
+  /** D-PROD-382: os grupos pedidos em seguida (lotes, cochos, pontos, tarefas, nomes) esperando a próxima troca */
+  /** @type {Map<string, Marcador[]>} */
+  const pendentes = new Map();
+  /** @type {Promise<void> | null} */
+  let agendada = null;
+
   /**
-   * Troca os marcadores de um grupo: o que entrou ou mudou entra no mapa e SÓ DEPOIS o que saiu ou mudou sai (sem
-   * buraco: o nome refeito no zoom não pisca). Uma troca de cada vez; uma chamada mais nova do mesmo grupo descarta a
-   * anterior que ainda não rodou.
-   * @param {string} grupo @param {Marcador[]} lista
+   * Uma troca no mapa: para cada grupo do lote, o que entrou ou mudou entra e SÓ DEPOIS o que saiu ou mudou sai (sem
+   * buraco: nada pisca). Todos os grupos do lote entram numa chamada só ao mapa: os ícones aparecem juntos.
+   * @param {Map<string, Marcador[]>} lote
    */
-  const definir = (grupo, lista) => {
-    listas.set(grupo, lista);
-    const minha = (seq[grupo] = (seq[grupo] || 0) + 1);
-    fila = fila.then(async () => {
-      if (!vivo || seq[grupo] !== minha) return;
-      const zoomDaTroca = zoom;
+  const trocar = async (lote) => {
+    if (!vivo) return;
+    const zoomDaTroca = zoom;
+    /** @type {Set<string>} */
+    const sair = new Set();
+    /** @type {Array<[string, Marcador, string]>} */
+    const por = [];
+    for (const [grupo, lista] of lote) {
       const novos = new Map(lista.map((m) => [`${grupo}|${m.id}`, m]));
-      /** @type {Set<string>} */
-      const sair = new Set();
       for (const [k, it] of itens) {
         if (!k.startsWith(`${grupo}|`)) continue;
         const m = novos.get(k);
         if (!m || assinatura(m) !== it.assinatura) sair.add(k);
         else it.m = m; // mesmo desenho e lugar: só o clique e o resto dos dados
       }
-      /** @type {Array<[string, Marcador, string]>} */
-      const por = [];
       for (const [k, m] of novos) if (!itens.has(k) || sair.has(k)) por.push([k, m, assinatura(m)]);
-      const prontos = await Promise.all(por.map(([, m]) => paraNativo(m)));
-      if (!vivo) return;
-      zoomDoGrupo.set(grupo, zoomDaTroca);
-      try {
-        const validos = por.filter((_, i) => prontos[i]);
-        const ids = validos.length ? await mapa.addMarkers(prontos.filter(Boolean)) : [];
-        /** @type {string[]} */
-        const tirar = [];
-        for (const k of sair) {
-          const it = itens.get(k);
-          if (it?.idNativo) {
-            tirar.push(it.idNativo);
-            porNativo.delete(it.idNativo);
-          }
-          itens.delete(k);
+    }
+    const prontos = await Promise.all(por.map(([, m]) => paraNativo(m)));
+    if (!vivo) return;
+    for (const grupo of lote.keys()) zoomDoGrupo.set(grupo, zoomDaTroca);
+    try {
+      const validos = por.filter((_, i) => prontos[i]);
+      // D-PROD-382: o nome que troca de texto no mesmo lugar (sigla ↔ nome) sai ANTES de o novo entrar: os dois juntos,
+      // um em cima do outro, eram a "bugada" na troca. Ícones e nomes que só entram ou só saem: o novo antes do velho.
+      const novosPorChave = new Map(validos.map(([k]) => [k, true]));
+      /** @type {string[]} */
+      const tirarAntes = [];
+      /** @type {string[]} */
+      const tirar = [];
+      for (const k of sair) {
+        const it = itens.get(k);
+        if (it?.idNativo) {
+          (it.m.semToque && novosPorChave.has(k) ? tirarAntes : tirar).push(it.idNativo);
+          porNativo.delete(it.idNativo);
         }
-        validos.forEach(([k, m, a], i) => {
-          const idNativo = ids?.[i] != null ? String(ids[i]) : null;
-          itens.set(k, { m, idNativo, assinatura: a });
-          if (idNativo) porNativo.set(idNativo, k);
-        });
-        if (tirar.length) await mapa.removeMarkers(tirar);
-      } catch {
-        /* mapa fechado no meio */
+        itens.delete(k);
       }
-      // o mapa parou num zoom novo enquanto as imagens eram preparadas: refaz no zoom de agora
-      if (vivo && zoom !== zoomDaTroca && seq[grupo] === minha) revisarGrupo(grupo);
-    });
-    return fila;
+      if (tirarAntes.length) await mapa.removeMarkers(tirarAntes);
+      const ids = validos.length ? await mapa.addMarkers(prontos.filter(Boolean)) : [];
+      validos.forEach(([k, m, a], i) => {
+        const idNativo = ids?.[i] != null ? String(ids[i]) : null;
+        itens.set(k, { m, idNativo, assinatura: a });
+        if (idNativo) porNativo.set(idNativo, k);
+      });
+      if (tirar.length) await mapa.removeMarkers(tirar);
+    } catch {
+      /* mapa fechado no meio */
+    }
+    // o mapa parou num zoom novo enquanto as imagens eram preparadas: refaz no zoom de agora
+    if (vivo && zoom !== zoomDaTroca) for (const grupo of lote.keys()) if (!pendentes.has(grupo)) revisarGrupo(grupo);
+  };
+
+  /**
+   * Troca os marcadores de um grupo. Os pedidos que chegam juntos (no mesmo `MS_JUNTAR_GRUPOS`) vão numa troca só; um
+   * pedido mais novo do mesmo grupo substitui o anterior que ainda não foi para o mapa.
+   * @param {string} grupo @param {Marcador[]} lista
+   */
+  const definir = (grupo, lista) => {
+    listas.set(grupo, lista);
+    pendentes.set(grupo, lista);
+    if (!agendada) {
+      agendada = new Promise((r) => setTimeout(r, MS_JUNTAR_GRUPOS)).then(() => {
+        agendada = null;
+        const lote = new Map(pendentes);
+        pendentes.clear();
+        fila = fila.then(() => trocar(lote));
+        return fila;
+      });
+    }
+    return agendada;
   };
 
   /**
