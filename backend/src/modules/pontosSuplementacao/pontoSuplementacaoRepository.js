@@ -105,9 +105,8 @@ export const motivosHistoricoPonto = async (tx, clienteId, ponto) => {
     verificacoes.push(
       ['saldo_estoque', () => tx.estoqueLoteNota.findFirst({ where: { cliente_id: clienteId, local_estoque_id: local }, ...sel })],
       ['lancamentos_financeiros', () => tx.operacaoFinanceiraItem.findFirst({ where: { cliente_id: clienteId, local_estoque_id: local }, ...sel })],
-      // FK RESTRICT no local: abastecimento de bem e produto de atividade também são histórico.
-      ['abastecimentos', () => tx.abastecimentoBem.findFirst({ where: { cliente_id: clienteId, local_estoque_id: local }, ...sel })],
-      ['atividades', () => tx.atividadeApontamentoProduto.findFirst({ where: { cliente_id: clienteId, local_estoque_id: local }, ...sel })]
+      // FK RESTRICT no local: abastecimento de bem também é histórico.
+      ['abastecimentos', () => tx.abastecimentoBem.findFirst({ where: { cliente_id: clienteId, local_estoque_id: local }, ...sel })]
     );
   }
 

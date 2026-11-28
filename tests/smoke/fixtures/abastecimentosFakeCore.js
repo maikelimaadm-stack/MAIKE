@@ -18,10 +18,9 @@
  * D-PROD-211 (contrato MAIKE-ATIVIDADE-ABASTECIMENTO-CONTRATO §2): `origem`
  * ESTOQUE (padrão) | EXTERNO (posto: sem local — enviá-lo é 400 —, sem
  * movimento nem FIFO, `custo_total` obrigatório, custo unitário = total ÷
- * quantidade); `apontamento_id` (o lançamento de `e.apontamentos`; a atividade
- * é derivada — `atividade_id` no corpo é 400); centro de custo = o da atividade
- * ou o do bem (snapshot); leitura anterior, delta e intervalo confiável na
- * prévia e no registro; filtros `apontamento_id`/`atividade_id` na lista.
+ * quantidade); centro de custo = o do bem (snapshot); leitura anterior, delta e intervalo confiável na prévia e no
+ * registro. D-PROD-383: o vínculo com a atividade (`apontamento_id`, `atividade_id`, filtros e campos) saiu, como no
+ * servidor.
  */
 import { comparar, deUnidades, ehPositivo, multiplicarArredondar, naEscala, paraUnidades, somar, subtrair } from '../../../src/lib/dinheiroDecimal.js';
 import { hojeNoFuso } from '../../../src/lib/diaCivil.js';
@@ -95,8 +94,6 @@ export const criarEstadoAbastecimentos = () => {
       { id: 'lote-E', produto: 'p3', local: 'l2', dia: '2026-06-02', disponivel: '300.0000', custo: '4.0000' },
     ],
     abastecimentos: [],
-    /** D-PROD-211: os lançamentos da atividade que o abastecimento aceita (`apontamento_id` → lançamento e atividade). */
-    apontamentos: /** @type {Record<string, { data_operacional: string, turno: string|null, sequencia: number, status?: string, atividade: { id: string, numero: string, nome: string, status?: string }, centro_custo?: { id: string, nome: string } | null }>} */ ({}),
     /** D-PROD-211: centro de custo de cada bem (`BemPatrimonial.centro_custo_id`). */
     centroDoBem: /** @type {Record<string, { id: string, nome: string }>} */ ({ b1: { id: 'cc-frota', nome: 'Frota' } }),
     recibos: new Map(),
@@ -170,10 +167,6 @@ const planejar = (e, c) => {
   const externo = c.origem === 'EXTERNO';
   const localNome = externo ? null : (e.locais[c.local_estoque_id] ?? null);
   const quantidade = n4(c.quantidade);
-  // D-PROD-211: o lançamento ligado (da empresa, CONFIRMADO, atividade ABERTA).
-  const ap = c.apontamento_id ? (e.apontamentos[c.apontamento_id] ?? null) : null;
-  if (c.apontamento_id && !ap) b('ATIVIDADE_APONTAMENTO_NOT_FOUND', 'apontamento_id', 'inexistente');
-  else if (ap && ((ap.status ?? 'CONFIRMADO') !== 'CONFIRMADO' || (ap.atividade.status ?? 'ABERTA') !== 'ABERTA')) b('ATIVIDADE_STATUS_INVALIDO', 'apontamento_id', 'atividade_nao_aberta');
   // B0
   const positiva = ehPositivo(quantidade);
   if (!positiva) b('OPERACAO_VALORES_INVALIDOS', 'quantidade', 'quantidade_nao_positiva');
@@ -263,7 +256,7 @@ const planejar = (e, c) => {
     origem: externo ? 'EXTERNO' : 'ESTOQUE',
     ...snapshotDaLeitura(contador(tipoMedidor) && r !== null ? n4(r) : null, anterior),
   };
-  return { plano, bloqueios, bem, tanque, produto, localNome, quantidade, unidade, fifo, externo, ap };
+  return { plano, bloqueios, bem, tanque, produto, localNome, quantidade, unidade, fifo, externo };
 };
 
 /** Objeto `bem` de A8/A16 (com a leitura vigente do medidor). */
@@ -435,8 +428,6 @@ export const detalheDe = (e, a) => {
     produto: { id: produto.id, nome: produto.nome, unidade_principal_estoque: produto.unidade_principal_estoque },
     local_estoque: a.origem === 'EXTERNO' ? null : { id: a.local_estoque_id, nome: e.locais[a.local_estoque_id] },
     origem: a.origem ?? 'ESTOQUE',
-    atividade: a.atividade ? { ...a.atividade } : null,
-    apontamento: a.apontamento ? { ...a.apontamento } : null,
     centro_custo: a.centro_custo ? { ...a.centro_custo } : null,
     medidor_leitura_anterior: a.medidor_leitura_anterior ?? null,
     medidor_delta: a.medidor_delta ?? null,
@@ -469,7 +460,7 @@ const resumoDe = (e, a) => {
     produto: { id: d.produto.id, nome: d.produto.nome }, local_estoque: d.local_estoque, quantidade: d.quantidade, unidade: d.unidade,
     custo_total: d.custo_total, tanque_cheio: d.tanque_cheio, medidor: { tipo: d.medidor.tipo, unidade: d.medidor.unidade, leitura: d.medidor.leitura },
     referencia_externa: d.referencia_externa, created_date: TS, updated_date: TS, operation_id: a.operation_id,
-    origem: d.origem, atividade: d.atividade, apontamento: d.apontamento, centro_custo: d.centro_custo,
+    origem: d.origem, centro_custo: d.centro_custo,
     medidor_leitura_anterior: d.medidor_leitura_anterior, medidor_delta: d.medidor_delta, intervalo_confiavel: d.intervalo_confiavel,
   };
 };
@@ -477,7 +468,7 @@ const resumoDe = (e, a) => {
 const CORPO_BASE = [
   'empresa_id', 'bem_id', 'tanque_id', 'produto_id', 'local_estoque_id', 'data_operacional', 'quantidade', 'medidor_leitura', 'tanque_cheio', 'observacao', 'referencia_externa',
   // D-PROD-211 (opcionais).
-  'origem', 'custo_total', 'apontamento_id',
+  'origem', 'custo_total',
 ];
 const RE_CUSTO_EXTERNO = /^\d{1,10}(\.\d{1,2})?$/;
 /** As regras da origem no corpo (D-PROD-211): EXTERNO sem local e com o valor da nota; ESTOQUE sem valor. */
@@ -577,9 +568,6 @@ export const rotearAbastecimentos = async (e, { method, path, query, body }) => 
       const v = query.get(chave);
       if (v) lista = lista.filter((a) => a[campo] === v);
     }
-    // D-PROD-211: os ligados a um lançamento / a uma atividade.
-    if (query.get('apontamento_id')) lista = lista.filter((a) => a.apontamento?.id === query.get('apontamento_id'));
-    if (query.get('atividade_id')) lista = lista.filter((a) => a.atividade?.id === query.get('atividade_id'));
     if (de) lista = lista.filter((a) => a.data_operacional >= de);
     if (ate) lista = lista.filter((a) => a.data_operacional <= ate);
     const q = query.get('q');
@@ -670,9 +658,7 @@ export const rotearAbastecimentos = async (e, { method, path, query, body }) => 
       medidor_tipo: p.bem.medidor.tipo, medidor_unidade: contadorBem ? p.bem.medidor.unidade : null, medidor_leitura: contadorBem ? n4(body.medidor_leitura) : null,
       observacao: body.observacao ?? null, referencia_externa: body.referencia_externa ?? null,
       origem: p.externo ? 'EXTERNO' : 'ESTOQUE',
-      atividade: p.ap ? { id: p.ap.atividade.id, numero: p.ap.atividade.numero, nome: p.ap.atividade.nome } : null,
-      apontamento: p.ap ? { id: body.apontamento_id, data_operacional: p.ap.data_operacional, turno: p.ap.turno, sequencia: p.ap.sequencia } : null,
-      centro_custo: p.ap ? (p.ap.centro_custo ?? null) : (e.centroDoBem[body.bem_id] ?? null),
+      centro_custo: e.centroDoBem[body.bem_id] ?? null,
       medidor_leitura_anterior: p.plano.medidor_leitura_anterior,
       medidor_delta: p.plano.medidor_delta,
       intervalo_confiavel: p.plano.intervalo_confiavel,

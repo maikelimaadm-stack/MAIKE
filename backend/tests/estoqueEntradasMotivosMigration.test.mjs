@@ -68,6 +68,8 @@ const NOME_SINC_INDICES = '20261126300000_sincronizacao_incremental_indices';
 const NOME_DM = '20261127100000_diario_maquina';
 /** D-PROD-371: a CONTRACT do estoque na unidade do cadastro, também posterior (fora da partida). */
 const NOME_EUC = '20261127200000_estoque_unidade_cadastro';
+/** D-PROD-383: a CONTRACT que apaga as atividades, também posterior (fora da partida). */
+const NOME_REMOVER_ATIVIDADES = '20261128100000_remover_atividades';
 const BANCO = 'maike_eem_teste';
 const PAPEL_BACKEND = 'maike_vercel';
 
@@ -156,8 +158,8 @@ after(async () => {
 describe('D-PROD-259 — migration CONTRACT dos motivos das Entradas (PostgreSQL real)', () => {
   test('EEM-01 partida: todas as pastas anteriores a esta concluídas (as 69 de produção no dia dela); a tabela dos motivos, as colunas novas e a saída manual (D-PROD-264, posterior) não existem', async () => {
     const h = await historico();
-    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_SAIDAS, NOME_DATA_TERMINO, NOME_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_CONTROLE_LOTE, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM, NOME_EUC], 'D-PROD-264, D-PROD-265, D-PROD-272, D-PROD-274, D-PROD-276, D-PROD-282 e D-PROD-288: as pastas posteriores a esta são a saída manual do Estoque, a data de término do apontamento, o ajuste de inventário, os campos por tipo a reforma, o produto do implemento o controle de lote, o insumo por jato e as unidades de conversão');
-    assert.equal(PARTIDA.length, PASTAS.length - 15);
+    assert.deepEqual(PASTAS.filter((n) => n > NOME_CONTRACT), [NOME_SAIDAS, NOME_DATA_TERMINO, NOME_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_CONTROLE_LOTE, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM, NOME_EUC, NOME_REMOVER_ATIVIDADES], 'D-PROD-264, D-PROD-265, D-PROD-272, D-PROD-274, D-PROD-276, D-PROD-282 e D-PROD-288: as pastas posteriores a esta são a saída manual do Estoque, a data de término do apontamento, o ajuste de inventário, os campos por tipo a reforma, o produto do implemento o controle de lote, o insumo por jato e as unidades de conversão');
+    assert.equal(PARTIDA.length, PASTAS.length - 16);
     assert.equal(PARTIDA.length, 69);
     assert.equal(h.concluidas, PARTIDA.length);
     assert.equal(h.esta, 0);
@@ -201,7 +203,8 @@ describe('D-PROD-259 — migration CONTRACT dos motivos das Entradas (PostgreSQL
     assert.equal(h.concluidas, PASTAS.length);
     assert.equal(h.esta, 1);
     assert.equal(await existeSaidas(), true, 'D-PROD-264: a saída manual (EXPAND) sobe depois desta, pela ordem dos nomes');
-    assert.ok((await colunas('AtividadeApontamento')).includes('data_termino'), 'D-PROD-265: a data de término sobe depois, pela ordem dos nomes');
+    // D-PROD-265: a data de término do apontamento subiu depois, pela ordem dos nomes; D-PROD-383: e o apontamento saiu por último.
+    assert.equal((await db.$queryRawUnsafe(`SELECT to_regclass('public."AtividadeApontamento"') IS NULL AS e`))[0].e, true, 'D-PROD-383: as atividades saem com a última CONTRACT');
     assert.equal(await existeAjustes(), true, 'D-PROD-272: e o ajuste de inventário (EXPAND) depois dela');
     for (const c of ['motivo_id', 'fornecedor_id', 'centro_custo_id', 'centro_resultado_id']) assert.ok((await colunas('EntradaEstoque')).includes(c), c);
     for (const c of ['lote_fabricante', 'data_validade']) assert.ok((await colunas('EntradaEstoqueItem')).includes(c), c);

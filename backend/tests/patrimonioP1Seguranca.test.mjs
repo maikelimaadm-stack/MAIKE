@@ -677,10 +677,8 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
     const delegados = ['abastecimentoBem', 'abastecimentoBemConsumoLote', 'bemPatrimonial', 'familiaPatrimonial', 'tanqueBem', 'tanqueBemProduto', 'tipoPatrimonial'];
     assert.deepEqual(delegados.map((d) => d[0].toUpperCase() + d.slice(1)), [...TABELAS_PATRIMONIO], 'um delegado por tabela');
     const r = await emTransacaoDesfeita(async (tx) => {
-      // D-PROD-200: a Atividade (migration POSTERIOR) referencia o bem (a
-      // máquina da atividade); no "schema antigo" ela também não existe. É a
-      // ÚNICA tabela de fora que referencia as 7: confere-se pelo catálogo antes
-      // de tirá-la, para nada sumir escondido.
+      // D-PROD-383: as atividades (que referenciavam o bem: Atividade, a linha de máquina e a mistura) saíram; nenhuma
+      // tabela de fora referencia as 7. Confere-se pelo catálogo antes de tirá-las, para nada sumir escondido.
       const deFora = /** @type {any[]} */ (
         await tx.$queryRaw`SELECT DISTINCT o.relname FROM pg_constraint k
           JOIN pg_class o ON o.oid = k.conrelid JOIN pg_class d ON d.oid = k.confrelid
@@ -688,27 +686,7 @@ describe('S8 — release: runtime novo + schema antigo, e o preflight', () => {
             AND NOT (o.relname = ANY(${[...TABELAS_PATRIMONIO]}::text[]))
           ORDER BY o.relname`
       ).map((x) => x.relname);
-      // D-PROD-202: a linha de máquina da atividade (migration POSTERIOR) também referencia o bem (máquina e implemento).
-      // D-PROD-323: a mistura do Diário da máquina (migration POSTERIOR) referencia o implemento (um bem).
-      assert.deepEqual(deFora, ['Atividade', 'AtividadeApontamentoMaquina', 'AtividadeMistura'], 'só a atividade, a linha de máquina e a mistura (posteriores) referenciam as 7 tabelas');
-      // D-PROD-202: as linhas do apontamento (migration POSTERIOR) referenciam o apontamento; saem antes dele.
-      // D-PROD-323: as 3 tabelas da mistura (POSTERIOR) e a linha de produto se referenciam; saem juntas, sem CASCADE.
-      await tx.$executeRawUnsafe('DROP TABLE "AtividadeMisturaMovimento", "AtividadeMisturaItem", "AtividadeApontamentoProdutoConsumoLote", "AtividadeApontamentoProduto", "AtividadeMistura", "AtividadeApontamentoMaquina"');
-      // D-PROD-207: as linhas de mão de obra e de serviço (migration POSTERIOR) também referenciam o apontamento e não
-      // referenciam as 7; saem antes dele. Servico não referencia o apontamento nem as 7: fica (D-PROD-208: a Funcionario
-      // saiu; o funcionário é papel do parceiro, Fornecedor, que a linha de mão de obra referencia, e Fornecedor fica).
-      await tx.$executeRawUnsafe('DROP TABLE "AtividadeApontamentoMaoObra", "AtividadeApontamentoServico"');
-      // D-PROD-200: o apontamento da atividade (mesma migration POSTERIOR) referencia a atividade por FK RESTRICT
-      // e não referencia as 7; também não existe no "schema antigo". Sai antes dela.
-      // D-PROD-211: o abastecimento (uma das 7) passou a referenciar a atividade e o apontamento (migration POSTERIOR);
-      // no "schema antigo" essas FKs não existem: saem antes das duas tabelas.
-      await tx.$executeRawUnsafe('ALTER TABLE "AbastecimentoBem" DROP CONSTRAINT "AbastecimentoBem_apontamento_fkey", DROP CONSTRAINT "AbastecimentoBem_atividade_fkey"');
-      await tx.$executeRawUnsafe('DROP TABLE "AtividadeApontamento"');
-      // D-PROD-249: as áreas da atividade (migration POSTERIOR) referenciam a atividade e não as 7; saem antes dela.
-      await tx.$executeRawUnsafe('DROP TABLE "AtividadeArea"');
-      // D-PROD-274: o plantio da atividade (migration POSTERIOR) referencia a atividade e não as 7; sai antes dela.
-      await tx.$executeRawUnsafe('DROP TABLE "AtividadePlantio"');
-      await tx.$executeRawUnsafe('DROP TABLE "Atividade"');
+      assert.deepEqual(deFora, [], 'nenhuma tabela de fora referencia as 7 (D-PROD-383)');
       // As 7 saem juntas, sem CASCADE (nada mais de fora as referencia; nada some escondido).
       await tx.$executeRawUnsafe(`DROP TABLE ${TABELAS_PATRIMONIO.map((t) => `"${t}"`).join(', ')}`);
       /** @type {Record<string, unknown>} */

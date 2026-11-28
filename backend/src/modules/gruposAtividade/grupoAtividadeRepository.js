@@ -64,41 +64,6 @@ export const contarTiposDoGrupo = async (tx, clienteId, grupoId) =>
     where: { cliente_id: clienteId, grupo_atividade_id: grupoId },
   });
 
-/**
- * HOTFIX (D-PROD-182, temporário) — o código do Tipo de Atividade foi ao ar
- * antes da migration `20261113100000_tipo_atividade_cadastro`. Sem a tabela,
- * excluir e renomear grupo quebravam. Aqui a ausência da tabela vale como
- * "nenhum tipo de atividade vinculado".
- *
- * A checagem é uma consulta ao catálogo (`to_regclass`), que NUNCA falha. Não
- * dá para "tentar e capturar o erro": no PostgreSQL, um erro dentro da
- * transação a aborta inteira, e o resto da exclusão/renomeação falharia com
- * 25P02. Remover esta guarda depois que a migration estiver em produção.
- *
- * @param {import('@prisma/client').Prisma.TransactionClient} tx
- * @returns {Promise<boolean>}
- */
-export const tabelaTipoAtividadeExiste = async (tx) => {
-  const [linha] = /** @type {Array<{existe: boolean}>} */ (
-    await tx.$queryRaw`SELECT to_regclass('public."TipoAtividade"') IS NOT NULL AS existe`
-  );
-  if (!linha?.existe) {
-    console.warn('[hotfix D-PROD-182] tabela TipoAtividade ausente: tratada como "nenhum tipo de atividade vinculado".');
-  }
-  return Boolean(linha?.existe);
-};
-
-/**
- * D-PROD-182 — tipos de atividade vinculados ao grupo (FK Restrict).
- * @param {import('@prisma/client').Prisma.TransactionClient} tx
- */
-export const contarTiposAtividadeDoGrupo = async (tx, clienteId, grupoId) => {
-  if (!(await tabelaTipoAtividadeExiste(tx))) return 0;
-  return tx.tipoAtividade.count({
-    where: { cliente_id: clienteId, grupo_atividade_id: grupoId },
-  });
-};
-
 /** @param {import('@prisma/client').Prisma.TransactionClient} tx @param {object} dados */
 export const inserirGrupo = async (tx, dados) =>
   tx.grupoAtividade.create({ data: dados, select: SELECAO });
@@ -124,15 +89,3 @@ export const propagarNomeGrupoNosTipos = async (tx, clienteId, grupoId, nomeGrup
     where: { cliente_id: clienteId, grupo_atividade_id: grupoId },
     data: { grupo_atividade_nome: nomeGrupo },
   });
-
-/**
- * D-PROD-182 — o nome do grupo fica em cache no Tipo de Atividade.
- * @param {import('@prisma/client').Prisma.TransactionClient} tx
- */
-export const propagarNomeGrupoNosTiposAtividade = async (tx, clienteId, grupoId, nomeGrupo) => {
-  if (!(await tabelaTipoAtividadeExiste(tx))) return { count: 0 };
-  return tx.tipoAtividade.updateMany({
-    where: { cliente_id: clienteId, grupo_atividade_id: grupoId },
-    data: { grupo_atividade_nome: nomeGrupo },
-  });
-};

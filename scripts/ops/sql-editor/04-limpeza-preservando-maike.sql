@@ -13,11 +13,11 @@
 -- GARANTIAS (falha fechada; qualquer erro desfaz TUDO):
 --   - Uma única transação; fora dela, para antes de alterar.
 --   - Confere alvo, 25/25 migrations (as 7 da PR com o checksum do repositório),
---     o conjunto EXATO de 115 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 3 das Formulações, D-PROD-203, + 1 LEITURACOCHO, D-PROD-205, + 4 da mão de obra e do serviço, D-PROD-207, − Funcionario, D-PROD-208, + CADCULTURAS, D-PROD-215, + MEDICAOFORRAGEM, D-PROD-219, + AtividadeArea, D-PROD-249, + 3 das Entradas do Estoque, D-PROD-257, + MotivoEntradaEstoque, D-PROD-259, + 4 da saída manual do Estoque, D-PROD-264, + 3 do ajuste de inventário, D-PROD-272, + AtividadePlantio, D-PROD-274, + Planejamento e PlanejamentoArea, D-PROD-276, + ProdutoUnidadeConversao, D-PROD-288, + as 3 do Diário da máquina, D-PROD-323), cliente_id, ordem das FKs, nenhuma FK de
+--     o conjunto EXATO de 99 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146, + 1 de Gestão P2, D-PROD-153, + 8 de Gestão P3-01, D-PROD-155, + 1 de Gestão P3-02, D-PROD-156, + 1 de Gestão P3-03, D-PROD-158, + 10 de Patrimônio P1-01, D-PROD-157, + 3 de Patrimônio P1-02, D-PROD-159, − 13 + 7 do Patrimônio simplificado, D-PROD-162, + 1 TipoAtividade, D-PROD-182, + 1 CADESTACOES, D-PROD-188, + 1 CADCURVAGANHO, D-PROD-189, + 1 ApontamentoAtividade, D-PROD-190, + 2 de itens do apontamento, D-PROD-193, − 3 do apontamento antigo + 2 da atividade em dois níveis, D-PROD-200, + 3 das linhas de produto e de máquina, D-PROD-202, + 3 das Formulações, D-PROD-203, + 1 LEITURACOCHO, D-PROD-205, + 4 da mão de obra e do serviço, D-PROD-207, − Funcionario, D-PROD-208, + CADCULTURAS, D-PROD-215, + MEDICAOFORRAGEM, D-PROD-219, + AtividadeArea, D-PROD-249, + 3 das Entradas do Estoque, D-PROD-257, + MotivoEntradaEstoque, D-PROD-259, + 4 da saída manual do Estoque, D-PROD-264, + 3 do ajuste de inventário, D-PROD-272, + AtividadePlantio, D-PROD-274, + Planejamento e PlanejamentoArea, D-PROD-276, + ProdutoUnidadeConversao, D-PROD-288, + as 3 do Diário da máquina, D-PROD-323, − 16 das atividades, D-PROD-383), cliente_id, ordem das FKs, nenhuma FK de
 --     fora do tenant com linhas, RLS e grants; exatamente 1 cliente ("maike",
 --     ativo) e 1 conta ("maike", ativa, nesse cliente); todas as linhas de tenant
 --     desse cliente. Trava as tabelas e RECONFERE tudo, inclusive a impressão.
---   - Apaga SOMENTE as linhas das 96 tabelas de tenant do cliente "maike",
+--   - Apaga SOMENTE as linhas das 84 tabelas de tenant do cliente "maike",
 --     EXCETO a própria conta. O Cliente fica intacto.
 --   - Preserva Usuario.id, senha_hash, login, nome, ativo e o vínculo; Cliente.id,
 --     código, nome e ativo. Altera SÓ Usuario.papel_tenant → 'administrador'
@@ -42,42 +42,10 @@ CREATE TEMP TABLE maike_limpeza_resultado (
 DO $maike$
 DECLARE
   c_tenant constant text[] := ARRAY[
-    -- D-PROD-207 (Fatia 4): as linhas de mão de obra e de serviço saem PRIMEIRO — a de mão de obra referencia o
-    -- apontamento, o parceiro (Fornecedor; D-PROD-208: o funcionário é papel do parceiro e a tabela Funcionario saiu) e
-    -- os usuários; a de serviço referencia o apontamento, o serviço, o parceiro e os usuários; nenhuma outra tabela as
-    -- referencia. O Servico sai logo depois — referencia a empresa, a UnidadeMedida e o CentroCusto; só a linha de
-    -- serviço o referencia.
-    'AtividadeApontamentoMaoObra','AtividadeApontamentoServico','Servico',
-    -- D-PROD-202 (Fatia 3): as linhas de produto e de máquina saem logo depois — a fatia FIFO do produto referencia a linha de
-    -- produto e o lote; a linha de produto referencia o apontamento, o produto, o local, os 2 movimentos e os usuários;
-    -- a linha de máquina referencia o apontamento, o bem (e o implemento) e os usuários; nenhuma outra tabela as referencia.
-    'AtividadeApontamentoProdutoConsumoLote','AtividadeApontamentoProduto','AtividadeApontamentoMaquina',
-    -- D-PROD-211 (Fatia 5): o abastecimento (e as fatias FIFO dele) sai antes do apontamento e da atividade, que ele
-    -- passa a referenciar, e antes do tanque, do bem e dos centros (abaixo); só as fatias FIFO o referenciam.
+    -- D-PROD-211 (Fatia 5): o abastecimento (e as fatias FIFO dele) sai antes do tanque, do bem e dos centros
+    -- (abaixo); só as fatias FIFO o referenciam.
+    -- D-PROD-383: as 16 tabelas das atividades (Atividade*, TipoAtividade, Servico, Planejamento*) saíram.
     'AbastecimentoBemConsumoLote','AbastecimentoBem',
-    -- D-PROD-200: o apontamento do dia (AtividadeApontamento) sai logo depois — referencia a atividade, os usuários e a
-    -- empresa; só as linhas (acima, D-PROD-202 e D-PROD-207) e o abastecimento (D-PROD-211) o referenciam. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
-    -- D-PROD-323: a mistura do Diário da máquina sai antes do apontamento (o movimento o referencia), da atividade, do
-    -- bem (implemento), do produto, do local e da área, que ela referencia: primeiro o movimento e o item, depois a mistura.
-    'AtividadeMisturaMovimento','AtividadeMisturaItem','AtividadeMistura',
-    'AtividadeApontamento',
-    -- D-PROD-249: a área da atividade (AtividadeArea) sai logo depois do apontamento, que a referencia (FK composta), e
-    -- antes da atividade, da área (AreaPastagem), do setor e dos usuários, que ela referencia.
-    'AtividadeArea',
-    -- D-PROD-274: os dados do plantio de pastagem (AtividadePlantio) saem logo depois da área da atividade e antes da
-    -- atividade, das culturas (CADCULTURAS) e da fazenda, que eles referenciam (FKs compostas RESTRICT).
-    'AtividadePlantio',
-    -- D-PROD-200: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
-    -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia, a área da atividade (D-PROD-249) e o abastecimento (acima) a referenciam.
-    'Atividade',
-    -- D-PROD-276: a reforma de pastagem sai logo depois da atividade, que a referencia (FK composta): primeiro as áreas dela
-    -- (PlanejamentoArea: referencia a reforma, a área e a fazenda) e depois a reforma (Planejamento: referencia o capim —
-    -- CADCULTURAS —, o usuário e a fazenda), antes de todos eles.
-    'PlanejamentoArea',
-    'Planejamento',
-    -- D-PROD-197: o tipo de atividade sai logo depois da atividade (a única tabela que o referencia, D-PROD-200) e ANTES dos
-    -- centros de custo e de resultado e da UnidadeMedida, que ele referencia como padrão (FKs RESTRICT).
-    'TipoAtividade',
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
     -- D-PROD-155 (Gestão P3-01): filhas antes das mães; antes dos centros/naturezas que o rateio referencia.
     -- D-PROD-156 (Gestão P3-02): a linha do rateio por item sai antes do item, do documento, das naturezas e dos centros.
@@ -161,7 +129,7 @@ BEGIN
   -- As conferências 1–6 rodam DUAS vezes: antes e depois da trava (rodada 2).
   FOR v_rodada IN 1..2 LOOP
     IF v_rodada = 2 THEN
-      LOCK TABLE "AtividadeApontamentoMaoObra","AtividadeApontamentoServico","Servico","AtividadeApontamentoProdutoConsumoLote","AtividadeApontamentoProduto","AtividadeApontamentoMaquina","AtividadeMisturaMovimento","AtividadeMisturaItem","AtividadeMistura","AtividadeApontamento","AtividadeArea","AtividadePlantio","Atividade","PlanejamentoArea","Planejamento","TipoAtividade","HistoricoLancamentoTarefa","LancamentoTarefa","PesoRebanho","PartidaRebanho","EventoRebanho","PosicaoRebanho","RebanhoLedgerAtivacao",
+      LOCK TABLE "HistoricoLancamentoTarefa","LancamentoTarefa","PesoRebanho","PartidaRebanho","EventoRebanho","PosicaoRebanho","RebanhoLedgerAtivacao",
         "OperacaoFinanceiraEvento","LiquidacaoFinanceiraEstorno","LiquidacaoFinanceira","TituloFinanceiro","OperacaoFinanceiraConsumoLote","OperacaoFinanceiraItemRateio","OperacaoFinanceiraItem","OperacaoFinanceiraRateio","OperacaoFinanceira","PerfilFinanceiroEmpresa","AbastecimentoBemConsumoLote","AbastecimentoBem","TanqueBemProduto","TanqueBem","BemPatrimonial","TipoPatrimonial","FamiliaPatrimonial","CentroCustoResultado","CentroCusto","CentroResultado","NaturezaFinanceira","CADESTACOES","CADFORMULACAOREGRA","CADFORMULACAOINGREDIENTE","CADFORMULACAO","LEITURACOCHO","MEDICAOFORRAGEM","CADCULTURAS",
     "AplicacaoMedicamento","AuditLog","Bebedouro","BebedouroAlerta","BebedouroHistorico","BebedouroSanidade",
         "Categoria","CADCATEGORIA","CADCURVAGANHO","ConfiguracaoIcone","Empresa","EntradaEstoqueEvento","EntradaEstoqueItem","EntradaEstoque","MotivoEntradaEstoque","SaidaEstoqueEvento","SaidaEstoqueItem","SaidaEstoque","MotivoSaidaEstoque","AjusteEstoqueEvento","AjusteEstoqueItem","AjusteEstoque","EntidadeCodigoSequencia","EstoqueLoteNota",

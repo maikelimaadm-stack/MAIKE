@@ -56,24 +56,8 @@ export const DOCS_RAIZ = Object.freeze(['README.md', 'README_AI.md', 'CLAUDE.md'
 export const DOCS_ACOPLADOS = Object.freeze([
   // tests/smoke/maplibreR6StyleRetry.test.js (Vitest, etapa test:smoke)
   'docs/engineering/MAPLIBRE-M1-EDITOR-AREAS-REPORT.md',
-  // backend/tests/tipoAtividadeDefaultsMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-197)
-  'docs/engineering/MAIKE-TIPO-ATIVIDADE-DEFAULTS-RUNBOOK-RELEASE.md',
-  // backend/tests/atividadeCabecalhoMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-200)
-  'docs/engineering/MAIKE-ATIVIDADE-CABECALHO-RUNBOOK-RELEASE.md',
-  // backend/tests/atividadeLinhasMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-202)
-  'docs/engineering/MAIKE-ATIVIDADE-LINHAS-RUNBOOK-RELEASE.md',
-  // backend/tests/atividadeMaoObraMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-207)
-  'docs/engineering/MAIKE-ATIVIDADE-MAO-OBRA-RUNBOOK-RELEASE.md',
-  // backend/tests/atividadeMaoObraParceiroMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-208)
-  'docs/engineering/MAIKE-ATIVIDADE-MAO-OBRA-PARCEIRO-RUNBOOK-RELEASE.md',
   // backend/tests/funcionarioTipoTerceirizadoMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-209)
   'docs/engineering/MAIKE-FUNCIONARIO-TIPO-RUNBOOK-RELEASE.md',
-  // backend/tests/abastecimentoAtividadeMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-211)
-  'docs/engineering/MAIKE-ATIVIDADE-ABASTECIMENTO-RUNBOOK-RELEASE.md',
-  // backend/tests/abastecimentoFkApontamentoMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-217)
-  'docs/engineering/MAIKE-ABASTECIMENTO-FK-APONTAMENTO-RUNBOOK-RELEASE.md',
-  // backend/tests/atividadeAreasMigration.test.mjs (etapa test:backend): roda os blocos SQL do runbook como estão (D-PROD-249)
-  'docs/engineering/MAIKE-ATIVIDADE-AREAS-RUNBOOK-RELEASE.md',
 ]);
 
 /** Estados do GitHub aceitos no `docs_fast`. Removido e renomeado vão para o `full`. */

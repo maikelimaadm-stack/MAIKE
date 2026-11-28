@@ -63,16 +63,6 @@ const patrimonio = (alvo) => ({
  */
 const BENS_CRIAR_OU_EDITAR = [[T.PATRIMONIO_BENS, 'novo'], [T.PATRIMONIO_BENS, 'salvar'], [T.PATRIMONIO_BENS, 'editar']];
 
-/**
- * D-PROD-197 — quem CRIA (novo|salvar) ou EDITA (editar|salvar) tipo de
- * atividade lista os centros ATIVOS da fazenda no formulário (Apropriação);
- * não depende das telas de centros, como os seletores próprios da atividade.
- */
-const TIPOS_ATIVIDADE_CRIAR_OU_EDITAR = [[T.TIPOS_ATIVIDADE, 'novo'], [T.TIPOS_ATIVIDADE, 'salvar'], [T.TIPOS_ATIVIDADE, 'editar']];
-
-/** D-PROD-200 — o cabeçalho da atividade segue o esquema do cadastro na tela `op-atividades`. */
-const CADASTRO_ATIVIDADES = cadastro(T.ATIVIDADES);
-
 const MAPA_CAD_CRIAR = [[T.MAPA_CADASTRO, 'novo'], [T.MAPA_CADASTRO, 'salvar']];
 const MAPA_CAD_EDITAR = [[T.MAPA_CADASTRO, 'editar'], [T.MAPA_CADASTRO, 'salvar']];
 const MAPA_CAD_EXCLUIR = [[T.MAPA_CADASTRO, 'excluir']];
@@ -233,12 +223,11 @@ export const GUARDAS = Object.freeze({
     formulario: porQualquer([T.ESTOQUE, 'entrada'], [T.ESTOQUE, 'saida'], [T.ESTOQUE, 'ajuste']),
     // D-PROD-282 em todas as telas: os lotes disponíveis (a sugestão FEFO e a escolha manual do campo "Lote") também
     // para quem lança nas telas que tiram produto do estoque — cocho (chave do mapa), lançamento financeiro (venda),
-    // linha de produto da atividade e abastecimento —, com a mesma ação que a gravação de cada uma exige.
+    // e abastecimento —, com a mesma ação que a gravação de cada uma exige.
     lotesDisponiveis: porQualquer(
       [T.ESTOQUE, 'visualizar'],
       { mapa: 'lancar_suplementacao' },
       [T.LANCAMENTOS_FINANCEIROS, 'novo'], [T.LANCAMENTOS_FINANCEIROS, 'salvar'], [T.LANCAMENTOS_FINANCEIROS, 'editar'],
-      [T.ATIVIDADES, 'lancar_apontamento'], [T.ATIVIDADES, 'editar_apontamento'],
       [T.PATRIMONIO_ABASTECIMENTOS, 'novo'], [T.PATRIMONIO_ABASTECIMENTOS, 'salvar'],
     ),
   },
@@ -338,8 +327,6 @@ export const GUARDAS = Object.freeze({
   patrimonioCatalogoPadrao: adminOuIsAdmin(),
   unidadeMedida: cadastro(T.UNIDADES),
   tipoTarefa: cadastro(T.TIPOS_TAREFA),
-  // D-PROD-182. D-PROD-197: opções de centro padrão do formulário = criar OU editar tipo.
-  tipoAtividade: { ...cadastro(T.TIPOS_ATIVIDADE), opcoes: porQualquer(...TIPOS_ATIVIDADE_CRIAR_OU_EDITAR) },
   // D-PROD-188 — Estações da fazenda: leitura também pela tela (dado por fazenda).
   estacao: { ...cadastro(T.ESTACOES), ver: porTela(T.ESTACOES, 'visualizar') },
   // D-PROD-215 — Cadastro de Culturas: leitura também pela tela (dado por fazenda). Incluir a lista de
@@ -355,73 +342,7 @@ export const GUARDAS = Object.freeze({
     ver: porTela(T.FORMULACOES, 'visualizar'),
     opcoesLancamento: porQualquer({ mapa: 'lancar_suplementacao' }, [T.FORMULACOES, 'visualizar']),
   },
-  // D-PROD-200 — Lançamento de Atividades, tela `op-atividades` (contrato §5;
-  // substitui `apontamentoAtividade`, da D-PROD-190/193). Cabeçalho pelas ações
-  // PADRÃO da tela, no esquema do cadastro: ver = visualizar (lista, detalhe,
-  // apontamentos e os seletores próprios, que não dependem das telas de bens nem
-  // de usuários); criar ou duplicar = novo|salvar; editar ou concluir =
-  // editar|salvar; cancelar = excluir (sem DELETE físico). Reabrir é a ação
-  // EXTRA `reabrir`, separada.
-  atividades: {
-    ver: porTela(T.ATIVIDADES, 'visualizar'),
-    criar: CADASTRO_ATIVIDADES.criar,
-    editar: CADASTRO_ATIVIDADES.editar,
-    cancelar: CADASTRO_ATIVIDADES.excluir,
-    reabrir: porTela(T.ATIVIDADES, 'reabrir'),
-  },
-  // Apontamentos da atividade: ver = visualizar da tela; lançar (criar e repetir
-  // o último), editar e cancelar são AÇÕES EXTRAS da mesma linha
-  // (`ACOES_ATIVIDADES_EXTRAS`), que nascem desligadas. Nenhuma concessão
-  // automática: só o administrador real e `is_admin` passam sem a caixa marcada.
-  atividadeApontamentos: {
-    ver: porTela(T.ATIVIDADES, 'visualizar'),
-    criar: porTela(T.ATIVIDADES, 'lancar_apontamento'),
-    editar: porTela(T.ATIVIDADES, 'editar_apontamento'),
-    cancelar: porTela(T.ATIVIDADES, 'cancelar_apontamento'),
-    // D-PROD-267 — `POST /atividades/registrar`: lançar; com `concluir` ou `nova_atividade` true o registro também
-    // CONCLUI (áreas, e a atividade quando todas concluem), então pede junto a permissão do "Concluir" (editar|salvar).
-    registrar: autorizar((req, aut) => {
-      if (!telaPermite(aut, T.ATIVIDADES, 'lancar_apontamento')) return { tela: T.ATIVIDADES.tela, acao: 'lancar_apontamento' };
-      const corpo = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? /** @type {Record<string, unknown>} */ (req.body) : {};
-      const conclui = corpo.concluir === true || corpo.nova_atividade === true;
-      if (conclui && !telaPermite(aut, T.ATIVIDADES, 'editar') && !telaPermite(aut, T.ATIVIDADES, 'salvar')) {
-        return { tela: T.ATIVIDADES.tela, exige: [`${T.ATIVIDADES.tela}:lancar_apontamento`, `${T.ATIVIDADES.tela}:editar|${T.ATIVIDADES.tela}:salvar`] };
-      }
-      return true;
-    }),
-  },
-  // MAIKE-ENTREGA3 (D-PROD-276) — a REFORMA DE PASTAGEM (`/planejamentos`), na mesma tela `op-atividades`: ver =
-  // visualizar (a lista, a barra de custo e o "Faz parte de"); criar pelo "Planejar" = novo|salvar (como abrir uma
-  // atividade); concluir = editar|salvar (como concluir a atividade) e, com `trocar_capim: true`, também o editar do
-  // Mapa Cadastro (o mesmo do `PATCH /areas-pastagem/:id`, que é por onde o capim da área muda); cancelar = excluir
-  // (como cancelar a atividade; nada é apagado).
-  planejamentos: {
-    ver: porTela(T.ATIVIDADES, 'visualizar'),
-    criar: CADASTRO_ATIVIDADES.criar,
-    concluir: autorizar((req, aut) => {
-      if (!telaPermite(aut, T.ATIVIDADES, 'editar') && !telaPermite(aut, T.ATIVIDADES, 'salvar')) {
-        return { tela: T.ATIVIDADES.tela, exige: [`${T.ATIVIDADES.tela}:editar|${T.ATIVIDADES.tela}:salvar`] };
-      }
-      const corpo = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? /** @type {Record<string, unknown>} */ (req.body) : {};
-      if (corpo.trocar_capim === true && !telaPermite(aut, T.MAPA_CADASTRO, 'editar')) {
-        return { tela: T.MAPA_CADASTRO.tela, exige: [`${T.ATIVIDADES.tela}:editar|${T.ATIVIDADES.tela}:salvar`, `${T.MAPA_CADASTRO.tela}:editar`] };
-      }
-      return true;
-    }),
-    cancelar: CADASTRO_ATIVIDADES.excluir,
-  },
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),
-  // D-PROD-207 — Serviços da fazenda: leitura pela própria tela (dado por
-  // fazenda); inativar e reativar são edição do registro (editar|salvar, como nos
-  // centros da D-PROD-146). Sem DELETE físico (cadastro com custo). D-PROD-208: o
-  // cadastro de Funcionário saiu (o funcionário é papel do parceiro).
-  // Opções do centro de custo padrão do formulário do serviço = criar OU editar
-  // serviço (não exigem a tela de Centros de Custo), como em `tipoAtividade.opcoes`.
-  servico: {
-    ...cadastro(T.SERVICOS),
-    ver: porTela(T.SERVICOS, 'visualizar'),
-    opcoes: porQualquer([T.SERVICOS, 'novo'], [T.SERVICOS, 'salvar'], [T.SERVICOS, 'editar']),
-  },
   // ── Anexos, upload e referências (efeitos das telas que os usam) ──
   anexo: { criar: porQualquer(...LOTES_GRAVAR), excluir: porQualquer([T.LOTES, 'excluir']) },
   upload: porQualquer(...LOTES_GRAVAR, [T.EMPRESA, 'novo'], [T.EMPRESA, 'editar'], [T.EMPRESA, 'salvar']),

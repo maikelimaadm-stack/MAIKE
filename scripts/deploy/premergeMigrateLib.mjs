@@ -245,6 +245,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   // as linhas de entrada, saída, ajuste, item do financeiro (mercadoria) e linha de produto da atividade aceitam qualquer
   // unidade não vazia (a unidade de estoque é a do cadastro de Unidades). O serviço do financeiro continua só em UN.
   '20261127200000_estoque_unidade_cadastro': 'f9719220fd738d6a522fa0c0967c77dcde0dd6fa498d9ef31744b2387878a77f',
+  // D-PROD-383: o domínio das atividades sai (CONTRACT: 16 DROP TABLE e o vínculo em AbastecimentoBem).
+  '20261128100000_remover_atividades': 'ea08ab3db62c39d402cbfe53ddd6524dff22c0036bf7d3dd2b2c4eba45736139',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([
@@ -312,7 +314,7 @@ export const DO_RLS_APROVADOS = Object.freeze([
 
 /**
  * D-PROD-162: migrations CONTRACT aprovadas pelo proprietário (exceção à D-PROD-72/D-PROD-107). Fechado: nova entrada
- * exige decisão. São treze, na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
+ * exige decisão. Na ordem: D-PROD-162, D-PROD-183, D-PROD-187, D-PROD-194, D-PROD-195, D-PROD-197,
  * D-PROD-200 (a primeira no formato CONVERSÃO: campo `conversao`, opcional; sem ele, o formato de sempre), D-PROD-208
  * (a primeira com `drop_no_fim` sem conversão: a cauda são só os DROP, depois dos `alter_antigas` e do resto),
  * D-PROD-209 (formato de sempre: só a troca de um CHECK em tabela antiga, sem DROP TABLE e sem resto), D-PROD-210
@@ -323,7 +325,11 @@ export const DO_RLS_APROVADOS = Object.freeze([
  * resto) e D-PROD-249 (formato CONVERSÃO sem DROP: a coluna nova em tabela antiga, a tabela nova no resto e, na cauda,
  * o backfill e a FK composta para a tabela nova, que só existe depois do resto) e D-PROD-259 (formato de sempre: CHECKs
  * trocados, colunas e FKs para tabelas antigas pinados nas Entradas VAZIAS; no resto, a tabela nova dos motivos, a coluna
- * e a FK para ela e os índices). São quinze.
+ * e a FK para ela e os índices), D-PROD-265 (formato de sempre, aditivo: a data de término e o CHECK no apontamento),
+ * D-PROD-282 (formato de sempre, aditivo: o controle de lote), D-PROD-288 (formato CONVERSÃO sem DROP: as unidades de
+ * conversão, os CHECKs de unidade alargados e a cópia na cauda), D-PROD-371 (formato de sempre, sem DROP TABLE e sem
+ * resto: os 6 CHECKs de unidade alargados) e D-PROD-383 (a segunda com `drop_no_fim` sem conversão, como a D-PROD-208:
+ * depois das 7 instruções em AbastecimentoBem, os 16 DROP TABLE das atividades no fim; sem resto). São vinte.
  */
 export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
   '20261110300000_patrimonio_simplifica': Object.freeze({
@@ -814,6 +820,30 @@ export const MIGRATIONS_CONTRACT_APROVADAS = Object.freeze({
       'ALTER TABLE "OperacaoFinanceiraItem" ADD CONSTRAINT "OperacaoFinanceiraItem_forma_check" CHECK (("tipo_item" = \'MERCADORIA\' AND "produto_id" IS NOT NULL AND "local_estoque_id" IS NOT NULL AND "fator_kg" IS NOT NULL AND "fator_kg" > 0 AND "quantidade_estoque" IS NOT NULL AND "quantidade_estoque" > 0) OR ("tipo_item" = \'SERVICO\' AND "produto_id" IS NULL AND "local_estoque_id" IS NULL AND "descricao" IS NOT NULL AND "unidade" = \'UN\' AND "fator_kg" IS NULL AND "quantidade_estoque" IS NULL AND "movimentacao_estoque_id" IS NULL AND "estoque_lote_nota_id" IS NULL AND "movimentacao_estorno_id" IS NULL))',
       'ALTER TABLE "AtividadeApontamentoProduto" DROP CONSTRAINT "AtividadeApontamentoProduto_valores_check"',
       'ALTER TABLE "AtividadeApontamentoProduto" ADD CONSTRAINT "AtividadeApontamentoProduto_valores_check" CHECK ("quantidade" > 0 AND "custo_unitario" >= 0 AND "custo_total" >= 0 AND ("dose_ha" IS NULL OR "dose_ha" >= 0) AND "ordem" >= 1 AND char_length(btrim("unidade")) > 0)',
+    ]),
+  }),
+  // D-PROD-383: o domínio das atividades sai para recomeçar do zero (decisão do proprietário, 2026-11-28). Formato
+  // `drop_no_fim` (como a D-PROD-208): depois da guarda (hash pinado; as 16 tabelas existem, AbastecimentoBem ainda tem
+  // as 2 colunas e nenhuma linha ligada a atividade, dono, impressão das contagens aprovada no GO, nenhuma FK, visão,
+  // gatilho, política ou publicação de fora), EXATAMENTE as 7 instruções em AbastecimentoBem abaixo (o CHECK, as 2 FKs
+  // para as tabelas que saem, os 2 índices e as 2 colunas) e, por último, os 16 DROP TABLE, nesta ordem (filhas antes das
+  // mães). Sem resto: nada é criado. A guarda só cita as 16 tabelas e AbastecimentoBem.
+  '20261128100000_remover_atividades': Object.freeze({
+    decisao: 'D-PROD-383',
+    guarda_sha256: 'ca4075a5b4e6fa90b0c17ae3d66135b0cabe06773aebf38e80d2ab6b899dfa53',
+    drop: Object.freeze(['AtividadePlantio', 'AtividadeApontamentoProdutoConsumoLote', 'AtividadeApontamentoMaquina', 'AtividadeApontamentoMaoObra',
+      'AtividadeApontamentoServico', 'AtividadeMisturaItem', 'AtividadeMisturaMovimento', 'PlanejamentoArea', 'AtividadeApontamentoProduto', 'Servico',
+      'AtividadeMistura', 'AtividadeApontamento', 'AtividadeArea', 'Atividade', 'TipoAtividade', 'Planejamento']),
+    drop_no_fim: true,
+    literais_guarda: Object.freeze(['AbastecimentoBem']),
+    alter_antigas: Object.freeze([
+      'ALTER TABLE "AbastecimentoBem" DROP CONSTRAINT "AbastecimentoBem_atividade_check"',
+      'ALTER TABLE "AbastecimentoBem" DROP CONSTRAINT "AbastecimentoBem_apontamento_fkey"',
+      'ALTER TABLE "AbastecimentoBem" DROP CONSTRAINT "AbastecimentoBem_atividade_fkey"',
+      'DROP INDEX "AbastecimentoBem_apontamento_idx"',
+      'DROP INDEX "AbastecimentoBem_atividade_idx"',
+      'ALTER TABLE "AbastecimentoBem" DROP COLUMN "apontamento_id"',
+      'ALTER TABLE "AbastecimentoBem" DROP COLUMN "atividade_id"',
     ]),
   }),
 });

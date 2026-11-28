@@ -10,18 +10,15 @@ import {
   grupoAtividadeNomeConflito,
   grupoAtividadeDeleteBlocked,
 } from '../../shared/errors/AppError.js';
-import { vinculoComAtividade } from '../../shared/errors/vinculoAtividade.js';
 import {
   listarGrupos,
   buscarGrupo,
   existeGrupoComNome,
   contarTiposDoGrupo,
-  contarTiposAtividadeDoGrupo,
   inserirGrupo,
   atualizarGrupoPorId,
   excluirGrupoPorId,
   propagarNomeGrupoNosTipos,
-  propagarNomeGrupoNosTiposAtividade,
 } from './grupoAtividadeRepository.js';
 import {
   contarPorGrupoAtividade,
@@ -141,7 +138,6 @@ export const atualizar = async (contexto, id, entrada) => {
     if (campos.nome_grupo && campos.nome_grupo !== anterior.nome_grupo) {
       const nomeGrupo = String(registro.nome_grupo);
       await propagarNomeGrupoNosTipos(tx, auth.clienteId, id, nomeGrupo);
-      await propagarNomeGrupoNosTiposAtividade(tx, auth.clienteId, id, nomeGrupo);
       await propagarNomeGrupoAtividade(tx, auth.clienteId, id, nomeGrupo);
     }
 
@@ -182,24 +178,8 @@ export const excluir = async (contexto, id) => {
       throw grupoAtividadeDeleteBlocked('não é possível excluir grupo com lançamentos de tarefa vinculados');
     }
 
-    // D-PROD-182 — sem este bloqueio a FK Restrict viraria um P2003 cru.
-    const tiposAtividade = await contarTiposAtividadeDoGrupo(tx, auth.clienteId, id);
-    if (tiposAtividade > 0) {
-      throw grupoAtividadeDeleteBlocked('não é possível excluir grupo com tipos de atividade vinculados');
-    }
-
-    // D-PROD-190 / D-PROD-200 — o grupo guardado como snapshot numa atividade
-    // (mesmo que o tipo tenha mudado de grupo depois) é barrado pela FK RESTRICT
-    // da tabela `Atividade`, reconhecida pelo nome da FK; este módulo não a
-    // consulta (lição do hotfix #259).
-    try {
-      await excluirGrupoPorId(tx, auth.clienteId, id);
-    } catch (erro) {
-      if (vinculoComAtividade(erro)) {
-        throw grupoAtividadeDeleteBlocked('não é possível excluir grupo com atividades vinculadas', { cause: erro });
-      }
-      throw erro;
-    }
+    // D-PROD-383: os tipos de atividade e as atividades saíram; o grupo serve só às tarefas.
+    await excluirGrupoPorId(tx, auth.clienteId, id);
 
     await registrarEvento(
       contexto,

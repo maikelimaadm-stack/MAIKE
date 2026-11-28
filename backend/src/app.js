@@ -34,17 +34,6 @@ import { registrarMarcaRoutes } from './modules/marcas/marcaRoutes.js';
 import { registrarUnidadeMedidaRoutes } from './modules/unidadesMedida/unidadeMedidaRoutes.js';
 import { registrarGrupoAtividadeRoutes } from './modules/gruposAtividade/grupoAtividadeRoutes.js';
 import { registrarTipoTarefaRoutes } from './modules/tiposTarefa/tipoTarefaRoutes.js';
-import { registrarTipoAtividadeRoutes } from './modules/tiposAtividade/tipoAtividadeRoutes.js';
-import { registrarAtividadeRoutes } from './modules/atividades/atividadeRoutes.js';
-import { registrarAtividadeApontamentoRoutes } from './modules/atividades/atividadeApontamentoRoutes.js';
-import { registrarAtividadeApontamentoProdutoRoutes } from './modules/atividades/atividadeApontamentoProdutoRoutes.js';
-import { registrarAtividadeMisturaRoutes } from './modules/atividades/atividadeMisturaRoutes.js';
-import { registrarAtividadeApontamentoMaquinaRoutes } from './modules/atividades/atividadeApontamentoMaquinaRoutes.js';
-import { registrarAtividadeApontamentoMaoObraRoutes } from './modules/atividades/atividadeApontamentoMaoObraRoutes.js';
-import { registrarAtividadeApontamentoServicoRoutes } from './modules/atividades/atividadeApontamentoServicoRoutes.js';
-import { registrarAtividadeRegistroRoutes } from './modules/atividades/atividadeRegistroRoutes.js';
-import { registrarAtividadeAreaRoutes } from './modules/atividades/atividadeAreaRoutes.js';
-import { registrarPlanejamentoRoutes } from './modules/atividades/planejamentoRoutes.js';
 import { registrarEstacaoRoutes } from './modules/estacoes/estacaoRoutes.js';
 import { registrarCurvaGanhoRoutes } from './modules/curvasGanho/curvaGanhoRoutes.js';
 import { registrarFormulacaoRoutes } from './modules/formulacoes/formulacaoRoutes.js';
@@ -52,7 +41,6 @@ import { registrarCulturaRoutes } from './modules/culturas/culturaRoutes.js';
 import { registrarLeituraCochoRoutes } from './modules/leiturasCocho/leituraCochoRoutes.js';
 import { registrarMedicaoForragemRoutes } from './modules/medicoesForragem/medicaoForragemRoutes.js';
 import { registrarAssistenteRoutes } from './modules/assistente/assistenteRoutes.js';
-import { registrarServicoRoutes } from './modules/servicos/servicoRoutes.js';
 import { registrarLoteRoutes } from './modules/lotes/loteRoutes.js';
 import { registrarCategoriaRoutes } from './modules/categorias/categoriaRoutes.js';
 import { registrarLocalEstoqueRoutes } from './modules/locaisEstoque/localEstoqueRoutes.js';
@@ -225,7 +213,6 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarUnidadeMedidaRoutes);
   await app.register(registrarGrupoAtividadeRoutes);
   await app.register(registrarTipoTarefaRoutes);
-  await app.register(registrarTipoAtividadeRoutes);
   // D-PROD-188 — Estações da fazenda (tabela CADESTACOES).
   await app.register(registrarEstacaoRoutes);
   // D-PROD-189 — Curvas de Ganho de Peso da fazenda (tabela CADCURVAGANHO).
@@ -240,29 +227,6 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarMedicaoForragemRoutes);
   // D-PROD-230 — Assistente só de leitura (perguntas sobre os dados da fazenda; não grava nada).
   await app.register(registrarAssistenteRoutes);
-  // D-PROD-207 (Fatia 4) — cadastro de Serviço da fazenda (sem DELETE). D-PROD-208: o Funcionário
-  // virou papel do parceiro (`/parceiros`); o cadastro próprio saiu.
-  await app.register(registrarServicoRoutes);
-  // D-PROD-200 — Lançamento de Atividades: o CABEÇALHO (`Atividade`, aberta,
-  // concluída ou cancelada, sem DELETE físico) e os APONTAMENTOS do dia e do
-  // turno, filhos dela. Substitui o apontamento de linha única (D-PROD-190/193).
-  await app.register(registrarAtividadeRoutes);
-  await app.register(registrarAtividadeApontamentoRoutes);
-  // D-PROD-254 — registro de campo (entra na atividade do tipo/área/mês ou cria) e leituras por área.
-  await app.register(registrarAtividadeRegistroRoutes);
-  // D-PROD-202 — as LINHAS que geram custo do apontamento: produto (baixa de
-  // estoque pelo motor FIFO) e máquina (uso pelo medidor, custo por hora/km).
-  await app.register(registrarAtividadeApontamentoProdutoRoutes);
-  // D-PROD-323: a mistura no implemento, a aplicação no pasto, a sobra e o resumo do dia (diário da máquina).
-  await app.register(registrarAtividadeMisturaRoutes);
-  await app.register(registrarAtividadeApontamentoMaquinaRoutes);
-  // D-PROD-207 (Fatia 4): linhas de MÃO DE OBRA e de SERVIÇO do apontamento e os seletores delas.
-  await app.register(registrarAtividadeApontamentoMaoObraRoutes);
-  await app.register(registrarAtividadeApontamentoServicoRoutes);
-  // D-PROD-249 — as ÁREAS da atividade (várias áreas; iniciar, concluir, reabrir, remover a não iniciada).
-  await app.register(registrarAtividadeAreaRoutes);
-  // MAIKE-ENTREGA3 (D-PROD-276) — a reforma de pastagem (o agrupador das realizações).
-  await app.register(registrarPlanejamentoRoutes);
   await app.register(registrarLoteRoutes);
   await app.register(registrarCategoriaRoutes);
   await app.register(registrarLocalEstoqueRoutes);

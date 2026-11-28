@@ -255,18 +255,18 @@ describe('API-3 — abastecimento em quantidade da unidade do Produto', () => {
   });
 });
 
-describe('API-211 — origem, valor da nota e vínculo com o lançamento (D-PROD-211)', () => {
-  it('EXTERNO: sem local e com custo_total (até 2 casas); ESTOQUE: com local e sem custo; apontamento_id opcional; atividade_id nunca', async () => {
+describe('API-211 — origem e valor da nota (D-PROD-211; D-PROD-383: sem vínculo com a atividade)', () => {
+  it('EXTERNO: sem local e com custo_total (até 2 casas); ESTOQUE: com local e sem custo; apontamento_id e atividade_id nunca', async () => {
     const { api, porta } = await carregar();
     const { local_estoque_id: _l, ...semLocal } = PREVIA;
     const externo = { ...semLocal, origem: 'EXTERNO', custo_total: '452.8' };
     await api.previaAbastecimento(externo);
-    await api.previaAbastecimento({ ...PREVIA, apontamento_id: 'ap1' });
-    await api.confirmarAbastecimento({ ...externo, apontamento_id: 'ap1', observacao: null, referencia_externa: 'NF 123', operation_id: 'abast-0002-xyz' });
+    await api.previaAbastecimento(PREVIA);
+    await api.confirmarAbastecimento({ ...externo, observacao: null, referencia_externa: 'NF 123', operation_id: 'abast-0002-xyz' });
     expect(backend.chamadas.map((c) => c.body)).toEqual([
       externo,
-      { ...PREVIA, apontamento_id: 'ap1' },
-      { ...externo, apontamento_id: 'ap1', observacao: null, referencia_externa: 'NF 123', operation_id: 'abast-0002-xyz' },
+      PREVIA,
+      { ...externo, observacao: null, referencia_externa: 'NF 123', operation_id: 'abast-0002-xyz' },
     ]);
     for (const [nome, corpo] of [
       ['externo com local', { ...PREVIA, origem: 'EXTERNO', custo_total: '10' }],
@@ -276,15 +276,14 @@ describe('API-211 — origem, valor da nota e vínculo com o lançamento (D-PROD
       ['estoque com valor', { ...PREVIA, custo_total: '10' }],
       ['estoque sem local', semLocal],
       ['origem inválida', { ...PREVIA, origem: 'POSTO' }],
-      ['atividade_id', { ...PREVIA, apontamento_id: 'ap1', atividade_id: 'a1' }],
+      ['apontamento_id', { ...PREVIA, apontamento_id: 'ap1' }],
+      ['atividade_id', { ...PREVIA, atividade_id: 'a1' }],
     ]) {
       await expect(api.previaAbastecimento(corpo), nome).rejects.toBeTruthy();
     }
     expect(backend.chamadas).toHaveLength(3);
-    // Lista: os filtros novos vão na query.
-    expect(porta.montarCaminhoListagemAbastecimentos({ empresa_id: 'emp-1', apontamento_id: 'ap1', atividade_id: 'a1', limit: 100 })).toBe(
-      '/patrimonio-abastecimentos?empresa_id=emp-1&apontamento_id=ap1&atividade_id=a1&limit=100',
-    );
+    // Lista: os filtros da atividade saíram (D-PROD-383); a query fechada não os leva.
+    expect(porta.montarCaminhoListagemAbastecimentos({ empresa_id: 'emp-1', limit: 100 })).toBe('/patrimonio-abastecimentos?empresa_id=emp-1&limit=100');
   });
 });
 

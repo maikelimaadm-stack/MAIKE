@@ -615,8 +615,9 @@ describe('FE6 — origem e snapshot do medidor (D-PROD-211)', () => {
     const consulta = await screen.findByTestId('abastecimento-consulta');
     expect(within(consulta).getByTestId('consulta-origem')).toHaveTextContent('Estoque da fazenda');
     expect(within(consulta).getByTestId('consulta-centro-custo')).toHaveTextContent('Frota');
-    expect(within(consulta).getByTestId('consulta-atividade')).toHaveTextContent('—');
-    expect(within(consulta).getByTestId('consulta-lancamento')).toHaveTextContent('—');
+    // D-PROD-383: a atividade e o lançamento saíram da consulta.
+    expect(within(consulta).queryByTestId('consulta-atividade')).toBeNull();
+    expect(within(consulta).queryByTestId('consulta-lancamento')).toBeNull();
     expect(within(consulta).getByTestId('consulta-leitura-anterior')).toHaveTextContent('1.530,5 h');
     expect(within(consulta).getByTestId('consulta-medidor-delta')).toHaveTextContent('20 h');
     expect(within(consulta).getByTestId('consulta-intervalo-confiavel')).toHaveTextContent('Sim');

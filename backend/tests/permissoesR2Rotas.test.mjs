@@ -114,10 +114,6 @@ const ESCRITAS = (c) => {
     ['categoria (DELETE)', 'DELETE', `/categorias/${ID}`],
     ['unidade de medida (DELETE)', 'DELETE', `/unidades-medida/${ID}`],
     ['tipo de tarefa (DELETE)', 'DELETE', `/tipos-tarefa/${ID}`],
-    // D-PROD-182 — Tipo de Atividade: escrita guardada pela tela sup-tipos-atividade.
-    ['tipo de atividade (POST)', 'POST', '/tipos-atividade', { nome_tipo: 'HACK', categoria: 'OUTROS', grupo_atividade_id: 'ga-1' }],
-    ['tipo de atividade (PATCH)', 'PATCH', `/tipos-atividade/${ID}`, { nome_tipo: 'HACK' }],
-    ['tipo de atividade (DELETE)', 'DELETE', `/tipos-atividade/${ID}`],
     // D-PROD-188 — Estações da fazenda: escrita guardada pela tela pec-estacoes.
     ['estação (POST)', 'POST', '/estacoes', { empresa_id: E, nome: 'HACK', tipo: 'SECA', data_inicio: '2026-06-01', data_fim: '2026-09-30' }],
     ['estação (PATCH)', 'PATCH', `/estacoes/${ID}`, { empresa_id: E, nome: 'HACK' }],
@@ -141,27 +137,7 @@ const ESCRITAS = (c) => {
     // D-PROD-219 — Medição de Forragem: escrita guardada pela chave do mapa medir_forragem.
     ['medição de forragem (POST)', 'POST', '/medicoes-forragem', { empresa_id: E, area_id: 'ar-1', data_medicao: '2026-10-27', metodo: 'OLHO', situacao: 'PRONTO' }],
     ['medição de forragem (DELETE)', 'DELETE', `/medicoes-forragem/${ID}`],
-    // D-PROD-207 — Serviços: escrita guardada pela tela sup-servicos (sem DELETE). D-PROD-208: as rotas de
-    // /funcionarios saíram (o funcionário é papel do parceiro, escrita pela tela Parceiros).
-    ['serviço (POST)', 'POST', '/servicos', { empresa_id: E, nome: 'HACK', unidade_medida_id: 'um-1' }],
-    ['serviço (PATCH)', 'PATCH', `/servicos/${ID}`, { empresa_id: E, nome: 'HACK' }],
-    ['serviço (inativar)', 'POST', `/servicos/${ID}/inativar`, { empresa_id: E }],
-    ['serviço (reativar)', 'POST', `/servicos/${ID}/reativar`, { empresa_id: E }],
     ['grupo de atividade (DELETE)', 'DELETE', `/grupos-atividade/${ID}`],
-    // D-PROD-200 — Lançamento de Atividades: escrita guardada pela tela
-    // op-atividades (cabeçalho pelas ações padrão; reabrir e os apontamentos
-    // pelas ações EXTRAS da mesma linha). Cancelar = ação "excluir"; não há
-    // DELETE físico. Os corpos são válidos: um 403 é só da autorização.
-    ['atividade (POST)', 'POST', '/atividades', { empresa_id: E, nome: 'HACK', tipo_atividade_id: 'ta-1' }],
-    ['atividade (duplicar)', 'POST', `/atividades/${ID}/duplicar`, { empresa_id: E }],
-    ['atividade (PATCH)', 'PATCH', `/atividades/${ID}`, { versao: 1, nome: 'HACK' }],
-    ['atividade (concluir)', 'POST', `/atividades/${ID}/concluir`, { empresa_id: E, versao: 1 }],
-    ['atividade (cancelar)', 'POST', `/atividades/${ID}/cancelar`, { empresa_id: E, versao: 1, motivo: 'HACK' }],
-    ['atividade (reabrir)', 'POST', `/atividades/${ID}/reabrir`, { empresa_id: E, versao: 1, motivo: 'HACK' }],
-    ['apontamento da atividade (POST)', 'POST', `/atividades/${ID}/apontamentos`, { empresa_id: E, data_operacional: '2026-10-27' }],
-    ['apontamento da atividade (duplicar)', 'POST', `/atividades/${ID}/apontamentos/${ID}/duplicar`, { empresa_id: E }],
-    ['apontamento da atividade (PATCH)', 'PATCH', `/atividades/${ID}/apontamentos/${ID}`, { versao: 1, observacao: 'HACK' }],
-    ['apontamento da atividade (cancelar)', 'POST', `/atividades/${ID}/apontamentos/${ID}/cancelar`, { empresa_id: E, versao: 1, motivo: 'HACK' }],
     ['fornecedor (DELETE)', 'DELETE', `/fornecedores/${ID}`],
     ['medicamento (POST)', 'POST', '/aplicacoes-medicamento', { empresa_id: E, observacoes: 'x' }],
     ['evento sanitário (POST)', 'POST', '/eventos-sanitarios', { empresa_id: E, observacoes: 'x' }],
@@ -249,105 +225,21 @@ describe('R2-ROT — concessão explícita libera exatamente a ação da interfa
     assert.notEqual((await req('POST', '/lancamentos-tarefa', c.tokOp, tarefa)).statusCode, 403);
   });
 
-  test('D-PROD-200 — Lançamento de Atividades: só a tela op-atividades libera, ação por ação; reabrir e os apontamentos exigem as ações extras; a leitura também exige a tela', async () => {
+  test('D-PROD-383 — as rotas das atividades, dos tipos de atividade, dos serviços e da reforma não existem mais: 404 até para o administrador real', async () => {
     const c = await cenario();
     const E = c.empresa.id;
-    const leituras = ['/atividades', `/atividades/${ID}`, `/atividades/${ID}/apontamentos`, `/atividades/${ID}/apontamentos/${ID}`,
-      '/atividades-opcoes/bens', '/atividades-opcoes/operadores'].map((u) => `${u}?empresa_id=${E}`);
-    /** As 10 escritas da tela, na ordem de ESCRITAS. */
-    const escritas = ESCRITAS(c).filter(([n]) => n.startsWith('atividade (') || n.startsWith('apontamento da atividade ('));
-    assert.equal(escritas.length, 10);
-    /** `{nome: passou da guarda}` (404/422 do id inexistente não é 403); nada gravado em nenhum caso. */
-    const passa = async () => {
-      /** @type {Record<string, boolean>} */
-      const out = {};
-      for (const [nome, metodo, url, corpo] of escritas) {
-        const antes = await fotografia(c.cliente.id);
-        const r = await req(metodo, url, c.tokOp, corpo);
-        if (r.statusCode === 403) assert.equal(r.json().code, 'ACAO_NAO_PERMITIDA', `${nome}: ${r.body}`);
-        assert.equal(await fotografia(c.cliente.id), antes, `${nome}: nada gravado`);
-        out[nome] = r.statusCode !== 403;
-      }
-      return out;
-    };
-    /** Só as escritas nomeadas passam. @param {string[]} nomes */
-    const soEstas = (...nomes) => Object.fromEntries(escritas.map(([n]) => [n, nomes.includes(n)]));
-    const padroes = ['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar'];
-    const todas = Object.fromEntries(padroes.map((a) => [a, true]));
-    const comAcoes = (acoesDaTela) => c.permitir({ modulos_permitidos: ['suporte-mapa'], permissoes_telas: [linha('suporte-mapa', 'op-atividades', { visualizar: true, ...acoesDaTela })] });
-
-    // A tela vizinha (Tipos de Atividade) e a tela antiga (op-apontamentos-atividade, inerte), com tudo ligado, não liberam nada aqui.
-    for (const tela of ['sup-tipos-atividade', 'op-apontamentos-atividade']) {
-      await c.permitir({ modulos_permitidos: ['suporte-mapa'], permissoes_telas: [linha('suporte-mapa', tela, { ...todas, reabrir: true, lancar_apontamento: true })] });
-      for (const url of leituras) assert.equal((await req('GET', url, c.tokOp)).statusCode, 403, `${tela}: ${url}`);
-      assert.deepEqual(await passa(), soEstas(), tela);
+    for (const [metodo, url] of [
+      ['GET', `/atividades?empresa_id=${E}`], ['POST', '/atividades'], ['PATCH', `/atividades/${ID}`],
+      ['GET', `/atividades/${ID}/apontamentos?empresa_id=${E}`], ['POST', `/atividades/${ID}/apontamentos`],
+      ['GET', `/atividades-opcoes/bens?empresa_id=${E}`],
+      ['GET', '/tipos-atividade'], ['POST', '/tipos-atividade'], ['DELETE', `/tipos-atividade/${ID}`],
+      ['GET', `/tipos-atividade/opcoes/centros-custo?empresa_id=${E}`],
+      ['GET', `/servicos?empresa_id=${E}`], ['POST', '/servicos'], ['PATCH', `/servicos/${ID}`],
+      ['GET', `/planejamentos?empresa_id=${E}`], ['POST', '/planejamentos'],
+      ['GET', `/apontamentos-atividade?empresa_id=${E}`],
+    ]) {
+      assert.equal((await req(metodo, url, c.tokAdm, metodo === 'GET' || metodo === 'DELETE' ? undefined : { empresa_id: E })).statusCode, 404, `${metodo} ${url}`);
     }
-
-    // Só visualizar: lê (404 do id inexistente não é 403), não grava nada.
-    await comAcoes({});
-    for (const url of leituras) assert.notEqual((await req('GET', url, c.tokOp)).statusCode, 403, url);
-    assert.deepEqual(await passa(), soEstas(), 'só visualizar');
-
-    // Cada ação padrão libera só a sua parte do cabeçalho; nenhuma libera reabrir nem apontamento.
-    await comAcoes({ novo: true });
-    assert.deepEqual(await passa(), soEstas('atividade (POST)', 'atividade (duplicar)'), 'novo');
-    await comAcoes({ editar: true });
-    assert.deepEqual(await passa(), soEstas('atividade (PATCH)', 'atividade (concluir)'), 'editar');
-    await comAcoes({ salvar: true });
-    assert.deepEqual(await passa(), soEstas('atividade (POST)', 'atividade (duplicar)', 'atividade (PATCH)', 'atividade (concluir)'), 'salvar');
-    await comAcoes({ excluir: true });
-    assert.deepEqual(await passa(), soEstas('atividade (cancelar)'), 'excluir');
-    await comAcoes(todas);
-    assert.deepEqual(await passa(), soEstas('atividade (POST)', 'atividade (duplicar)', 'atividade (PATCH)', 'atividade (concluir)', 'atividade (cancelar)'), 'todas as ações padrão');
-
-    // As extras: cada uma libera só a sua escrita.
-    await comAcoes({ reabrir: true });
-    assert.deepEqual(await passa(), soEstas('atividade (reabrir)'), 'reabrir');
-    await comAcoes({ lancar_apontamento: true });
-    assert.deepEqual(await passa(), soEstas('apontamento da atividade (POST)', 'apontamento da atividade (duplicar)'), 'lancar_apontamento');
-    await comAcoes({ editar_apontamento: true });
-    assert.deepEqual(await passa(), soEstas('apontamento da atividade (PATCH)'), 'editar_apontamento');
-    await comAcoes({ cancelar_apontamento: true });
-    assert.deepEqual(await passa(), soEstas('apontamento da atividade (cancelar)'), 'cancelar_apontamento');
-
-    // Extra sem visualizar não vale (a linha da tela exige visualizar).
-    await c.permitir({ modulos_permitidos: ['suporte-mapa'], permissoes_telas: [linha('suporte-mapa', 'op-atividades', { reabrir: true, lancar_apontamento: true, editar_apontamento: true, cancelar_apontamento: true })] });
-    assert.deepEqual(await passa(), soEstas(), 'extras sem visualizar');
-
-    // Sem DELETE físico, e as rotas antigas não existem mais: 404 para todos.
-    for (const url of [`/atividades/${ID}`, `/atividades/${ID}/apontamentos/${ID}`]) assert.equal((await req('DELETE', url, c.tokAdm)).statusCode, 404, url);
-    for (const url of ['/apontamentos-atividade', `/apontamentos-atividade/${ID}`]) assert.equal((await req('GET', `${url}?empresa_id=${E}`, c.tokAdm)).statusCode, 404, url);
-  });
-
-  test('D-PROD-197 — opções de centro padrão do Tipo de Atividade: criar OU editar (novo|salvar|editar) de sup-tipos-atividade; visualizar, excluir e as telas de centros não', async () => {
-    const c = await cenario();
-    const urls = ['centros-custo', 'centros-resultado'].map((lado) => `/tipos-atividade/opcoes/${lado}?empresa_id=${c.empresa.id}`);
-    /** `[centros de custo, centros de resultado]`: true = passou da guarda. */
-    const passa = async () => {
-      const out = [];
-      for (const url of urls) {
-        const r = await req('GET', url, c.tokOp);
-        if (r.statusCode === 403) assert.equal(r.json().code, 'ACAO_NAO_PERMITIDA', `${url}: ${r.body}`);
-        else assert.equal(r.statusCode, 200, `${url}: ${r.body}`);
-        out.push(r.statusCode !== 403);
-      }
-      return out;
-    };
-    const todas = Object.fromEntries(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar'].map((a) => [a, true]));
-    assert.deepEqual(await passa(), [false, false], 'sem linha');
-    // As telas de centros, com tudo ligado, não liberam (as opções não dependem delas).
-    await c.permitir({ modulos_permitidos: ['gestao-rural'], permissoes_telas: [linha('gestao-rural', 'ges-centros-custo', todas), linha('gestao-rural', 'ges-centros-resultado', todas)] });
-    assert.deepEqual(await passa(), [false, false], 'telas de centros');
-    const comAcao = (acoesDaTela) => c.permitir({ modulos_permitidos: ['suporte-mapa'], permissoes_telas: [linha('suporte-mapa', 'sup-tipos-atividade', { visualizar: true, ...acoesDaTela })] });
-    await comAcao({});
-    assert.deepEqual(await passa(), [false, false], 'só visualizar');
-    await comAcao({ excluir: true });
-    assert.deepEqual(await passa(), [false, false], 'excluir não cria nem edita');
-    for (const acao of ['novo', 'salvar', 'editar']) {
-      await comAcao({ [acao]: true });
-      assert.deepEqual(await passa(), [true, true], acao);
-    }
-    for (const url of urls) assert.equal((await req('GET', url, c.tokAdm)).statusCode, 200, `administrador real: ${url}`);
   });
 
   test('D-PROD-195 — opções de curva da Categoria de Manejo: quem cria OU edita categoria (inclui o cadastro rápido do Cadastro de Lotes); a tela de curvas sozinha não lê', async () => {

@@ -53,15 +53,12 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['AbastecimentoBem', 'quantidade'],
   ['AbastecimentoBem', 'unidade'],
   ['TanqueBemProduto', 'produto_id'],
-  // D-PROD-200: o Lançamento de Atividades lê e grava a atividade (cabeçalho) e o apontamento do dia; sem as 2 tabelas
-  // (a migration CONTRACT da Atividade cabeçalho ainda não aplicada), a tela nova responde 500.
-  ['Atividade', 'unidade_producao_sigla'],
-  ['AtividadeApontamento', 'sequencia'],
-  // D-PROD-202 (Fatia 3): as linhas de produto e de máquina do apontamento, o custo de uso do bem e o teto do salto do
-  // medidor; sem a migration EXPAND das linhas, o apontamento novo responde 500.
-  ['AtividadeApontamentoProduto', 'movimentacao_estoque_id'],
-  ['AtividadeApontamentoProdutoConsumoLote', 'estoque_lote_nota_id'],
-  ['AtividadeApontamentoMaquina', 'quantidade_uso'],
+  // D-PROD-383: o domínio das atividades saiu (migration CONTRACT `20261128100000_remover_atividades`): as 16 tabelas
+  // (Atividade*, TipoAtividade, Servico, Planejamento*) não existem mais depois dela, então nenhuma coluna delas é exigida
+  // aqui (D-PROD-200, D-PROD-202, D-PROD-207, D-PROD-249, D-PROD-274, D-PROD-276, D-PROD-283, D-PROD-310 e D-PROD-323
+  // exigiam colunas delas). Ficam as colunas das tabelas que continuam.
+  // D-PROD-202 (Fatia 3): o custo de uso do bem e o teto do salto do medidor; sem a migration EXPAND das linhas, o bem
+  // responde 500.
   ['BemPatrimonial', 'custo_uso_unitario'],
   ['TipoPatrimonial', 'salto_maximo_medidor'],
   // D-PROD-203: o cadastro de Formulações e o lançamento de suplementação (formulação obrigatória) leem as 3 tabelas
@@ -75,17 +72,10 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // D-PROD-206: a Formulação lê e grava a faixa do farol de consumo; sem a migration
   // `20261115200000_formulacao_faixa_tolerancia`, `/formulacoes` responde 500.
   ['CADFORMULACAO', 'faixa_tolerancia_percentual'],
-  // D-PROD-207 (Fatia 4): os cadastros de Funcionário e de Serviço e as linhas de mão de obra e de serviço do
-  // apontamento; sem a migration EXPAND da mão de obra e do serviço, os cadastros e o apontamento novo respondem 500.
   // D-PROD-208: a tabela Funcionario saiu (o funcionário é papel do parceiro); o cadastro de parceiros lê os dados do
-  // papel e a linha de mão de obra aponta para o parceiro com a origem; sem a migration CONTRACT
-  // `20261116000000_mao_obra_parceiro`, Parceiros e o apontamento respondem 500.
-  ['Servico', 'unidade_medida_id'],
-  ['AtividadeApontamentoMaoObra', 'tipo_medida'],
-  ['AtividadeApontamentoServico', 'fornecedor_parceiro_id'],
+  // papel; sem a migration CONTRACT `20261116000000_mao_obra_parceiro`, Parceiros responde 500. (D-PROD-383: o Serviço e
+  // as linhas de mão de obra e de serviço saíram com as atividades.)
   ['Fornecedor', 'funcionario_tipo'],
-  ['AtividadeApontamentoMaoObra', 'parceiro_id'],
-  ['AtividadeApontamentoMaoObra', 'origem'],
   // D-PROD-210: a base do consumo da Formulação e os gramas da regra; sem a migration
   // `20261116200000_formulacao_base_consumo`, `/formulacoes` responde 500.
   ['CADFORMULACAO', 'base_consumo'],
@@ -106,30 +96,14 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['AreaPastagem', 'altura_entrada_cm'],
   ['AreaPastagem', 'altura_saida_cm'],
   ['AreaPastagem', 'dias_descanso'],
-  // D-PROD-249: o Lançamento de Atividades lê e grava as áreas da atividade e a área do lançamento; sem a migration
-  // `20261118100000_atividade_areas`, `/atividades` responde 500.
-  ['AtividadeArea', 'status'],
-  ['AtividadeApontamento', 'atividade_area_id'],
   // D-PROD-272: o ajuste de inventário lê e grava as 3 tabelas novas; sem a migration `20261120300000_estoque_ajustes`,
   // `/estoque/ajustes` responde 500.
   ['AjusteEstoque', 'numero'],
   ['AjusteEstoqueItem', 'contado_estoque'],
   ['AjusteEstoqueEvento', 'motivo'],
-  // D-PROD-274: a Nova realização lê e grava o plantio (tabela nova), o local do serviço sem área, o receituário, o VC
-  // da semente, a carência do produto e o alvo da operação; sem a migration `20261121100000_atividade_campos_por_tipo`,
-  // `/atividades`, `/produtos` e `/tipos-atividade` respondem 500.
-  ['AtividadePlantio', 'cultura_id'],
-  ['Atividade', 'local'],
-  ['AtividadeApontamento', 'numero_receituario'],
-  ['AtividadeApontamentoProduto', 'vc_percentual'],
+  // D-PROD-274: o cadastro de produto lê e grava a carência; sem a migration `20261121100000_atividade_campos_por_tipo`,
+  // `/produtos` responde 500. (D-PROD-383: as outras colunas dela eram das atividades, que saíram.)
   ['Produto', 'carencia_dias'],
-  ['TipoAtividade', 'alvo'],
-  // D-PROD-276 (MAIKE-ENTREGA3): a lista e a Nova realização leem a reforma (tabelas novas) e a ligação da atividade a
-  // ela; sem a migration `20261122100000_reforma_planejamento`, `/atividades`, `/planejamentos` e o resumo da área
-  // respondem 500.
-  ['Planejamento', 'status'],
-  ['PlanejamentoArea', 'hectares'],
-  ['Atividade', 'planejamento_id'],
   // D-PROD-279 (MAIKE-TIPO-IMPLEMENTO-PRODUTO): o "Gerenciar tipos" lê e grava o produto do implemento; sem a migration
   // `20261124100000_tipo_implemento_produto`, `/patrimonio-tipos` responde 500.
   ['TipoPatrimonial', 'usa_produto'],
@@ -142,9 +116,6 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['Produto', 'controla_validade'],
   ['EstoqueLoteNota', 'lote_fabricante'],
   ['EstoqueLoteNota', 'data_validade'],
-  // D-PROD-283 (MAIKE-INSUMO-POR-JATO): toda leitura do apontamento lê o jato da linha de insumo; sem a migration
-  // `20261125100000_insumo_por_jato`, o lançamento de atividades responde 500.
-  ['AtividadeApontamentoProduto', 'jato'],
   // D-PROD-288: os lançamentos e o cadastro do produto leem as unidades de conversão; sem a migration
   // `20261125200000_produto_unidades_conversao`, o cadastro de produto e toda entrada/saída de estoque respondem 500.
   ['ProdutoUnidadeConversao', 'fator'],
@@ -155,21 +126,17 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['BemPatrimonial', 'forma_produto'],
   ['BemPatrimonial', 'capacidade'],
   ['BemPatrimonial', 'capacidade_unidade'],
-  // D-PROD-310 (MAIKE-UNIDADE-CONVERTIDA): o cocho, a transferência e a linha de produto da atividade gravam (e a
-  // exclusão de uma unidade de conversão confere) a unidade digitada; sem a migration
-  // `20261126200000_unidade_convertida_lancamentos`, esses lançamentos e o cadastro de produto respondem 500.
+  // D-PROD-310 (MAIKE-UNIDADE-CONVERTIDA): o cocho e a transferência gravam (e a exclusão de uma unidade de conversão
+  // confere) a unidade digitada; sem a migration `20261126200000_unidade_convertida_lancamentos`, esses lançamentos e o
+  // cadastro de produto respondem 500. (D-PROD-383: as 3 colunas da linha de produto da atividade saíram com ela.)
   ['MovimentacaoEstoque', 'unidade_lancamento'],
   ['MovimentacaoEstoque', 'quantidade_lancamento'],
   ['MovimentacaoEstoque', 'fator_lancamento'],
-  ['AtividadeApontamentoProduto', 'unidade_lancamento'],
-  ['AtividadeApontamentoProduto', 'quantidade_lancamento'],
-  ['AtividadeApontamentoProduto', 'fator_lancamento'],
-  // D-PROD-323 (MAIKE-DIARIO-MAQUINA): o cadastro de produto lê a quantidade padrão, e a linha de produto da atividade lê
-  // a mistura e o volume aplicado; sem a migration `20261127100000_diario_maquina`, esses lugares respondem 500.
+  // D-PROD-323 (MAIKE-DIARIO-MAQUINA): o cadastro de produto lê a quantidade padrão; sem a migration
+  // `20261127100000_diario_maquina`, ele responde 500. (D-PROD-383: a mistura e o volume aplicado da linha de produto da
+  // atividade saíram com ela.)
   ['Produto', 'quantidade_padrao'],
   ['Produto', 'quantidade_padrao_unidade'],
-  ['AtividadeApontamentoProduto', 'mistura_id'],
-  ['AtividadeApontamentoProduto', 'volume_aplicado'],
 ]);
 
 /**

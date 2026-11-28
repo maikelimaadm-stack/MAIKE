@@ -137,7 +137,11 @@ export const TABELAS_DA_FORMULACAO = Object.freeze(['CADFORMULACAO', 'CADFORMULA
 export const NOME_LEITURA = '20261115100000_leitura_cocho';
 /** As tabelas criadas no GREEN depois desta CONTRACT: as 3 das Formulações (D-PROD-203), a LEITURACOCHO (D-PROD-205) e a CADCULTURAS (D-PROD-215). */
 // D-PROD-249: e a AtividadeArea (as áreas da atividade), da última CONTRACT.
-export const TABELAS_CRIADAS_NO_GREEN = Object.freeze([...TABELAS_DA_FORMULACAO, 'LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM', 'AtividadeArea', 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'AtividadePlantio', 'Planejamento', 'PlanejamentoArea', 'ProdutoUnidadeConversao', 'AtividadeMistura', 'AtividadeMisturaItem', 'AtividadeMisturaMovimento']);
+// D-PROD-383: as que nascem no GREEN e saem nele mesmo, com a última CONTRACT (AtividadeArea, AtividadePlantio, Planejamento,
+// PlanejamentoArea e as 3 da mistura), não contam.
+export const TABELAS_CRIADAS_NO_GREEN = Object.freeze([...TABELAS_DA_FORMULACAO, 'LEITURACOCHO', 'CADCULTURAS', 'MEDICAOFORRAGEM', 'EntradaEstoque', 'EntradaEstoqueEvento', 'EntradaEstoqueItem', 'MotivoEntradaEstoque', 'MotivoSaidaEstoque', 'SaidaEstoque', 'SaidaEstoqueEvento', 'SaidaEstoqueItem', 'AjusteEstoque', 'AjusteEstoqueEvento', 'AjusteEstoqueItem', 'ProdutoUnidadeConversao']);
+/** D-PROD-383: as 9 tabelas das atividades que existem na partida e a última CONTRACT apaga no GREEN. */
+export const TABELAS_APAGADAS_NO_GREEN = Object.freeze(['TipoAtividade', 'Atividade', 'AtividadeApontamento', 'AtividadeApontamentoProduto', 'AtividadeApontamentoProdutoConsumoLote', 'AtividadeApontamentoMaquina', 'AtividadeApontamentoMaoObra', 'AtividadeApontamentoServico', 'Servico']);
 /**
  * D-PROD-206: a EXPAND da faixa de tolerância (1 coluna anulável em CADFORMULACAO, que só existe depois da D-PROD-203),
  * de nome ainda posterior: fora da partida, sobe no GREEN por último. Nenhuma tabela nova.
@@ -199,7 +203,9 @@ export const NOME_SINC_INDICES = '20261126300000_sincronizacao_incremental_indic
 export const NOME_DM = '20261127100000_diario_maquina';
 /** D-PROD-371: a CONTRACT do estoque na unidade do cadastro (CHECKs da ProdutoUnidadeConversao e das linhas), também posterior (fora da partida). */
 export const NOME_EUC = '20261127200000_estoque_unidade_cadastro';
-export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_CONTROLE_LOTE, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM, NOME_EUC]);
+/** D-PROD-383: a CONTRACT que apaga as atividades (16 tabelas e o vínculo em AbastecimentoBem): exige todas, fora da partida, por último. */
+export const NOME_REMOVER_ATIVIDADES = '20261128100000_remover_atividades';
+export const NOMES_DEPOIS_DO_CONTRACT = Object.freeze([NOME_CURVA_NA_CATEGORIA, NOME_PESO_OBJETIVO, NOME_FORMULACOES, NOME_LEITURA, NOME_FAIXA, NOME_BASE, NOME_CULTURAS, NOME_AREA_CULTURA, NOME_MEDICAO_FORRAGEM, NOME_DIAS_DESCANSO, NOME_ATIVIDADE_AREAS, NOME_ESTOQUE_ENTRADAS, NOME_ESTOQUE_ENTRADAS_MOTIVOS, NOME_ESTOQUE_SAIDAS, NOME_APONTAMENTO_DATA_TERMINO, NOME_ESTOQUE_AJUSTES, NOME_CAMPOS_POR_TIPO, NOME_REFORMA, NOME_PRODUTO_IMPLEMENTO, NOME_CONTROLE_LOTE, NOME_INSUMO_JATO, NOME_UNIDADES_CONVERSAO, NOME_BEM_PRODUTO, NOME_UNIDADE_CONVERTIDA, NOME_SINC_INDICES, NOME_DM, NOME_EUC, NOME_REMOVER_ATIVIDADES]);
 export const NOMES_POSTERIORES_NA_PARTIDA = Object.freeze(
   readdirSync(MIGRATIONS, { withFileTypes: true })
     .filter((d) => d.isDirectory() && d.name > NOME_CONTRACT && !NOMES_DEPOIS_DO_CONTRACT.includes(d.name)).map((d) => d.name).sort()
@@ -232,7 +238,7 @@ export const CONCLUIDAS_DEPOIS = readdirSync(MIGRATIONS, { withFileTypes: true }
 export const CONCLUIDAS_ANTES = CONCLUIDAS_DEPOIS - 1 - NOMES_DEPOIS_DO_CONTRACT.length;
 export const TABELAS_PUBLIC = 90;
 /** Depois do GREEN: as da partida + as 3 das Formulações (D-PROD-203), a LEITURACOCHO (D-PROD-205) e a CADCULTURAS (D-PROD-215), aplicadas por último: 95. */
-export const TABELAS_DEPOIS = TABELAS_PUBLIC + TABELAS_CRIADAS_NO_GREEN.length;
+export const TABELAS_DEPOIS = TABELAS_PUBLIC + TABELAS_CRIADAS_NO_GREEN.length - TABELAS_APAGADAS_NO_GREEN.length;
 /** Arquivo da migration (o teste confere que a guarda usa a mesma expressão do preflight). */
 export const ARQUIVO_CONTRACT = join(MIGRATIONS, NOME_CONTRACT, 'migration.sql');
 /** Parâmetro de sessão que leva a impressão aprovada no GO até a guarda. */
@@ -695,7 +701,7 @@ export const divergenciasGreen = (partida, depois) => {
   if (depois.colunas !== COLUNAS_DEPOIS.length) d.push(`${depois.colunas} colunas`);
   if (depois.legado !== null) d.push('legado ainda existe');
   if (!igual(depois.linhas, partida.linhas)) d.push('linhas nas 12 colunas mudaram');
-  if (depois.tabelas !== partida.tabelas + TABELAS_CRIADAS_NO_GREEN.length) d.push('número de tabelas mudou (além das 3 das Formulações, D-PROD-203, e da LEITURACOCHO, D-PROD-205)');
+  if (depois.tabelas !== partida.tabelas + TABELAS_CRIADAS_NO_GREEN.length - TABELAS_APAGADAS_NO_GREEN.length) d.push('número de tabelas mudou (além das 3 das Formulações, D-PROD-203, e da LEITURACOCHO, D-PROD-205)');
   if (!igual(depois.Cliente, partida.Cliente) || !igual(depois.CatalogoCategoriaVisual, partida.CatalogoCategoriaVisual)) d.push('outras tabelas mudaram');
   return d;
 };

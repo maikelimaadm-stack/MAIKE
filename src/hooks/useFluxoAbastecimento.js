@@ -3,11 +3,8 @@
  * o estado do formulário, a revisão (prévia no servidor, sem escrita), a
  * confirmação com `operation_id` persistente e o cancelamento com estorno.
  *
- * É o MESMO fluxo da tela Abastecimentos, tirado dela para que o Lançamento de
- * Atividades abra o mesmo formulário já ligado a um lançamento (D-PROD-211),
- * sem um segundo caminho de gravação. Depois de cada escrita relê as listas de
- * abastecimentos, as consultas de estoque, o cache do Mapa, o bem e — quando o
- * abastecimento é de uma atividade — os lançamentos e os totais dela.
+ * É o MESMO fluxo da tela Abastecimentos (o Lançamento de Atividades o abria ligado a um lançamento até a D-PROD-383).
+ * Depois de cada escrita relê as listas de abastecimentos, as consultas de estoque, o cache do Mapa e o bem.
  *
  * Salvaguarda de Gestão: a resposta que chega depois de trocar de empresa não
  * mexe na tela (`daEmpresaAtual`).
@@ -29,8 +26,6 @@ import {
   unidadeDoFormulario,
   validarFormulario,
 } from '@/lib/abastecimentoRegras';
-import { chaveApontamentos } from '@/lib/atividadeApontamentoRegras';
-import { chaveTotais } from '@/lib/atividadeLinhasRegras';
 import { refreshMapaCacheEntry } from '@/services/mapaCacheService';
 import {
   ACAO_CANCELAR,
@@ -49,8 +44,6 @@ import {
 export const QUERY_RAIZ_ABASTECIMENTOS = 'patrimonio-abastecimentos';
 /** Opções dos seletores da tela (SeletorPaginadoGestao põe este prefixo). */
 export const CHAVE_OPCOES_ABASTECIMENTO = ['lancamentos-financeiros-gestao', 'opcoes', 'patrimonio', 'abastecimento'];
-/** Os abastecimentos ligados a UM lançamento da atividade (D-PROD-211). @param {string|null} empresaId @param {string|null} apontamentoId */
-export const chaveAbastecimentosDoApontamento = (empresaId, apontamentoId) => [QUERY_RAIZ_ABASTECIMENTOS, 'apontamento', empresaId ?? null, apontamentoId ?? null];
 
 /**
  * Consultas que as telas antigas de estoque invalidam depois de gravar (cópia
@@ -97,8 +90,7 @@ export const chaveProdutosDoBem = (empresaId, bemId) => [QUERY_RAIZ_ABASTECIMENT
 /**
  * Depois de confirmar ou cancelar: lista e detalhes de abastecimento, opções,
  * detalhe do bem (leitura do medidor), consultas de estoque, refresh FORÇADO do
- * cache do Mapa e o evento "atualizar-mapa"; e, se o abastecimento é de uma
- * atividade (D-PROD-211), os lançamentos e os totais dela.
+ * cache do Mapa e o evento "atualizar-mapa".
  * @param {import('@tanstack/react-query').QueryClient} queryClient @param {any} registro @param {string} emp
  */
 export const avisarAbastecimentoGravado = (queryClient, registro, emp) => {
@@ -106,11 +98,6 @@ export const avisarAbastecimentoGravado = (queryClient, registro, emp) => {
   queryClient.invalidateQueries({ queryKey: CHAVE_OPCOES_ABASTECIMENTO });
   const bemId = registro?.bem?.id;
   if (bemId) queryClient.invalidateQueries({ queryKey: ['bens-patrimoniais', 'detalhe', emp, String(bemId)] });
-  const atividadeId = registro?.atividade?.id ?? null;
-  if (atividadeId) {
-    queryClient.invalidateQueries({ queryKey: chaveTotais(emp, String(atividadeId)) });
-    queryClient.invalidateQueries({ queryKey: chaveApontamentos(emp, String(atividadeId)) });
-  }
   queryClient.invalidateQueries({ predicate: (q) => ehConsultaDeEstoque(q.queryKey) });
   Promise.all([refreshMapaCacheEntry('estoqueLotes', emp, { force: true }), refreshMapaCacheEntry('movimentacaoEstoque', emp, { force: true })]).catch(() => {});
   window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['estoqueLotes'] } }));

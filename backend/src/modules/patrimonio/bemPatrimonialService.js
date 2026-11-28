@@ -642,19 +642,19 @@ export const previaDepreciacao = async (contexto, entrada) => {
 // ─── D-PROD-287: excluir o bem que nunca foi usado ─────────────────────────
 
 /**
- * 409 `BEM_PATRIMONIAL_EM_USO`: o bem tem histórico (abastecimento, atividade ou lançamento de máquina, inclusive como
- * implemento, em qualquer situação — cancelado também é histórico de estoque e custo). Só inativar.
- * @param {{ abastecimentos: number, atividades: number, lancamentos: number }} uso
+ * 409 `BEM_PATRIMONIAL_EM_USO`: o bem tem histórico (abastecimento, em qualquer situação — cancelado também é histórico
+ * de estoque e custo). Só inativar.
+ * @param {{ abastecimentos: number }} uso
  */
 const bemEmUso = (uso) =>
-  new AppError('BEM_PATRIMONIAL_EM_USO', 'este bem já foi usado (abastecimento, atividade ou lançamento): não pode ser excluído, só inativado; nada foi apagado', {
+  new AppError('BEM_PATRIMONIAL_EM_USO', 'este bem já foi usado (abastecimento): não pode ser excluído, só inativado; nada foi apagado', {
     details: { ...uso, reason: 'bem_em_uso' },
   });
 
 /**
  * `DELETE /bens-patrimoniais/:id?empresa_id=&versao=` — D-PROD-287: exclui DE VEZ o bem que nunca foi usado (um cadastro
- * feito errado): sem abastecimento, sem atividade com ele no cabeçalho e sem lançamento de máquina (como máquina ou
- * implemento), em qualquer situação. Os tanques e os produtos aceitos saem junto. Com histórico → 409
+ * feito errado): sem abastecimento, em qualquer situação (D-PROD-383: as atividades e os lançamentos de máquina
+ * saíram). Os tanques e os produtos aceitos saem junto. Com histórico → 409
  * `BEM_PATRIMONIAL_EM_USO` (só inativar). Versão diferente → 409 de concorrência. Auditoria `delete` com o bem inteiro.
  * @param {{ requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext }} contexto @param {string} id @param {Record<string, any>} [query]
  */
@@ -670,12 +670,8 @@ export const excluir = async (contexto, id, query = {}) => {
     if (!travado.length) throw naoEncontrado();
     const antes = await buscar(tx, cli, empresaId, id);
     exigirVersao(antes, versao);
-    const [abastecimentos, atividades, lancamentos] = await Promise.all([
-      tx.abastecimentoBem.count({ where: { cliente_id: cli, bem_id: id } }),
-      tx.atividade.count({ where: { cliente_id: cli, bem_id: id } }),
-      tx.atividadeApontamentoMaquina.count({ where: { cliente_id: cli, OR: [{ bem_id: id }, { implemento_bem_id: id }] } }),
-    ]);
-    if (abastecimentos + atividades + lancamentos > 0) throw bemEmUso({ abastecimentos, atividades, lancamentos });
+    const abastecimentos = await tx.abastecimentoBem.count({ where: { cliente_id: cli, bem_id: id } });
+    if (abastecimentos > 0) throw bemEmUso({ abastecimentos });
     try {
       const tanques = await tx.tanqueBem.findMany({ where: { cliente_id: cli, bem_id: id }, select: { id: true } });
       if (tanques.length) {
@@ -685,7 +681,7 @@ export const excluir = async (contexto, id, query = {}) => {
       await tx.bemPatrimonial.delete({ where: { cliente_id_id: { cliente_id: cli, id } } });
     } catch (erro) {
       // Uma referência que a conferência acima não conhece: o banco recusa (FK RESTRICT) e nada sai.
-      if (/** @type {any} */ (erro)?.code === 'P2003') throw bemEmUso({ abastecimentos, atividades, lancamentos });
+      if (/** @type {any} */ (erro)?.code === 'P2003') throw bemEmUso({ abastecimentos });
       throw erro;
     }
     await registrarEvento(contexto, { acao: 'delete', entidade: ENTIDADE, entidadeId: id, dadosAnteriores: paraAuditoria(antes) }, tx);

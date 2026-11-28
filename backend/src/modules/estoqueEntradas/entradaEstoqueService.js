@@ -460,9 +460,6 @@ const provaDeCamadaIntocada = async (tx, cli, itens, acao = 'exclusão') => {
           WHERE f.cliente_id = ${cli} AND f.estoque_lote_nota_id = ${loteId} AND NOT starts_with(COALESCE(m.movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})) +
         (SELECT count(*) FROM "AbastecimentoBemConsumoLote" f JOIN "AbastecimentoBem" b ON b.cliente_id = f.cliente_id AND b.id = f.abastecimento_id
           LEFT JOIN "MovimentacaoEstoque" m ON m.cliente_id = b.cliente_id AND m.id = b.movimentacao_estoque_id
-          WHERE f.cliente_id = ${cli} AND f.estoque_lote_nota_id = ${loteId} AND NOT starts_with(COALESCE(m.movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})) +
-        (SELECT count(*) FROM "AtividadeApontamentoProdutoConsumoLote" f JOIN "AtividadeApontamentoProduto" l ON l.cliente_id = f.cliente_id AND l.id = f.linha_id
-          LEFT JOIN "MovimentacaoEstoque" m ON m.cliente_id = l.cliente_id AND m.id = l.movimentacao_estoque_id
           WHERE f.cliente_id = ${cli} AND f.estoque_lote_nota_id = ${loteId} AND NOT starts_with(COALESCE(m.movimentacao_grupo_id, ''), ${MARCA_EXCLUSAO_RECALCULO})))::int AS n`);
     if (fatias[0].n > 0) throw recusar('consumo_estornado', base);
     const [{ n: comFatias }] = /** @type {any[]} */ (await tx.$queryRaw`SELECT count(*)::int AS n FROM "MovimentacaoEstoque" WHERE cliente_id = ${cli} AND produto_id = ${item.produto_id} AND lotes_consumidos IS NOT NULL`);

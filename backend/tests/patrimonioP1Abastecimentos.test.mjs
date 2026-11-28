@@ -690,10 +690,10 @@ describe('P1-02 — lista, detalhe e opções', () => {
     assert.deepEqual([tudo.total, tudo.has_more, tudo.next_cursor, tudo.items.map((i) => i.id)], [4, false, null, [a4.id, a3.id, a2.id, a1.id]]);
     const r3 = tudo.items[1];
     assert.deepEqual(Object.keys(r3).sort(), [
-      'apontamento', 'atividade', 'bem', 'centro_custo', 'created_date', 'custo_total', 'data_operacional', 'id', 'intervalo_confiavel', 'local_estoque', 'medidor',
+      'bem', 'centro_custo', 'created_date', 'custo_total', 'data_operacional', 'id', 'intervalo_confiavel', 'local_estoque', 'medidor',
       'medidor_delta', 'medidor_leitura_anterior', 'numero', 'origem', 'produto', 'quantidade', 'referencia_externa', 'status', 'tanque',
       'tanque_cheio', 'unidade', 'updated_date', 'versao',
-    ], 'D-PROD-211: origem, vínculo, centro de custo e snapshot do medidor');
+    ], 'D-PROD-211: origem, centro de custo e snapshot do medidor (D-PROD-383: sem atividade nem apontamento)');
     assert.deepEqual([r3.produto, r3.tanque.id, r3.medidor, r3.quantidade, r3.unidade, r3.custo_total],
       [{ id: s.gasolina.id, nome: 'Gasolina comum (L)' }, cam.tanque_id, { tipo: 'ODOMETRO', unidade: 'km', leitura: '35300.0000' }, '30.0000', 'L', '180.0000']);
     assert.deepEqual(await ids(`&bem_id=${s.trator.id}`), [a2.id, a1.id]);

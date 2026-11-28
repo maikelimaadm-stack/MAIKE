@@ -23,12 +23,11 @@
  *    (posto de estrada: `local_estoque_id` recusado, nenhum movimento nem lote;
  *    `custo_total` obrigatório na confirmação, > 0 e até 2 casas, o valor da
  *    nota; `custo_unitario = custo_total ÷ quantidade`, 4 casas);
- *  - `apontamento_id` opcional (o lançamento do dia); `atividade_id` nunca vem
- *    do corpo (o servidor deriva do apontamento): se vier, 400;
- *  - o plano traz o vínculo (`atividade`, `apontamento`, `centro_custo`
- *    snapshot) e o snapshot do medidor (`medidor_leitura_anterior`,
+ *  - o plano traz o `centro_custo` snapshot (o do bem) e o snapshot do medidor (`medidor_leitura_anterior`,
  *    `medidor_delta`, `intervalo_confiavel`), o MESMO que a confirmação grava;
  *  - fingerprint v3 (inclui `origem`, `apontamento_id` e `custo_total`).
+ * D-PROD-383: o vínculo com o lançamento da atividade saiu. `apontamento_id` só é aceito vazio (null), para o reenvio
+ * de um abastecimento guardado no celular por uma versão antiga do app; `atividade_id` continua recusado.
  */
 
 import { AppError } from '../../shared/errors/AppError.js';
@@ -128,14 +127,14 @@ const origemDoCorpo = (v) => {
 };
 
 /**
- * D-PROD-211 — as regras do corpo por origem e o vínculo com a atividade.
+ * D-PROD-211 — as regras do corpo por origem. D-PROD-383: sem vínculo com atividade.
  * `exigeCusto`: a confirmação exige o `custo_total` do EXTERNO; a prévia o
  * aceita ausente (a tela ainda não tem o valor da nota).
  * @param {Record<string, any>} c @param {{ exigeCusto: boolean }} opcoes
  */
 const origemEVinculo = (c, { exigeCusto }) => {
   if (Object.prototype.hasOwnProperty.call(c, 'atividade_id')) {
-    throw invalido('atividade_id não é enviado: a atividade vem do lançamento (apontamento_id)', { field: 'atividade_id', reason: 'derivado_do_apontamento' });
+    throw invalido('o abastecimento não se liga mais a uma atividade (as atividades saíram); não envie atividade_id', { field: 'atividade_id', reason: 'atividades_removidas' });
   }
   const origem = origemDoCorpo(c.origem);
   const custoTotal = decimalDoCorpo(c.custo_total, 'custo_total', PADRAO_CUSTO_TOTAL, 2);
@@ -149,15 +148,15 @@ const origemEVinculo = (c, { exigeCusto }) => {
     if (custoTotal === null && exigeCusto) throw invalido('informe o valor total da nota do posto (custo_total)', { field: 'custo_total', reason: 'obrigatorio' });
     if (custoTotal !== null && !dec(custoTotal).gt(0)) throw invalido('o valor total da nota do posto deve ser maior que zero', { field: 'custo_total', reason: 'nao_positivo' });
   }
-  const apontamentoId = c.apontamento_id === undefined || c.apontamento_id === null ? null : c.apontamento_id;
-  if (apontamentoId !== null && (typeof apontamentoId !== 'string' || !apontamentoId)) {
-    throw invalido('apontamento_id inválido', { field: 'apontamento_id', reason: 'formato' });
+  if (c.apontamento_id !== undefined && c.apontamento_id !== null) {
+    throw invalido('o abastecimento não se liga mais a um lançamento de atividade (as atividades saíram); não envie apontamento_id', { field: 'apontamento_id', reason: 'atividades_removidas' });
   }
   return {
     origem,
     local_estoque_id: origem === ORIGEM_ESTOQUE ? c.local_estoque_id : null,
     custo_total: custoTotal,
-    apontamento_id: apontamentoId,
+    // Fica no fingerprint (v3) sempre nulo: o reenvio de um recibo antigo continua casando.
+    apontamento_id: null,
   };
 };
 
@@ -548,9 +547,7 @@ export const planejarAbastecimento = (entrada, estado) => {
         }
       : null,
     local_estoque: doEstoque && local ? { id: local.id, nome: local.nome } : null,
-    // D-PROD-211 — o vínculo (atividade derivada do apontamento) e o centro de custo snapshot.
-    atividade: estado.vinculo?.atividade ?? null,
-    apontamento: estado.vinculo?.apontamento ?? null,
+    // D-PROD-211 — o centro de custo snapshot (D-PROD-383: o vínculo com a atividade saiu).
     centro_custo: estado.vinculo?.centro_custo ?? null,
     quantidade: q4(quantidade),
     unidade,
@@ -591,8 +588,6 @@ export const paraAuditoria = (r, fatias) => ({
   produto_id: r.produto_id,
   local_estoque_id: r.local_estoque_id ?? null,
   origem: r.origem,
-  atividade_id: r.atividade_id ?? null,
-  apontamento_id: r.apontamento_id ?? null,
   centro_custo_id: r.centro_custo_id ?? null,
   data_operacional: diaDe(r.data_operacional),
   quantidade: texto4(r.quantidade),

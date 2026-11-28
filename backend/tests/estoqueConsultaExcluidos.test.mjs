@@ -3,8 +3,8 @@
  * PostgreSQL real e o motor de verdade:
  *
  *  - o PAR excluído (original 'Estornada' + o estorno dele, `movimento_pai_id` = o original) some por padrão:
- *    saída manual excluída, entrada excluída, transferência excluída (as quatro pernas) e linha de produto do
- *    apontamento cancelada;
+ *    saída manual excluída, entrada excluída e transferência excluída (as quatro pernas); a linha de produto do
+ *    apontamento saiu com as atividades (D-PROD-383);
  *  - `incluir_excluidos=true` devolve tudo, cada item com `excluido` (o original e o estorno marcados);
  *  - movimento ativo nunca some; 'Estornada' sem estorno e estorno sem pai 'Estornada' aparecem normalmente;
  *  - o `total`, o keyset e o cursor continuam corretos (e o cursor é amarrado ao filtro);
@@ -19,8 +19,6 @@ import { randomUUID } from 'node:crypto';
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { estornarTransferenciaEstoque, numerarMovimentos } from '../src/modules/estoqueFisico/estoqueFisicoMotor.js';
-import { http } from './patrimonioP1Cenario.mjs';
-import { montarAbastecimento, opId } from './patrimonioP1AbastecimentoCenario.mjs';
 
 /** @type {import('fastify').FastifyInstance} */
 let app;
@@ -171,31 +169,6 @@ describe('D-PROD-273 fatia 2 — o par excluído some do kardex', () => {
     assert.equal((await kardex(x, { incluir_excluidos: true, local_estoque_id: x.barracao.id })).total, 3);
     for (const id of pernas) assert.equal((await detalhe(x, id)).excluido, true);
     assert.equal((await detalhe(x, ent.itens[0].movimentacao_estoque_id)).excluido, false);
-  });
-
-  test('apontamento de atividade com a linha de produto cancelada: a baixa e o estorno somem; voltam marcados', async () => {
-    const s = await montarAbastecimento(app, { lotes: false });
-    const H = http(app);
-    const p = prisma();
-    const suf = randomUUID().slice(0, 6);
-    const grupo = await p.grupoAtividade.create({ data: { cliente_id: s.c, nome_grupo: `GRUPO ${suf}` } });
-    const tipo = await p.tipoAtividade.create({ data: { cliente_id: s.c, nome_tipo: 'PULVERIZAÇÃO', grupo_atividade_id: grupo.id, grupo_atividade_nome: grupo.nome_grupo, permite_produto: true } });
-    const herbicida = await p.produto.create({ data: { cliente_id: s.c, empresa_id: s.e1.id, numero_produto: `HB-${suf}`, nome_produto: 'Herbicida glifosato (L)', unidade_principal_estoque: 'L' } });
-    await s.lote(s.e1, herbicida, s.local, { quantidade: '50.0000', custo: '5.2000', dia: '2027-06-01' });
-    const a = await H.ok(H.req('POST', '/atividades', s.token, { empresa_id: s.e1.id, nome: 'Cigarrinha Pasto 01', tipo_atividade_id: tipo.id, data_inicio: '2027-06-01', data_prevista_fim: '2027-06-30' }), 201);
-    const base = `/atividades/${a.id}/apontamentos`;
-    const ap = (await H.ok(H.req('POST', base, s.token, { empresa_id: s.e1.id, data_operacional: '2027-06-10', area_executada_dia: '10' }), 201)).apontamento;
-    const l = await H.ok(H.req('POST', `${base}/${ap.id}/produtos`, s.token, { empresa_id: s.e1.id, versao: ap.versao, operation_id: opId(), produto_id: herbicida.id, local_estoque_id: s.local.id, quantidade: '30' }), 201);
-    const cancelada = await H.ok(H.req('POST', `${base}/${ap.id}/produtos/${l.linha.id}/cancelar`, s.token, { empresa_id: s.e1.id, versao: l.apontamento.versao, operation_id: opId(), motivo: 'lançado errado' }));
-    const baixa = l.linha.movimentacao_estoque_id;
-    const estorno = cancelada.linha.movimentacao_estorno_id;
-    assert.equal((await p.movimentacaoEstoque.findUnique({ where: { id: estorno } })).tipo_detalhado, 'estorno_apontamento_atividade');
-
-    const lista = (extra) => H.ok(H.req('GET', `/estoque/movimentos${qs({ empresa_id: s.e1.id, produto_id: herbicida.id, ...extra })}`, s.token));
-    const padrao = await lista({});
-    assert.deepEqual([padrao.total, padrao.items.length], [0, 0]);
-    const tudo = await lista({ incluir_excluidos: true });
-    assert.deepEqual(tudo.items.map((i) => [i.id, i.excluido]).sort(), [[baixa, true], [estorno, true]].sort());
   });
 
   test('só o par COMPLETO some: Estornada sem estorno, estorno sem pai e estorno de pai ativo aparecem normalmente', async () => {

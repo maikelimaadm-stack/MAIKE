@@ -1,40 +1,25 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { History, LayoutGrid } from "lucide-react";
+import { History } from "lucide-react";
 import HistoricoAbateCurral from "./HistoricoAbateCurral";
 import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
 import { LancLoteDialogo } from "../lotes/LancamentoLoteUi";
 import { ehCurral, podeMedirForragemNaArea, podeVerHistoricoDaArea } from "@/domain/mapa/cliqueArea";
-import { useAcoesTelaAtividades, useEmpresaRealSelecionadaId } from "@/hooks/useLancamentoAtividadesSessao";
-import { QUERY_ATIVIDADES_DA_AREA } from "@/lib/registroDeCampoRegras";
-import { definirFazendaDaTela, listarTiposAtividade } from "@/services/lancamentoAtividadesService";
 import CascaDetalhe from "./detalhes-lote/CascaDetalhe";
 import AbaDetalhesDaArea from "./detalhes-area/AbaDetalhesDaArea";
-import AbaRegistrosDaArea from "./detalhes-area/AbaRegistrosDaArea";
-import DiarioDoPasto from "./detalhes-area/DiarioDoPasto";
 import PainelForragemArea from "@/components/pastagem/PainelForragemArea";
-import { Abas, RodapePilulas, SecaoDetalhe, idsDaAba } from "./detalhes-lote/blocos";
+import { Abas, RodapePilulas, idsDaAba } from "./detalhes-lote/blocos";
 
 /**
  * Detalhes da área no Mapa Geral (D-PROD-94a, D-PROD-220, D-PROD-254), no desenho do Detalhes do Lote: cabeçalho com o
  * nome da área e o setor, abas, corpo que rola e rodapé de pílulas; no celular, a folha de tela cheia do diálogo.
  *
- * - Detalhes: o cartão da área, as atividades em andamento e os custos do mês (números do servidor) e, com a chave
- *   `medir_forragem` (D-PROD-219, fora da infraestrutura), o painel de Forragem — a "Medição de Forragem" continua aqui.
- * - Histórico: os REGISTROS de campo da área (Gradeação, Aplicação…), com o filtro "Todos". Com a ação extra
- *   `cancelar_apontamento` da tela de atividades, cada cartão traz o "Excluir registro" (D-PROD-266): por baixo, o
- *   mesmo cancelamento do Lançamento de Atividades, só online; no mapa só se vê exclusão e o excluído some.
- * - MAIKE-AREA-V13 (D-PROD-289): um assunto por aba — Detalhes (cartão + resumo), Forragem (o painel de antes, só com a
- *   chave `medir_forragem`), Manejos (em andamento e planejado em cima; os REGISTROS de campo, "Já feito", embaixo —
- *   o antigo Histórico) e Custos. Sem permissão de ver atividades, Manejos e Custos não aparecem.
+ * - Detalhes: o cartão da área e, com a chave `medir_forragem` (D-PROD-219, fora da infraestrutura), a aba Forragem.
  * - Curral: a aba Abate de antes (`HistoricoAbateCurral`), à parte: são fatos de natureza diferente.
- * - Rodapé: "Manejos" (com a permissão de lançar atividades) abre o "Diário das atividades" do pasto (D-PROD-332, D-PROD-341,
- *   `DiarioDoPasto`): com atividades abertas, a lista "Em andamento neste pasto"; sem nenhuma, vai direto ao tipo. É a
- *   ÚNICA entrada de diário no Mapa (a ação "+ Lançamento" da linha abre o mesmo). A "Nova realização" continua
- *   na página Lançamento de Atividades, só não é mais aberta por aqui.
- *   "Histórico completo" (com a permissão de histórico de
- *   movimentação) continua sendo o Histórico de Movimentação de hoje, com o "Excluir movimentação" do administrador
- *   (D-PROD-110), num diálogo por cima.
+ * - Rodapé: "Histórico completo" (com a permissão de histórico de movimentação) é o Histórico de Movimentação, com o
+ *   "Excluir movimentação" do administrador (D-PROD-110), num diálogo por cima.
+ * - D-PROD-383: as atividades saíram (para recomeçar do zero) e, com elas, as abas Manejos e Custos, os registros de campo
+ *   ("Já feito") e a pílula "Manejos" que abria o Diário das atividades.
  *
  * @param {{ area: any, permissions?: Record<string, any>, setorNome?: string, eventosSuplementacao?: any[] | null, areas?: Array<{ id?: string, nome?: string }>, ocupada?: boolean | null }} props
  *   `eventosSuplementacao` e `areas` seguem na assinatura por compatibilidade (o histórico completo lê o servidor).
@@ -43,36 +28,15 @@ export default function DetalhesArea({ area, permissions, setorNome = "", ocupad
   const curral = ehCurral(area);
   const historicoDaArea = podeVerHistoricoDaArea(permissions);
   const forragem = podeMedirForragemNaArea(permissions, area);
-  const acoes = useAcoesTelaAtividades();
-  const empresaId = useEmpresaRealSelecionadaId();
-  definirFazendaDaTela(empresaId);
-  const verAtividades = acoes.ver === true;
-  const podeRegistrar = acoes.lancarApontamento === true;
-  const podeCancelarRegistro = acoes.cancelarApontamento === true;
-
   const [aba, setAba] = React.useState("detalhes");
   const [anim, setAnim] = React.useState(/** @type {"aba-dir" | "aba-esq" | "empurrar" | "voltar" | null} */ (null));
   const [completoAberto, setCompletoAberto] = React.useState(false);
-  const [registrando, setRegistrando] = React.useState(false);
-
-  // Os tipos reais da fazenda (o cadastro), para os quadros de Manejos e para o filtro do Histórico.
-  const tiposQuery = useQuery({
-    queryKey: [QUERY_ATIVIDADES_DA_AREA, "tipos"],
-    queryFn: () => listarTiposAtividade(),
-    enabled: verAtividades && !!area?.id,
-    staleTime: 30 * 1000,
-  });
-  const tipos = React.useMemo(
-    () => /** @type {any[]} */ (Array.isArray(tiposQuery.data) ? tiposQuery.data : []).filter((t) => t && t.ativo !== false),
-    [tiposQuery.data],
-  );
 
   if (!area?.id) return null;
 
   const abas = [
     { id: "detalhes", rotulo: "Detalhes" },
     ...(forragem ? [{ id: "forragem", rotulo: "Forragem" }] : []),
-    ...(verAtividades ? [{ id: "manejos", rotulo: "Manejos" }, { id: "custos", rotulo: "Custos" }] : []),
     ...(curral ? [{ id: "abate", rotulo: "Abate" }] : []),
   ];
   const abaAtual = abas.some((a) => a.id === aba) ? aba : "detalhes";
@@ -84,11 +48,8 @@ export default function DetalhesArea({ area, permissions, setorNome = "", ocupad
     setAba(nova);
   };
 
-  const abrirManejos = () => setRegistrando(true);
-
   /** @type {import("./detalhes-lote/blocos").Pilula[]} */
   const pilulas = [];
-  if (podeRegistrar) pilulas.push({ chave: "manejos", rotulo: "Manejos", icone: LayoutGrid, onClick: abrirManejos });
   if (historicoDaArea) {
     pilulas.push({
       chave: "completo",
@@ -108,27 +69,12 @@ export default function DetalhesArea({ area, permissions, setorNome = "", ocupad
     </LancLoteDialogo>
   ) : null;
 
-  const janela = registrando ? (
-    <DiarioDoPasto area={area} tipos={tipos} verAtividades={verAtividades} onFechar={() => setRegistrando(false)} />
-  ) : null;
-
   const idBase = `area-${area.id}`;
   const ids = idsDaAba(idBase, abaAtual);
   let corpo;
-  const base = { area, setorNome, ocupada, verAtividades, tipos };
-  if (abaAtual === "manejos") {
-    corpo = (
-      <>
-        <AbaDetalhesDaArea {...base} secao="manejos" />
-        <SecaoDetalhe titulo="Já feito">
-          <AbaRegistrosDaArea area={area} tipos={tipos} podeCancelar={podeCancelarRegistro} />
-        </SecaoDetalhe>
-      </>
-    );
-  } else if (abaAtual === "custos") corpo = <AbaDetalhesDaArea {...base} secao="custos" />;
-  else if (abaAtual === "forragem") corpo = <PainelForragemArea area={area} />;
+  if (abaAtual === "forragem") corpo = <PainelForragemArea area={area} />;
   else if (abaAtual === "abate") corpo = <HistoricoAbateCurral areaId={area.id} />;
-  else corpo = <AbaDetalhesDaArea {...base} secao="detalhes" onIrAba={irAba} />;
+  else corpo = <AbaDetalhesDaArea area={area} ocupada={ocupada} />;
 
   return (
     <>
@@ -143,7 +89,6 @@ export default function DetalhesArea({ area, permissions, setorNome = "", ocupad
       >
         {corpo}
       </CascaDetalhe>
-      {janela}
       {completo}
     </>
   );

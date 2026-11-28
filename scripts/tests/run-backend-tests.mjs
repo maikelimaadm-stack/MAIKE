@@ -147,6 +147,13 @@ const executarComAmbiente = (rotulo, comando, args, extras, dica) => {
  * pode ter parceiros TAREFEIRO e a guarda recusa (`guarda: há parceiro com
  * funcionario_tipo = TAREFEIRO`; a saída do Prisma cita
  * `20261116100000_funcionario_tipo_terceirizado`). Mesmo remédio: recriar o banco local.
+ *
+ * D-PROD-383: a migration CONTRACT que apaga as atividades (16 tabelas e o vínculo
+ * em AbastecimentoBem) recusa se houver abastecimento ligado a atividade ou linha
+ * nas 16 sem a impressão aprovada no GO. A CI nasce vazia; um banco LOCAL que já
+ * rodou a suíte antiga das atividades tem linhas nelas e a guarda recusa (as
+ * mensagens começam com `D-PROD-383:`; a saída do Prisma cita
+ * `20261128100000_remover_atividades`). Mesmo remédio: recriar o banco local.
  */
 const DICA_BANCO_LOCAL_COM_SOBRAS =
   'Se a saída acima cita D-PROD-162, o banco de teste local tem sobras de rodadas antigas: ' +
@@ -178,7 +185,10 @@ const DICA_BANCO_LOCAL_COM_SOBRAS =
   'linhas de mão de obra de rodadas da Fatia 4 (D-PROD-207), e a guarda só aceita as duas tabelas vazias; recriar o ' +
   'banco local, do mesmo jeito, resolve. ' +
   'Se cita funcionario_tipo_terceirizado (a CONTRACT da D-PROD-209, mensagens "guarda: …"), o banco local tem parceiros ' +
-  'com o tipo TAREFEIRO de rodadas da D-PROD-208, e a guarda só aceita nenhum; recriar o banco local, do mesmo jeito, resolve.';
+  'com o tipo TAREFEIRO de rodadas da D-PROD-208, e a guarda só aceita nenhum; recriar o banco local, do mesmo jeito, resolve. ' +
+  'Se cita remover_atividades (a CONTRACT da D-PROD-383, mensagens "D-PROD-383: …"), o banco local tem atividades, ' +
+  'tipos, serviços ou reformas de rodadas antigas (ou abastecimento ligado a atividade), e a guarda exige a impressão ' +
+  'aprovada no GO; recriar o banco local, do mesmo jeito, resolve.';
 
 const todos = readdirSync(DIR)
   .filter((nome) => nome.endsWith('.test.mjs'))

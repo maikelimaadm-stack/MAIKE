@@ -25,7 +25,17 @@ const CONCORRENCIA = 8;
 export const PARAR_APOS_FALHAS_DE_REDE_SEGUIDAS = 6;
 
 /** O servidor diz que o registro não existe (404 / `*_NOT_FOUND`). @param {unknown} erro */
-const naoExisteMais = (erro) => /(^|_)NOT_FOUND$/.test(String(/** @type {any} */ (erro)?.cause?.code ?? ''));
+/**
+ * O servidor diz que não existe mais: o registro (código `…NOT_FOUND`) ou, D-PROD-383, a ROTA inteira (o 404 padrão do
+ * Fastify, sem código: uma tela que saiu do sistema, como as das atividades). Nos dois casos a resposta guardada sai do
+ * aparelho; sem isto, a baixa completa contaria a rota que saiu como "parte que não veio" para sempre.
+ * @param {unknown} erro
+ */
+const naoExisteMais = (erro) => {
+  const causa = /** @type {any} */ (erro)?.cause;
+  if (/(^|_)NOT_FOUND$/.test(String(causa?.code ?? ''))) return true;
+  return causa?.statusCode === 404 && causa?.error === 'Not Found' && /^Route \w+:/.test(String(causa?.message ?? ''));
+};
 
 /**
  * D-PROD-301 — todas as portas de módulo. Cada porta registra as suas leituras

@@ -15,7 +15,6 @@ import {
   temConversoes,
   textoDaConversao,
 } from '@/lib/unidadeLancamentoRegras';
-import { camposAlteradosDaLinhaProduto, corpoDaLinhaProduto, formularioDaLinhaProduto, validarLinhaProduto } from '@/lib/atividadeLinhasRegras';
 import { dadosDaTransferencia, quantidadeDaTransferencia } from '@/lib/estoqueEntradasRegras';
 
 const conv = (sigla, operacao, fator, extra = {}) => ({ id: `c-${sigla}`, sigla, operacao, fator, uso_compra: true, uso_venda: true, ativa: true, ...extra });
@@ -74,26 +73,6 @@ describe('UCR-2 — a transferência da tela Estoque', () => {
     expect(dadosDaTransferencia(form(), 'op')).toEqual({ operationId: 'op', produtoId: 'p1', origemId: 'o', destinoId: 'd', quantidade: 2, data: '2026-11-25', observacao: null });
     expect(quantidadeDaTransferencia(form({ unidade: 'SACO' }))).toEqual({ quantidade: '50.0000', unidade: 'SACO', digitada: '2' });
     expect(dadosDaTransferencia(form({ unidade: 'SACO' }), 'op')).toMatchObject({ quantidade: 50, unidadeLancamento: 'SACO', quantidadeLancamento: '2' });
-  });
-});
-
-describe('UCR-3 — a linha de produto da atividade', () => {
-  const produto = { id: 'p1', rotulo: 'Ração', unidade_principal_estoque: 'KG', unidades_conversao: RACAO.unidades_conversao };
-  it('o corpo leva a quantidade em kg (a conta) e, numa conversão, a unidade e a digitada; o saldo se compara em kg', () => {
-    const base = { produto, local_estoque_id: 'l1', quantidade: '4', observacao: '' };
-    expect(corpoDaLinhaProduto(base)).toEqual({ produto_id: 'p1', local_estoque_id: 'l1', quantidade: '4', observacao: null });
-    expect(corpoDaLinhaProduto({ ...base, unidade: 'SACO' })).toEqual({ produto_id: 'p1', local_estoque_id: 'l1', quantidade: '100.0000', observacao: null, unidade_lancamento: 'SACO', quantidade_lancamento: '4' });
-    expect(validarLinhaProduto({ ...base, unidade: 'SACO' }, { disponivel: '80.0000' }).aviso).toMatch(/disponível 80 kg, pedido 100 kg/);
-    expect(validarLinhaProduto({ ...base, unidade: 'SACO' }, { disponivel: '120.0000' }).aviso).toBeNull();
-  });
-
-  it('a linha gravada numa conversão reabre nela, com o fator gravado; o PATCH manda as três juntas quando algo da quantidade muda, nada dela quando só a observação muda, e a quantidade em kg quando volta para kg', () => {
-    const linha = { id: 'x', produto_id: 'p1', produto: { id: 'p1', nome: 'Ração' }, local_estoque_id: 'l1', quantidade: '50.0000', unidade: 'KG', unidade_lancamento: 'SACO', quantidade_lancamento: '2.0000', fator_lancamento: '25.0000', observacao: null };
-    const f = formularioDaLinhaProduto(linha);
-    expect(f).toMatchObject({ unidade: 'SACO', gravado: { unidade: 'SACO', fator: '25.0000' }, quantidade: '2' });
-    expect(camposAlteradosDaLinhaProduto(linha, corpoDaLinhaProduto({ ...f, observacao: 'ok' }))).toEqual({ observacao: 'ok' });
-    expect(camposAlteradosDaLinhaProduto(linha, corpoDaLinhaProduto({ ...f, quantidade: '3' }))).toEqual({ quantidade: '75.0000', unidade_lancamento: 'SACO', quantidade_lancamento: '3' });
-    expect(camposAlteradosDaLinhaProduto(linha, corpoDaLinhaProduto({ ...f, unidade: '', quantidade: '50' }))).toEqual({ quantidade: '50' });
   });
 });
 

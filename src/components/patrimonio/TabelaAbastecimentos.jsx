@@ -14,7 +14,6 @@ import {
   snapshotDoMedidor,
   textoDoIntervaloConfiavel,
 } from "@/lib/abastecimentoRegras";
-import { rotuloDaAtividadeDoAbastecimento, rotuloDoLancamentoDoAbastecimento } from "@/lib/atividadeLinhasRegras";
 import { ROTULO_STATUS_ABASTECIMENTO } from "@/services/abastecimentoService";
 
 /**
@@ -61,8 +60,6 @@ export const ABASTECIMENTOS_COLUNAS = [
   { id: "referencia_externa", label: "Referência", default: false, sortable: true, width: 120 },
   // D-PROD-211 (opcionais, desligadas: o padrão do tablet não muda).
   { id: "origem", label: "Origem", default: false, sortable: true, width: 130 },
-  { id: "atividade", label: "Atividade", default: false, sortable: true, width: 160 },
-  { id: "lancamento", label: "Lançamento", default: false, sortable: true, width: 160 },
   { id: "centro_custo", label: "Centro de custo", default: false, sortable: true, width: 140 },
   { id: "leitura_anterior", label: "Leitura anterior", default: false, sortable: true, align: "right", width: 110 },
   { id: "medidor_delta", label: "Avanço do medidor", default: false, sortable: true, align: "right", width: 110 },
@@ -141,8 +138,6 @@ export const valorDoCampoAbastecimento = (item, id) => {
   if (id === "tanque_cheio") return item.tanque_cheio ? "Sim" : "Não";
   if (id === "referencia_externa") return String(item.referencia_externa ?? "");
   if (id === "origem") return rotuloDaOrigem(item);
-  if (id === "atividade") return item.atividade ? rotuloDaAtividadeDoAbastecimento(item.atividade) : "";
-  if (id === "lancamento") return item.apontamento ? rotuloDoLancamentoDoAbastecimento(item.apontamento) : "";
   if (id === "centro_custo") return String(item.centro_custo?.nome ?? "");
   if (id === "leitura_anterior" || id === "medidor_delta" || id === "intervalo_confiavel") {
     const s = item.medidor?.leitura ? snapshotDoMedidor(item) : null;

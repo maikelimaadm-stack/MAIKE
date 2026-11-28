@@ -22,12 +22,6 @@ const dados = vi.hoisted(() => ({ cache: {}, culturas: [] }));
 const servico = vi.hoisted(() => ({ registrar: vi.fn(), excluir: vi.fn() }));
 const avisos = vi.hoisted(() => ({ warning: vi.fn(), success: vi.fn(), error: vi.fn(), confirmar: vi.fn() }));
 
-// D-PROD-254: o painel da área lê a sessão da tela de atividades (aqui sem acesso a ela: só o cartão e a Forragem).
-vi.mock('@/hooks/useLancamentoAtividadesSessao', () => ({
-  useAcoesTelaAtividades: () => ({ ver: false, lancarApontamento: false, carregando: false, login: 'operador' }),
-  useEmpresaRealSelecionadaId: () => 'emp-1',
-  useFusoDaFazenda: () => ({ fuso: 'America/Cuiaba', fusoOk: true, semFuso: false, hoje: '2027-06-15' }),
-}));
 vi.mock('@/lib/AuthContext', () => ({ useAuth: () => ({ clienteId: 'c-1', user: { id: 'u-1' } }) }));
 vi.mock('@/hooks/useEmpresaSelecionadaId', () => ({ useEmpresaSelecionadaId: () => 'emp-1' }));
 vi.mock('@/services/mapaCacheService', () => ({

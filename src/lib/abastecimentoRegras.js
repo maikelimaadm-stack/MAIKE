@@ -164,20 +164,7 @@ export const formularioVazio = (hoje) => ({
   tanque_cheio: false,
   observacao: '',
   referencia_externa: '',
-  // D-PROD-211: o lançamento (apontamento) da atividade a que o abastecimento pertence; o servidor deriva a atividade.
-  apontamento_id: null,
 });
-
-/**
- * Formulário aberto a partir de um LANÇAMENTO da atividade (D-PROD-211): o
- * `apontamento_id` fica preso e a data vem a do lançamento (o operador pode
- * mudá-la; o servidor não exige que seja a mesma).
- * @param {string} hoje @param {any} apontamento
- */
-export const formularioDoApontamento = (hoje, apontamento) => {
-  const dia = texto(apontamento?.data_operacional);
-  return { ...formularioVazio(ehDiaValido(dia) ? dia : hoje), apontamento_id: idDe(apontamento) };
-};
 
 // ─── Opção de PRODUTO do bem → formulário (A16) ──────────────────────────
 
@@ -352,9 +339,6 @@ export const montarCorpoPrevia = (empresaId, form) => {
     corpo.origem = ORIGEM_EXTERNO;
     corpo.custo_total = custo;
   }
-  // Ligado a um lançamento da atividade: só o `apontamento_id` (a atividade o servidor deriva; nunca vai).
-  const apontamentoId = idDe(form?.apontamento_id);
-  if (apontamentoId) corpo.apontamento_id = apontamentoId;
   // D-PROD-282 em todas as telas: a escolha manual dos lotes (sem ela, o servidor aplica o FEFO).
   const lotes = lotesDoFormulario(form);
   if (lotes) corpo.lotes = lotes;
@@ -394,7 +378,6 @@ export const assinaturaDoFormulario = (form) =>
     canonicoDoDigitado(form?.quantidade, LIMITES_ABASTECIMENTO.QUANTIDADE) ?? texto(form?.quantidade),
     origemDe(form),
     ehExterno(form) ? (canonicoDoDigitado(form?.custo_total, LIMITES_CUSTO_EXTERNO) ?? texto(form?.custo_total)) : null,
-    idDe(form?.apontamento_id),
     canonicoDoDigitado(form?.medidor_leitura, LIMITES_ABASTECIMENTO.LEITURA) ?? texto(form?.medidor_leitura),
     form?.tanque_cheio === true,
     texto(form?.observacao),
@@ -596,14 +579,14 @@ const conferirConsumoDoAbastecimento = (v, onde, c) => {
 };
 
 /**
- * D-PROD-211 — os campos novos, quando vêm: origem, atividade/apontamento/centro
- * de custo (objeto ou null) e o snapshot do medidor (texto de 4 casas ou null;
+ * D-PROD-211 — os campos novos, quando vêm: origem, centro de custo (objeto ou null; D-PROD-383: a atividade e o
+ * lançamento saíram) e o snapshot do medidor (texto de 4 casas ou null;
  * booleano). Ausentes não violam (servidor anterior à fatia).
  * @param {string[]} v @param {string} onde @param {any} d
  */
 const conferirVinculo = (v, onde, d) => {
   if (Object.prototype.hasOwnProperty.call(d, 'origem') && !ORIGENS_ABASTECIMENTO.includes(d.origem)) v.push(`${onde}.origem: inválida (${JSON.stringify(d.origem)})`);
-  for (const k of ['atividade', 'apontamento', 'centro_custo']) {
+  for (const k of ['centro_custo']) {
     if (Object.prototype.hasOwnProperty.call(d, k) && d[k] !== null && !ehObjeto(d[k])) v.push(`${onde}.${k}: não é objeto`);
   }
   if (Object.prototype.hasOwnProperty.call(d, 'medidor_leitura_anterior')) exigirFormato(v, `${onde}.medidor_leitura_anterior`, d.medidor_leitura_anterior, RE_4, true);
