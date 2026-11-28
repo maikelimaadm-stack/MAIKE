@@ -11,6 +11,9 @@ const VOLTA = 2 * Math.PI * RAIO;
  * D-PROD-329 / D-PROD-331 — a sincronização (envia e baixa) num cartão NO MEIO DA TELA: o círculo grande com a
  * porcentagem e o que está fazendo. Sem fundo escuro: a pessoa continua usando o app em volta. Tocar no cartão abre
  * a janela "Sincronização"; no fim mostra ✓ (ou ! se parte não veio) e some sozinho.
+ *
+ * D-PROD-379 (como o AgriWebb): só quando a PESSOA pediu ("Sincronizar agora"). A sincronização automática roda por
+ * baixo, sem cartão: o ícone do topo mostra quantos registros faltam enviar.
  */
 export default function CirculoDeSincronizacao() {
   const [p, setP] = useState(lerProgressoDaSincronia);
@@ -22,7 +25,7 @@ export default function CirculoDeSincronizacao() {
     return () => window.removeEventListener(EVENTO_PROGRESSO_DA_SINCRONIA, ouvir);
   }, []);
 
-  if (!p.ativo) return null;
+  if (!p.ativo || !p.visivel) return null;
   const pronto = p.fase === 'pronto';
   const incompleto = p.fase === 'incompleto';
   const cor = incompleto ? '#d97706' : '#059669';

@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useEmpresaSelecionadaId } from '@/hooks/useEmpresaSelecionadaId';
 import { isAppNativo } from '@/config/runtimeConfig';
 import { useBootSplash } from '@/lib/bootSplashContext';
-import { dadosNoFormatoAtual, estaSemInternet, situacaoDaBaixa, ultimaBaixaDosDados } from '@/services/dadosOfflineService';
+import { dadosNoFormatoAtual, estaSemInternet, situacaoDaBaixa, ultimaBaixaDosDados, ultimaSincronizacaoLeve } from '@/services/dadosOfflineService';
 import { sincronizarNosDoisSentidos, deveSincronizarSozinho } from '@/services/sincronizacaoCompletaService';
 import { ligarEnvioDaSessao } from '@/services/sincronizacaoService';
 import { ligarAvisoDeEnvio } from '@/lib/app/avisoDeEnvio';
@@ -32,6 +32,21 @@ const formatarQuando = (ms) =>
     : null;
 
 /**
+ * D-PROD-379 — "há quanto tempo" da última sincronização, como o AgriWebb mostra: "agora mesmo", "há 5 min",
+ * "há 3 h"; passou de um dia, a data.
+ * @param {number|null} ms @param {number} [agora]
+ */
+export const haQuantoTempo = (ms, agora = Date.now()) => {
+  if (!ms) return null;
+  const minutos = Math.floor(Math.max(0, agora - ms) / 60000);
+  if (minutos < 1) return 'agora mesmo';
+  if (minutos < 60) return `há ${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `há ${horas} h`;
+  return `em ${formatarQuando(ms)}`;
+};
+
+/**
  * D-PROD-294 — "Baixar dados para usar sem internet".
  *
  * - A primeira baixa no app é feita pela tela de preparo (`PreparoDoApp`),
@@ -51,12 +66,14 @@ export default function DadosOffline() {
   const [progresso, setProgresso] = useState(/** @type {null | {titulo: string, feitas: number, total: number}} */ (null));
   const [resultado, setResultado] = useState(/** @type {null | {ok: boolean, falhas: number, em: number|null}} */ (null));
   const [ultima, setUltima] = useState(/** @type {number|null} */ (null));
+  const [ultimaLeve, setUltimaLeve] = useState(/** @type {number|null} */ (null));
   const [partes, setPartes] = useState(/** @type {ReturnType<typeof situacaoDaBaixa>} */ (null));
   const [semInternet, setSemInternet] = useState(estaSemInternet);
   const emSegundoPlano = useRef(false);
 
   useEffect(() => {
     setUltima(isAuthenticated ? ultimaBaixaDosDados() : null);
+    setUltimaLeve(isAuthenticated ? ultimaSincronizacaoLeve() : null);
     setPartes(isAuthenticated ? situacaoDaBaixa() : null);
   }, [isAuthenticated, clienteId]);
 
@@ -82,7 +99,7 @@ export default function DadosOffline() {
   // D-PROD-307: a baixa é uma só por vez no serviço (quem pede durante uma recebe a mesma e
   // acompanha o progresso). Aqui só a automática não se repete; a da pessoa sempre mostra.
   const baixar = useCallback(
-    async ({ silencioso = false } = {}) => {
+    async (/** @type {{ silencioso?: boolean, modo?: 'tudo'|'leve' }} */ { silencioso = false, modo = 'tudo' } = {}) => {
       if (silencioso && emSegundoPlano.current) return;
       if (!silencioso) {
         setBaixando(true);
@@ -91,12 +108,18 @@ export default function DadosOffline() {
         emSegundoPlano.current = true;
       }
       try {
-        // D-PROD-329: envia e baixa, com a porcentagem no círculo do canto.
+        // D-PROD-329: envia e baixa. D-PROD-379: o cartão do meio da tela só quando a pessoa pediu; a automática é
+        // por baixo (a leve, só o que mudou; ou a completa, se faz muito tempo).
         const r = await sincronizarNosDoisSentidos({
           empresaId,
+          modo,
+          mostrar: !silencioso,
           aoAvancar: silencioso ? undefined : (p) => setProgresso({ titulo: p.titulo, feitas: p.feitas, total: p.total }),
         });
-        if (r.em) setUltima(r.em);
+        if (r.em) {
+          if (modo === 'leve') setUltimaLeve(r.em);
+          else setUltima(r.em);
+        }
         setPartes(situacaoDaBaixa());
         if (!silencioso) setResultado(r);
       } finally {
@@ -129,16 +152,24 @@ export default function DadosOffline() {
     return () => window.removeEventListener(EVENTO_ABRIR_DADOS_OFFLINE, abrir);
   }, []);
 
-  // Sincronização automática (D-PROD-294, D-PROD-329), já preparado e com internet: envia e baixa
-  //  - quando a internet VOLTA: se a última baixa tem mais de 3 min (D-PROD-343; o envio sempre);
-  //  - ao abrir ou voltar ao app: se a última baixa tem mais de 10 min;
-  //  - com o app aberto: a cada 6 h.
+  // Sincronização automática (D-PROD-294, D-PROD-329; D-PROD-379, como o AgriWebb), já preparado e com internet,
+  // SEMPRE por baixo, sem o cartão do meio da tela:
+  //  - ao abrir, voltar ao app ou voltar a internet: a LEVE (envia + só o que mudou), se a última tem mais de 2 min;
+  //  - com o app aberto: a leve a cada 15 min;
+  //  - a COMPLETA (mapa, cadastros, telas) só quando a última completa passou de 12 h ou o formato mudou.
   // A PRIMEIRA baixa é da tela de preparo (`PreparoDoApp`), antes de o sistema abrir.
   useEffect(() => {
     if (!isAuthenticated || !clienteId || !layoutBootReady || !isAppNativo()) return undefined;
     const talvezSincronizar = (/** @type {'voltou'|'abriu'|'relogio'} */ motivo) => {
-      const situacao = { ultima: ultimaBaixaDosDados(), agora: Date.now(), formatoAtual: dadosNoFormatoAtual(), semInternet: estaSemInternet() };
-      if (deveSincronizarSozinho(motivo, situacao)) baixarRef.current({ silencioso: true });
+      const situacao = {
+        ultima: ultimaBaixaDosDados(),
+        ultimaLeve: ultimaSincronizacaoLeve(),
+        agora: Date.now(),
+        formatoAtual: dadosNoFormatoAtual(),
+        semInternet: estaSemInternet(),
+      };
+      const modo = deveSincronizarSozinho(motivo, situacao);
+      if (modo) baixarRef.current({ silencioso: true, modo });
     };
     const aoVoltar = () => talvezSincronizar('voltou');
     const aoMostrar = () => {
@@ -191,6 +222,11 @@ export default function DadosOffline() {
 
         <div className="space-y-1.5 border-t border-slate-100 pt-3">
           <p className="text-sm font-semibold text-slate-800">Dados no celular</p>
+          {ultima ? (
+            <p className="text-sm text-slate-700" data-testid="sincronizacao-ultima">
+              Última sincronização: {haQuantoTempo(Math.max(ultima, ultimaLeve ?? 0))}
+            </p>
+          ) : null}
           {!ultima ? (
             <p className="text-sm text-slate-600">Os dados ainda não foram baixados neste aparelho.</p>
           ) : (

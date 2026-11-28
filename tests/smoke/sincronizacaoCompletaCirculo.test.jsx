@@ -2,13 +2,15 @@
  * D-PROD-329 — sincronização nos dois sentidos, com a porcentagem no círculo do canto.
  *
  * SC-01 porcentagem: envio 0–25, mapa 25–55, cadastros 55–80, telas 80–100
- * SC-02 quando sincronizar sozinho: internet voltou → sempre; abriu → depois de 10 min; parado → depois de 6 h;
- *       formato antigo → já; sem a primeira baixa ou sem internet → não
+ * SC-02 (D-PROD-379) o que sincronizar sozinho: a completa só com formato antigo ou mais de 12 h desde a última
+ *       completa; a leve ao abrir/voltar depois de 2 min (relógio: 15 min); sem a primeira baixa ou sem internet: nada
  * SC-03 envia ANTES de baixar; a porcentagem só anda para a frente; termina em 100 ("Tudo sincronizado") e some
  * SC-04 sem internet não faz nada; pedir de novo durante uma devolve a mesma
  * SC-05 o círculo mostra a porcentagem, ✓ no fim, e tocar abre a janela "Sincronização"
  * SC-06 (D-PROD-337) ficou registro no celular: o fim diz quantos ficaram (nunca "Tudo sincronizado"); o envio pede
  *       que o que esperava por falta de rede tente já
+ * SC-07 (D-PROD-379) a leve envia e baixa só o que mudou (não a baixa completa); a automática não mostra o cartão; a
+ *       pessoa pedindo no meio dela passa a mostrar a que está em curso
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -23,6 +25,11 @@ vi.mock('@/lib/offline/sincronizacao/gatilhosDeSincronizacao', () => ({
 }));
 vi.mock('@/services/dadosOfflineService', () => ({
   estaSemInternet: () => navigator.onLine === false,
+  baixarSoOQueMudou: vi.fn(async () => {
+    chamadas.push('leve');
+    await new Promise((r) => { resolverBaixa = r; });
+    return { ok: true, falhas: 0, em: 456 };
+  }),
   baixarDadosParaOffline: vi.fn(async ({ aoAvancar }) => {
     chamadas.push('baixa');
     aoAvancar({ etapa: 'mapa', titulo: 'Mapa', feitas: 0, total: 10 });
@@ -59,19 +66,27 @@ describe('D-PROD-329 — sincronização nos dois sentidos', () => {
     expect(svc.percentualDaSincronia('telas', 9, 4)).toBe(100);
   });
 
-  it('SC-02 quando sincronizar sozinho', () => {
-    const agora = 1_000_000_000;
-    const base = { ultima: agora - 60_000, agora, formatoAtual: true, semInternet: false };
-    // D-PROD-343: a volta da internet só baixa de novo se a última baixa tem mais de 3 min (antes: sempre).
-    expect(svc.deveSincronizarSozinho('voltou', base)).toBe(false);
-    expect(svc.deveSincronizarSozinho('voltou', { ...base, ultima: agora - 4 * 60_000 })).toBe(true);
-    expect(svc.deveSincronizarSozinho('abriu', base)).toBe(false);
-    expect(svc.deveSincronizarSozinho('abriu', { ...base, ultima: agora - 11 * 60_000 })).toBe(true);
-    expect(svc.deveSincronizarSozinho('relogio', { ...base, ultima: agora - 2 * 3600_000 })).toBe(false);
-    expect(svc.deveSincronizarSozinho('relogio', { ...base, ultima: agora - 7 * 3600_000 })).toBe(true);
-    expect(svc.deveSincronizarSozinho('abriu', { ...base, formatoAtual: false })).toBe(true);
-    expect(svc.deveSincronizarSozinho('voltou', { ...base, ultima: null })).toBe(false);
-    expect(svc.deveSincronizarSozinho('voltou', { ...base, semInternet: true })).toBe(false);
+  it('SC-02 o que sincronizar sozinho (D-PROD-379)', () => {
+    const agora = 10_000_000_000;
+    const min = 60_000;
+    const base = { ultima: agora - min, ultimaLeve: null, agora, formatoAtual: true, semInternet: false };
+    // Acabou de sincronizar: nada.
+    expect(svc.deveSincronizarSozinho('voltou', base)).toBe(null);
+    expect(svc.deveSincronizarSozinho('abriu', base)).toBe(null);
+    // Depois de 2 min, ao abrir ou ao voltar a internet: a leve (antes: a completa depois de 10 min / 3 min).
+    expect(svc.deveSincronizarSozinho('abriu', { ...base, ultima: agora - 3 * min })).toBe('leve');
+    expect(svc.deveSincronizarSozinho('voltou', { ...base, ultima: agora - 3 * min })).toBe('leve');
+    // Vale a mais nova das duas (leve ou completa).
+    expect(svc.deveSincronizarSozinho('abriu', { ...base, ultima: agora - 60 * min, ultimaLeve: agora - min })).toBe(null);
+    // Relógio (app aberto): a leve a cada 15 min.
+    expect(svc.deveSincronizarSozinho('relogio', { ...base, ultima: agora - 10 * min })).toBe(null);
+    expect(svc.deveSincronizarSozinho('relogio', { ...base, ultima: agora - 16 * min })).toBe('leve');
+    // A completa: formato antigo ou mais de 12 h desde a última completa (mesmo com a leve recente).
+    expect(svc.deveSincronizarSozinho('abriu', { ...base, formatoAtual: false })).toBe('tudo');
+    expect(svc.deveSincronizarSozinho('relogio', { ...base, ultima: agora - 13 * 3600_000, ultimaLeve: agora - min })).toBe('tudo');
+    // Sem a primeira baixa (é a tela de preparo) ou sem internet: nada.
+    expect(svc.deveSincronizarSozinho('voltou', { ...base, ultima: null })).toBe(null);
+    expect(svc.deveSincronizarSozinho('voltou', { ...base, ultima: agora - 13 * 3600_000, semInternet: true })).toBe(null);
   });
 
   it('SC-03 envia antes de baixar; a porcentagem só sobe; 100 no fim e some', async () => {
@@ -148,5 +163,27 @@ describe('D-PROD-329 — sincronização nos dois sentidos', () => {
     expect(fases.some((f) => f.includes('Tudo sincronizado'))).toBe(false);
     const { sincronizarTudo } = await import('@/lib/offline/sincronizacao/gatilhosDeSincronizacao');
     expect(sincronizarTudo).toHaveBeenCalledWith({ jaEmVoltaDaRede: true });
+  });
+
+  it('SC-07 a leve: só o que mudou, sem cartão; a pessoa pedindo no meio passa a ver a que está em curso', async () => {
+    vi.doMock('@/components/offline/DadosOffline', () => ({ abrirDadosOffline: () => {} }));
+    const { default: Circulo } = await import('@/components/offline/CirculoDeSincronizacao');
+    render(<Circulo />);
+    resolverBaixa = undefined;
+    let p;
+    await act(async () => { p = svc.sincronizarNosDoisSentidos({ empresaId: 'emp-1', modo: 'leve', mostrar: false }); });
+    await vi.waitFor(() => expect(resolverBaixa).toBeTypeOf('function'));
+    expect(chamadas).toEqual(['envio', 'leve']);
+    expect(svc.lerProgressoDaSincronia()).toMatchObject({ ativo: true, visivel: false });
+    expect(screen.queryByRole('button', { name: /Sincronização/ }), 'automática: sem o cartão').toBeNull();
+    // "Sincronizar agora" no meio: recebe a mesma e o cartão aparece.
+    let q;
+    await act(async () => { q = svc.sincronizarNosDoisSentidos({ empresaId: 'emp-1' }); });
+    expect(q).toBe(p);
+    expect(screen.getByRole('button', { name: /Sincronização/ })).toBeTruthy();
+    await act(async () => { resolverBaixa(); await p; });
+    expect(await p).toMatchObject({ ok: true, em: 456 });
+    expect(chamadas).toEqual(['envio', 'leve']);
+    vi.doUnmock('@/components/offline/DadosOffline');
   });
 });

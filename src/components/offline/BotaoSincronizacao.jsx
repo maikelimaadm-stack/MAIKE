@@ -24,7 +24,8 @@ function useSemInternet() {
 /**
  * D-PROD-301 — o botão da sincronização no topo (ao lado do usuário): um ícone
  * pequeno, sem faixa na tela, que diz como está e abre a janela "Sincronização".
- *  - enviando: girando;
+ *  - enviando o que espera: girando (D-PROD-379: a passada de rotina sem nada a enviar não gira; o ícone só diz
+ *    quantos faltam, como a faixa do AgriWebb);
  *  - precisa de atenção: triângulo âmbar com o número;
  *  - esperando envio: nuvem com o número;
  *  - sem internet (nada esperando): nuvem cortada;
@@ -41,7 +42,7 @@ export default function BotaoSincronizacao({ className = '' }) {
   let Icone = CheckCircle2;
   let cor = 'text-emerald-600';
   let rotulo = 'Sincronização: tudo enviado';
-  if (fila.enviando) {
+  if (fila.enviando && pendentes > 0) {
     Icone = Loader2;
     cor = 'text-sky-600 animate-spin';
     rotulo = `Sincronização: enviando ${pendentes} registro(s)`;
