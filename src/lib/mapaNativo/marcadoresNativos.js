@@ -89,13 +89,25 @@ export function geometriaNoZoom(m, zoom) {
   return { w, h, ax, ay };
 }
 
+/** D-PROD-382: a passagem (ms) de quem aparece e some no mapa. */
+export const MS_PASSAGEM = 140;
+/** D-PROD-382: quantos marcadores escondidos ficam guardados no mapa para voltar sem refazer. */
+export const LIMITE_GUARDADOS = 1500;
+/** D-PROD-382: depois de uma troca, a espera (ms) para pôr no mapa, escondidos, os outros níveis dos nomes. */
+export const MS_AQUECER = 350;
+
 /**
  * A camada de marcadores nativos sobre um mapa do plugin (`GoogleMap`).
  * @param {{ addMarkers: (m: any[]) => Promise<string[]>, removeMarkers: (ids: string[]) => Promise<void> }} mapa
+ * @param {{ mostrar?: (mostrar: string[], esconder: string[], ms: number) => Promise<any> }} [opcoes] `mostrar`: o
+ *   método nativo que mostra e esconde marcadores que já estão no mapa (APK com o remendo D-PROD-382)
  */
-export function criarMarcadoresNativos(mapa) {
-  /** @type {Map<string, { m: Marcador, idNativo: string | null, assinatura: string }>} */
+export function criarMarcadoresNativos(mapa, { mostrar } = {}) {
+  /** @type {Map<string, { m: Marcador, idNativo: string | null, assinatura: string, visivel: boolean, naLista: boolean }>} */
   const itens = new Map();
+  // o APK sabe mostrar e esconder? (uma chamada vazia: o APK anterior responde que não tem o método)
+  /** @type {Promise<boolean>} */
+  const suporte = mostrar ? Promise.resolve().then(() => mostrar([], [], 0)).then(() => true, () => false) : Promise.resolve(false);
   /** @type {Map<string, string>} idNativo → chave */
   const porNativo = new Map();
   /** @type {Map<string, Marcador[]>} a última lista de cada grupo (para refazer os nomes no zoom) */
@@ -133,61 +145,191 @@ export function criarMarcadoresNativos(mapa) {
   /** @type {Promise<void> | null} */
   let agendada = null;
 
+  /** Marcadores trocados que saem do mapa depois da passagem (ids nativos). @type {Set<string>} */
+  const lixo = new Set();
+  const esvaziarLixo = () => {
+    if (!lixo.size) return Promise.resolve();
+    const ids = [...lixo];
+    lixo.clear();
+    return mapa.removeMarkers(ids).catch(() => {});
+  };
+
   /**
-   * Uma troca no mapa: para cada grupo do lote, o que entrou ou mudou entra e SÓ DEPOIS o que saiu ou mudou sai (sem
-   * buraco: nada pisca). Todos os grupos do lote entram numa chamada só ao mapa: os ícones aparecem juntos.
+   * Uma troca no mapa (D-PROD-382). Todos os grupos do lote vão numa chamada só ao mapa: os ícones aparecem juntos.
+   *
+   * Com o APK que sabe mostrar e esconder (`liso`): nada que já está no mapa é refeito. O marcador que sai da lista ou
+   * fica `oculto` é só ESCONDIDO (e guardado); o que volta é só MOSTRADO; os novos entram escondidos e aparecem na
+   * mesma passagem curta. Trocar o nível dos nomes ou um filtro vira uma chamada pequena, sem imagem nenhuma.
+   *
+   * Sem isso (APK anterior): o que entrou ou mudou entra e só depois o que saiu sai; o nome que troca de texto no
+   * mesmo lugar sai antes de o novo entrar.
    * @param {Map<string, Marcador[]>} lote
    */
   const trocar = async (lote) => {
     if (!vivo) return;
+    const liso = await suporte;
+    if (!vivo) return;
     const zoomDaTroca = zoom;
-    /** @type {Set<string>} */
-    const sair = new Set();
+    /** @type {Set<string>} chaves cujo marcador sai do mapa */
+    const tirar = new Set();
     /** @type {Array<[string, Marcador, string]>} */
     const por = [];
+    /** @type {string[]} */
+    const mostrarK = [];
+    /** @type {string[]} */
+    const esconderK = [];
+    let frios = 0;
     for (const [grupo, lista] of lote) {
       const novos = new Map(lista.map((m) => [`${grupo}|${m.id}`, m]));
       for (const [k, it] of itens) {
         if (!k.startsWith(`${grupo}|`)) continue;
         const m = novos.get(k);
-        if (!m || assinatura(m) !== it.assinatura) sair.add(k);
-        else it.m = m; // mesmo desenho e lugar: só o clique e o resto dos dados
+        if (m && assinatura(m) !== it.assinatura) {
+          tirar.add(k); // outro desenho ou lugar: o novo entra (se é para aparecer) e este sai
+          continue;
+        }
+        if (m) it.m = m; // mesmo desenho e lugar: só o clique e o resto dos dados
+        it.naLista = Boolean(m);
+        const querVisivel = Boolean(m && !m.oculto);
+        if (!liso) {
+          if (!querVisivel) tirar.add(k);
+        } else if (querVisivel && !it.visivel) mostrarK.push(k);
+        else if (!querVisivel && it.visivel) esconderK.push(k);
       }
-      for (const [k, m] of novos) if (!itens.has(k) || sair.has(k)) por.push([k, m, assinatura(m)]);
+      for (const [k, m] of novos) {
+        if (itens.has(k) && !tirar.has(k)) continue;
+        if (m.oculto) frios += 1;
+        else por.push([k, m, assinatura(m)]);
+      }
+    }
+    // guardados demais (saíram da lista e ficaram escondidos): os mais antigos saem do mapa
+    if (liso) {
+      let guardados = 0;
+      for (const it of itens.values()) if (!it.naLista) guardados += 1;
+      for (const [k, it] of itens) {
+        if (guardados <= LIMITE_GUARDADOS) break;
+        if (it.naLista || tirar.has(k)) continue;
+        tirar.add(k);
+        guardados -= 1;
+      }
     }
     const prontos = await Promise.all(por.map(([, m]) => paraNativo(m)));
     if (!vivo) return;
     for (const grupo of lote.keys()) zoomDoGrupo.set(grupo, zoomDaTroca);
     try {
       const validos = por.filter((_, i) => prontos[i]);
-      // D-PROD-382: o nome que troca de texto no mesmo lugar (sigla ↔ nome) sai ANTES de o novo entrar: os dois juntos,
-      // um em cima do outro, eram a "bugada" na troca. Ícones e nomes que só entram ou só saem: o novo antes do velho.
-      const novosPorChave = new Map(validos.map(([k]) => [k, true]));
+      const paraOMapa = /** @type {any[]} */ (prontos.filter(Boolean));
+      // liso: os novos entram escondidos e aparecem na passagem, junto com os que voltam
+      if (liso) for (const n of paraOMapa) n.opacity = 0;
+      const entraDeNovo = new Set(validos.map(([k]) => k));
       /** @type {string[]} */
       const tirarAntes = [];
       /** @type {string[]} */
-      const tirar = [];
-      for (const k of sair) {
+      const tirarDepois = [];
+      /** @type {string[]} */
+      const somem = [];
+      for (const k of tirar) {
         const it = itens.get(k);
         if (it?.idNativo) {
-          (it.m.semToque && novosPorChave.has(k) ? tirarAntes : tirar).push(it.idNativo);
           porNativo.delete(it.idNativo);
+          if (!liso && it.m.semToque && entraDeNovo.has(k)) tirarAntes.push(it.idNativo);
+          else tirarDepois.push(it.idNativo);
+          if (it.visivel) somem.push(it.idNativo);
         }
         itens.delete(k);
       }
       if (tirarAntes.length) await mapa.removeMarkers(tirarAntes);
-      const ids = validos.length ? await mapa.addMarkers(prontos.filter(Boolean)) : [];
+      const ids = paraOMapa.length ? await mapa.addMarkers(paraOMapa) : [];
+      /** @type {string[]} */
+      const aparecem = [];
       validos.forEach(([k, m, a], i) => {
         const idNativo = ids?.[i] != null ? String(ids[i]) : null;
-        itens.set(k, { m, idNativo, assinatura: a });
-        if (idNativo) porNativo.set(idNativo, k);
+        itens.set(k, { m, idNativo, assinatura: a, visivel: true, naLista: true });
+        if (idNativo) {
+          porNativo.set(idNativo, k);
+          aparecem.push(idNativo);
+        }
       });
-      if (tirar.length) await mapa.removeMarkers(tirar);
+      if (!liso) {
+        if (tirarDepois.length) await mapa.removeMarkers(tirarDepois);
+      } else {
+        for (const k of mostrarK) {
+          const it = itens.get(k);
+          if (!it) continue;
+          it.visivel = true;
+          if (it.idNativo) aparecem.push(it.idNativo);
+        }
+        for (const k of esconderK) {
+          const it = itens.get(k);
+          if (!it) continue;
+          it.visivel = false;
+          if (it.idNativo) somem.push(it.idNativo);
+        }
+        if ((aparecem.length || somem.length) && mostrar) await mostrar(aparecem, somem, MS_PASSAGEM).catch(() => {});
+        // os trocados saem do mapa depois da passagem (já estão invisíveis)
+        if (tirarDepois.length) {
+          for (const id of tirarDepois) lixo.add(id);
+          setTimeout(() => void esvaziarLixo(), MS_PASSAGEM + 80);
+        }
+      }
     } catch {
       /* mapa fechado no meio */
     }
     // o mapa parou num zoom novo enquanto as imagens eram preparadas: refaz no zoom de agora
     if (vivo && zoom !== zoomDaTroca) for (const grupo of lote.keys()) if (!pendentes.has(grupo)) revisarGrupo(grupo);
+    // os escondidos que ainda não existem (os outros níveis dos nomes): entram depois, sem pressa, já escondidos
+    if (vivo && liso && frios) agendarFrios();
+  };
+
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let esperaFrios = null;
+  const agendarFrios = () => {
+    if (esperaFrios) clearTimeout(esperaFrios);
+    esperaFrios = setTimeout(() => {
+      esperaFrios = null;
+      fila = fila.then(aquecer);
+    }, MS_AQUECER);
+  };
+  /**
+   * Põe no mapa, escondidos, os marcadores `oculto` que ainda não existem (a sigla e os hectares de cada pasto):
+   * a primeira troca de nível também vira só mostrar e esconder. Para se uma troca de verdade está esperando.
+   */
+  const aquecer = async () => {
+    if (!vivo || pendentes.size || !(await suporte)) return;
+    let escondidos = 0;
+    for (const it of itens.values()) if (!it.visivel) escondidos += 1;
+    /** @type {Array<[string, Marcador, string]>} */
+    const por = [];
+    for (const [grupo, lista] of listas) {
+      for (const m of lista) {
+        const k = `${grupo}|${m.id}`;
+        if (!m.oculto || itens.has(k)) continue;
+        if (escondidos + por.length >= LIMITE_GUARDADOS) break;
+        por.push([k, m, assinatura(m)]);
+      }
+    }
+    if (!por.length) return;
+    const prontos = await Promise.all(por.map(([, m]) => paraNativo(m)));
+    if (!vivo || pendentes.size) return;
+    try {
+      const validos = por.filter((_, i) => prontos[i]);
+      const paraOMapa = /** @type {any[]} */ (prontos.filter(Boolean));
+      for (const n of paraOMapa) n.opacity = 0;
+      const ids = paraOMapa.length ? await mapa.addMarkers(paraOMapa) : [];
+      validos.forEach(([k, m, a], i) => {
+        const idNativo = ids?.[i] != null ? String(ids[i]) : null;
+        // a lista pode ter mudado no meio: o que já entrou por outro caminho fica com o dele
+        if (itens.has(k)) {
+          if (idNativo) lixo.add(idNativo);
+          return;
+        }
+        itens.set(k, { m, idNativo, assinatura: a, visivel: false, naLista: true });
+        if (idNativo) porNativo.set(idNativo, k);
+      });
+      await esvaziarLixo();
+    } catch {
+      /* mapa fechado no meio */
+    }
   };
 
   /**
@@ -247,7 +389,9 @@ export function criarMarcadoresNativos(mapa) {
     /** Tira todos os marcadores. */
     async limpar() {
       vivo = false;
-      const ids = [...porNativo.keys()];
+      if (esperaFrios) clearTimeout(esperaFrios);
+      const ids = [...porNativo.keys(), ...lixo];
+      lixo.clear();
       itens.clear();
       porNativo.clear();
       listas.clear();

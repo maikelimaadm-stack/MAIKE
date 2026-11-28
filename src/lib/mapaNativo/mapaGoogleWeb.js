@@ -21,7 +21,8 @@ import { caixaDoMarcador, porNaCaixa } from "./posicaoDoMarcador.js";
  * em relação ao ponto (px), ordem (maior por cima), título (dica do mouse) e o clique. D-PROD-374: `escala` (o
  * tamanho segue o zoom do MapLibre), `ancora` ("centro" ou "topo") e `semToque` (o nome do pasto: o clique passa
  * para a área), ver `posicaoDoMarcador.js`. D-PROD-375: `zNativo` (a ordem no mapa nativo do app, quando difere).
- * @typedef {{ id: string, lat: number, lng: number, url: string, w: number, h: number, dx?: number, dy?: number, z?: number, titulo?: string, onClick?: () => void, escala?: (zoom: number) => number, ancora?: "centro" | "topo", semToque?: boolean, zNativo?: number }} MarcadorWeb
+ * D-PROD-382: `oculto` (no app: o marcador fica no mapa escondido, pronto para aparecer sem ser refeito).
+ * @typedef {{ id: string, lat: number, lng: number, url: string, w: number, h: number, dx?: number, dy?: number, z?: number, titulo?: string, onClick?: () => void, escala?: (zoom: number) => number, ancora?: "centro" | "topo", semToque?: boolean, zNativo?: number, oculto?: boolean }} MarcadorWeb
  */
 
 /** @param {string} tipo "Satellite" | "Normal" (os nomes do plugin) */

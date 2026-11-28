@@ -130,6 +130,14 @@ export default function useMarcadoresGoogle(mapa) {
       const camera = cameraRef.current;
       if (!camera || !nomesRef.current.size) return null;
       const r = nomesFixosNaCamera(nomesRef.current, camera, lotesInfoRef.current, iconesObstaculo(), nivelRef.current);
+      // o deslocamento que mudou só 1 ou 2 px (arredondamento ao arrastar o mapa) fica como estava: o nome não é refeito
+      const antes = arranjoRef.current;
+      if (antes && antes.nivel === r.nivel) {
+        for (const [id, d] of r.desloc) {
+          const a = antes.desloc.get(id);
+          if (a && Math.abs(a.dx - d.dx) <= 2 && Math.abs(a.dy - d.dy) <= 2) r.desloc.set(id, a);
+        }
+      }
       arranjoNovoRef.current = r;
       return r.nivel;
     };
@@ -246,32 +254,44 @@ export default function useMarcadoresGoogle(mapa) {
     };
 
     /**
-     * App: os marcadores dos nomes de tamanho fixo no nível. O nome (o mesmo em "tudo" e "nome"; a sigla em "sigla")
-     * e, em "tudo", os hectares logo abaixo dele, num marcador à parte (`<id>|ha`).
+     * App: os marcadores dos nomes de tamanho fixo. TODOS os níveis de cada pasto vão na lista — o nome (`<id>`), a
+     * sigla (`<id>|sg`) e os hectares (`<id>|ha`) — e os que não são do nível de agora vão `oculto`: ficam no mapa
+     * escondidos. Trocar de nível (ou sumir todos) é só mostrar e esconder, nada é refeito (D-PROD-382).
      * @param {Map<string, any>} nomes @param {any} nivel @param {number} pr
      */
     const marcadoresDosNomesFixos = (nomes, nivel, pr) => {
-      if (nivel === "nenhum") return [];
       const arranjo = arranjoRef.current;
       const lista = [];
       for (const n of nomes.values()) {
-        // o raro nome sem lugar livre não aparece (em cima de ícone, nunca)
-        if (arranjo?.ocultos.has(n.id)) continue;
-        const d = nivel === "sigla" ? n.niveis.sigla : n.niveis.nome;
-        if (!d.linhas.length) continue;
-        const r = imagemPronta(d.chave, pr);
-        if (!r) continue;
+        // "nenhum" e o raro nome sem lugar livre: ficam no mapa, escondidos (em cima de ícone, nunca)
+        const fora = nivel === "nenhum" || Boolean(arranjo?.ocultos.has(n.id));
         const comLote = lotesInfoRef.current.has(n.id);
-        // com lote, o topo do nome 10 px abaixo do ponto; sem lote, o nome no meio do ponto
         // o nome que cairia em cima de um ícone vai para o lado livre (o mesmo deslocamento para os hectares)
         const puxa = arranjo?.desloc.get(n.id) || { dx: 0, dy: 0 };
+        // com lote, o topo do nome 10 px abaixo do ponto; sem lote, o nome no meio do ponto
         const dyNome = (comLote ? DESLOC_NOME_COM_LOTE_PX[1] : 0) + puxa.dy;
-        lista.push(marcador({ id: n.id, lngLat: [n.lng, n.lat], r, chave: d.chave, dx: puxa.dx, dy: dyNome, z: ORDEM_GOOGLE.nome, ancora: comLote ? "topo" : "centro", semToque: true }));
-        if (nivel === "tudo" && n.detalhe?.linhas.length) {
+        const ancora = comLote ? "topo" : "centro";
+        /** @param {string} id @param {any} d @param {boolean} visivel */
+        const por = (id, d, visivel) => {
+          if (!d.linhas.length) return null;
+          const r = imagemPronta(d.chave, pr);
+          const m = r ? marcador({ id, lngLat: [n.lng, n.lat], r, chave: d.chave, dx: puxa.dx, dy: dyNome, z: ORDEM_GOOGLE.nome, ancora, semToque: true }) : null;
+          if (!m) return null;
+          if (!visivel) m.oculto = true;
+          lista.push(m);
+          return r;
+        };
+        // a sigla igual ao nome (nome curto): um marcador só serve aos dois níveis
+        const siglaIgual = n.niveis.sigla.chave === n.niveis.nome.chave;
+        const r = por(n.id, n.niveis.nome, !fora && (nivel === "tudo" || nivel === "nome" || (nivel === "sigla" && siglaIgual)));
+        if (!siglaIgual) por(`${n.id}|sg`, n.niveis.sigla, !fora && nivel === "sigla");
+        if (r && n.detalhe?.linhas.length) {
           const rh = imagemPronta(n.detalhe.chave, pr);
-          if (rh) {
-            const embaixo = comLote ? dyNome + r.h : puxa.dy + r.h / 2;
-            lista.push(marcador({ id: `${n.id}|ha`, lngLat: [n.lng, n.lat], r: rh, chave: n.detalhe.chave, dx: puxa.dx, dy: embaixo, z: ORDEM_GOOGLE.nome, ancora: "topo", semToque: true }));
+          const embaixo = comLote ? dyNome + r.h : puxa.dy + r.h / 2;
+          const m = rh ? marcador({ id: `${n.id}|ha`, lngLat: [n.lng, n.lat], r: rh, chave: n.detalhe.chave, dx: puxa.dx, dy: embaixo, z: ORDEM_GOOGLE.nome, ancora: "topo", semToque: true }) : null;
+          if (m) {
+            if (fora || nivel !== "tudo") m.oculto = true;
+            lista.push(m);
           }
         }
       }

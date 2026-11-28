@@ -24,7 +24,7 @@ vi.mock("@/lib/maplibre/lotesNoMapa.js", async (orig) => {
   };
 });
 
-import { ESCALA_NOME_FIXO, FOLGA_PARA_SUBIR_PX, ZOOM_MINIMO_NOMES, caixaDoNomeFixo, caixaDoPastoNaTela, montarNomes, nivelDosNomesFixos, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
+import { ESCALA_NOME_FIXO, FOLGA_PARA_SUBIR_PX, NOMES_SEM_RECORTE, TOLERANCIA_NA_SIGLA, ZOOM_MINIMO_NOMES, caixaDoNomeFixo, caixaDoPastoNaTela, montarNomes, nivelDosNomesFixos, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
 import { projetarNaCamera } from "@/lib/mapaNativo/camadaDeImagens.js";
 import useMarcadoresGoogle from "@/components/mapa/useMarcadoresGoogle.js";
 import { DESLOC_NOME_COM_LOTE_PX } from "@/lib/maplibre/nomesNoMapa.js";
@@ -141,13 +141,19 @@ describe("G382-1 — o nível dos nomes de tamanho fixo, o mesmo para todos", ()
 
 describe("G382-2 — os nomes no app pelo useMarcadoresGoogle", () => {
   const areas = [quadrado("a", -15, -47, 0.01), quadrado("b", -15, -46.99, 0.01)];
-  const nomesPublicados = (fn) => fn.mock.calls.filter(([g]) => g === "nomes").at(-1)?.[1];
+  /** Os nomes que APARECEM (os `oculto` ficam no mapa escondidos, prontos para aparecer sem serem refeitos). */
+  const nomesPublicados = (fn) => (fn.mock.calls.filter(([g]) => g === "nomes").at(-1)?.[1] || []).filter((m) => !m.oculto);
+  const todosOsNomes = (fn) => fn.mock.calls.filter(([g]) => g === "nomes").at(-1)?.[1] || [];
 
   it("sem câmera, nenhum; perto, nome + hectares (marcadores separados); o nome é o mesmo entre 'tudo' e 'nome'", async () => {
     const definirMarcadores = vi.fn();
     const { result } = renderHook(() => useMarcadoresGoogle({ definirMarcadores, nomesFixos: true }));
     await result.current.syncLabels(areas, true, null, true);
     expect(nomesPublicados(definirMarcadores)).toEqual([]);
+    // todos os níveis já vão na lista, escondidos: trocar de nível é só mostrar e esconder
+    // (nome curto: a sigla é igual ao nome e um marcador só serve aos dois níveis)
+    expect(todosOsNomes(definirMarcadores).map((m) => m.id).sort()).toEqual(["a", "a|ha", "b", "b|ha"]);
+    expect(todosOsNomes(definirMarcadores).every((m) => m.oculto)).toBe(true);
 
     result.current.revisarNomes(camera(100000, true));
     await Promise.resolve();
@@ -176,6 +182,10 @@ describe("G382-2 — os nomes no app pelo useMarcadoresGoogle", () => {
     const nomeA2 = so.find((m) => m.id === "a");
     expect(nomeA2.url).toBe(nomeA.url);
     expect([nomeA2.dy, nomeA2.ancora, nomeA2.w, nomeA2.h]).toEqual([nomeA.dy, nomeA.ancora, nomeA.w, nomeA.h]);
+    // os hectares continuam na lista, iguais, só escondidos (o mapa não os refaz ao voltar)
+    const haA2 = todosOsNomes(definirMarcadores).find((m) => m.id === "a|ha");
+    expect(haA2.oculto).toBe(true);
+    expect([haA2.url, haA2.dy]).toEqual([haA.url, haA.dy]);
 
     // câmera no meio do gesto: nada
     const antes = definirMarcadores.mock.calls.length;
@@ -232,5 +242,55 @@ describe("G382-2 — os nomes no app pelo useMarcadoresGoogle", () => {
     // o nome desceu para baixo do cocho (40 px) e os hectares foram junto
     expect(nome.dy).toBeGreaterThan(20);
     expect(ha.dy - nome.dy).toBe(nome.h / 2);
+  });
+
+  it("nome comprido: a sigla é um marcador à parte (`<id>|sg`), escondido até o nível 'sigla'", async () => {
+    const definirMarcadores = vi.fn();
+    const comprido = { ...quadrado("a", -15, -47, 0.01), nome: "Pasto da Represa Grande do Meio" };
+    const { result } = renderHook(() => useMarcadoresGoogle({ definirMarcadores, nomesFixos: true }));
+    await result.current.syncLabels([comprido], true, null, true);
+    result.current.revisarNomes(camera(100000, true));
+    await Promise.resolve();
+    const nomes = montarNomes([comprido]);
+    const n = /** @type {any} */ (nomes.get("a"));
+    if (n.niveis.sigla.chave === n.niveis.nome.chave) return; // sem sigla diferente neste nome: nada a conferir
+    expect(nomesPublicados(definirMarcadores).map((m) => m.id).sort()).toEqual(["a", "a|ha"]);
+    expect(todosOsNomes(definirMarcadores).find((m) => m.id === "a|sg").oculto).toBe(true);
+    let k = 100000;
+    while (k > 100 && nivelDosNomesFixos(nomes, camera(k), new Map()) !== "sigla") k *= 0.9;
+    if (nivelDosNomesFixos(nomes, camera(k), new Map()) !== "sigla") return;
+    result.current.revisarNomes(camera(k, true));
+    await Promise.resolve();
+    expect(nomesPublicados(definirMarcadores).map((m) => m.id)).toEqual(["a|sg"]);
+  });
+});
+
+describe("G382-6 — de longe, como no Google: os nomes dos pastos pequenos saem primeiro", () => {
+  it("na sigla, o pasto que virou um pontinho fica sem nome e os grandes continuam; longe demais, nenhum", () => {
+    // um pasto grande e três pequenos
+    const lista = [quadrado("g", -15, -47, 0.02), quadrado("p1", -15.03, -47, 0.002), quadrado("p2", -15.04, -47, 0.002), quadrado("p3", -15.05, -47, 0.002)];
+    const nomes = montarNomes(lista);
+    // 0,002° × 4000 = 8 px (um pontinho); o grande, 80 px
+    const r = nomesFixosNaCamera(nomes, camera(4000), new Map());
+    expect(r.nivel).toBe("sigla");
+    expect(r.ocultos.has("g")).toBe(false);
+    expect([...r.ocultos].sort()).toEqual(["p1", "p2", "p3"]);
+    expect(TOLERANCIA_NA_SIGLA).toBeGreaterThan(0.5);
+    // todos viraram pontinhos: nenhum
+    expect(nomesFixosNaCamera(nomes, camera(300), new Map()).nivel).toBe("nenhum");
+  });
+
+  it("fazenda com muitos pastos: só os de perto da tela entram (os de longe ficam escondidos)", () => {
+    const muitos = [];
+    for (let i = 0; i < NOMES_SEM_RECORTE + 20; i += 1) muitos.push(quadrado(`a${i}`, -15 - i * 0.02, -47, 0.01));
+    const nomes = montarNomes(muitos);
+    // 0,01° × 20000 = 200 px por pasto, um a cada 400 px para baixo; a tela tem 600 px de altura
+    const r = nomesFixosNaCamera(nomes, camera(20000), new Map());
+    expect(r.ocultos.has("a0")).toBe(false);
+    expect(r.ocultos.has("a2")).toBe(false);
+    expect(r.ocultos.has(`a${NOMES_SEM_RECORTE}`)).toBe(true);
+    // poucos pastos: nenhum recorte
+    const poucos = montarNomes(muitos.slice(0, 50));
+    expect(nomesFixosNaCamera(poucos, camera(20000), new Map()).ocultos.size).toBe(0);
   });
 });

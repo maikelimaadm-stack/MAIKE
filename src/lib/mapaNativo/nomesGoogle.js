@@ -202,7 +202,14 @@ export function caixaDoNomeFixo(p, medida, comLote) {
 /**
  * Abaixo deste zoom (o do MapLibre; no Google, um a mais) nenhum nome aparece: de muito longe os nomes só poluem.
  */
-export const ZOOM_MINIMO_NOMES = 12;
+export const ZOOM_MINIMO_NOMES = 11;
+/**
+ * Na sigla (o último nível antes de sumir), até esta parte dos nomes pode sair para os outros continuarem: de longe, os
+ * nomes dos pastos pequenos saem primeiro e os dos grandes ficam, como os rótulos do Google. Acima disto, todos somem.
+ */
+export const TOLERANCIA_NA_SIGLA = 0.85;
+/** Com mais nomes do que isto, só os pastos perto da tela (uma tela para cada lado) entram na conta e no mapa. */
+export const NOMES_SEM_RECORTE = 300;
 /** Para SUBIR de nível (mais detalhe) o pasto precisa sobrar esta folga a mais (px): o nível não fica indo e voltando. */
 export const FOLGA_PARA_SUBIR_PX = 6;
 
@@ -213,7 +220,8 @@ export const FOLGA_PARA_SUBIR_PX = 6;
  *    está abaixo de `ZOOM_MINIMO_NOMES`, "nenhum": todos somem juntos;
  *  - `desloc`: o nome que cairia em cima de um ícone (lote de outro pasto, cocho, ponto, tarefa) ou de outro nome é
  *    puxado para o lado livre (embaixo, em cima, à direita, à esquerda), sem sair do pasto;
- *  - `ocultos`: o raro nome que não acha lugar livre não aparece (nome em cima de ícone nunca).
+ *  - `ocultos`: o nome que não acha lugar livre não aparece (nome em cima de ícone nunca). Na sigla, de longe, os
+ *    nomes dos pastos pequenos saem primeiro (até `TOLERANCIA_NA_SIGLA`) e os dos grandes ficam, como no Google.
  * `atual` (o nível de agora) dá a folga para subir de nível: o nível só sobe com sobra, e não fica trocando.
  * @param {Map<string, NomeDoPasto>} nomes @param {CameraNomes} camera
  * @param {Map<string, { lat: number, lng: number, tamanho: { w: number, h: number } }>} lotes os ícones de lote
@@ -225,15 +233,23 @@ export function nomesFixosNaCamera(nomes, camera, lotes, icones = [], atual) {
   const vazio = (/** @type {NivelFixo} */ nivel) => ({ nivel, desloc: new Map(), ocultos: new Set() });
   if (Number.isFinite(camera?.zoom) && camera.zoom < ZOOM_MINIMO_NOMES) return vazio("nenhum");
   const { projetar } = camera;
+  // muitos nomes: só o que está perto da tela (uma tela para cada lado) entra na conta
+  const recorte =
+    nomes.size > NOMES_SEM_RECORTE && camera.largura > 0 && camera.altura > 0
+      ? { x0: -camera.largura, y0: -camera.altura, x1: 2 * camera.largura, y1: 2 * camera.altura }
+      : null;
+  const noRecorte = (/** @type {{ x: number, y: number }} */ p) => !recorte || (p.x >= recorte.x0 && p.x <= recorte.x1 && p.y >= recorte.y0 && p.y <= recorte.y1);
+  /** @type {Set<string>} */
+  const longe = new Set();
   /** @type {Array<{ x: number, y: number, w: number, h: number, dono?: string }>} */
   const obstaculos = [];
   for (const [id, l] of lotes) {
     const p = projetar(l.lat, l.lng);
-    if (p) obstaculos.push({ ...caixaDoLote(p, nomes.has(id), l.tamanho), dono: id });
+    if (p && noRecorte(p)) obstaculos.push({ ...caixaDoLote(p, nomes.has(id), l.tamanho), dono: id });
   }
   for (const ic of icones) {
     const p = projetar(ic.lat, ic.lng);
-    if (!p) continue;
+    if (!p || !noRecorte(p)) continue;
     obstaculos.push({ x: p.x + (ic.dx || 0) - ic.w / 2, y: p.y + (ic.dy || 0) - ic.h / 2, w: ic.w, h: ic.h, dono: ic.dono });
   }
   /** @type {Array<{ id: string, area: { x: number, y: number, w: number, h: number }, caixas: Record<NivelNome, { x: number, y: number, w: number, h: number } | null> }>} */
@@ -242,13 +258,18 @@ export function nomesFixosNaCamera(nomes, camera, lotes, icones = [], atual) {
     const area = n.caixa ? caixaDoPastoNaTela(n.caixa, projetar) : null;
     const p = projetar(n.lat, n.lng);
     if (!area || !p) continue;
+    // fazenda com muitos pastos: o que está longe da tela fica de fora (entra quando o mapa chega perto)
+    if (recorte && (area.x > recorte.x1 || area.x + area.w < recorte.x0 || area.y > recorte.y1 || area.y + area.h < recorte.y0)) {
+      longe.add(id);
+      continue;
+    }
     const comLote = lotes.has(id);
     /** @type {any} */
     const caixas = {};
     for (const nv of NIVEIS) caixas[nv] = n.niveis[nv].linhas.length ? caixaDoNomeFixo(p, n.niveis[nv].medida, comLote) : null;
     itens.push({ id, area, caixas });
   }
-  if (!itens.length) return vazio("tudo");
+  if (!itens.length) return { nivel: "tudo", desloc: new Map(), ocultos: longe };
   // o maior pasto escolhe o lugar primeiro
   itens.sort((a, b) => b.area.w * b.area.h - a.area.w * a.area.h);
   /** @param {any} a @param {any} b @param {number} [extra] folga a mais (para subir de nível) */
@@ -263,11 +284,11 @@ export function nomesFixosNaCamera(nomes, camera, lotes, icones = [], atual) {
     return mx >= area.x - SOBRA_NA_AREA_PX && mx <= area.x + area.w + SOBRA_NA_AREA_PX && my >= area.y - SOBRA_NA_AREA_PX && my <= area.y + area.h + SOBRA_NA_AREA_PX;
   };
   const ordem = NIVEIS.indexOf(/** @type {any} */ (atual));
-  /** @param {NivelNome} nv @param {number} folga */
-  const arrumar = (nv, folga) => {
+  /** @param {NivelNome} nv @param {number} folga @param {boolean} [semMiudos] o pasto que virou um pontinho fica sem nome */
+  const arrumar = (nv, folga, semMiudos = false) => {
     let problemas = 0;
     const desloc = new Map();
-    const ocultos = new Set();
+    const ocultos = new Set(longe);
     /** @type {any[]} */
     const postos = [];
     for (const it of itens) {
@@ -275,7 +296,13 @@ export function nomesFixosNaCamera(nomes, camera, lotes, icones = [], atual) {
       if (!c) continue;
       // como os rótulos do Google, o nome pode passar da divisa do pasto (o que o derruba é bater noutro nome ou num
       // ícone); só o pasto que virou um pontinho na tela conta como problema
-      if (Math.min(it.area.w, it.area.h) < LADO_MINIMO_PASTO_PX + folga) problemas += 1;
+      if (Math.min(it.area.w, it.area.h) < LADO_MINIMO_PASTO_PX + folga) {
+        problemas += 1;
+        if (semMiudos) {
+          ocultos.add(it.id);
+          continue;
+        }
+      }
       const livre = (/** @type {any} */ k) => !obstaculos.some((o) => o.dono !== it.id && bate(k, o, folga)) && !postos.some((o) => bate(k, o, folga));
       if (livre(c)) {
         postos.push(c);
@@ -315,6 +342,9 @@ export function nomesFixosNaCamera(nomes, camera, lotes, icones = [], atual) {
     const r = arrumar(nv, ordem >= 0 && i < ordem ? FOLGA_PARA_SUBIR_PX : 0);
     if (r.problemas <= limite) return { nivel: nv, desloc: r.desloc, ocultos: r.ocultos };
   }
+  // de longe: a sigla dos pastos maiores fica; a dos pequenos (sem lugar, ou um pontinho na tela) sai
+  const r = arrumar("sigla", 0, true);
+  if (r.problemas <= Math.floor(itens.length * TOLERANCIA_NA_SIGLA)) return { nivel: "sigla", desloc: r.desloc, ocultos: r.ocultos };
   return vazio("nenhum");
 }
 

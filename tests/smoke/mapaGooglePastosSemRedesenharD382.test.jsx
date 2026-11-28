@@ -193,3 +193,116 @@ describe("G382-5 — os ícones entram juntos e a troca sigla ↔ nome não sobr
     expect(ordem[1]).toMatch(/^remove:/);
   });
 });
+
+describe("G382-7 — com o APK que mostra e esconde, nada que já está no mapa é refeito", () => {
+  const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+  const montar = async (mostrarFn) => {
+    const { criarMarcadoresNativos, MS_AQUECER, MS_PASSAGEM } = await import("@/lib/mapaNativo/marcadoresNativos.js");
+    let n = 0;
+    const mapa = { addMarkers: vi.fn(async (l) => l.map(() => `n${++n}`)), removeMarkers: vi.fn(async () => {}) };
+    const mostrar = vi.fn(mostrarFn || (async () => {}));
+    const camada = criarMarcadoresNativos(mapa, { mostrar });
+    return { camada, mapa, mostrar, MS_AQUECER, MS_PASSAGEM };
+  };
+  const m = (id, extra = {}) => ({ id, lat: 0, lng: 0, url: `data:${id}`, w: 10, h: 10, ...extra });
+  /** As chamadas de verdade (a primeira, vazia, é a pergunta "o APK sabe?"). */
+  const passagens = (mostrar) => mostrar.mock.calls.filter(([a, b]) => a.length || b.length);
+
+  it("os novos entram escondidos e aparecem numa passagem só; os `oculto` entram depois, escondidos", async () => {
+    const { camada, mapa, mostrar, MS_AQUECER, MS_PASSAGEM } = await montar();
+    await camada.definir("nomes", [m("a"), m("a|sg", { oculto: true }), m("a|ha")]);
+    expect(mapa.addMarkers).toHaveBeenCalledTimes(1);
+    expect(mapa.addMarkers.mock.calls[0][0].map((x) => x.opacity)).toEqual([0, 0]);
+    expect(passagens(mostrar)).toEqual([[["n1", "n2"], [], MS_PASSAGEM]]);
+    // sem pressa, a sigla entra escondida (sem passagem): a primeira troca de nível já é só mostrar e esconder
+    await espera(MS_AQUECER + 80);
+    expect(mapa.addMarkers).toHaveBeenCalledTimes(2);
+    expect(mapa.addMarkers.mock.calls[1][0]).toHaveLength(1);
+    expect(mapa.addMarkers.mock.calls[1][0][0].opacity).toBe(0);
+    expect(passagens(mostrar)).toHaveLength(1);
+    await camada.limpar();
+  });
+
+  it("trocar o nível dos nomes (sigla ↔ nome + hectares): nenhuma imagem, só mostrar e esconder", async () => {
+    const { camada, mapa, mostrar, MS_AQUECER, MS_PASSAGEM } = await montar();
+    await camada.definir("nomes", [m("a"), m("a|sg", { oculto: true }), m("a|ha")]);
+    await espera(MS_AQUECER + 80);
+    const postos = mapa.addMarkers.mock.calls.length;
+    // nível "sigla": o nome e os hectares somem, a sigla aparece
+    await camada.definir("nomes", [m("a", { oculto: true }), m("a|sg"), m("a|ha", { oculto: true })]);
+    expect(mapa.addMarkers).toHaveBeenCalledTimes(postos);
+    expect(mapa.removeMarkers).not.toHaveBeenCalled();
+    expect(passagens(mostrar).at(-1)).toEqual([["n3"], ["n1", "n2"], MS_PASSAGEM]);
+    // e de volta
+    await camada.definir("nomes", [m("a"), m("a|sg", { oculto: true }), m("a|ha")]);
+    expect(mapa.addMarkers).toHaveBeenCalledTimes(postos);
+    expect(passagens(mostrar).at(-1)).toEqual([["n1", "n2"], ["n3"], MS_PASSAGEM]);
+    // o marcador escondido não é achado pelo toque errado: o id segue o mesmo
+    expect(camada.marcadorDoToque("n1")?.id).toBe("a");
+    await camada.limpar();
+  });
+
+  it("filtro: o ícone que sai é escondido e guardado; quando volta, só aparece (não é posto de novo)", async () => {
+    const { camada, mapa, mostrar } = await montar();
+    await camada.definir("supl", [m("c1"), m("c2")]);
+    await camada.definir("supl", [m("c1")]);
+    expect(mapa.removeMarkers).not.toHaveBeenCalled();
+    expect(passagens(mostrar).at(-1).slice(0, 2)).toEqual([[], ["n2"]]);
+    await camada.definir("supl", [m("c1"), m("c2")]);
+    expect(mapa.addMarkers).toHaveBeenCalledTimes(1);
+    expect(passagens(mostrar).at(-1).slice(0, 2)).toEqual([["n2"], []]);
+    await camada.limpar();
+  });
+
+  it("o ícone que mudou de desenho: o novo aparece e o velho some na mesma passagem, e sai do mapa depois", async () => {
+    const { camada, mapa, mostrar, MS_PASSAGEM } = await montar();
+    await camada.definir("lotes", [m("l1")]);
+    await camada.definir("lotes", [{ ...m("l1"), url: "data:l1-com-outra-contagem" }]);
+    expect(mapa.addMarkers).toHaveBeenCalledTimes(2);
+    expect(passagens(mostrar).at(-1).slice(0, 2)).toEqual([["n2"], ["n1"]]);
+    expect(mapa.removeMarkers).not.toHaveBeenCalled();
+    await espera(MS_PASSAGEM + 140);
+    expect(mapa.removeMarkers).toHaveBeenCalledWith(["n1"]);
+    await camada.limpar();
+  });
+
+  it("APK anterior (o método não existe): como antes — o escondido não entra no mapa e o que sai é tirado", async () => {
+    const { camada, mapa, mostrar } = await montar(async () => {
+      throw new Error("not implemented");
+    });
+    await camada.definir("nomes", [m("a"), m("a|sg", { oculto: true })]);
+    expect(mapa.addMarkers).toHaveBeenCalledTimes(1);
+    expect(mapa.addMarkers.mock.calls[0][0]).toHaveLength(1);
+    expect(mapa.addMarkers.mock.calls[0][0][0].opacity).toBeUndefined();
+    await camada.definir("nomes", [m("a", { oculto: true }), m("a|sg")]);
+    expect(mapa.addMarkers).toHaveBeenCalledTimes(2);
+    expect(mapa.removeMarkers).toHaveBeenCalledWith(["n1"]);
+    expect(mostrar).toHaveBeenCalledTimes(1);
+    await camada.limpar();
+  });
+});
+
+describe("G382-8 — o remendo do mapa nativo (marcadores juntos; mostrar e esconder)", () => {
+  it("os dois remendos estão no plugin instalado e o método novo é do plugin", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { MARCA_JUNTOS, MARCA_MOSTRAR, REMENDOS } = await import("../../scripts/app/remendar-google-maps.mjs");
+    const pasta = "node_modules/@capacitor/google-maps/android/src/main/java/com/capacitorjs/plugins/googlemaps";
+    const kt = readFileSync(`${pasta}/CapacitorGoogleMap.kt`, "utf8");
+    const plugin = readFileSync(`${pasta}/CapacitorGoogleMapsPlugin.kt`, "utf8");
+    expect(kt).toContain(MARCA_JUNTOS);
+    // as imagens todas antes; nenhum marcador espera a imagem dele dentro do laço
+    expect(kt).toContain("newMarkers.map { m -> this@CapacitorGoogleMap.buildMarker(m) }");
+    expect(kt).not.toContain("googleMap?.addMarker(markerOptions.await())\n                    it.googleMapMarker");
+    expect(kt).toContain("if (it.opacity == 0f) maikeOpcao.visible(false)");
+    expect(kt).toContain("fun maikeMostrar(mostrar: List<String>, esconder: List<String>, ms: Long)");
+    expect(plugin).toContain(MARCA_MOSTRAR);
+    expect(plugin).toMatch(/@PluginMethod\n\s+fun maikeMostrar\(call: PluginCall\)/);
+    expect(REMENDOS.filter((r) => r.marca === MARCA_MOSTRAR)).toHaveLength(2);
+  });
+
+  it("o componente entrega o método ao mapa nativo", async () => {
+    const { readFileSync } = await import("node:fs");
+    const fonte = readFileSync("src/components/mapa/MapaGoogleNativo.jsx", "utf8");
+    expect(fonte).toMatch(/maikeMostrar\(\{ id: mapa\.id, mostrar: entram, esconder: saem, ms \}\)/);
+  });
+});

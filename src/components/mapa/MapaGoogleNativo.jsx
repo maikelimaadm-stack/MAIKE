@@ -170,7 +170,11 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
           return;
         }
         camadaNativaRef.current = camadaNativa;
-        const nativos = nativo && !camadaNativa && apk >= APK_MARCADORES_NATIVOS ? criarMarcadoresNativos(mapa) : null;
+        const nativos = nativo && !camadaNativa && apk >= APK_MARCADORES_NATIVOS ? criarMarcadoresNativos(mapa, {
+              // D-PROD-382: mostrar e esconder o que já está no mapa (o APK anterior não tem o método: recusa)
+              mostrar: async (entram, saem, ms) => /** @type {any} */ (pluginDoMapaGoogle()).maikeMostrar({ id: mapa.id, mostrar: entram, esconder: saem, ms }),
+            })
+          : null;
         nativosRef.current = nativos;
         const camada = nativo && !camadaNativa && !nativos && camadaEl ? criarCamadaDeImagens(camadaEl) : null;
         camadaRef.current = camada;
