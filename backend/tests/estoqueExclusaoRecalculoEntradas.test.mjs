@@ -49,7 +49,6 @@ const ok = (r, status = 200) => {
   assert.equal(r.statusCode, status, r.body);
   return r.json();
 };
-let seq = 0;
 
 const montar = async () => {
   const s = await montarAbastecimento(app, { lotes: false });
