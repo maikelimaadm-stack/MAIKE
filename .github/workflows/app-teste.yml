@@ -114,7 +114,8 @@ jobs:
           gh release upload "$RELEASE" saida-teste/*.zip --clobber
           if [ -f saida-teste/MAK-Gestao-teste.apk ]; then gh release upload "$RELEASE" saida-teste/MAK-Gestao-teste.apk --clobber; fi
           gh release upload "$RELEASE" saida-teste/ultima.json --clobber
-          {
-            echo "Publicado no canal de teste: \`${{ steps.pacote.outputs.versao }}\`"
-            [ -f saida-teste/MAK-Gestao-teste.apk ] && echo "APK de teste: https://github.com/${{ github.repository }}/releases/download/app-teste/MAK-Gestao-teste.apk"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Publicado no canal de teste: \`${{ steps.pacote.outputs.versao }}\`" >> "$GITHUB_STEP_SUMMARY"
+          # sem APK (só a atualização de teste) o passo também termina bem
+          if [ -f saida-teste/MAK-Gestao-teste.apk ]; then
+            echo "APK de teste: https://github.com/${{ github.repository }}/releases/download/app-teste/MAK-Gestao-teste.apk" >> "$GITHUB_STEP_SUMMARY"
+          fi

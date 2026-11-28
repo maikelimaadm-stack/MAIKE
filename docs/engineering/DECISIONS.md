@@ -11282,7 +11282,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   2. Cada ajuste numa branch vira uma atualização de teste, sem PR nem merge.
   3. Aprovado, a mudança vira PR, passa pelas verificações e vai para o oficial.
   4. Para voltar ao normal, ele instala o APK oficial por cima.
-- **Testes:** `canalDeTesteD381.test.jsx` (10).
+- **Testes:** `canalDeTesteD381.test.jsx` (11). Também confere que, sem APK, o passo de publicar termina bem (achado do Codex).
   - O canal, o endereço só em https, a atualização de teste pelo HTTP nativo e nunca do servidor oficial, e o canal oficial sem mudança.
   - O selo, e o workflow: só à mão, o pré-lançamento, a ordem do upload, a chave fixa e o pacote.
 

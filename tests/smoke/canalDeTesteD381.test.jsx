@@ -158,6 +158,12 @@ describe("CT-05 — o workflow app-teste", () => {
     expect(wf).toMatch(/versao="teste-/);
   });
 
+  it("sem APK (só a atualização de teste) o passo de publicar termina bem: nenhum `[ ... ] &&` solto no fim", () => {
+    const publicar = wf.slice(wf.indexOf("- name: Publicar no canal de teste"));
+    expect(publicar).not.toMatch(/\[ -f [^\]]+\] && echo/);
+    expect(publicar).toContain("if [ -f saida-teste/MAK-Gestao-teste.apk ]; then");
+  });
+
   it("o APK de teste: o mesmo pacote e a chave fixa do oficial", () => {
     const certificado = /CERTIFICADO_SHA256: '([0-9a-f]{64})'/.exec(oficial)?.[1];
     expect(certificado).toBeTruthy();
