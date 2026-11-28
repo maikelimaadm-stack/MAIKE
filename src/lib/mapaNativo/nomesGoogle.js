@@ -198,15 +198,30 @@ export function caixaDoNomeFixo(p, medida, comLote) {
  */
 
 /**
- * O nível dos nomes de tamanho fixo nesta câmera, o MESMO para todos (D-PROD-382: nunca uns sim e outros não): o
- * primeiro de "tudo", "nome", "sigla" em que quase todos (90%) cabem no pasto sem bater noutro nome nem em ícone
- * (lote de outro pasto, cocho, ponto, tarefa); se nem a sigla cabe, "nenhum": todos somem juntos.
+ * Abaixo deste zoom (o do MapLibre; no Google, um a mais) nenhum nome aparece: de muito longe os nomes só poluem.
+ */
+export const ZOOM_MINIMO_NOMES = 12.5;
+/** Para SUBIR de nível (mais detalhe) o pasto precisa sobrar esta folga a mais (px): o nível não fica indo e voltando. */
+export const FOLGA_PARA_SUBIR_PX = 6;
+
+/**
+ * Como ficam os nomes de tamanho fixo nesta câmera (D-PROD-382):
+ *  - `nivel`: o MESMO para todos (nunca uns sim e outros não pelo zoom): o primeiro de "tudo", "nome", "sigla" em que
+ *    quase todos (90%) cabem no pasto sem ficar em cima de outro nome nem de ícone; se nem a sigla cabe, ou o zoom
+ *    está abaixo de `ZOOM_MINIMO_NOMES`, "nenhum": todos somem juntos;
+ *  - `desloc`: o nome que cairia em cima de um ícone (lote de outro pasto, cocho, ponto, tarefa) ou de outro nome é
+ *    puxado para o lado livre (embaixo, em cima, à direita, à esquerda), sem sair do pasto;
+ *  - `ocultos`: o raro nome que não acha lugar livre não aparece (nome em cima de ícone nunca).
+ * `atual` (o nível de agora) dá a folga para subir de nível: o nível só sobe com sobra, e não fica trocando.
  * @param {Map<string, NomeDoPasto>} nomes @param {CameraNomes} camera
  * @param {Map<string, { lat: number, lng: number, tamanho: { w: number, h: number } }>} lotes os ícones de lote
  * @param {IconeObstaculo[]} [icones] os outros ícones (cochos, pontos, tarefas)
- * @returns {NivelFixo}
+ * @param {NivelFixo} [atual]
+ * @returns {{ nivel: NivelFixo, desloc: Map<string, { dx: number, dy: number }>, ocultos: Set<string> }}
  */
-export function nivelDosNomesFixos(nomes, camera, lotes, icones = []) {
+export function nomesFixosNaCamera(nomes, camera, lotes, icones = [], atual) {
+  const vazio = (/** @type {NivelFixo} */ nivel) => ({ nivel, desloc: new Map(), ocultos: new Set() });
+  if (Number.isFinite(camera?.zoom) && camera.zoom < ZOOM_MINIMO_NOMES) return vazio("nenhum");
   const { projetar } = camera;
   /** @type {Array<{ x: number, y: number, w: number, h: number, dono?: string }>} */
   const obstaculos = [];
@@ -231,22 +246,74 @@ export function nivelDosNomesFixos(nomes, camera, lotes, icones = []) {
     for (const nv of NIVEIS) caixas[nv] = n.niveis[nv].linhas.length ? caixaDoNomeFixo(p, n.niveis[nv].medida, comLote) : null;
     itens.push({ id, area, caixas });
   }
-  if (!itens.length) return "tudo";
+  if (!itens.length) return vazio("tudo");
+  // o maior pasto escolhe o lugar primeiro
+  itens.sort((a, b) => b.area.w * b.area.h - a.area.w * a.area.h);
   const bate = (/** @type {any} */ a, /** @type {any} */ b) =>
     a.x < b.x + b.w + FOLGA_NOME_PX && b.x < a.x + a.w + FOLGA_NOME_PX && a.y < b.y + b.h + FOLGA_NOME_PX && b.y < a.y + a.h + FOLGA_NOME_PX;
-  const problemas = (/** @type {NivelNome} */ nv) => {
-    let n = 0;
-    itens.forEach((it, i) => {
+  const dentro = (/** @type {any} */ c, /** @type {any} */ area) =>
+    c.x >= area.x - SOBRA_NA_AREA_PX && c.y >= area.y - SOBRA_NA_AREA_PX && c.x + c.w <= area.x + area.w + SOBRA_NA_AREA_PX && c.y + c.h <= area.y + area.h + SOBRA_NA_AREA_PX;
+  const ordem = NIVEIS.indexOf(/** @type {any} */ (atual));
+  /** @param {NivelNome} nv @param {number} folga */
+  const arrumar = (nv, folga) => {
+    let problemas = 0;
+    const desloc = new Map();
+    const ocultos = new Set();
+    /** @type {any[]} */
+    const postos = [];
+    for (const it of itens) {
       const c = it.caixas[nv];
-      if (!c) return;
-      const naoCabe = c.w > it.area.w + SOBRA_NA_AREA_PX || c.h > it.area.h + SOBRA_NA_AREA_PX;
-      const colide =
-        obstaculos.some((o) => o.dono !== it.id && bate(c, o)) || itens.some((o, k) => k !== i && o.caixas[nv] && bate(c, o.caixas[nv]));
-      if (naoCabe || colide) n += 1;
-    });
-    return n;
+      if (!c) continue;
+      if (c.w + folga > it.area.w + SOBRA_NA_AREA_PX || c.h + folga > it.area.h + SOBRA_NA_AREA_PX) problemas += 1;
+      const livre = (/** @type {any} */ k) => !obstaculos.some((o) => o.dono !== it.id && bate(k, o)) && !postos.some((o) => bate(k, o));
+      if (livre(c)) {
+        postos.push(c);
+        continue;
+      }
+      // o primeiro lado livre, sem sair do pasto, em volta do que está em cima do nome
+      const emCima = [...obstaculos.filter((o) => o.dono !== it.id && bate(c, o)), ...postos.filter((o) => bate(c, o))];
+      const g = FOLGA_NOME_PX + 1;
+      let achou = null;
+      for (const o of emCima) {
+        const lados = [
+          { dx: 0, dy: o.y + o.h + g - c.y },
+          { dx: 0, dy: o.y - g - c.h - c.y },
+          { dx: o.x + o.w + g - c.x, dy: 0 },
+          { dx: o.x - g - c.w - c.x, dy: 0 },
+        ];
+        achou = lados.find((d) => {
+          const k = { x: c.x + d.dx, y: c.y + d.dy, w: c.w, h: c.h };
+          return dentro(k, it.area) && livre(k);
+        });
+        if (achou) break;
+      }
+      if (achou) {
+        desloc.set(it.id, { dx: Math.round(achou.dx), dy: Math.round(achou.dy) });
+        postos.push({ x: c.x + achou.dx, y: c.y + achou.dy, w: c.w, h: c.h });
+      } else {
+        problemas += 1;
+        ocultos.add(it.id);
+      }
+    }
+    return { problemas, desloc, ocultos };
   };
   const limite = Math.floor(itens.length * TOLERANCIA);
-  for (const nv of NIVEIS) if (problemas(nv) <= limite) return nv;
-  return "nenhum";
+  for (let i = 0; i < NIVEIS.length; i += 1) {
+    const nv = /** @type {NivelNome} */ (NIVEIS[i]);
+    // mais detalhe do que o de agora: só com folga a mais (o nível não fica indo e voltando)
+    const r = arrumar(nv, ordem >= 0 && i < ordem ? FOLGA_PARA_SUBIR_PX : 0);
+    if (r.problemas <= limite) return { nivel: nv, desloc: r.desloc, ocultos: r.ocultos };
+  }
+  return vazio("nenhum");
+}
+
+/**
+ * Só o nível de `nomesFixosNaCamera` (o mesmo para todos, com "nenhum").
+ * @param {Map<string, NomeDoPasto>} nomes @param {CameraNomes} camera
+ * @param {Map<string, { lat: number, lng: number, tamanho: { w: number, h: number } }>} lotes
+ * @param {IconeObstaculo[]} [icones] @param {NivelFixo} [atual]
+ * @returns {NivelFixo}
+ */
+export function nivelDosNomesFixos(nomes, camera, lotes, icones = [], atual) {
+  return nomesFixosNaCamera(nomes, camera, lotes, icones, atual).nivel;
 }

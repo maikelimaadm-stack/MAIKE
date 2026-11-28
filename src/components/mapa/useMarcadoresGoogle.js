@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { itensDaSuplementacao, itensDasTarefas, itensDosLotes, itensDosPontos } from "@/lib/maplibre/itensDoMapaGeral.js";
-import { NIVEIS, colocacaoDoNome, montarNomes, nivelDosNomes, nivelDosNomesFixos } from "@/lib/mapaNativo/nomesGoogle.js";
+import { NIVEIS, colocacaoDoNome, montarNomes, nivelDosNomes, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
 import { DESLOC_NOME_COM_LOTE_PX, avisarFalhaNome, esperarFonteDosNomes, pedidoImagemNome } from "@/lib/maplibre/nomesNoMapa.js";
 import {
   DESLOC_IDENT_PX,
@@ -88,6 +88,16 @@ function marcador({ id, lngLat, r, chave, dx = 0, dy = 0, z, titulo, onClick, es
  * Ainda não: arrastar lote, piscar o identificador do lote com alerta.
  * @param {any} mapa o objeto de `criarMapaGoogleWeb` (ou null)
  */
+/**
+ * Assinatura do arranjo dos nomes (nível, deslocamentos, ocultos): publica de novo só quando ela muda.
+ * @param {{ nivel: string, desloc: Map<string, { dx: number, dy: number }>, ocultos: Set<string> } | null} a
+ */
+export function assinaturaDoArranjo(a) {
+  if (!a) return "";
+  const d = [...a.desloc].map(([id, v]) => `${id}:${v.dx},${v.dy}`).sort().join(";");
+  return `${a.nivel}|${d}|${[...a.ocultos].sort().join(",")}`;
+}
+
 export default function useMarcadoresGoogle(mapa) {
   const seqRef = useRef(/** @type {Record<string, number>} */ ({}));
   // nomes dos pastos (D-PROD-374): os nomes, o nível de agora, a última câmera e os ícones de lote (obstáculos)
@@ -100,6 +110,9 @@ export default function useMarcadoresGoogle(mapa) {
   const ultimaRevisaoRef = useRef(0);
   // D-PROD-379/382 (app): nomes de tamanho fixo e os ícones que eles não podem cobrir
   const iconesRef = useRef(/** @type {Record<string, import('@/lib/mapaNativo/nomesGoogle.js').IconeObstaculo[]>} */ ({}));
+  // D-PROD-382 (app): o arranjo dos nomes publicado e o último calculado (deslocamentos para fora dos ícones, ocultos)
+  const arranjoRef = useRef(/** @type {ReturnType<typeof nomesFixosNaCamera> | null} */ (null));
+  const arranjoNovoRef = useRef(/** @type {ReturnType<typeof nomesFixosNaCamera> | null} */ (null));
 
   const api = useMemo(() => {
     const temMarcadores = Boolean(mapa && typeof mapa.definirMarcadores === "function");
@@ -107,12 +120,19 @@ export default function useMarcadoresGoogle(mapa) {
     const nomesFixos = Boolean(mapa?.nomesFixos);
     /** Os ícones (menos os de lote, que já vão em `lotesInfoRef`) como obstáculos dos nomes. */
     const iconesObstaculo = () => Object.values(iconesRef.current).flat();
-    /** O nível dos nomes na última câmera (app), o mesmo para todos (com "nenhum"), ou null sem câmera. */
+    /**
+     * Os nomes na última câmera (app): o nível (o mesmo para todos, com "nenhum"), quem é puxado para fora de um
+     * ícone e o raro nome sem lugar livre; null sem câmera. Guarda o arranjo para os marcadores.
+     */
     const nivelNaUltimaCamera = () => {
       const camera = cameraRef.current;
       if (!camera || !nomesRef.current.size) return null;
-      return nivelDosNomesFixos(nomesRef.current, camera, lotesInfoRef.current, iconesObstaculo());
+      const r = nomesFixosNaCamera(nomesRef.current, camera, lotesInfoRef.current, iconesObstaculo(), nivelRef.current);
+      arranjoNovoRef.current = r;
+      return r.nivel;
     };
+    /** O arranjo calculado mudou em relação ao publicado (nível, deslocamentos ou ocultos)? */
+    const arranjoMudou = () => assinaturaDoArranjo(arranjoNovoRef.current) !== assinaturaDoArranjo(arranjoRef.current);
     let revisaoPendente = false;
     /** Os ícones mudaram (app): os nomes visíveis são revistos com a última câmera. */
     const reverNomesFixos = () => {
@@ -121,7 +141,7 @@ export default function useMarcadoresGoogle(mapa) {
       queueMicrotask(() => {
         revisaoPendente = false;
         const nivel = nivelNaUltimaCamera();
-        if (nivel && nivel !== nivelRef.current) void publicarNomes(nivel);
+        if (nivel && (nivel !== nivelRef.current || arranjoMudou())) void publicarNomes(nivel);
       });
     };
     const proximo = (/** @type {string} */ grupo) => (seqRef.current[grupo] = (seqRef.current[grupo] || 0) + 1);
@@ -203,6 +223,7 @@ export default function useMarcadoresGoogle(mapa) {
         nivel = nivelDado || (camera && nomes.size ? nivelDosNomes(nomes, camera, lotesInfoRef.current) : nivelRef.current);
       }
       nivelRef.current = nivel;
+      if (nomesFixos) arranjoRef.current = arranjoNovoRef.current;
       const pr = pixelRatioDaTela();
       const pedidos = [];
       for (const n of nomes.values()) {
@@ -228,21 +249,26 @@ export default function useMarcadoresGoogle(mapa) {
      */
     const marcadoresDosNomesFixos = (nomes, nivel, pr) => {
       if (nivel === "nenhum") return [];
+      const arranjo = arranjoRef.current;
       const lista = [];
       for (const n of nomes.values()) {
+        // o raro nome sem lugar livre não aparece (em cima de ícone, nunca)
+        if (arranjo?.ocultos.has(n.id)) continue;
         const d = nivel === "sigla" ? n.niveis.sigla : n.niveis.nome;
         if (!d.linhas.length) continue;
         const r = imagemPronta(d.chave, pr);
         if (!r) continue;
         const comLote = lotesInfoRef.current.has(n.id);
         // com lote, o topo do nome 10 px abaixo do ponto; sem lote, o nome no meio do ponto
-        const dyNome = comLote ? DESLOC_NOME_COM_LOTE_PX[1] : 0;
-        lista.push(marcador({ id: n.id, lngLat: [n.lng, n.lat], r, chave: d.chave, dy: dyNome, z: ORDEM_GOOGLE.nome, ancora: comLote ? "topo" : "centro", semToque: true }));
+        // o nome que cairia em cima de um ícone vai para o lado livre (o mesmo deslocamento para os hectares)
+        const puxa = arranjo?.desloc.get(n.id) || { dx: 0, dy: 0 };
+        const dyNome = (comLote ? DESLOC_NOME_COM_LOTE_PX[1] : 0) + puxa.dy;
+        lista.push(marcador({ id: n.id, lngLat: [n.lng, n.lat], r, chave: d.chave, dx: puxa.dx, dy: dyNome, z: ORDEM_GOOGLE.nome, ancora: comLote ? "topo" : "centro", semToque: true }));
         if (nivel === "tudo" && n.detalhe?.linhas.length) {
           const rh = imagemPronta(n.detalhe.chave, pr);
           if (rh) {
-            const embaixo = comLote ? dyNome + r.h : r.h / 2;
-            lista.push(marcador({ id: `${n.id}|ha`, lngLat: [n.lng, n.lat], r: rh, chave: n.detalhe.chave, dy: embaixo, z: ORDEM_GOOGLE.nome, ancora: "topo", semToque: true }));
+            const embaixo = comLote ? dyNome + r.h : puxa.dy + r.h / 2;
+            lista.push(marcador({ id: `${n.id}|ha`, lngLat: [n.lng, n.lat], r: rh, chave: n.detalhe.chave, dx: puxa.dx, dy: embaixo, z: ORDEM_GOOGLE.nome, ancora: "topo", semToque: true }));
           }
         }
       }
@@ -353,7 +379,7 @@ export default function useMarcadoresGoogle(mapa) {
           // app: só quando o mapa para (nada de trabalho no meio do gesto); publica só quando o nível muda
           if (!camera.final) return;
           const nivel = nivelNaUltimaCamera();
-          if (nivel && nivel !== nivelRef.current) void publicarNomes(nivel);
+          if (nivel && (nivel !== nivelRef.current || arranjoMudou())) void publicarNomes(nivel);
           return;
         }
         const agora = typeof performance !== "undefined" ? performance.now() : Date.now();

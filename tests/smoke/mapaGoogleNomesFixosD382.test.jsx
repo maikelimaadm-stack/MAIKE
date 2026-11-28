@@ -24,7 +24,7 @@ vi.mock("@/lib/maplibre/lotesNoMapa.js", async (orig) => {
   };
 });
 
-import { ESCALA_NOME_FIXO, caixaDoNomeFixo, caixaDoPastoNaTela, montarNomes, nivelDosNomesFixos } from "@/lib/mapaNativo/nomesGoogle.js";
+import { ESCALA_NOME_FIXO, FOLGA_PARA_SUBIR_PX, ZOOM_MINIMO_NOMES, caixaDoNomeFixo, caixaDoPastoNaTela, montarNomes, nivelDosNomesFixos, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
 import { projetarNaCamera } from "@/lib/mapaNativo/camadaDeImagens.js";
 import useMarcadoresGoogle from "@/components/mapa/useMarcadoresGoogle.js";
 import { DESLOC_NOME_COM_LOTE_PX } from "@/lib/maplibre/nomesNoMapa.js";
@@ -78,15 +78,54 @@ describe("G382-1 — o nível dos nomes de tamanho fixo, o mesmo para todos", ()
     expect(nivelDosNomesFixos(new Map(), camera(600), new Map())).toBe("tudo");
   });
 
-  it("um cocho em cima do nome conta como problema; o lote do próprio pasto não", () => {
+  it("um cocho em cima do nome: o nome vai para o lado livre; sem lado livre, conta como problema; o lote do próprio pasto não", () => {
     const nomes = montarNomes([quadrado("a", -15, -47, 0.01)]);
     const n = /** @type {any} */ (nomes.get("a"));
     const k = 100000;
     expect(nivelDosNomesFixos(nomes, camera(k), new Map())).toBe("tudo");
+    // o cocho no meio do pasto (1000 px na tela): o nome desce para baixo dele, sem sair do pasto
     const cocho = { lat: n.lat, lng: n.lng, w: 200, h: 200 };
-    expect(nivelDosNomesFixos(nomes, camera(k), new Map(), [cocho])).toBe("nenhum");
+    const r = nomesFixosNaCamera(nomes, camera(k), new Map(), [cocho]);
+    expect(r.nivel).toBe("tudo");
+    expect(r.ocultos.size).toBe(0);
+    const d = /** @type {any} */ (r.desloc.get("a"));
+    expect(d.dx).toBe(0);
+    expect(d.dy).toBeGreaterThan(100);
+    // um ícone que cobre o pasto todo: o nome não tem lugar e não fica em cima dele
+    const enorme = { lat: n.lat, lng: n.lng, w: 3000, h: 3000 };
+    const r2 = nomesFixosNaCamera(nomes, camera(k), new Map(), [enorme]);
+    expect(r2.nivel).toBe("nenhum");
     const proprio = new Map([["a", { lat: n.lat, lng: n.lng, tamanho: { w: 44, h: 42 } }]]);
     expect(nivelDosNomesFixos(nomes, camera(k), proprio)).toBe("tudo");
+  });
+
+  it("de muito longe (abaixo do zoom mínimo), nenhum nome, mesmo que coubesse", () => {
+    const nomes = montarNomes([quadrado("a", -15, -47, 0.01)]);
+    const longe = { ...camera(100000), zoom: ZOOM_MINIMO_NOMES - 0.1 };
+    expect(nivelDosNomesFixos(nomes, longe, new Map())).toBe("nenhum");
+    expect(nivelDosNomesFixos(nomes, { ...longe, zoom: ZOOM_MINIMO_NOMES }, new Map())).toBe("tudo");
+  });
+
+  it("dois nomes que se encostariam: o segundo vai para o lado livre em vez de ficar por cima", () => {
+    // dois pastos sobrepostos na tela (o mesmo ponto): o maior fica no lugar, o outro é puxado
+    const nomes = montarNomes([quadrado("a", -15, -47, 0.01), quadrado("b", -15.002, -46.998, 0.006)]);
+    const r = nomesFixosNaCamera(nomes, camera(100000), new Map());
+    expect(r.ocultos.size).toBe(0);
+    expect(r.desloc.has("a")).toBe(false);
+    expect(r.desloc.has("b")).toBe(true);
+  });
+
+  it("para subir de nível precisa de folga: perto do limite, quem está em 'nome' fica em 'nome'", () => {
+    const nomes = montarNomes([quadrado("a", -15, -47, 0.01), quadrado("b", -15, -46.99, 0.01)]);
+    let k = 100000;
+    while (nivelDosNomesFixos(nomes, camera(k), new Map()) === "tudo") k *= 0.99;
+    // um tiquinho mais perto, "tudo" volta a caber por pouco; quem já está em "nome" não sobe
+    const kVolta = k / 0.99;
+    expect(nivelDosNomesFixos(nomes, camera(kVolta), new Map())).toBe("tudo");
+    expect(nivelDosNomesFixos(nomes, camera(kVolta), new Map(), [], "nome")).toBe("nome");
+    // com folga de sobra, sobe
+    expect(nivelDosNomesFixos(nomes, camera(kVolta * 1.5), new Map(), [], "nome")).toBe("tudo");
+    expect(FOLGA_PARA_SUBIR_PX).toBeGreaterThan(0);
   });
 
   it("mapa girado 45°: a caixa do pasto usa os 4 cantos (não achata) e o pasto grande segue com nome", () => {
@@ -173,5 +212,25 @@ describe("G382-2 — os nomes no app pelo useMarcadoresGoogle", () => {
     const lista = nomesPublicados(definirMarcadores);
     expect(lista.map((m) => m.id).sort()).toEqual(["a", "b"]);
     expect(typeof lista[0].escala).toBe("function");
+  });
+
+  it("um cocho novo em cima de um nome: o nome (e os hectares) vão para o lado livre, não ficam por cima", async () => {
+    const definirMarcadores = vi.fn();
+    const { result } = renderHook(() => useMarcadoresGoogle({ definirMarcadores, nomesFixos: true }));
+    await result.current.syncLabels([areas[0]], true, null, true);
+    result.current.revisarNomes(camera(100000, true));
+    await Promise.resolve();
+    const antes = nomesPublicados(definirMarcadores);
+    const nomeAntes = antes.find((m) => m.id === "a");
+    expect(nomeAntes.dy).toBe(0);
+    await result.current.syncPontosSuplementacao([{ id: "c1", tipo: "cocho", coordenadas: { lat: nomeAntes.lat, lng: nomeAntes.lng }, nome: "Cocho" }], true, [], vi.fn());
+    await Promise.resolve();
+    await Promise.resolve();
+    const depois = nomesPublicados(definirMarcadores);
+    const nome = depois.find((m) => m.id === "a");
+    const ha = depois.find((m) => m.id === "a|ha");
+    // o nome desceu para baixo do cocho (40 px) e os hectares foram junto
+    expect(nome.dy).toBeGreaterThan(20);
+    expect(ha.dy - nome.dy).toBe(nome.h / 2);
   });
 });
