@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { B1MenuAcoesDaLinha } from "@/components/cadastro/base1/B1AcoesDaLinha";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
@@ -22,7 +23,9 @@ import TabelaMovimentosEstoque, {
 import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { hojeNoFuso } from "@/lib/diaCivil";
 import { listEmpresas } from "@/services/empresaService";
-import { OPCOES_EXCLUIDOS, OPCOES_ORIGEM, OPCOES_TIPO, ehDia, rotuloDoMovimento } from "@/lib/estoqueConsultaRegras";
+import { OPCOES_EXCLUIDOS, OPCOES_ORIGEM, OPCOES_TIPO, documentoDaLinha, ehDia, rotuloDoMovimento } from "@/lib/estoqueConsultaRegras";
+import { detalharEntradaEstoque } from "@/services/estoqueEntradasService";
+import { detalharSaidaEstoque } from "@/services/estoqueSaidasService";
 import { listarDepositosDoFiltro, listarMovimentosEstoque, listarProdutosDoFiltro } from "@/services/estoqueConsultaService";
 
 const NO_OP = () => {};
@@ -51,6 +54,10 @@ export const opcoesDeProduto = (/** @type {Array<{ id: string, nome: string }>} 
  * D-PROD-273 (fatia 2): o movimento excluído e o estorno dele somem da lista (o servidor tira o par, com a paginação
  * certa); o filtro "Mostrar excluídos" (desligado por padrão) os traz de volta, com a etiqueta "Excluído" no original e
  * "Estorno da exclusão" no estorno. O saldo de cada movimento ativo vem do servidor já sem os excluídos.
+ * D-PROD-382: o ⚡ da linha de uma entrada ou saída do estoque tem "Editar", "Duplicar" e "Excluir" (o ajuste, só
+ * "Excluir"), cada um com a ação da tela que o servidor exige; movimento de outra origem só tem "Ver detalhes" (ele se
+ * corrige no lançamento de origem). "Duplicar" também está no detalhe da entrada e da saída. Os botões Editar,
+ * Duplicar e Excluir da barra de cima (os dos cadastros Base1) fazem o mesmo no movimento selecionado.
  * @param {{ empresaId: string|null, aba: 'saldo'|'movimentos', onAba: (a: 'saldo'|'movimentos') => void, podeLancar?: boolean, podeSaida?: boolean, podeAjuste?: boolean,
  *   inicial?: { produto: { id: string, nome: string }|null, deposito: { id: string, nome: string }|null } | null }} props
  *   `podeLancar` é a ação `entrada`; `podeSaida`, a ação `saida`; `podeAjuste`, a ação `ajuste`.
@@ -63,6 +70,8 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
   const [saidaAberta, setSaidaAberta] = useState(/** @type {{ id: string, numero: string } | null} */ (null));
   const [ajusteAberto, setAjusteAberto] = useState(/** @type {{ id: string, numero: string } | null} */ (null));
   const [editando, setEditando] = useState(/** @type {{ tipo: 'entrada'|'saida', documento: any } | null} */ (null));
+  // D-PROD-382: "Duplicar" abre o Novo movimento com os dados do documento copiado (um movimento NOVO).
+  const [copiando, setCopiando] = useState(/** @type {{ tipo: 'entrada'|'saida', documento: any } | null} */ (null));
   // Fuso da FAZENDA (o "hoje" do lançamento): o mesmo resumo de empresas do Layout.
   const empresasQuery = useQuery({ queryKey: ["empresas"], queryFn: () => listEmpresas(), enabled: Boolean(empresaId) && podeAlgum, staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false });
   const fuso = useMemo(() => {
@@ -133,16 +142,93 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
     onRequestDeleteMutation: NO_OP,
   });
 
+  /**
+   * D-PROD-382: abre o documento (entrada ou saída) no modo pedido. "Editar" e "Duplicar" leem o detalhe completo (o
+   * mesmo do detalhe do documento) e vão direto para a tela do movimento; sem o detalhe, ou com o documento já
+   * excluído, abre o detalhe dele (que mostra a situação e o erro).
+   * @param {{ tipo: 'entrada'|'saida'|'ajuste', id: string }} doc @param {'editar'|'duplicar'|'excluir'} acao @param {string} numero
+   */
+  const abrirDocumento = async (doc, acao, numero) => {
+    /** @param {string} [modo] */
+    const abrirJanela = (modo) => {
+      const alvo = { id: doc.id, numero, ...(modo ? { acao: modo } : {}) };
+      if (doc.tipo === "saida") setSaidaAberta(alvo);
+      else if (doc.tipo === "ajuste") setAjusteAberto(alvo);
+      else setEntradaAberta(alvo);
+    };
+    if (acao === "excluir" || doc.tipo === "ajuste" || !empresaId) return abrirJanela(acao === "excluir" ? "excluir" : undefined);
+    try {
+      const detalhe = doc.tipo === "saida"
+        ? await queryClient.fetchQuery({ queryKey: chaveDetalheSaida(empresaId, doc.id), queryFn: () => detalharSaidaEstoque(empresaId, doc.id), staleTime: 15 * 1000 })
+        : await queryClient.fetchQuery({ queryKey: chaveDetalheEntrada(empresaId, doc.id), queryFn: () => detalharEntradaEstoque(empresaId, doc.id), staleTime: 15 * 1000 });
+      if (acao === "duplicar") return setCopiando({ tipo: doc.tipo, documento: detalhe });
+      if (/** @type {any} */ (detalhe)?.status !== "CONFIRMADA") return abrirJanela();
+      return setEditando({ tipo: doc.tipo, documento: detalhe });
+    } catch {
+      return abrirJanela();
+    }
+  };
+
+  /** A ação da tela que o documento exige (`entrada`, `saida` ou `ajuste`). @param {{ tipo: string } | null} doc */
+  const podeNoDocumento = (doc) => (doc ? (doc.tipo === "entrada" ? podeLancar : doc.tipo === "saida" ? podeSaida : podeAjuste) : false);
+
+  /**
+   * D-PROD-382: os botões Editar, Duplicar e Excluir da barra de cima (padrão dos cadastros Base1) agem no movimento
+   * selecionado, pelo mesmo caminho do ⚡ da linha. Quando o movimento não aceita a ação, diz o porquê.
+   * @param {'editar'|'duplicar'|'excluir'} acao
+   */
+  const agirNaSelecao = (acao) => {
+    const ids = controller.chrome.selectedIds;
+    if (ids.length !== 1) {
+      toast.info(ids.length ? "Selecione um movimento por vez." : "Selecione um movimento.");
+      return false;
+    }
+    const linha = controller.visibleRows.find((/** @type {any} */ r) => String(r.id) === String(ids[0]));
+    const doc = documentoDaLinha(linha);
+    if (!doc) {
+      toast.info("Este movimento vem de outro lançamento (atividade, cocho, financeiro, transferência ou abastecimento): corrija ou exclua por lá. Veja a origem em \"Ver detalhes\".");
+      return false;
+    }
+    if (!podeNoDocumento(doc)) {
+      toast.error("Você não tem permissão para esta ação neste movimento.");
+      return false;
+    }
+    if (acao !== "excluir" && doc.tipo === "ajuste") {
+      toast.info("O ajuste de inventário não tem edição nem cópia: só exclusão.");
+      return false;
+    }
+    if (acao !== "excluir" && !fuso) {
+      toast.info("Configure o fuso horário da fazenda (Empresa) para editar ou duplicar movimentos.");
+      return false;
+    }
+    void abrirDocumento(doc, acao, String(linha?.numero ?? ""));
+    return true;
+  };
+
   /** O ⚡ da linha (grade e cards). @param {any} linha */
-  const renderAcoesDaLinha = (linha) => (
-    <B1MenuAcoesDaLinha
-      rotulo={`Ações do movimento nº ${linha.numero}`}
-      titulo={`Nº ${linha.numero} · ${linha.produto_nome ?? ""}`}
-      subtitulo={rotuloDoMovimento(linha)}
-      grupos={[[{ key: "detalhes", label: "Ver detalhes", onSelect: () => setAberto(linha) }]]}
-      testId={`movimento-acoes-${linha.id}`}
-    />
-  );
+  const renderAcoesDaLinha = (linha) => {
+    const doc = documentoDaLinha(linha);
+    const pode = podeNoDocumento(doc);
+    const numero = String(linha.numero ?? "");
+    const acoes = [];
+    if (doc && pode) {
+      // Editar e Duplicar usam a tela do movimento, que precisa do fuso da fazenda (o "hoje"); o ajuste só se exclui.
+      if (doc.tipo !== "ajuste" && fuso) {
+        acoes.push({ key: "editar", label: "Editar", onSelect: () => void abrirDocumento(doc, "editar", numero) });
+        acoes.push({ key: "duplicar", label: "Duplicar", onSelect: () => void abrirDocumento(doc, "duplicar", numero) });
+      }
+      acoes.push({ key: "excluir", label: "Excluir", danger: true, onSelect: () => void abrirDocumento(doc, "excluir", numero) });
+    }
+    return (
+      <B1MenuAcoesDaLinha
+        rotulo={`Ações do movimento nº ${linha.numero}`}
+        titulo={`Nº ${linha.numero} · ${linha.produto_nome ?? ""}`}
+        subtitulo={rotuloDoMovimento(linha)}
+        grupos={acoes.length ? [[{ key: "detalhes", label: "Ver detalhes", onSelect: () => setAberto(linha) }], acoes] : [[{ key: "detalhes", label: "Ver detalhes", onSelect: () => setAberto(linha) }]]}
+        testId={`movimento-acoes-${linha.id}`}
+      />
+    );
+  };
 
   const filtrosDaTela = useMemo(
     () => /** @type {import("@/components/cadastro/base1/FiltrosRapidos").FiltroDaTela[]} */ ([
@@ -185,7 +271,7 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
 
   // D-PROD-285: a tela do movimento é o registro da CadastroBase1Screen (estado da página, sem rota nova).
   const [enviandoTela, setEnviandoTela] = useState(false);
-  const telaAberta = Boolean(empresaId) && ((lancando && podeAlgum) || Boolean(editando));
+  const telaAberta = Boolean(empresaId) && ((lancando && podeAlgum) || Boolean(editando) || Boolean(copiando));
   const fecharTela = () => {
     if (enviandoTela) return;
     if (editando) {
@@ -195,7 +281,8 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
       const doc = { id: String(documento.id), numero: String(documento.numero ?? "") };
       if (tipoEditado === "saida") setSaidaAberta(doc);
       else setEntradaAberta(doc);
-    } else setLancando(false);
+    } else if (copiando) setCopiando(null);
+    else setLancando(false);
   };
   const controllerDaTela = telaAberta
     ? {
@@ -203,7 +290,7 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
         saving: enviandoTela,
         showForm: true,
         isEditing: true,
-        detailTitle: tituloDoMovimento(editando),
+        detailTitle: tituloDoMovimento(editando, copiando),
         editingItem: null,
         recordNavRows: [],
         recordIndex: 0,
@@ -215,11 +302,19 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
         },
         openNew: () => setLancando(true),
       }
-    : { ...controller, saving: false, openNew: () => setLancando(true) };
+    : {
+        ...controller,
+        saving: false,
+        openNew: () => setLancando(true),
+        handleEditSelected: () => agirNaSelecao("editar"),
+        handleDuplicateSelected: () => void agirNaSelecao("duplicar"),
+        handleDeleteSelected: () => void agirNaSelecao("excluir"),
+      };
 
   const aoLancar = async (/** @type {{ tipo: string, entrada?: any, saida?: any, ajuste?: any, editada?: boolean }} */ r) => {
     setLancando(false);
     setEditando(null);
+    setCopiando(null);
     await queryClient.invalidateQueries({ queryKey: ["estoque"] });
     // Edição: o detalhe reabre já com a versão nova (a resposta do PATCH é o detalhe completo).
     if (r?.editada && r.entrada?.id) queryClient.setQueryData(chaveDetalheEntrada(empresaId, String(r.entrada.id)), r.entrada);
@@ -251,20 +346,21 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
           )
         }
         showCreate={Boolean(empresaId) && podeAlgum && Boolean(fuso)}
-        showEdit={false}
-        showDuplicate={false}
-        showDelete={false}
+        showEdit={Boolean(empresaId) && podeAlgum}
+        showDuplicate={Boolean(empresaId) && podeAlgum}
+        showDelete={Boolean(empresaId) && podeAlgum}
         deleteDialog={{ title: "", descriptionOne: "", descriptionMany: () => "" }}
         recordForm={
           telaAberta && empresaId ? (
             <TelaNovoMovimentoEstoque
-              key={editando ? `editar-${editando.tipo}-${editando.documento?.id}` : "novo"}
+              key={editando ? `editar-${editando.tipo}-${editando.documento?.id}` : copiando ? `copia-${copiando.tipo}-${copiando.documento?.id}` : "novo"}
               edicao={editando}
+              copia={copiando}
               empresaId={empresaId}
               hoje={hoje}
               podeEntrada={podeLancar}
               podeSaida={podeSaida}
-              podeAjuste={editando ? false : podeAjuste}
+              podeAjuste={editando || copiando ? false : podeAjuste}
               onFechar={fecharTela}
               onEnviando={setEnviandoTela}
               onLancado={aoLancar}
@@ -318,6 +414,10 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
         setEntradaAberta(null);
         setEditando({ tipo: "entrada", documento: detalhe });
       } : undefined}
+      onDuplicar={fuso ? (/** @type {any} */ detalhe) => {
+        setEntradaAberta(null);
+        setCopiando({ tipo: "entrada", documento: detalhe });
+      } : undefined}
     />
     <JanelaSaidaEstoque
       saida={saidaAberta}
@@ -327,6 +427,10 @@ export default function MovimentosEstoque({ empresaId, aba, onAba, podeLancar = 
       onEditar={fuso ? (/** @type {any} */ detalhe) => {
         setSaidaAberta(null);
         setEditando({ tipo: "saida", documento: detalhe });
+      } : undefined}
+      onDuplicar={fuso ? (/** @type {any} */ detalhe) => {
+        setSaidaAberta(null);
+        setCopiando({ tipo: "saida", documento: detalhe });
       } : undefined}
     />
     <JanelaAjusteEstoque ajuste={ajusteAberto} empresaId={empresaId} podeAjuste={podeAjuste} onFechar={() => setAjusteAberto(null)} />

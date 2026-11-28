@@ -73,9 +73,25 @@ import { criarAjusteEstoque, saldoParaAjuste } from "@/services/estoqueAjustesSe
 
 export const FORMULARIO_NOVO_MOVIMENTO_ID = "formulario-novo-movimento-estoque";
 
-/** O título da tela (o cabeçalho do registro Base1). @param {{ tipo: string, documento: any } | null | undefined} edicao */
-export const tituloDoMovimento = (edicao) =>
-  edicao ? `Editar ${edicao.tipo === TIPO_SAIDA ? "saída" : "entrada"} nº ${edicao.documento?.numero ?? ""}` : "Novo movimento de estoque";
+/**
+ * O título da tela (o cabeçalho do registro Base1). D-PROD-382: a cópia ("Duplicar") é um movimento NOVO que diz de
+ * qual documento veio.
+ * @param {{ tipo: string, documento: any } | null | undefined} edicao @param {{ tipo: string, documento: any } | null | undefined} [copia]
+ */
+export const tituloDoMovimento = (edicao, copia = null) => {
+  if (edicao) return `Editar ${edicao.tipo === TIPO_SAIDA ? "saída" : "entrada"} nº ${edicao.documento?.numero ?? ""}`;
+  if (copia) return `Novo movimento (cópia da ${copia.tipo === TIPO_SAIDA ? "saída" : "entrada"} nº ${copia.documento?.numero ?? ""})`;
+  return "Novo movimento de estoque";
+};
+
+/**
+ * D-PROD-382 — "Duplicar": o formulário de um movimento NOVO com os dados do documento copiado, com a data de hoje e
+ * (na entrada) sem o número do documento, porque a nota da cópia é outra. Nada da versão, do id ou do histórico vai junto.
+ * @param {any} documento @param {string} hoje
+ */
+export const formularioDaCopiaEntrada = (documento, hoje) => ({ ...formularioDaEntrada(documento), data_entrada: hoje, documento_numero: "" });
+/** @param {any} documento @param {string} hoje */
+export const formularioDaCopiaSaida = (documento, hoje) => ({ ...formularioDaSaida(documento), data_saida: hoje });
 const CHAVE_MOTIVOS = ["estoque", "motivos-entrada"];
 const CHAVE_MOTIVOS_SAIDA = ["estoque", "motivos-saida"];
 
@@ -400,15 +416,18 @@ function detalheDaSaida({ linha, indice, empresaId, erros, onMudar }) {
  * @param {{ empresaId: string, hoje: string, podeEntrada?: boolean, podeSaida?: boolean, podeAjuste?: boolean, onFechar: () => void,
  *   onEnviando?: (enviando: boolean) => void,
  *   edicao?: { tipo: 'entrada'|'saida', documento: any } | null,
+ *   copia?: { tipo: 'entrada'|'saida', documento: any } | null,
  *   onLancado: (r: { tipo: string, entrada?: any, saida?: any, ajuste?: any, editada?: boolean }) => void }} props
  */
-export default function TelaNovoMovimentoEstoque({ empresaId, hoje, podeEntrada = true, podeSaida = false, podeAjuste = false, edicao = null, onFechar, onLancado, onEnviando = undefined }) {
+export default function TelaNovoMovimentoEstoque({ empresaId, hoje, podeEntrada = true, podeSaida = false, podeAjuste = false, edicao = null, copia = null, onFechar, onLancado, onEnviando = undefined }) {
   const celular = useCelular();
   const tipos = tiposPermitidos({ entrada: podeEntrada, saida: podeSaida, ajuste: podeAjuste });
-  const [tipo, setTipo] = useState(() => edicao?.tipo ?? tipos[0]?.value ?? TIPO_ENTRADA);
+  const [tipo, setTipo] = useState(() => edicao?.tipo ?? copia?.tipo ?? tipos[0]?.value ?? TIPO_ENTRADA);
   const [modoMotivos, setModoMotivos] = useState(/** @type {null | 'entrada' | 'saida'} */ (null));
-  const [entrada, setEntrada] = useState(() => (edicao?.tipo === TIPO_ENTRADA ? formularioDaEntrada(edicao.documento) : formularioVazioEntrada(hoje)));
-  const [saida, setSaida] = useState(() => (edicao?.tipo === TIPO_SAIDA ? formularioDaSaida(edicao.documento) : formularioVazioSaida(hoje)));
+  const [entrada, setEntrada] = useState(() =>
+    edicao?.tipo === TIPO_ENTRADA ? formularioDaEntrada(edicao.documento) : copia?.tipo === TIPO_ENTRADA ? formularioDaCopiaEntrada(copia.documento, hoje) : formularioVazioEntrada(hoje));
+  const [saida, setSaida] = useState(() =>
+    edicao?.tipo === TIPO_SAIDA ? formularioDaSaida(edicao.documento) : copia?.tipo === TIPO_SAIDA ? formularioDaCopiaSaida(copia.documento, hoje) : formularioVazioSaida(hoje));
   const [ajuste, setAjuste] = useState(() => formularioVazioAjuste());
   const [motivoEdicao, setMotivoEdicao] = useState("");
   const [transf, setTransf] = useState(() => formularioVazioTransferencia(hoje));
@@ -554,7 +573,7 @@ export default function TelaNovoMovimentoEstoque({ empresaId, hoje, podeEntrada 
     </div>
   );
 
-  const titulo = tituloDoMovimento(edicao);
+  const titulo = tituloDoMovimento(edicao, copia);
   return (
     <div className="min-w-0" data-testid="tela-novo-movimento-estoque" aria-label={titulo}>
       <CadastroFormShell embedded>
