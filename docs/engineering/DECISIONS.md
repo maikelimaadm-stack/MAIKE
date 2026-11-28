@@ -11325,4 +11325,40 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - `estoqueEntradas.test.mjs`: a linha do kardex traz a origem e o id da entrada.
 - **Limite conhecido:** num produto com estoque fora de KG ou L (por exemplo LT), a tela do movimento ainda escreve "kg" no rótulo da quantidade. O que é gravado está certo. Isso é a UE-2 (D-PROD-371), pausada pelo proprietário.
 
-<!-- Próxima decisão: D-PROD-383 -->
+## D-PROD-383 — Atividades removidas para recomeçar do zero (código e dados)
+
+**Data:** 2026-11-28 · **Origem:** o proprietário: "vamos apagar tudo das atividades, vamos apagar tudo ok vamos iniciar uma nova, desde de cadastro etc"; escolhas: "Código e dados", sai também a reforma de pastagem, "Manter só para tarefas" (grupos) e a estrutura nova "você me explica" depois · **Migration:** `20261128100000_remover_atividades` (CONTRACT, DROP) · **APK:** sem APK novo (o app segue 1.0.9)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-383 (a D-PROD-382 foi para as ações da linha do Estoque, PR #473). O marcador passa a D-PROD-384.
+
+- **Problema:** o domínio das atividades cresceu por partes e ficou difícil de ajustar. O proprietário quer refazê-lo do zero, a começar pelo cadastro.
+- **Decisão:** sai tudo das atividades, no código e no banco.
+  - **Telas:** Lançamento de Atividades, Tipos de Atividade e Serviços. No mapa saem o Diário do pasto, a aba de registros e as ações da atividade; os detalhes da área ficam com Detalhes / Forragem / Abate.
+  - **Servidor:** os módulos e as rotas `/atividades`, `/tipos-atividade`, `/servicos` e `/planejamentos` (reforma de pastagem).
+    - Estoque, patrimônio, produtos, fornecedores, unidades e pontos de suplementação não contam mais o uso em atividades.
+    - O abastecimento não aceita mais atividade nem lançamento: `apontamento_id` diferente de `null` dá 400 `atividades_removidas`.
+    - A série do medidor lê só os abastecimentos.
+  - **Banco:**
+    - 16 tabelas saem: `Atividade*`, `TipoAtividade`, `Servico`, `Planejamento` e `PlanejamentoArea`.
+    - `AbastecimentoBem` perde `atividade_id` e `apontamento_id`, com o CHECK, as FKs e os índices delas.
+    - A guarda da migration recusa se houver abastecimento ligado, FK de fora, view, trigger ou publicação sobre as tabelas, ou se a impressão do preflight não bater.
+  - **Ficam:**
+    - **Grupos de atividade**, só para os tipos de tarefa.
+    - O motor de estoque físico e a reconciliação, que já checam com `to_regclass` se as tabelas existem; sem elas, esses ramos não rodam.
+  - **Sem internet:** o download completo trata o 404 de rota do Fastify como "não existe mais" e para de pedir as rotas removidas.
+  - **Permissões antigas** das telas removidas ficam inertes: estão gravadas, mas não liberam nada.
+- **Consequências e release:**
+  - A migration é CONTRACT e apaga dados sem volta.
+  - Em produção, ela vai **antes do merge**: preflight somente leitura, GO escrito do proprietário, depois `MIGRATION_CONTRACT_AUTORIZADO=D-PROD-383` ou o SQL do Supabase como na UE-1 (D-PROD-371).
+  - O código novo não lê mais as colunas do abastecimento.
+- **Gates:** `gate:tarefa-cadastro-native` reprova se o model `TipoAtividade` voltar e continua proibindo as 11 flags no `TipoTarefa`. `gate:product-scope` fica com 3 páginas a menos.
+- **Testes:** os testes das telas e do servidor só de atividades saem; os mistos perdem só os casos de atividade. Novos:
+  - `scope.test.jsx` (D-PROD-383): as 3 páginas fora;
+  - `vercelSpaRoutes`: 8 rotas fora;
+  - `permissoesAntigasInertes`;
+  - `dadosOfflineLeitura` DB-01c (404 de rota);
+  - `tarefa-cadastro-native.test.mjs` (o TipoAtividade não volta).
+- **Relatório:** [`REMOVER-ATIVIDADES-D383-REPORT.md`](./REMOVER-ATIVIDADES-D383-REPORT.md)
+- **Próximo:** a estrutura nova das atividades, que o proprietário vai explicar, numa decisão própria.
+
+<!-- Próxima decisão: D-PROD-384 -->
