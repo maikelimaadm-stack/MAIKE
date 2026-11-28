@@ -101,3 +101,14 @@ O Mapa Geral tem o mapa do Google pelo plugin oficial `@capacitor/google-maps`. 
 - **Precisa de APK novo** só para mudança nativa (plugin novo, permissão, ícone): suba `versionCode` em `app-version.json`; pacotes com `nativoMinimo` maior que o APK instalado não são aplicados.
 - D-PROD-346: quando o pacote novo também roda no APK anterior (o código confere se o plugin nativo existe), `nativoMinimo` em `app-version.json` fica no `versionCode` anterior. Assim quem ainda não instalou o APK novo continua recebendo as atualizações. Exemplo: 1.0.5 (código 6) com `nativoMinimo: 5`.
 - Plugin `@capgo/capacitor-updater` em modo manual, sem servidor da Capgo (estatística e canais desligados).
+
+## Canal de teste (D-PROD-381)
+
+- **APK de teste:** instalado uma vez. Mostra o selo "TESTE" e recebe só as atualizações de teste, nunca as oficiais.
+- **Gerar:** Actions → `app-teste` → Run workflow, escolhendo a branch da mudança. Marcar "apk" só na primeira vez, ou quando a mudança for nativa.
+- **Onde fica:** na Release de pré-lançamento `app-teste`:
+  - `MAK-Gestao-teste.apk`;
+  - `ultima.json` e o `<versao>.zip` da atualização de teste.
+- **No celular:** fechar o app e abrir de novo. Aparece "Versão nova do app pronta"; tocar atualiza.
+- **Voltar ao oficial:** instalar o APK oficial da última `app-vX.Y.Z` por cima.
+- **Dados:** o app de teste usa o servidor de produção e os dados de verdade. Só a parte de telas é a de teste.

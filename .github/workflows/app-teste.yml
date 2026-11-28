@@ -1,0 +1,121 @@
+name: app-teste
+
+# D-PROD-381 — o canal de teste do app: o proprietário testa uma mudança no celular ANTES do PR e do merge.
+#
+# Rodado à mão (Actions → app-teste → Run workflow, escolhendo a branch) ou pela sessão de trabalho, com a branch da
+# mudança. Publica na Release `app-teste` (pré-lançamento, sempre a mesma, os arquivos substituídos a cada teste):
+#   - `ultima.json` + `<versao>.zip`: a atualização de teste. O APK de teste confere `ultima.json` ao abrir e baixa
+#     o pacote novo — ninguém precisa instalar APK de novo a cada ajuste;
+#   - `MAK-Gestao-teste.apk` (só com "apk" marcado): o APK de teste, instalado UMA vez. Ele mostra o selo "TESTE" e só
+#     recebe as atualizações de teste (as oficiais não chegam nele). Para voltar ao normal, instala o APK oficial.
+#
+# O app oficial (todos os usuários) nunca vê nada daqui: ele lê a atualização do servidor (`/app-atualizacao/`).
+# Ver docs/engineering/APP-ANDROID-IOS.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      apk:
+        description: "Gerar também o APK de teste (para instalar uma vez)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: app-teste
+  cancel-in-progress: false
+
+env:
+  # A mesma chave fixa do app oficial: o APK de teste instala por cima e o oficial instala por cima dele.
+  CERTIFICADO_SHA256: '398555929f591f786bade04e70cd90d659b0d860d86aa9e8ab8d1708c9820889'
+  RELEASE: app-teste
+
+jobs:
+  teste:
+    name: canal de teste
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Dependências
+        run: npm ci
+
+      - name: Pacote de teste
+        id: pacote
+        env:
+          NODE_ENV: production
+          APP_MAIKE_API_URL: https://www.makgestao.com
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
+          VITE_CANAL_APP: teste
+          VITE_CANAL_TESTE_URL: https://github.com/${{ github.repository }}/releases/download/app-teste/ultima.json
+          PACOTE_PUBLICACAO: saida-teste
+          PACOTE_URL_BASE: https://github.com/${{ github.repository }}/releases/download/app-teste
+          PACOTE_MANTER_APP: '1'
+        run: |
+          versao="teste-$(echo "$GITHUB_SHA" | cut -c1-12)-${GITHUB_RUN_NUMBER}"
+          echo "versao=$versao" >> "$GITHUB_OUTPUT"
+          PACOTE_VERSAO="$versao" node scripts/app/pacote-atualizacao.mjs
+          ls -la saida-teste
+          echo "Pacote de teste: \`$versao\` (branch \`${GITHUB_REF_NAME}\`)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: A Release de teste existe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$RELEASE" >/dev/null 2>&1; then
+            gh release create "$RELEASE" --prerelease --target "$GITHUB_SHA" \
+              --title "MAK Gestão — canal de TESTE" \
+              --notes "Canal de teste (D-PROD-381): o APK de teste e as atualizações de teste. Não é a versão oficial."
+          fi
+
+      # O APK de teste leva o MESMO pacote (a mesma versão): ao abrir não baixa de novo o que já tem.
+      - uses: actions/setup-java@v4
+        if: inputs.apk
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: APK de teste
+        if: inputs.apk
+        id: apk
+        env:
+          KS: ${{ secrets.MAKGESTAO_KEYSTORE_BASE64 }}
+          MAKGESTAO_KEYSTORE_PASSWORD: ${{ secrets.MAKGESTAO_KEYSTORE_PASSWORD }}
+          GOOGLE_MAPS_ANDROID_KEY: ${{ secrets.GOOGLE_MAPS_ANDROID_KEY || secrets.VITE_GOOGLE_MAPS_API_KEY }}
+        run: |
+          rm -rf dist && mv dist-app dist
+          npx cap sync android
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/makgestao-release.jks"
+          (cd android && MAKGESTAO_KEYSTORE="$RUNNER_TEMP/makgestao-release.jks" ./gradlew assembleRelease --no-daemon)
+          rm -f "$RUNNER_TEMP/makgestao-release.jks"
+          origem=android/app/build/outputs/apk/release/app-release.apk
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          digital=$("$apksigner" verify --print-certs "$origem" | grep -m1 'certificate SHA-256 digest' | awk '{print $NF}')
+          if [ "$digital" != "$CERTIFICADO_SHA256" ]; then
+            echo "::error::O APK de teste não está assinado com a chave fixa do app."
+            exit 1
+          fi
+          cp "$origem" saida-teste/MAK-Gestao-teste.apk
+
+      - name: Publicar no canal de teste
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # o zip antes do ultima.json: o app nunca lê um ultima.json que aponta para um zip que ainda não subiu
+          gh release upload "$RELEASE" saida-teste/*.zip --clobber
+          if [ -f saida-teste/MAK-Gestao-teste.apk ]; then gh release upload "$RELEASE" saida-teste/MAK-Gestao-teste.apk --clobber; fi
+          gh release upload "$RELEASE" saida-teste/ultima.json --clobber
+          echo "Publicado no canal de teste: \`${{ steps.pacote.outputs.versao }}\`" >> "$GITHUB_STEP_SUMMARY"
+          # sem APK (só a atualização de teste) o passo também termina bem
+          if [ -f saida-teste/MAK-Gestao-teste.apk ]; then
+            echo "APK de teste: https://github.com/${{ github.repository }}/releases/download/app-teste/MAK-Gestao-teste.apk" >> "$GITHUB_STEP_SUMMARY"
+          fi

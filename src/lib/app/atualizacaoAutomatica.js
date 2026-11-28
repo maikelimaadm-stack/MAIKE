@@ -18,6 +18,7 @@
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { App } from '@capacitor/app';
 import { getOrigemDasAtualizacoesDoApp, isAppNativo } from '@/config/runtimeConfig';
+import { canalDoApp, urlDasAtualizacoesDeTeste } from '@/lib/app/canalDoApp';
 
 let conferindo = false;
 let iniciado = false;
@@ -142,15 +143,39 @@ const versaoCarregada = async () => {
  *
  * @returns {Promise<'atual'|'baixada'|'sem-internet'|'nativo-antigo'|'falhou'>}
  */
-export const conferirAtualizacao = async () => {
+/**
+ * O `ultima.json` do canal do app. Oficial: o do servidor. Teste (D-PROD-381): o da Release `app-teste` do GitHub,
+ * lido pelo HTTP nativo (o GitHub não libera CORS para a página do app).
+ * @returns {Promise<{ ultima: any, base: string } | null>}
+ */
+const lerUltima = async () => {
+  if (canalDoApp() === 'teste') {
+    const url = urlDasAtualizacoesDeTeste();
+    if (!url) return null;
+    // carregado só no canal de teste (o canal oficial segue sem ele)
+    const { CapacitorHttp } = await import('@capacitor/core');
+    // o GitHub entrega o arquivo como "octet-stream": lido como texto e convertido aqui
+    const r = await CapacitorHttp.get({ url: `${url}?t=${Date.now()}`, headers: { 'Cache-Control': 'no-cache' }, responseType: 'text' });
+    if (!(r.status >= 200 && r.status < 300)) return null;
+    const ultima = typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+    return { ultima, base: url };
+  }
   const origem = getOrigemDasAtualizacoesDoApp();
-  if (!origem || conferindo) return 'atual';
+  if (!origem) return null;
+  const resposta = await fetch(`${origem}/app-atualizacao/ultima.json`, { cache: 'no-store' });
+  if (!resposta.ok) return null;
+  return { ultima: await resposta.json(), base: origem };
+};
+
+export const conferirAtualizacao = async () => {
+  const temCanal = canalDoApp() === 'teste' ? Boolean(urlDasAtualizacoesDeTeste()) : Boolean(getOrigemDasAtualizacoesDoApp());
+  if (!temCanal || conferindo) return 'atual';
   if (semInternet()) return 'sem-internet';
   conferindo = true;
   try {
-    const resposta = await fetch(`${origem}/app-atualizacao/ultima.json`, { cache: 'no-store' });
-    if (!resposta.ok) return 'falhou';
-    const ultima = await resposta.json();
+    const lida = await lerUltima();
+    if (!lida) return 'falhou';
+    const { ultima, base: origem } = lida;
     if (!ultima?.versao || !ultima?.url) return 'falhou';
     if (ultima.versao === (await versaoCarregada())) return 'atual';
     // Já baixada, esperando a próxima abertura: não baixa de novo; só lembra a pessoa.

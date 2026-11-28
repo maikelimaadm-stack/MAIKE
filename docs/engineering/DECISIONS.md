@@ -11258,4 +11258,32 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
 - **Fica para a Etapa 2:** guardar registro por registro no celular (SQLite) e ler as telas do celular primeiro; o "só o que mudou" para as listas que ainda vêm inteiras (áreas, estoque, manejos, cadastros).
 - **Testes:** `sincronizacaoLeveD380.test.js` (SL-01..05); `sincronizacaoCompletaCirculo` SC-02 (regras novas) e SC-07 (leve, sem cartão, pedir no meio mostra); `sincronizacaoAutomaticaGatilhos` SA-01/02 (leve, sem cartão) e SA-04 (completa depois de 12 h, por baixo); `sincronizacaoOrganizada` SO-03 (sem aviso enquanto envia), SO-06 (ícone não gira à toa) e SO-07 ("há quanto tempo").
 
-<!-- Próxima decisão: D-PROD-381 -->
+## D-PROD-381 — Canal de teste do app: APK de teste e atualizações de teste antes do PR e do merge
+
+**Data:** 2026-11-28 · **Origem:** o proprietário, depois de não gostar da D-PROD-379 no celular: "você consegue enviar os testes de APK, a nova atualização, sem fazer merge? … antes mesmo de fazer merge, finalizar as verificações ou criar PR", "a atualização tem que vir no APK de teste, não vou ficar baixando toda hora" e "perfeito, então organize e me envie o APK de teste" · **Migration:** nenhuma · **APK:** o APK de teste (canal de teste); o oficial segue 1.0.9
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-381 (a D-PROD-380 foi para a sincronização, PR #471). O marcador passa a D-PROD-382.
+
+- **Problema:**
+  - O proprietário só via uma mudança depois do merge, quando ela já estava em produção para todos.
+  - Um APK gerado de uma branch seria sobrescrito na abertura seguinte pela atualização oficial.
+- **Decisão:** dois canais.
+  - **Oficial:** todos os usuários, como hoje. A atualização vem do servidor (`/app-atualizacao/ultima.json`).
+  - **Teste:** só o APK de teste do proprietário, que mostra o selo "TESTE".
+    - É gerado com `VITE_CANAL_APP=teste` e lê as atualizações de teste do `ultima.json` da Release de pré-lançamento `app-teste` do GitHub (`VITE_CANAL_TESTE_URL`).
+    - Essa leitura usa o HTTP nativo (`CapacitorHttp`), porque o GitHub não libera CORS. O pacote é baixado do endereço completo que o `ultima.json` dá, conferindo o sha256 como no oficial.
+    - Ele nunca recebe as atualizações oficiais, e o oficial nunca recebe as de teste.
+  - **Workflow `app-teste`:** roda só à mão ou pela sessão de trabalho, com a branch da mudança. Nunca roda no push nem na PR.
+    - Gera o pacote de teste (`teste-<commit>-<execução>`) com `pacote-atualizacao.mjs`, que ganhou pasta, endereço, versão e "manter `dist-app`" por variável.
+    - Publica na Release `app-teste`: o zip antes do `ultima.json`.
+    - Com "apk", gera também o APK de teste, assinado com a chave fixa do oficial e levando o mesmo pacote.
+- **Fluxo:**
+  1. O proprietário instala o APK de teste uma vez.
+  2. Cada ajuste numa branch vira uma atualização de teste, sem PR nem merge.
+  3. Aprovado, a mudança vira PR, passa pelas verificações e vai para o oficial.
+  4. Para voltar ao normal, ele instala o APK oficial por cima.
+- **Testes:** `canalDeTesteD381.test.jsx` (11). Também confere que, sem APK, o passo de publicar termina bem (achado do Codex).
+  - O canal, o endereço só em https, a atualização de teste pelo HTTP nativo e nunca do servidor oficial, e o canal oficial sem mudança.
+  - O selo, e o workflow: só à mão, o pré-lançamento, a ordem do upload, a chave fixa e o pacote.
+
+<!-- Próxima decisão: D-PROD-382 -->

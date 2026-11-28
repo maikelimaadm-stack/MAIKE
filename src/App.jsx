@@ -20,6 +20,7 @@ import DadosOffline from '@/components/offline/DadosOffline';
 import AvisoDeSincronizacao from '@/components/offline/AvisoDeSincronizacao';
 import CirculoDeSincronizacao from '@/components/offline/CirculoDeSincronizacao';
 import AvisoDeVersao from '@/components/offline/AvisoDeVersao';
+import SeloDeTeste from '@/components/app/SeloDeTeste';
 import PreparoDoApp from '@/components/offline/PreparoDoApp';
 import { appPrecisaPreparar } from '@/services/dadosOfflineService';
 import SplashScreen from '@/components/common/SplashScreen';
@@ -143,6 +144,8 @@ const AuthenticatedApp = () => {
   return (
     <>
       <SplashScreen visible={showBootSplash} />
+      {/* D-PROD-381: o selo do APK de teste (só no canal de teste) */}
+      <SeloDeTeste />
       {showMainApp && <DadosOffline />}
       {showMainApp && <AvisoDeSincronizacao />}
       {/* D-PROD-331/378: a sincronização pedida pela pessoa ("Sincronizar agora"), num cartão no meio da tela. */}
