@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { itensDaSuplementacao, itensDasTarefas, itensDosLotes, itensDosPontos } from "@/lib/maplibre/itensDoMapaGeral.js";
+import { tamanhoNoChao } from "@/lib/mapaNativo/nomesNoChao.js";
 import { ESCALA_NOME_FIXO, NIVEIS, colocacaoDoNome, montarNomes, nivelDosNomes, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
 import { DESLOC_NOME_COM_LOTE_PX, avisarFalhaNome, esperarFonteDosNomes, pedidoImagemNome } from "@/lib/maplibre/nomesNoMapa.js";
 import {
@@ -122,6 +123,42 @@ export default function useMarcadoresGoogle(mapa) {
     const temMarcadores = Boolean(mapa && typeof mapa.definirMarcadores === "function");
     // D-PROD-379: no app (marcadores do mapa nativo) o nome tem tamanho fixo e some quando não cabe
     const nomesFixos = Boolean(mapa?.nomesFixos);
+    // D-PROD-382: com o APK que desenha no chão do mapa, o nome é do próprio mapa (acompanha o zoom, liso)
+    const noChao = typeof mapa?.definirNomesNoChao === "function";
+    /**
+     * Os nomes no chão: um por pasto (nome + hectares; sem hectares, o nome), do tamanho que cabe no pasto no zoom em
+     * que o mapa parou (até o máximo da letra); pequeno demais para ler, some. Com lote, logo abaixo do ponto.
+     */
+    const publicarNoChao = () => {
+      const seq = proximo("nomes");
+      const pr = pixelRatioDaTela();
+      const nomes = nomesRef.current;
+      const nivelDe = (/** @type {any} */ n) => (n.niveis.tudo.linhas.length ? n.niveis.tudo : n.niveis.nome);
+      const pedidos = [];
+      for (const n of nomes.values()) if (nivelDe(n).linhas.length) pedidos.push(pedidoImagemNome(nivelDe(n).linhas, pr));
+      const aplicar = () => {
+        if (seqRef.current.nomes !== seq) return;
+        const camera = cameraRef.current;
+        const lista = [];
+        for (const n of nomes.values()) {
+          const d = nivelDe(n);
+          const r = d.linhas.length ? imagemPronta(d.chave, pr) : null;
+          const url = r ? urlDaImagem(r, d.chave) : null;
+          if (!r || !url) continue;
+          const comLote = lotesInfoRef.current.has(n.id);
+          // sem câmera ainda (o mapa avisa quando para): o nome entra escondido
+          const t = tamanhoNoChao({ w: r.w, h: r.h }, n.pf, n.lat, comLote, camera ? camera.zoom : 14);
+          lista.push({ chave: n.id, url, lat: n.lat, lng: n.lng, ancoraY: comLote ? 0 : 0.5, metros: t.metros, visivel: Boolean(camera) && t.visivel });
+        }
+        mapa.definirNomesNoChao(lista);
+      };
+      const espera = garantirImagens(pedidos, pr, avisarFalhaNome);
+      if (!espera) {
+        aplicar();
+        return Promise.resolve();
+      }
+      return espera.then(aplicar);
+    };
     /** Os ícones (menos os de lote, que já vão em `lotesInfoRef`) como obstáculos dos nomes. */
     const iconesObstaculo = () => Object.values(iconesRef.current).flat();
     /**
@@ -171,7 +208,7 @@ export default function useMarcadoresGoogle(mapa) {
         const lista = montar().filter(Boolean);
         mapa.definirMarcadores(grupo, lista);
         // os ícones que os nomes de tamanho fixo não podem cobrir (os lotes já vão por `lotesInfoRef`)
-        if (nomesFixos && grupo !== "nomes" && grupo !== "lotes") {
+        if (nomesFixos && !noChao && grupo !== "nomes" && grupo !== "lotes") {
           iconesRef.current = { ...iconesRef.current, [grupo]: lista.map((m) => ({ lat: m.lat, lng: m.lng, w: m.w, h: m.h, dx: m.dx, dy: m.dy })) };
           reverNomesFixos();
         }
@@ -225,6 +262,7 @@ export default function useMarcadoresGoogle(mapa) {
      * @param {any} [nivelDado] o nível (no app, também "nenhum")
      */
     const publicarNomes = (nivelDado) => {
+      if (noChao) return publicarNoChao();
       const nomes = nomesRef.current;
       const camera = cameraRef.current;
       /** @type {any} */
@@ -322,7 +360,8 @@ export default function useMarcadoresGoogle(mapa) {
             const r = pronta || desenharImagemReserva(pr);
             const aoClicar = () => onClickLotes?.(l.lotesNaArea);
             // pasto com nome: o par ícone + nome (o ícone sobe, D-PROD-128/349)
-            const [dx, dy] = nomesRef.current.has(areaId) ? OFFSET_LOTE_COM_NOME_PX : OFFSET_LOTE_PX;
+            // nome no chão: o ícone fica todo acima do ponto e o nome começa no ponto (nunca um em cima do outro)
+            const [dx, dy] = !noChao && nomesRef.current.has(areaId) ? OFFSET_LOTE_COM_NOME_PX : OFFSET_LOTE_PX;
             if (r) info.set(areaId, { lat: item.lngLat[1], lng: item.lngLat[0], tamanho: { w: r.w, h: r.h } });
             lista.push(
               marcador({
@@ -404,6 +443,11 @@ export default function useMarcadoresGoogle(mapa) {
       revisarNomes(camera) {
         cameraRef.current = camera;
         if (!temMarcadores || !nomesRef.current.size) return;
+        if (noChao) {
+          // no chão, o nome acompanha o zoom sozinho; quando o mapa para, só o tamanho máximo e o "pequeno demais"
+          if (camera.final) void publicarNoChao();
+          return;
+        }
         if (nomesFixos) {
           // app: com o mapa parado, sempre. Durante o gesto a câmera só chega com o APK que mostra e esconde (D-PROD-382:
           // a troca é leve), e os nomes se ajustam enquanto o mapa mexe, no máximo a cada MS_NIVEL_NO_MOVIMENTO.

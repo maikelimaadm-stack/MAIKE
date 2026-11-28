@@ -28,6 +28,7 @@ import {
 import { criarMapaGoogleWeb } from "@/lib/mapaNativo/mapaGoogleWeb.js";
 import { criarCamadaDeImagens, projetarNaCamera } from "@/lib/mapaNativo/camadaDeImagens.js";
 import { criarMarcadoresNativos } from "@/lib/mapaNativo/marcadoresNativos.js";
+import { criarNomesNoChao } from "@/lib/mapaNativo/nomesNoChao.js";
 import { APK_CAMADA_NATIVA, camadaNativaDisponivel, criarCamadaNativa } from "@/lib/mapaNativo/camadaNativa.js";
 
 const CENTRO_PADRAO = { lat: -15.78, lng: -47.93 };
@@ -95,6 +96,7 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
   // App: os marcadores ficam num div por cima do mapa nativo (D-PROD-372)
   const camadaElRef = useRef(/** @type {HTMLDivElement | null} */ (null));
   const camadaRef = useRef(/** @type {ReturnType<typeof criarCamadaDeImagens> | null} */ (null));
+  const chaoRef = useRef(/** @type {any} */ (null));
   const nativosRef = useRef(/** @type {ReturnType<typeof criarMarcadoresNativos> | null} */ (null));
   // D-PROD-376: a camada desenhada pelo Android (APK 1.0.9 em diante)
   const camadaNativaRef = useRef(/** @type {Awaited<ReturnType<typeof criarCamadaNativa>> | null} */ (null));
@@ -211,6 +213,8 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
         let ultimaCamera = null;
         let quadro = 0;
         let aoVivo = false;
+        /** @type {ReturnType<typeof criarNomesNoChao> | null} */
+        let chao = null;
         const noQuadro = () => {
           quadro = 0;
           if (!ultimaCamera) return;
@@ -228,6 +232,17 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
           // (D-PROD-382), aos nomes: eles se ajustam enquanto o mapa mexe. Os marcadores do mapa andam sozinhos.
           // desligado (D-PROD-382, teste no celular): rever os nomes no meio do gesto travava o zoom; só quando o mapa para
           aoVivo = false;
+          // D-PROD-382: o APK sabe desenhar no chão do mapa? (uma chamada vazia; o APK anterior não tem o método)
+          if (nativos) {
+            try {
+              const plugin = /** @type {any} */ (pluginDoMapaGoogle());
+              await plugin.maikeChao({ id: mapa.id });
+              chao = criarNomesNoChao((ops) => plugin.maikeChao({ id: mapa.id, ...ops }));
+              chaoRef.current = chao;
+            } catch {
+              chao = null;
+            }
+          }
           if (cancelado) return;
           if (camada || aoVivo) {
             try {
@@ -289,6 +304,8 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
                 definirMarcadores: (/** @type {string} */ g, /** @type {any[]} */ l) => alvoDosMarcadores.definir(g, l),
                 // D-PROD-379: nos marcadores do mapa nativo, o nome tem tamanho fixo (o mapa não o refaz no zoom)
                 nomesFixos: Boolean(nativos),
+                // D-PROD-382: os nomes no chão do mapa (acompanham o zoom), quando o APK sabe
+                ...(chao ? { definirNomesNoChao: (/** @type {any[]} */ l) => chao?.definir(l) } : {}),
                 /** "Localizar" (D-PROD-375): centraliza num ponto, no zoom do MapLibre. */
                 centrar: (/** @type {number} */ lat, /** @type {number} */ lng, /** @type {number} */ zoom) =>
                   mapa
@@ -348,6 +365,7 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
       camadaRef.current = null;
       void nativosRef.current?.limpar();
       nativosRef.current = null;
+      chaoRef.current = null;
       void camadaNativaRef.current?.limpar();
       camadaNativaRef.current = null;
       ouvinteMovimentoRef.current?.remove();
