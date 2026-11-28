@@ -134,6 +134,29 @@ const lerMapTilerKey = () => {
 export const getMapTilerKey = () => lerMapTilerKey();
 
 /**
+ * D-PROD-381 — o canal do app (`VITE_CANAL_APP`, "teste" só no APK de teste) e o endereço do `ultima.json` das
+ * atualizações de teste (`VITE_CANAL_TESTE_URL`). Ver `src/lib/app/canalDoApp.js`.
+ */
+const lerCanalDoApp = () => {
+  try {
+    return normalizarEnv(import.meta.env.VITE_CANAL_APP);
+  } catch {
+    return null;
+  }
+};
+const lerCanalTesteUrl = () => {
+  try {
+    return normalizarEnv(import.meta.env.VITE_CANAL_TESTE_URL);
+  } catch {
+    return null;
+  }
+};
+/** @returns {string|null} */
+export const getCanalDoApp = () => lerCanalDoApp();
+/** @returns {string|null} */
+export const getCanalTesteUrl = () => lerCanalTesteUrl();
+
+/**
  * Chave do Google Maps SDK do iOS (D-PROD-366): o mapa nativo do iPhone recebe a chave pelo código (no Android ela
  * vai no AndroidManifest, no build do APK). Restrita ao bundle do app no Google Cloud.
  */

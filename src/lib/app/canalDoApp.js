@@ -6,13 +6,14 @@
  * (`VITE_CANAL_TESTE_URL`). Assim o proprietário instala o APK de teste uma vez e cada ajuste chega nele pela
  * atualização, até ele aprovar; só então a mudança vira PR, passa pelas verificações e vai para o canal oficial.
  */
+import { getCanalDoApp, getCanalTesteUrl } from "@/config/runtimeConfig";
 
 /** @returns {"oficial" | "teste"} */
-export const canalDoApp = () => (import.meta.env.VITE_CANAL_APP === "teste" ? "teste" : "oficial");
+export const canalDoApp = () => (getCanalDoApp() === "teste" ? "teste" : "oficial");
 
 /** O endereço do `ultima.json` das atualizações de teste, ou null (canal oficial ou sem endereço). */
 export const urlDasAtualizacoesDeTeste = () => {
   if (canalDoApp() !== "teste") return null;
-  const url = String(import.meta.env.VITE_CANAL_TESTE_URL || "").trim();
+  const url = String(getCanalTesteUrl() || "").trim();
   return /^https:\/\//.test(url) ? url : null;
 };
