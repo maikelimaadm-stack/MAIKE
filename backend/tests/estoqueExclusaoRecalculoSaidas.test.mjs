@@ -1,7 +1,8 @@
 /**
  * D-PROD-273 (fatia 4) — EXCLUSÃO COM RECÁLCULO das SAÍDAS, contra PostgreSQL real e pelos serviços de verdade (HTTP
  * autenticado): saída manual, cocho (cancelamento do lançamento), abastecimento e venda do financeiro (a linha de
- * produto da atividade saiu com as atividades, D-PROD-383). Com movimento depois no depósito, a exclusão grava o estorno (o par some das telas) e recalcula o
+ * produto da atividade saiu com as atividades, D-PROD-383). Com movimento depois no depósito, a exclusão grava o
+ * estorno (o par some das telas) e recalcula o
  * custo médio de tudo que veio depois, na ordem do número do movimento, com os dependentes. Números à mão em cada
  * cenário; no fim de cada um, o replay completo do produto tem de bater com o gravado (`auditarReplayDoProduto`).
  *
