@@ -564,6 +564,30 @@ própria, com decisão própria, quando o proprietário pedir.
     Não é o "motor de intelligence genérico" fora do roadmap: é uma tela de perguntas
     sobre os módulos que já existem, com decisão própria.
 
+## Sincronização no celular — Etapa 2: SQLite (registro de 2026-11-28, D-PROD-380)
+
+A Etapa 1 (D-PROD-380) deixou a sincronização automática leve e por baixo, como no AgriWebb, sem APK novo. O
+proprietário decidiu **seguir sem SQLite por enquanto** e fazer a Etapa 2 **antes da produção**: cada parte que mexe
+no app nativo precisa de APK novo, e há muitas outras frentes agora. Registro de memória: **nenhum item está autorizado
+por esta lista**; cada um entra como missão própria quando o proprietário pedir.
+
+Hoje: cada lista fica como um bloco inteiro no IndexedDB do app (`entity_cache`, `maike_respostas_offline`), com
+`navigator.storage.persist`. Pesa com fazenda grande (abrir/gravar a lista inteira) e há um risco pequeno de o sistema
+apagar o armazenamento com o celular sem espaço.
+
+Partes (uma PR cada, nesta ordem):
+1. **Base (APK novo):** plugin SQLite no app nativo, tabelas por tipo (um registro por linha), camada de leitura e
+   gravação. O site no navegador continua no IndexedDB.
+2. **Mapa no SQLite:** as listas do mapa saem dos blocos; o que já está no celular passa sozinho na primeira abertura,
+   com volta ao jeito antigo se algo falhar.
+3. **Fila de envio no SQLite:** a mais delicada (nada pode se perder na passagem).
+4. **Servidor com "só o que mudou" em tudo:** `/mudancas` para as listas que ainda vêm inteiras (áreas, estoque,
+   manejos, cadastros); talvez migration de índices. Não precisa de APK e pode vir antes das outras.
+5. **Cadastros e telas lendo do celular primeiro**, atualizando por trás.
+
+Fica fora do SQLite: fotos (arquivos no celular, o banco guarda só o caminho), login e token (armazenamento seguro),
+preferências de tela e, no começo, as telas de consulta e relatórios (continuam como cópia da tela).
+
 ## Fora do roadmap
 
 Plataforma low-code, Studio, MDP/MMM, marketplace, runtime universal, motor de

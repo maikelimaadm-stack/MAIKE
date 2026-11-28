@@ -78,10 +78,22 @@ describe('D-PROD-301 — ícone da sincronização no topo', () => {
     rerender(<BotaoSincronizacao />);
     expect(screen.getByTestId('botao-sincronizacao')).toHaveAttribute('aria-label', 'Sincronização: 1 precisa(m) de atenção');
   });
+
+  it('SO-06 (D-PROD-380) a passada de rotina sem nada a enviar não gira o ícone; com algo a enviar, gira', async () => {
+    const { default: BotaoSincronizacao } = await import('@/components/offline/BotaoSincronizacao');
+    fila = { ...estadoDaFila, enviando: true };
+    const { rerender } = render(<BotaoSincronizacao />);
+    expect(screen.getByTestId('botao-sincronizacao')).toHaveAttribute('aria-label', 'Sincronização: tudo enviado');
+    expect(screen.getByTestId('botao-sincronizacao').querySelector('.animate-spin')).toBeNull();
+    fila = { ...estadoDaFila, enviando: true, aguardando: 2 };
+    rerender(<BotaoSincronizacao />);
+    expect(screen.getByTestId('botao-sincronizacao')).toHaveAttribute('aria-label', 'Sincronização: enviando 2 registro(s)');
+    expect(screen.getByTestId('botao-sincronizacao').querySelector('.animate-spin')).toBeTruthy();
+  });
 });
 
 describe('D-PROD-301 — aviso quando sobe o que foi feito sem internet', () => {
-  it('SO-03 "Enviando…" (passada que demora) e depois "Tudo enviado"; a passada de rotina sem envio não avisa', async () => {
+  it('SO-03 (D-PROD-380) nada enquanto envia; no fim "Tudo enviado"; a passada de rotina sem envio não avisa', async () => {
     vi.useFakeTimers();
     const { default: AvisoDeSincronizacao } = await import('@/components/offline/AvisoDeSincronizacao');
     fila = { ...estadoDaFila, aguardando: 2 };
@@ -95,16 +107,15 @@ describe('D-PROD-301 — aviso quando sobe o que foi feito sem internet', () => 
     act(() => vi.advanceTimersByTime(2000));
     expect(toastCustom).not.toHaveBeenCalled();
 
-    // Volta da internet: demora, envia os 2.
+    // Volta da internet: demora, envia os 2. Enquanto sobe, nada na tela (antes: "Sincronizando — Enviando…").
     fila = { ...fila, enviando: true };
     rerender(<AvisoDeSincronizacao />);
-    act(() => vi.advanceTimersByTime(1300));
-    expect(toastCustom).toHaveBeenCalledTimes(1);
-    expect(toastCustom.mock.calls[0][1]).toMatchObject({ id: 'maike-sincronizacao', duration: Infinity });
+    act(() => vi.advanceTimersByTime(5000));
+    expect(toastCustom).not.toHaveBeenCalled();
     fila = { ...estadoDaFila };
     rerender(<AvisoDeSincronizacao />);
-    expect(toastCustom).toHaveBeenCalledTimes(2);
-    expect(toastCustom.mock.calls[1][1]).toMatchObject({ id: 'maike-sincronizacao', duration: 3000 });
+    expect(toastCustom).toHaveBeenCalledTimes(1);
+    expect(toastCustom.mock.calls[0][1]).toMatchObject({ id: 'maike-sincronizacao', duration: 3000 });
   });
 
   it('SO-04 avisa quando aparece um NOVO "precisa de atenção" (não o que já havia ao abrir)', async () => {
@@ -130,6 +141,7 @@ describe('D-PROD-301 — janela "Sincronização"', () => {
     const partes = screen.getByTestId('sincronizacao-partes');
     expect(partes).toHaveTextContent('Mapa');
     expect(partes).toHaveTextContent('2 de 30 não vieram');
+    expect(screen.getByTestId('sincronizacao-ultima')).toHaveTextContent(/^Última sincronização: /);
 
     fireEvent.click(screen.getByTestId('sincronizar-agora'));
     await waitFor(() => expect(baixar).toHaveBeenCalledTimes(1));
@@ -137,5 +149,15 @@ describe('D-PROD-301 — janela "Sincronização"', () => {
     // segundo envio em paralelo.
     expect(enviarAgora).not.toHaveBeenCalled();
     expect(await screen.findByText('Pronto! Sincronizado.')).toBeInTheDocument();
+  });
+
+  it('SO-07 (D-PROD-380) "há quanto tempo" da última sincronização', async () => {
+    const { haQuantoTempo } = await import('@/components/offline/DadosOffline');
+    const agora = Date.parse('2026-11-28T12:00:00Z');
+    expect(haQuantoTempo(null, agora)).toBe(null);
+    expect(haQuantoTempo(agora - 20_000, agora)).toBe('agora mesmo');
+    expect(haQuantoTempo(agora - 5 * 60_000, agora)).toBe('há 5 min');
+    expect(haQuantoTempo(agora - 3 * 3600_000, agora)).toBe('há 3 h');
+    expect(haQuantoTempo(agora - 30 * 3600_000, agora)).toMatch(/^em \d{2}\/\d{2}/);
   });
 });
