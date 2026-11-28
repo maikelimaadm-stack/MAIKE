@@ -24,6 +24,8 @@ const PREFIXO = 'maike_dados_offline_em:';
 /** D-PROD-301: como foi cada parte na última baixa (mapa, cadastros, telas). */
 const PREFIXO_PARTES = 'maike_dados_offline_partes:';
 const PREFIXO_FORMATO = 'maike_dados_offline_formato:';
+/** D-PROD-380: quando foi a última sincronização leve (envia + só o que mudou). */
+const PREFIXO_LEVE = 'maike_sincronia_leve_em:';
 
 /**
  * D-PROD-307 — formato do que fica guardado no aparelho. Sobe quando uma versão do app passa a
@@ -70,6 +72,21 @@ const marcarBaixa = (quando, tenant = getOfflineTenant()) => {
     // Sem armazenamento só não lembra a data.
   }
 };
+
+/** @param {string} prefixo @returns {number|null} */
+const lerInstante = (prefixo) => {
+  const tenant = getOfflineTenant();
+  if (!tenant) return null;
+  try {
+    const v = Number(window.localStorage.getItem(`${prefixo}${tenant}`));
+    return Number.isFinite(v) && v > 0 ? v : null;
+  } catch {
+    return null;
+  }
+};
+
+/** D-PROD-380: quando foi a última sincronização leve neste aparelho (ms), ou `null`. */
+export const ultimaSincronizacaoLeve = () => lerInstante(PREFIXO_LEVE);
 
 /**
  * @typedef {{ em: number, total: number, falhas: number }} SituacaoDaParte
@@ -236,11 +253,53 @@ const baixarJa = async ({ empresaId, aoAvancar }) => {
   return { ok: falhas === 0, falhas, em };
 };
 
+/**
+ * D-PROD-380 — o que a sincronização leve atualiza do mapa: as listas que o servidor entrega pelo que mudou
+ * (`/…/mudancas`, D-PROD-309 e D-PROD-345: lotes, pontos de referência, cochos, linhas, eventos de suplementação,
+ * leituras de cocho, tarefas). Os lotes do mapa vêm das posições do rebanho (uma leitura por fazenda). O resto do
+ * mapa, os cadastros e as telas ficam para a baixa completa (rara) e para a própria tela, quando abre.
+ */
+export const CHAVES_DA_SINCRONIA_LEVE = Object.freeze(['lotes', 'pontos', 'pontosSuplementacao', 'linhas', 'eventosSuplementacao', 'leiturasCocho', 'tarefas']);
+
+/**
+ * D-PROD-380 — a sincronização do dia a dia, como no AgriWebb: envia o que está no celular e baixa SÓ o que mudou
+ * (as listas incrementais do mapa). Sem as telas nem os cadastros inteiros: isso é da baixa completa.
+ * Não marca "baixado" (a baixa completa segue com a data dela); marca a sincronização leve.
+ * @param {{ empresaId: string|null }} opcoes
+ * @returns {Promise<{ok: boolean, falhas: number, em: number|null}>}
+ */
+export const baixarSoOQueMudou = async ({ empresaId }) => {
+  if (estaSemInternet()) return { ok: false, falhas: 0, em: null };
+  const tenant = getOfflineTenant();
+  await sincronizarTudo().catch(() => undefined);
+  if (estaSemInternet()) return { ok: false, falhas: 0, em: null };
+  let falhas = 0;
+  await naVezDaSincronia(() =>
+    Promise.all(
+      CHAVES_DA_SINCRONIA_LEVE.map(async (cacheKey) => {
+        const r = await refreshMapaCacheEntryDetalhado(cacheKey, empresaId, { force: true });
+        if (r.erro && r.erro !== 'SEM_CAPACIDADE') falhas += 1;
+      })
+    )
+  );
+  // Outra conta entrou no meio: não marca nada nela.
+  if (!tenant || getOfflineTenant() !== tenant) return { ok: false, falhas, em: null };
+  if (falhas >= CHAVES_DA_SINCRONIA_LEVE.length) return { ok: false, falhas, em: null };
+  const em = Date.now();
+  try {
+    window.localStorage.setItem(`${PREFIXO_LEVE}${tenant}`, String(em));
+  } catch {
+    // Sem armazenamento só não lembra.
+  }
+  return { ok: falhas === 0, falhas, em };
+};
+
 /** Logout: apaga as leituras guardadas do tenant que sai e a data da baixa. Nunca lança. */
 export const esquecerDadosOfflineDoTenant = (tenant) => {
   if (!tenant) return;
   try {
     window.localStorage.removeItem(`${PREFIXO}${tenant}`);
+    window.localStorage.removeItem(`${PREFIXO_LEVE}${tenant}`);
     window.localStorage.removeItem(`${PREFIXO_PARTES}${tenant}`);
     window.localStorage.removeItem(`${PREFIXO_FORMATO}${tenant}`);
   } catch {

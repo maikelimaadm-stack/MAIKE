@@ -145,7 +145,7 @@ const AuthenticatedApp = () => {
       <SplashScreen visible={showBootSplash} />
       {showMainApp && <DadosOffline />}
       {showMainApp && <AvisoDeSincronizacao />}
-      {/* D-PROD-329: a porcentagem da sincronização (envia e baixa), no canto. */}
+      {/* D-PROD-331/378: a sincronização pedida pela pessoa ("Sincronizar agora"), num cartão no meio da tela. */}
       {showMainApp && <CirculoDeSincronizacao />}
       {showMainApp && <AvisoDeVersao />}
       {showMainApp && (
