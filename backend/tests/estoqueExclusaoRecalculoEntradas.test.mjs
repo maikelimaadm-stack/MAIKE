@@ -60,10 +60,8 @@ const montar = async () => {
   const motivosSaida = (await H.ok(H.req('GET', '/estoque/motivos-saida', s.token))).items;
   const compra = motivosEntrada.find((m) => m.nome === 'Compra').id;
   const perda = motivosSaida.find((m) => m.nome === 'Perda').id;
-  const grupo = await p.grupoAtividade.create({ data: { cliente_id: s.c, nome_grupo: `GRUPO ${suf}` } });
-  const tipo = await p.tipoAtividade.create({ data: { cliente_id: s.c, nome_tipo: `ADUBAÇÃO ${suf}`, grupo_atividade_id: grupo.id, grupo_atividade_nome: grupo.nome_grupo, permite_produto: true } });
   ok(await H.req('PUT', '/perfis-financeiros-empresa', s.token, { empresa_id: s.e1.id, pais: 'BR', moeda: 'BRL', locale: 'pt-BR' }));
-  return { ...s, sal, compra, perda, tipo };
+  return { ...s, sal, compra, perda };
 };
 
 const entrar = async (x, local, kg, custo, produto = x.sal) =>
@@ -454,26 +452,6 @@ describe('D-PROD-273 fatia 5 — exclusão do ajuste de inventário', () => {
 });
 
 // ─── cascata, dependentes e concorrência ────────────────────────────────────
-/** Atividade aberta + apontamento do dia; devolve quem lança e quem cancela a linha de produto. */
-const atividade = async (x) => {
-  const a = ok(await H.req('POST', '/atividades', x.token, {
-    empresa_id: x.e1.id, nome: `Adubação ${++seq}`, tipo_atividade_id: x.tipo.id, data_inicio: '2027-06-01', data_prevista_fim: '2027-06-30',
-  }), 201);
-  const base = `/atividades/${a.id}/apontamentos`;
-  let ap = ok(await H.req('POST', base, x.token, { empresa_id: a.empresa_id, data_operacional: '2027-06-10', area_executada_dia: '10' }), 201).apontamento;
-  return {
-    lancar: async (local, kg) => {
-      const r = ok(await H.req('POST', `${base}/${ap.id}/produtos`, x.token, { empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), produto_id: x.sal.id, local_estoque_id: local.id, quantidade: kg }), 201);
-      ap = r.apontamento;
-      return r.linha;
-    },
-    cancelar: async (linha) => {
-      const r = ok(await H.req('POST', `${base}/${ap.id}/produtos/${linha.id}/cancelar`, x.token, { empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), motivo: 'lançado errado' }));
-      ap = r.apontamento;
-      return r.linha;
-    },
-  };
-};
 const cancelarCocho = (x, id) =>
   H.req('POST', `/suplementacao-eventos/${id}/cancelamento`, x.token, { empresa_id: x.e1.id, operation_id: `canc-${randomUUID()}`, motivo: 'lançado em dobro' });
 /** Lançamento de cocho como o formulário (baixa + comando com a MESMA chave), período aberto. */
@@ -548,41 +526,41 @@ describe('D-PROD-273 fatia 5 — cascata, dependentes e concorrência', () => {
     await provarReplay(y);
   });
 
-  test('cocho e atividade depois da entrada — D-PROD-314: excluir a E1 → 409 registro posterior (a linha da atividade); nada gravado (o cocho e a linha ficam com o custo de antes); cancelados a linha e o cocho, a E2 (camada reavaliada) sai e então a E1', async () => {
+  // D-PROD-383: a linha de produto da atividade saiu; a saída manual faz o papel do registro posterior.
+  test('cocho e saída manual depois da entrada — D-PROD-314: excluir a E1 → 409 registro posterior (a saída); nada gravado (o cocho e a saída ficam com o custo de antes); excluídos a saída e o cocho, a E2 (camada reavaliada) sai e então a E1', async () => {
     const x = await montar();
     const A = x.local;
-    // E1 50 a 2 (L1), E2 150 a 6 (L2): 200 kg, R$ 1.000, médio 5. Cocho 30 × 5 = 150 (L1 30); linha 60 × 5 = 300 (L1 20 + L2 40)
+    // E1 50 a 2 (L1), E2 150 a 6 (L2): 200 kg, R$ 1.000, médio 5. Cocho 30 × 5 = 150 (L1 30); saída 60 × 5 = 300 (L1 20 + L2 40)
     const e1 = await entrar(x, A, '50', '2');
     const e2 = await entrar(x, A, '150', '6');
     const L1 = await camadaDaEntrada(e1);
     const L2 = await camadaDaEntrada(e2);
     const c = await lancarCocho(x, A, { ponto: 'cocho-1', kg: 30, data: '2027-06-01' });
-    const at = await atividade(x);
-    const linha = await at.lancar(A, '60');
+    const sd = await sair(x, A, '60');
+    const sdMov = sd.itens[0].movimentacao_estoque_id;
     assert.deepEqual(fatias(await mov(c.mov.id)), [[L1, '30.0000', '5.0000']]);
-    const antesLinha = await prisma().atividadeApontamentoProduto.findUnique({ where: { id: linha.id }, include: { consumos: { orderBy: { ordem: 'asc' } } } });
-    assert.deepEqual([v4(antesLinha.custo_total), antesLinha.consumos.map((f) => [f.estoque_lote_nota_id, f.ordem, v4(f.quantidade)])], ['300.0000', [[L1, 1, '20.0000'], [L2, 2, '40.0000']]]);
+    const antesSaida = await mov(sdMov);
+    assert.deepEqual([v4(antesSaida.valor_total), fatias(antesSaida).map((f) => [f[0], f[1]])], ['300.0000', [[L1, '20.0000'], [L2, '40.0000']]]);
     assert.equal((await prisma().suplementacaoEvento.findUnique({ where: { id: c.evento.id } })).dados.custo_unitario_kg, 5);
     await provarReplay(x);
     const antes = await foto(x);
-    await exigirPreviaRegistroPosterior(x, e1.itens[0].movimentacao_estoque_id, [linha.movimentacao_estoque_id]);
-    exigirRegistroPosterior(await excluirEntrada(x, e1), [linha.movimentacao_estoque_id], A);
+    await exigirPreviaRegistroPosterior(x, e1.itens[0].movimentacao_estoque_id, [sdMov]);
+    exigirRegistroPosterior(await excluirEntrada(x, e1), [sdMov], A);
     assert.equal(await foto(x), antes, 'nada gravado');
     assert.equal((await prisma().suplementacaoEvento.findUnique({ where: { id: c.evento.id } })).dados.custo_unitario_kg, 5, 'o custo/kg do cocho não muda');
-    const depoisLinha = await prisma().atividadeApontamentoProduto.findUnique({ where: { id: linha.id }, include: { consumos: { orderBy: { ordem: 'asc' } } } });
-    assert.deepEqual(depoisLinha, antesLinha, 'a linha e as fatias dela não mudam');
-    // do mais recente ao mais antigo: a linha da atividade, o cocho, a E2 e então a E1
-    await at.cancelar(linha);
+    assert.deepEqual(await mov(sdMov), antesSaida, 'a saída e as fatias dela não mudam');
+    // do mais recente ao mais antigo: a saída, o cocho, a E2 e então a E1
+    ok(await excluirSaida(x, sd));
     exigirRegistroPosterior(await excluirEntrada(x, e1), [c.mov.id], A);
     ok(await cancelarCocho(x, c.evento.id));
-    // a camada da E2 foi reavaliada (médio 5) e sem ela o par da linha passaria por −40: o par sai da sequência com ela
+    // a camada da E2 foi reavaliada (médio 5) e sem ela o par da saída passaria por −40: o par sai da sequência com ela
     ok(await excluirEntrada(x, e2));
     assert.deepEqual(await camada(L1), { disp: '50.0000', custo: '2.0000', status: 'Disponivel', entrada: '50.0000' }, 'A fica com a E1, no custo dela');
     assert.deepEqual([(await camada(L2)).disp, (await camada(L2)).status], ['0.0000', 'Estornado'], 'a camada fica (as FKs das fatias são Restrict)');
-    await exigirParMarcado(linha.movimentacao_estoque_id);
+    await exigirParMarcado(sdMov);
     await exigirParMarcado(c.mov.id);
     assert.equal(await estoqueAtual(x), '50.0000');
-    // a E1 por último: as fatias dela na linha e no cocho são de pares marcados e não a prendem
+    // a E1 por último: as fatias dela na saída e no cocho são de pares marcados e não a prendem
     ok(await excluirEntrada(x, e1));
     assert.deepEqual([(await camada(L1)).disp, (await camada(L1)).status], ['0.0000', 'Estornado']);
     assert.equal(await estoqueAtual(x), '0.0000');
