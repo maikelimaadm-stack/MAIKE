@@ -100,7 +100,7 @@ export function instalarCanvasFalso() {
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(function () {
     const canvas = /** @type {HTMLCanvasElement} */ (this);
     /** @type {Record<string, any>} */
-    const estado = { font: "", fillStyle: "", strokeStyle: "", shadowColor: "", shadowBlur: 0, shadowOffsetX: 0, shadowOffsetY: 0, textAlign: "", textBaseline: "", lineWidth: 1, globalAlpha: 1 };
+    const estado = { font: "", fillStyle: "", strokeStyle: "", shadowColor: "", shadowBlur: 0, shadowOffsetX: 0, shadowOffsetY: 0, textAlign: "", textBaseline: "", lineWidth: 1, globalAlpha: 1, lineJoin: "miter", miterLimit: 10 };
     const registrar = (nome) => (...args) => {
       chamadas.push({ nome, args, estado: { ...estado }, largura: canvas.width, altura: canvas.height });
     };
@@ -127,6 +127,10 @@ export function instalarCanvasFalso() {
       set lineWidth(v) { estado.lineWidth = v; },
       get globalAlpha() { return estado.globalAlpha; },
       set globalAlpha(v) { estado.globalAlpha = v; },
+      get lineJoin() { return estado.lineJoin; },
+      set lineJoin(v) { estado.lineJoin = v; },
+      get miterLimit() { return estado.miterLimit; },
+      set miterLimit(v) { estado.miterLimit = v; },
       setTransform: registrar("setTransform"),
       clearRect: registrar("clearRect"),
       drawImage: (/** @type {any[]} */ ...args) => {
@@ -137,6 +141,7 @@ export function instalarCanvasFalso() {
       lineTo: registrar("lineTo"),
       closePath: registrar("closePath"),
       fillText: registrar("fillText"),
+      strokeText: registrar("strokeText"),
       fillRect: registrar("fillRect"),
       beginPath: registrar("beginPath"),
       arc: registrar("arc"),

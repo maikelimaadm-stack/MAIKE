@@ -9,7 +9,7 @@
  * envio 0–25 %, mapa 25–55 %, cadastros 55–80 %, telas 80–100 %. Uma de cada vez: quem pede durante uma recebe a
  * mesma (e acompanha o progresso dela).
  *
- * D-PROD-379 (como o AgriWebb): a sincronização automática (abrir, voltar a internet, relógio) é LEVE e SEM CARTÃO —
+ * D-PROD-380 (como o AgriWebb): a sincronização automática (abrir, voltar a internet, relógio) é LEVE e SEM CARTÃO —
  * envia e baixa só o que mudou (`baixarSoOQueMudou`). A baixa completa fica para a primeira vez, o formato velho, o
  * "Sincronizar agora" e, por baixo e sem cartão, quando a última completa passou de `BAIXAR_TUDO_APOS_MS`. O cartão do
  * meio da tela (`visivel`) só aparece quando a pessoa pede ("Sincronizar agora").
@@ -41,7 +41,7 @@ export const percentualDaSincronia = (etapa, feitas, total) => {
 };
 
 /**
- * `visivel`: a pessoa pediu (o cartão do meio da tela mostra); a automática roda com `visivel: false` (D-PROD-379).
+ * `visivel`: a pessoa pediu (o cartão do meio da tela mostra); a automática roda com `visivel: false` (D-PROD-380).
  * @typedef {{ ativo: boolean, visivel: boolean, fase: 'enviando'|'baixando'|'pronto'|'incompleto'|null, percentual: number, titulo: string }} ProgressoDaSincronia
  */
 
@@ -101,7 +101,7 @@ const quantosFicaramNoCelular = async () => {
 /**
  * Envia e depois baixa, com a porcentagem.
  *
- * D-PROD-379: `modo` "tudo" (a baixa completa de sempre) ou "leve" (só o que mudou); `mostrar` liga o cartão do meio
+ * D-PROD-380: `modo` "tudo" (a baixa completa de sempre) ou "leve" (só o que mudou); `mostrar` liga o cartão do meio
  * da tela (só quando a pessoa pediu). Pedir com `mostrar` durante uma automática passa a mostrar a que está em curso.
  * @param {{ empresaId: string|null, aoAvancar?: (p: {titulo: string, feitas: number, total: number}) => void, modo?: 'tudo'|'leve', mostrar?: boolean }} opcoes
  * @returns {Promise<{ok: boolean, falhas: number, em: number|null}>}
@@ -159,7 +159,7 @@ export const sincronizarNosDoisSentidos = ({ empresaId, aoAvancar, modo = 'tudo'
 };
 
 /**
- * D-PROD-379 — a baixa COMPLETA (mapa inteiro, cadastros e telas) por baixo, sem cartão, só quando a última passou disto.
+ * D-PROD-380 — a baixa COMPLETA (mapa inteiro, cadastros e telas) por baixo, sem cartão, só quando a última passou disto.
  * Antes: ao abrir depois de 10 min, ao voltar a internet depois de 3 min e a cada 6 h — e sempre com o cartão
  * "Sincronizando" no meio da tela. O dia a dia agora é a leve (só o que mudou).
  */
@@ -170,7 +170,7 @@ export const SINCRONIA_LEVE_APOS_MS = 2 * 60 * 1000;
 export const SINCRONIA_LEVE_PARADO_APOS_MS = 15 * 60 * 1000;
 
 /**
- * O que sincronizar sozinho (o app já preparado), D-PROD-379:
+ * O que sincronizar sozinho (o app já preparado), D-PROD-380:
  *  - "tudo" (por baixo, sem cartão): dados no formato antigo, ou a última baixa completa tem mais de 12 h;
  *  - "leve" (envia + só o que mudou, sem cartão): ao abrir / voltar ao app / voltar a internet, se a última
  *    sincronização tem mais de 2 min; com o app aberto ("relogio"), se tem mais de 15 min;

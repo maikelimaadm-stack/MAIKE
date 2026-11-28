@@ -79,7 +79,7 @@ describe('D-PROD-301 — ícone da sincronização no topo', () => {
     expect(screen.getByTestId('botao-sincronizacao')).toHaveAttribute('aria-label', 'Sincronização: 1 precisa(m) de atenção');
   });
 
-  it('SO-06 (D-PROD-379) a passada de rotina sem nada a enviar não gira o ícone; com algo a enviar, gira', async () => {
+  it('SO-06 (D-PROD-380) a passada de rotina sem nada a enviar não gira o ícone; com algo a enviar, gira', async () => {
     const { default: BotaoSincronizacao } = await import('@/components/offline/BotaoSincronizacao');
     fila = { ...estadoDaFila, enviando: true };
     const { rerender } = render(<BotaoSincronizacao />);
@@ -93,7 +93,7 @@ describe('D-PROD-301 — ícone da sincronização no topo', () => {
 });
 
 describe('D-PROD-301 — aviso quando sobe o que foi feito sem internet', () => {
-  it('SO-03 (D-PROD-379) nada enquanto envia; no fim "Tudo enviado"; a passada de rotina sem envio não avisa', async () => {
+  it('SO-03 (D-PROD-380) nada enquanto envia; no fim "Tudo enviado"; a passada de rotina sem envio não avisa', async () => {
     vi.useFakeTimers();
     const { default: AvisoDeSincronizacao } = await import('@/components/offline/AvisoDeSincronizacao');
     fila = { ...estadoDaFila, aguardando: 2 };
@@ -151,7 +151,7 @@ describe('D-PROD-301 — janela "Sincronização"', () => {
     expect(await screen.findByText('Pronto! Sincronizado.')).toBeInTheDocument();
   });
 
-  it('SO-07 (D-PROD-379) "há quanto tempo" da última sincronização', async () => {
+  it('SO-07 (D-PROD-380) "há quanto tempo" da última sincronização', async () => {
     const { haQuantoTempo } = await import('@/components/offline/DadosOffline');
     const agora = Date.parse('2026-11-28T12:00:00Z');
     expect(haQuantoTempo(null, agora)).toBe(null);

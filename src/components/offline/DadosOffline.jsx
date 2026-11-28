@@ -32,7 +32,7 @@ const formatarQuando = (ms) =>
     : null;
 
 /**
- * D-PROD-379 — "há quanto tempo" da última sincronização, como o AgriWebb mostra: "agora mesmo", "há 5 min",
+ * D-PROD-380 — "há quanto tempo" da última sincronização, como o AgriWebb mostra: "agora mesmo", "há 5 min",
  * "há 3 h"; passou de um dia, a data.
  * @param {number|null} ms @param {number} [agora]
  */
@@ -108,7 +108,7 @@ export default function DadosOffline() {
         emSegundoPlano.current = true;
       }
       try {
-        // D-PROD-329: envia e baixa. D-PROD-379: o cartão do meio da tela só quando a pessoa pediu; a automática é
+        // D-PROD-329: envia e baixa. D-PROD-380: o cartão do meio da tela só quando a pessoa pediu; a automática é
         // por baixo (a leve, só o que mudou; ou a completa, se faz muito tempo).
         const r = await sincronizarNosDoisSentidos({
           empresaId,
@@ -152,7 +152,7 @@ export default function DadosOffline() {
     return () => window.removeEventListener(EVENTO_ABRIR_DADOS_OFFLINE, abrir);
   }, []);
 
-  // Sincronização automática (D-PROD-294, D-PROD-329; D-PROD-379, como o AgriWebb), já preparado e com internet,
+  // Sincronização automática (D-PROD-294, D-PROD-329; D-PROD-380, como o AgriWebb), já preparado e com internet,
   // SEMPRE por baixo, sem o cartão do meio da tela:
   //  - ao abrir, voltar ao app ou voltar a internet: a LEVE (envia + só o que mudou), se a última tem mais de 2 min;
   //  - com o app aberto: a leve a cada 15 min;

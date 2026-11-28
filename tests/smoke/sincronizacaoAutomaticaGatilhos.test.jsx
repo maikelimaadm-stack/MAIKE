@@ -5,7 +5,7 @@
  *       piscando, cada volta baixava tudo de novo; o ENVIO na volta da rede é dos gatilhos e não espera)
  * SA-02 abriu o app há pouco da última baixa: não repete; voltou ao app depois de 10 min: sincroniza
  * SA-03 no navegador (não é o app): nada automático
- * SA-04 (D-PROD-379) a automática é sempre por baixo (sem o cartão do meio da tela): a LEVE no dia a dia e a
+ * SA-04 (D-PROD-380) a automática é sempre por baixo (sem o cartão do meio da tela): a LEVE no dia a dia e a
  *       COMPLETA só quando a última completa passou de 12 h
  */
 import React from 'react';

@@ -212,6 +212,8 @@ describe("G376-3 — o mapa do app com a camada nativa", () => {
     expect(getByTestId("mapa-google-marcadores-app").style.display).toBe("none");
     // com os ícones no mapa nativo, a página não pede a câmera a cada quadro
     expect(nativo.movimento).not.toHaveBeenCalled();
+    // D-PROD-379: nos marcadores do mapa nativo, os nomes têm tamanho fixo
+    expect(onMapa.mock.calls.at(-1)[0].nomesFixos).toBe(true);
   });
 
   it("APK 1.0.8 (código 9): os marcadores do mapa, sem a camada", async () => {

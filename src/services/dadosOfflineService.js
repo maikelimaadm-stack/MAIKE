@@ -24,7 +24,7 @@ const PREFIXO = 'maike_dados_offline_em:';
 /** D-PROD-301: como foi cada parte na última baixa (mapa, cadastros, telas). */
 const PREFIXO_PARTES = 'maike_dados_offline_partes:';
 const PREFIXO_FORMATO = 'maike_dados_offline_formato:';
-/** D-PROD-379: quando foi a última sincronização leve (envia + só o que mudou). */
+/** D-PROD-380: quando foi a última sincronização leve (envia + só o que mudou). */
 const PREFIXO_LEVE = 'maike_sincronia_leve_em:';
 
 /**
@@ -85,7 +85,7 @@ const lerInstante = (prefixo) => {
   }
 };
 
-/** D-PROD-379: quando foi a última sincronização leve neste aparelho (ms), ou `null`. */
+/** D-PROD-380: quando foi a última sincronização leve neste aparelho (ms), ou `null`. */
 export const ultimaSincronizacaoLeve = () => lerInstante(PREFIXO_LEVE);
 
 /**
@@ -254,7 +254,7 @@ const baixarJa = async ({ empresaId, aoAvancar }) => {
 };
 
 /**
- * D-PROD-379 — o que a sincronização leve atualiza do mapa: as listas que o servidor entrega pelo que mudou
+ * D-PROD-380 — o que a sincronização leve atualiza do mapa: as listas que o servidor entrega pelo que mudou
  * (`/…/mudancas`, D-PROD-309 e D-PROD-345: lotes, pontos de referência, cochos, linhas, eventos de suplementação,
  * leituras de cocho, tarefas). Os lotes do mapa vêm das posições do rebanho (uma leitura por fazenda). O resto do
  * mapa, os cadastros e as telas ficam para a baixa completa (rara) e para a própria tela, quando abre.
@@ -262,7 +262,7 @@ const baixarJa = async ({ empresaId, aoAvancar }) => {
 export const CHAVES_DA_SINCRONIA_LEVE = Object.freeze(['lotes', 'pontos', 'pontosSuplementacao', 'linhas', 'eventosSuplementacao', 'leiturasCocho', 'tarefas']);
 
 /**
- * D-PROD-379 — a sincronização do dia a dia, como no AgriWebb: envia o que está no celular e baixa SÓ o que mudou
+ * D-PROD-380 — a sincronização do dia a dia, como no AgriWebb: envia o que está no celular e baixa SÓ o que mudou
  * (as listas incrementais do mapa). Sem as telas nem os cadastros inteiros: isso é da baixa completa.
  * Não marca "baixado" (a baixa completa segue com a data dela); marca a sincronização leve.
  * @param {{ empresaId: string|null }} opcoes

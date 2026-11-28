@@ -79,7 +79,7 @@ vi.mock("@capacitor/google-maps", () => ({
 
 import { caixaDoMarcador, porNaCaixa } from "@/lib/mapaNativo/posicaoDoMarcador.js";
 import { NIVEIS, colocacaoDoNome, montarNomes, nivelDosNomes } from "@/lib/mapaNativo/nomesGoogle.js";
-import { DIFERENCA_REFAZER_NOME, Z_NOME_NATIVO, criarMarcadoresNativos, geometriaNoZoom, imagemComAncoraNoCentro } from "@/lib/mapaNativo/marcadoresNativos.js";
+import { DIFERENCA_REFAZER_NOME, Z_NOME_NATIVO, criarMarcadoresNativos, geometriaNoZoom, imagemComAncora } from "@/lib/mapaNativo/marcadoresNativos.js";
 import { APK_MARCADORES_NATIVOS, numeroDoApk } from "@/lib/mapaNativo/mapaGoogleNativo.js";
 import useMarcadoresGoogle, { ORDEM_GOOGLE } from "@/components/mapa/useMarcadoresGoogle.js";
 import MapaGoogleNativo from "@/components/mapa/MapaGoogleNativo.jsx";
@@ -207,12 +207,14 @@ describe("G374-3 — os ícones como marcadores do mapa nativo", () => {
     expect(geometriaNoZoom({ id: "n", lat: 0, lng: 0, url: "u", w: 60, h: 14, dy: 10, ancora: "topo", escala: () => 0.5 }, 14)).toEqual({ w: 30, h: 7, ax: 15, ay: -10 });
   });
 
-  it("a margem transparente põe o ponto no meio da imagem, em px inteiros; já centrada, a mesma imagem", async () => {
-    expect(await imagemComAncoraNoCentro("data:x", 40.4, 19.6, 20.2, 9.8)).toEqual({ url: "data:x", w: 40, h: 20 });
-    // lote 44 × 42 com o ponto 47 px abaixo do topo (o ícone acima do ponto): 2 × 47 de altura
-    const r = /** @type {any} */ (await imagemComAncoraNoCentro("data:lote", 44, 42, 22, 47));
-    expect(r).toMatchObject({ w: 44, h: 94 });
+  it("D-PROD-379: só a margem que o ponto precisa, em px inteiros, com a âncora no ponto; ponto dentro, a mesma imagem", async () => {
+    expect(await imagemComAncora("data:x", 40.4, 19.6, 20.2, 9.8)).toEqual({ url: "data:x", w: 40, h: 20, ax: (20.2 * 40) / 40.4, ay: (9.8 * 20) / 19.6 });
+    // lote 44 × 42 com o ponto 47 px abaixo do topo (o ícone acima do ponto): só 5 px a mais embaixo (antes, 2 × 47)
+    const r = /** @type {any} */ (await imagemComAncora("data:lote", 44, 42, 22, 47));
+    expect(r).toMatchObject({ w: 44, h: 47, ax: 22, ay: 47 });
     expect(r.url).toMatch(/^data:image\/png/);
+    // nome embaixo do lote (o ponto 10 px acima do topo do nome): 10 px a mais em cima
+    expect(await imagemComAncora("data:nome", 60, 14, 30, -10)).toMatchObject({ w: 60, h: 24, ax: 30, ay: 0 });
   });
 
   it("diff por grupo: igual não mexe; mudou entra ANTES de sair; o toque acha o marcador; limpar tira tudo", async () => {
@@ -228,7 +230,8 @@ describe("G374-3 — os ícones como marcadores do mapa nativo", () => {
     expect(pLote).toEqual({ coordinate: { lat: -15, lng: -47 }, iconUrl: "data:a", iconSize: { width: 40, height: 40 }, iconAnchor: { x: 20, y: 20 }, zIndex: 1000 });
     const [[pNome]] = mapa.addMarkers.mock.calls[1];
     expect(pNome.zIndex).toBe(Z_NOME_NATIVO);
-    expect(pNome.iconAnchor).toEqual({ x: pNome.iconSize.width / 2, y: pNome.iconSize.height / 2 });
+    // o nome de topo com 10 px abaixo do ponto: a âncora no alto da margem (o ponto), no meio da largura
+    expect(pNome.iconAnchor).toEqual({ x: pNome.iconSize.width / 2, y: 0 });
 
     await camada.definir("lotes", [{ ...lote }]);
     expect(mapa.addMarkers).toHaveBeenCalledTimes(2);
@@ -283,8 +286,8 @@ describe("G374-3 — os ícones como marcadores do mapa nativo", () => {
     soltar();
     await feito;
     await waitFor(() => expect(mapa.addMarkers).toHaveBeenCalledTimes(2));
-    // com a margem em px inteiros: 2 × a metade arredondada para cima
-    expect(mapa.addMarkers.mock.calls[1][0][0].iconSize.width).toBe(2 * Math.ceil((60 * 16) / 14 / 2));
+    // em px inteiros (o nome de topo só ganha a margem de cima)
+    expect(mapa.addMarkers.mock.calls[1][0][0].iconSize.width).toBe(Math.ceil((60 * 16) / 14 - 0.001));
   });
 });
 

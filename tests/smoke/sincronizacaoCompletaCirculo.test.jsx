@@ -2,14 +2,14 @@
  * D-PROD-329 — sincronização nos dois sentidos, com a porcentagem no círculo do canto.
  *
  * SC-01 porcentagem: envio 0–25, mapa 25–55, cadastros 55–80, telas 80–100
- * SC-02 (D-PROD-379) o que sincronizar sozinho: a completa só com formato antigo ou mais de 12 h desde a última
+ * SC-02 (D-PROD-380) o que sincronizar sozinho: a completa só com formato antigo ou mais de 12 h desde a última
  *       completa; a leve ao abrir/voltar depois de 2 min (relógio: 15 min); sem a primeira baixa ou sem internet: nada
  * SC-03 envia ANTES de baixar; a porcentagem só anda para a frente; termina em 100 ("Tudo sincronizado") e some
  * SC-04 sem internet não faz nada; pedir de novo durante uma devolve a mesma
  * SC-05 o círculo mostra a porcentagem, ✓ no fim, e tocar abre a janela "Sincronização"
  * SC-06 (D-PROD-337) ficou registro no celular: o fim diz quantos ficaram (nunca "Tudo sincronizado"); o envio pede
  *       que o que esperava por falta de rede tente já
- * SC-07 (D-PROD-379) a leve envia e baixa só o que mudou (não a baixa completa); a automática não mostra o cartão; a
+ * SC-07 (D-PROD-380) a leve envia e baixa só o que mudou (não a baixa completa); a automática não mostra o cartão; a
  *       pessoa pedindo no meio dela passa a mostrar a que está em curso
  */
 import React from 'react';
@@ -66,7 +66,7 @@ describe('D-PROD-329 — sincronização nos dois sentidos', () => {
     expect(svc.percentualDaSincronia('telas', 9, 4)).toBe(100);
   });
 
-  it('SC-02 o que sincronizar sozinho (D-PROD-379)', () => {
+  it('SC-02 o que sincronizar sozinho (D-PROD-380)', () => {
     const agora = 10_000_000_000;
     const min = 60_000;
     const base = { ultima: agora - min, ultimaLeve: null, agora, formatoAtual: true, semInternet: false };

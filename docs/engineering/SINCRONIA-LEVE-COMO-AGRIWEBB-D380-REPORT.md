@@ -1,6 +1,6 @@
-# Sincronização como no AgriWebb: leve e por baixo (D-PROD-379)
+# Sincronização como no AgriWebb: leve e por baixo (D-PROD-380)
 
-**Data:** 2026-11-28 · **Decisão:** [D-PROD-379](./DECISIONS.md) · **Migration:** nenhuma · **APK:** nenhum novo
+**Data:** 2026-11-28 · **Decisão:** [D-PROD-380](./DECISIONS.md) · **Migration:** nenhuma · **APK:** nenhum novo
 
 ## Pedido
 
@@ -56,7 +56,7 @@ Arquivos: `src/services/dadosOfflineService.js` (`baixarSoOQueMudou`, `CHAVES_DA
 
 ## Testes
 
-- Novo `tests/smoke/sincronizacaoLeveD379.test.js` (SL-01..05): só as chaves da leve, com `force`; envia antes;
+- Novo `tests/smoke/sincronizacaoLeveD380.test.js` (SL-01..05): só as chaves da leve, com `force`; envia antes;
   marca a leve e não a completa; sem internet nada; tudo falhou não marca; conta trocada não marca; logout esquece.
 - `sincronizacaoCompletaCirculo` SC-02 (regras novas) e SC-07 (leve sem cartão; pedir no meio mostra);
   `sincronizacaoAutomaticaGatilhos` SA-01/02/04; `sincronizacaoOrganizada` SO-03, SO-06, SO-07.

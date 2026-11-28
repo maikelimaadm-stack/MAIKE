@@ -12,7 +12,7 @@ const VOLTA = 2 * Math.PI * RAIO;
  * porcentagem e o que está fazendo. Sem fundo escuro: a pessoa continua usando o app em volta. Tocar no cartão abre
  * a janela "Sincronização"; no fim mostra ✓ (ou ! se parte não veio) e some sozinho.
  *
- * D-PROD-379 (como o AgriWebb): só quando a PESSOA pediu ("Sincronizar agora"). A sincronização automática roda por
+ * D-PROD-380 (como o AgriWebb): só quando a PESSOA pediu ("Sincronizar agora"). A sincronização automática roda por
  * baixo, sem cartão: o ícone do topo mostra quantos registros faltam enviar.
  */
 export default function CirculoDeSincronizacao() {

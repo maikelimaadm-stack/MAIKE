@@ -564,9 +564,9 @@ própria, com decisão própria, quando o proprietário pedir.
     Não é o "motor de intelligence genérico" fora do roadmap: é uma tela de perguntas
     sobre os módulos que já existem, com decisão própria.
 
-## Sincronização no celular — Etapa 2: SQLite (registro de 2026-11-28, D-PROD-379)
+## Sincronização no celular — Etapa 2: SQLite (registro de 2026-11-28, D-PROD-380)
 
-A Etapa 1 (D-PROD-379) deixou a sincronização automática leve e por baixo, como no AgriWebb, sem APK novo. O
+A Etapa 1 (D-PROD-380) deixou a sincronização automática leve e por baixo, como no AgriWebb, sem APK novo. O
 proprietário decidiu **seguir sem SQLite por enquanto** e fazer a Etapa 2 **antes da produção**: cada parte que mexe
 no app nativo precisa de APK novo, e há muitas outras frentes agora. Registro de memória: **nenhum item está autorizado
 por esta lista**; cada um entra como missão própria quando o proprietário pedir.

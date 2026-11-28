@@ -56,7 +56,7 @@ const mostrar = (id, tom, titulo, descricao, duracao, aoTocar = null) =>
  * quando há algo para enviar e a internet está de volta. Nada de faixa "sem
  * internet": sem sinal, o app só guarda (o ícone do topo mostra o número).
  *
- *  - D-PROD-379: nada enquanto sobe (antes, "Sincronizando — Enviando 3 registro(s)…" parado na tela): o ícone do
+ *  - D-PROD-380: nada enquanto sobe (antes, "Sincronizando — Enviando 3 registro(s)…" parado na tela): o ícone do
  *    topo mostra o número e gira;
  *  - "Tudo enviado ao sistema" quando a fila esvazia (só se algo feito sem internet subiu);
  *  - "2 registro(s) precisam de atenção" (toque abre a sincronização) quando o sistema recusa algum.

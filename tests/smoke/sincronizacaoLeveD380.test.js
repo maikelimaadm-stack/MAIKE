@@ -1,5 +1,5 @@
 /**
- * D-PROD-379 — a sincronização do dia a dia é LEVE (como o AgriWebb): envia o que está no celular e baixa só o que
+ * D-PROD-380 — a sincronização do dia a dia é LEVE (como o AgriWebb): envia o que está no celular e baixa só o que
  * mudou (as listas do mapa que o servidor entrega por `/mudancas`), sem o mapa inteiro, os cadastros e as telas.
  *
  * SL-01 envia antes; atualiza só as chaves da leve, com `force`; marca a leve e NÃO marca a baixa completa
@@ -49,7 +49,7 @@ beforeEach(async () => {
   svc = await import('@/services/dadosOfflineService');
 });
 
-describe('D-PROD-379 — sincronização leve', () => {
+describe('D-PROD-380 — sincronização leve', () => {
   it('SL-01 envia antes; só as chaves da leve, com force; marca a leve e não a completa', async () => {
     const r = await svc.baixarSoOQueMudou({ empresaId: 'emp-1' });
     expect(r).toMatchObject({ ok: true, falhas: 0 });

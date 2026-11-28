@@ -24,7 +24,7 @@ function useSemInternet() {
 /**
  * D-PROD-301 — o botão da sincronização no topo (ao lado do usuário): um ícone
  * pequeno, sem faixa na tela, que diz como está e abre a janela "Sincronização".
- *  - enviando o que espera: girando (D-PROD-379: a passada de rotina sem nada a enviar não gira; o ícone só diz
+ *  - enviando o que espera: girando (D-PROD-380: a passada de rotina sem nada a enviar não gira; o ícone só diz
  *    quantos faltam, como a faixa do AgriWebb);
  *  - precisa de atenção: triângulo âmbar com o número;
  *  - esperando envio: nuvem com o número;

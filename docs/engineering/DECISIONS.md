@@ -11211,11 +11211,40 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - O código da camada fica no app, desligado. Só volta numa forma que desenhe junto com o mapa.
 - **Testes:** `mapaGoogleCamadaNativaD376.test.jsx`: a camada desligada nunca está disponível. No APK 1.0.9, o app usa os marcadores do mapa, sem câmera a cada quadro.
 
-## D-PROD-379 — Sincronização como no AgriWebb: leve e por baixo, sem o cartão a cada abertura
+## D-PROD-379 — Mapa do Google: nomes com contorno; no app, nomes de tamanho fixo que somem quando não cabem
 
-**Data:** 2026-11-28 · **Origem:** pedido do proprietário ("toda hora que estou entrando no meu sistema parece que fica sincronizando … olha do AgriWebb … faça igual"; escolheu "Etapa 1 primeiro") · **Relatório:** [`SINCRONIA-LEVE-COMO-AGRIWEBB-D379-REPORT.md`](./SINCRONIA-LEVE-COMO-AGRIWEBB-D379-REPORT.md) · **Migration:** nenhuma · **APK:** nenhum novo (vai pela atualização automática)
+**Data:** 2026-11-28 · **Origem:** o proprietário, depois do APK 1.0.9 ("arrume e melhore a questão dos nomes", "pesquise como o AgriWebb faz") aprovou a proposta: "do jeito que está falando, ok… a proporção de zoom dos ícones deixe a mesma configuração; se puder ficar melhor que os deles, eu aceito" · **Relatório:** [`MAPA-GOOGLE-NOMES-FIXOS-D379-REPORT.md`](./MAPA-GOOGLE-NOMES-FIXOS-D379-REPORT.md) · **Migration:** nenhuma · **APK:** nenhum novo (atualização automática)
 
 > **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-379. O marcador passa a D-PROD-380.
+
+- **Pesquisa (só fontes públicas, nenhum app desmontado):**
+  - O AgriWebb usa o mapa do Google como base.
+  - Nas fontes públicas, o detalhe do pasto (nome, área total e área pastejável) aparece no resumo que abre ao tocar no pasto. Elas não dizem se o mapa mostra rótulos.
+  - Como eles desenham os rótulos não é público. A proposta segue o princípio dos mapas: rótulo de tamanho fixo que some quando não cabe, com contorno para ler no satélite. O visual é do Mapa Geral, sem copiar o de ninguém.
+- **Decisão:**
+  - **Contorno escuro fino nas letras** (3 px, `rgba(0,0,0,0.6)`), em todos os nomes de pasto (MapLibre e Google).
+    - A imagem ganha 2 px de margem para o contorno não ser cortado.
+    - A chave da imagem muda, então as imagens velhas não são reusadas.
+    - Isso substitui o "sem sombra" da D-PROD-354: o texto branco sem contorno sumia em fundo claro e parecia cortado.
+  - **No app (marcadores do mapa nativo, `nomesFixos`), o nome tem tamanho fixo na tela**, como os rótulos do próprio Google.
+    - Nada é refeito no zoom, então acaba a "travadinha" ao parar.
+    - Quando o mapa para (`nomesFixosNaCamera`), o nível é o mesmo para todos (tudo, nome ou sigla).
+    - Do maior pasto para o menor, o nome só aparece se o pasto não for minúsculo na tela (14 px) e se não bater noutro nome nem num ícone (lote de outro pasto, cocho, ponto, tarefa). Nenhum nome fica coberto ou cortado.
+    - No meio do gesto, nada é feito. Um ícone novo em cima de um nome o esconde.
+    - O site e o MapLibre seguem com o tamanho acompanhando o zoom.
+  - **Os ícones não mudam:** mesmo desenho e mesma proporção de zoom de antes.
+  - **Marcadores com a margem mínima:** a imagem só cresce o que o ponto de âncora precisa, e a âncora vai no ponto. Antes ela ia no meio e a imagem dobrava. Com imagens menores, o mapa trabalha menos.
+- **Testes:**
+  - `mapaGoogleNomesFixosD379.test.jsx` (8). Com o mapa girado, a caixa do pasto na tela usa os quatro cantos (`caixaDoPastoNaTela`, achado do Codex). Antes eram dois cantos e a caixa achatava. Isso vale também para o nível do site.
+  - N354-2 cobre o contorno: ordem, espessura, cor e o tamanho da imagem com a margem.
+  - G374-3 cobre a margem mínima e a âncora no ponto.
+  - G376-3 confere `nomesFixos` no app.
+
+## D-PROD-380 — Sincronização como no AgriWebb: leve e por baixo, sem o cartão a cada abertura
+
+**Data:** 2026-11-28 · **Origem:** pedido do proprietário ("toda hora que estou entrando no meu sistema parece que fica sincronizando … olha do AgriWebb … faça igual"; escolheu "Etapa 1 primeiro") · **Relatório:** [`SINCRONIA-LEVE-COMO-AGRIWEBB-D380-REPORT.md`](./SINCRONIA-LEVE-COMO-AGRIWEBB-D380-REPORT.md) · **Migration:** nenhuma · **APK:** nenhum novo (vai pela atualização automática)
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-380. O marcador passa a D-PROD-381.
 
 - **Problema:** no app, ao abrir depois de 10 min, ao voltar a internet depois de 3 min e a cada 6 h, a sincronização automática baixava TUDO de novo (as 23 listas do mapa, os cadastros e até 3000 telas guardadas) com o cartão "Sincronizando %" no meio da tela (D-PROD-329/331/343). Enquanto o envio subia, o aviso "Sincronizando — Enviando N registro(s)…" ficava parado na tela, e o ícone do topo girava até na passada de rotina sem nada a enviar.
 - **Como o AgriWebb faz (fontes públicas, ver relatório):** sincroniza sozinho ao abrir e em segundo plano; na tela só uma faixa com quantos registros faltam enviar e "Sincronizar agora".
@@ -11227,6 +11256,6 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - **Ícone do topo:** gira só quando há registros sendo enviados; senão mostra o número que falta (ou ✓), como a faixa do AgriWebb.
   - **Janela Sincronização:** "Última sincronização: agora mesmo / há N min / há N h" (a mais nova entre a leve e a completa).
 - **Fica para a Etapa 2:** guardar registro por registro no celular (SQLite) e ler as telas do celular primeiro; o "só o que mudou" para as listas que ainda vêm inteiras (áreas, estoque, manejos, cadastros).
-- **Testes:** `sincronizacaoLeveD379.test.js` (SL-01..05); `sincronizacaoCompletaCirculo` SC-02 (regras novas) e SC-07 (leve, sem cartão, pedir no meio mostra); `sincronizacaoAutomaticaGatilhos` SA-01/02 (leve, sem cartão) e SA-04 (completa depois de 12 h, por baixo); `sincronizacaoOrganizada` SO-03 (sem aviso enquanto envia), SO-06 (ícone não gira à toa) e SO-07 ("há quanto tempo").
+- **Testes:** `sincronizacaoLeveD380.test.js` (SL-01..05); `sincronizacaoCompletaCirculo` SC-02 (regras novas) e SC-07 (leve, sem cartão, pedir no meio mostra); `sincronizacaoAutomaticaGatilhos` SA-01/02 (leve, sem cartão) e SA-04 (completa depois de 12 h, por baixo); `sincronizacaoOrganizada` SO-03 (sem aviso enquanto envia), SO-06 (ícone não gira à toa) e SO-07 ("há quanto tempo").
 
-<!-- Próxima decisão: D-PROD-380 -->
+<!-- Próxima decisão: D-PROD-381 -->
