@@ -100,7 +100,7 @@ rollout pausado **D-PROD-41**)
 | Item | Estado |
 |---|---|
 | Decisão | **D-PROD-371** (emenda da Constituição aprovada pelo proprietário): a unidade de estoque é a Unidade de Medida do cadastro (KG, L, SC, UN...); um campo só na tela; troca só sem histórico; conversões a partir dela (só KG ↔ L proibido); rótulos reais; cocho recusa estoque fora de KG até a UE-3 |
-| Banco | migration CONTRACT `20261127200000_estoque_unidade_cadastro` (6 CHECKs mais largos, sem DML), **não aplicada em produção** (`SCHEMA_APPLIED_PROD: NÃO`) |
+| Banco | migration CONTRACT `20261127200000_estoque_unidade_cadastro` (6 CHECKs mais largos, sem DML), **aplicada em produção em 2026-11-27**, antes do merge da PR #460 (`SCHEMA_APPLIED_PROD: SIM`; 84 migrations, 0 abertas) |
 | Branch | `claude/estoque-unidade-cadastro` (sobre `claude/produto-tela-base1`) |
 | Documentos | [SPEC](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-SPEC.md) · [relatório UE-1](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-UE1-REPORT.md) · [runbook](./MAIKE-ESTOQUE-UNIDADE-CADASTRO-RUNBOOK-RELEASE.md) |
 | Próximas | **UE-2**: financeiro, linha de produto da atividade, transferência e telas do estoque em qualquer unidade · **UE-3**: cocho, depósito e formulação pelo "kg por unidade de estoque", sem a trava |
