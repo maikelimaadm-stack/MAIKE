@@ -68,9 +68,9 @@ const tamanho = (/** @type {string} */ t) => [...String(t ?? "").trim()].length;
  * D-PROD-271: e "Editar" (edição completa), que fecha este detalhe e abre a janela "Novo movimento" em modo edição
  * (`onEditar`, com a versão vigente); sem `onEditar` o botão não aparece. As versões substituídas por edições ficam em
  * "Versões anteriores" (recolhida) e o histórico diz "Editado (lançamentos refeitos)".
- * @param {{ entrada: any|null, empresaId: string|null, podeLancar: boolean, onFechar: () => void, onEditar?: (detalhe: any) => void }} props `entrada` é a linha da lista
+ * @param {{ entrada: any|null, empresaId: string|null, podeLancar: boolean, onFechar: () => void, onEditar?: (detalhe: any) => void, onDuplicar?: (detalhe: any) => void }} props `entrada` é a linha da lista
  */
-export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, onFechar, onEditar = undefined }) {
+export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, onFechar, onEditar = undefined, onDuplicar = undefined }) {
   const celular = useCelular();
   const queryClient = useQueryClient();
   const id = entrada?.id ? String(entrada.id) : null;
@@ -99,6 +99,16 @@ export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, o
   const e = d ?? entrada;
   const { itens, anteriores } = versoesDaEntrada(e);
   const confirmada = d?.status === "CONFIRMADA";
+  // D-PROD-382: o "Excluir" do ⚡ da linha de Movimentos abre esta janela já pedindo o motivo da exclusão (uma vez
+  // por documento; "Voltar" leva ao detalhe).
+  const acaoFeita = useRef(/** @type {string|null} */ (null));
+  useEffect(() => {
+    if (entrada?.acao !== "excluir" || !d || !confirmada || !podeLancar || acaoFeita.current === id) return;
+    acaoFeita.current = id;
+    setMotivo("");
+    setErro(null);
+    setModo("excluir");
+  }, [entrada?.acao, d, confirmada, podeLancar, id]);
 
   const atualizar = async () => {
     await queryClient.invalidateQueries({ queryKey: ["estoque"] });
@@ -175,6 +185,9 @@ export default function JanelaEntradaEstoque({ entrada, empresaId, podeLancar, o
         <button type="button" className="tb-btn" onClick={abrirEdicao} data-testid="entrada-editar">Editar observação</button>
         {onEditar ? (
           <button type="button" className="tb-btn" onClick={() => onEditar(d)} data-testid="entrada-editar-completo">Editar</button>
+        ) : null}
+        {onDuplicar ? (
+          <button type="button" className="tb-btn" onClick={() => onDuplicar(d)} data-testid="entrada-duplicar">Duplicar</button>
         ) : null}
         <button type="button" className="tb-btn tb-btn-red" onClick={() => { setMotivo(""); setErro(null); setModo("excluir"); }} data-testid="entrada-excluir">Excluir entrada</button>
       </>

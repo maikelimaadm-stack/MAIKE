@@ -11286,4 +11286,38 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - O canal, o endereço só em https, a atualização de teste pelo HTTP nativo e nunca do servidor oficial, e o canal oficial sem mudança.
   - O selo, e o workflow: só à mão, o pré-lançamento, a ordem do upload, a chave fixa e o pacote.
 
-<!-- Próxima decisão: D-PROD-382 -->
+## D-PROD-382 — Estoque: Editar, Duplicar e Excluir no ⚡ da linha de Movimentos
+
+**Data:** 2026-11-28 · **Origem:** o proprietário: "preciso ajustar na página de estoque, não consigo editar uma entrada, duplicar, excluir etc." e "entrada ou saída que seja, mas eu tenho que poder excluir" · **Migration:** nenhuma
+
+> **Numeração:** `node scripts/dev/proxima-decisao.mjs` indicou D-PROD-382. O marcador passa a D-PROD-383.
+
+- **Problema:**
+  - Editar e Excluir já existiam (D-PROD-271, D-PROD-273), mas ficavam três passos para dentro: ⚡ "Ver detalhes", depois o link do documento e só então os botões.
+  - O ⚡ da linha tinha só "Ver detalhes".
+  - Não havia "Duplicar".
+- **Decisão:** o ⚡ da linha de Movimentos mostra as ações do documento do estoque, com a mesma ação da tela que o servidor exige.
+  - **Entrada** (ação `entrada`) e **saída manual** (ação `saida`): "Editar", "Duplicar" e "Excluir".
+  - **Ajuste de inventário** (ação `ajuste`): só "Excluir". O ajuste não tem edição.
+  - **Outras origens** (atividade, cocho, financeiro, transferência, abastecimento), o estorno e o já excluído: só "Ver detalhes". Esses se corrigem no lançamento de origem.
+  - "Editar" vai direto para a tela de edição, com o detalhe completo do documento. Se o documento não estiver CONFIRMADO, abre o detalhe dele.
+  - "Excluir" abre o detalhe do documento já pedindo o motivo, com a mesma exclusão de antes (versão, `operation_id` e prévia do recálculo).
+  - "Duplicar" abre um movimento **novo** com os dados do documento:
+    - a data é a de hoje;
+    - na entrada, o número do documento vem vazio;
+    - não vão a versão nem o id;
+    - "Lançar" faz a criação normal (POST), e não uma edição.
+    - O botão "Duplicar" aparece também no detalhe da entrada e da saída.
+  - **Servidor:** a linha da lista de Movimentos passa a trazer `lancamento_origem_id`, o id do documento que o motor grava. Não muda permissão nem regra.
+- **Testes:**
+  - `estoqueNovoMovimento.test.jsx`: 9 testes novos, 59 no arquivo.
+    - os itens do ⚡ por origem e por permissão;
+    - Editar direto;
+    - Duplicar com POST e sem PATCH;
+    - Excluir já no motivo;
+    - Duplicar no detalhe;
+    - saída e ajuste.
+  - `estoqueEntradas.test.mjs`: a linha do kardex traz a origem e o id da entrada.
+- **Limite conhecido:** num produto com estoque fora de KG ou L (por exemplo LT), a tela do movimento ainda escreve "kg" no rótulo da quantidade. O que é gravado está certo. Isso é a UE-2 (D-PROD-371), pausada pelo proprietário.
+
+<!-- Próxima decisão: D-PROD-383 -->

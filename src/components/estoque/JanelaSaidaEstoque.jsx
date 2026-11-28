@@ -58,9 +58,9 @@ const tamanho = (/** @type {string} */ t) => [...String(t ?? "").trim()].length;
  * D-PROD-271: e "Editar" (edição completa), que fecha este detalhe e abre a janela "Novo movimento" em modo edição
  * (`onEditar`, com a versão vigente); sem `onEditar` o botão não aparece. O histórico diz "Editado (lançamentos
  * refeitos)" na edição com substituição.
- * @param {{ saida: { id: string, numero?: string } | null, empresaId: string|null, podeSaida: boolean, onFechar: () => void, onEditar?: (detalhe: any) => void }} props
+ * @param {{ saida: { id: string, numero?: string, acao?: string } | null, empresaId: string|null, podeSaida: boolean, onFechar: () => void, onEditar?: (detalhe: any) => void, onDuplicar?: (detalhe: any) => void }} props
  */
-export default function JanelaSaidaEstoque({ saida, empresaId, podeSaida, onFechar, onEditar = undefined }) {
+export default function JanelaSaidaEstoque({ saida, empresaId, podeSaida, onFechar, onEditar = undefined, onDuplicar = undefined }) {
   const celular = useCelular();
   const queryClient = useQueryClient();
   const id = saida?.id ? String(saida.id) : null;
@@ -89,6 +89,16 @@ export default function JanelaSaidaEstoque({ saida, empresaId, podeSaida, onFech
   const s = d ?? saida;
   const itens = Array.isArray(d?.itens) ? d.itens : [];
   const confirmada = d?.status === "CONFIRMADA";
+  // D-PROD-382: o "Excluir" do ⚡ da linha de Movimentos abre esta janela já pedindo o motivo da exclusão (uma vez
+  // por documento; "Voltar" leva ao detalhe).
+  const acaoFeita = useRef(/** @type {string|null} */ (null));
+  useEffect(() => {
+    if (saida?.acao !== "excluir" || !d || !confirmada || !podeSaida || acaoFeita.current === id) return;
+    acaoFeita.current = id;
+    setMotivo("");
+    setErro(null);
+    setModo("excluir");
+  }, [saida?.acao, d, confirmada, podeSaida, id]);
 
   const atualizar = async () => {
     await queryClient.invalidateQueries({ queryKey: ["estoque"] });
@@ -165,6 +175,9 @@ export default function JanelaSaidaEstoque({ saida, empresaId, podeSaida, onFech
         <button type="button" className="tb-btn" onClick={abrirEdicao} data-testid="saida-editar">Editar observação</button>
         {onEditar ? (
           <button type="button" className="tb-btn" onClick={() => onEditar(d)} data-testid="saida-editar-completo">Editar</button>
+        ) : null}
+        {onDuplicar ? (
+          <button type="button" className="tb-btn" onClick={() => onDuplicar(d)} data-testid="saida-duplicar">Duplicar</button>
         ) : null}
         <button type="button" className="tb-btn tb-btn-red" onClick={() => { setMotivo(""); setErro(null); setModo("excluir"); }} data-testid="saida-excluir">Excluir saída</button>
       </>

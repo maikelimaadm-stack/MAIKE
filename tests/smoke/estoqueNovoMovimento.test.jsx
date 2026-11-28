@@ -88,7 +88,14 @@ const MOV_SAIDA = {
   id: 'ms1', numero: '106', data: '2026-11-12', tipo: 'Saída', tipo_detalhado: 'saida_manual', origem_sistema: 'saida_estoque', status: 'Ativa', estorno: false,
   produto_id: 'p-ureia', produto_nome: 'Ureia', produto_codigo: null, quantidade: '50.0000', unidade: 'KG', valor_unitario: '3.4000', valor_total: '170.0000',
   local_origem_id: 'l-galpao', local_origem: 'Galpão insumos', local_destino_id: null, local_destino: null, saldo_antes: '1550.0000', saldo_depois: '1500.0000',
-  movimento_pai_id: null, movimento_filho_id: null,
+  movimento_pai_id: null, movimento_filho_id: null, lancamento_origem_id: 's1',
+};
+/** D-PROD-382: o movimento do Kardex lançado pela entrada `e1` (origem `entrada_estoque`, `lancamento_origem_id` = id da entrada). */
+const MOV_ENTRADA = {
+  id: 'me1', numero: '108', data: '2026-11-10', tipo: 'Entrada', tipo_detalhado: 'compra_manual', origem_sistema: 'entrada_estoque', status: 'Ativa', estorno: false,
+  produto_id: 'p-ureia', produto_nome: 'Ureia', produto_codigo: null, quantidade: '1500.0000', unidade: 'KG', valor_unitario: '3.4000', valor_total: '5100.0000',
+  local_origem_id: null, local_origem: null, local_destino_id: 'l-galpao', local_destino: 'Galpão insumos', saldo_antes: '0.0000', saldo_depois: '1500.0000',
+  movimento_pai_id: null, movimento_filho_id: null, lancamento_origem_id: 'e1',
 };
 
 /** Saldo e custo médio de cada produto × depósito (rota do ajuste). Sal mineral no Tanque não tem saldo (sem custo médio). */
@@ -113,7 +120,7 @@ const MOV_AJUSTE = {
   id: 'ma1', numero: '107', data: '2026-11-14', tipo: 'Saída', tipo_detalhado: 'ajuste_falta', origem_sistema: 'ajuste_estoque', status: 'Ativa', estorno: false,
   produto_id: 'p-ureia', produto_nome: 'Ureia', produto_codigo: null, quantidade: '10.0000', unidade: 'KG', valor_unitario: '3.0000', valor_total: '30.0000',
   local_origem_id: 'l-galpao', local_origem: 'Galpão insumos', local_destino_id: null, local_destino: null, saldo_antes: '100.0000', saldo_depois: '90.0000',
-  movimento_pai_id: null, movimento_filho_id: null,
+  movimento_pai_id: null, movimento_filho_id: null, lancamento_origem_id: 'aj1',
 };
 
 /** Backend falso: o do Estoque + as rotas das Entradas, das Saídas, dos Ajustes, dos motivos e da transferência (estado em memória). */
@@ -184,7 +191,7 @@ const criarRoteador = () => {
     }
     if (path === '/estoque/movimentos' && method === 'GET') {
       const base = await rotearEstoque(req);
-      return { ...base, body: { ...base.body, items: [MOV_AJUSTE, MOV_SAIDA, ...base.body.items] } };
+      return { ...base, body: { ...base.body, items: [MOV_AJUSTE, MOV_SAIDA, MOV_ENTRADA, ...base.body.items] } };
     }
     // D-PROD-272 — ajustes de inventário.
     if (path === '/estoque/ajustes/saldo' && method === 'GET') {
@@ -1242,5 +1249,108 @@ describe('D-PROD-271 — edição completa da saída', () => {
     const detalhe = await screen.findByTestId('janela-saida-estoque');
     await within(detalhe).findByTestId('saida-detalhe-motivo');
     expect(within(detalhe).queryByTestId('saida-editar-completo')).toBeNull();
+  });
+});
+
+describe('D-PROD-382 — Editar, Duplicar e Excluir no ⚡ da linha de Movimentos', () => {
+  const abrirAcoes = async (numero, produto = 'Ureia') => {
+    fireEvent.click(await screen.findByRole('button', { name: `Ações do movimento nº ${numero}` }));
+    return screen.findByRole('menu');
+  };
+  const itensDoMenu = (menu) => within(menu).getAllByRole('menuitem').map((i) => i.textContent.trim());
+
+  it('entrada do estoque: o ⚡ tem Ver detalhes, Editar, Duplicar e Excluir; movimento de outra origem só tem Ver detalhes', async () => {
+    await abrirMovimentos();
+    expect(itensDoMenu(await abrirAcoes('108'))).toEqual(['Ver detalhes', 'Editar', 'Duplicar', 'Excluir']);
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' });
+    cleanup();
+    await abrirMovimentos();
+    expect(itensDoMenu(await abrirAcoes('101'))).toEqual(['Ver detalhes']);
+  });
+
+  it('"Editar" vai direto para a tela de edição da entrada, com os campos da versão vigente', async () => {
+    await abrirMovimentos();
+    fireEvent.click(within(await abrirAcoes('108')).getByRole('menuitem', { name: 'Editar' }));
+    const tela = await screen.findByTestId('tela-novo-movimento-estoque');
+    expect(screen.getByText('Editar entrada nº 7')).toBeTruthy();
+    expect(within(tela).getByTestId('entrada-linha-0-quantidade').value).toBe('1500');
+    expect(within(tela).getByTestId('movimento-lancar').textContent).toBe('Salvar edição');
+    expect(screen.queryByTestId('janela-entrada-estoque')).toBeNull();
+  });
+
+  it('"Duplicar" abre um movimento NOVO com os dados da entrada, a data de hoje e sem o número do documento; lançar faz POST (não PATCH)', async () => {
+    await abrirMovimentos();
+    fireEvent.click(within(await abrirAcoes('108')).getByRole('menuitem', { name: 'Duplicar' }));
+    const tela = await screen.findByTestId('tela-novo-movimento-estoque');
+    expect(screen.getAllByText('Novo movimento (cópia da entrada nº 7)').length).toBeGreaterThan(0);
+    expect(within(tela).getByTestId('entrada-data').value).not.toBe('2026-11-10');
+    expect(within(tela).getByLabelText(/^Documento/).value).toBe('');
+    expect(within(tela).getByTestId('entrada-linha-0-produto').textContent).toContain('Ureia');
+    expect(within(tela).getByTestId('entrada-linha-0-quantidade').value).toBe('1500');
+    expect(within(tela).getByTestId('entrada-linha-0-custo').value).toBe('3,4');
+    expect(within(tela).queryByTestId('movimento-motivo-edicao')).toBeNull();
+    expect(within(tela).getByTestId('movimento-lancar').textContent).toBe('Lançar entrada');
+    await act(async () => fireEvent.click(within(tela).getByTestId('movimento-lancar')));
+    await waitFor(() => expect(posts('/estoque/entradas')).toHaveLength(1));
+    const corpo = posts('/estoque/entradas')[0].body;
+    expect(corpo).toMatchObject({ empresa_id: 'emp-1', motivo_id: 'mot-compra' });
+    expect(corpo.itens[0]).toMatchObject({ produto_id: 'p-ureia', local_estoque_id: 'l-galpao', quantidade: '1500' });
+    expect(corpo.versao).toBeUndefined();
+    expect(backend.chamadas.filter((c) => c.method === 'PATCH')).toHaveLength(0);
+  });
+
+  it('"Excluir" abre a entrada já pedindo o motivo e exclui com versão e operation_id', async () => {
+    await abrirMovimentos();
+    fireEvent.click(within(await abrirAcoes('108')).getByRole('menuitem', { name: 'Excluir' }));
+    const janela = await screen.findByTestId('janela-entrada-estoque');
+    digitar(await within(janela).findByTestId('entrada-exclusao-motivo'), 'lançada por engano');
+    await act(async () => fireEvent.click(within(janela).getByTestId('entrada-confirmar-exclusao')));
+    await waitFor(() => expect(posts('/estoque/entradas/e1/excluir')).toHaveLength(1));
+    expect(posts('/estoque/entradas/e1/excluir')[0].body).toMatchObject({ empresa_id: 'emp-1', versao: 1, motivo: 'lançada por engano' });
+    expect(await within(janela).findByTestId('entrada-detalhe-situacao')).toHaveProperty('textContent', 'Excluída');
+  });
+
+  it('"Duplicar" também está no detalhe da entrada', async () => {
+    await abrirMovimentos();
+    fireEvent.doubleClick((await screen.findByText('101')).closest('tr'));
+    fireEvent.click(await screen.findByTestId('movimento-abrir-entrada'));
+    const janela = await screen.findByTestId('janela-entrada-estoque');
+    fireEvent.click(await within(janela).findByTestId('entrada-duplicar'));
+    expect((await screen.findAllByText('Novo movimento (cópia da entrada nº 7)')).length).toBeGreaterThan(0);
+  });
+
+  it('saída manual: Editar, Duplicar e Excluir com a ação `saida`; Duplicar lança uma saída nova', async () => {
+    sessao.permissao = permissaoCom({ saida: true });
+    await abrirMovimentos();
+    expect(itensDoMenu(await abrirAcoes('106'))).toEqual(['Ver detalhes', 'Editar', 'Duplicar', 'Excluir']);
+    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Duplicar' }));
+    const tela = await screen.findByTestId('tela-novo-movimento-estoque');
+    expect(screen.getAllByText('Novo movimento (cópia da saída nº 3)').length).toBeGreaterThan(0);
+    expect(within(tela).getByTestId('movimento-lancar').textContent).toBe('Lançar saída');
+  });
+
+  it('"Excluir" da saída abre a saída já pedindo o motivo', async () => {
+    sessao.permissao = permissaoCom({ saida: true });
+    await abrirMovimentos();
+    fireEvent.click(within(await abrirAcoes('106')).getByRole('menuitem', { name: 'Excluir' }));
+    const janela = await screen.findByTestId('janela-saida-estoque');
+    expect(await within(janela).findByTestId('saida-exclusao-motivo')).toBeTruthy();
+  });
+
+  it('ajuste: só Excluir (sem edição); abre o ajuste já pedindo o motivo', async () => {
+    sessao.permissao = permissaoCom({ ajuste: true });
+    await abrirMovimentos();
+    expect(itensDoMenu(await abrirAcoes('107'))).toEqual(['Ver detalhes', 'Excluir']);
+    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Excluir' }));
+    const janela = await screen.findByTestId('janela-ajuste-estoque');
+    expect(await within(janela).findByTestId('ajuste-exclusao-motivo')).toBeTruthy();
+  });
+
+  it('sem a ação da tela, o ⚡ só tem Ver detalhes (a entrada sem `entrada`, a saída sem `saida`)', async () => {
+    sessao.permissao = permissaoCom({ ajuste: true });
+    await abrirMovimentos();
+    expect(itensDoMenu(await abrirAcoes('108'))).toEqual(['Ver detalhes']);
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' });
+    expect(itensDoMenu(await abrirAcoes('106'))).toEqual(['Ver detalhes']);
   });
 });

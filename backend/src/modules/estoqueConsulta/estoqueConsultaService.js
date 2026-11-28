@@ -350,6 +350,8 @@ const comoMovimentoResumo = (m, ajuste = null) => ({
   saldo_depois: textoOuNulo(semAjuste(m.saldo_depois, ajuste), CASAS_QUANTIDADE),
   movimento_pai_id: m.movimento_pai_id ?? null,
   movimento_filho_id: m.movimento_filho_id ?? null,
+  // D-PROD-382: o documento de origem (entrada, saída ou ajuste do estoque), para as ações da linha.
+  lancamento_origem_id: m.lancamento_origem_id ?? null,
   // D-PROD-313: a unidade em que a quantidade foi digitada (D-PROD-310), a quantidade digitada e o fator; nulas = sem conversão.
   ...unidadePublica(m),
 });
@@ -358,7 +360,7 @@ const comoMovimentoResumo = (m, ajuste = null) => ({
 const COLUNAS_RESUMO = Prisma.sql`m.id, m.numero_movimentacao, m.data_movimentacao, m.tipo_movimentacao, m.tipo_detalhado, m.origem_sistema,
   m.status, m.produto_id, m.produto_nome, m.produto_codigo, m.quantidade, m.unidade_medida, m.valor_unitario, m.valor_total,
   m.local_estoque_origem, m.local_origem, m.local_estoque_destino, m.local_destino, m.saldo_antes, m.saldo_depois,
-  m.movimento_pai_id, m.movimento_filho_id, m.unidade_lancamento, m.quantidade_lancamento, m.fator_lancamento, m."createdAt"`;
+  m.movimento_pai_id, m.movimento_filho_id, m.lancamento_origem_id, m.unidade_lancamento, m.quantidade_lancamento, m.fator_lancamento, m."createdAt"`;
 
 /** Campos do parente no detalhe. */
 const SELECT_RESUMO = Object.freeze({

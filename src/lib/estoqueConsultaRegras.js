@@ -147,3 +147,21 @@ export const depositoDoMovimento = (m) => {
 
 /** @param {string|null|undefined} dia AAAA-MM-DD ou vazio */
 export const ehDia = (dia) => typeof dia === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dia);
+
+/**
+ * D-PROD-382 — o documento do ESTOQUE por trás de uma linha de Movimentos (a entrada, a saída manual ou o ajuste), para
+ * as ações do ⚡ da linha (Editar, Duplicar, Excluir). O motor grava o id do documento em `lancamento_origem_id`.
+ * Movimento de outra origem (atividade, cocho, financeiro, transferência, abastecimento), estorno ou já excluído: `null`
+ * — esse se corrige no lançamento de origem.
+ * @param {any} m a linha da lista
+ * @returns {{ tipo: 'entrada'|'saida'|'ajuste', id: string } | null}
+ */
+export const documentoDaLinha = (m) => {
+  if (!m || m.excluido === true || m.estorno === true) return null;
+  const id = typeof m.lancamento_origem_id === 'string' ? m.lancamento_origem_id : '';
+  if (!id) return null;
+  if (m.origem_sistema === 'entrada_estoque') return { tipo: 'entrada', id };
+  if (m.origem_sistema === 'saida_estoque') return { tipo: 'saida', id };
+  if (m.origem_sistema === 'ajuste_estoque') return { tipo: 'ajuste', id };
+  return null;
+};
