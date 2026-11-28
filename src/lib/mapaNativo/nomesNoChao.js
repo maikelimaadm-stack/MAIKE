@@ -64,7 +64,9 @@ export function criarNomesNoChao(enviar) {
         const vistos = new Set();
         for (const n of lista) {
           vistos.add(n.chave);
-          const desenho = `${n.url.length}|${n.url.slice(-48)}|${n.lat}|${n.lng}|${n.ancoraY}`;
+          // o lugar com 6 casas (~10 cm): o nome com lote muda de lugar quando muda de tamanho, e aí entra de novo
+          // (o novo entra antes de o velho sair, na mesma passada: não pisca)
+          const desenho = `${n.url.length}|${n.url.slice(-48)}|${n.lat.toFixed(6)}|${n.lng.toFixed(6)}|${n.ancoraY}`;
           const a = noMapa.get(n.chave);
           if (!a || a.desenho !== desenho) {
             por.push({ chave: n.chave, url: n.url, lat: n.lat, lng: n.lng, ancoraY: n.ancoraY, metros: n.metros, visivel: n.visivel, z: 1 });

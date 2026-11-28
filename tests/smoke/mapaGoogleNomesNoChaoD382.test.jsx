@@ -23,6 +23,7 @@ vi.mock("@/lib/maplibre/lotesNoMapa.js", async (orig) => {
 });
 
 import { FATOR_MAXIMO, criarNomesNoChao, metrosPorPx, tamanhoNoChao } from "@/lib/mapaNativo/nomesNoChao.js";
+import { montarNomes } from "@/lib/mapaNativo/nomesGoogle.js";
 import useMarcadoresGoogle from "@/components/mapa/useMarcadoresGoogle.js";
 import { OFFSET_LOTE_PX } from "@/lib/maplibre/lotesNoMapa.js";
 
@@ -97,8 +98,8 @@ describe("CH-2 — só o que mudou vai ao mapa", () => {
     expect(enviar.mock.calls[1][0]).toMatchObject({ por: [], tamanhos: [{ chave: "a", metros: 50 }], esconder: ["b"], mostrar: [], tirar: [] });
     await chao.definir([n("b")]);
     expect(enviar.mock.calls[2][0]).toMatchObject({ por: [], mostrar: ["b"], tirar: ["a"] });
-    // mudou de lugar (o lote chegou: âncora no topo): entra de novo
-    await chao.definir([n("b", { ancoraY: 0 })]);
+    // mudou de lugar (o lote chegou: o nome desce): entra de novo
+    await chao.definir([n("b", { lat: -15.0001 })]);
     expect(enviar.mock.calls[3][0].por).toHaveLength(1);
   });
 });
@@ -135,8 +136,13 @@ describe("CH-3 — o hook com os nomes no chão", () => {
     const lote = definirMarcadores.mock.calls.filter(([g]) => g === "lotes").at(-1)[1][0];
     expect(lote.dy).toBe(OFFSET_LOTE_PX[1]);
     const nomes = definirNomesNoChao.mock.calls.at(-1)[0];
-    expect(nomes.find((x) => x.chave === "a").ancoraY).toBe(0);
-    expect(nomes.find((x) => x.chave === "b").ancoraY).toBe(0.5);
+    // preso sempre pelo meio; com lote, o meio do nome fica abaixo do ponto (o topo logo abaixo do ícone)
+    const todos = montarNomes(areas);
+    const a = nomes.find((x) => x.chave === "a");
+    const b = nomes.find((x) => x.chave === "b");
+    expect([a.ancoraY, b.ancoraY]).toEqual([0.5, 0.5]);
+    expect(a.lat).toBeLessThan(/** @type {any} */ (todos.get("a")).lat);
+    expect(b.lat).toBe(/** @type {any} */ (todos.get("b")).lat);
   });
 });
 

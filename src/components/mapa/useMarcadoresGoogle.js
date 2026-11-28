@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { itensDaSuplementacao, itensDasTarefas, itensDosLotes, itensDosPontos } from "@/lib/maplibre/itensDoMapaGeral.js";
-import { tamanhoNoChao } from "@/lib/mapaNativo/nomesNoChao.js";
+import { metrosPorPx, tamanhoNoChao } from "@/lib/mapaNativo/nomesNoChao.js";
 import { ESCALA_NOME_FIXO, NIVEIS, colocacaoDoNome, montarNomes, nivelDosNomes, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
 import { DESLOC_NOME_COM_LOTE_PX, avisarFalhaNome, esperarFonteDosNomes, pedidoImagemNome } from "@/lib/maplibre/nomesNoMapa.js";
 import {
@@ -148,7 +148,13 @@ export default function useMarcadoresGoogle(mapa) {
           const comLote = lotesInfoRef.current.has(n.id);
           // sem câmera ainda (o mapa avisa quando para): o nome entra escondido
           const t = tamanhoNoChao({ w: r.w, h: r.h }, n.pf, n.lat, comLote, camera ? camera.zoom : 14);
-          lista.push({ chave: n.id, url, lat: n.lat, lng: n.lng, ancoraY: comLote ? 0 : 0.5, metros: t.metros, visivel: Boolean(camera) && t.visivel });
+          // Sempre preso pelo MEIO da imagem (ao mudar de tamanho, o mapa refaz a imagem em volta do meio: preso pelo
+          // topo, o nome subia para cima do lote). Com lote, o meio fica meia altura (+ 3 px) abaixo do ponto: o topo do
+          // nome logo abaixo do ícone, sem encostar nele.
+          const mpp = metrosPorPx(n.lat, camera ? camera.zoom : 14);
+          const desce = comLote ? (t.metros * r.h) / r.w / 2 + 3 * mpp : 0;
+          const lat = n.lat - desce / 110574;
+          lista.push({ chave: n.id, url, lat, lng: n.lng, ancoraY: 0.5, metros: t.metros, visivel: Boolean(camera) && t.visivel });
         }
         mapa.definirNomesNoChao(lista);
       };
