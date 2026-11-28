@@ -11308,9 +11308,14 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
     - não vão a versão nem o id;
     - "Lançar" faz a criação normal (POST), e não uma edição.
     - O botão "Duplicar" aparece também no detalhe da entrada e da saída.
+  - **Barra de cima:** os botões Editar, Duplicar e Excluir, iguais aos dos cadastros Base1, agem no movimento selecionado. O proprietário pediu: "tem que ficar igual dos modelos de cadastros, mostrando lá em cima". O caminho é o mesmo do ⚡. Quando o movimento não aceita a ação, um aviso diz o porquê:
+    - movimento de outra origem;
+    - falta de permissão;
+    - ajuste sem edição;
+    - mais de um movimento selecionado.
   - **Servidor:** a linha da lista de Movimentos passa a trazer `lancamento_origem_id`, o id do documento que o motor grava. Não muda permissão nem regra.
 - **Testes:**
-  - `estoqueNovoMovimento.test.jsx`: 9 testes novos, 59 no arquivo.
+  - `estoqueNovoMovimento.test.jsx`: 15 testes novos, 65 no arquivo (9 do ⚡ e 6 da barra de cima).
     - os itens do ⚡ por origem e por permissão;
     - Editar direto;
     - Duplicar com POST e sem PATCH;

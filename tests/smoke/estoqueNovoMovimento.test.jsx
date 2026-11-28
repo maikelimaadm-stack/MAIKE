@@ -1354,3 +1354,61 @@ describe('D-PROD-382 — Editar, Duplicar e Excluir no ⚡ da linha de Movimento
     expect(itensDoMenu(await abrirAcoes('106'))).toEqual(['Ver detalhes']);
   });
 });
+
+describe('D-PROD-382 — Editar, Duplicar e Excluir na barra de cima (padrão dos cadastros Base1)', () => {
+  const selecionar = async (numero) => {
+    const celula = await screen.findByText(numero);
+    await act(async () => fireEvent.click(within(celula.closest('tr')).getByLabelText('Selecionar linha')));
+  };
+  const barra = (nome) => screen.getByRole('button', { name: nome });
+  const toasts = () => [...document.querySelectorAll('[data-sonner-toast]')].map((t) => t.textContent);
+
+  it('com a entrada selecionada, "Editar" da barra abre a edição', async () => {
+    await abrirMovimentos();
+    await selecionar('108');
+    await act(async () => fireEvent.click(barra('Editar')));
+    expect(await screen.findByText('Editar entrada nº 7')).toBeTruthy();
+  });
+
+  it('"Duplicar" da barra abre a cópia da entrada selecionada', async () => {
+    await abrirMovimentos();
+    await selecionar('108');
+    await act(async () => fireEvent.click(barra('Duplicar')));
+    expect((await screen.findAllByText('Novo movimento (cópia da entrada nº 7)')).length).toBeGreaterThan(0);
+  });
+
+  it('"Excluir" da barra abre a entrada já pedindo o motivo', async () => {
+    await abrirMovimentos();
+    await selecionar('108');
+    await act(async () => fireEvent.click(barra('Excluir')));
+    const janela = await screen.findByTestId('janela-entrada-estoque');
+    expect(await within(janela).findByTestId('entrada-exclusao-motivo')).toBeTruthy();
+  });
+
+  it('movimento de outra origem selecionado: a barra diz onde corrigir e nada abre', async () => {
+    await abrirMovimentos();
+    await selecionar('101');
+    await act(async () => fireEvent.click(barra('Excluir')));
+    await waitFor(() => expect(toasts().join(' ')).toMatch(/vem de outro lançamento/));
+    expect(screen.queryByTestId('janela-entrada-estoque')).toBeNull();
+    expect(screen.queryByTestId('tela-novo-movimento-estoque')).toBeNull();
+  });
+
+  it('ajuste selecionado: "Editar" explica que o ajuste só se exclui; "Excluir" abre o ajuste', async () => {
+    sessao.permissao = permissaoCom({ ajuste: true });
+    await abrirMovimentos();
+    await selecionar('107');
+    await act(async () => fireEvent.click(barra('Editar')));
+    await waitFor(() => expect(toasts().join(' ')).toMatch(/só exclusão/));
+    await act(async () => fireEvent.click(barra('Excluir')));
+    expect(await screen.findByTestId('janela-ajuste-estoque')).toBeTruthy();
+  });
+
+  it('sem a ação da tela, a saída selecionada não abre: a barra diz que falta permissão', async () => {
+    await abrirMovimentos();
+    await selecionar('106');
+    await act(async () => fireEvent.click(barra('Excluir')));
+    await waitFor(() => expect(toasts().join(' ')).toMatch(/não tem permissão/));
+    expect(screen.queryByTestId('janela-saida-estoque')).toBeNull();
+  });
+});

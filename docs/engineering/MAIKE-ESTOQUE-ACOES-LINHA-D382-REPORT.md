@@ -4,7 +4,7 @@
 
 ## 1. Pedido
 
-O proprietário escreveu: "preciso ajustar na página de estoque, não consigo editar uma entrada, duplicar, excluir etc." e depois "entrada ou saída que seja, mas eu tenho que poder excluir".
+O proprietário escreveu: "preciso ajustar na página de estoque, não consigo editar uma entrada, duplicar, excluir etc." e depois "entrada ou saída que seja, mas eu tenho que poder excluir". Por fim, pediu: "excluir etc., essas coisas têm que ficar iguais às dos modelos de cadastros, mostrando lá em cima".
 
 ## 2. Causa
 
@@ -20,7 +20,7 @@ O ⚡ da linha tinha só "Ver detalhes", e "Duplicar" não existia. O servidor j
 
 | Onde | Mudança |
 |---|---|
-| `MovimentosEstoque.jsx` | o ⚡ da linha mostra Editar, Duplicar e Excluir (entrada e saída) ou Excluir (ajuste), cada um com a ação da tela (`entrada`, `saida`, `ajuste`); outras origens só "Ver detalhes" |
+| `MovimentosEstoque.jsx` | o ⚡ da linha mostra Editar, Duplicar e Excluir (entrada e saída) ou Excluir (ajuste), cada um com a ação da tela (`entrada`, `saida`, `ajuste`); outras origens só "Ver detalhes". Os botões Editar, Duplicar e Excluir da **barra de cima** (padrão Base1) agem no movimento selecionado, pelo mesmo caminho, e um aviso diz o porquê quando o movimento não aceita a ação |
 | `estoqueConsultaRegras.js` | `documentoDaLinha`: acha a entrada, a saída ou o ajuste pela origem e pelo `lancamento_origem_id`; estorno e excluído ficam de fora |
 | `TelaNovoMovimentoEstoque.jsx` | modo cópia (`copia`): um movimento novo com os dados do documento, a data de hoje e, na entrada, sem o número do documento; o título diz de qual documento veio |
 | `JanelaEntradaEstoque.jsx`, `JanelaSaidaEstoque.jsx`, `JanelaAjusteEstoque.jsx` | abrem já pedindo o motivo quando vêm do "Excluir" da linha; entrada e saída ganham o botão "Duplicar" |
@@ -30,7 +30,7 @@ As permissões, as regras do servidor e a exclusão continuam como eram: versão
 
 ## 4. Testes
 
-- **Smoke de Estoque:** `estoqueNovoMovimento.test.jsx` e `estoqueTela.test.jsx`, 75/75. São 9 testes novos:
+- **Smoke de Estoque:** 20 arquivos, 207/207. São 15 testes novos em `estoqueNovoMovimento.test.jsx`. Os 6 da barra de cima cobrem Editar, Duplicar e Excluir da selecionada, e os avisos de outra origem, de ajuste e de permissão. Os 9 do ⚡ cobrem:
   - os itens do ⚡ por origem e por permissão;
   - Editar direto;
   - Duplicar com POST e sem PATCH;
