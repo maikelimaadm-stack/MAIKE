@@ -326,7 +326,9 @@ describe("G382-9 — os nomes se ajustam enquanto o mapa mexe (só com o APK que
   it("o componente só ouve a câmera a cada quadro para os nomes quando a troca é leve", async () => {
     const { readFileSync } = await import("node:fs");
     const fonte = readFileSync("src/components/mapa/MapaGoogleNativo.jsx", "utf8");
-    expect(fonte).toContain("aoVivo = Boolean(nativos && (await nativos.liso));");
+    // no celular, rever os nomes no meio do gesto travava o zoom: fica desligado (só quando o mapa para)
+    expect(fonte).toContain("aoVivo = false;");
+    expect(fonte).not.toContain("aoVivo = Boolean(");
     expect(fonte).toContain("if (camada || aoVivo) avisarCamera(ultimaCamera, false);");
   });
 

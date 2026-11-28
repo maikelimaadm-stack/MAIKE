@@ -226,7 +226,8 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
           });
           // a câmera a cada quadro serve aos ícones por cima do mapa (APK antigo) e, com o APK que mostra e esconde
           // (D-PROD-382), aos nomes: eles se ajustam enquanto o mapa mexe. Os marcadores do mapa andam sozinhos.
-          aoVivo = Boolean(nativos && (await nativos.liso));
+          // desligado (D-PROD-382, teste no celular): rever os nomes no meio do gesto travava o zoom; só quando o mapa para
+          aoVivo = false;
           if (cancelado) return;
           if (camada || aoVivo) {
             try {
