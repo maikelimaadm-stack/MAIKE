@@ -178,3 +178,13 @@ describe("CH-5 — todos juntos: ou todos os nomes aparecem, ou nenhum", () => {
     expect(definirNomesNoChao.mock.calls.at(-1)[0].every((x) => !x.visivel)).toBe(true);
   });
 });
+
+describe("CH-6 — o ícone do marcador nítido", () => {
+  it("o plugin não refaz sem filtro a imagem que já está no tamanho certo", async () => {
+    const { MARCA_NITIDO } = await import("../../scripts/app/remendar-google-maps.mjs");
+    const kt = readFileSync("node_modules/@capacitor/google-maps/android/src/main/java/com/capacitorjs/plugins/googlemaps/CapacitorGoogleMap.kt", "utf8");
+    expect(kt).toContain(MARCA_NITIDO);
+    expect(kt).toContain("Bitmap.createScaledBitmap(bitmap, maikeLargura, maikeAltura, true)");
+    expect(kt).not.toMatch(/devicePixelRatio\)\.toInt\(\),\n\s+false\n/);
+  });
+});

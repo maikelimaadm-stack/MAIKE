@@ -30,6 +30,7 @@ export const MARCA_CAMADA = "MAIKE D-PROD-376: camada do Mapa Geral";
 export const MARCA_JUNTOS = "MAIKE D-PROD-382: marcadores juntos";
 export const MARCA_MOSTRAR = "MAIKE D-PROD-382: mostrar e esconder";
 export const MARCA_CHAO = "MAIKE D-PROD-382: nomes no chao";
+export const MARCA_NITIDO = "MAIKE D-PROD-382: icone nitido";
 
 /**
  * D-PROD-376: o gancho da câmera para a camada nativa do Mapa Geral (`CamadaDoMapaView.java`, no app). O plugin chama
@@ -410,6 +411,29 @@ export const REMENDOS = [
 
     @PluginMethod
     fun removeMarkers(call: PluginCall) {
+`,
+  },
+  // D-PROD-382: o ícone do marcador NÍTIDO. O plugin sempre refazia a imagem para "tamanho × densidade da tela" em
+  // número inteiro e SEM filtro: em telas de densidade quebrada (2,625; 2,75; 3,5) a imagem perdia ou ganhava uma linha
+  // de pixels e a contagem do lote e as bordas saíam serrilhadas ("ruído"). Agora a imagem que já está no tamanho
+  // certo (até 2 px de diferença) vai como foi desenhada; a que precisa mudar de tamanho muda com filtro.
+  {
+    marca: MARCA_NITIDO,
+    arquivo: "android/src/main/java/com/capacitorjs/plugins/googlemaps/CapacitorGoogleMap.kt",
+    ancora: `            bitmap =
+                    Bitmap.createScaledBitmap(
+                            bitmap,
+                            (marker.iconSize!!.width * this.config.devicePixelRatio).toInt(),
+                            (marker.iconSize!!.height * this.config.devicePixelRatio).toInt(),
+                            false
+                    )
+`,
+    inserir: `            // ${MARCA_NITIDO} (no tamanho certo, como foi desenhada; senão, com filtro)
+            val maikeLargura = (marker.iconSize!!.width * this.config.devicePixelRatio).toInt()
+            val maikeAltura = (marker.iconSize!!.height * this.config.devicePixelRatio).toInt()
+            if (Math.abs(bitmap.width - maikeLargura) > 2 || Math.abs(bitmap.height - maikeAltura) > 2) {
+                bitmap = Bitmap.createScaledBitmap(bitmap, maikeLargura, maikeAltura, true)
+            }
 `,
   },
 ];
