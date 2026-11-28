@@ -55,14 +55,6 @@
       "destination": "/index.html"
     },
     {
-      "source": "/lancamentoatividades/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/LancamentoAtividades/",
-      "destination": "/index.html"
-    },
-    {
       "source": "/naturezasfinanceiras/",
       "destination": "/index.html"
     },
@@ -76,14 +68,6 @@
     },
     {
       "source": "/ConfiguracoesGerais/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/lancamentoatividades",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/LancamentoAtividades",
       "destination": "/index.html"
     },
     {
@@ -183,14 +167,6 @@
       "destination": "/index.html"
     },
     {
-      "source": "/tiposatividade/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/TiposAtividade/",
-      "destination": "/index.html"
-    },
-    {
       "source": "/unidadesmedida/",
       "destination": "/index.html"
     },
@@ -220,14 +196,6 @@
     },
     {
       "source": "/LocaisEstoque/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/tiposatividade",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/TiposAtividade",
       "destination": "/index.html"
     },
     {
@@ -439,14 +407,6 @@
       "destination": "/index.html"
     },
     {
-      "source": "/servicos/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/Servicos/",
-      "destination": "/index.html"
-    },
-    {
       "source": "/usuarios/",
       "destination": "/index.html"
     },
@@ -492,14 +452,6 @@
     },
     {
       "source": "/Produtos",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/servicos",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/Servicos",
       "destination": "/index.html"
     },
     {

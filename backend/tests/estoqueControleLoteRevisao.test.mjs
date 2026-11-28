@@ -6,13 +6,14 @@
  *     (400 + 300) ÷ 150 = 4,6667/kg → 280,0000).
  *  R2 a troca do flag não é driblada por estorno posterior: estorno/exclusão de movimento cujo modo (LOTE ou não)
  *     diverge do cadastro atual → 409 `ESTOQUE_ESTORNO_MODO_LOTE_DIVERGENTE`, nada gravado (saída manual, entrada,
- *     transferência, atividade, venda do financeiro). D-PROD-314: com registro posterior que ainda vale, a recusa
+ *     transferência, venda do financeiro; a atividade saiu, D-PROD-383). D-PROD-314: com registro posterior que ainda vale, a recusa
  *     `ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR` vem antes; excluído o posterior, a defesa do modo divergente segue valendo.
- *  R3 estorno de saída LOTE não reavalia: com a saída manual depois → 409 registro posterior (D-PROD-314); excluída
- *     ela, o cancelamento da linha devolve ao L1 a 4 e o L2 fica a 6.
+ *  R3 estorno de saída LOTE não reavalia: com outra saída manual depois → 409 registro posterior (D-PROD-314);
+ *     excluída ela, a exclusão da primeira devolve ao L1 a 4 e o L2 fica a 6 (era a linha da atividade; D-PROD-383).
  *  R4 sobra de ajuste: camada Estornada do mesmo lote não dá custo (custo informado obrigatório); com camada vigente,
  *     informar custo → 400 `custo_do_lote_existente` (o custo é o do lote).
- *  R5 lote vencido consumido pelo FEFO nas origens só com API → `avisos: [{ tipo: 'lote_vencido', lote, validade }]`.
+ *  R5 lote vencido consumido pelo FEFO nas origens só com API → `avisos: [{ tipo: 'lote_vencido', lote, validade }]`
+ *     (venda do financeiro, cocho e abastecimento; a linha da atividade saiu, D-PROD-383).
  */
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -69,11 +70,9 @@ const montar = async () => {
   const motivosSaida = (await H.ok(H.req('GET', '/estoque/motivos-saida', s.token))).items;
   const compra = motivosEntrada.find((m) => m.nome === 'Compra').id;
   const perda = motivosSaida.find((m) => m.nome === 'Perda').id;
-  const grupo = await p.grupoAtividade.create({ data: { cliente_id: s.c, nome_grupo: `GRUPO ${suf}` } });
-  const tipo = await p.tipoAtividade.create({ data: { cliente_id: s.c, nome_tipo: `ADUBAÇÃO ${suf}`, grupo_atividade_id: grupo.id, grupo_atividade_nome: grupo.nome_grupo, permite_produto: true } });
   ok(await H.req('PUT', '/perfis-financeiros-empresa', s.token, { empresa_id: s.e1.id, pais: 'BR', moeda: 'BRL', locale: 'pt-BR' }));
   ok(await H.req('PATCH', `/produtos/${sal.id}`, s.token, { controla_lote: true, controla_validade: true }));
-  return { ...s, sal, semLote, compra, perda, tipo };
+  return { ...s, sal, semLote, compra, perda };
 };
 
 const marcarLote = async (x, produto, lote) => ok(await H.req('PATCH', `/produtos/${produto.id}`, x.token, { controla_lote: lote }));
@@ -123,23 +122,11 @@ const rascunhoDeVenda = async (x, linhas) => {
 const confirmar = async (x, rascunho) =>
   ok(await H.req('POST', `/operacoes-financeiras/${rascunho.id}/confirmar`, x.token, { empresa_id: x.e1.id, operation_id: opId(), versao: rascunho.versao }));
 
-/** Atividade aberta + apontamento do dia 10/06/2027; devolve lançar e cancelar linha de produto. */
-const atividade = async (x) => {
-  const a = ok(await H.req('POST', '/atividades', x.token, {
-    empresa_id: x.e1.id, nome: `Adubação ${++seq}`, tipo_atividade_id: x.tipo.id, data_inicio: '2027-06-01', data_prevista_fim: '2027-06-30',
+/** Saída para o cocho (saída de suplementação) pela API, em 10/06/2027. */
+const cocho = async (x, produto, local, kg) =>
+  ok(await H.req('POST', '/movimentacoes-estoque/comandos/saida-suplementacao', x.token, {
+    operation_id: `sup-${randomUUID()}`, empresa_id: x.e1.id, produto_id: produto.id, local_origem_id: local.id, quantidade: kg, ponto_suplementacao_id: 'ponto-1', data_movimentacao: '2027-06-10',
   }), 201);
-  const base = `/atividades/${a.id}/apontamentos`;
-  let ap = ok(await H.req('POST', base, x.token, { empresa_id: a.empresa_id, data_operacional: '2027-06-10', area_executada_dia: '10' }), 201).apontamento;
-  return {
-    lancar: async (produto, local, kg) => {
-      const r = ok(await H.req('POST', `${base}/${ap.id}/produtos`, x.token, { empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), produto_id: produto.id, local_estoque_id: local.id, quantidade: kg }), 201);
-      ap = r.apontamento;
-      return r;
-    },
-    cancelar: (linha) => H.req('POST', `${base}/${ap.id}/produtos/${linha.id}/cancelar`, x.token, { empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), motivo: 'lançado errado' }),
-    sincronizar: (r) => { ap = r.apontamento; },
-  };
-};
 
 describe('R1 — prévia do financeiro pelo custo do lote (FEFO), igual ao gravado', () => {
   test('A 100 a 4 e B 50 a 6 (vence antes): venda de 60 → prévia 340,0000 (5,6667/kg) = movimento gravado', async () => {
@@ -261,26 +248,14 @@ describe('R2 — estorno/exclusão com o modo divergente do cadastro atual → 4
     assert.deepEqual(await camadas(x.semLote), antes);
   });
 
-  test('linha de produto da atividade (estorno em lote) e venda do financeiro', async () => {
+  test('venda do financeiro', async () => {
     const x = await montar();
-    // Um depósito para cada origem: a linha no Tanque 1, a venda no Tanque 2 (nenhuma é posterior à outra).
-    await entrar(x, x.semLote, x.local, '10', '2');
     await entrar(x, x.semLote, x.local2, '10', '2');
-    const at = await atividade(x);
-    const { linha } = await at.lancar(x.semLote, x.local, '10');
     const venda = await confirmar(x, await rascunhoDeVenda(x, [[x.semLote, x.local2, '10', '9']]));
     await marcarLote(x, x.semLote, true);
-    const e2 = await entrar(x, x.semLote, x.local, '10', '8', 'L1');
     const antes = await camadas(x.semLote);
-    // D-PROD-314: a entrada L1 no depósito da linha vem depois dela → registro posterior antes do modo divergente
-    recusaPosterior(await at.cancelar(linha), movDe(e2));
     erro(await H.req('POST', `/operacoes-financeiras/${venda.id}/cancelar`, x.token, { empresa_id: x.e1.id, operation_id: opId(), motivo: 'lançada errada' }), 409, DIVERGENTE, 'movimento_sem_lote');
     assert.deepEqual(await camadas(x.semLote), antes);
-    // excluída a L1 (a mais recente), a linha chega na defesa do modo divergente
-    ok(await excluir(x, 'entradas', e2));
-    const semL1 = await camadas(x.semLote);
-    erro(await at.cancelar(linha), 409, DIVERGENTE, 'movimento_sem_lote');
-    assert.deepEqual(await camadas(x.semLote), semL1);
   });
 
   test('sem troca do cadastro, nada muda: excluir saída e entrada no mesmo modo continua aceito', async () => {
@@ -296,21 +271,19 @@ describe('R2 — estorno/exclusão com o modo divergente do cadastro atual → 4
 });
 
 describe('R3 — estorno de saída LOTE com movimento depois não reavalia camada', () => {
-  test('D-PROD-314: L1 10 a 4 e L2 10 a 6; atividade 5 (L1), saída manual 2 depois; cancelar a linha → 409 registro posterior, nada gravado; excluída a saída (a mais recente), a linha sai → L1 10 a 4, L2 10 a 6', async () => {
+  test('D-PROD-314: L1 10 a 4 e L2 10 a 6; saída manual 5 (L1), outra de 2 depois; excluir a primeira → 409 registro posterior, nada gravado; excluída a de 2 (a mais recente), a primeira sai → L1 10 a 4, L2 10 a 6', async () => {
     const x = await montar();
     await entrar(x, x.sal, x.local, '10', '4', 'L1', '2027-09-01');
     await entrar(x, x.sal, x.local, '10', '6', 'L2', '2027-12-01');
-    const at = await atividade(x);
-    const { linha } = await at.lancar(x.sal, x.local, '5');
+    const primeira = await sair(x, x.sal, x.local, '5');
     const s = await sair(x, x.sal, x.local, '2');
     const antes = await camadas(x.sal);
-    const r0 = await at.cancelar(linha);
+    const r0 = await excluir(x, 'saidas', primeira);
     const b = erro(r0, 409, 'ESTOQUE_EXCLUSAO_REGISTRO_POSTERIOR', 'registro_posterior');
     assert.equal(b.details.posterior_id, s.itens[0].movimentacao_estoque_id, r0.body);
     assert.deepEqual(await camadas(x.sal), antes, 'nada gravado');
     ok(await excluir(x, 'saidas', s));
-    const r = ok(await at.cancelar(linha));
-    at.sincronizar(r);
+    ok(await excluir(x, 'saidas', primeira));
     const vigentes = (await camadas(x.sal)).filter((c) => c[3] !== 'Estornado').map((c) => c.slice(0, 3));
     assert.deepEqual(vigentes, [['L1', '10.0000', '4.0000'], ['L2', '10.0000', '6.0000']]);
     await provarReplay(x, x.sal);
@@ -339,24 +312,21 @@ describe('R5 — aviso de lote vencido nas origens só com API', () => {
   const VENCIDO = { tipo: 'lote_vencido', lote: 'V1', validade: '2027-01-10' };
   const semId = (avisos) => avisos.map((a) => Object.fromEntries(Object.entries(a).filter(([k]) => k !== 'lote_id')));
 
-  test('atividade, venda do financeiro e cocho: FEFO consome o lote vencido e avisa; lote em dia não avisa', async () => {
+  test('venda do financeiro e cocho: FEFO consome o lote vencido e avisa; lote em dia não avisa', async () => {
     const x = await montar();
     await entrar(x, x.sal, x.local, '30', '3', 'V1', '2027-01-10');
     await entrar(x, x.sal, x.local, '30', '5', 'OK', '2028-01-10');
-    const at = await atividade(x);
-    const r1 = await at.lancar(x.sal, x.local, '5');
-    assert.deepEqual(semId(r1.avisos), [VENCIDO]);
+    const c1 = await cocho(x, x.sal, x.local, '5');
+    assert.deepEqual(semId(c1.avisos), [VENCIDO]);
     const venda = await confirmar(x, await rascunhoDeVenda(x, [[x.sal, x.local, '5', '9']]));
     assert.deepEqual(semId(venda.avisos), [{ ...VENCIDO, item_ordem: 1 }]);
-    const cocho = ok(await H.req('POST', '/movimentacoes-estoque/comandos/saida-suplementacao', x.token, {
-      operation_id: `sup-${randomUUID()}`, empresa_id: x.e1.id, produto_id: x.sal.id, local_origem_id: x.local.id, quantidade: '5', ponto_suplementacao_id: 'ponto-1', data_movimentacao: '2027-06-10',
-    }), 201);
-    assert.deepEqual(semId(cocho.avisos), [VENCIDO]);
+    const c2 = await cocho(x, x.sal, x.local, '5');
+    assert.deepEqual(semId(c2.avisos), [VENCIDO]);
     // V1 tem 15; 20 kg → 15 do V1 + 5 do OK: um aviso só (o OK está em dia).
-    const r2 = await at.lancar(x.sal, x.local, '20');
-    assert.deepEqual(semId(r2.avisos), [VENCIDO]);
-    const r3 = await at.lancar(x.sal, x.local, '5');
-    assert.equal(r3.avisos, undefined, 'só o lote em dia: sem aviso (o campo só vem com aviso; o contrato de sempre não muda)');
+    const c3 = await cocho(x, x.sal, x.local, '20');
+    assert.deepEqual(semId(c3.avisos), [VENCIDO]);
+    const c4 = await cocho(x, x.sal, x.local, '5');
+    assert.equal(c4.avisos, undefined, 'só o lote em dia: sem aviso (o campo só vem com aviso; o contrato de sempre não muda)');
   });
 
   test('abastecimento: diesel com lote vencido → aviso na confirmação', async () => {

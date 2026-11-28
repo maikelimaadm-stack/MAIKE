@@ -188,27 +188,17 @@ export const excluir = async (contexto, id) => {
     // devolvia o enganoso 403 TENANT_SCOPE_VIOLATION.
     // D-PROD-157: bem patrimonial que o tem como proprietário OU fornecedor
     // também o segura (mesma FK RESTRICT; mesmo 409, nunca 403).
-    // D-PROD-207: linha de serviço de atividade com ele como prestador também (mesma FK RESTRICT).
-    // D-PROD-208: e linha de mão de obra com ele como funcionário ou terceiro (mesma FK RESTRICT).
-    const [lotes, notas, movimentacoes, operacoesFinanceiras, titulos, bens, servicosAtividade, maoObraAtividade] = await Promise.all([
+    const [lotes, notas, movimentacoes, operacoesFinanceiras, titulos, bens] = await Promise.all([
       tx.lote.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
       tx.estoqueLoteNota.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
       tx.movimentacaoEstoque.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
       tx.operacaoFinanceira.count({ where: { cliente_id: auth.clienteId, parceiro_id: id } }),
       tx.tituloFinanceiro.count({ where: { cliente_id: auth.clienteId, parceiro_id: id } }),
       tx.bemPatrimonial.count({ where: { cliente_id: auth.clienteId, OR: [{ proprietario_parceiro_id: id }, { fornecedor_parceiro_id: id }] } }),
-      tx.atividadeApontamentoServico.count({ where: { cliente_id: auth.clienteId, fornecedor_parceiro_id: id } }),
-      tx.atividadeApontamentoMaoObra.count({ where: { cliente_id: auth.clienteId, parceiro_id: id } }),
     ]);
-    if (lotes + notas + movimentacoes + operacoesFinanceiras + titulos + bens + servicosAtividade + maoObraAtividade > 0) {
+    if (lotes + notas + movimentacoes + operacoesFinanceiras + titulos + bens > 0) {
       throw new AppError('PARCEIRO_EM_USO', 'fornecedor com histórico não pode ser excluído; inative-o na tela Parceiros', {
-        // D-PROD-207: a contagem das linhas de serviço só aparece quando há (os `details` de antes não mudam).
-        // D-PROD-208: idem a das linhas de mão de obra.
-        details: {
-          lotes, notas, movimentacoes, operacoes_financeiras: operacoesFinanceiras, titulos, bens,
-          ...(servicosAtividade ? { servicos_atividade: servicosAtividade } : {}),
-          ...(maoObraAtividade ? { mao_obra_atividade: maoObraAtividade } : {}),
-        },
+        details: { lotes, notas, movimentacoes, operacoes_financeiras: operacoesFinanceiras, titulos, bens },
       });
     }
     await excluirRegistroPorId(tx, auth.clienteId, id);

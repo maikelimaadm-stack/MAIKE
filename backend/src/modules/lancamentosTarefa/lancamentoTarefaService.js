@@ -26,7 +26,6 @@ import {
   buscarLancamentoPorIdEmQualquerTenant,
 } from './lancamentoTarefaRepository.js';
 import { criarComIdDoAparelho, foiExcluidoNoHistorico, idDoAparelhoDe } from '../../shared/idempotency/idDoAparelho.js';
-import { NOME_GRUPO_PADRAO_OPERACAO } from '../tiposAtividade/tipoAtividadePadroes.js';
 import { agoraDoServidor, diaNoFuso } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 import {
   listarHistoricos,
@@ -34,6 +33,9 @@ import {
   inserirHistorico,
   excluirHistoricoPorId,
 } from './historicoLancamentoTarefaRepository.js';
+
+/** Nome do grupo criado sozinho quando a tarefa é lançada sem grupo (D-PROD-383: era de `tiposAtividade`, que saiu). */
+const NOME_GRUPO_PADRAO_OPERACAO = 'GERAL';
 
 const TIPOS_BASE = ['Manejo', 'Suplementação', 'Manutenção', 'Verificação', 'Sanitário', 'Outro'];
 const PRIORIDADES = ['Baixa', 'Média', 'Alta', 'Urgente'];

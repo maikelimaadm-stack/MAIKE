@@ -54,13 +54,8 @@ export const TELAS = Object.freeze({
   UNIDADES: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-unidades' }),
   LOCAIS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-locais' }),
   TIPOS_TAREFA: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-tipos-tarefa' }),
-  // D-PROD-182 — mesmo id do item de menu `sup-tipos-atividade`.
-  TIPOS_ATIVIDADE: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-tipos-atividade' }),
+  // D-PROD-383: os tipos de atividade, as atividades e os serviços saíram; o grupo ficou só para as tarefas.
   GRUPOS_ATIVIDADE: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-grupos-atividades' }),
-  // D-PROD-207 — cadastro de Serviço (Fatia 4 do Lançamento de Atividades). Mesmo
-  // id do item de menu. Sem concessão automática. D-PROD-208: o cadastro de
-  // Funcionário (`sup-funcionarios`) saiu — o funcionário é papel do parceiro.
-  SERVICOS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-servicos' }),
   EMPRESA: Object.freeze({ modulo: 'administracao', tela: 'adm-empresa' }),
   // D-PROD-146 — Gestão Rural (cadastros; sem financeiro transacional). Nenhuma
   // concessão automática: sem linha de Permissão, só admin real e is_admin.
@@ -80,14 +75,6 @@ export const TELAS = Object.freeze({
   PATRIMONIO_BENS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-bens-patrimoniais' }),
   // D-PROD-159 — Patrimônio P1-02: abastecimentos e consumo (baixa física de estoque). Sem concessão automática.
   PATRIMONIO_ABASTECIMENTOS: Object.freeze({ modulo: 'patrimonio', tela: 'pat-abastecimentos' }),
-  // D-PROD-200 — Lançamento de Atividades (cabeçalho + apontamentos do dia/turno).
-  // Mesmo id do item de menu `op-atividades`, no grupo `suporte-mapa`, logo abaixo
-  // de Tipos de Atividade. As permissões do apontamento e a de reabrir são AÇÕES
-  // EXTRAS desta mesma linha (`ACOES_ATIVIDADES_EXTRAS`): a tela Permissões só
-  // desenha páginas do menu. Sem concessão automática a perfis antigos. Substitui
-  // a tela `op-apontamentos-atividade` (D-PROD-190): as linhas dela gravadas em
-  // `permissoes_telas` ficam inertes (nenhuma guarda as pede; precedente D-PROD-162).
-  ATIVIDADES: Object.freeze({ modulo: 'suporte-mapa', tela: 'op-atividades' }),
   // D-PROD-255 — Estoque (Saldo e Movimentos, SOMENTE CONSULTA): mesmo id do item de menu `sup-estoque`,
   // no grupo `suporte-mapa`, logo abaixo de Locais de Estoque. `visualizar` abre a consulta. A permissão
   // FUTURA de entrada e de ajuste de inventário é separada: ação EXTRA desta mesma linha (`entrada`, `ajuste`),
@@ -122,16 +109,6 @@ export const ACOES_PATRIMONIO_EXTRAS = Object.freeze(['inativar']);
  * lista no navegador (teste de paridade).
  */
 export const ACOES_ABASTECIMENTO_EXTRAS = Object.freeze(['cancelar']);
-
-/**
- * D-PROD-200 — ações EXTRAS da tela `op-atividades` (Lançamento de Atividades),
- * gravadas na própria linha da tela em `permissoes_telas` (padrão de
- * ACOES_LANCAMENTOS_FINANCEIROS, D-PROD-155): reabrir a atividade concluída e
- * lançar (criar e repetir), editar e cancelar apontamento. Nascem desligadas:
- * ausente/não booleano = negado; administrador real e `is_admin` têm tudo.
- * Mesma lista no navegador (teste de paridade front↔back).
- */
-export const ACOES_ATIVIDADES_EXTRAS = Object.freeze(['reabrir', 'lancar_apontamento', 'editar_apontamento', 'cancelar_apontamento']);
 
 /**
  * D-PROD-257 — ação EXTRA da tela `sup-estoque` (Estoque → Entradas): `entrada` = criar entrada manual e

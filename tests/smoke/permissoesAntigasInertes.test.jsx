@@ -55,13 +55,15 @@ vi.mock('sonner', async (importOriginal) => {
 import { DEFAULT_MENU, getMenuModules } from '@/lib/menuConfig';
 import { EXTRA_ACTION_KEYS_BY_PAGE, canAccessPage, extraActionKeysOf, getPagePermission } from '@/lib/permissions';
 import { MODULO_PATRIMONIO, TELAS_PATRIMONIO, acoesDaTelaAbastecimento, acoesDaTelaPatrimonio, acoesDeCatalogoNoBem } from '@/lib/patrimonioPermissions';
-import { MODULO_ATIVIDADES, TELA_ATIVIDADES, acoesDaTelaAtividades } from '@/lib/lancamentoAtividadesPermissions';
 
-/** D-PROD-200 — a tela antiga do apontamento de atividade (D-PROD-190), no mesmo grupo de menu da nova. */
-const TELA_APONTAMENTOS_ANTIGA = 'op-apontamentos-atividade';
-const SEM_ACOES_ATIVIDADES = {
-  ver: false, criar: false, editar: false, cancelar: false, reabrir: false, lancarApontamento: false, editarApontamento: false, cancelarApontamento: false,
-};
+/** D-PROD-383 — as telas das atividades que saíram (no grupo `suporte-mapa`): [id, título]. */
+const MODULO_SUPORTE = 'suporte-mapa';
+const ATIVIDADES_QUE_SAIRAM = [
+  ['op-atividades', 'Lançamento de Atividades'],
+  ['sup-tipos-atividade', 'Tipos de Atividade'],
+  ['sup-servicos', 'Serviços'],
+  ['op-apontamentos-atividade', 'Apontamentos de Atividade'],
+];
 
 /** As quatro telas que saíram: [id, título]. */
 const ANTIGAS = [
@@ -82,11 +84,11 @@ const linhaAntigaTudo = (tela_id) =>
 const LINHAS_ANTIGAS = ANTIGAS.map(([id]) => linhaAntigaTudo(id));
 /** Abastecimentos com o fator kg/L ligado (ação que saiu). */
 const ABASTECIMENTO_COM_FATOR = tela(MODULO_PATRIMONIO, 'pat-abastecimentos', { visualizar: true, configurar_conversao: true });
-/** D-PROD-200 — linha antiga do Apontamento de Atividade com TUDO ligado (inclusive chaves com o nome das extras novas). */
-const APONTAMENTO_ANTIGO_TUDO = tela(MODULO_ATIVIDADES, TELA_APONTAMENTOS_ANTIGA, {
+/** D-PROD-383 — as linhas das telas das atividades com TUDO ligado (inclusive as extras do Lançamento). */
+const LINHAS_ATIVIDADES_ANTIGAS = ATIVIDADES_QUE_SAIRAM.map(([id]) => tela(MODULO_SUPORTE, id, {
   visualizar: true, novo: true, salvar: true, editar: true, excluir: true, importar: true, exportar: true,
   reabrir: true, lancar_apontamento: true, editar_apontamento: true, cancelar_apontamento: true,
-});
+}));
 const registro = (modulos, telas, extra = {}) => ({
   id: 'p1', user_email: 'vaqueiro', is_admin: false, modulos_permitidos: modulos, permissoes_telas: telas, mobile_menu_ids: [], ...extra,
 });
@@ -168,20 +170,16 @@ describe('INERTE-1 — regras de ação ignoram as linhas antigas', () => {
     expect(canAccessPage(registro([MODULO_PATRIMONIO], LINHAS_ANTIGAS), 'pat-combustiveis', MODULO_PATRIMONIO)).toBe(true);
   });
 
-  it('D-PROD-200: a linha antiga `op-apontamentos-atividade` (tudo ligado) não dá nada no Lançamento de Atividades', () => {
-    expect(TELA_ATIVIDADES).toBe('op-atividades');
-    const perm = registro([MODULO_ATIVIDADES], [APONTAMENTO_ANTIGO_TUDO]);
-    expect(acoesDaTelaAtividades(perm)).toEqual(SEM_ACOES_ATIVIDADES);
-    // O dado continua lá, sem migração nem concessão; o id antigo não tem ações extras nem item de menu.
-    expect(getPagePermission(perm, TELA_APONTAMENTOS_ANTIGA)).toEqual(APONTAMENTO_ANTIGO_TUDO);
-    expect(extraActionKeysOf(TELA_APONTAMENTOS_ANTIGA)).toEqual([]);
-    expect(Object.prototype.hasOwnProperty.call(EXTRA_ACTION_KEYS_BY_PAGE, TELA_APONTAMENTOS_ANTIGA)).toBe(false);
+  it('D-PROD-383: as telas das atividades saíram — nenhum id está no menu e nenhum tem ações extras (a linha fica, sem efeito)', () => {
     const ids = getMenuModules(DEFAULT_MENU).flatMap((m) => m.pages.map((p) => p.id));
-    expect(ids).not.toContain(TELA_APONTAMENTOS_ANTIGA);
-    expect(ids).toContain(TELA_ATIVIDADES);
-    // Ao lado da linha nova (só visualizar), valem só as ações da linha nova.
-    const comNova = registro([MODULO_ATIVIDADES], [APONTAMENTO_ANTIGO_TUDO, tela(MODULO_ATIVIDADES, TELA_ATIVIDADES, { visualizar: true })]);
-    expect(acoesDaTelaAtividades(comNova)).toEqual({ ...SEM_ACOES_ATIVIDADES, ver: true });
+    for (const [id] of ATIVIDADES_QUE_SAIRAM) {
+      expect(ids, id).not.toContain(id);
+      expect(extraActionKeysOf(id), id).toEqual([]);
+      expect(Object.prototype.hasOwnProperty.call(EXTRA_ACTION_KEYS_BY_PAGE, id), id).toBe(false);
+    }
+    // O dado continua lá, sem migração: a avaliação genérica ainda acha a linha, mas nada a pede.
+    const perm = registro([MODULO_SUPORTE], LINHAS_ATIVIDADES_ANTIGAS);
+    expect(getPagePermission(perm, 'op-atividades')).toEqual(LINHAS_ATIVIDADES_ANTIGAS[0]);
   });
 });
 
@@ -212,32 +210,15 @@ describe('INERTE-2 — menu do shell real', () => {
     for (const [, titulo] of ANTIGAS) expect(screen.queryByText(titulo), titulo).toBeNull();
   });
 
-  it('D-PROD-200: só a linha antiga do Apontamento de Atividade (com o módulo): nem a tela antiga nem o Lançamento de Atividades aparecem', async () => {
+  it('D-PROD-383: só as linhas das telas das atividades (com o módulo): nenhuma delas aparece no menu', async () => {
     sessao.permissoes = [
-      registro(['mapa', MODULO_ATIVIDADES], [tela('mapa', 'pec-mapa-geral', { visualizar: true }), APONTAMENTO_ANTIGO_TUDO], {
-        mobile_menu_ids: [TELA_APONTAMENTOS_ANTIGA],
+      registro(['mapa', MODULO_SUPORTE], [tela('mapa', 'pec-mapa-geral', { visualizar: true }), ...LINHAS_ATIVIDADES_ANTIGAS], {
+        mobile_menu_ids: ['op-atividades'],
       }),
     ];
     await renderShell();
     await screen.findByTestId('pagina');
-    expect(screen.queryByText('Apontamentos de Atividade')).toBeNull();
-    expect(screen.queryByText('Lançamento de Atividades')).toBeNull();
-    expect(screen.queryByText('Suporte do Mapa')).toBeNull();
-  });
-
-  it('D-PROD-200: linha antiga + a nova: o grupo aparece só com Lançamento de Atividades', async () => {
-    sessao.permissoes = [
-      registro(['mapa', MODULO_ATIVIDADES], [
-        tela('mapa', 'pec-mapa-geral', { visualizar: true }),
-        APONTAMENTO_ANTIGO_TUDO,
-        tela(MODULO_ATIVIDADES, TELA_ATIVIDADES, { visualizar: true }),
-      ]),
-    ];
-    await renderShell();
-    expect((await screen.findAllByText('Suporte do Mapa')).length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Lançamento de Atividades').length).toBeGreaterThan(0);
-    expect(screen.queryByText('Apontamentos de Atividade')).toBeNull();
-    expect(screen.queryByText('Tipos de Atividade')).toBeNull();
+    for (const [, titulo] of ATIVIDADES_QUE_SAIRAM) expect(screen.queryByText(titulo), titulo).toBeNull();
   });
 });
 
@@ -272,30 +253,6 @@ describe('INERTE-3 — sessão: hooks do Patrimônio com linhas antigas', () => 
       carregando: false, administrador: false, login: 'vaqueiro',
     });
     expect(abastecimento).toEqual({ ver: true, criar: false, cancelar: false, carregando: false, administrador: false, login: 'vaqueiro' });
-  });
-
-  it('D-PROD-200: useAcoesTelaAtividades com só a linha antiga do apontamento → nada (sem concessão automática)', async () => {
-    sessao.permissoes = [registro([MODULO_ATIVIDADES], [APONTAMENTO_ANTIGO_TUDO])];
-    const { useAcoesTelaAtividades } = await import('@/hooks/useLancamentoAtividadesSessao');
-    function Sonda() {
-      const acoes = useAcoesTelaAtividades();
-      if (acoes.carregando) return <p data-testid="carregando">…</p>;
-      return <pre data-testid="atividades">{JSON.stringify(acoes)}</pre>;
-    }
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-    await act(async () => {
-      render(
-        <QueryClientProvider client={client}>
-          <Sonda />
-        </QueryClientProvider>,
-      );
-    });
-    // D-PROD-276: o hook também diz se a troca do capim da área (conclusão da reforma) é permitida — o editar do Cadastro
-    // do Mapa; a linha antiga não concede nada.
-    // Diário da máquina (Fase 2): o hook também devolve a permissão efetiva (para `podeVerCusto`); o operador não é admin.
-    const { permissaoEfetiva, ...acoesLidas } = JSON.parse((await screen.findByTestId('atividades')).textContent);
-    expect(acoesLidas).toEqual({ ...SEM_ACOES_ATIVIDADES, trocarCapimDaArea: false, carregando: false, login: 'vaqueiro' });
-    expect(permissaoEfetiva.is_admin).toBe(false);
   });
 });
 
@@ -343,30 +300,6 @@ describe('INERTE-4 — gerenciador de permissões', () => {
     expect(linhas).toContainEqual(ABASTECIMENTO_COM_FATOR);
     expect(linhas.find((l) => l.tela_id === TELAS_PATRIMONIO.BENS)).toEqual({ ...bens, novo: true });
     expect(linhas).toHaveLength(LINHAS_ANTIGAS.length + 2);
-  });
-
-  it('D-PROD-200: não desenha Apontamentos de Atividade; ao ligar uma extra do Lançamento, preserva a linha antiga igual', async () => {
-    const nova = tela(MODULO_ATIVIDADES, TELA_ATIVIDADES, { visualizar: true, reabrir: false, lancar_apontamento: false, editar_apontamento: false, cancelar_apontamento: false });
-    const estado = await montarGerenciador({
-      modulos_permitidos: [MODULO_ATIVIDADES],
-      permissoes_telas: [APONTAMENTO_ANTIGO_TUDO, nova],
-      mobile_menu_ids: [],
-      mapa_geral_permissoes: {},
-    });
-    const grupo = DEFAULT_MENU.find((m) => m.id === MODULO_ATIVIDADES);
-    const cartaoModulo = screen.getByText(grupo.title, { selector: 'label.text-xs' }).closest('.rounded-lg');
-    // Só as telas do menu (a antiga não conta).
-    expect(within(cartaoModulo).getByText(`${grupo.submenu.length} TELAS`)).toBeTruthy();
-    expect(screen.queryByText('Apontamentos de Atividade')).toBeNull();
-    const cartao = screen.getByText('Lançamento de Atividades', { selector: 'p.font-semibold' }).closest('.rounded-lg');
-    const lancar = within(cartao).getByText('LANÇAR APONTAMENTO').closest('label').querySelector('[role="checkbox"]');
-    await act(async () => {
-      lancar.click();
-    });
-    const linhas = estado.atual.permissoes_telas;
-    expect(linhas).toContainEqual(APONTAMENTO_ANTIGO_TUDO);
-    expect(linhas.find((l) => l.tela_id === TELA_ATIVIDADES)).toEqual({ ...nova, lancar_apontamento: true });
-    expect(linhas).toHaveLength(2);
   });
 
   it('um id antigo em mobile_menu_ids não conta no limite de 4 botões (e fica guardado, sem efeito)', async () => {

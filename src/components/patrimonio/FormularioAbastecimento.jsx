@@ -12,7 +12,6 @@ import { listarOpcoesAbastecimento, listarProdutosDoBem } from "@/services/abast
 import { chaveProdutosDoBem } from "@/hooks/useFluxoAbastecimento";
 import { mensagemErroAbastecimento } from "@/lib/patrimonioErros";
 import { createPageUrl } from "@/utils";
-import { rotuloDaAtividadeDoAbastecimento, rotuloDoLancamentoDoAbastecimento } from "@/lib/atividadeLinhasRegras";
 import {
   LIMITES_ABASTECIMENTO,
   LIMITES_CUSTO_EXTERNO,
@@ -97,13 +96,9 @@ function ErroDoCampo({ texto }) {
  * aqui: "Revisar abastecimento" pede a prévia ao servidor.
  *
  * D-PROD-211: "Origem" — Estoque da fazenda (o local de estoque, como sempre)
- * ou Posto externo (sem local; pede o valor total da nota). Aberto a partir de
- * um lançamento da atividade (`vinculo`), mostra a atividade e o lançamento só
- * para leitura (o `apontamento_id` vem preso no formulário; a data padrão é a
- * do lançamento). O tipo de medidor vem do bem e o centro de custo é o snapshot
- * do servidor: nenhum dos dois se pergunta.
+ * ou Posto externo (sem local; pede o valor total da nota). O tipo de medidor vem do bem e o centro de custo é o
+ * snapshot do servidor: nenhum dos dois se pergunta. D-PROD-383: o vínculo com o lançamento da atividade saiu.
  * @param {{
- *   vinculo?: { atividade: any, apontamento: any } | null,
  *   empresaId: string,
  *   form: any,
  *   setForm: (atualizar: (f: any) => any) => void,
@@ -129,7 +124,6 @@ export default function FormularioAbastecimento({
   situacaoPrevia,
   onPrevia,
   onReabrirPrevia,
-  vinculo = null,
   botoesNoRodape = false,
 }) {
   const bemId = form.bem?.id ? String(form.bem.id) : null;
@@ -258,13 +252,6 @@ export default function FormularioAbastecimento({
     <CadastroFormShell embedded title="Novo abastecimento">
       <div className="mg-b1-record-form">
         <form id={FORMULARIO_ABASTECIMENTO_ID} onSubmit={enviar} className="b1 mg-b1-form-grid w-full min-h-0" noValidate data-testid="abastecimento-form" data-densidade={DENSIDADE_BASE1}>
-          {vinculo ? (
-            <>
-              <SecaoForm titulo="Lançamento da atividade" />
-              <ValorCalculado label="Atividade" valor={rotuloDaAtividadeDoAbastecimento(vinculo.atividade)} span={6} testId="abastecimento-vinculo-atividade" />
-              <ValorCalculado label="Lançamento" valor={rotuloDoLancamentoDoAbastecimento(vinculo.apontamento)} span={6} testId="abastecimento-vinculo-lancamento" />
-            </>
-          ) : null}
           <SecaoForm titulo="Máquina e Produto" />
           <SeletorPaginadoGestao
             rotulo="Máquina/Veículo"

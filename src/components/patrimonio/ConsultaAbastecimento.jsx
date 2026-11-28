@@ -16,7 +16,6 @@ import {
   snapshotDoMedidor,
   textoDoIntervaloConfiavel,
 } from "@/lib/abastecimentoRegras";
-import { rotuloDaAtividadeDoAbastecimento, rotuloDoLancamentoDoAbastecimento } from "@/lib/atividadeLinhasRegras";
 import { SeloAbastecimento } from "@/components/patrimonio/TabelaAbastecimentos";
 import { BOTAO_PERIGO, BOTAO_SECUNDARIO } from "@/components/patrimonio/DialogosAbastecimento";
 
@@ -107,8 +106,7 @@ export function ConsumoDoAbastecimento({ consumo }) {
  * gravada no abastecimento (L ou kg), leitura do medidor, tanque, custo médio
  * FINAL (por L ou por kg), lotes, movimento e estorno; situação, cancelamento e
  * consumo. D-PROD-162: sem tipo de combustível e sem fator. D-PROD-211: origem
- * (estoque da fazenda ou posto externo, que não tem local nem movimento), a
- * atividade e o lançamento a que pertence, o centro de custo (snapshot) e, com
+ * (estoque da fazenda ou posto externo, que não tem local nem movimento), o centro de custo (snapshot) e, com
  * contador, a leitura anterior, o avanço do medidor e o intervalo confiável.
  * @param {{ detalhe: any, podeCancelar: boolean, onCancelar: () => void, onVerConsumo: () => void, fuso?: string|null }} props
  */
@@ -166,12 +164,6 @@ export default function ConsultaAbastecimento({ detalhe: d, podeCancelar, onCanc
           {d.custo_unitario ? ` (${formatarCusto(d.custo_unitario)}${porUnidade ? `/${porUnidade}` : ""})` : ""}
         </Campo>
         <Campo rotulo={externo ? "Número da nota ou cupom" : "Referência externa"}>{d.referencia_externa || "—"}</Campo>
-        <Campo rotulo="Atividade" testId="consulta-atividade">
-          {rotuloDaAtividadeDoAbastecimento(d.atividade)}
-        </Campo>
-        <Campo rotulo="Lançamento" testId="consulta-lancamento">
-          {rotuloDoLancamentoDoAbastecimento(d.apontamento)}
-        </Campo>
         <Campo rotulo="Centro de custo" testId="consulta-centro-custo">
           {rotuloDoCentroDeCusto(d)}
         </Campo>

@@ -354,7 +354,6 @@ const conferirTrocaDeUnidade = async (tx, clienteId, anterior, para) => {
       tx.entradaEstoqueItem.count({ where: onde }),
       tx.saidaEstoqueItem.count({ where: onde }),
       tx.ajusteEstoqueItem.count({ where: onde }),
-      tx.atividadeApontamentoProduto.count({ where: onde }),
     ]);
     if (itens.some((n) => n > 0)) throw unidadeEmUso(id, de, para, 'lancamentos');
   }

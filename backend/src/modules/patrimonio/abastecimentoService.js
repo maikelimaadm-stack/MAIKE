@@ -32,31 +32,16 @@
  *    lote, sem trava de estoque nem de local; o custo é o da nota
  *    (`custo_total`), `custo_unitario = total ÷ quantidade`. Cancelar o
  *    EXTERNO só muda o status (não há o que estornar);
- *  - `apontamento_id`: a atividade é DERIVADA do apontamento; exige o
- *    apontamento CONFIRMADO e a atividade ABERTA (os mesmos erros do
- *    lançamento novo); centro de custo snapshot = o da atividade, senão o do
- *    bem; snapshot do medidor (`medidor_leitura_anterior`, `medidor_delta`,
- *    `intervalo_confiavel`) gravado na confirmação;
- *  - cascata: `cancelarAbastecimentosDosApontamentos` (cancelar o apontamento
- *    ou a atividade) usa o MESMO caminho do cancelamento direto
- *    (`cancelarAbastecimentoTravado`: estorno pelo motor no ESTOQUE, só o
- *    status no EXTERNO), com motivo derivado e um evento de auditoria por
- *    abastecimento.
+ *  - snapshot do medidor (`medidor_leitura_anterior`, `medidor_delta`, `intervalo_confiavel`) e centro de custo
+ *    (o do bem) gravados na confirmação. D-PROD-383: o vínculo com a atividade (`apontamento_id`/`atividade_id`) e a
+ *    cascata do cancelamento da atividade saíram com as atividades.
  *
- * ORDEM DAS TRAVAS (a mesma dos escritores da atividade,
- * `atividadeApontamentoService.js`/`atividadeService.js`):
- *   recibo → Empresa FOR SHARE (o "hoje") → Atividade FOR UPDATE (só com
- *   `apontamento_id`; o apontamento é lido SOB esta trava — todo escritor do
- *   apontamento a toma antes) → Bem FOR UPDATE → (ESTOQUE) LocalEstoque FOR KEY
- *   SHARE → Produto (`travarProdutosEstoque`; no EXTERNO só `FOR SHARE` da
- *   linha, sem a trava de estoque) → lotes → movimento → sequências → auditoria.
- * O cancelamento direto: Empresa FOR SHARE → (ligado) Atividade FOR UPDATE, só
- * ABERTA → Bem FOR UPDATE → AbastecimentoBem FOR UPDATE → Produto → lotes → movimentos. A cascata: Empresa FOR SHARE →
- * Atividade FOR UPDATE (quem chama) → Bens FOR UPDATE (ordenados) →
- * AbastecimentoBem FOR UPDATE → Produtos (UMA rodada ordenada: combustíveis +
- * produtos das linhas de produto da cascata) → lotes → movimentos,
- * e roda ANTES do estorno das linhas de produto (que travam Produto): nenhuma
- * inversão Produto → Bem.
+ * ORDEM DAS TRAVAS:
+ *   recibo → Empresa FOR SHARE (o "hoje") → Bem FOR UPDATE → (ESTOQUE) LocalEstoque FOR KEY SHARE → Produto
+ *   (`travarProdutosEstoque`; no EXTERNO só `FOR SHARE` da linha, sem a trava de estoque) → lotes → movimento →
+ *   sequências → auditoria.
+ * O cancelamento direto: Empresa FOR SHARE → Bem FOR UPDATE → AbastecimentoBem FOR UPDATE → Produto → lotes →
+ *   movimentos.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -64,11 +49,10 @@ import { randomUUID } from 'node:crypto';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { aplicarExclusaoComRecalculo, planejarExclusaoComRecalculo } from '../estoqueRecalculo/estoqueExclusaoRecalculo.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { AppError, atividadeApontamentoNotFound, atividadeStatusInvalido } from '../../shared/errors/AppError.js';
+import { AppError } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { TRANSACAO_CURTA, TRANSACAO_LONGA, emTransacao } from '../../shared/prisma/transacaoConcorrente.js';
 import { registrarEvento } from '../auditoria/auditService.js';
-import { STATUS_APONTAMENTO, exigirStatusDaAtividade, travarAtividade } from '../atividades/atividadeComum.js';
 import { CASAS_CUSTO, CASAS_QUANTIDADE, arredondar, dec, paraBanco, somar } from '../financeiro/decimalFinanceiro.js';
 import {
   ORIGEM_ABASTECIMENTO, aplicarSaida, estornarSaida, lotesFifo, numerarMovimentos, numeroMovimentoProvisorio, travarProdutosEstoque,
@@ -170,10 +154,8 @@ const movimentoPublico = (m) =>
       }
     : null;
 
-/** D-PROD-211 — o vínculo com a atividade e o centro de custo snapshot (lista e detalhe). */
+/** D-PROD-211 — o centro de custo snapshot (lista e detalhe). D-PROD-383: o vínculo com a atividade saiu. */
 const INCLUIR_VINCULO = Object.freeze({
-  atividade: { select: { id: true, numero: true, nome: true } },
-  apontamento: { select: { id: true, data_operacional: true, turno: true, sequencia: true } },
   centroCusto: { select: { id: true, nome: true } },
 });
 
@@ -189,17 +171,12 @@ const INCLUIR_RESUMO = Object.freeze({
 const localPublico = (l) => (l ? { id: l.id, nome: l.nome } : null);
 
 /**
- * D-PROD-211 — campos novos da lista e do detalhe: a origem, o vínculo
- * (`atividade` `{id, numero, nome}`, `apontamento` `{id, data_operacional,
- * turno, sequencia}`), o `centro_custo` `{id, nome}` e o snapshot do medidor.
+ * D-PROD-211 — campos novos da lista e do detalhe: a origem, o `centro_custo` `{id, nome}` e o snapshot do medidor.
+ * D-PROD-383: `atividade` e `apontamento` saíram com as atividades.
  * @param {any} r
  */
 const camposDaFatia5 = (r) => ({
   origem: r.origem,
-  atividade: r.atividade ? { id: r.atividade.id, numero: r.atividade.numero, nome: r.atividade.nome } : null,
-  apontamento: r.apontamento
-    ? { id: r.apontamento.id, data_operacional: diaDe(r.apontamento.data_operacional), turno: r.apontamento.turno ?? null, sequencia: r.apontamento.sequencia }
-    : null,
   centro_custo: r.centroCusto ? { id: r.centroCusto.id, nome: r.centroCusto.nome } : null,
   medidor_leitura_anterior: t4(r.medidor_leitura_anterior),
   medidor_delta: t4(r.medidor_delta),
@@ -333,54 +310,16 @@ const carregarEstado = async (tx, cli, empresaId, entrada, { hoje, fuso }) => {
   const vizinhos = ehContador(bem.medidor_tipo)
     ? await pontosVizinhos(tx, cli, bem.id, /** @type {string} */ (bem.medidor_tipo), entrada.data_operacional)
     : { anterior: null, posterior: null };
-  const vinculo = await carregarVinculo(tx, cli, empresaId, entrada, bem);
+  const vinculo = carregarVinculo(bem);
   return { hoje, fuso, bem, tanque, local, produto, lotes, vinculo, medidor: { cadastro: pontoDoCadastro(bem), ...vizinhos } };
 };
 
 /**
- * D-PROD-211 — o lançamento do dia ao qual o abastecimento pertence. Sem
- * `apontamento_id`: só o centro de custo (o do bem). Com ele: o apontamento da
- * EMPRESA (de outra fazenda ou tenant → 404 `ATIVIDADE_APONTAMENTO_NOT_FOUND`,
- * sem oráculo), a atividade dele ABERTA (concluída/cancelada → 409
- * `ATIVIDADE_STATUS_INVALIDO`, o MESMO erro do lançamento novo) e o
- * apontamento CONFIRMADO (cancelado → 409 `ATIVIDADE_STATUS_INVALIDO`,
- * `entidade: 'apontamento'`). Centro de custo snapshot: o da atividade, senão
- * o do bem. Na confirmação é chamada SOB a trava da atividade.
- * @param {any} tx @param {string} cli @param {string} empresaId @param {any} entrada @param {{ centroCusto?: { id: string, nome: string }|null }} bem
+ * D-PROD-211 — o centro de custo snapshot do abastecimento: o do bem. D-PROD-383: o vínculo com o lançamento da
+ * atividade (`apontamento_id`) saiu com as atividades.
+ * @param {{ centroCusto?: { id: string, nome: string }|null }} bem
  */
-const carregarVinculo = async (tx, cli, empresaId, entrada, bem) => {
-  const centroDoBem = bem.centroCusto ?? null;
-  if (!entrada.apontamento_id) return { atividade: null, apontamento: null, centro_custo: centroDoBem };
-  const ap = await tx.atividadeApontamento.findFirst({
-    where: { cliente_id: cli, empresa_id: empresaId, id: entrada.apontamento_id },
-    select: { id: true, atividade_id: true, data_operacional: true, turno: true, sequencia: true, status: true },
-  });
-  if (!ap) throw atividadeApontamentoNotFound('lançamento (apontamento) não encontrado nesta fazenda; nada foi gravado', { details: { field: 'apontamento_id', reason: 'inexistente' } });
-  const atividade = await tx.atividade.findFirst({
-    where: { cliente_id: cli, empresa_id: empresaId, id: ap.atividade_id },
-    select: { id: true, numero: true, nome: true, status: true, centroCusto: { select: { id: true, nome: true } } },
-  });
-  if (!atividade) throw new Error('abastecimento: atividade do apontamento ausente na fazenda');
-  exigirStatusDaAtividade(atividade, 'lancar_apontamento');
-  if (ap.status !== STATUS_APONTAMENTO.CONFIRMADO) throw atividadeStatusInvalido({ status: ap.status, acao: 'lancar_abastecimento', entidade: 'apontamento' });
-  return {
-    atividade: { id: atividade.id, numero: atividade.numero, nome: atividade.nome },
-    apontamento: { id: ap.id, data_operacional: diaDe(ap.data_operacional), turno: ap.turno ?? null, sequencia: ap.sequencia },
-    centro_custo: atividade.centroCusto ?? centroDoBem,
-  };
-};
-
-/**
- * D-PROD-211 — a atividade do apontamento (lida SEM trava, só para saber qual
- * travar: o `atividade_id` do apontamento nunca muda). Inexistente → null (o
- * erro sai de `carregarVinculo`, já sob as travas).
- * @param {any} tx @param {string} cli @param {string} empresaId @param {string|null} apontamentoId
- */
-const atividadeDoApontamento = async (tx, cli, empresaId, apontamentoId) => {
-  if (!apontamentoId) return null;
-  const ap = await tx.atividadeApontamento.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, id: apontamentoId }, select: { atividade_id: true } });
-  return ap?.atividade_id ?? null;
-};
+const carregarVinculo = (bem) => ({ centro_custo: bem.centroCusto ?? null });
 
 // ─── leitura ────────────────────────────────────────────────────────────────
 
@@ -398,7 +337,7 @@ export const listar = async (contexto, query = {}) => {
   if (de && ate && de > ate) throw invalido('o período está invertido: data_de é posterior a data_ate', { field: 'data_ate', reason: 'periodo_invertido' });
   /** @type {Record<string, any>} */
   const where = { cliente_id: cli, empresa_id: empresaId };
-  for (const campo of ['bem_id', 'tanque_id', 'produto_id', 'status', 'operation_id', 'origem', 'apontamento_id', 'atividade_id']) {
+  for (const campo of ['bem_id', 'tanque_id', 'produto_id', 'status', 'operation_id', 'origem']) {
     if (typeof query[campo] === 'string' && query[campo]) where[campo] = query[campo];
   }
   if (de || ate) where.data_operacional = { ...(de ? { gte: comoData(de) } : {}), ...(ate ? { lte: comoData(ate) } : {}) };
@@ -490,10 +429,6 @@ export const confirmar = async (contexto, corpo) => {
             if (await chave.conferir(tx)) throw chave.erro();
             const empresaId = await exigirEmpresaDoTenant(tx, cli, entrada.empresa_id);
             const tempo = await hojeDaEmpresa(tx, cli, empresaId); // R2 Empresa FOR SHARE
-            // D-PROD-211 — R2b: Atividade FOR UPDATE ANTES do bem (a ordem dos escritores da atividade). O
-            // apontamento e a atividade são lidos sob ela (`carregarVinculo`): nenhum cancelamento passa no meio.
-            const atividadeId = await atividadeDoApontamento(tx, cli, empresaId, entrada.apontamento_id);
-            if (atividadeId) await travarAtividade(tx, cli, empresaId, atividadeId);
             const bemTravado = /** @type {any[]} */ (
               await tx.$queryRaw`SELECT id FROM "BemPatrimonial" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId} AND id = ${entrada.bem_id} FOR UPDATE`
             ); // R3
@@ -514,8 +449,6 @@ export const confirmar = async (contexto, corpo) => {
             const quantidade = dec(plano.quantidade);
             const id = randomUUID();
             const numeroEVinculo = {
-              atividade_id: plano.atividade?.id ?? null,
-              apontamento_id: plano.apontamento?.id ?? null,
               centro_custo_id: plano.centro_custo?.id ?? null,
               medidor_leitura_anterior: plano.medidor_leitura_anterior,
               medidor_delta: plano.medidor_delta,
@@ -633,7 +566,7 @@ const traduzirErroDoEstorno = (erro) => {
 /**
  * Cancela UM abastecimento já TRAVADO por quem chama (Bem FOR UPDATE →
  * AbastecimentoBem FOR UPDATE), CONFIRMADO e com a `versao` conferida: é o
- * ÚNICO caminho do cancelamento — o direto (A5) e a cascata do apontamento e da
+ * ÚNICO caminho do cancelamento — o direto (A5). ESTOQUE: Produto (`travarProdutosEstoque`) → estorno
  * atividade (D-PROD-211). ESTOQUE: Produto (`travarProdutosEstoque`) → estorno
  * exato fatia a fatia pelo motor (`estornarSaida`: lotes → movimentos), no dia
  * `hoje` da fazenda. EXTERNO: só o status (não há movimento nem lote). Depois:
@@ -761,18 +694,9 @@ export const cancelar = async (contexto, id, corpo) => {
             const empresaId = await exigirEmpresaDoTenant(tx, cli, entrada.empresa_id);
             const { hoje } = await hojeDaEmpresa(tx, cli, empresaId); // R2 (dia do estorno)
             const base = await tx.abastecimentoBem.findFirst({
-              where: { cliente_id: cli, empresa_id: empresaId, id }, select: { bem_id: true, produto_id: true, atividade_id: true },
+              where: { cliente_id: cli, empresa_id: empresaId, id }, select: { bem_id: true, produto_id: true },
             });
             if (!base) throw naoEncontrado();
-            // D-PROD-211 — R2b: ligado à atividade, a Atividade FOR UPDATE vem ANTES do bem (o `atividade_id` nunca
-            // muda) e só a ABERTA deixa cancelar: a CONCLUIDA tem os totais fechados (reabra antes); a CANCELADA não
-            // tem abastecimento ligado CONFIRMADO (a cascata os cancelou).
-            if (base.atividade_id) {
-              await travarAtividade(tx, cli, empresaId, base.atividade_id);
-              const atividade = await tx.atividade.findFirst({ where: { cliente_id: cli, empresa_id: empresaId, id: base.atividade_id }, select: { status: true } });
-              if (!atividade) throw new Error('abastecimento: atividade do abastecimento ausente na fazenda');
-              exigirStatusDaAtividade(atividade, 'cancelar_abastecimento');
-            }
             const bemTravado = /** @type {any[]} */ (
               await tx.$queryRaw`SELECT id FROM "BemPatrimonial" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId} AND id = ${base.bem_id} FOR UPDATE`
             ); // R3
@@ -802,80 +726,4 @@ export const cancelar = async (contexto, id, corpo) => {
     if (/** @type {any} */ (e)?.code === 'IDEMPOTENCY_CONFLICT') await auditarReenvioConflitante(contexto, entrada.operation_id, TIPO_CANCELAR);
     throw e;
   }
-};
-
-// ─── cascata pela atividade (D-PROD-211, §2.3) ──────────────────────────────
-
-/** `motivo_cancelamento` é VarChar(500). */
-const MOTIVO_MAXIMO = 500;
-
-/**
- * Motivo derivado da cascata: "cancelado com o lançamento de <dia>[ <turno>]
- * nº <sequência> da atividade <número>[ (atividade cancelada)]: <motivo>",
- * cortado em 500 caracteres.
- * @param {{ apontamento: { data_operacional: Date, turno: string|null, sequencia: number }, atividade: { numero: string }, motivo: string, origem: 'APONTAMENTO'|'ATIVIDADE' }} a
- */
-export const motivoDaCascata = ({ apontamento, atividade, motivo, origem }) => {
-  const dia = String(diaDe(apontamento.data_operacional)).split('-').reverse().join('/');
-  const turno = apontamento.turno ? ` ${String(apontamento.turno).toLowerCase()}` : '';
-  const quem = origem === 'ATIVIDADE' ? ` (atividade cancelada)` : '';
-  const texto = `cancelado com o lançamento de ${dia}${turno} nº ${apontamento.sequencia} da atividade ${atividade.numero}${quem}: ${motivo}`;
-  return [...texto].slice(0, MOTIVO_MAXIMO).join('').trim();
-};
-
-/**
- * D-PROD-211 — cancelar o APONTAMENTO (ou a ATIVIDADE, para todos os
- * apontamentos dela) cancela os abastecimentos CONFIRMADO ligados a eles, na
- * transação de quem chama e pelo MESMO caminho do cancelamento direto
- * (`cancelarAbastecimentoTravado`: estorno exato no ESTOQUE, só o status no
- * EXTERNO), com o motivo derivado (`motivoDaCascata`) e um evento de auditoria
- * por abastecimento (`cascata: { origem, atividade_id, apontamento_id }`).
- *
- * Quem chama já tomou Empresa FOR SHARE e Atividade FOR UPDATE (nenhum
- * abastecimento novo entra no apontamento no meio). Aqui: Bens FOR UPDATE
- * (ordenados) → AbastecimentoBem FOR UPDATE (ordenados) → Produtos (UM
- * `travarProdutosEstoque` com a união ordenada dos combustíveis e dos
- * `produtosAdicionais` — os das linhas de produto que quem chama estorna em
- * seguida) → por abastecimento, lotes e movimentos do motor. Chame ANTES do
- * estorno das linhas de produto (que já travariam Produto antes do Bem).
- * @param {any} tx
- * @param {{ requestId?: string, auth: import('../../shared/auth/authContext.js').AuthContext }|undefined} contexto
- * @param {{ clienteId: string, empresaId: string, apontamentoIds: string[], usuarioId: string|null, motivo: string, hoje?: string,
- *   origem: 'APONTAMENTO'|'ATIVIDADE', produtosAdicionais?: string[] }} pedido
- * @returns {Promise<number>} quantos foram cancelados
- */
-export const cancelarAbastecimentosDosApontamentos = async (tx, contexto, { clienteId, empresaId, apontamentoIds, usuarioId, motivo, hoje, origem, produtosAdicionais = [] }) => {
-  if (!Array.isArray(apontamentoIds) || !apontamentoIds.length) return 0;
-  const onde = { cliente_id: clienteId, empresa_id: empresaId, apontamento_id: { in: apontamentoIds }, status: STATUS_CONFIRMADO };
-  const alvos = await tx.abastecimentoBem.findMany({ where: onde, select: { id: true, bem_id: true, produto_id: true, origem: true }, orderBy: { id: 'asc' } });
-  if (!alvos.length) return 0;
-  if (!contexto?.auth) throw new Error('cancelamento em cascata: o cancelamento dos abastecimentos precisa do contexto da requisição');
-  for (const bemId of [...new Set(alvos.map((a) => a.bem_id))].sort()) {
-    await tx.$queryRaw`SELECT id FROM "BemPatrimonial" WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} AND id = ${bemId} FOR UPDATE`;
-  }
-  const ids = alvos.map((a) => a.id);
-  await tx.$queryRaw`SELECT id FROM "AbastecimentoBem" WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} AND id = ANY(${ids}::text[]) ORDER BY id FOR UPDATE`;
-  // UM conjunto ordenado de Produto: os combustíveis (ESTOQUE) e os `produtosAdicionais` de quem chama (os das
-  // linhas de produto que a cascata estorna depois) — uma ordem global, sem duas rodadas de travas.
-  await travarProdutosEstoque(tx, clienteId, empresaId, [...alvos.filter((a) => a.origem !== ORIGEM_EXTERNO).map((a) => a.produto_id), ...produtosAdicionais]);
-  const dia = hoje ?? (await hojeDaEmpresa(tx, clienteId, empresaId)).hoje;
-  // Relidos sob as travas: um cancelamento direto que passou antes já os tirou do CONFIRMADO.
-  const linhas = await tx.abastecimentoBem.findMany({
-    where: { ...onde, id: { in: ids } },
-    include: { apontamento: { select: { data_operacional: true, turno: true, sequencia: true } }, atividade: { select: { numero: true } } },
-    orderBy: { id: 'asc' },
-  });
-  for (const antes of linhas) {
-    const { apontamento, atividade, ...registro } = antes;
-    await cancelarAbastecimentoTravado(tx, contexto, {
-      cli: clienteId,
-      empresaId,
-      antes: registro,
-      hoje: dia,
-      motivo: motivoDaCascata({ apontamento, atividade, motivo, origem }),
-      usuarioId,
-      extraAuditoria: { cascata: { origem, atividade_id: registro.atividade_id, apontamento_id: registro.apontamento_id } },
-    });
-  }
-  return linhas.length;
 };

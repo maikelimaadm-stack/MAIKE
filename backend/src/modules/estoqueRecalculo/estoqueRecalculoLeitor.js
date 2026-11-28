@@ -94,12 +94,8 @@ export const lerDependentes = async (tx, cli, empresaId, ids) => {
   if (!ids.length) return [];
   const base = { cliente_id: cli, empresa_id: empresaId, movimentacao_estoque_id: { in: ids } };
   const saidas = await tx.saidaEstoqueItem.findMany({ where: base, select: { id: true, saida_id: true, movimentacao_estoque_id: true } });
-  const linhas = await tx.atividadeApontamentoProduto.findMany({ where: base, select: { id: true, apontamento_id: true, movimentacao_estoque_id: true } });
   const abastecimentos = await tx.abastecimentoBem.findMany({ where: base, select: { id: true, movimentacao_estoque_id: true } });
   const itens = await tx.operacaoFinanceiraItem.findMany({ where: base, select: { id: true, operacao_id: true, movimentacao_estoque_id: true } });
-  const consumosLinha = linhas.length
-    ? await tx.atividadeApontamentoProdutoConsumoLote.findMany({ where: { cliente_id: cli, empresa_id: empresaId, linha_id: { in: linhas.map((l) => l.id) } }, select: { id: true, linha_id: true } })
-    : [];
   const consumosAbast = abastecimentos.length
     ? await tx.abastecimentoBemConsumoLote.findMany({ where: { cliente_id: cli, empresa_id: empresaId, abastecimento_id: { in: abastecimentos.map((a) => a.id) } }, select: { id: true, abastecimento_id: true } })
     : [];
@@ -110,13 +106,10 @@ export const lerDependentes = async (tx, cli, empresaId, ids) => {
   const eventos = /** @type {Array<{ id: string, movimento_id: string }>} */ (await tx.$queryRaw`SELECT id, dados->>'movimentacao_estoque_id' AS movimento_id
       FROM "SuplementacaoEvento" WHERE cliente_id = ${cli} AND empresa_id = ${empresaId} AND dados->>'movimentacao_estoque_id' = ANY(${ids}::text[]) ORDER BY id`);
   const movDe = (lista, chave) => new Map(lista.map((x) => [x.id, x[chave]]));
-  const movLinha = movDe(linhas, 'movimentacao_estoque_id');
   const movAbast = movDe(abastecimentos, 'movimentacao_estoque_id');
   const movItem = movDe(itens, 'movimentacao_estoque_id');
   const saida = [
     ...saidas.map((x) => ({ tipo: 'SaidaEstoqueItem', id: x.id, movimento_id: x.movimentacao_estoque_id, documento_id: x.saida_id })),
-    ...linhas.map((x) => ({ tipo: 'AtividadeApontamentoProduto', id: x.id, movimento_id: x.movimentacao_estoque_id, documento_id: x.apontamento_id })),
-    ...consumosLinha.map((x) => ({ tipo: 'AtividadeApontamentoProdutoConsumoLote', id: x.id, movimento_id: /** @type {string} */ (movLinha.get(x.linha_id)), documento_id: x.linha_id })),
     ...abastecimentos.map((x) => ({ tipo: 'AbastecimentoBem', id: x.id, movimento_id: /** @type {string} */ (x.movimentacao_estoque_id), documento_id: null })),
     ...consumosAbast.map((x) => ({ tipo: 'AbastecimentoBemConsumoLote', id: x.id, movimento_id: /** @type {string} */ (movAbast.get(x.abastecimento_id)), documento_id: x.abastecimento_id })),
     ...itens.map((x) => ({ tipo: 'OperacaoFinanceiraItem', id: x.id, movimento_id: /** @type {string} */ (x.movimentacao_estoque_id), documento_id: x.operacao_id })),

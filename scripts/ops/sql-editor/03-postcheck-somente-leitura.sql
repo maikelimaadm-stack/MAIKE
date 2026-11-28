@@ -10,42 +10,10 @@
 WITH
 tenant(nome) AS (
   SELECT unnest(ARRAY[
-    -- D-PROD-207 (Fatia 4): as linhas de mão de obra e de serviço saem PRIMEIRO — a de mão de obra referencia o
-    -- apontamento, o parceiro (Fornecedor; D-PROD-208: o funcionário é papel do parceiro e a tabela Funcionario saiu) e
-    -- os usuários; a de serviço referencia o apontamento, o serviço, o parceiro e os usuários; nenhuma outra tabela as
-    -- referencia. O Servico sai logo depois — referencia a empresa, a UnidadeMedida e o CentroCusto; só a linha de
-    -- serviço o referencia.
-    'AtividadeApontamentoMaoObra','AtividadeApontamentoServico','Servico',
-    -- D-PROD-202 (Fatia 3): as linhas de produto e de máquina saem logo depois — a fatia FIFO do produto referencia a linha de
-    -- produto e o lote; a linha de produto referencia o apontamento, o produto, o local, os 2 movimentos e os usuários;
-    -- a linha de máquina referencia o apontamento, o bem (e o implemento) e os usuários; nenhuma outra tabela as referencia.
-    'AtividadeApontamentoProdutoConsumoLote','AtividadeApontamentoProduto','AtividadeApontamentoMaquina',
-    -- D-PROD-211 (Fatia 5): o abastecimento (e as fatias FIFO dele) sai antes do apontamento e da atividade, que ele
-    -- passa a referenciar, e antes do tanque, do bem e dos centros (abaixo); só as fatias FIFO o referenciam.
+    -- D-PROD-211 (Fatia 5): o abastecimento (e as fatias FIFO dele) sai antes do tanque, do bem e dos centros
+    -- (abaixo); só as fatias FIFO o referenciam.
+    -- D-PROD-383: as 16 tabelas das atividades (Atividade*, TipoAtividade, Servico, Planejamento*) saíram.
     'AbastecimentoBemConsumoLote','AbastecimentoBem',
-    -- D-PROD-200: o apontamento do dia (AtividadeApontamento) sai logo depois — referencia a atividade, os usuários e a
-    -- empresa; só as linhas (acima, D-PROD-202 e D-PROD-207) e o abastecimento (D-PROD-211) o referenciam. As 3 tabelas do apontamento antigo (D-PROD-190/D-PROD-193) saíram.
-    -- D-PROD-323: a mistura do Diário da máquina sai antes do apontamento (o movimento o referencia), da atividade, do
-    -- bem (implemento), do produto, do local e da área, que ela referencia: primeiro o movimento e o item, depois a mistura.
-    'AtividadeMisturaMovimento','AtividadeMisturaItem','AtividadeMistura',
-    'AtividadeApontamento',
-    -- D-PROD-249: a área da atividade (AtividadeArea) sai logo depois do apontamento, que a referencia (FK composta), e
-    -- antes da atividade, da área (AreaPastagem), do setor e dos usuários, que ela referencia.
-    'AtividadeArea',
-    -- D-PROD-274: os dados do plantio de pastagem (AtividadePlantio) saem logo depois da área da atividade e antes da
-    -- atividade, das culturas (CADCULTURAS) e da fazenda, que eles referenciam (FKs compostas RESTRICT).
-    'AtividadePlantio',
-    -- D-PROD-200: a atividade (cabeçalho) sai logo depois — referencia o tipo e o grupo de atividade, a área, o setor, o
-    -- bem, os centros, a unidade, a tarefa, os usuários e a empresa; só o apontamento do dia, a área da atividade (D-PROD-249) e o abastecimento (acima) a referenciam.
-    'Atividade',
-    -- D-PROD-276: a reforma de pastagem sai logo depois da atividade, que a referencia (FK composta): primeiro as áreas dela
-    -- (PlanejamentoArea: referencia a reforma, a área e a fazenda) e depois a reforma (Planejamento: referencia o capim —
-    -- CADCULTURAS —, o usuário e a fazenda), antes de todos eles.
-    'PlanejamentoArea',
-    'Planejamento',
-    -- D-PROD-197: o tipo de atividade sai logo depois da atividade (a única tabela que o referencia, D-PROD-200) e ANTES dos
-    -- centros de custo e de resultado e da UnidadeMedida, que ele referencia como padrão (FKs RESTRICT).
-    'TipoAtividade',
     'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
     -- D-PROD-155 (Gestão P3-01): filhas antes das mães; antes dos centros/naturezas que o rateio referencia.
     -- D-PROD-156 (Gestão P3-02): a linha do rateio por item sai antes do item, do documento, das naturezas e dos centros.

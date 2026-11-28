@@ -49,13 +49,11 @@ const rotuloDaAcaoExtra = (pageId, action) => EXTRA_ACTION_LABELS_POR_TELA[pageI
 
 /**
  * Título do bloco de ações extras: a Central de Lançamentos age sobre o
- * lançamento; Abastecimentos sobre o abastecimento; o Lançamento de Atividades
- * sobre a atividade e os apontamentos dela; Bens Patrimoniais sobre o cadastro.
+ * lançamento; Abastecimentos sobre o abastecimento; Bens Patrimoniais sobre o cadastro.
  */
 const TITULO_DAS_ACOES_EXTRAS = {
   "ges-lancamentos-financeiros": "Ações do lançamento",
   "pat-abastecimentos": "Ações do abastecimento",
-  "op-atividades": "Ações da atividade e dos apontamentos",
 };
 const tituloDasAcoesExtras = (pageId) => TITULO_DAS_ACOES_EXTRAS[pageId] ?? "Ações do cadastro";
 

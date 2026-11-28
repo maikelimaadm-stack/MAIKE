@@ -323,25 +323,6 @@ const reescreverDependentes = async (tx, cli, empresaId, mudados) => {
     });
   }
 
-  const linhas = await tx.atividadeApontamentoProduto.findMany({ where: base, include: { consumos: true } });
-  for (const l of linhas) {
-    const id = l.movimentacao_estoque_id;
-    const custoMudou = !iguaisDec(l.custo_unitario, vu(id)) || !iguaisDec(l.custo_total, vt(id));
-    if (custoMudou) {
-      await tx.atividadeApontamentoProduto.update({
-        where: { cliente_id_id: { cliente_id: cli, id: l.id } }, data: { custo_unitario: paraBanco(vu(id), CASAS_CUSTO), custo_total: paraBanco(vt(id), CASAS_CUSTO) },
-      });
-    }
-    const f = await reescreverFatias(tx.atividadeApontamentoProdutoConsumoLote, cli, empresaId, 'linha_id', l.id, true, l.consumos, fatiasDe(id));
-    if (custoMudou || f) {
-      auditoria.push({
-        entidade: 'AtividadeApontamentoProduto', entidadeId: l.id, movimento_id: id,
-        antes: { custo_unitario: texto4(l.custo_unitario), custo_total: texto4(l.custo_total), ...(f ? { fatias: f.antes } : {}) },
-        depois: { custo_unitario: texto4(vu(id)), custo_total: texto4(vt(id)), ...(f ? { fatias: f.depois } : {}) },
-      });
-    }
-  }
-
   const abastecimentos = await tx.abastecimentoBem.findMany({ where: base });
   for (const ab of abastecimentos) {
     const id = /** @type {string} */ (ab.movimentacao_estoque_id);

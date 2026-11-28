@@ -23,14 +23,11 @@ const UnidadesMedida = paginaSobDemanda(() => import('./pages/UnidadesMedida'));
 const LocaisEstoque = paginaSobDemanda(() => import('./pages/LocaisEstoque'));
 const Estoque = paginaSobDemanda(() => import('./pages/Estoque'));
 const TiposTarefa = paginaSobDemanda(() => import('./pages/TiposTarefa'));
-const TiposAtividade = paginaSobDemanda(() => import('./pages/TiposAtividade'));
 const Estacoes = paginaSobDemanda(() => import('./pages/Estacoes'));
 const Culturas = paginaSobDemanda(() => import('./pages/Culturas'));
 const CurvasGanho = paginaSobDemanda(() => import('./pages/CurvasGanho'));
 const Formulacoes = paginaSobDemanda(() => import('./pages/Formulacoes'));
-const LancamentoAtividades = paginaSobDemanda(() => import('./pages/LancamentoAtividades'));
 const GruposAtividades = paginaSobDemanda(() => import('./pages/GruposAtividades'));
-const Servicos = paginaSobDemanda(() => import('./pages/Servicos'));
 const Empresa = paginaSobDemanda(() => import('./pages/Empresa'));
 const Usuarios = paginaSobDemanda(() => import('./pages/Usuarios'));
 const Permissoes = paginaSobDemanda(() => import('./pages/Permissoes'));
@@ -58,14 +55,11 @@ export const PAGES = {
     "LocaisEstoque": LocaisEstoque,
     "Estoque": Estoque,
     "TiposTarefa": TiposTarefa,
-    "TiposAtividade": TiposAtividade,
     "Estacoes": Estacoes,
     "Culturas": Culturas,
     "CurvasGanho": CurvasGanho,
     "Formulacoes": Formulacoes,
-    "LancamentoAtividades": LancamentoAtividades,
     "GruposAtividades": GruposAtividades,
-    "Servicos": Servicos,
     "Empresa": Empresa,
     "Usuarios": Usuarios,
     "Permissoes": Permissoes,

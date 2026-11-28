@@ -13,11 +13,6 @@ export const ACTION_LABELS = {
   estornar_liquidacao: "estornar baixas",
   cancelar: "cancelar lançamentos",
   inativar: "inativar ou reativar registros",
-  // D-PROD-200 — Lançamento de Atividades.
-  reabrir: "reabrir atividade",
-  lancar_apontamento: "lançar apontamento",
-  editar_apontamento: "editar apontamento",
-  cancelar_apontamento: "cancelar apontamento",
   // D-PROD-257 — Estoque → Entradas.
   entrada: "lançar e excluir entradas de estoque",
 };
@@ -33,10 +28,8 @@ export const ACTION_LABELS = {
  *    (backend/src/shared/auth/guardasRotas.js);
  *  - Abastecimentos (D-PROD-159/161): `cancelar` (cancelar/estornar o
  *    abastecimento) — espelho de `ACOES_ABASTECIMENTO_EXTRAS`;
- *  - Lançamento de Atividades (D-PROD-200): `reabrir` (reabrir atividade
- *    concluída) e as ações do apontamento (`lancar_apontamento`, que também
- *    "repete", `editar_apontamento` e `cancelar_apontamento`), na linha da tela
- *    `op-atividades`.
+ *  - D-PROD-383: as ações do Lançamento de Atividades (`op-atividades`) saíram com a tela; linhas já gravadas ficam
+ *    inertes no JSON.
  * As telas antigas (`pat-familias-patrimoniais`, `pat-tipos-patrimoniais`,
  * `pat-perfis-medicao`, `pat-combustiveis`) e a ação `configurar_conversao`
  * saíram (D-PROD-162): linhas já gravadas ficam inertes no JSON.
@@ -47,7 +40,6 @@ export const EXTRA_ACTION_KEYS_BY_PAGE = Object.freeze({
   "ges-lancamentos-financeiros": Object.freeze(["confirmar", "liquidar", "estornar_liquidacao", "cancelar"]),
   "pat-bens-patrimoniais": ACOES_EXTRAS_PATRIMONIO,
   "pat-abastecimentos": Object.freeze(["cancelar"]),
-  "op-atividades": Object.freeze(["reabrir", "lancar_apontamento", "editar_apontamento", "cancelar_apontamento"]),
   // D-PROD-257 — Estoque → Entradas: criar/editar observação/excluir entrada manual e saldo de implantação.
   // Espelho de `ACOES_ESTOQUE_EXTRAS`; `ajuste` (inventário) segue reservada e não existe.
   // D-PROD-264: `saida` — saída manual (custo médio) e motivos de saída.

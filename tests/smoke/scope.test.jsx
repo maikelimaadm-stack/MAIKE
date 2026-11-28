@@ -74,11 +74,12 @@ describe('escopo do produto', () => {
     // +1 Tipos de Atividade (D-PROD-182); +1 Estações (D-PROD-188); +1 Curvas de Ganho (D-PROD-189);
     // +1 Apontamentos de Atividade (D-PROD-190), trocado por Lançamento de Atividades (D-PROD-200, uma por uma);
     // +1 Formulações (D-PROD-203); +2 Funcionários e Serviços (D-PROD-207); −1 Funcionários (D-PROD-208: papel do parceiro);
-    // +1 Culturas (D-PROD-215); +1 Estoque (D-PROD-255).
-    expect(scope.allowedPages).toHaveLength(32);
+    // +1 Culturas (D-PROD-215); +1 Estoque (D-PROD-255); −3 Tipos de Atividade, Lançamento de Atividades e Serviços
+    // (D-PROD-383).
+    expect(scope.allowedPages).toHaveLength(29);
   });
 
-  it('D-PROD-208: a tela Funcionários saiu (o funcionário é papel do parceiro); Serviços continua', () => {
+  it('D-PROD-208: a tela Funcionários saiu (o funcionário é papel do parceiro)', () => {
     const doMenu = flattenMenuPages(DEFAULT_MENU).map((page) => page.url);
     expect(PAGES.Funcionarios).toBeUndefined();
     expect(scope.allowedPages).not.toContain('Funcionarios');
@@ -87,23 +88,22 @@ describe('escopo do produto', () => {
     expect(existsSync('src/components/funcionarios')).toBe(false);
     expect(existsSync('src/apis/funcionarios')).toBe(false);
     expect(existsSync('src/services/funcionarioCadastroService.js')).toBe(false);
-    expect(typeof PAGES.Servicos).toBe('function');
-    expect(scope.allowedPages).toContain('Servicos');
-    expect(doMenu).toContain('Servicos');
   });
 
-  it('D-PROD-200: Apontamentos de Atividade deu lugar a Lançamento de Atividades, uma por uma (página, registro, manifesto e menu)', () => {
+  it('D-PROD-383: as atividades saíram para recomeçar do zero — Tipos de Atividade, Lançamento de Atividades e Serviços (página, registro, manifesto e menu); Grupos de Atividades fica (é das tarefas)', () => {
     const doMenu = flattenMenuPages(DEFAULT_MENU).map((page) => page.url);
-    expect(PAGES.ApontamentosAtividade).toBeUndefined();
-    expect(scope.allowedPages).not.toContain('ApontamentosAtividade');
-    expect(doMenu).not.toContain('ApontamentosAtividade');
-    expect(existsSync('src/pages/ApontamentosAtividade.jsx')).toBe(false);
-    expect(existsSync('src/components/apontamentos-atividade')).toBe(false);
-    expect(typeof PAGES.LancamentoAtividades).toBe('function');
-    expect(scope.allowedPages).toContain('LancamentoAtividades');
-    expect(doMenu.filter((url) => url === 'LancamentoAtividades')).toHaveLength(1);
-    // A nova ocupa o lugar da antiga no manifesto: logo depois de Tipos de Atividade.
-    expect(scope.allowedPages.indexOf('LancamentoAtividades')).toBe(scope.allowedPages.indexOf('TiposAtividade') + 1);
+    for (const nome of ['ApontamentosAtividade', 'TiposAtividade', 'LancamentoAtividades', 'Servicos']) {
+      expect(PAGES[nome], nome).toBeUndefined();
+      expect(scope.allowedPages, nome).not.toContain(nome);
+      expect(doMenu, nome).not.toContain(nome);
+      expect(existsSync(`src/pages/${nome}.jsx`), nome).toBe(false);
+    }
+    for (const pasta of ['src/components/lancamento-atividades', 'src/components/tipos-atividade', 'src/components/servicos', 'src/apis/atividades', 'src/apis/servicos', 'backend/src/modules/atividades', 'backend/src/modules/tiposAtividade', 'backend/src/modules/servicos']) {
+      expect(existsSync(pasta), pasta).toBe(false);
+    }
+    expect(typeof PAGES.GruposAtividades).toBe('function');
+    expect(scope.allowedPages).toContain('GruposAtividades');
+    expect(doMenu).toContain('GruposAtividades');
   });
 
   it('PageNotFound continua registrado como catch-all', () => {

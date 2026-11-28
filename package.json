@@ -22,7 +22,6 @@
     "backend:start": "node backend/src/server.js",
     "auth:bootstrap:local": "node scripts/auth/bootstrap-local.mjs",
     "auth:reset-password": "node scripts/auth/reset-password.mjs",
-    "ops:tipos-fixos-atividade": "node scripts/ops/tipos-fixos-atividade-dados.mjs",
     "ops:seed-demo-tenant": "node scripts/ops/seed-demo-tenant.mjs",
     "ops:seed-demo-lotes-mapa": "node scripts/ops/seed-demo-lotes-mapa.mjs",
     "db:up": "docker compose up -d db",

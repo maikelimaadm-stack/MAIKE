@@ -123,9 +123,7 @@ const textoOuIndefinido = (v) => (typeof v === 'string' && v.trim() ? v.trim() :
  * Uma página (keyset) dos abastecimentos da empresa. Sem empresa: página vazia, nada é lido.
  * @param {string|null} empresaId
  * @param {{ limit?: number, cursor?: string|null, q?: string, bemId?: string|null, tanqueId?: string|null, produtoId?: string|null,
- *   status?: string|null, dataDe?: string|null, dataAte?: string|null, operationId?: string|null,
- *   apontamentoId?: string|null, atividadeId?: string|null }} [opts] `apontamentoId`/`atividadeId` (D-PROD-211): só os
- *   abastecimentos ligados àquele lançamento / àquela atividade.
+ *   status?: string|null, dataDe?: string|null, dataAte?: string|null, operationId?: string|null }} [opts]
  */
 export const listarAbastecimentosPagina = async (empresaId, opts = {}) => {
   const limit = opts.limit ?? POR_PAGINA_ABASTECIMENTOS;
@@ -139,8 +137,6 @@ export const listarAbastecimentosPagina = async (empresaId, opts = {}) => {
     data_de: textoOuIndefinido(opts.dataDe),
     data_ate: textoOuIndefinido(opts.dataAte),
     operation_id: textoOuIndefinido(opts.operationId),
-    apontamento_id: textoOuIndefinido(opts.apontamentoId),
-    atividade_id: textoOuIndefinido(opts.atividadeId),
     q: textoOuIndefinido(opts.q),
     limit,
     cursor: textoOuIndefinido(opts.cursor),
@@ -217,8 +213,7 @@ export const previaDoAbastecimento = async (empresaId, form) =>
 /**
  * Confirma o abastecimento que a prévia mostrou (o MESMO corpo da prévia; o
  * servidor relê tudo sob as travas). `operation_id` persistente por pendência.
- * D-PROD-211: o corpo leva `origem`/`custo_total` no posto externo (sem local)
- * e `apontamento_id` quando aberto a partir de um lançamento da atividade.
+ * D-PROD-211: o corpo leva `origem`/`custo_total` no posto externo (sem local).
  * @param {string|null} empresaId @param {any} form @param {any} plano
  * @param {{ escopo: string, storage?: Storage|null, retentativa?: boolean,
  *   confirmarDescarte?: (m: string) => boolean | Promise<boolean>, confirmarNovoEnvio?: (m: string) => boolean | Promise<boolean> }} c

@@ -6,16 +6,16 @@
  *   `capacidade_unidade` (L | KG); a leitura devolve os quatro.
  * - Outro Tipo de bem com qualquer um deles (mesmo null) é 400 `so_implemento`; "Não" com capacidade é 400; "Sim" sem
  *   capacidade é 400; `usa_produto` fora de sim/não é 400. Nada é gravado.
- * - A lista de implementos e a linha de máquina tiram o tanque do BEM; sem marcação no bem (nulo), do tipo (como antes);
- *   o bem com "Não" não tem jato mesmo que o tipo diga "por jato".
+ *
+ * D-PROD-383: a lista de implementos e a linha de máquina eram do Lançamento de Atividades e saíram com ele; o cadastro
+ * do bem continua igual.
  */
 
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { criarApp, limparBanco, encerrar } from './helpers.mjs';
-import { montarLinhasCusto, prisma } from './atividadeLinhaCustoCenario.mjs';
-import { corpoImplemento, corpoTrator } from './patrimonioP1Cenario.mjs';
+import { corpoImplemento, corpoTrator, http, montarPatrimonio, prisma } from './patrimonioP1Cenario.mjs';
 
 /** @type {import('fastify').FastifyInstance} */
 let app;
@@ -34,21 +34,17 @@ beforeEach(async () => {
 const POR_JATO = { usa_produto: true, forma_produto: 'JATO', capacidade: '2000', capacidade_unidade: 'L' };
 
 const montar = async () => {
-  const s = await montarLinhasCusto(app);
+  const s = { ...(await montarPatrimonio(app)), H: http(app) };
   const criar = (extra) => s.H.req('POST', '/bens-patrimoniais', s.token, corpoImplemento(s, { numero_serie: `PV-${Math.random().toString(36).slice(2, 8)}`, ...extra }));
   const patch = async (id, corpo) => {
     const atual = await prisma().bemPatrimonial.findUnique({ where: { id } });
     return s.H.req('PATCH', `/bens-patrimoniais/${id}`, s.token, { empresa_id: s.e1.id, versao: atual.versao, ...corpo });
   };
-  const jatos = async () => {
-    const lista = await s.H.ok(s.H.req('GET', `/atividades-opcoes/implementos?empresa_id=${s.e1.id}`, s.token));
-    return Object.fromEntries(lista.itens.map((i) => [i.id, i.jato]));
-  };
-  return { ...s, criar, patch, jatos };
+  return { ...s, criar, patch };
 };
 
 describe('bem implemento: o produto no cadastro', () => {
-  test('criar "por jato" grava e devolve os quatro campos; a lista de implementos traz o tanque do bem', async () => {
+  test('criar "por jato" grava e devolve os quatro campos', async () => {
     const s = await montar();
     const r = await s.criar({ nome: 'Pulverizador PV-01', ...POR_JATO });
     assert.equal(r.statusCode, 201, r.body);
@@ -56,19 +52,17 @@ describe('bem implemento: o produto no cadastro', () => {
     assert.deepEqual([b.usa_produto, b.forma_produto, b.capacidade, b.capacidade_unidade], [true, 'JATO', '2000.0000', 'L']);
     const gravado = await prisma().bemPatrimonial.findUnique({ where: { id: b.id } });
     assert.equal(Number(gravado.capacidade), 2000);
-    assert.deepEqual((await s.jatos())[b.id], { capacidade: '2000', unidade: 'L' });
     const detalhe = await s.H.ok(s.H.req('GET', `/bens-patrimoniais/${b.id}?empresa_id=${s.e1.id}`, s.token));
     assert.equal(detalhe.usa_produto, true);
     assert.equal(detalhe.capacidade_unidade, 'L');
   });
 
-  test('editar: trocar a capacidade e a medida; "Não" limpa e tira o jato; repetir o mesmo não grava', async () => {
+  test('editar: trocar a capacidade e a medida; "Não" limpa; repetir o mesmo não grava', async () => {
     const s = await montar();
     const b = await s.H.ok(s.criar({ nome: 'Pulverizador PV-02', ...POR_JATO }), 201);
     const e1 = await s.patch(b.id, { capacidade: '600', capacidade_unidade: 'KG' });
     assert.equal(e1.statusCode, 200, e1.body);
     assert.deepEqual([e1.json().capacidade, e1.json().capacidade_unidade], ['600.0000', 'KG']);
-    assert.deepEqual((await s.jatos())[b.id], { capacidade: '600', unidade: 'KG' });
     const versao = (await prisma().bemPatrimonial.findUnique({ where: { id: b.id } })).versao;
     const igual = await s.patch(b.id, { capacidade: '600.0000' });
     assert.equal(igual.statusCode, 200, igual.body);
@@ -76,20 +70,6 @@ describe('bem implemento: o produto no cadastro', () => {
     const nao = await s.patch(b.id, { usa_produto: false, forma_produto: null, capacidade: null, capacidade_unidade: null });
     assert.equal(nao.statusCode, 200, nao.body);
     assert.deepEqual([nao.json().usa_produto, nao.json().forma_produto, nao.json().capacidade, nao.json().capacidade_unidade], [false, null, null, null]);
-    assert.equal((await s.jatos())[b.id], null);
-  });
-
-  test('sem marcação no bem vale o tipo (como antes); o bem com "Não" vence o tipo "por jato"', async () => {
-    const s = await montar();
-    const p = prisma();
-    await p.tipoPatrimonial.update({ where: { id: s.tip.ROCADEIRA }, data: { usa_produto: true, forma_produto: 'JATO', capacidade: '3000', capacidade_unidade: 'L' } });
-    const herda = await s.H.ok(s.criar({ nome: 'Pulverizador do tipo' }), 201);
-    const naoUsa = await s.H.ok(s.criar({ nome: 'Grade', usa_produto: false }), 201);
-    const proprio = await s.H.ok(s.criar({ nome: 'Pulverizador próprio', ...POR_JATO }), 201);
-    const j = await s.jatos();
-    assert.deepEqual(j[herda.id], { capacidade: '3000', unidade: 'L' });
-    assert.equal(j[naoUsa.id], null);
-    assert.deepEqual(j[proprio.id], { capacidade: '2000', unidade: 'L' });
   });
 
   test('recusas (400, nada gravado): outro Tipo de bem, "Sim" sem capacidade, "Não" com capacidade, forma/unidade/usa inválidos', async () => {
@@ -117,16 +97,5 @@ describe('bem implemento: o produto no cadastro', () => {
     const pm = await s.patch(trator.id, { capacidade: '10' });
     assert.equal(pm.statusCode, 400, pm.body);
     assert.equal(pm.json().reason, 'so_implemento');
-  });
-});
-
-describe('implemento da linha de máquina: o tanque do bem', () => {
-  test('o bem marcado decide; sem marcação, o tipo', async () => {
-    const { implementoPublico } = await import('../src/modules/atividades/atividadeComum.js');
-    const base = { id: 'i1', numero: '9', codigo_frota: 'PV-01', nome: 'Pulverizador', natureza: 'IMPLEMENTO' };
-    const tipoJato = { usa_produto: true, forma_produto: 'JATO', capacidade: '3000.0000', capacidade_unidade: 'L' };
-    assert.deepEqual(implementoPublico({ ...base, usa_produto: true, forma_produto: 'JATO', capacidade: '2000.0000', capacidade_unidade: 'KG', tipo: tipoJato }).jato, { capacidade: '2000', unidade: 'KG' });
-    assert.equal('jato' in implementoPublico({ ...base, usa_produto: false, tipo: tipoJato }), false);
-    assert.deepEqual(implementoPublico({ ...base, usa_produto: null, tipo: tipoJato }).jato, { capacidade: '3000', unidade: 'L' });
   });
 });

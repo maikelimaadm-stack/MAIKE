@@ -25,11 +25,9 @@
  * `medidor_leitura` e `custo_total` antes da coerção do AJV.
  *
  * D-PROD-211 (Fatia 5): o corpo da prévia e da confirmação ganha `origem`
- * (ESTOQUE | EXTERNO), `apontamento_id` e `custo_total` (só EXTERNO);
- * `local_estoque_id` deixa de ser obrigatório no schema (o serviço o exige no
- * ESTOQUE e o recusa no EXTERNO); `atividade_id` nunca entra (é derivado do
- * apontamento: o schema fechado o recusa). A lista filtra também por
- * `origem`, `apontamento_id` e `atividade_id`.
+ * (ESTOQUE | EXTERNO) e `custo_total` (só EXTERNO); `local_estoque_id` deixa de ser obrigatório no schema (o
+ * serviço o exige no ESTOQUE e o recusa no EXTERNO). A lista filtra também por `origem`.
+ * D-PROD-383: o vínculo com a atividade saiu; `apontamento_id` só entra nulo (reenvio de versão antiga do app).
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -81,7 +79,7 @@ const CORPO_BASE = {
   referencia_externa: TEXTO_NULO(64),
   // D-PROD-211
   origem: { type: 'string', enum: [...ORIGENS_ABASTECIMENTO] },
-  apontamento_id: { ...ID, type: ['string', 'null'] },
+  apontamento_id: { type: 'null' },
   custo_total: { type: ['string', 'null'], pattern: PADRAO_CUSTO_TOTAL.source },
   // D-PROD-282 em todas as telas: a escolha dos lotes do produto com lote (sem ela, FEFO).
   lotes: LOTES_ESCOLHIDOS,
@@ -100,8 +98,6 @@ const LISTAR = {
       produto_id: ID,
       status: { type: 'string', enum: ['CONFIRMADO', 'CANCELADO'] },
       origem: { type: 'string', enum: [...ORIGENS_ABASTECIMENTO] },
-      apontamento_id: ID,
-      atividade_id: ID,
       data_de: DIA,
       data_ate: DIA,
       operation_id: OPERATION_ID,

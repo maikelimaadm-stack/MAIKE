@@ -233,11 +233,10 @@ const CORPO_BASE_ABASTECIMENTO = Object.freeze([
 ]);
 /**
  * D-PROD-211 — opcionais: `origem` (`ESTOQUE` padrão | `EXTERNO`), `custo_total` (só no `EXTERNO`: o valor da nota,
- * até 2 casas) e `apontamento_id` (o lançamento da atividade; a atividade o servidor deriva e nunca vai). No
- * `EXTERNO` o `local_estoque_id` NÃO vai.
+ * até 2 casas). No `EXTERNO` o `local_estoque_id` NÃO vai. D-PROD-383: `apontamento_id` saiu com as atividades.
  */
 // D-PROD-282 em todas as telas: `lotes` (a escolha manual dos lotes do combustível com lote; nunca no posto externo).
-const OPCIONAIS_ABASTECIMENTO = Object.freeze(['origem', 'custo_total', 'apontamento_id', 'lotes']);
+const OPCIONAIS_ABASTECIMENTO = Object.freeze(['origem', 'custo_total', 'lotes']);
 const CORPO_ABASTECIMENTO = Object.freeze([...CORPO_BASE_ABASTECIMENTO, ...OPCIONAIS_ABASTECIMENTO]);
 const OBRIGATORIAS_PREVIA = Object.freeze(['empresa_id', 'bem_id', 'tanque_id', 'produto_id', 'local_estoque_id', 'data_operacional', 'quantidade']);
 const EXTRAS_CONFIRMACAO = Object.freeze(['operation_id']);
@@ -280,7 +279,6 @@ const validarCorpoAbastecimento = (corpo, contexto) => {
     assertArgument(isId(corpo.local_estoque_id), 'local_estoque_id', contexto);
     assertArgument(!tem(corpo, 'custo_total'), 'custo_total', contexto);
   }
-  if (tem(corpo, 'apontamento_id')) assertArgument(isId(corpo.apontamento_id), 'apontamento_id', contexto);
   if (tem(corpo, 'lotes')) {
     const lotes = /** @type {unknown} */ (corpo.lotes);
     assertArgument(

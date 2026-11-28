@@ -163,6 +163,17 @@ describe('D-PROD-294 — baixar dados', () => {
     expect((await baixarLeiturasDasTelas('emp')).falhas).toBeGreaterThan(0);
   });
 
+  it('DB-01c (D-PROD-383) a ROTA que saiu do servidor (404 padrão, sem código) sai do aparelho e não conta como falha', async () => {
+    const { guardarResposta, lerResposta } = await carregar({ tenant: 'cli_db01c' });
+    await guardarResposta('cli_db01c', '/atividades?empresa_id=emp', [{ id: 'velho' }]);
+    const { baixarLeiturasDasTelas } = await import('@/apis/offline');
+    const rotaQueSaiu = { message: 'Route GET:/atividades not found', error: 'Not Found', statusCode: 404 };
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url) =>
+      String(url).includes('/atividades') ? respostaJson(404, rotaQueSaiu) : respostaJson(200, [])));
+    expect((await baixarLeiturasDasTelas('emp')).falhas).toBe(0);
+    expect(await lerResposta('cli_db01c', '/atividades?empresa_id=emp')).toBeUndefined();
+  });
+
   it('DB-03 cada tela do sistema tem a sua leitura registrada pela porta do módulo (com a empresa)', async () => {
     await import('@/apis/culturas');
     await import('@/apis/setores');

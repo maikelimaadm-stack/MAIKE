@@ -59,11 +59,7 @@ export const ICONE_TELA = {
   LocaisEstoque: Warehouse,
   Estoque: Boxes, // D-PROD-255
   TiposTarefa: ListChecks,
-  TiposAtividade: ListChecks,
-  // D-PROD-200 — Lançamento de Atividades (a execução; o ícone do antigo Apontamentos de Atividade, ≠ ListChecks dos tipos).
-  LancamentoAtividades: ClipboardCheck,
   GruposAtividades: Folder,
-  Servicos: Briefcase, // D-PROD-207
   Empresa: Building2,
   Usuarios: Users,
   Permissoes: Shield,
