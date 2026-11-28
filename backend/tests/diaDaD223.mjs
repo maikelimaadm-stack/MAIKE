@@ -322,6 +322,14 @@ export const schemaSemInsumoPorJato = (schema) => {
   return linhas.filter((_, i) => !sai[i]).join('\n');
 };
 
+/**
+ * D-PROD-383 — o ponto de partida destes espelhos é o `schema.prisma` de ANTES da remoção das atividades, congelado em
+ * `fixtures/schema-antes-D383.prisma` (o da `main` em 852057c05). Os "dias" daqui são todos anteriores à D-PROD-383 e
+ * têm as tabelas de atividade; o schema de hoje não tem mais, então tirar dele o que veio depois não chega ao dia certo.
+ * A migration `20261128100000_remover_atividades` tem a prova própria em `premerge-migrate.test.mjs`.
+ */
+export const schemaAntesDaD383 = () => readFileSync(join(RAIZ, 'backend', 'tests', 'fixtures', 'schema-antes-D383.prisma'), 'utf8');
+
 let espelho = null;
 /** O diretório do espelho do runner até a D-PROD-223, com o schema do dia dela. */
 /**
@@ -355,7 +363,7 @@ export const espelhoDoDiaD223 = () => {
   if (espelho) return espelho;
   espelho = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D223 }).dir;
   const destino = join(espelho, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemDiarioDaMaquina(schemaSemIndicesDaSincronizacao(schemaSemUnidadeConvertida(schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8')))))))))))))));
+  writeFileSync(destino, schemaSemDiarioDaMaquina(schemaSemIndicesDaSincronizacao(schemaSemUnidadeConvertida(schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaSemAreasDaAtividade(schemaAntesDaD383()))))))))))))));
   const dir = espelho;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho;
@@ -376,7 +384,7 @@ export const espelhoDoDiaD249 = () => {
   if (espelho249) return espelho249;
   espelho249 = criarEspelhoDoRunner({ raiz: RAIZ, ate: ATE_D249 }).dir;
   const destino = join(espelho249, 'backend', 'prisma', 'schema.prisma');
-  writeFileSync(destino, schemaSemDiarioDaMaquina(schemaSemIndicesDaSincronizacao(schemaSemUnidadeConvertida(schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(readFileSync(join(RAIZ, 'backend', 'prisma', 'schema.prisma'), 'utf8'))))))))))))));
+  writeFileSync(destino, schemaSemDiarioDaMaquina(schemaSemIndicesDaSincronizacao(schemaSemUnidadeConvertida(schemaSemProdutoDoBem(schemaSemUnidadesConversao(schemaSemInsumoPorJato(schemaSemControleLote(schemaSemProdutoDoImplemento(schemaSemReforma(schemaSemCamposPorTipo(schemaSemDataTermino(schemaSemEntradasDoEstoque(schemaAntesDaD383())))))))))))));
   const dir = espelho249;
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   return espelho249;
