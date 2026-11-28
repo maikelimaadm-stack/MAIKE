@@ -1,0 +1,159 @@
+/**
+ * D-PROD-382 (canal de teste) — os pastos e as linhas do mapa do Google não são redesenhados ao abrir o mapa, trocar um
+ * filtro ou chegar um dado novo: só o que mudou sai e entra, e o novo entra ANTES do velho sair (nada pisca).
+ *
+ *  G382-3. `planejarPoligonos`: o que não mudou fica; o que mudou de cor/contorno troca; o que saiu do filtro sai;
+ *          iguais repetidos não se perdem.
+ *  G382-4. Componente no app: um novo render com os mesmos pastos não mexe no mapa; um filtro tira só os pastos dele;
+ *          trocar a cor de um pasto troca só ele, com o novo antes do velho; linhas iguais não são refeitas.
+ */
+import React from "react";
+import { render, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/googleMaps", () => ({ loadGoogleMaps: vi.fn(async () => {}) }));
+vi.mock("@capacitor/app", () => ({ App: { getInfo: vi.fn(async () => ({ build: "9" })) } }));
+vi.mock("@capacitor/core", async (orig) => {
+  const real = /** @type {any} */ (await orig());
+  return {
+    ...real,
+    registerPlugin: () => ({ addListener: async () => ({ remove: () => {} }) }),
+    Capacitor: { ...real.Capacitor, isNativePlatform: () => true, getPlatform: () => "android", isPluginAvailable: () => true },
+  };
+});
+
+const falso = vi.hoisted(() => ({ mapa: /** @type {any} */ (null), ordem: /** @type {string[]} */ ([]) }));
+vi.mock("@capacitor/google-maps", () => ({
+  GoogleMap: {
+    create: vi.fn(async () => {
+      let n = 0;
+      const ids = (l, p) => l.map(() => `${p}${++n}`);
+      const registrar = (nome, fn) => vi.fn(async (l) => (falso.ordem.push(nome), fn(l)));
+      falso.mapa = {
+        id: "mapa-1",
+        setMapType: vi.fn(async () => {}),
+        addPolygons: registrar("addPolygons", (l) => ids(l, "p")),
+        removePolygons: registrar("removePolygons", () => {}),
+        addPolylines: registrar("addPolylines", (l) => ids(l, "l")),
+        removePolylines: registrar("removePolylines", () => {}),
+        addCircles: vi.fn(async (l) => ids(l, "c")),
+        removeCircles: vi.fn(async () => {}),
+        addMarkers: vi.fn(async (l) => ids(l, "m")),
+        removeMarkers: vi.fn(async () => {}),
+        setCamera: vi.fn(async () => {}),
+        fitBounds: vi.fn(async () => {}),
+        setOnPolygonClickListener: vi.fn(async () => {}),
+        setOnPolylineClickListener: vi.fn(async () => {}),
+        setOnCameraIdleListener: vi.fn(async () => {}),
+        setOnCameraMoveStartedListener: vi.fn(async () => {}),
+        setOnMapClickListener: vi.fn(async () => {}),
+        setOnMarkerClickListener: vi.fn(async () => {}),
+        enableTouch: vi.fn(async () => {}),
+        disableTouch: vi.fn(async () => {}),
+        destroy: vi.fn(async () => {}),
+      };
+      return falso.mapa;
+    }),
+  },
+}));
+
+import { planejarPoligonos, poligonosDasAreas } from "@/lib/mapaNativo/mapaGoogleNativo.js";
+import MapaGoogleNativo from "@/components/mapa/MapaGoogleNativo.jsx";
+
+const pasto = (id, lat, cor = "#22aa22") => ({ id, nome: `Pasto ${id}`, cor, coordenadas: { coords: [[lat, -47], [lat, -46.99], [lat - 0.01, -46.99], [lat - 0.01, -47]] } });
+const LINHA = { id: 7, nome: "Cerca", coordenadas: { coords: [[-15, -47], [-15.01, -47.01]], cor: "#ff0000" } };
+
+let antesGetContext;
+let antesToDataURL;
+beforeEach(() => {
+  falso.mapa = null;
+  falso.ordem = [];
+  localStorage.clear();
+  globalThis.devicePixelRatio = 2;
+  antesGetContext = HTMLCanvasElement.prototype.getContext;
+  antesToDataURL = HTMLCanvasElement.prototype.toDataURL;
+  HTMLCanvasElement.prototype.getContext = /** @type {any} */ (() => new Proxy({}, { get: (alvo, k) => (k in alvo ? alvo[k] : () => {}), set: (alvo, k, v) => ((alvo[k] = v), true) }));
+  HTMLCanvasElement.prototype.toDataURL = function () {
+    return `data:image/png;base64,${this.width}x${this.height}`;
+  };
+});
+afterEach(() => {
+  HTMLCanvasElement.prototype.getContext = antesGetContext;
+  HTMLCanvasElement.prototype.toDataURL = antesToDataURL;
+  vi.clearAllMocks();
+});
+
+describe("G382-3 — planejarPoligonos troca só o que mudou", () => {
+  const [a, b, c] = poligonosDasAreas([pasto(1, -15), pasto(2, -15.1), pasto(3, -15.2)], () => null, "cheio", 2);
+
+  it("mapa vazio: todos entram; os mesmos de novo: nada entra nem sai", () => {
+    const p1 = planejarPoligonos(new Map(), [a, b]);
+    expect(p1.entram.map((e) => e.poligono.tag)).toEqual(["1", "2"]);
+    expect(p1.saem).toEqual([]);
+    const noMapa = new Map(p1.entram.map((e, i) => [e.chave, `p${i}`]));
+    // um objeto novo, igual (como num novo render): fica
+    const p2 = planejarPoligonos(noMapa, [{ ...a }, { ...b }]);
+    expect(p2.entram).toEqual([]);
+    expect(p2.saem).toEqual([]);
+    expect([...p2.ficam.values()]).toEqual(["p0", "p1"]);
+  });
+
+  it("filtro tira um, chega outro, muda a cor de um: só eles trocam", () => {
+    const p1 = planejarPoligonos(new Map(), [a, b]);
+    const noMapa = new Map(p1.entram.map((e, i) => [e.chave, `p${i}`]));
+    const bVermelho = { ...b, fillColor: "#ff0000" };
+    const p2 = planejarPoligonos(noMapa, [bVermelho, c]);
+    expect(p2.entram.map((e) => [e.poligono.tag, e.poligono.fillColor])).toEqual([["2", "#ff0000"], ["3", c.fillColor]]);
+    expect(p2.saem.sort()).toEqual(["p0", "p1"]);
+    expect(p2.ficam.size).toBe(0);
+  });
+
+  it("dois polígonos idênticos não viram um só", () => {
+    const p1 = planejarPoligonos(new Map(), [a, { ...a }]);
+    expect(p1.entram).toHaveLength(2);
+    expect(new Set(p1.entram.map((e) => e.chave)).size).toBe(2);
+  });
+});
+
+describe("G382-4 — o componente no app não redesenha os pastos", () => {
+  const props = (extra = {}) => ({ mostrarAreas: true, corDaArea: () => null, estiloPasto: "cheio", tipoMapa: "satellite", empresaId: "e1", ...extra });
+  const tagsDe = (chamada) => chamada[0].map((p) => p.tag);
+
+  it("novo render igual, filtro e cor nova: só o que mudou troca, o novo antes do velho sair", async () => {
+    const areas = [pasto(1, -15), pasto(2, -15.1), pasto(3, -15.2)];
+    const { rerender } = render(<MapaGoogleNativo {...props({ areas })} />);
+    await waitFor(() => expect(falso.mapa?.addPolygons).toHaveBeenCalledTimes(1));
+    expect(tagsDe(falso.mapa.addPolygons.mock.calls[0])).toEqual(["1", "2", "3"]);
+
+    // os mesmos pastos em objetos novos e uma função de cor nova (como a cada render do Mapa Geral): nada no mapa
+    rerender(<MapaGoogleNativo {...props({ areas: areas.map((x) => ({ ...x })), corDaArea: () => null })} />);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(falso.mapa.addPolygons).toHaveBeenCalledTimes(1);
+    expect(falso.mapa.removePolygons).not.toHaveBeenCalled();
+
+    // filtro: o pasto 2 sai; só ele
+    rerender(<MapaGoogleNativo {...props({ areas: [areas[0], areas[2]] })} />);
+    await waitFor(() => expect(falso.mapa.removePolygons).toHaveBeenCalledTimes(1));
+    expect(falso.mapa.removePolygons.mock.calls[0][0]).toEqual(["p2"]);
+    expect(falso.mapa.addPolygons).toHaveBeenCalledTimes(1);
+
+    // a coloração muda a cor só do pasto 3: entra o novo e depois sai o velho
+    falso.ordem = [];
+    const cor = (a) => (a.id === 3 ? "#ff0000" : null);
+    rerender(<MapaGoogleNativo {...props({ areas: [areas[0], areas[2]], corDaArea: cor })} />);
+    await waitFor(() => expect(falso.mapa.addPolygons).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(falso.mapa.removePolygons).toHaveBeenCalledTimes(2));
+    expect(tagsDe(falso.mapa.addPolygons.mock.calls[1])).toEqual(["3"]);
+    expect(falso.mapa.removePolygons.mock.calls[1][0]).toEqual(["p3"]);
+    expect(falso.ordem).toEqual(["addPolygons", "removePolygons"]);
+  });
+
+  it("linhas iguais num novo render não são refeitas", async () => {
+    const { rerender } = render(<MapaGoogleNativo {...props({ areas: [], linhas: [LINHA] })} />);
+    await waitFor(() => expect(falso.mapa?.addPolylines).toHaveBeenCalledTimes(1));
+    rerender(<MapaGoogleNativo {...props({ areas: [], linhas: [{ ...LINHA }] })} />);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(falso.mapa.addPolylines).toHaveBeenCalledTimes(1);
+    expect(falso.mapa.removePolylines).not.toHaveBeenCalled();
+  });
+});

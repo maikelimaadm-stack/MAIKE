@@ -158,6 +158,42 @@ export function poligonosDasAreas(areas, corDaArea, estilo, escala = 1) {
 }
 
 /**
+ * Chave de um polígono para comparar o que já está no mapa com o que deve ficar: o contorno, a cor, o estilo e a área.
+ * Dois polígonos com a mesma chave desenham exatamente a mesma coisa.
+ * @param {Record<string, any>} p
+ */
+export const chaveDoPoligono = (p) => JSON.stringify(p);
+
+/**
+ * D-PROD-382 — troca só o que mudou. Recebe o que está no mapa (chave → id nativo) e os polígonos que devem ficar;
+ * devolve os que entram, os ids que saem e o que fica. Pasto que não mudou (mesmo contorno, cor e estilo) não é tirado
+ * nem posto de novo: abrir o mapa, trocar um filtro ou chegar um dado novo não redesenha todos os pastos.
+ * @param {Map<string, string>} noMapa chave → id nativo
+ * @param {Array<Record<string, any>>} novos
+ * @returns {{ entram: Array<{ chave: string, poligono: Record<string, any> }>, saem: string[], ficam: Map<string, string> }}
+ */
+export function planejarPoligonos(noMapa, novos) {
+  /** @type {Map<string, string>} */
+  const ficam = new Map();
+  /** @type {Array<{ chave: string, poligono: Record<string, any> }>} */
+  const entram = [];
+  /** @type {Map<string, number>} */
+  const vistas = new Map();
+  for (const poligono of novos || []) {
+    const base = chaveDoPoligono(poligono);
+    // dois polígonos iguais (não deveria haver) ficam com chaves diferentes: nenhum some
+    const n = vistas.get(base) || 0;
+    vistas.set(base, n + 1);
+    const chave = n ? `${base}#${n}` : base;
+    const id = noMapa.get(chave);
+    if (id != null) ficam.set(chave, id);
+    else entram.push({ chave, poligono });
+  }
+  const saem = [...noMapa].filter(([chave]) => !ficam.has(chave)).map(([, id]) => id);
+  return { entram, saem, ficam };
+}
+
+/**
  * Caixa que contém todas as áreas (para enquadrar a fazenda na primeira abertura), ou null sem áreas.
  * @param {Array<{ paths: Array<{ lat: number, lng: number }> }>} poligonos
  */

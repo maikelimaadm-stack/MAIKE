@@ -17,6 +17,7 @@ import {
   novoIdDoMapaGoogle,
   numeroDoApk,
   pluginDoMapaGoogle,
+  planejarPoligonos,
   poligonosDasAreas,
   polilinhasDasLinhas,
   registrarMapaGoogleAberto,
@@ -77,6 +78,9 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
   const elRef = useRef(/** @type {HTMLElement | null} */ (null));
   const mapaRef = useRef(/** @type {GoogleMap | null} */ (null));
   const idsRef = useRef(/** @type {string[]} */ ([]));
+  /** D-PROD-382: o que está no mapa, chave do polígono → id nativo (para trocar só o que mudou) */
+  const poligonosNoMapaRef = useRef(/** @type {Map<string, string>} */ (new Map()));
+  const linhasNoMapaRef = useRef(/** @type {Map<string, string>} */ (new Map()));
   // as trocas de polígonos rodam uma de cada vez: a seguinte sempre tira o que a anterior pôs
   const filaRef = useRef(/** @type {Promise<void>} */ (Promise.resolve()));
   const areasPorIdRef = useRef(new Map());
@@ -121,6 +125,7 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
     }
     enquadrouRef.current = !!vista;
     idsRef.current = [];
+    poligonosNoMapaRef.current = new Map();
     filaRef.current = Promise.resolve();
     (async () => {
       try {
@@ -325,6 +330,7 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
       cancelado = true;
       setPronto(false);
       idsRef.current = [];
+      poligonosNoMapaRef.current = new Map();
       const mapa = mapaRef.current;
       mapaRef.current = null;
       registrarMapaGoogleAberto(null);
@@ -339,6 +345,7 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
       ouvinteMovimentoRef.current = null;
       poligonosRef.current = [];
       linhasIdsRef.current = [];
+      linhasNoMapaRef.current = new Map();
       circuloIdsRef.current = [];
       definirRef.current = null;
       mapa?.destroy().catch(() => {});
@@ -378,15 +385,20 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
     const poligonos = poligonosDasAreas(lista, corDaArea, estiloPasto, escala).map((p) => (nativo ? { ...p, clickable: false } : p));
     filaRef.current = filaRef.current.then(async () => {
       if (mapaRef.current !== mapa) return;
+      // uma troca mais nova já está na fila: ela põe os polígonos dela
+      if (superada) return;
       try {
-        const velhos = idsRef.current;
-        idsRef.current = [];
-        if (velhos.length) await mapa.removePolygons(velhos);
-        // uma troca mais nova já está na fila: ela põe os polígonos dela
-        if (superada || mapaRef.current !== mapa) return;
+        // D-PROD-382: só o pasto que mudou sai e entra; o novo entra ANTES do velho sair (nada pisca)
+        const { entram, saem, ficam } = planejarPoligonos(poligonosNoMapaRef.current, poligonos);
         areasPorIdRef.current = new Map(lista.map((a) => [String(a.id), a]));
         poligonosRef.current = poligonos;
-        if (poligonos.length) idsRef.current = await mapa.addPolygons(/** @type {any} */ (poligonos));
+        if (entram.length) {
+          const ids = await mapa.addPolygons(/** @type {any} */ (entram.map((e) => e.poligono)));
+          entram.forEach((e, i) => ids[i] != null && ficam.set(e.chave, String(ids[i])));
+        }
+        poligonosNoMapaRef.current = ficam;
+        idsRef.current = [...ficam.values()];
+        if (saem.length && mapaRef.current === mapa) await mapa.removePolygons(saem);
       } catch (erro) {
         if (!superada && mapaRef.current === mapa) falhaRef.current?.(erro);
       }
@@ -405,13 +417,18 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
     const polilinhas = polilinhasDasLinhas(lista, escalaDoMapaGoogle());
     filaRef.current = filaRef.current.then(async () => {
       if (mapaRef.current !== mapa) return;
+      if (superada) return;
       try {
-        const velhas = linhasIdsRef.current;
-        linhasIdsRef.current = [];
-        if (velhas.length) await mapa.removePolylines(velhas);
-        if (superada || mapaRef.current !== mapa) return;
+        // D-PROD-382: como nos pastos, só a linha que mudou sai e entra (a nova antes da velha sair)
+        const { entram, saem, ficam } = planejarPoligonos(linhasNoMapaRef.current, polilinhas);
         linhasPorIdRef.current = new Map(lista.map((l) => [String(l.id), l]));
-        if (polilinhas.length) linhasIdsRef.current = await mapa.addPolylines(/** @type {any} */ (polilinhas));
+        if (entram.length) {
+          const ids = await mapa.addPolylines(/** @type {any} */ (entram.map((e) => e.poligono)));
+          entram.forEach((e, i) => ids[i] != null && ficam.set(e.chave, String(ids[i])));
+        }
+        linhasNoMapaRef.current = ficam;
+        linhasIdsRef.current = [...ficam.values()];
+        if (saem.length && mapaRef.current === mapa) await mapa.removePolylines(saem);
       } catch {
         /* mapa fechado no meio */
       }
