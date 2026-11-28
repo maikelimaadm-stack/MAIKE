@@ -24,7 +24,8 @@ import { avisarFalhaPonto } from "@/lib/maplibre/pontosNoMapa.js";
  * Ordem dos marcadores (maior por cima), a mesma das camadas do MapLibre e dos z-index de antes:
  * cocho 500 < ponto 800 < lote 1000 (com alerta por cima) < identificador < tarefa 2500 < tarefa Urgente 3000.
  */
-export const ORDEM_GOOGLE = Object.freeze({ supl: 500, pontos: 800, lote: 1000, loteComAlerta: 1001, ident: 1002, tarefa: 2500, urgente: 3000, nome: 4000 });
+/** O nome do pasto fica POR BAIXO dos ícones (D-PROD-382: no site, a letra cobria lote, cocho e ponto). */
+export const ORDEM_GOOGLE = Object.freeze({ supl: 500, pontos: 800, lote: 1000, loteComAlerta: 1001, ident: 1002, tarefa: 2500, urgente: 3000, nome: 100 });
 /** Durante o movimento o nível dos nomes é revisto no máximo a cada tanto (ms), só pelos pastos à vista (D-PROD-347). */
 export const MS_NIVEL_NO_MOVIMENTO = 120;
 
