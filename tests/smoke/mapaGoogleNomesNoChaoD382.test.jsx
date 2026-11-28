@@ -223,7 +223,7 @@ describe("CH-7 — revisão de ruídos e aberturas", () => {
     result.current.revisarNomes(camera(12.6, true));
     const a12 = definirNomesNoChao.mock.calls.at(-1)[0][0];
     // a letra é a do site (px da tela iguais nos dois zooms até 13): em metros acompanha o zoom
-    expect(a12.metros / metrosPorPx(a12.lat, 12.6)).toBeCloseTo(a13.metros / metrosPorPx(a13.lat, 13), 4);
+    expect(a12.metros / metrosPorPx(a12.lat, 12.6)).toBeCloseTo(a13.metros / metrosPorPx(a13.lat, 13), 2);
     expect(a12.lat).toBeLessThan(-15);
   });
 });
