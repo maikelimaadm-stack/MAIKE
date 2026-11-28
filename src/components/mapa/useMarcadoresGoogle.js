@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { itensDaSuplementacao, itensDasTarefas, itensDosLotes, itensDosPontos } from "@/lib/maplibre/itensDoMapaGeral.js";
-import { NIVEIS, colocacaoDoNome, montarNomes, nivelDosNomes } from "@/lib/mapaNativo/nomesGoogle.js";
+import { NIVEIS, colocacaoDoNome, montarNomes, nivelDosNomes, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
 import { avisarFalhaNome, esperarFonteDosNomes, pedidoImagemNome } from "@/lib/maplibre/nomesNoMapa.js";
 import {
   DESLOC_IDENT_PX,
@@ -27,6 +27,14 @@ import { avisarFalhaPonto } from "@/lib/maplibre/pontosNoMapa.js";
 export const ORDEM_GOOGLE = Object.freeze({ supl: 500, pontos: 800, lote: 1000, loteComAlerta: 1001, ident: 1002, tarefa: 2500, urgente: 3000, nome: 4000 });
 /** Durante o movimento o nível dos nomes é revisto no máximo a cada tanto (ms), só pelos pastos à vista (D-PROD-347). */
 export const MS_NIVEL_NO_MOVIMENTO = 120;
+
+/** Os dois conjuntos têm os mesmos ids? @param {Set<string> | null} a @param {Set<string> | null} b */
+function mesmoConjunto(a, b) {
+  if (!a || !b) return a === b;
+  if (a.size !== b.size) return false;
+  for (const x of a) if (!b.has(x)) return false;
+  return true;
+}
 
 /** Imagens já convertidas em URL, por chave e densidade (a conversão é feita uma vez). */
 const urls = new Map();
@@ -98,9 +106,33 @@ export default function useMarcadoresGoogle(mapa) {
   const argsLotesRef = useRef(/** @type {any[] | null} */ (null));
   const seqNomesRef = useRef(0);
   const ultimaRevisaoRef = useRef(0);
+  // D-PROD-379 (app): nomes de tamanho fixo; quais aparecem nesta câmera e os ícones que eles não podem cobrir
+  const visiveisRef = useRef(/** @type {Set<string> | null} */ (null));
+  const iconesRef = useRef(/** @type {Record<string, import('@/lib/mapaNativo/nomesGoogle.js').IconeObstaculo[]>} */ ({}));
 
   const api = useMemo(() => {
     const temMarcadores = Boolean(mapa && typeof mapa.definirMarcadores === "function");
+    // D-PROD-379: no app (marcadores do mapa nativo) o nome tem tamanho fixo e some quando não cabe
+    const nomesFixos = Boolean(mapa?.nomesFixos);
+    /** Os ícones (menos os de lote, que já vão em `lotesInfoRef`) como obstáculos dos nomes. */
+    const iconesObstaculo = () => Object.values(iconesRef.current).flat();
+    /** O nível e os nomes visíveis na última câmera (app), ou null sem câmera. */
+    const nomesNaUltimaCamera = () => {
+      const camera = cameraRef.current;
+      if (!camera || !nomesRef.current.size) return null;
+      return nomesFixosNaCamera(nomesRef.current, camera, lotesInfoRef.current, iconesObstaculo());
+    };
+    let revisaoPendente = false;
+    /** Os ícones mudaram (app): os nomes visíveis são revistos com a última câmera. */
+    const reverNomesFixos = () => {
+      if (!nomesFixos || revisaoPendente) return;
+      revisaoPendente = true;
+      queueMicrotask(() => {
+        revisaoPendente = false;
+        const r = nomesNaUltimaCamera();
+        if (r && (r.nivel !== nivelRef.current || !mesmoConjunto(r.visiveis, visiveisRef.current))) void publicarNomes(r.nivel, r.visiveis);
+      });
+    };
     const proximo = (/** @type {string} */ grupo) => (seqRef.current[grupo] = (seqRef.current[grupo] || 0) + 1);
 
     /**
@@ -113,7 +145,13 @@ export default function useMarcadoresGoogle(mapa) {
       const pr = pixelRatioDaTela();
       const aplicar = () => {
         if (seqRef.current[grupo] !== seq) return;
-        mapa.definirMarcadores(grupo, montar().filter(Boolean));
+        const lista = montar().filter(Boolean);
+        mapa.definirMarcadores(grupo, lista);
+        // os ícones que os nomes de tamanho fixo não podem cobrir (os lotes já vão por `lotesInfoRef`)
+        if (nomesFixos && grupo !== "nomes" && grupo !== "lotes") {
+          iconesRef.current = { ...iconesRef.current, [grupo]: lista.map((m) => ({ lat: m.lat, lng: m.lng, w: m.w, h: m.h, dx: m.dx, dy: m.dy })) };
+          reverNomesFixos();
+        }
       };
       // Como o `sincronizarGrupo` do MapLibre: as reservas (desenhadas na hora) primeiro; as figuras esperam no máximo
       // MS_ESPERA_IMAGENS. Uma figura remota lenta não segura o grupo: ele sai com a reserva e é publicado de novo quando
@@ -157,11 +195,24 @@ export default function useMarcadoresGoogle(mapa) {
      * Publica os nomes no nível dado (ou no da última câmera). Os três níveis de cada pasto ficam desenhados, para a
      * troca de nível não esperar desenho.
      * @param {import('@/lib/mapaNativo/nomesGoogle.js').NivelNome} [nivelDado]
+     * @param {Set<string> | null} [visiveisDadas] app (D-PROD-379): os nomes que aparecem
      */
-    const publicarNomes = (nivelDado) => {
+    const publicarNomes = (nivelDado, visiveisDadas) => {
       const nomes = nomesRef.current;
       const camera = cameraRef.current;
-      const nivel = nivelDado || (camera && nomes.size ? nivelDosNomes(nomes, camera, lotesInfoRef.current) : nivelRef.current);
+      /** @type {import('@/lib/mapaNativo/nomesGoogle.js').NivelNome} */
+      let nivel;
+      /** @type {Set<string> | null} */
+      let visiveis = null;
+      if (nomesFixos) {
+        // app: tamanho fixo; sem câmera ainda, nenhum nome (o mapa avisa a câmera quando para)
+        const r = nivelDado ? { nivel: nivelDado, visiveis: visiveisDadas || null } : nomesNaUltimaCamera();
+        nivel = r?.nivel ?? nivelRef.current;
+        visiveis = r?.visiveis ?? null;
+        visiveisRef.current = visiveis;
+      } else {
+        nivel = nivelDado || (camera && nomes.size ? nivelDosNomes(nomes, camera, lotesInfoRef.current) : nivelRef.current);
+      }
       nivelRef.current = nivel;
       const pr = pixelRatioDaTela();
       const pedidos = [];
@@ -171,9 +222,11 @@ export default function useMarcadoresGoogle(mapa) {
         pedidos,
         () =>
           [...nomes.values()].map((n) => {
+            if (nomesFixos && !visiveis?.has(n.id)) return null;
             const c = colocacaoDoNome(n, nivel, lotesInfoRef.current.has(n.id));
             if (!c.linhas.length) return null;
-            return marcador({ id: n.id, lngLat: [n.lng, n.lat], r: imagemPronta(c.chave, pr), chave: c.chave, dy: c.dy, z: ORDEM_GOOGLE.nome, escala: c.escala, ancora: c.ancora, semToque: true });
+            // app: sem `escala` (tamanho fixo na tela, o mapa nativo não refaz o nome no zoom)
+            return marcador({ id: n.id, lngLat: [n.lng, n.lat], r: imagemPronta(c.chave, pr), chave: c.chave, dy: c.dy, z: ORDEM_GOOGLE.nome, escala: nomesFixos ? undefined : c.escala, ancora: c.ancora, semToque: true });
           }),
         avisarFalhaNome
       );
@@ -279,6 +332,13 @@ export default function useMarcadoresGoogle(mapa) {
       revisarNomes(camera) {
         cameraRef.current = camera;
         if (!temMarcadores || !nomesRef.current.size) return;
+        if (nomesFixos) {
+          // app: só quando o mapa para (nada de trabalho no meio do gesto)
+          if (!camera.final) return;
+          const r = nomesNaUltimaCamera();
+          if (r && (r.nivel !== nivelRef.current || !mesmoConjunto(r.visiveis, visiveisRef.current))) void publicarNomes(r.nivel, r.visiveis);
+          return;
+        }
         const agora = typeof performance !== "undefined" ? performance.now() : Date.now();
         if (!camera.final && agora - ultimaRevisaoRef.current < MS_NIVEL_NO_MOVIMENTO) return;
         ultimaRevisaoRef.current = agora;
