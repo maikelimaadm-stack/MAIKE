@@ -6,8 +6,8 @@
  *
  * Como: o remendo `scripts/app/remendar-google-maps.mjs` faz o marcador nativo aceitar a imagem `data:` (a mesma do
  * site: lote com a contagem, cocho com o nível e o farol). A posição em px (centro ou topo no ponto + deslocamento)
- * vira uma âncora: a imagem ganha uma margem transparente para o ponto do mapa cair no MEIO dela (âncora 0,5 × 0,5),
- * que vale no Android e no iOS. O nome do pasto, que muda de tamanho com o zoom, é refeito no tamanho do zoom quando o
+ * vira uma âncora: a imagem ganha só a margem transparente que precisa para o ponto do mapa caber nela, e a âncora vai
+ * no ponto (D-PROD-379; antes ia no meio e a imagem dobrava). O nome do pasto, que muda de tamanho com o zoom, é refeito no tamanho do zoom quando o
  * mapa para.
  *
  * O toque no marcador é do Mapa Geral (o remendo faz o mapa não centralizar nem abrir balão): `tocar(idNativo)`.
@@ -24,17 +24,23 @@ export const DIFERENCA_REFAZER_NOME = 0.04;
 const comMargem = new Map();
 
 /**
- * A imagem com uma margem transparente que põe o ponto de âncora (ax, ay em px da imagem) no centro.
+ * A imagem com a margem transparente MÍNIMA para o ponto de âncora (ax, ay em px da imagem) caber nela (D-PROD-379;
+ * antes a margem punha o ponto no meio e dobrava a imagem). A âncora vai em px da imagem nova: o plugin a converte em
+ * fração do tamanho (Android e iOS). Tamanhos em px inteiros: o Android lê o tamanho do ícone em número inteiro.
  * @param {string} url @param {number} w @param {number} h @param {number} ax @param {number} ay
- * @returns {Promise<{ url: string, w: number, h: number } | null>}
+ * @returns {Promise<{ url: string, w: number, h: number, ax: number, ay: number } | null>}
  */
-export async function imagemComAncoraNoCentro(url, w, h, ax, ay) {
-  // O Android lê o tamanho do ícone em número inteiro: com a margem em px inteiros, o ponto cai no meio exato
-  if (Math.abs(ax - w / 2) < 0.01 && Math.abs(ay - h / 2) < 0.01) return { url, w: Math.max(1, Math.round(w)), h: Math.max(1, Math.round(h)) };
-  const meiaL = Math.max(1, Math.ceil(Math.max(Math.abs(ax), Math.abs(w - ax)) - 0.001));
-  const meiaA = Math.max(1, Math.ceil(Math.max(Math.abs(ay), Math.abs(h - ay)) - 0.001));
-  const L = 2 * meiaL;
-  const A = 2 * meiaA;
+export async function imagemComAncora(url, w, h, ax, ay) {
+  const esquerda = Math.min(0, ax);
+  const topo = Math.min(0, ay);
+  const L = Math.max(1, Math.ceil(Math.max(w, ax) - esquerda - 0.001));
+  const A = Math.max(1, Math.ceil(Math.max(h, ay) - topo - 0.001));
+  // o ponto já está dentro da imagem: a mesma imagem, no tamanho inteiro mais perto
+  if (esquerda === 0 && topo === 0 && ax <= w && ay <= h) {
+    const wi = Math.max(1, Math.round(w));
+    const hi = Math.max(1, Math.round(h));
+    return { url, w: wi, h: hi, ax: (ax * wi) / w, ay: (ay * hi) / h };
+  }
   const chave = `${url.length}:${url.slice(-64)}|${w.toFixed(2)}|${h.toFixed(2)}|${ax.toFixed(2)}|${ay.toFixed(2)}`;
   let p = comMargem.get(chave);
   if (!p) {
@@ -49,7 +55,7 @@ export async function imagemComAncoraNoCentro(url, w, h, ax, ay) {
           canvas.height = Math.ceil(A * pr);
           const ctx = canvas.getContext("2d");
           if (!ctx) return resolve(null);
-          ctx.drawImage(img, (meiaL - ax) * pr, (meiaA - ay) * pr, w * pr, h * pr);
+          ctx.drawImage(img, -esquerda * pr, -topo * pr, w * pr, h * pr);
           resolve(canvas.toDataURL("image/png"));
         } catch {
           resolve(null);
@@ -62,7 +68,7 @@ export async function imagemComAncoraNoCentro(url, w, h, ax, ay) {
     if (comMargem.size > 800) comMargem.clear();
   }
   const pronta = await p;
-  return pronta ? { url: pronta, w: L, h: A } : null;
+  return pronta ? { url: pronta, w: L, h: A, ax: ax - esquerda, ay: ay - topo } : null;
 }
 
 /**
@@ -108,13 +114,13 @@ export function criarMarcadoresNativos(mapa) {
   /** @param {Marcador} m */
   const paraNativo = async (m) => {
     const g = geometriaNoZoom(m, zoom);
-    const img = await imagemComAncoraNoCentro(m.url, g.w, g.h, g.ax, g.ay);
+    const img = await imagemComAncora(m.url, g.w, g.h, g.ax, g.ay);
     if (!img) return null;
     return {
       coordinate: { lat: m.lat, lng: m.lng },
       iconUrl: img.url,
       iconSize: { width: img.w, height: img.h },
-      iconAnchor: { x: img.w / 2, y: img.h / 2 },
+      iconAnchor: { x: img.ax, y: img.ay },
       // o nome por baixo dos ícones; quem pede outra ordem no app (o ponto azul) usa `zNativo`
       zIndex: m.zNativo ?? (m.semToque ? Z_NOME_NATIVO : m.z ?? 0),
     };

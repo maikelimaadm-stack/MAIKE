@@ -273,6 +273,8 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
           alvoDosMarcadores
             ? {
                 definirMarcadores: (/** @type {string} */ g, /** @type {any[]} */ l) => alvoDosMarcadores.definir(g, l),
+                // D-PROD-379: nos marcadores do mapa nativo, o nome tem tamanho fixo (o mapa não o refaz no zoom)
+                nomesFixos: Boolean(nativos),
                 /** "Localizar" (D-PROD-375): centraliza num ponto, no zoom do MapLibre. */
                 centrar: (/** @type {number} */ lat, /** @type {number} */ lng, /** @type {number} */ zoom) =>
                   mapa
