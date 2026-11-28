@@ -29,7 +29,9 @@ export const NIVEIS = ["tudo", "nome", "sigla"];
  *   pf: { lat: number, folga: number } | null,
  *   caixa: { oeste: number, sul: number, leste: number, norte: number } | null,
  *   niveis: Record<NivelNome, { linhas: any[], chave: string, medida: { w: number, h: number } }>,
- * }} NomeDoPasto
+ *   detalhe: { linhas: any[], chave: string, medida: { w: number, h: number } },
+ * }} NomeDoPasto `detalhe` (D-PROD-382): só as linhas abaixo do nome (hectares e a extra), para o app mostrar e tirar
+ *   os hectares sem refazer o nome
  */
 
 /**
@@ -63,6 +65,7 @@ export function montarNomes(areas, { extraTextFn = null, showHectares = true } =
       const linhas = linhasDoNivel(texto, nivel);
       niveis[nivel] = { linhas, chave: chaveImagemNome(linhas), medida: medirLinhas(linhas) };
     }
+    const linhasDetalhe = niveis.tudo.linhas.filter((/** @type {any} */ l) => l.tipo !== "nome");
     const id = String(area.id);
     nomes.set(id, {
       id,
@@ -72,6 +75,7 @@ export function montarNomes(areas, { extraTextFn = null, showHectares = true } =
       pf: pontoEFolga(ring),
       caixa: Number.isFinite(oeste) ? { oeste, sul, leste, norte } : null,
       niveis,
+      detalhe: { linhas: linhasDetalhe, chave: chaveImagemNome(linhasDetalhe), medida: medirLinhas(linhasDetalhe) },
     });
   }
   return nomes;
@@ -160,18 +164,22 @@ export function colocacaoDoNome(n, nivel, comLote) {
   };
 }
 
-// ─── Nomes de tamanho fixo no app (D-PROD-379) ───────────────────────────────
+// ─── Nomes de tamanho fixo no app (D-PROD-379, D-PROD-382) ───────────────────
 
 /**
  * No app (marcadores do mapa nativo), o nome tem tamanho FIXO na tela, como os rótulos do próprio Google: o mapa
  * nativo não muda o tamanho de um marcador durante o zoom, e refazer os nomes quando o mapa para era a "travadinha".
- * Em vez de encolher, o nome troca de nível (tudo → nome → sigla) e, se ainda não couber, some.
+ * Em vez de encolher, todos os nomes trocam de nível JUNTOS (D-PROD-382): nome + hectares → nome → sigla → nenhum.
  */
 export const ESCALA_NOME_FIXO = 1;
-/** Pasto menor que isto na tela (px, no lado menor) não mostra nome: é pequeno demais para ler. */
-export const LADO_MINIMO_PASTO_PX = 14;
-/** Distância mínima entre um nome e outro nome ou ícone (px). */
+/** O nível dos nomes de tamanho fixo: os três do MapLibre e "nenhum" (todos somem juntos). */
+/** @typedef {NivelNome | "nenhum"} NivelFixo */
+/** Distância mínima entre um nome e outro nome ou ícone (px), a mesma do `escolherModoRotulos`. */
 export const FOLGA_NOME_PX = 2;
+/** O nome pode passar do pasto na tela até isto (px), como no MapLibre. */
+const SOBRA_NA_AREA_PX = 6;
+/** Uns poucos pastos (10%) com problema não derrubam o mapa inteiro de nível (D-PROD-126). */
+const TOLERANCIA = 0.1;
 
 /**
  * Caixa (px da tela) do nome de tamanho fixo: sem lote, centrado no ponto; com lote, o topo 10 px abaixo do ponto.
@@ -190,16 +198,15 @@ export function caixaDoNomeFixo(p, medida, comLote) {
  */
 
 /**
- * O nível (o mesmo para todos, D-PROD-126) e QUAIS nomes aparecem, com o tamanho fixo, nesta câmera.
- * - o nível: o primeiro de "tudo", "nome", "sigla" em que quase todos cabem no pasto sem bater (`escolherModoRotulos`);
- * - quais: do maior pasto para o menor, o nome aparece se o pasto não é pequeno demais na tela e o nome não bate em
- *   ícone nenhum nem num nome que já entrou. Assim nenhum nome fica coberto ou cortado por ícone.
+ * O nível dos nomes de tamanho fixo nesta câmera, o MESMO para todos (D-PROD-382: nunca uns sim e outros não): o
+ * primeiro de "tudo", "nome", "sigla" em que quase todos (90%) cabem no pasto sem bater noutro nome nem em ícone
+ * (lote de outro pasto, cocho, ponto, tarefa); se nem a sigla cabe, "nenhum": todos somem juntos.
  * @param {Map<string, NomeDoPasto>} nomes @param {CameraNomes} camera
  * @param {Map<string, { lat: number, lng: number, tamanho: { w: number, h: number } }>} lotes os ícones de lote
  * @param {IconeObstaculo[]} [icones] os outros ícones (cochos, pontos, tarefas)
- * @returns {{ nivel: NivelNome, visiveis: Set<string> }}
+ * @returns {NivelFixo}
  */
-export function nomesFixosNaCamera(nomes, camera, lotes, icones = []) {
+export function nivelDosNomesFixos(nomes, camera, lotes, icones = []) {
   const { projetar } = camera;
   /** @type {Array<{ x: number, y: number, w: number, h: number, dono?: string }>} */
   const obstaculos = [];
@@ -212,41 +219,34 @@ export function nomesFixosNaCamera(nomes, camera, lotes, icones = []) {
     if (!p) continue;
     obstaculos.push({ x: p.x + (ic.dx || 0) - ic.w / 2, y: p.y + (ic.dy || 0) - ic.h / 2, w: ic.w, h: ic.h, dono: ic.dono });
   }
+  /** @type {Array<{ id: string, area: { x: number, y: number, w: number, h: number }, caixas: Record<NivelNome, { x: number, y: number, w: number, h: number } | null> }>} */
   const itens = [];
   for (const [id, n] of nomes) {
-    const b = n.caixa;
-    if (!b) continue;
-    const area = caixaDoPastoNaTela(b, projetar);
+    const area = n.caixa ? caixaDoPastoNaTela(n.caixa, projetar) : null;
     const p = projetar(n.lat, n.lng);
     if (!area || !p) continue;
     const comLote = lotes.has(id);
-    itens.push({
-      id,
-      n,
-      p,
-      area,
-      comLote,
-      tudo: caixaDoNomeFixo(p, n.niveis.tudo.medida, comLote),
-      nome: caixaDoNomeFixo(p, n.niveis.nome.medida, comLote),
+    /** @type {any} */
+    const caixas = {};
+    for (const nv of NIVEIS) caixas[nv] = n.niveis[nv].linhas.length ? caixaDoNomeFixo(p, n.niveis[nv].medida, comLote) : null;
+    itens.push({ id, area, caixas });
+  }
+  if (!itens.length) return "tudo";
+  const bate = (/** @type {any} */ a, /** @type {any} */ b) =>
+    a.x < b.x + b.w + FOLGA_NOME_PX && b.x < a.x + a.w + FOLGA_NOME_PX && a.y < b.y + b.h + FOLGA_NOME_PX && b.y < a.y + a.h + FOLGA_NOME_PX;
+  const problemas = (/** @type {NivelNome} */ nv) => {
+    let n = 0;
+    itens.forEach((it, i) => {
+      const c = it.caixas[nv];
+      if (!c) return;
+      const naoCabe = c.w > it.area.w + SOBRA_NA_AREA_PX || c.h > it.area.h + SOBRA_NA_AREA_PX;
+      const colide =
+        obstaculos.some((o) => o.dono !== it.id && bate(c, o)) || itens.some((o, k) => k !== i && o.caixas[nv] && bate(c, o.caixas[nv]));
+      if (naoCabe || colide) n += 1;
     });
-  }
-  if (!itens.length) return { nivel: "tudo", visiveis: new Set() };
-  const nivel = /** @type {NivelNome} */ (escolherModoRotulos(itens, { tudo: obstaculos, nome: obstaculos }));
-  const bate = (/** @type {any} */ x, /** @type {any} */ y) =>
-    x.x < y.x + y.w + FOLGA_NOME_PX && y.x < x.x + x.w + FOLGA_NOME_PX && x.y < y.y + y.h + FOLGA_NOME_PX && y.y < x.y + x.h + FOLGA_NOME_PX;
-  /** @type {Set<string>} */
-  const visiveis = new Set();
-  /** @type {Array<{ x: number, y: number, w: number, h: number }>} */
-  const aceitos = [];
-  const porTamanho = [...itens].sort((x, y) => y.area.w * y.area.h - x.area.w * x.area.h);
-  for (const it of porTamanho) {
-    if (!it.n.niveis[nivel].linhas.length) continue;
-    if (Math.min(it.area.w, it.area.h) < LADO_MINIMO_PASTO_PX) continue;
-    const caixa = nivel === "tudo" ? it.tudo : nivel === "nome" ? it.nome : caixaDoNomeFixo(it.p, it.n.niveis.sigla.medida, it.comLote);
-    if (obstaculos.some((o) => o.dono !== it.id && bate(caixa, o))) continue;
-    if (aceitos.some((o) => bate(caixa, o))) continue;
-    aceitos.push(caixa);
-    visiveis.add(it.id);
-  }
-  return { nivel, visiveis };
+    return n;
+  };
+  const limite = Math.floor(itens.length * TOLERANCIA);
+  for (const nv of NIVEIS) if (problemas(nv) <= limite) return nv;
+  return "nenhum";
 }

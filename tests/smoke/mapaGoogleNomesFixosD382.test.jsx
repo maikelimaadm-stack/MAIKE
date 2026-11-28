@@ -1,14 +1,13 @@
 /**
- * D-PROD-379 — nomes dos pastos no mapa do Google do app: tamanho fixo na tela, trocam de nível e somem quando não
- * cabem (nada de "travadinha" refazendo nomes no zoom, nenhum nome coberto por ícone); marcadores com a margem mínima.
- * O contorno escuro das letras está no N354-2 (`nomesNoMapaD354.test.jsx`).
+ * D-PROD-379/382 — nomes dos pastos no mapa do Google do app: tamanho fixo na tela (nada de refazer nomes no zoom).
+ * D-PROD-382 (o proprietário): as letras como antes (sem contorno), os hectares aparecendo e sumindo sem engasgar e os
+ * nomes sumindo TODOS de uma vez, nunca só alguns.
  *
- *  G379-1. `nomesFixosNaCamera`: tamanho fixo (com lote, 10 px abaixo do ponto); o maior pasto primeiro; o nome que
- *          bate noutro nome ou num ícone (cocho, ponto, tarefa, lote de outro pasto) some; o lote do próprio pasto não
- *          conta; pasto minúsculo na tela, sem nome; longe, o nível desce para a sigla.
- *  G379-2. `useMarcadoresGoogle` no app (`nomesFixos`): sem câmera, nenhum nome; com o mapa parado, os nomes que cabem,
- *          sem `escala`; câmera no meio do gesto não mexe; um cocho novo em cima de um nome o esconde. No site, como
- *          antes (com `escala`).
+ *  G382-1. `nivelDosNomesFixos`: o mesmo nível para todos — tudo, nome, sigla e "nenhum" (todos somem juntos); um
+ *          ícone de outro pasto em cima conta, o lote do próprio pasto não; o mapa girado usa os 4 cantos do pasto.
+ *  G382-2. `useMarcadoresGoogle` no app (`nomesFixos`): sem câmera, nenhum nome; o nome e os hectares são marcadores
+ *          separados — entre "tudo" e "nome" o marcador do nome é o MESMO (só os hectares entram e saem); "nenhum" tira
+ *          todos; câmera no meio do gesto não mexe. No site, como antes (com `escala`).
  */
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -25,7 +24,7 @@ vi.mock("@/lib/maplibre/lotesNoMapa.js", async (orig) => {
   };
 });
 
-import { ESCALA_NOME_FIXO, LADO_MINIMO_PASTO_PX, caixaDoNomeFixo, caixaDoPastoNaTela, montarNomes, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
+import { ESCALA_NOME_FIXO, caixaDoNomeFixo, caixaDoPastoNaTela, montarNomes, nivelDosNomesFixos } from "@/lib/mapaNativo/nomesGoogle.js";
 import { projetarNaCamera } from "@/lib/mapaNativo/camadaDeImagens.js";
 import useMarcadoresGoogle from "@/components/mapa/useMarcadoresGoogle.js";
 import { DESLOC_NOME_COM_LOTE_PX } from "@/lib/maplibre/nomesNoMapa.js";
@@ -61,37 +60,33 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("G379-1 — quais nomes aparecem, com tamanho fixo", () => {
+describe("G382-1 — o nível dos nomes de tamanho fixo, o mesmo para todos", () => {
   it("caixa de tamanho fixo: sem lote, centrada; com lote, o topo 10 px abaixo do ponto", () => {
     expect(ESCALA_NOME_FIXO).toBe(1);
     expect(caixaDoNomeFixo({ x: 100, y: 50 }, { w: 60, h: 14 }, false)).toEqual({ x: 70, y: 43, w: 60, h: 14 });
     expect(caixaDoNomeFixo({ x: 100, y: 50 }, { w: 60, h: 14 }, true)).toEqual({ x: 70, y: 50 + DESLOC_NOME_COM_LOTE_PX[1], w: 60, h: 14 });
   });
 
-  it("perto: todos, com nome e hectares; o nome que bate no vizinho some (o maior pasto fica)", () => {
-    // dois pastos lado a lado; o b é menor
-    const nomes = montarNomes([quadrado("a", -15, -47, 0.01), quadrado("b", -15, -46.99, 0.006)]);
-    const longe = nomesFixosNaCamera(nomes, camera(100000), new Map());
-    expect(longe.nivel).toBe("tudo");
-    expect([...longe.visiveis].sort()).toEqual(["a", "b"]);
-    // menos zoom: os pastos encolhem na tela, os nomes não; o nível desce e, batendo, o menor some
-    const r = nomesFixosNaCamera(nomes, camera(6000), new Map());
-    expect(r.nivel).toBe("sigla");
-    expect([...r.visiveis]).toEqual(["a"]);
+  it("perto: nome e hectares; afastando: nome, sigla e, sem caber, NENHUM (todos juntos)", () => {
+    const nomes = montarNomes([quadrado("a", -15, -47, 0.01), quadrado("b", -15, -46.99, 0.01)]);
+    expect(nivelDosNomesFixos(nomes, camera(100000), new Map())).toBe("tudo");
+    const niveis = [20000, 8000, 3000, 600].map((k) => nivelDosNomesFixos(nomes, camera(k), new Map()));
+    // vai descendo, nunca sobe, e no fim nenhum
+    const ordem = ["tudo", "nome", "sigla", "nenhum"];
+    for (let i = 1; i < niveis.length; i++) expect(ordem.indexOf(niveis[i])).toBeGreaterThanOrEqual(ordem.indexOf(niveis[i - 1]));
+    expect(niveis.at(-1)).toBe("nenhum");
+    expect(nivelDosNomesFixos(new Map(), camera(600), new Map())).toBe("tudo");
   });
 
-  it("um cocho (ou ponto, tarefa) em cima do nome o esconde; o lote do próprio pasto não conta, o de outro sim", () => {
+  it("um cocho em cima do nome conta como problema; o lote do próprio pasto não", () => {
     const nomes = montarNomes([quadrado("a", -15, -47, 0.01)]);
     const n = /** @type {any} */ (nomes.get("a"));
     const k = 100000;
-    expect(nomesFixosNaCamera(nomes, camera(k), new Map()).visiveis.has("a")).toBe(true);
-    const cocho = { lat: n.lat, lng: n.lng, w: 40, h: 40 };
-    expect(nomesFixosNaCamera(nomes, camera(k), new Map(), [cocho]).visiveis.has("a")).toBe(false);
+    expect(nivelDosNomesFixos(nomes, camera(k), new Map())).toBe("tudo");
+    const cocho = { lat: n.lat, lng: n.lng, w: 200, h: 200 };
+    expect(nivelDosNomesFixos(nomes, camera(k), new Map(), [cocho])).toBe("nenhum");
     const proprio = new Map([["a", { lat: n.lat, lng: n.lng, tamanho: { w: 44, h: 42 } }]]);
-    expect(nomesFixosNaCamera(nomes, camera(k), proprio).visiveis.has("a")).toBe(true);
-    // o lote de outro pasto parado em cima do nome
-    const outro = new Map([["x", { lat: n.lat - 0.00012, lng: n.lng, tamanho: { w: 44, h: 42 } }]]);
-    expect(nomesFixosNaCamera(nomes, camera(k), outro).visiveis.has("a")).toBe(false);
+    expect(nivelDosNomesFixos(nomes, camera(k), proprio)).toBe("tudo");
   });
 
   it("mapa girado 45°: a caixa do pasto usa os 4 cantos (não achata) e o pasto grande segue com nome", () => {
@@ -101,23 +96,15 @@ describe("G379-1 — quais nomes aparecem, com tamanho fixo", () => {
     expect(c.w).toBeGreaterThan(800);
     expect(c.h).toBeGreaterThan(800);
     const nomes = montarNomes([quadrado("a", -15, -47, 0.01)]);
-    const cam = { zoom: 16, projetar: girado, largura: 800, altura: 600 };
-    expect(nomesFixosNaCamera(nomes, cam, new Map()).visiveis.has("a")).toBe(true);
-  });
-
-  it("pasto pequeno demais na tela: sem nome", () => {
-    const nomes = montarNomes([quadrado("a", -15, -47, 0.01)]);
-    const k = (LADO_MINIMO_PASTO_PX - 1) / 0.01;
-    expect(nomesFixosNaCamera(nomes, camera(k), new Map()).visiveis.size).toBe(0);
-    expect(nomesFixosNaCamera(new Map(), camera(k), new Map())).toEqual({ nivel: "tudo", visiveis: new Set() });
+    expect(nivelDosNomesFixos(nomes, { zoom: 16, projetar: girado, largura: 800, altura: 600 }, new Map())).toBe("tudo");
   });
 });
 
-describe("G379-2 — os nomes no app pelo useMarcadoresGoogle", () => {
-  const areas = [quadrado("a", -15, -47, 0.01), quadrado("b", -15, -46.99, 0.006)];
+describe("G382-2 — os nomes no app pelo useMarcadoresGoogle", () => {
+  const areas = [quadrado("a", -15, -47, 0.01), quadrado("b", -15, -46.99, 0.01)];
   const nomesPublicados = (fn) => fn.mock.calls.filter(([g]) => g === "nomes").at(-1)?.[1];
 
-  it("sem câmera, nenhum nome; o mapa parado mostra os que cabem, sem `escala`; câmera no meio do gesto não mexe", async () => {
+  it("sem câmera, nenhum; perto, nome + hectares (marcadores separados); o nome é o mesmo entre 'tudo' e 'nome'", async () => {
     const definirMarcadores = vi.fn();
     const { result } = renderHook(() => useMarcadoresGoogle({ definirMarcadores, nomesFixos: true }));
     await result.current.syncLabels(areas, true, null, true);
@@ -126,48 +113,65 @@ describe("G379-2 — os nomes no app pelo useMarcadoresGoogle", () => {
     result.current.revisarNomes(camera(100000, true));
     await Promise.resolve();
     const perto = nomesPublicados(definirMarcadores);
-    expect(perto.map((m) => m.id).sort()).toEqual(["a", "b"]);
+    expect(perto.map((m) => m.id).sort()).toEqual(["a", "a|ha", "b", "b|ha"]);
     for (const m of perto) {
       expect(m.escala).toBeUndefined();
       expect(m.semToque).toBe(true);
     }
+    const nomeA = perto.find((m) => m.id === "a");
+    const haA = perto.find((m) => m.id === "a|ha");
+    // os hectares logo abaixo do nome (sem lote, o nome no meio do ponto)
+    expect(nomeA.ancora).toBe("centro");
+    expect(haA).toMatchObject({ ancora: "topo", dy: nomeA.h / 2 });
 
-    // no meio do gesto: nada
-    const antes = definirMarcadores.mock.calls.length;
-    result.current.revisarNomes(camera(6000, false));
-    expect(definirMarcadores.mock.calls.length).toBe(antes);
-    // parou longe: só o maior, na sigla
-    result.current.revisarNomes(camera(6000, true));
+    // um pouco mais longe (o primeiro zoom em que o nível é "nome"): só os nomes; o marcador do nome é o MESMO
+    // (mesma imagem e lugar: o mapa não o refaz), os hectares saem
+    const nomes = montarNomes(areas);
+    let k = 100000;
+    while (nivelDosNomesFixos(nomes, camera(k), new Map()) === "tudo") k *= 0.9;
+    expect(nivelDosNomesFixos(nomes, camera(k), new Map())).toBe("nome");
+    result.current.revisarNomes(camera(k, true));
     await Promise.resolve();
-    expect(nomesPublicados(definirMarcadores).map((m) => m.id)).toEqual(["a"]);
+    const so = nomesPublicados(definirMarcadores);
+    expect(so.map((m) => m.id).sort()).toEqual(["a", "b"]);
+    const nomeA2 = so.find((m) => m.id === "a");
+    expect(nomeA2.url).toBe(nomeA.url);
+    expect([nomeA2.dy, nomeA2.ancora, nomeA2.w, nomeA2.h]).toEqual([nomeA.dy, nomeA.ancora, nomeA.w, nomeA.h]);
+
+    // câmera no meio do gesto: nada
+    const antes = definirMarcadores.mock.calls.length;
+    result.current.revisarNomes(camera(600, false));
+    expect(definirMarcadores.mock.calls.length).toBe(antes);
+    // parou longe: nenhum (todos juntos)
+    result.current.revisarNomes(camera(600, true));
+    await Promise.resolve();
+    expect(nomesPublicados(definirMarcadores)).toEqual([]);
     // a mesma câmera de novo: não publica
     const depois = definirMarcadores.mock.calls.length;
-    result.current.revisarNomes(camera(6000, true));
+    result.current.revisarNomes(camera(600, true));
     expect(definirMarcadores.mock.calls.length).toBe(depois);
   });
 
-  it("um cocho novo em cima de um nome o esconde (os ícones são obstáculos)", async () => {
+  it("com lote: o nome 10 px abaixo do ponto e os hectares logo abaixo do nome", async () => {
     const definirMarcadores = vi.fn();
     const { result } = renderHook(() => useMarcadoresGoogle({ definirMarcadores, nomesFixos: true }));
-    await result.current.syncLabels([areas[0]], true, null, true);
+    await result.current.syncLotes([{ id: "l1", area_atual_id: "a", quantidade_cabecas: 30 }], areas, true, [], vi.fn(), null, false, false);
+    await result.current.syncLabels(areas, true, null, true);
     result.current.revisarNomes(camera(100000, true));
     await Promise.resolve();
-    expect(nomesPublicados(definirMarcadores).map((m) => m.id)).toEqual(["a"]);
-    const centro = nomesPublicados(definirMarcadores)[0];
-    await result.current.syncPontosSuplementacao([{ id: "c1", tipo: "cocho", coordenadas: { lat: centro.lat, lng: centro.lng }, nome: "Cocho" }], true, [], vi.fn());
-    await Promise.resolve();
-    await Promise.resolve();
-    const cochos = definirMarcadores.mock.calls.filter(([g]) => g === "supl").at(-1)?.[1] || [];
-    expect(cochos).toHaveLength(1);
-    expect(nomesPublicados(definirMarcadores)).toEqual([]);
+    const lista = nomesPublicados(definirMarcadores);
+    const nome = lista.find((m) => m.id === "a");
+    const ha = lista.find((m) => m.id === "a|ha");
+    expect(nome).toMatchObject({ ancora: "topo", dy: DESLOC_NOME_COM_LOTE_PX[1] });
+    expect(ha).toMatchObject({ ancora: "topo", dy: DESLOC_NOME_COM_LOTE_PX[1] + nome.h });
   });
 
-  it("no site (sem `nomesFixos`): como antes, o tamanho segue o zoom (`escala`)", async () => {
+  it("no site (sem `nomesFixos`): como antes, o tamanho segue o zoom (`escala`), sem marcador de hectares à parte", async () => {
     const definirMarcadores = vi.fn();
     const { result } = renderHook(() => useMarcadoresGoogle({ definirMarcadores }));
     await result.current.syncLabels(areas, true, null, true);
     const lista = nomesPublicados(definirMarcadores);
-    expect(lista.length).toBe(2);
+    expect(lista.map((m) => m.id).sort()).toEqual(["a", "b"]);
     expect(typeof lista[0].escala).toBe("function");
   });
 });

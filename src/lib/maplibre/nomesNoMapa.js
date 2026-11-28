@@ -34,7 +34,7 @@ export const NOMES_LOTE_LAYER_ID = "mg-nomes-lote";
  */
 export const DESLOC_NOME_COM_LOTE_PX = /** @type {[number, number]} */ ([0, 10]);
 
-/** A letra do nome, como o rótulo HTML de antes: Inter (sem ela, Arial), branca; desde a D-PROD-379 com contorno escuro fino. */
+/** A letra do nome, como o rótulo HTML de antes: Inter (sem ela, Arial), branca, sem sombra. */
 export const FAMILIA_NOME = "Inter, Arial, sans-serif";
 export const COR_NOME = "#ffffff";
 /** A linha do "ha" com opacidade .95. */
@@ -47,13 +47,6 @@ export const ALTURA_LINHA = 1.15;
 export const FONTE_NOME_MAX_PX = 12;
 /** Folga de cada lado da imagem para a suavização das letras não ser cortada (px). */
 const FOLGA_LATERAL_PX = 1;
-/**
- * D-PROD-379: contorno escuro fino em volta das letras, para o nome ler bem em cima do satélite (campo claro, estrada,
- * nuvem), como os rótulos dos mapas. A imagem ganha esta margem em cada lado para o contorno não ser cortado.
- */
-export const CONTORNO_NOME_PX = 3;
-export const COR_CONTORNO_NOME = "rgba(0, 0, 0, 0.6)";
-export const MARGEM_CONTORNO_PX = 2;
 /**
  * Paradas de zoom do `icon-size` (uma por nível; o mapa só interpola entre duas paradas que cobrem o nível do
  * ladrilho, então meia parada não ajudaria). Abaixo de 8 e acima de 22 vale a parada da ponta.
@@ -134,7 +127,7 @@ export function linhasDoNivel(t, nivel) {
  * @param {LinhaNome[]} linhas
  */
 export function chaveImagemNome(linhas) {
-  return `mg-nome|${COR_NOME}|${OPACIDADE_HA}|${COR_EXTRA}|c${CONTORNO_NOME_PX}|${JSON.stringify(linhas.map((l) => [l.tipo, l.texto]))}`;
+  return `mg-nome|${COR_NOME}|${OPACIDADE_HA}|${COR_EXTRA}|${JSON.stringify(linhas.map((l) => [l.tipo, l.texto]))}`;
 }
 
 /** Imagem de nome de pasto? @param {string} chave */
@@ -388,29 +381,21 @@ export function limparCacheNomes() {
 export async function desenharImagemNome({ linhas, pixelRatio }) {
   if (!linhas.length) return null;
   const m = medirLinhas(linhas);
-  const W = Math.ceil(m.w) + 2 * (FOLGA_LATERAL_PX + MARGEM_CONTORNO_PX);
-  const H = Math.max(1, Math.ceil(m.h)) + 2 * MARGEM_CONTORNO_PX;
+  const W = Math.ceil(m.w) + 2 * FOLGA_LATERAL_PX;
+  const H = Math.max(1, Math.ceil(m.h));
   const largura = Math.max(1, Math.round(W * pixelRatio));
   const altura = Math.max(1, Math.round(H * pixelRatio));
   const ctx = contextoDeDesenho(largura, altura);
   if (!ctx) return null;
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   ctx.textAlign = "center";
-  ctx.lineJoin = "round";
-  ctx.miterLimit = 2;
-  let topo = MARGEM_CONTORNO_PX;
+  let topo = 0;
   linhas.forEach((l, i) => {
     const e = estiloDaLinha(l.tipo);
     ctx.font = e.font;
-    const y = baseDoTexto(ctx, l.texto, topo + m.alturas[i] / 2);
-    // o contorno por baixo da letra (D-PROD-379): legível no satélite
-    ctx.globalAlpha = 1;
-    ctx.lineWidth = CONTORNO_NOME_PX;
-    ctx.strokeStyle = COR_CONTORNO_NOME;
-    ctx.strokeText(l.texto, W / 2, y);
     ctx.fillStyle = e.cor;
     ctx.globalAlpha = e.opacidade;
-    ctx.fillText(l.texto, W / 2, y);
+    ctx.fillText(l.texto, W / 2, baseDoTexto(ctx, l.texto, topo + m.alturas[i] / 2));
     topo += m.alturas[i];
   });
   ctx.globalAlpha = 1;

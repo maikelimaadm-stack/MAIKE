@@ -29,9 +29,6 @@ import {
   NOMES_LOTE_LAYER_ID,
   NOMES_SOURCE_ID,
   ZOOMS_NOME,
-  CONTORNO_NOME_PX,
-  COR_CONTORNO_NOME,
-  MARGEM_CONTORNO_PX,
   caixaDoNome,
   camadasNomes,
   chaveImagemNome,
@@ -263,7 +260,7 @@ describe("N354-1 — fonte e camadas, sem HTML", () => {
 });
 
 describe("N354-2 — a imagem do nome", () => {
-  it("nome 700 12 px branco, ha 400 11 px a 95%, extra 600 11 px #fef08a; centralizado, line-height 1,15, sem sombra; contorno escuro fino (D-PROD-379)", async () => {
+  it("nome 700 12 px branco, ha 400 11 px a 95%, extra 600 11 px #fef08a; centralizado, line-height 1,15, sem sombra", async () => {
     const { map, r } = montar();
     renderer = r;
     r.syncLabels([A1], true, () => "Ocupado 3d", true);
@@ -287,22 +284,14 @@ describe("N354-2 — a imagem do nome", () => {
     const pr = window.devicePixelRatio || 1;
     const larguraCss = pixels.width / pr;
     for (const t of textos) expect(t.args[1]).toBeCloseTo(larguraCss / 2, 5);
-    // sem as métricas da letra (canvas falso) a linha de base é o meio da linha (depois da margem do contorno)
-    const m = MARGEM_CONTORNO_PX;
-    expect(nome.args[2]).toBeCloseTo(m + (12 * ALTURA_LINHA) / 2, 5);
-    expect(ha.args[2]).toBeCloseTo(m + 12 * ALTURA_LINHA + (11 * ALTURA_LINHA) / 2, 5);
-    expect(extra.args[2]).toBeCloseTo(m + 12 * ALTURA_LINHA + 11 * ALTURA_LINHA + (11 * ALTURA_LINHA) / 2, 5);
-    // tamanho: a linha mais larga (6 px por letra no canvas falso) + 1 px de cada lado + a margem do contorno;
-    // altura = soma das linhas + a margem
-    expect(larguraCss).toBe(Math.ceil(6 * "Ocupado 3d".length) + 2 + 2 * m);
-    expect(pixels.height / pr).toBe(Math.ceil(12 * ALTURA_LINHA + 2 * 11 * ALTURA_LINHA) + 2 * m);
-    expect(readFileSync("src/lib/maplibre/nomesNoMapa.js", "utf8")).not.toMatch(/shadowBlur|shadowColor/);
-    // D-PROD-379: cada linha com o contorno escuro por baixo, no mesmo lugar, antes da letra
-    const contornos = canvas.chamadas.filter((c) => c.nome === "strokeText");
-    expect(contornos.map((c) => c.args)).toEqual(textos.map((t) => t.args));
-    for (const c of contornos) expect(c.estado).toMatchObject({ lineWidth: CONTORNO_NOME_PX, strokeStyle: COR_CONTORNO_NOME, lineJoin: "round", globalAlpha: 1 });
-    const ordem = canvas.chamadas.filter((c) => c.nome === "strokeText" || c.nome === "fillText").map((c) => c.nome);
-    expect(ordem).toEqual(["strokeText", "fillText", "strokeText", "fillText", "strokeText", "fillText"]);
+    // sem as métricas da letra (canvas falso) a linha de base é o meio da linha
+    expect(nome.args[2]).toBeCloseTo((12 * ALTURA_LINHA) / 2, 5);
+    expect(ha.args[2]).toBeCloseTo(12 * ALTURA_LINHA + (11 * ALTURA_LINHA) / 2, 5);
+    expect(extra.args[2]).toBeCloseTo(12 * ALTURA_LINHA + 11 * ALTURA_LINHA + (11 * ALTURA_LINHA) / 2, 5);
+    // tamanho: a linha mais larga (6 px por letra no canvas falso) + 1 px de cada lado; altura = soma das linhas
+    expect(larguraCss).toBe(Math.ceil(6 * "Ocupado 3d".length) + 2);
+    expect(pixels.height / pr).toBe(Math.ceil(12 * ALTURA_LINHA + 2 * 11 * ALTURA_LINHA));
+    expect(readFileSync("src/lib/maplibre/nomesNoMapa.js", "utf8")).not.toMatch(/shadowBlur|shadowColor|strokeText/);
   });
 
   it("chave = linhas + cores: texto igual divide a imagem; refetch não redesenha nem republica; texto novo = imagem nova", async () => {
