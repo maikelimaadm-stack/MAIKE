@@ -219,7 +219,8 @@ export const FOLGA_PARA_SUBIR_PX = 0;
  * O nome só é puxado para fora de um ícone até isto (px) e até esta parte do lado menor do pasto na tela: mais do que
  * isso ele ficava longe do meio do pasto ("descentralizado"); sem lugar perto, ele não aparece.
  */
-export const DESLOC_MAXIMO_PX = 90;
+// Zero (pedido do proprietário): o nome NÃO procura lugar ao lado; fica no lugar dele ou, com um ícone em cima, não aparece.
+export const DESLOC_MAXIMO_PX = 0;
 export const DESLOC_MAXIMO_DO_PASTO = 0.35;
 
 /**

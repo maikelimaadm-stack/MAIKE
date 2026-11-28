@@ -81,28 +81,16 @@ describe("G382-1 — o nível dos nomes de tamanho fixo, o mesmo para todos", ()
     expect(nivelDosNomesFixos(new Map(), camera(600), new Map())).toBe("tudo");
   });
 
-  it("um cocho em cima do nome: o nome vai para o lado livre; sem lado livre, conta como problema; o lote do próprio pasto não", () => {
+  it("um cocho em cima do nome: o nome NÃO procura lugar ao lado — não aparece; o lote do próprio pasto não atrapalha", () => {
     const nomes = montarNomes([quadrado("a", -15, -47, 0.01)]);
     const n = /** @type {any} */ (nomes.get("a"));
     const k = 100000;
     expect(nivelDosNomesFixos(nomes, camera(k), new Map())).toBe("tudo");
-    // o cocho (40 px) no meio do pasto (1000 px na tela): o nome desce para logo abaixo dele, perto do meio
+    expect(DESLOC_MAXIMO_PX).toBe(0);
     const cocho = { lat: n.lat, lng: n.lng, w: 40, h: 40 };
     const r = nomesFixosNaCamera(nomes, camera(k), new Map(), [cocho]);
-    expect(r.nivel).toBe("tudo");
-    expect(r.ocultos.size).toBe(0);
-    const d = /** @type {any} */ (r.desloc.get("a"));
-    expect(d.dx).toBe(0);
-    expect(d.dy).toBeGreaterThan(20);
-    expect(d.dy).toBeLessThanOrEqual(DESLOC_MAXIMO_PX);
-    expect(d.dy % 4).toBe(0);
-    // um ícone grande: o nome teria de ir longe do meio do pasto ("descentralizado") — fica sem aparecer
-    const grande = { lat: n.lat, lng: n.lng, w: 200, h: 200 };
-    expect(nomesFixosNaCamera(nomes, camera(k), new Map(), [grande]).nivel).toBe("nenhum");
-    // um ícone que cobre o pasto todo: o nome não tem lugar e não fica em cima dele
-    const enorme = { lat: n.lat, lng: n.lng, w: 3000, h: 3000 };
-    const r2 = nomesFixosNaCamera(nomes, camera(k), new Map(), [enorme]);
-    expect(r2.nivel).toBe("nenhum");
+    expect(r.desloc.size).toBe(0);
+    expect(r.nivel === "nenhum" || r.ocultos.has("a")).toBe(true);
     const proprio = new Map([["a", { lat: n.lat, lng: n.lng, tamanho: { w: 44, h: 42 } }]]);
     expect(nivelDosNomesFixos(nomes, camera(k), proprio)).toBe("tudo");
     expect(nomesFixosNaCamera(nomes, camera(k), proprio).desloc.size).toBe(0);
@@ -259,26 +247,18 @@ describe("G382-2 — os nomes no app pelo useMarcadoresGoogle", () => {
     expect(typeof lista[0].escala).toBe("function");
   });
 
-  it("um cocho novo em cima de um nome: o nome (e os hectares) vão para o lado livre, não ficam por cima", async () => {
+  it("um cocho novo em cima de um nome: o nome não vai para o lado; some", async () => {
     const definirMarcadores = vi.fn();
     const { result } = renderHook(() => useMarcadoresGoogle({ definirMarcadores, nomesFixos: true }));
     await result.current.syncLabels([areas[0]], true, null, true);
     result.current.revisarNomes(camera(100000, true));
     await Promise.resolve();
-    const antes = nomesPublicados(definirMarcadores);
-    const nomeAntes = antes.find((m) => m.id === "a");
-    expect(nomeAntes.dy).toBe(0);
+    const nomeAntes = nomesPublicados(definirMarcadores).find((m) => m.id === "a");
+    expect(nomeAntes.w).toBeCloseTo(60 * ESCALA_NOME_FIXO, 5);
     await result.current.syncPontosSuplementacao([{ id: "c1", tipo: "cocho", coordenadas: { lat: nomeAntes.lat, lng: nomeAntes.lng }, nome: "Cocho" }], true, [], vi.fn());
     await Promise.resolve();
     await Promise.resolve();
-    const depois = nomesPublicados(definirMarcadores);
-    const nome = depois.find((m) => m.id === "a");
-    const ha = depois.find((m) => m.id === "a|ha");
-    // o nome desceu para baixo do cocho (40 px) e os hectares foram junto
-    expect(nome.dy).toBeGreaterThan(20);
-    expect(ha.dy - nome.dy).toBeCloseTo(nome.h / 2, 5);
-    // a letra menor: o marcador tem o tamanho da imagem × ESCALA_NOME_FIXO
-    expect(nome.w).toBeCloseTo(60 * ESCALA_NOME_FIXO, 5);
+    expect(nomesPublicados(definirMarcadores)).toEqual([]);
   });
 
   it("nome comprido: a sigla é um marcador à parte (`<id>|sg`), escondido até o nível 'sigla'", async () => {

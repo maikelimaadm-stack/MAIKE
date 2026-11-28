@@ -239,6 +239,8 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
               await plugin.maikeChao({ id: mapa.id });
               chao = criarNomesNoChao((ops) => plugin.maikeChao({ id: mapa.id, ...ops }));
               chaoRef.current = chao;
+              // o selo de teste mostra que os nomes estão no chão do mapa (APK novo)
+              window.dispatchEvent(new CustomEvent("maike:nomes-no-chao"));
             } catch {
               chao = null;
             }

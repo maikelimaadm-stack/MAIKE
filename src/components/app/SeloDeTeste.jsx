@@ -28,6 +28,14 @@ export default function SeloDeTeste() {
       vivo = false;
     };
   }, [teste]);
+  // D-PROD-382: "· chão" = este APK desenha os nomes no chão do mapa (sem isso, falta instalar o APK de teste novo)
+  const [chao, setChao] = useState(false);
+  useEffect(() => {
+    if (!teste) return undefined;
+    const ligar = () => setChao(true);
+    window.addEventListener("maike:nomes-no-chao", ligar);
+    return () => window.removeEventListener("maike:nomes-no-chao", ligar);
+  }, [teste]);
   if (!teste) return null;
   return (
     <div
@@ -50,6 +58,7 @@ export default function SeloDeTeste() {
       }}
     >
       {numero ? `TESTE ${numero}` : "TESTE"}
+      {chao ? " · chão" : ""}
     </div>
   );
 }
