@@ -27,6 +27,8 @@ export const MARCA = "MAIKE D-PROD-373: onCameraMove";
 export const MARCA_DATA = "MAIKE D-PROD-374: imagem data:";
 export const MARCA_TOQUE = "MAIKE D-PROD-374: toque no marcador";
 export const MARCA_CAMADA = "MAIKE D-PROD-376: camada do Mapa Geral";
+export const MARCA_JUNTOS = "MAIKE D-PROD-382: marcadores juntos";
+export const MARCA_MOSTRAR = "MAIKE D-PROD-382: mostrar e esconder";
 
 /**
  * D-PROD-376: o gancho da câmera para a camada nativa do Mapa Geral (`CamadaDoMapaView.java`, no app). O plugin chama
@@ -149,6 +151,147 @@ export const REMENDOS = [
     inserir: `        // ${MARCA} (a câmera a cada quadro, para os marcadores do Mapa Geral andarem junto com o mapa)
         // ${MARCA_CAMADA} (desenha junto com a câmera)
         MaikeCamera.mexeu()
+`,
+  },
+  // D-PROD-382: os marcadores de um pedido entram no mapa JUNTOS. O plugin preparava e punha um de cada vez (cada um
+  // esperava a imagem dele): com centenas de ícones e nomes, apareciam um por um ("carregando"). Agora todas as imagens
+  // são preparadas fora da tela e os marcadores entram numa passada só. `opacity: 0` = o marcador começa escondido.
+  {
+    marca: MARCA_JUNTOS,
+    arquivo: "android/src/main/java/com/capacitorjs/plugins/googlemaps/CapacitorGoogleMap.kt",
+    ancora: `                newMarkers.forEach {
+                    val markerOptions: Deferred<MarkerOptions> =
+                            CoroutineScope(Dispatchers.IO).async {
+                                this@CapacitorGoogleMap.buildMarker(it)
+                            }
+                    val googleMapMarker = googleMap?.addMarker(markerOptions.await())
+`,
+    inserir: `                // ${MARCA_JUNTOS} (as imagens todas antes, fora da tela; os marcadores entram numa passada só)
+                val maikeOpcoes: List<MarkerOptions> =
+                        CoroutineScope(Dispatchers.IO).async {
+                            newMarkers.map { m -> this@CapacitorGoogleMap.buildMarker(m) }
+                        }.await()
+                var maikeIndice = 0
+                newMarkers.forEach {
+                    val maikeOpcao = maikeOpcoes[maikeIndice]
+                    maikeIndice += 1
+                    if (it.opacity == 0f) maikeOpcao.visible(false)
+                    val googleMapMarker = googleMap?.addMarker(maikeOpcao)
+`,
+  },
+  // D-PROD-382: mostrar e esconder marcadores que JÁ estão no mapa, com uma passagem curta (nada é refeito). A troca
+  // de sigla para nome, os hectares e os filtros viram só isto: nenhuma imagem passa de novo do app para o mapa.
+  {
+    marca: MARCA_MOSTRAR,
+    arquivo: "android/src/main/java/com/capacitorjs/plugins/googlemaps/CapacitorGoogleMap.kt",
+    ancora: `    fun removeMarkers(ids: List<String>, callback: (error: GoogleMapsError?) -> Unit) {
+`,
+    inserir: `    // ${MARCA_MOSTRAR} (marcadores que já estão no mapa; nada é refeito)
+    private var maikeAnimacao: android.animation.ValueAnimator? = null
+
+    private fun maikeAlfa(m: Marker, alfa: Float) {
+        try {
+            m.alpha = alfa
+        } catch (e: Exception) {
+            // marcador já tirado do mapa
+        }
+    }
+
+    private fun maikeVisivel(m: Marker, visivel: Boolean) {
+        try {
+            m.isVisible = visivel
+        } catch (e: Exception) {
+            // marcador já tirado do mapa
+        }
+    }
+
+    private fun maikeTerminar(entram: List<Marker>, saem: List<Marker>) {
+        for (m in entram) {
+            maikeAlfa(m, 1f)
+            maikeVisivel(m, true)
+        }
+        for (m in saem) {
+            maikeVisivel(m, false)
+        }
+    }
+
+    fun maikeMostrar(mostrar: List<String>, esconder: List<String>, ms: Long) {
+        CoroutineScope(Dispatchers.Main).launch {
+            // a passagem anterior termina antes (cada marcador fica no estado final dela)
+            maikeAnimacao?.end()
+            maikeAnimacao = null
+            val entram: List<Marker> = mostrar.mapNotNull { id -> markers[id]?.googleMapMarker }
+            val saem: List<Marker> = esconder.mapNotNull { id -> markers[id]?.googleMapMarker }
+            if (ms <= 0L || entram.size + saem.size > 400) {
+                maikeTerminar(entram, saem)
+            } else {
+                for (m in entram) {
+                    maikeAlfa(m, 0f)
+                    maikeVisivel(m, true)
+                }
+                val animacao = android.animation.ValueAnimator.ofFloat(0f, 1f)
+                animacao.duration = ms
+                animacao.addUpdateListener { a ->
+                    val f = a.animatedValue as Float
+                    for (m in entram) {
+                        maikeAlfa(m, f)
+                    }
+                    for (m in saem) {
+                        maikeAlfa(m, 1f - f)
+                    }
+                }
+                animacao.addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        maikeTerminar(entram, saem)
+                    }
+                })
+                maikeAnimacao = animacao
+                animacao.start()
+            }
+        }
+    }
+
+    fun removeMarkers(ids: List<String>, callback: (error: GoogleMapsError?) -> Unit) {
+`,
+  },
+  {
+    marca: MARCA_MOSTRAR,
+    arquivo: "android/src/main/java/com/capacitorjs/plugins/googlemaps/CapacitorGoogleMapsPlugin.kt",
+    ancora: `    @PluginMethod
+    fun removeMarkers(call: PluginCall) {
+`,
+    inserir: `    // ${MARCA_MOSTRAR} (marcadores que já estão no mapa; nada é refeito)
+    @PluginMethod
+    fun maikeMostrar(call: PluginCall) {
+        try {
+            val id = call.getString("id")
+            id ?: throw InvalidMapIdError()
+
+            val map = maps[id]
+            map ?: throw MapNotFoundError()
+
+            val lista = { nome: String ->
+                val saida: MutableList<String> = mutableListOf()
+                val vetor = call.getArray(nome)
+                if (vetor != null) {
+                    for (i in 0 until vetor.length()) {
+                        saida.add(vetor.getString(i))
+                    }
+                }
+                saida
+            }
+
+            map.maikeMostrar(lista("mostrar"), lista("esconder"), (call.getInt("ms") ?: 0).toLong())
+            call.resolve()
+        } catch (e: GoogleMapsError) {
+            handleError(call, e)
+        } catch (e: Exception) {
+            handleError(call, e)
+        }
+    }
+
+    @PluginMethod
+    fun removeMarkers(call: PluginCall) {
 `,
   },
 ];
