@@ -16,6 +16,11 @@
  *
  * Variáveis: APP_MAIKE_API_URL (padrão https://www.makgestao.com);
  * VITE_GOOGLE_MAPS_API_KEY vem do ambiente do build (a mesma do site).
+ *
+ * D-PROD-381 (canal de teste, workflow `app-teste`): PACOTE_PUBLICACAO (pasta de saída), PACOTE_URL_BASE (endereço
+ * onde o zip fica; padrão `/app-atualizacao`), PACOTE_VERSAO (versão; padrão o commit) e PACOTE_MANTER_APP=1 (deixa a
+ * pasta `dist-app`, para o APK de teste levar o mesmo pacote). Com VITE_CANAL_APP=teste no ambiente, o pacote é o do
+ * canal de teste.
  */
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -25,10 +30,11 @@ import { zipSync } from 'fflate';
 import { nativoMinimo, versaoDoCommit } from './versao-do-pacote.mjs';
 
 const SAIDA_APP = 'dist-app';
-const PUBLICACAO = join('dist', 'app-atualizacao');
+const PUBLICACAO = process.env.PACOTE_PUBLICACAO || join('dist', 'app-atualizacao');
+const URL_BASE = (process.env.PACOTE_URL_BASE || '/app-atualizacao').replace(/\/+$/, '');
 const API = (process.env.APP_MAIKE_API_URL || 'https://www.makgestao.com').replace(/\/+$/, '');
 
-const versao = versaoDoCommit();
+const versao = process.env.PACOTE_VERSAO || versaoDoCommit();
 rmSync(SAIDA_APP, { recursive: true, force: true });
 execSync(`npx vite build --outDir ${SAIDA_APP} --emptyOutDir`, {
   stdio: 'inherit',
@@ -51,7 +57,7 @@ const checksum = createHash('sha256').update(zip).digest('hex');
 
 mkdirSync(PUBLICACAO, { recursive: true });
 writeFileSync(join(PUBLICACAO, `${versao}.zip`), zip);
-const ultima = { versao, url: `/app-atualizacao/${versao}.zip`, checksum, nativoMinimo: nativoMinimo(), criadoEm: new Date().toISOString() };
+const ultima = { versao, url: `${URL_BASE}/${versao}.zip`, checksum, nativoMinimo: nativoMinimo(), criadoEm: new Date().toISOString() };
 writeFileSync(join(PUBLICACAO, 'ultima.json'), `${JSON.stringify(ultima)}\n`);
-rmSync(SAIDA_APP, { recursive: true, force: true });
+if (process.env.PACOTE_MANTER_APP !== '1') rmSync(SAIDA_APP, { recursive: true, force: true });
 console.log(`pacote do app: ${versao} (${(zip.length / 1024 / 1024).toFixed(1)} MB, nativo >= ${ultima.nativoMinimo})`);
