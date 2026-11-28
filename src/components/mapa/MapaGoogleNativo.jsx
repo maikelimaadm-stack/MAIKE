@@ -210,21 +210,25 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
         /** @type {any} */
         let ultimaCamera = null;
         let quadro = 0;
+        let aoVivo = false;
         const noQuadro = () => {
           quadro = 0;
           if (!ultimaCamera) return;
           mostrarNaCamera(ultimaCamera);
-          // com os ícones no mapa nativo, os nomes são revistos só quando o mapa para: nada de trabalho no meio do gesto
-          if (camada) avisarCamera(ultimaCamera, false);
+          // com os ícones no mapa nativo, os nomes são revistos no meio do gesto só com o APK que mostra e esconde
+          // (D-PROD-382: a troca é leve); no APK anterior, só quando o mapa para
+          if (camada || aoVivo) avisarCamera(ultimaCamera, false);
         };
         if (nativo) {
           if (camada) mostrarNaCamera({ latitude: config.center.lat, longitude: config.center.lng, zoom: config.zoom, bearing: 0 });
           await mapa.setOnCameraMoveStartedListener(() => {
             if (camadaEl && camada && !recebeMovimento) camadaEl.style.visibility = "hidden";
           });
-          // a câmera a cada quadro só serve aos ícones por cima do mapa (APK antigo); a camada nativa e os marcadores
-          // do mapa andam sozinhos
-          if (camada) {
+          // a câmera a cada quadro serve aos ícones por cima do mapa (APK antigo) e, com o APK que mostra e esconde
+          // (D-PROD-382), aos nomes: eles se ajustam enquanto o mapa mexe. Os marcadores do mapa andam sozinhos.
+          aoVivo = Boolean(nativos && (await nativos.liso));
+          if (cancelado) return;
+          if (camada || aoVivo) {
             try {
               ouvinteMovimentoRef.current = await pluginDoMapaGoogle().addListener("onCameraMove", (/** @type {any} */ e) => {
                 if (e?.mapId !== mapa.id) return;

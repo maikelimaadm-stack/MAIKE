@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { itensDaSuplementacao, itensDasTarefas, itensDosLotes, itensDosPontos } from "@/lib/maplibre/itensDoMapaGeral.js";
-import { NIVEIS, colocacaoDoNome, montarNomes, nivelDosNomes, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
+import { ESCALA_NOME_FIXO, NIVEIS, colocacaoDoNome, montarNomes, nivelDosNomes, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
 import { DESLOC_NOME_COM_LOTE_PX, avisarFalhaNome, esperarFonteDosNomes, pedidoImagemNome } from "@/lib/maplibre/nomesNoMapa.js";
 import {
   DESLOC_IDENT_PX,
@@ -65,15 +65,16 @@ export function urlDaImagem(r, chave) {
 
 /**
  * Marcador de uma imagem pronta, ou null se não há imagem.
- * @param {{ id: string, lngLat: [number, number], r: any, chave: string, dx?: number, dy?: number, z: number, titulo?: string, onClick?: () => void, escala?: (zoom: number) => number, ancora?: "centro" | "topo", semToque?: boolean }} p
+ * @param {{ id: string, lngLat: [number, number], r: any, chave: string, dx?: number, dy?: number, z: number, titulo?: string, onClick?: () => void, escala?: (zoom: number) => number, ancora?: "centro" | "topo", semToque?: boolean, fator?: number }} p
  * @returns {import('@/lib/mapaNativo/mapaGoogleWeb.js').MarcadorWeb | null}
  */
-function marcador({ id, lngLat, r, chave, dx = 0, dy = 0, z, titulo, onClick, escala, ancora, semToque }) {
+function marcador({ id, lngLat, r, chave, dx = 0, dy = 0, z, titulo, onClick, escala, ancora, semToque, fator = 1 }) {
   if (!r) return null;
   const url = urlDaImagem(r, chave);
   if (!url) return null;
   /** @type {import('@/lib/mapaNativo/mapaGoogleWeb.js').MarcadorWeb} */
-  const m = { id, lat: lngLat[1], lng: lngLat[0], url, w: r.w, h: r.h, dx, dy, z, titulo, onClick };
+  // `fator`: a imagem foi desenhada com essa parte dos pixels (o nome menor do app): o tamanho na tela acompanha
+  const m = { id, lat: lngLat[1], lng: lngLat[0], url, w: r.w * fator, h: r.h * fator, dx, dy, z, titulo, onClick };
   if (escala) m.escala = escala;
   if (ancora) m.ancora = ancora;
   if (semToque) m.semToque = true;
@@ -130,12 +131,12 @@ export default function useMarcadoresGoogle(mapa) {
       const camera = cameraRef.current;
       if (!camera || !nomesRef.current.size) return null;
       const r = nomesFixosNaCamera(nomesRef.current, camera, lotesInfoRef.current, iconesObstaculo(), nivelRef.current);
-      // o deslocamento que mudou só 1 ou 2 px (arredondamento ao arrastar o mapa) fica como estava: o nome não é refeito
+      // o deslocamento que mudou só um passo (até 4 px) fica como estava: o nome não é refeito
       const antes = arranjoRef.current;
       if (antes && antes.nivel === r.nivel) {
         for (const [id, d] of r.desloc) {
           const a = antes.desloc.get(id);
-          if (a && Math.abs(a.dx - d.dx) <= 2 && Math.abs(a.dy - d.dy) <= 2) r.desloc.set(id, a);
+          if (a && Math.abs(a.dx - d.dx) <= 4 && Math.abs(a.dy - d.dy) <= 4) r.desloc.set(id, a);
         }
       }
       arranjoNovoRef.current = r;
@@ -160,10 +161,10 @@ export default function useMarcadoresGoogle(mapa) {
      * Desenha o que falta e publica o grupo; uma chamada mais nova descarta a anterior.
      * @param {string} grupo @param {any[]} pedidos @param {() => any[]} montar @param {() => void} [aoFalhar] @param {any[]} [reservas]
      */
-    const publicar = (grupo, pedidos, montar, aoFalhar, reservas = []) => {
+    const publicar = (grupo, pedidos, montar, aoFalhar, reservas = [], prDoGrupo = 0) => {
       if (!temMarcadores) return Promise.resolve();
       const seq = proximo(grupo);
-      const pr = pixelRatioDaTela();
+      const pr = prDoGrupo || pixelRatioDaTela();
       const aplicar = () => {
         if (seqRef.current[grupo] !== seq) return;
         const lista = montar().filter(Boolean);
@@ -235,7 +236,8 @@ export default function useMarcadoresGoogle(mapa) {
       }
       nivelRef.current = nivel;
       if (nomesFixos) arranjoRef.current = arranjoNovoRef.current;
-      const pr = pixelRatioDaTela();
+      // app: a letra um pouco menor (ESCALA_NOME_FIXO), desenhada já nesse tamanho (nítida, sem reduzir a imagem)
+      const pr = pixelRatioDaTela() * (nomesFixos ? ESCALA_NOME_FIXO : 1);
       const pedidos = [];
       for (const n of nomes.values()) {
         for (const nv of NIVEIS) if (n.niveis[nv].linhas.length) pedidos.push(pedidoImagemNome(n.niveis[nv].linhas, pr));
@@ -249,7 +251,9 @@ export default function useMarcadoresGoogle(mapa) {
             if (!c.linhas.length) return null;
             return marcador({ id: n.id, lngLat: [n.lng, n.lat], r: imagemPronta(c.chave, pr), chave: c.chave, dy: c.dy, z: ORDEM_GOOGLE.nome, escala: c.escala, ancora: c.ancora, semToque: true });
           })),
-        avisarFalhaNome
+        avisarFalhaNome,
+        [],
+        pr
       );
     };
 
@@ -275,7 +279,7 @@ export default function useMarcadoresGoogle(mapa) {
         const por = (id, d, visivel) => {
           if (!d.linhas.length) return null;
           const r = imagemPronta(d.chave, pr);
-          const m = r ? marcador({ id, lngLat: [n.lng, n.lat], r, chave: d.chave, dx: puxa.dx, dy: dyNome, z: ORDEM_GOOGLE.nome, ancora, semToque: true }) : null;
+          const m = r ? marcador({ id, lngLat: [n.lng, n.lat], r, chave: d.chave, dx: puxa.dx, dy: dyNome, z: ORDEM_GOOGLE.nome, ancora, semToque: true, fator: ESCALA_NOME_FIXO }) : null;
           if (!m) return null;
           if (!visivel) m.oculto = true;
           lista.push(m);
@@ -287,8 +291,9 @@ export default function useMarcadoresGoogle(mapa) {
         if (!siglaIgual) por(`${n.id}|sg`, n.niveis.sigla, !fora && nivel === "sigla");
         if (r && n.detalhe?.linhas.length) {
           const rh = imagemPronta(n.detalhe.chave, pr);
-          const embaixo = comLote ? dyNome + r.h : puxa.dy + r.h / 2;
-          const m = rh ? marcador({ id: `${n.id}|ha`, lngLat: [n.lng, n.lat], r: rh, chave: n.detalhe.chave, dx: puxa.dx, dy: embaixo, z: ORDEM_GOOGLE.nome, ancora: "topo", semToque: true }) : null;
+          const alturaDoNome = r.h * ESCALA_NOME_FIXO;
+          const embaixo = comLote ? dyNome + alturaDoNome : puxa.dy + alturaDoNome / 2;
+          const m = rh ? marcador({ id: `${n.id}|ha`, lngLat: [n.lng, n.lat], r: rh, chave: n.detalhe.chave, dx: puxa.dx, dy: embaixo, z: ORDEM_GOOGLE.nome, ancora: "topo", semToque: true, fator: ESCALA_NOME_FIXO }) : null;
           if (m) {
             if (fora || nivel !== "tudo") m.oculto = true;
             lista.push(m);
@@ -399,8 +404,13 @@ export default function useMarcadoresGoogle(mapa) {
         cameraRef.current = camera;
         if (!temMarcadores || !nomesRef.current.size) return;
         if (nomesFixos) {
-          // app: só quando o mapa para (nada de trabalho no meio do gesto); publica só quando o nível muda
-          if (!camera.final) return;
+          // app: com o mapa parado, sempre. Durante o gesto a câmera só chega com o APK que mostra e esconde (D-PROD-382:
+          // a troca é leve), e os nomes se ajustam enquanto o mapa mexe, no máximo a cada MS_NIVEL_NO_MOVIMENTO.
+          if (!camera.final) {
+            const agora = typeof performance !== "undefined" ? performance.now() : Date.now();
+            if (agora - ultimaRevisaoRef.current < MS_NIVEL_NO_MOVIMENTO) return;
+            ultimaRevisaoRef.current = agora;
+          }
           const nivel = nivelNaUltimaCamera();
           if (nivel && (nivel !== nivelRef.current || arranjoMudou())) void publicarNomes(nivel);
           return;

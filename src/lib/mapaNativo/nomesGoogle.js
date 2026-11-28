@@ -171,7 +171,7 @@ export function colocacaoDoNome(n, nivel, comLote) {
  * nativo não muda o tamanho de um marcador durante o zoom, e refazer os nomes quando o mapa para era a "travadinha".
  * Em vez de encolher, todos os nomes trocam de nível JUNTOS (D-PROD-382): nome + hectares → nome → sigla → nenhum.
  */
-export const ESCALA_NOME_FIXO = 1;
+export const ESCALA_NOME_FIXO = 0.85;
 /** O nível dos nomes de tamanho fixo: os três do MapLibre e "nenhum" (todos somem juntos). */
 /** @typedef {NivelNome | "nenhum"} NivelFixo */
 /** Distância mínima entre um nome e outro nome ou ícone (px), a mesma do `escolherModoRotulos`. */
@@ -210,8 +210,17 @@ export const ZOOM_MINIMO_NOMES = 11;
 export const TOLERANCIA_NA_SIGLA = 0.85;
 /** Com mais nomes do que isto, só os pastos perto da tela (uma tela para cada lado) entram na conta e no mapa. */
 export const NOMES_SEM_RECORTE = 300;
-/** Para SUBIR de nível (mais detalhe) o pasto precisa sobrar esta folga a mais (px): o nível não fica indo e voltando. */
-export const FOLGA_PARA_SUBIR_PX = 6;
+/**
+ * Folga a mais (px) para SUBIR de nível. Zero (D-PROD-382, pedido do proprietário): o nome + hectares aparece e some no
+ * MESMO zoom, indo ou voltando — com folga, era preciso afastar mais do que se tinha aproximado.
+ */
+export const FOLGA_PARA_SUBIR_PX = 0;
+/**
+ * O nome só é puxado para fora de um ícone até isto (px) e até esta parte do lado menor do pasto na tela: mais do que
+ * isso ele ficava longe do meio do pasto ("descentralizado"); sem lugar perto, ele não aparece.
+ */
+export const DESLOC_MAXIMO_PX = 40;
+export const DESLOC_MAXIMO_DO_PASTO = 0.35;
 
 /**
  * Como ficam os nomes de tamanho fixo nesta câmera (D-PROD-382):
@@ -303,7 +312,11 @@ export function nomesFixosNaCamera(nomes, camera, lotes, icones = [], atual) {
           continue;
         }
       }
-      const livre = (/** @type {any} */ k) => !obstaculos.some((o) => o.dono !== it.id && bate(k, o, folga)) && !postos.some((o) => bate(k, o, folga));
+      // no lugar dele, o nome fica logo abaixo do lote do próprio pasto (o par ícone + nome); puxado para o lado, o
+      // lote do próprio pasto também é obstáculo: o nome nunca fica em cima dele
+      const livre = (/** @type {any} */ k, movido = false) =>
+        !obstaculos.some((o) => (movido || o.dono !== it.id) && bate(k, o, folga)) && !postos.some((o) => bate(k, o, folga));
+      const maximo = Math.min(DESLOC_MAXIMO_PX, DESLOC_MAXIMO_DO_PASTO * Math.min(it.area.w, it.area.h));
       if (livre(c)) {
         postos.push(c);
         continue;
@@ -320,13 +333,16 @@ export function nomesFixosNaCamera(nomes, camera, lotes, icones = [], atual) {
           { dx: o.x - g - c.w - c.x, dy: 0 },
         ];
         achou = lados.find((d) => {
+          if (Math.abs(d.dx) > maximo || Math.abs(d.dy) > maximo) return false;
           const k = { x: c.x + d.dx, y: c.y + d.dy, w: c.w, h: c.h };
-          return dentro(k, it.area) && livre(k);
+          return dentro(k, it.area) && livre(k, true);
         });
         if (achou) break;
       }
       if (achou) {
-        desloc.set(it.id, { dx: Math.round(achou.dx), dy: Math.round(achou.dy) });
+        // em passos de 4 px, sempre para mais longe do obstáculo: o deslocamento muda menos vezes (o nome é refeito menos)
+        const passo = (/** @type {number} */ v) => Math.sign(v) * Math.ceil(Math.abs(v) / 4) * 4;
+        desloc.set(it.id, { dx: passo(achou.dx), dy: passo(achou.dy) });
         postos.push({ x: c.x + achou.dx, y: c.y + achou.dy, w: c.w, h: c.h });
       } else {
         problemas += 1;

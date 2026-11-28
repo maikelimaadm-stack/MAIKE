@@ -7,7 +7,7 @@
  *          ícone de outro pasto em cima conta, o lote do próprio pasto não; o mapa girado usa os 4 cantos do pasto.
  *  G382-2. `useMarcadoresGoogle` no app (`nomesFixos`): sem câmera, nenhum nome; o nome e os hectares são marcadores
  *          separados — entre "tudo" e "nome" o marcador do nome é o MESMO (só os hectares entram e saem); "nenhum" tira
- *          todos; câmera no meio do gesto não mexe. No site, como antes (com `escala`).
+ *          todos; no meio do gesto os nomes se ajustam (no máximo a cada 120 ms). No site, como antes (com `escala`).
  */
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,7 +24,7 @@ vi.mock("@/lib/maplibre/lotesNoMapa.js", async (orig) => {
   };
 });
 
-import { ESCALA_NOME_FIXO, FOLGA_PARA_SUBIR_PX, NOMES_SEM_RECORTE, TOLERANCIA_NA_SIGLA, ZOOM_MINIMO_NOMES, caixaDoNomeFixo, caixaDoPastoNaTela, montarNomes, nivelDosNomesFixos, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
+import { DESLOC_MAXIMO_PX, ESCALA_NOME_FIXO, FOLGA_PARA_SUBIR_PX, NOMES_SEM_RECORTE, TOLERANCIA_NA_SIGLA, ZOOM_MINIMO_NOMES, caixaDoNomeFixo, caixaDoPastoNaTela, montarNomes, nivelDosNomesFixos, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
 import { projetarNaCamera } from "@/lib/mapaNativo/camadaDeImagens.js";
 import useMarcadoresGoogle from "@/components/mapa/useMarcadoresGoogle.js";
 import { DESLOC_NOME_COM_LOTE_PX } from "@/lib/maplibre/nomesNoMapa.js";
@@ -62,9 +62,12 @@ afterEach(() => {
 
 describe("G382-1 — o nível dos nomes de tamanho fixo, o mesmo para todos", () => {
   it("caixa de tamanho fixo: sem lote, centrada; com lote, o topo 10 px abaixo do ponto", () => {
-    expect(ESCALA_NOME_FIXO).toBe(1);
-    expect(caixaDoNomeFixo({ x: 100, y: 50 }, { w: 60, h: 14 }, false)).toEqual({ x: 70, y: 43, w: 60, h: 14 });
-    expect(caixaDoNomeFixo({ x: 100, y: 50 }, { w: 60, h: 14 }, true)).toEqual({ x: 70, y: 50 + DESLOC_NOME_COM_LOTE_PX[1], w: 60, h: 14 });
+    // a letra um pouco menor do que no site (pedido do proprietário)
+    expect(ESCALA_NOME_FIXO).toBe(0.85);
+    const w = 60 * ESCALA_NOME_FIXO;
+    const h = 14 * ESCALA_NOME_FIXO;
+    expect(caixaDoNomeFixo({ x: 100, y: 50 }, { w: 60, h: 14 }, false)).toEqual({ x: 100 - w / 2, y: 50 - h / 2, w, h });
+    expect(caixaDoNomeFixo({ x: 100, y: 50 }, { w: 60, h: 14 }, true)).toEqual({ x: 100 - w / 2, y: 50 + DESLOC_NOME_COM_LOTE_PX[1], w, h });
   });
 
   it("perto: nome e hectares; afastando: nome, sigla e, sem caber, NENHUM (todos juntos)", () => {
@@ -83,20 +86,49 @@ describe("G382-1 — o nível dos nomes de tamanho fixo, o mesmo para todos", ()
     const n = /** @type {any} */ (nomes.get("a"));
     const k = 100000;
     expect(nivelDosNomesFixos(nomes, camera(k), new Map())).toBe("tudo");
-    // o cocho no meio do pasto (1000 px na tela): o nome desce para baixo dele, sem sair do pasto
-    const cocho = { lat: n.lat, lng: n.lng, w: 200, h: 200 };
+    // o cocho (40 px) no meio do pasto (1000 px na tela): o nome desce para logo abaixo dele, perto do meio
+    const cocho = { lat: n.lat, lng: n.lng, w: 40, h: 40 };
     const r = nomesFixosNaCamera(nomes, camera(k), new Map(), [cocho]);
     expect(r.nivel).toBe("tudo");
     expect(r.ocultos.size).toBe(0);
     const d = /** @type {any} */ (r.desloc.get("a"));
     expect(d.dx).toBe(0);
-    expect(d.dy).toBeGreaterThan(100);
+    expect(d.dy).toBeGreaterThan(20);
+    expect(d.dy).toBeLessThanOrEqual(DESLOC_MAXIMO_PX);
+    expect(d.dy % 4).toBe(0);
+    // um ícone grande: o nome teria de ir longe do meio do pasto ("descentralizado") — fica sem aparecer
+    const grande = { lat: n.lat, lng: n.lng, w: 200, h: 200 };
+    expect(nomesFixosNaCamera(nomes, camera(k), new Map(), [grande]).nivel).toBe("nenhum");
     // um ícone que cobre o pasto todo: o nome não tem lugar e não fica em cima dele
     const enorme = { lat: n.lat, lng: n.lng, w: 3000, h: 3000 };
     const r2 = nomesFixosNaCamera(nomes, camera(k), new Map(), [enorme]);
     expect(r2.nivel).toBe("nenhum");
     const proprio = new Map([["a", { lat: n.lat, lng: n.lng, tamanho: { w: 44, h: 42 } }]]);
     expect(nivelDosNomesFixos(nomes, camera(k), proprio)).toBe("tudo");
+    expect(nomesFixosNaCamera(nomes, camera(k), proprio).desloc.size).toBe(0);
+  });
+
+  it("o nome puxado para o lado nunca vai para cima do lote do próprio pasto", () => {
+    const nomes = montarNomes([quadrado("a", -15, -47, 0.01)]);
+    const n = /** @type {any} */ (nomes.get("a"));
+    const k = 100000;
+    const cam = camera(k);
+    const proprio = new Map([["a", { lat: n.lat, lng: n.lng, tamanho: { w: 44, h: 42 } }]]);
+    // um cocho bem onde o nome ficaria (logo abaixo do lote): para cima, o lugar livre seria em cima do lote
+    const p = /** @type {any} */ (cam.projetar(n.lat, n.lng));
+    const abaixo = { lat: n.lat - 22 / k, lng: n.lng, w: 30, h: 24 };
+    const r = nomesFixosNaCamera(nomes, cam, proprio, [abaixo]);
+    const lote = { x: p.x - 22, y: p.y - 14 - 21, w: 44, h: 42 };
+    const d = r.desloc.get("a");
+    if (d) {
+      const c = caixaDoNomeFixo(p, n.niveis[/** @type {any} */ (r.nivel)].medida, true);
+      const k2 = { x: c.x + d.dx, y: c.y + d.dy, w: c.w, h: c.h };
+      const bate = k2.x < lote.x + lote.w && lote.x < k2.x + k2.w && k2.y < lote.y + lote.h && lote.y < k2.y + k2.h;
+      expect(bate).toBe(false);
+    } else {
+      // sem lugar perto: o nome não aparece
+      expect(r.nivel === "nenhum" || r.ocultos.has("a")).toBe(true);
+    }
   });
 
   it("de muito longe (abaixo do zoom mínimo), nenhum nome, mesmo que coubesse", () => {
@@ -115,17 +147,17 @@ describe("G382-1 — o nível dos nomes de tamanho fixo, o mesmo para todos", ()
     expect(r.desloc.has("b")).toBe(true);
   });
 
-  it("para subir de nível precisa de folga: perto do limite, quem está em 'nome' fica em 'nome'", () => {
+  it("o nível muda no MESMO zoom, aproximando ou afastando (não é preciso afastar mais do que se aproximou)", () => {
     const nomes = montarNomes([quadrado("a", -15, -47, 0.01), quadrado("b", -15, -46.99, 0.01)]);
     let k = 100000;
     while (nivelDosNomesFixos(nomes, camera(k), new Map()) === "tudo") k *= 0.99;
-    // um tiquinho mais perto, "tudo" volta a caber por pouco; quem já está em "nome" não sobe
     const kVolta = k / 0.99;
-    expect(nivelDosNomesFixos(nomes, camera(kVolta), new Map())).toBe("tudo");
-    expect(nivelDosNomesFixos(nomes, camera(kVolta), new Map(), [], "nome")).toBe("nome");
-    // com folga de sobra, sobe
-    expect(nivelDosNomesFixos(nomes, camera(kVolta * 3), new Map(), [], "nome")).toBe("tudo");
-    expect(FOLGA_PARA_SUBIR_PX).toBeGreaterThan(0);
+    // vindo de "nome" (aproximando) ou de "tudo" (afastando), o mesmo zoom dá o mesmo nível
+    for (const atual of /** @type {any[]} */ (["tudo", "nome", "sigla", "nenhum", undefined])) {
+      expect(nivelDosNomesFixos(nomes, camera(kVolta), new Map(), [], atual)).toBe("tudo");
+      expect(nivelDosNomesFixos(nomes, camera(k), new Map(), [], atual)).toBe("nome");
+    }
+    expect(FOLGA_PARA_SUBIR_PX).toBe(0);
   });
 
   it("mapa girado 45°: a caixa do pasto usa os 4 cantos (não achata) e o pasto grande segue com nome", () => {
@@ -187,9 +219,13 @@ describe("G382-2 — os nomes no app pelo useMarcadoresGoogle", () => {
     expect(haA2.oculto).toBe(true);
     expect([haA2.url, haA2.dy]).toEqual([haA.url, haA.dy]);
 
-    // câmera no meio do gesto: nada
-    const antes = definirMarcadores.mock.calls.length;
+    // no meio do gesto (a câmera só chega com o APK que mostra e esconde): os nomes se ajustam enquanto o mapa mexe,
+    // no máximo a cada MS_NIVEL_NO_MOVIMENTO
     result.current.revisarNomes(camera(600, false));
+    await Promise.resolve();
+    expect(nomesPublicados(definirMarcadores)).toEqual([]);
+    const antes = definirMarcadores.mock.calls.length;
+    result.current.revisarNomes(camera(100000, false));
     expect(definirMarcadores.mock.calls.length).toBe(antes);
     // parou longe: nenhum (todos juntos)
     result.current.revisarNomes(camera(600, true));
@@ -241,7 +277,9 @@ describe("G382-2 — os nomes no app pelo useMarcadoresGoogle", () => {
     const ha = depois.find((m) => m.id === "a|ha");
     // o nome desceu para baixo do cocho (40 px) e os hectares foram junto
     expect(nome.dy).toBeGreaterThan(20);
-    expect(ha.dy - nome.dy).toBe(nome.h / 2);
+    expect(ha.dy - nome.dy).toBeCloseTo(nome.h / 2, 5);
+    // a letra menor: o marcador tem o tamanho da imagem × ESCALA_NOME_FIXO
+    expect(nome.w).toBeCloseTo(60 * ESCALA_NOME_FIXO, 5);
   });
 
   it("nome comprido: a sigla é um marcador à parte (`<id>|sg`), escondido até o nível 'sigla'", async () => {

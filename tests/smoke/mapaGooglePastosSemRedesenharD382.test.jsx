@@ -254,13 +254,27 @@ describe("G382-7 — com o APK que mostra e esconde, nada que já está no mapa 
     await camada.limpar();
   });
 
-  it("o ícone que mudou de desenho: o novo aparece e o velho some na mesma passagem, e sai do mapa depois", async () => {
-    const { camada, mapa, mostrar, MS_PASSAGEM } = await montar();
+  it("o ícone à vista que mudou de desenho: troca seca (o novo entra visível e o velho sai logo), sem passagem", async () => {
+    const { camada, mapa, mostrar } = await montar();
     await camada.definir("lotes", [m("l1")]);
+    const antes = passagens(mostrar).length;
     await camada.definir("lotes", [{ ...m("l1"), url: "data:l1-com-outra-contagem" }]);
     expect(mapa.addMarkers).toHaveBeenCalledTimes(2);
-    expect(passagens(mostrar).at(-1).slice(0, 2)).toEqual([["n2"], ["n1"]]);
-    expect(mapa.removeMarkers).not.toHaveBeenCalled();
+    expect(mapa.addMarkers.mock.calls[1][0][0].opacity).toBe(1);
+    expect(mapa.removeMarkers).toHaveBeenCalledWith(["n1"]);
+    expect(passagens(mostrar)).toHaveLength(antes);
+    expect(camada.marcadorDoToque("n2")?.id).toBe("l1");
+    await camada.limpar();
+  });
+
+  it("o escondido que volta com outro desenho: o novo aparece na passagem e o velho sai do mapa depois", async () => {
+    const { camada, mapa, mostrar, MS_PASSAGEM } = await montar();
+    await camada.definir("supl", [m("c1")]);
+    await camada.definir("supl", []);
+    await camada.definir("supl", [{ ...m("c1"), url: "data:c1-outro-nivel" }]);
+    expect(mapa.addMarkers).toHaveBeenCalledTimes(2);
+    expect(mapa.addMarkers.mock.calls[1][0][0].opacity).toBe(0);
+    expect(passagens(mostrar).at(-1).slice(0, 2)).toEqual([["n2"], []]);
     await espera(MS_PASSAGEM + 140);
     expect(mapa.removeMarkers).toHaveBeenCalledWith(["n1"]);
     await camada.limpar();
@@ -304,5 +318,22 @@ describe("G382-8 — o remendo do mapa nativo (marcadores juntos; mostrar e esco
     const { readFileSync } = await import("node:fs");
     const fonte = readFileSync("src/components/mapa/MapaGoogleNativo.jsx", "utf8");
     expect(fonte).toMatch(/maikeMostrar\(\{ id: mapa\.id, mostrar: entram, esconder: saem, ms \}\)/);
+  });
+});
+
+describe("G382-9 — os nomes se ajustam enquanto o mapa mexe (só com o APK que mostra e esconde)", () => {
+  it("o componente só ouve a câmera a cada quadro para os nomes quando a troca é leve", async () => {
+    const { readFileSync } = await import("node:fs");
+    const fonte = readFileSync("src/components/mapa/MapaGoogleNativo.jsx", "utf8");
+    expect(fonte).toContain("aoVivo = Boolean(nativos && (await nativos.liso));");
+    expect(fonte).toContain("if (camada || aoVivo) avisarCamera(ultimaCamera, false);");
+  });
+
+  it("a camada diz se o APK sabe mostrar e esconder", async () => {
+    const { criarMarcadoresNativos } = await import("@/lib/mapaNativo/marcadoresNativos.js");
+    const mapa = { addMarkers: vi.fn(async () => []), removeMarkers: vi.fn(async () => {}) };
+    expect(await criarMarcadoresNativos(mapa, { mostrar: async () => {} }).liso).toBe(true);
+    expect(await criarMarcadoresNativos(mapa, { mostrar: async () => Promise.reject(new Error("x")) }).liso).toBe(false);
+    expect(await criarMarcadoresNativos(mapa).liso).toBe(false);
   });
 });

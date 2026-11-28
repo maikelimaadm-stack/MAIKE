@@ -72,7 +72,7 @@ export async function imagemComAncora(url, w, h, ax, ay) {
 }
 
 /** D-PROD-382: os grupos pedidos dentro deste tempo (ms) vão para o mapa juntos (os ícones não aparecem um por um). */
-export const MS_JUNTAR_GRUPOS = 40;
+export const MS_JUNTAR_GRUPOS = 24;
 
 /**
  * Tamanho e âncora (px da imagem) de um marcador no zoom.
@@ -90,7 +90,7 @@ export function geometriaNoZoom(m, zoom) {
 }
 
 /** D-PROD-382: a passagem (ms) de quem aparece e some no mapa. */
-export const MS_PASSAGEM = 140;
+export const MS_PASSAGEM = 110;
 /** D-PROD-382: quantos marcadores escondidos ficam guardados no mapa para voltar sem refazer. */
 export const LIMITE_GUARDADOS = 1500;
 /** D-PROD-382: depois de uma troca, a espera (ms) para pôr no mapa, escondidos, os outros níveis dos nomes. */
@@ -219,9 +219,16 @@ export function criarMarcadoresNativos(mapa, { mostrar } = {}) {
     try {
       const validos = por.filter((_, i) => prontos[i]);
       const paraOMapa = /** @type {any[]} */ (prontos.filter(Boolean));
-      // liso: os novos entram escondidos e aparecem na passagem, junto com os que voltam
-      if (liso) for (const n of paraOMapa) n.opacity = 0;
       const entraDeNovo = new Set(validos.map(([k]) => k));
+      // o que está à vista e só muda de desenho ou de lugar (a contagem do lote, o nome puxado para o lado): troca seca,
+      // sem passagem (dois desenhos quase iguais se misturando parecem "carregando")
+      /** @type {Set<string>} */
+      const trocaSeca = new Set();
+      if (liso) for (const k of tirar) if (entraDeNovo.has(k) && itens.get(k)?.visivel) trocaSeca.add(k);
+      // liso: os novos entram escondidos e aparecem na passagem, junto com os que voltam
+      if (liso) validos.forEach(([k], i) => void (paraOMapa[i].opacity = trocaSeca.has(k) ? 1 : 0));
+      /** @type {string[]} */
+      const tirarJa = [];
       /** @type {string[]} */
       const tirarAntes = [];
       /** @type {string[]} */
@@ -232,9 +239,12 @@ export function criarMarcadoresNativos(mapa, { mostrar } = {}) {
         const it = itens.get(k);
         if (it?.idNativo) {
           porNativo.delete(it.idNativo);
-          if (!liso && it.m.semToque && entraDeNovo.has(k)) tirarAntes.push(it.idNativo);
-          else tirarDepois.push(it.idNativo);
-          if (it.visivel) somem.push(it.idNativo);
+          if (trocaSeca.has(k)) tirarJa.push(it.idNativo);
+          else if (!liso && it.m.semToque && entraDeNovo.has(k)) tirarAntes.push(it.idNativo);
+          else {
+            tirarDepois.push(it.idNativo);
+            if (it.visivel) somem.push(it.idNativo);
+          }
         }
         itens.delete(k);
       }
@@ -247,9 +257,10 @@ export function criarMarcadoresNativos(mapa, { mostrar } = {}) {
         itens.set(k, { m, idNativo, assinatura: a, visivel: true, naLista: true });
         if (idNativo) {
           porNativo.set(idNativo, k);
-          aparecem.push(idNativo);
+          if (!trocaSeca.has(k)) aparecem.push(idNativo);
         }
       });
+      if (tirarJa.length) await mapa.removeMarkers(tirarJa);
       if (!liso) {
         if (tirarDepois.length) await mapa.removeMarkers(tirarDepois);
       } else {
@@ -372,6 +383,8 @@ export function criarMarcadoresNativos(mapa, { mostrar } = {}) {
 
   return {
     definir,
+    /** O APK sabe mostrar e esconder (D-PROD-382)? @type {Promise<boolean>} */
+    liso: suporte,
     /** O toque num marcador nativo: devolve o marcador (o clique é de quem chama). @param {string} idNativo */
     marcadorDoToque(idNativo) {
       const k = porNativo.get(String(idNativo));
