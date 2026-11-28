@@ -1,6 +1,7 @@
 /**
  * D-PROD-310 — a quantidade digitada numa UNIDADE DE CONVERSÃO do cadastro do produto (D-PROD-288) no cocho, nas duas
- * transferências entre depósitos (a do mapa e a da tela Estoque, o mesmo comando) e na linha de produto da atividade.
+ * transferências entre depósitos (a do mapa e a da tela Estoque, o mesmo comando); a linha de produto da atividade saiu
+ * com as atividades (D-PROD-383).
  * Emenda da Constituição aprovada pelo proprietário em 2026-11-25. PostgreSQL real, pela API.
  *
  * Para cada origem:
@@ -76,11 +77,9 @@ const montar = async () => {
   ok(await cadastro(outro, [{ sigla: 'SC', operacao: 'MULTIPLICA', fator: '40' }]));
   ok(await H.req('PATCH', `/produtos/${sal.id}`, s.token, { controla_lote: true, controla_validade: true }));
   ok(await cadastro(sal, [{ sigla: 'BALDE', operacao: 'MULTIPLICA', fator: '4' }]));
-  const grupo = await p.grupoAtividade.create({ data: { cliente_id: s.c, nome_grupo: `GRUPO ${suf}` } });
-  const tipo = await p.tipoAtividade.create({ data: { cliente_id: s.c, nome_tipo: `ADUBAÇÃO ${suf}`, grupo_atividade_id: grupo.id, grupo_atividade_nome: grupo.nome_grupo, permite_produto: true } });
   const conversoes = async (produto) => p.produtoUnidadeConversao.findMany({ where: { produto_id: produto.id }, orderBy: { sigla: 'asc' } });
   const idDaSigla = async (produto, sigla) => (await conversoes(produto)).find((c) => c.sigla === sigla).id;
-  return { ...s, racao, sal, outro, compra, tipo, cadastro, conversoes, idDaSigla };
+  return { ...s, racao, sal, outro, compra, cadastro, conversoes, idDaSigla };
 };
 
 const entrar = async (x, produto, local, kg, custo, lote = null, validade = null) =>
@@ -230,99 +229,7 @@ describe('UC-2 — transferência entre depósitos (mapa e tela Estoque)', () =>
   });
 });
 
-// ── Atividade ───────────────────────────────────────────────────────────────
-let seq = 0;
-const atividade = async (x) => {
-  const a = ok(await H.req('POST', '/atividades', x.token, {
-    empresa_id: x.e1.id, nome: `Adubação ${++seq}`, tipo_atividade_id: x.tipo.id, data_inicio: '2027-06-01', data_prevista_fim: '2027-06-30',
-  }), 201);
-  const base = `/atividades/${a.id}/apontamentos`;
-  let ap = ok(await H.req('POST', base, x.token, { empresa_id: a.empresa_id, data_operacional: '2027-06-10', area_executada_dia: '10' }), 201).apontamento;
-  const guardar = (r) => {
-    if (r.statusCode < 300) ap = r.json().apontamento;
-    return r;
-  };
-  return {
-    lancar: async (produto, corpo) => guardar(await H.req('POST', `${base}/${ap.id}/produtos`, x.token, {
-      empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), produto_id: produto.id, local_estoque_id: x.local.id, ...corpo,
-    })),
-    editar: async (linha, campos) => guardar(await H.req('PATCH', `${base}/${ap.id}/produtos/${linha.id}`, x.token, { empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), ...campos })),
-    lancamento: (produtos) => H.req('POST', base, x.token, { empresa_id: a.empresa_id, data_operacional: '2027-06-11', area_executada_dia: '5', operation_id: opId(), produtos }),
-  };
-};
-const movimentoDaLinha = (linha) => prisma().movimentacaoEstoque.findUnique({ where: { id: linha.movimentacao_estoque_id } });
-
-describe('UC-3 — linha de produto da atividade', () => {
-  test('2 SACO → 50 kg na linha (unidade KG) e no movimento, com SACO, 2 e 25; a dose/ha é em kg; as opções de produto trazem as conversões ativas', async () => {
-    const x = await montar();
-    await entrar(x, x.racao, x.local, '500', '2');
-    const at = await atividade(x);
-    const r = ok(await at.lancar(x.racao, { unidade_lancamento: 'SACO', quantidade_lancamento: '2' }), 201);
-    assert.deepEqual([r.linha.quantidade, r.linha.unidade, ...unidadeDe(r.linha), r.linha.dose_ha], ['50.0000', 'KG', 'SACO', '2.0000', '25.0000', '5.0000']);
-    assert.deepEqual(unidadeDe(await movimentoDaLinha(r.linha)), ['SACO', '2.0000', '25.0000']);
-    const opcoes = ok(await H.req('GET', `/atividades-opcoes/produtos?empresa_id=${x.e1.id}&q=${encodeURIComponent(x.racao.nome_produto)}`, x.token));
-    const item = (opcoes.items ?? opcoes.itens).find((o) => o.id === x.racao.id);
-    assert.deepEqual(item.unidades_conversao.map((c) => [c.sigla, c.equivalencia]), [['SACO', '1 SACO = 25 KG'], ['G', '1 G = 0,001 KG']]);
-  });
-
-  test('inválida → 422 (desativada, desconhecida, de outro produto, divergente), nada gravado; sem unidade, como sempre', async () => {
-    const x = await montar();
-    await entrar(x, x.racao, x.local, '500', '2');
-    const at = await atividade(x);
-    const antes = await movimentos(x);
-    erro(await at.lancar(x.racao, { unidade_lancamento: 'BALDE', quantidade_lancamento: '1' }), 422, 'UNIDADE_LANCAMENTO_INVALIDA', 'unidade_inativa');
-    erro(await at.lancar(x.racao, { unidade_lancamento: 'TAMBOR', quantidade_lancamento: '1' }), 422, 'UNIDADE_LANCAMENTO_INVALIDA', 'unidade_nao_cadastrada');
-    erro(await at.lancar(x.racao, { unidade_lancamento: await x.idDaSigla(x.outro, 'SC'), quantidade_lancamento: '1' }), 422, 'UNIDADE_LANCAMENTO_INVALIDA', 'unidade_de_outro_produto');
-    erro(await at.lancar(x.racao, { unidade_lancamento: 'SACO', quantidade_lancamento: '1', quantidade: '20' }), 422, 'UNIDADE_LANCAMENTO_INVALIDA', 'quantidade_divergente');
-    erro(await at.lancar(x.racao, { unidade_lancamento: 'SACO', quantidade_lancamento: 1 }), 400, 'REQUEST_VALIDATION_FAILED');
-    assert.equal(await movimentos(x), antes, 'nada gravado');
-    const r = ok(await at.lancar(x.racao, { quantidade: '10' }), 201);
-    assert.deepEqual([r.linha.quantidade, ...unidadeDe(r.linha)], ['10.0000', ...SEM]);
-    assert.deepEqual(unidadeDe(await movimentoDaLinha(r.linha)), SEM);
-  });
-
-  test('editar mantém o fator GRAVADO: o cadastro passa a 30, editar a observação fica em 50 kg (25); 3 SACO = 75 kg (25, não 30); só a quantidade em kg tira a conversão', async () => {
-    const x = await montar();
-    await entrar(x, x.racao, x.local, '500', '2');
-    const at = await atividade(x);
-    const r = ok(await at.lancar(x.racao, { unidade_lancamento: 'SACO', quantidade_lancamento: '2', quantidade: '50' }), 201);
-    ok(await x.cadastro(x.racao, [{ sigla: 'SACO', operacao: 'MULTIPLICA', fator: '30' }, { sigla: 'G', operacao: 'DIVIDE', fator: '1000' }]));
-    const e1 = ok(await at.editar(r.linha, { observacao: 'conferido' }));
-    assert.deepEqual([e1.linha.quantidade, ...unidadeDe(e1.linha)], ['50.0000', 'SACO', '2.0000', '25.0000']);
-    const e2 = ok(await at.editar(e1.linha, { unidade_lancamento: 'SACO', quantidade_lancamento: '3' }));
-    assert.deepEqual([e2.linha.quantidade, ...unidadeDe(e2.linha)], ['75.0000', 'SACO', '3.0000', '25.0000']);
-    assert.deepEqual(unidadeDe(await movimentoDaLinha(e2.linha)), ['SACO', '3.0000', '25.0000']);
-    // A tela que confere com o fator novo (90 kg) diverge da conta do servidor (o gravado): 422, nada gravado.
-    erro(await at.editar(e2.linha, { unidade_lancamento: 'SACO', quantidade_lancamento: '3', quantidade: '90' }), 422, 'UNIDADE_LANCAMENTO_INVALIDA', 'quantidade_divergente');
-    const e3 = ok(await at.editar(e2.linha, { quantidade: '10' }));
-    assert.deepEqual([e3.linha.quantidade, ...unidadeDe(e3.linha)], ['10.0000', ...SEM]);
-    // De volta para uma unidade de conversão: a linha nova não tem fator gravado → o do cadastro (30).
-    const e4 = ok(await at.editar(e3.linha, { unidade_lancamento: 'SACO', quantidade_lancamento: '1' }));
-    assert.deepEqual([e4.linha.quantidade, ...unidadeDe(e4.linha)], ['30.0000', 'SACO', '1.0000', '30.0000']);
-    assert.equal(await saldo(x.racao, x.local), '470.0000');
-  });
-
-  test('a escolha do lote com a unidade e os produtos[] do lançamento (o caminho do registro e dos "Jatos de hoje")', async () => {
-    const x = await montar();
-    const L = await doisLotes(x);
-    await entrar(x, x.racao, x.local, '500', '2');
-    const at = await atividade(x);
-    const r = ok(await at.lancar(x.sal, { unidade_lancamento: 'BALDE', quantidade_lancamento: '5', lotes: [{ estoque_lote_nota_id: L.A, quantidade: '12' }, { estoque_lote_nota_id: L.B, quantidade: '8' }] }), 201);
-    assert.equal(r.linha.custo_total, '96.0000');
-    assert.deepEqual([r.linha.quantidade, ...unidadeDe(r.linha)], ['20.0000', 'BALDE', '5.0000', '4.0000']);
-    // Editar só a observação: mesma unidade e quantidade → os MESMOS lotes (A 12 + B 8).
-    const e = ok(await at.editar(r.linha, { observacao: 'ok' }));
-    assert.equal(e.linha.custo_total, '96.0000');
-    const l = ok(await at.lancamento([
-      { produto_id: x.racao.id, local_estoque_id: x.local.id, unidade_lancamento: 'G', quantidade_lancamento: '2500' },
-      { produto_id: x.racao.id, local_estoque_id: x.local.id, quantidade: '1' },
-    ]), 201);
-    const linhas = l.apontamento.produtos;
-    assert.deepEqual(linhas.map((p) => [p.quantidade, ...unidadeDe(p)]), [['2.5000', 'G', '2500.0000', '0.0010'], ['1.0000', ...SEM]]);
-  });
-});
-
-describe('UC-4 — a sigla usada no cocho, na transferência ou na atividade não se apaga do cadastro', () => {
+describe('UC-4 — a sigla usada no cocho ou na transferência não se apaga do cadastro', () => {
   test('tirar o SACO da lista depois de um cocho com SACO → desativado (o histórico fica); o G, nunca usado, sai', async () => {
     const x = await montar();
     await entrar(x, x.racao, x.local, '500', '2');
