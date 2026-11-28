@@ -25,7 +25,8 @@ vi.mock("@/lib/maplibre/lotesNoMapa.js", async (orig) => {
   };
 });
 
-import { ESCALA_NOME_FIXO, LADO_MINIMO_PASTO_PX, caixaDoNomeFixo, montarNomes, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
+import { ESCALA_NOME_FIXO, LADO_MINIMO_PASTO_PX, caixaDoNomeFixo, caixaDoPastoNaTela, montarNomes, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
+import { projetarNaCamera } from "@/lib/mapaNativo/camadaDeImagens.js";
 import useMarcadoresGoogle from "@/components/mapa/useMarcadoresGoogle.js";
 import { DESLOC_NOME_COM_LOTE_PX } from "@/lib/maplibre/nomesNoMapa.js";
 
@@ -91,6 +92,17 @@ describe("G379-1 — quais nomes aparecem, com tamanho fixo", () => {
     // o lote de outro pasto parado em cima do nome
     const outro = new Map([["x", { lat: n.lat - 0.00012, lng: n.lng, tamanho: { w: 44, h: 42 } }]]);
     expect(nomesFixosNaCamera(nomes, camera(k), outro).visiveis.has("a")).toBe(false);
+  });
+
+  it("mapa girado 45°: a caixa do pasto usa os 4 cantos (não achata) e o pasto grande segue com nome", () => {
+    const b = { oeste: -47, sul: -15.01, leste: -46.99, norte: -15 };
+    const girado = /** @type {any} */ (projetarNaCamera({ latitude: -15.005, longitude: -46.995, zoom: 17, bearing: 45 }, 800, 600));
+    const c = /** @type {any} */ (caixaDoPastoNaTela(b, girado));
+    expect(c.w).toBeGreaterThan(800);
+    expect(c.h).toBeGreaterThan(800);
+    const nomes = montarNomes([quadrado("a", -15, -47, 0.01)]);
+    const cam = { zoom: 16, projetar: girado, largura: 800, altura: 600 };
+    expect(nomesFixosNaCamera(nomes, cam, new Map()).visiveis.has("a")).toBe(true);
   });
 
   it("pasto pequeno demais na tela: sem nome", () => {

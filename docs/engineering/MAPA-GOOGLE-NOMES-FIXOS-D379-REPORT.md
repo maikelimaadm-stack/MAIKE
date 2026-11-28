@@ -55,7 +55,7 @@ A imagem só ganha a margem transparente que o ponto de âncora precisa, e a ân
 
 ## Testes
 
-- `mapaGoogleNomesFixosD379.test.jsx` (7, novo).
+- `mapaGoogleNomesFixosD379.test.jsx` (8, novo). Com o mapa girado, a caixa do pasto usa os quatro cantos.
 - N354-2: o contorno.
 - G374-3: a margem mínima.
 - G376-3: `nomesFixos`.

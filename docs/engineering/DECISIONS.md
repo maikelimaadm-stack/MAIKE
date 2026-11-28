@@ -11235,7 +11235,7 @@ No Diário, a lista "Em andamento neste pasto" mostra um cartão por frente (má
   - **Os ícones não mudam:** mesmo desenho e mesma proporção de zoom de antes.
   - **Marcadores com a margem mínima:** a imagem só cresce o que o ponto de âncora precisa, e a âncora vai no ponto. Antes ela ia no meio e a imagem dobrava. Com imagens menores, o mapa trabalha menos.
 - **Testes:**
-  - `mapaGoogleNomesFixosD379.test.jsx` (7).
+  - `mapaGoogleNomesFixosD379.test.jsx` (8). Com o mapa girado, a caixa do pasto na tela usa os quatro cantos (`caixaDoPastoNaTela`, achado do Codex). Antes eram dois cantos e a caixa achatava. Isso vale também para o nível do site.
   - N354-2 cobre o contorno: ordem, espessura, cor e o tamanho da imagem com a margem.
   - G374-3 cobre a margem mínima e a âncora no ponto.
   - G376-3 confere `nomesFixos` no app.

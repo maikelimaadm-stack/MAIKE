@@ -78,6 +78,23 @@ export function montarNomes(areas, { extraTextFn = null, showHectares = true } =
 }
 
 /**
+ * A caixa do pasto na tela (px): os QUATRO cantos projetados (com o mapa girado, dois cantos opostos podem ficar
+ * alinhados e a caixa sairia achatada).
+ * @param {{ oeste: number, sul: number, leste: number, norte: number }} b
+ * @param {(lat: number, lng: number) => ({ x: number, y: number } | null)} projetar
+ * @returns {{ x: number, y: number, w: number, h: number } | null}
+ */
+export function caixaDoPastoNaTela(b, projetar) {
+  const cantos = [projetar(b.norte, b.oeste), projetar(b.norte, b.leste), projetar(b.sul, b.oeste), projetar(b.sul, b.leste)];
+  if (cantos.some((c) => !c)) return null;
+  const xs = cantos.map((c) => /** @type {{ x: number }} */ (c).x);
+  const ys = cantos.map((c) => /** @type {{ y: number }} */ (c).y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+}
+
+/**
  * Câmera para a escolha do nível: o zoom do MapLibre, a projeção (ponto → px da tela) e o tamanho da tela.
  * @typedef {{ zoom: number, projetar: (lat: number, lng: number) => ({ x: number, y: number } | null), largura: number, altura: number }} CameraNomes
  */
@@ -99,12 +116,11 @@ export function nivelDosNomes(nomes, camera, lotes, { soNaTela = false } = {}) {
   for (const [id, n] of nomes) {
     const b = n.caixa;
     if (!b) continue;
-    const a = projetar(b.norte, b.oeste);
-    const c = projetar(b.sul, b.leste);
+    const caixa = caixaDoPastoNaTela(b, projetar);
     const p = projetar(n.lat, n.lng);
-    if (!a || !c || !p) continue;
-    const x0 = Math.min(a.x, c.x), x1 = Math.max(a.x, c.x);
-    const y0 = Math.min(a.y, c.y), y1 = Math.max(a.y, c.y);
+    if (!caixa || !p) continue;
+    const x0 = caixa.x, x1 = caixa.x + caixa.w;
+    const y0 = caixa.y, y1 = caixa.y + caixa.h;
     if (alvo) {
       if (x1 < -largura / 4 || x0 > largura * 1.25 || y1 < -altura / 4 || y0 > altura * 1.25) continue;
       alvo.add(id);
@@ -200,11 +216,9 @@ export function nomesFixosNaCamera(nomes, camera, lotes, icones = []) {
   for (const [id, n] of nomes) {
     const b = n.caixa;
     if (!b) continue;
-    const a = projetar(b.norte, b.oeste);
-    const c = projetar(b.sul, b.leste);
+    const area = caixaDoPastoNaTela(b, projetar);
     const p = projetar(n.lat, n.lng);
-    if (!a || !c || !p) continue;
-    const area = { x: Math.min(a.x, c.x), y: Math.min(a.y, c.y), w: Math.abs(c.x - a.x), h: Math.abs(c.y - a.y) };
+    if (!area || !p) continue;
     const comLote = lotes.has(id);
     itens.push({
       id,
