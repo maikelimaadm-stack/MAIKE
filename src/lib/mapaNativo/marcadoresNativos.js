@@ -280,7 +280,8 @@ export function criarMarcadoresNativos(mapa, { mostrar } = {}) {
           // uns saem e outros entram no mesmo lugar (sigla ↔ nome): troca seca — dois textos se misturando parecem defeito.
           // Só aparecer ou só sumir: com a passagem curta.
           const ms = aparecem.length && somem.length ? 0 : MS_PASSAGEM;
-          await mostrar(aparecem, somem, ms).catch(() => {});
+          // se a chamada falhar, tenta de novo sem passagem: um ícone novo nunca fica invisível no mapa
+          await mostrar(aparecem, somem, ms).catch(() => mostrar(aparecem, somem, 0).catch(() => {}));
         }
         // os trocados saem do mapa depois da passagem (já estão invisíveis)
         if (tirarDepois.length) {

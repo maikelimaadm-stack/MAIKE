@@ -188,3 +188,41 @@ describe("CH-6 — o ícone do marcador nítido", () => {
     expect(kt).not.toMatch(/devicePixelRatio\)\.toInt\(\),\n\s+false\n/);
   });
 });
+
+describe("CH-7 — revisão de ruídos e aberturas", () => {
+  it("abrir o mapa: quem começa a ouvir a câmera recebe na hora a câmera em que o mapa abriu (os nomes não esperam o 1º toque)", () => {
+    const fonte = readFileSync("src/components/mapa/MapaGoogleNativo.jsx", "utf8");
+    expect(fonte).toContain("let ultimaParada = { latitude: config.center.lat, longitude: config.center.lng, zoom: config.zoom, bearing: 0 };");
+    expect(fonte).toMatch(/ouvintesCamera\.add\(f\);\n\s+const projetar = el \? projetarNaCamera\(ultimaParada/);
+    expect(fonte).toContain("if (final && Number.isFinite(camera?.latitude)) ultimaParada = camera;");
+  });
+
+  it("o nome escondido não é refeito fora da vista; o lugar do nome com lote não muda só por causa do zoom", async () => {
+    const enviar = vi.fn(async () => {});
+    const chao = criarNomesNoChao(enviar);
+    const n = (extra = {}) => ({ chave: "a", url: "data:a", lat: -15, lng: -47, ancoraY: 0.5, metros: 100, visivel: true, ...extra });
+    await chao.definir([n()]);
+    await chao.definir([n({ visivel: false, lat: -15.001, metros: 30 })]);
+    expect(enviar.mock.calls[1][0]).toMatchObject({ por: [], tamanhos: [], esconder: ["a"] });
+    await chao.definir([n({ visivel: false, lat: -15.002 })]);
+    expect(enviar).toHaveBeenCalledTimes(2);
+    // ao aparecer de novo, é acertado
+    await chao.definir([n({ lat: -15.002 })]);
+    expect(enviar.mock.calls[2][0].por).toHaveLength(1);
+
+    // com lote, no tamanho que cabe no pasto: o mesmo lugar em dois zooms (a folga é parte da altura do nome)
+    const definirNomesNoChao = vi.fn();
+    const areas = [quadrado("a", -15, -47, 0.004)];
+    const { result } = renderHook(() => useMarcadoresGoogle({ definirMarcadores: vi.fn(), definirNomesNoChao, nomesFixos: true }));
+    await result.current.syncLabels(areas, true, null, true);
+    await result.current.syncLotes([{ id: "l1", area_atual_id: "a", quantidade_cabecas: 30 }], areas, true, [], vi.fn(), null, false, false);
+    await Promise.resolve();
+    await Promise.resolve();
+    result.current.revisarNomes(camera(13, true));
+    const a13 = definirNomesNoChao.mock.calls.at(-1)[0][0];
+    result.current.revisarNomes(camera(12.6, true));
+    const a12 = definirNomesNoChao.mock.calls.at(-1)[0][0];
+    expect(a12.metros).toBeCloseTo(a13.metros, 6);
+    expect(a12.lat).toBeCloseTo(a13.lat, 9);
+  });
+});

@@ -186,8 +186,13 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
         /** @type {ReturnType<typeof projetarNaCamera>} */
         let projecao = null;
         let recebeMovimento = false;
+        // D-PROD-382: a câmera em que o mapa abriu. Quem começa a ouvir a câmera a recebe na hora: os nomes dos pastos
+        // aparecem ao abrir o mapa, sem esperar o primeiro toque (o mapa só avisa a câmera quando para de mexer).
+        /** @type {any} */
+        let ultimaParada = { latitude: config.center.lat, longitude: config.center.lng, zoom: config.zoom, bearing: 0 };
         /** @param {any} camera @param {boolean} final */
         const avisarCamera = (camera, final) => {
+          if (final && Number.isFinite(camera?.latitude)) ultimaParada = camera;
           if (!ouvintesCamera.size || !el) return;
           const largura = el.clientWidth;
           const altura = el.clientHeight;
@@ -316,6 +321,8 @@ export default function MapaGoogleNativo({ areas, areasDaFazenda, areasCarregada
                 /** @param {(c: any) => void} f */
                 aoMudarCamera: (f) => {
                   ouvintesCamera.add(f);
+                  const projetar = el ? projetarNaCamera(ultimaParada, el.clientWidth, el.clientHeight) : null;
+                  if (projetar) f({ zoom: zoomDoMapLibre(ultimaParada.zoom), projetar, largura: el.clientWidth, altura: el.clientHeight, final: true });
                   return () => ouvintesCamera.delete(f);
                 },
               }

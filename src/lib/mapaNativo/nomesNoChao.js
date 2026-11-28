@@ -17,6 +17,12 @@ export const FATOR_MAXIMO = 1;
 export const FATOR_MINIMO = 0.36;
 /** O nome ocupa no máximo esta parte do espaço livre do pasto. */
 export const OCUPACAO = 1;
+/** Com lote, o espaço entre o ponto do pasto e o topo do nome, em parte da altura do nome. */
+export const FOLGA_ABAIXO_DO_LOTE = 0.15;
+/** O nome que aparece com menos desta parte da letra de 12 px usa a imagem menor (letra nítida, sem serrilhado). */
+export const FATOR_DA_IMAGEM_PEQUENA = 0.6;
+/** A imagem menor tem esta parte dos pixels da normal. */
+export const PARTE_DA_IMAGEM_PEQUENA = 0.6;
 /** O tamanho no chão só é refeito quando muda mais do que isto (proporção). */
 export const DIFERENCA_DE_TAMANHO = 0.03;
 
@@ -68,6 +74,14 @@ export function criarNomesNoChao(enviar) {
           // (o novo entra antes de o velho sair, na mesma passada: não pisca)
           const desenho = `${n.url.length}|${n.url.slice(-48)}|${n.lat.toFixed(6)}|${n.lng.toFixed(6)}|${n.ancoraY}`;
           const a = noMapa.get(n.chave);
+          // escondido e já no mapa: fica como está (nada é refeito fora da vista); ao aparecer, é acertado
+          if (a && !n.visivel) {
+            if (a.visivel) {
+              esconder.push(n.chave);
+              a.visivel = false;
+            }
+            continue;
+          }
           if (!a || a.desenho !== desenho) {
             por.push({ chave: n.chave, url: n.url, lat: n.lat, lng: n.lng, ancoraY: n.ancoraY, metros: n.metros, visivel: n.visivel, z: 1 });
             noMapa.set(n.chave, { desenho, metros: n.metros, visivel: n.visivel });

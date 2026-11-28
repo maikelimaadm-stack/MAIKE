@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { itensDaSuplementacao, itensDasTarefas, itensDosLotes, itensDosPontos } from "@/lib/maplibre/itensDoMapaGeral.js";
-import { metrosPorPx, tamanhoNoChao } from "@/lib/mapaNativo/nomesNoChao.js";
+import { FATOR_DA_IMAGEM_PEQUENA, FOLGA_ABAIXO_DO_LOTE, PARTE_DA_IMAGEM_PEQUENA, tamanhoNoChao } from "@/lib/mapaNativo/nomesNoChao.js";
 import { ESCALA_NOME_FIXO, NIVEIS, colocacaoDoNome, montarNomes, nivelDosNomes, nomesFixosNaCamera } from "@/lib/mapaNativo/nomesGoogle.js";
 import { DESLOC_NOME_COM_LOTE_PX, avisarFalhaNome, esperarFonteDosNomes, pedidoImagemNome } from "@/lib/maplibre/nomesNoMapa.js";
 import {
@@ -136,6 +136,11 @@ export default function useMarcadoresGoogle(mapa) {
       const nivelDe = (/** @type {any} */ n) => (n.niveis.tudo.linhas.length ? n.niveis.tudo : n.niveis.nome);
       const pedidos = [];
       for (const n of nomes.values()) if (nivelDe(n).linhas.length) pedidos.push(pedidoImagemNome(nivelDe(n).linhas, pr));
+      // a mesma imagem com metade dos pixels, para o nome que aparece pequeno: reduzir muito uma imagem grande dá
+      // serrilhado ("ruído") na letra
+      const prMenor = pr * PARTE_DA_IMAGEM_PEQUENA;
+      const pedidosMenores = [];
+      for (const n of nomes.values()) if (nivelDe(n).linhas.length) pedidosMenores.push(pedidoImagemNome(nivelDe(n).linhas, prMenor));
       const aplicar = () => {
         if (seqRef.current.nomes !== seq) return;
         const camera = cameraRef.current;
@@ -143,17 +148,20 @@ export default function useMarcadoresGoogle(mapa) {
         for (const n of nomes.values()) {
           const d = nivelDe(n);
           const r = d.linhas.length ? imagemPronta(d.chave, pr) : null;
-          const url = r ? urlDaImagem(r, d.chave) : null;
-          if (!r || !url) continue;
+          if (!r) continue;
           const comLote = lotesInfoRef.current.has(n.id);
           // sem câmera ainda (o mapa avisa quando para): o nome entra escondido
           const t = tamanhoNoChao({ w: r.w, h: r.h }, n.pf, n.lat, comLote, camera ? camera.zoom : 14);
           // Sempre preso pelo MEIO da imagem (ao mudar de tamanho, o mapa refaz a imagem em volta do meio: preso pelo
           // topo, o nome subia para cima do lote). Com lote, o meio fica meia altura (+ 3 px) abaixo do ponto: o topo do
           // nome logo abaixo do ícone, sem encostar nele.
-          const mpp = metrosPorPx(n.lat, camera ? camera.zoom : 14);
-          const desce = comLote ? (t.metros * r.h) / r.w / 2 + 3 * mpp : 0;
+          // (a folga é uma parte da altura do nome, não px da tela: o lugar não muda a cada zoom e o nome não é refeito)
+          const alturaM = (t.metros * r.h) / r.w;
+          const desce = comLote ? alturaM * (0.5 + FOLGA_ABAIXO_DO_LOTE) : 0;
           const lat = n.lat - desce / 110574;
+          const pequena = t.fator < FATOR_DA_IMAGEM_PEQUENA ? imagemPronta(d.chave, prMenor) : null;
+          const url = urlDaImagem(pequena || r, d.chave);
+          if (!url) continue;
           lista.push({ chave: n.id, url, lat, lng: n.lng, ancoraY: 0.5, metros: t.metros, visivel: Boolean(camera) && t.visivel });
         }
         // TODOS juntos (pedido do proprietário): ou todos os nomes aparecem, ou nenhum — nunca um some e outro fica.
@@ -163,12 +171,12 @@ export default function useMarcadoresGoogle(mapa) {
         for (const x of lista) x.visivel = todos;
         mapa.definirNomesNoChao(lista);
       };
-      const espera = garantirImagens(pedidos, pr, avisarFalhaNome);
-      if (!espera) {
+      const esperas = [garantirImagens(pedidos, pr, avisarFalhaNome), garantirImagens(pedidosMenores, prMenor, avisarFalhaNome)].filter(Boolean);
+      if (!esperas.length) {
         aplicar();
         return Promise.resolve();
       }
-      return espera.then(aplicar);
+      return Promise.all(esperas).then(aplicar);
     };
     /** Os ícones (menos os de lote, que já vão em `lotesInfoRef`) como obstáculos dos nomes. */
     const iconesObstaculo = () => Object.values(iconesRef.current).flat();
