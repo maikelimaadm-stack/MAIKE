@@ -1,6 +1,6 @@
 # MAIKE — Estoque na unidade do cadastro: runbook de release (D-PROD-371, UE-1)
 
-> **Estado: PENDENTE.** `SCHEMA_APPLIED_PROD: NÃO`. Registro no §7.
+> **Estado: APLICADA em 2026-11-27.** `SCHEMA_APPLIED_PROD: SIM`. Registro no §7.
 >
 > Este documento é o plano. Cada passo exige o GO do proprietário. Ele para no primeiro desvio com **`RELEASE_BLOCKED`**.
 > Valores entre `<…>` são preenchidos na hora, a partir de leituras reais.
@@ -18,7 +18,7 @@ troca de um CHECK com o mesmo nome, o tipo do funcionário (D-PROD-209).
 | Natureza | **CONTRACT condicionado, formato de sempre** (sem DROP TABLE, sem resto, sem DML). Os 6 CHECKs são recriados mais largos, com o mesmo nome: `ProdutoUnidadeConversao_sigla_check` (sai o `NOT IN ('KG','L','UN')`), `EntradaEstoqueItem_unidade_check`, `SaidaEstoqueItem_unidade_check` e `AjusteEstoqueItem_unidade_check` (sai o `<> 'UN'`), `OperacaoFinanceiraItem_forma_check` (a mercadoria sem o `<> 'UN'`; o serviço continua `= 'UN'`) e `AtividadeApontamentoProduto_valores_check` (`unidade IN ('L','KG')` vira unidade não vazia). Nenhuma coluna, tabela ou dado muda |
 | SHA-256 pinado (`MIGRATIONS_APROVADAS`) | `f9719220fd738d6a522fa0c0967c77dcde0dd6fa498d9ef31744b2387878a77f` |
 | Guarda (`MIGRATIONS_CONTRACT_APROVADAS`) | `8d78338bcd424a644f78ea2a2bc2e506a71af7c57b23c87cf60271224b7a9af7`. Os literais são as 6 tabelas, `UN` e `KG` |
-| `_prisma_migrations` | esperado **83** concluídas e 0 abertas (a última `20261127100000_diario_maquina`, checksum `b1896a7c2d350fe31a313563f97192bd961db4c9b905b235bbecced90bfc0aeb`). Depois, **84**. Recontar no §2: `<a conferir>` |
+| `_prisma_migrations` | esperado **83** concluídas e 0 abertas (a última `20261127100000_diario_maquina`, checksum `b1896a7c2d350fe31a313563f97192bd961db4c9b905b235bbecced90bfc0aeb`). Depois, **84**. Recontado no §2 em 2026-11-27: 83 concluídas e 0 abertas |
 | Tabelas em `public` | `<a conferir>` antes, o mesmo número depois (nenhuma tabela nova; o esperado pela soma dos runbooks é 115) |
 
 **Por que antes do merge (D-PROD-72 item 1):** o código novo aceita estoque em UN e conversão em KG, L ou UN. Com os CHECKs
@@ -142,9 +142,10 @@ fora de L/KG na linha de produto da atividade). Isso seria uma migration nova (C
 
 | Campo | Valor |
 |---|---|
-| Data/hora (UTC) | — |
-| Caminho | — |
-| GO | — |
-| Preflight (§2) | — |
-| Postcheck (§4) | — |
-| Resultado | **PENDENTE** |
+| Data/hora (UTC) | 2026-11-27, cerca de 20:33, antes do merge da PR #460 |
+| Caminho | B: uma transação só (`BEGIN` … guarda … migration.sql … `INSERT` em `_prisma_migrations` com o sha256 do arquivo … `COMMIT`), pelo Supabase, no projeto de produção |
+| GO | o proprietário: "pode continuar" (merge e aplicação), "faça o merge dela para eu testar" e "me envie para a migração quando possível"; confirmou também no pedido do Supabase |
+| Ensaio | o mesmo script com `ROLLBACK` no lugar do `COMMIT`: 84 concluídas e os 6 CHECKs novos dentro da transação, tudo desfeito em seguida |
+| Preflight (§2) | `system_identifier` certo; a migration não estava registrada; 83 concluídas e 0 abertas; `20261127100000_diario_maquina` com o checksum do repositório; os 6 CHECKs no formato anterior; 115 tabelas |
+| Postcheck (§4) | 84 concluídas e 0 abertas; checksum `f9719220fd738d6a522fa0c0967c77dcde0dd6fa498d9ef31744b2387878a77f`; os 4 CHECKs de sigla e unidade sem `'UN'`; o da atividade sem `'KG'`; o do financeiro sem `<> 'UN'`; 115 tabelas |
+| Resultado | **APLICADA** |
