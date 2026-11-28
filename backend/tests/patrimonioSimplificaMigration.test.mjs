@@ -117,7 +117,8 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
     // D-PROD-315: a EXPAND dos índices da sincronização, também: agora 32.
     // D-PROD-323: a EXPAND da mistura no implemento, também: agora 33.
     // D-PROD-371: a CONTRACT do estoque na unidade do cadastro, também: agora 34.
-    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 34, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216, a D-PROD-217, a D-PROD-219, a D-PROD-223, a D-PROD-249, a D-PROD-257, a D-PROD-259, a D-PROD-264, a D-PROD-265, a D-PROD-272, a D-PROD-274, a D-PROD-276, a D-PROD-279 e a D-PROD-283');
+    // D-PROD-383: a CONTRACT que apaga as atividades, também: agora 35.
+    assert.equal(MIGRATIONS_PARTIDA, TOTAL_MIGRATIONS - 35, 'todas as pastas menos esta CONTRACT, a D-PROD-190, a D-PROD-193, a D-PROD-200, a D-PROD-202, a D-PROD-203, a D-PROD-205, a D-PROD-206, a D-PROD-207, a D-PROD-208, a D-PROD-209, a D-PROD-210, a D-PROD-211, a D-PROD-215, a D-PROD-216, a D-PROD-217, a D-PROD-219, a D-PROD-223, a D-PROD-249, a D-PROD-257, a D-PROD-259, a D-PROD-264, a D-PROD-265, a D-PROD-272, a D-PROD-274, a D-PROD-276, a D-PROD-279 e a D-PROD-283');
     assert.equal(h.contract_concluida + h.contract_aberta, 0);
     assert.equal(partida.tabelas, 88);
     // D-PROD-190/191/198: as migrations que dependem do formato novo não estão na partida (nem as tabelas delas).
@@ -253,10 +254,11 @@ describe('D-PROD-162 — migration CONTRACT do Patrimônio simplificado (Postgre
 
     const e = await estruturaNovas(db);
     // D-PROD-211 (aplicada depois): + 3 FKs, 3 CHECKs e 3 índices em AbastecimentoBem (o CHECK de status é recriado, não somado).
-    assert.deepEqual({ pk: e.pk, fk: e.fk, check: e.check, indices: e.indices }, { pk: 7, fk: 31 + 3, check: 32 + 3, indices: 55 + 3 });
+    // D-PROD-383 (por último): − as 2 FKs, o CHECK e os 2 índices do vínculo com a atividade.
+    assert.deepEqual({ pk: e.pk, fk: e.fk, check: e.check, indices: e.indices }, { pk: 7, fk: 31 + 3 - 2, check: 32 + 3 - 1, indices: 55 + 3 - 2 });
     // D-PROD-202: + BemPatrimonial.custo_uso_unitario e TipoPatrimonial.salto_maximo_medidor (anuláveis), aplicadas depois.
-    // D-PROD-211: + as 7 colunas de AbastecimentoBem, aplicadas depois.
-    assert.deepEqual(e.colunas, { AbastecimentoBem: 31 + 7, AbastecimentoBemConsumoLote: 10, BemPatrimonial: 55 + 4, FamiliaPatrimonial: 12, TanqueBem: 9, TanqueBemProduto: 7, TipoPatrimonial: 12 + 4 }); // D-PROD-279: + as 4 do produto do implemento no tipo; D-PROD-297: + as 4 no bem
+    // D-PROD-211: + as 7 colunas de AbastecimentoBem, aplicadas depois; D-PROD-383: − atividade_id e apontamento_id, por último.
+    assert.deepEqual(e.colunas, { AbastecimentoBem: 31 + 7 - 2, AbastecimentoBemConsumoLote: 10, BemPatrimonial: 55 + 4, FamiliaPatrimonial: 12, TanqueBem: 9, TanqueBemProduto: 7, TipoPatrimonial: 12 + 4 }); // D-PROD-279: + as 4 do produto do implemento no tipo; D-PROD-297: + as 4 no bem
 
     assert.deepEqual(await fingerprintV2(db), fpAntes, 'as 75 tabelas que ficam não mudaram (fora os 2 CHECKs alargados)');
     const k = await checksOperacaoItem(db);
