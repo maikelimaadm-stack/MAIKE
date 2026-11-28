@@ -40,7 +40,6 @@ beforeEach(async () => {
 });
 
 const hoje = () => new Date().toISOString().slice(0, 10);
-const opId = () => `op-${randomUUID()}`;
 const ok = (r, status = 200) => {
   assert.equal(r.statusCode, status, r.body);
   return r.json();
