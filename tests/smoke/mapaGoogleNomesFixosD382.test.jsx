@@ -138,13 +138,12 @@ describe("G382-1 — o nível dos nomes de tamanho fixo, o mesmo para todos", ()
     expect(nivelDosNomesFixos(nomes, { ...longe, zoom: ZOOM_MINIMO_NOMES }, new Map())).toBe("tudo");
   });
 
-  it("dois nomes que se encostariam: o segundo vai para o lado livre em vez de ficar por cima", () => {
-    // dois pastos sobrepostos na tela (o mesmo ponto): o maior fica no lugar, o outro é puxado
+  it("dois nomes que se encostariam: não se empurram — o do pasto menor sai (ou o nível desce para todos)", () => {
     const nomes = montarNomes([quadrado("a", -15, -47, 0.01), quadrado("b", -15.002, -46.998, 0.006)]);
     const r = nomesFixosNaCamera(nomes, camera(100000), new Map());
-    expect(r.ocultos.size).toBe(0);
-    expect(r.desloc.has("a")).toBe(false);
-    expect(r.desloc.has("b")).toBe(true);
+    expect(r.desloc.size).toBe(0);
+    expect(r.ocultos.has("a")).toBe(false);
+    expect(r.nivel === "nenhum" || r.ocultos.has("b")).toBe(true);
   });
 
   it("o nível muda no MESMO zoom, aproximando ou afastando (não é preciso afastar mais do que se aproximou)", () => {

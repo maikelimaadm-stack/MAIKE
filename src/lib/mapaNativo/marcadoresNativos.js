@@ -276,7 +276,12 @@ export function criarMarcadoresNativos(mapa, { mostrar } = {}) {
           it.visivel = false;
           if (it.idNativo) somem.push(it.idNativo);
         }
-        if ((aparecem.length || somem.length) && mostrar) await mostrar(aparecem, somem, MS_PASSAGEM).catch(() => {});
+        if ((aparecem.length || somem.length) && mostrar) {
+          // uns saem e outros entram no mesmo lugar (sigla ↔ nome): troca seca — dois textos se misturando parecem defeito.
+          // Só aparecer ou só sumir: com a passagem curta.
+          const ms = aparecem.length && somem.length ? 0 : MS_PASSAGEM;
+          await mostrar(aparecem, somem, ms).catch(() => {});
+        }
         // os trocados saem do mapa depois da passagem (já estão invisíveis)
         if (tirarDepois.length) {
           for (const id of tirarDepois) lixo.add(id);

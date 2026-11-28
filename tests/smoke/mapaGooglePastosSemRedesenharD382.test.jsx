@@ -232,11 +232,12 @@ describe("G382-7 — com o APK que mostra e esconde, nada que já está no mapa 
     await camada.definir("nomes", [m("a", { oculto: true }), m("a|sg"), m("a|ha", { oculto: true })]);
     expect(mapa.addMarkers).toHaveBeenCalledTimes(postos);
     expect(mapa.removeMarkers).not.toHaveBeenCalled();
-    expect(passagens(mostrar).at(-1)).toEqual([["n3"], ["n1", "n2"], MS_PASSAGEM]);
+    // uns saem e outros entram no mesmo lugar: troca seca (sem misturar os dois textos)
+    expect(passagens(mostrar).at(-1)).toEqual([["n3"], ["n1", "n2"], 0]);
     // e de volta
     await camada.definir("nomes", [m("a"), m("a|sg", { oculto: true }), m("a|ha")]);
     expect(mapa.addMarkers).toHaveBeenCalledTimes(postos);
-    expect(passagens(mostrar).at(-1)).toEqual([["n1", "n2"], ["n3"], MS_PASSAGEM]);
+    expect(passagens(mostrar).at(-1)).toEqual([["n1", "n2"], ["n3"], 0]);
     // o marcador escondido não é achado pelo toque errado: o id segue o mesmo
     expect(camada.marcadorDoToque("n1")?.id).toBe("a");
     await camada.limpar();

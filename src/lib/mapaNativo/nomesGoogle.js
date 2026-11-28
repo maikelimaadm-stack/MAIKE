@@ -219,7 +219,7 @@ export const FOLGA_PARA_SUBIR_PX = 0;
  * O nome só é puxado para fora de um ícone até isto (px) e até esta parte do lado menor do pasto na tela: mais do que
  * isso ele ficava longe do meio do pasto ("descentralizado"); sem lugar perto, ele não aparece.
  */
-export const DESLOC_MAXIMO_PX = 40;
+export const DESLOC_MAXIMO_PX = 90;
 export const DESLOC_MAXIMO_DO_PASTO = 0.35;
 
 /**
@@ -316,14 +316,23 @@ export function nomesFixosNaCamera(nomes, camera, lotes, icones = [], atual) {
       // lote do próprio pasto também é obstáculo: o nome nunca fica em cima dele
       const livre = (/** @type {any} */ k, movido = false) =>
         !obstaculos.some((o) => (movido || o.dono !== it.id) && bate(k, o, folga)) && !postos.some((o) => bate(k, o, folga));
-      const maximo = Math.min(DESLOC_MAXIMO_PX, DESLOC_MAXIMO_DO_PASTO * Math.min(it.area.w, it.area.h));
+      const maximo = DESLOC_MAXIMO_PX;
       if (livre(c)) {
         postos.push(c);
         continue;
       }
-      // o primeiro lado livre, sem sair do pasto, em volta do que está em cima do nome
+      // nome em cima de outro NOME: não se empurra (os nomes iam se espalhando); conta como problema — o nível desce
+      // para todos e, na sigla, o do pasto menor sai. Só de ÍCONE o nome desvia.
+      if (postos.some((o) => bate(c, o, folga))) {
+        problemas += 1;
+        ocultos.add(it.id);
+        continue;
+      }
       const emCima = [...obstaculos.filter((o) => o.dono !== it.id && bate(c, o)), ...postos.filter((o) => bate(c, o))];
       const g = FOLGA_NOME_PX + 1;
+      // o MENOR desvio que tira o nome de cima de tudo (embaixo, em cima, à direita ou à esquerda de cada obstáculo):
+      // o nome fica o mais perto possível do lugar dele, mesmo que passe da divisa do pasto
+      /** @type {{ dx: number, dy: number } | null} */
       let achou = null;
       for (const o of emCima) {
         const lados = [
@@ -332,12 +341,11 @@ export function nomesFixosNaCamera(nomes, camera, lotes, icones = [], atual) {
           { dx: o.x + o.w + g - c.x, dy: 0 },
           { dx: o.x - g - c.w - c.x, dy: 0 },
         ];
-        achou = lados.find((d) => {
-          if (Math.abs(d.dx) > maximo || Math.abs(d.dy) > maximo) return false;
-          const k = { x: c.x + d.dx, y: c.y + d.dy, w: c.w, h: c.h };
-          return dentro(k, it.area) && livre(k, true);
-        });
-        if (achou) break;
+        for (const d of lados) {
+          const dist = Math.abs(d.dx) + Math.abs(d.dy);
+          if (dist > maximo || (achou && dist >= Math.abs(achou.dx) + Math.abs(achou.dy))) continue;
+          if (livre({ x: c.x + d.dx, y: c.y + d.dy, w: c.w, h: c.h }, true)) achou = d;
+        }
       }
       if (achou) {
         // em passos de 4 px, sempre para mais longe do obstáculo: o deslocamento muda menos vezes (o nome é refeito menos)
