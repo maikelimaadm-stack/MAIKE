@@ -1,7 +1,7 @@
 /**
  * D-PROD-273 (fatia 4) — EXCLUSÃO COM RECÁLCULO das SAÍDAS, contra PostgreSQL real e pelos serviços de verdade (HTTP
- * autenticado): saída manual, cocho (cancelamento do lançamento), linha de produto da atividade, abastecimento e venda
- * do financeiro. Com movimento depois no depósito, a exclusão grava o estorno (o par some das telas) e recalcula o
+ * autenticado): saída manual, cocho (cancelamento do lançamento), abastecimento e venda do financeiro (a linha de
+ * produto da atividade saiu com as atividades, D-PROD-383). Com movimento depois no depósito, a exclusão grava o estorno (o par some das telas) e recalcula o
  * custo médio de tudo que veio depois, na ordem do número do movimento, com os dependentes. Números à mão em cada
  * cenário; no fim de cada um, o replay completo do produto tem de bater com o gravado (`auditarReplayDoProduto`).
  *
@@ -50,7 +50,6 @@ const ok = (r, status = 200) => {
   assert.equal(r.statusCode, status, r.body);
   return r.json();
 };
-let seq = 0;
 
 const montar = async () => {
   const s = await montarAbastecimento(app, { lotes: false });
@@ -61,10 +60,8 @@ const montar = async () => {
   const motivosSaida = (await H.ok(H.req('GET', '/estoque/motivos-saida', s.token))).items;
   const compra = motivosEntrada.find((m) => m.nome === 'Compra').id;
   const perda = motivosSaida.find((m) => m.nome === 'Perda').id;
-  const grupo = await p.grupoAtividade.create({ data: { cliente_id: s.c, nome_grupo: `GRUPO ${suf}` } });
-  const tipo = await p.tipoAtividade.create({ data: { cliente_id: s.c, nome_tipo: `ADUBAÇÃO ${suf}`, grupo_atividade_id: grupo.id, grupo_atividade_nome: grupo.nome_grupo, permite_produto: true } });
   ok(await H.req('PUT', '/perfis-financeiros-empresa', s.token, { empresa_id: s.e1.id, pais: 'BR', moeda: 'BRL', locale: 'pt-BR' }));
-  return { ...s, sal, compra, perda, tipo };
+  return { ...s, sal, compra, perda };
 };
 
 const entrar = async (x, produto, local, kg, custo, unidade = 'KG') =>
@@ -119,7 +116,6 @@ const fotoGeral = async (x) => {
     p: await p.produto.findMany({ ...w, select: { id: true, estoque_atual: true } }),
     s: await p.saidaEstoque.findMany(w), si: await p.saidaEstoqueItem.findMany(w), e: await p.entradaEstoque.findMany(w),
     c: await p.suplementacaoEvento.findMany({ ...w, select: { id: true, dados: true } }),
-    a: await p.atividadeApontamentoProduto.findMany({ ...w, include: { consumos: true } }),
     b: await p.abastecimentoBem.findMany({ ...w, select: { id: true, status: true, versao: true, custo_total: true } }),
     o: await p.operacaoFinanceira.findMany({ ...w, select: { id: true, status: true, versao: true } }),
     k: await p.operacaoFinanceiraConsumoLote.findMany(w),
@@ -251,27 +247,7 @@ describe('D-PROD-273 fatia 4 — cocho (o caso do dono)', () => {
   });
 });
 
-// ─── atividade, abastecimento, venda ────────────────────────────────────────
-/** Atividade aberta + apontamento do dia; devolve as ações da linha de produto. */
-const atividade = async (x) => {
-  const a = ok(await H.req('POST', '/atividades', x.token, {
-    empresa_id: x.e1.id, nome: `Adubação ${++seq}`, tipo_atividade_id: x.tipo.id, data_inicio: '2027-06-01', data_prevista_fim: '2027-06-30',
-  }), 201);
-  const base = `/atividades/${a.id}/apontamentos`;
-  let ap = ok(await H.req('POST', base, x.token, { empresa_id: a.empresa_id, data_operacional: '2027-06-10', area_executada_dia: '10' }), 201).apontamento;
-  return {
-    lancar: async (produto, local, kg) => {
-      const r = ok(await H.req('POST', `${base}/${ap.id}/produtos`, x.token, { empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), produto_id: produto.id, local_estoque_id: local.id, quantidade: kg }), 201);
-      ap = r.apontamento;
-      return r.linha;
-    },
-    cancelar: async (linha) => {
-      const r = ok(await H.req('POST', `${base}/${ap.id}/produtos/${linha.id}/cancelar`, x.token, { empresa_id: a.empresa_id, versao: ap.versao, operation_id: opId(), motivo: 'lançado errado' }));
-      ap = r.apontamento;
-      return r.linha;
-    },
-  };
-};
+// ─── abastecimento, venda ───────────────────────────────────────────────────
 /** Venda (RECEBER) confirmada pelo financeiro, com as linhas dadas (`[produto, local, kg, preço]`). */
 const vender = async (x, linhas) => {
   const p = prisma();
@@ -294,28 +270,7 @@ const cancelarVenda = (x, id) => H.req('POST', `/operacoes-financeiras/${id}/can
 const consumosDoItem = async (itemId) =>
   (await prisma().operacaoFinanceiraConsumoLote.findMany({ where: { item_id: itemId }, orderBy: { estoque_lote_nota_id: 'asc' } })).map((c) => [c.estoque_lote_nota_id, v4(c.quantidade), v4(c.custo_unitario)]);
 
-describe('D-PROD-273 fatia 4 — atividade, abastecimento e venda', () => {
-  test('D-PROD-314 — linha de produto da atividade: cancelar a antiga com a linha posterior valendo → 409 registro posterior e nada gravado; cancelada a posterior e excluída a entrada do meio, a antiga sai', async () => {
-    const x = await montar();
-    const at = await atividade(x);
-    let l1;
-    let l2;
-    const c = await cenarioBase(x, async (A, kg) => { l1 = await at.lancar(x.sal, A, kg); return l1; }, async (A, kg) => { l2 = await at.lancar(x.sal, A, kg); return l2; });
-    const antes = await prisma().atividadeApontamentoProduto.findUnique({ where: { id: l2.id }, include: { consumos: { orderBy: { ordem: 'asc' } } } });
-    assert.deepEqual([v4(antes.custo_unitario), v4(antes.custo_total), antes.consumos.map((f) => [f.estoque_lote_nota_id, f.ordem, v4(f.quantidade)])], ['6.0000', '480.0000', [[c.L1, 1, '50.0000'], [c.L2, 2, '30.0000']]]);
-    await provarReplay(x, x.sal);
-    const foto = await fotoGeral(x);
-    await assert.rejects(at.cancelar(l1), (e) => e.message.includes(POSTERIOR) && e.message.includes(`"posterior_id":"${l2.movimentacao_estoque_id}"`));
-    assert.equal(await fotoGeral(x), foto, 'nada foi gravado');
-    assert.equal((await prisma().atividadeApontamentoProduto.findUnique({ where: { id: l1.id } })).status, l1.status);
-    // do mais recente para o mais antigo: a linha posterior (custo gravado), a entrada do meio, a antiga
-    assert.equal((await at.cancelar(l2)).status, 'CANCELADO');
-    ok(await excluirEntrada(x, c.e3));
-    assert.equal((await at.cancelar(l1)).status, 'CANCELADO');
-    assert.equal(v4((await prisma().produto.findUnique({ where: { id: x.sal.id } })).estoque_atual), '200.0000');
-    await provarReplay(x, x.sal);
-  });
-
+describe('D-PROD-273 fatia 4 — abastecimento e venda', () => {
   test('D-PROD-314 — abastecimento: cancelar o antigo com o posterior valendo → 409 registro posterior, sem o estorno exato de antes, nada gravado; cancelado o posterior e excluída a entrada do meio, o antigo sai; diesel em L', async () => {
     const x = await montar();
     const d = x.diesel;
@@ -386,25 +341,7 @@ const exigirRecusaPorAjuste = async (r, a) => {
     ['ESTOQUE_EXCLUSAO_RECALCULO_INVIAVEL', 'ajuste_de_inventario_posterior', a.numero, a.itens[0].movimentacao_estoque_id]);
 };
 
-describe('D-PROD-273 — escolha do proprietário: contagem de inventário depois recusa também nas origens com estorno exato (atividade, abastecimento, venda)', () => {
-  test('linha de produto da atividade com ajuste (falta) depois → 409, sem estorno exato; a linha continua ativa', async () => {
-    const x = await montar();
-    const A = x.local;
-    await entrar(x, x.sal, A, '100', '4');
-    const at = await atividade(x);
-    const l1 = await at.lancar(x.sal, A, '50');
-    const a = await ajustar(x, x.sal, A, '40'); // falta 10 a 4
-    await provarReplay(x, x.sal);
-    const antes = await fotoProduto(x, x.sal);
-    const prev = ok(await previa(x, l1.movimentacao_estoque_id));
-    assert.deepEqual([prev.permitido, prev.modo, prev.recusa?.reason, prev.aviso], [false, null, 'ajuste_de_inventario_posterior', null]);
-    await assert.rejects(at.cancelar(l1), /ajuste_de_inventario_posterior/);
-    assert.equal(await fotoProduto(x, x.sal), antes, 'nada foi gravado');
-    assert.equal((await prisma().atividadeApontamentoProduto.findUnique({ where: { id: l1.id } })).status, l1.status);
-    await provarReplay(x, x.sal);
-    assert.ok(a.numero);
-  });
-
+describe('D-PROD-273 — escolha do proprietário: contagem de inventário depois recusa também nas origens com estorno exato (abastecimento, venda)', () => {
   test('abastecimento com ajuste (sobra) depois → 409, sem estorno exato; nada gravado', async () => {
     const x = await montar();
     const d = x.diesel;
@@ -690,7 +627,7 @@ describe('D-PROD-273 fatia 4 — achados da revisão: depois de um recálculo, a
   });
 });
 
-describe('D-PROD-273 fatia 4 — achados da revisão: fallback do estorno exato (abastecimento, atividade, venda)', () => {
+describe('D-PROD-273 fatia 4 — achados da revisão: fallback do estorno exato (abastecimento, venda)', () => {
   test('(3) venda com cocho posterior cujo fechamento não reproduz → D-PROD-314: o cocho vale depois: 409 registro posterior, sem o estorno exato de antes; nada gravado, nenhuma trilha', async () => {
     const x = await montar();
     const A = x.local;
