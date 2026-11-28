@@ -157,9 +157,9 @@ export default function useMarcadoresGoogle(mapa) {
           lista.push({ chave: n.id, url, lat, lng: n.lng, ancoraY: 0.5, metros: t.metros, visivel: Boolean(camera) && t.visivel });
         }
         // TODOS juntos (pedido do proprietário): ou todos os nomes aparecem, ou nenhum — nunca um some e outro fica.
-        // Aparecem enquanto pelo menos metade deles se lê; cada um no tamanho que cabe no pasto dele.
+        // Aparecem enquanto pelo menos um quarto deles se lê (somem mais longe); cada um no tamanho que cabe no pasto dele.
         const legiveis = lista.filter((x) => x.visivel).length;
-        const todos = Boolean(camera) && lista.length > 0 && legiveis * 2 >= lista.length;
+        const todos = Boolean(camera) && lista.length > 0 && legiveis * 4 >= lista.length;
         for (const x of lista) x.visivel = todos;
         mapa.definirNomesNoChao(lista);
       };

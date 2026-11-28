@@ -12,11 +12,11 @@
 import { raioNaTela } from "@/lib/maplibre/nomesNoMapa.js";
 
 /** A letra na tela, no máximo esta parte da letra de 12 px (o tamanho de que o proprietário gostou). */
-export const FATOR_MAXIMO = 0.85;
+export const FATOR_MAXIMO = 1;
 /** Abaixo desta parte da letra de 12 px (menos de ~5 px) o nome não se lê: some. */
-export const FATOR_MINIMO = 0.42;
+export const FATOR_MINIMO = 0.36;
 /** O nome ocupa no máximo esta parte do espaço livre do pasto. */
-export const OCUPACAO = 0.9;
+export const OCUPACAO = 1;
 /** O tamanho no chão só é refeito quando muda mais do que isto (proporção). */
 export const DIFERENCA_DE_TAMANHO = 0.03;
 
