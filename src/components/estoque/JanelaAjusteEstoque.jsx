@@ -57,7 +57,7 @@ const porUnidade = (/** @type {string} */ u) => (u === "L" ? "litro" : "kg");
  * `ajuste`, duas ações DENTRO da mesma janela: "Editar observação" (só ela muda) e "Excluir ajuste" (pede o motivo;
  * D-PROD-273, fatia 5: com outro movimento do produto no depósito depois, o servidor recalcula o custo deles — a prévia
  * mostra antes de confirmar —; recusa se o saldo ficaria negativo ou se houver outra contagem depois).
- * @param {{ ajuste: { id: string, numero?: string } | null, empresaId: string|null, podeAjuste: boolean, onFechar: () => void }} props
+ * @param {{ ajuste: { id: string, numero?: string, acao?: string } | null, empresaId: string|null, podeAjuste: boolean, onFechar: () => void }} props
  */
 export default function JanelaAjusteEstoque({ ajuste, empresaId, podeAjuste, onFechar }) {
   const celular = useCelular();
@@ -88,6 +88,16 @@ export default function JanelaAjusteEstoque({ ajuste, empresaId, podeAjuste, onF
   const a = d ?? ajuste;
   const itens = Array.isArray(d?.itens) ? d.itens : [];
   const confirmado = d?.status === "CONFIRMADA";
+  // D-PROD-382: o "Excluir" do ⚡ da linha de Movimentos abre esta janela já pedindo o motivo da exclusão (uma vez
+  // por documento; "Voltar" leva ao detalhe).
+  const acaoFeita = useRef(/** @type {string|null} */ (null));
+  useEffect(() => {
+    if (ajuste?.acao !== "excluir" || !d || !confirmado || !podeAjuste || acaoFeita.current === id) return;
+    acaoFeita.current = id;
+    setMotivo("");
+    setErro(null);
+    setModo("excluir");
+  }, [ajuste?.acao, d, confirmado, podeAjuste, id]);
 
   const atualizar = async () => {
     await queryClient.invalidateQueries({ queryKey: ["estoque"] });

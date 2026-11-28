@@ -546,10 +546,13 @@ describe('D-PROD-257 — documento e API do documento', () => {
 
   test('o movimento da entrada aparece no kardex (Movimentos) com a origem e o tipo', async () => {
     const x = await cenario();
-    await criar(x);
+    const r = await criar(x);
     const m = (await chamar('GET', `/estoque/movimentos${qs({ empresa_id: x.e.id })}`, x.token)).json();
     assert.equal(m.items.length, 1);
     assert.equal(m.items[0].tipo_detalhado, 'entrada_saldo_implantacao');
+    // D-PROD-382: a linha leva o id da entrada (para Editar, Duplicar e Excluir no ⚡ da linha).
+    assert.equal(m.items[0].origem_sistema, 'entrada_estoque');
+    assert.equal(m.items[0].lancamento_origem_id, r.json().id);
   });
 
   test('seletores do formulário: só produtos e depósitos ativos, com unidade e peso do saco', async () => {
